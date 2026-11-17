@@ -110,7 +110,9 @@ When `items` reads `state`, `list` also writes its children once into a `<templa
                      "on": { "click": { "action": "call", "name": "open", "args": { "id": "{{ r.id }}" } } } }] } ] } }
 ```
 
-Inside a rebuilt item, `item` and `index` (or your `as` / `index` names) are known only in the browser. They work in everything that updates live: text, attributes, classes, `{{ }}` style values, `if`, nested `list` and action arguments. Props that a component reads once on the server, such as `tag`, `variant` or `type`, cannot depend on them. Actions in a list run one after another, and `submit` waits for its response, so `loading` flags work as shown above. Items are rebuilt wholesale, so focus inside a rebuilt item is lost.
+Inside a rebuilt item, `item` and `index` (or your `as` / `index` names) are known only in the browser. They work in everything that updates live: text, attributes, classes, `{{ }}` style values, `if`, nested `list` and action arguments. Props that a component reads once on the server, such as `tag`, `variant` or `type`, cannot depend on them. Actions in a list run one after another, and `submit` waits for its response, so `loading` flags work as shown above.
+
+Without a `key`, every item is rebuilt when the array changes, so focus and typed input inside an item are lost. Give `list` a `key` (e.g. `"key": "{{ r.id }}"`) and an item whose key is still in the new array keeps its DOM nodes: input values, focus and hidden `if` content survive, `mount` doesn't run again, and only text and attributes that read the item or `index` update. Items are moved only when they're out of order. Keys should be unique; a repeated key reuses one old item per occurrence. A keyed list's server-rendered items are replaced by template items when the page starts, because the server baked their values into plain HTML.
 
 ### `mount` actions
 

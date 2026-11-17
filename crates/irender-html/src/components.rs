@@ -2,7 +2,7 @@
 //! attribute through `attrs`, any style through `style`, and inner elements through
 //! `parts`.
 
-use crate::{Component, Element, RenderCx, RenderError};
+use crate::{Component, Element, RenderCx, RenderError, render::ClientList};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr};
 use serde_json::Value as Json;
 use std::sync::LazyLock;
@@ -459,6 +459,11 @@ const LIST_PROPS: &[PropDef] = &[
     PropDef::new("as", PropKind::String, "Name of the current item (default `item`)"),
     PropDef::new("index", PropKind::String, "Name of the current index (default `index`)"),
     PropDef::new("tag", PropKind::Tag, "HTML tag (default `div`), e.g. `ul`"),
+    PropDef::new(
+        "key",
+        PropKind::Any,
+        "Per-item key, e.g. `{{ item.id }}`. When the browser rebuilds the list, items whose key survives keep their nodes",
+    ),
 ];
 
 impl Component for List {
@@ -487,8 +492,9 @@ impl Component for List {
         let tag = cx.prop_string(node, "tag").unwrap_or_else(|| "div".into());
         let mut el = cx.element(&tag, node);
         let reactive = node.prop("items").filter(|v| cx.is_reactive(v));
-        if let Some(v) = reactive {
-            el.list(v, item.clone(), index.clone());
+        if let Some(items) = reactive {
+            let key = node.prop("key").map(|k| cx.item_val_js(k, &item, &index));
+            el.list(ClientList { items, item: item.clone(), index: index.clone(), key });
         }
         cx.open(&el, node)?;
         if reactive.is_some() {

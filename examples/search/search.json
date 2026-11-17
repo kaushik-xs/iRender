@@ -99,7 +99,7 @@
         "children": [
           {
             "type": "list",
-            "props": { "items": "{{ results.items }}", "as": "p" },
+            "props": { "items": "{{ results.items }}", "as": "p", "key": "{{ p.id }}" },
             "style": { "flex": 1, "display": "grid", "gap": "$space.sm", "grid-template-columns": "repeat(auto-fill, minmax(220px, 1fr))" },
             "children": [
               {

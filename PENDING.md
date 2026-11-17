@@ -6,15 +6,10 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. Keyed list updates (gaps 1).
-2. Re-run the benchmarks (housekeeping 1), after keyed lists since they change the numbers.
+1. Re-run the benchmarks (housekeeping 1).
 
 ## Gaps you'd hit in real use
 
-- [ ] **Lists rebuilt in the browser redraw every item on each change.**
-  - Problem: there's no keyed reconciliation, so focus inside an item is lost (e.g. typing in an input inside a list item), and long lists redraw fully.
-  - Where: `rebuild()` in `crates/irender-html/src/runtime.js`.
-  - Idea: an optional `key` prop on `list` (`"{{ item.id }}"`), reusing nodes whose key survives.
 - [ ] **Overlays inside lists the browser rebuilds don't fully work.**
   - Problem: `ui-dialog-close` and `ui-menu-item` find their overlay through a server-side scope value (`ui_dialog`, `ui_popover`), which is null in a list's item template. Workaround: keep overlays outside those lists.
   - Where: `context()` in `crates/irender-ui-kit/src/lib.rs`, and `overlay.rs`.
@@ -58,7 +53,7 @@ _Last updated: 2026-11-17._
 
 ## Housekeeping
 
-- [ ] **Re-run the benchmarks** (`cargo bench -p irender-html`, with and without `--features parallel`). `if`, browser-rebuilt lists, include parameters, behaviours and `scope_key` have landed since the README's table was measured. Update the Performance section with the results.
+- [ ] **Re-run the benchmarks** (`cargo bench -p irender-html`, with and without `--features parallel`). `if`, browser-rebuilt (and keyed) lists, include parameters, behaviours and `scope_key` have landed since the README's table was measured. Update the Performance section with the results.
 - [ ] **CI checks we skipped:**
   - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
   - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.

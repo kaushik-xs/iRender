@@ -42,8 +42,8 @@ pub struct Element<'n> {
     text: Option<Cow<'n, Val>>,
     on: Option<&'n IndexMap<String, Vec<Action>>>,
     bind: Option<String>,
-    /// A list the browser rebuilds: items, item name, index name.
-    list: Option<(&'n Val, String, String)>,
+    /// A list the browser rebuilds.
+    list: Option<ClientList<'n>>,
     /// A `<select>`'s options, rebuilt in the browser when they use state.
     options: Option<&'n Val>,
     /// A client behaviour to start on this element, and its configuration.
@@ -119,8 +119,8 @@ impl<'n> Element<'n> {
 
     /// Marks the element as a list that the browser rebuilds from the `<template>`
     /// written by [`RenderCx::item_template`] whenever `items` changes.
-    pub(crate) fn list(&mut self, items: &'n Val, item: String, index: String) -> &mut Self {
-        self.list = Some((items, item, index));
+    pub(crate) fn list(&mut self, list: ClientList<'n>) -> &mut Self {
+        self.list = Some(list);
         self
     }
 
@@ -137,6 +137,18 @@ impl<'n> Element<'n> {
         self.behavior = Some((name, config));
         self
     }
+}
+
+/// A list the browser rebuilds (see [`Element::list`]).
+#[derive(Debug, Clone)]
+pub(crate) struct ClientList<'n> {
+    pub items: &'n Val,
+    /// The names of the current item and its index.
+    pub item: String,
+    pub index: String,
+    /// Each item's key, in client form (see [`RenderCx::item_val_js`]). Items whose
+    /// key survives a change keep their nodes.
+    pub key: Option<Json>,
 }
 
 /// A name in scope while rendering, e.g. a list's `item`.
@@ -420,13 +432,16 @@ impl<'a> RenderCx<'a> {
             self.out.push('"');
             self.interactive = true;
         }
-        if let Some((items, item, index)) = &el.list {
+        if let Some(list) = &el.list {
             let mut js = String::from("{\"v\":");
-            self.write_val_js(&mut js, items);
+            self.write_val_js(&mut js, list.items);
             js.push_str(",\"as\":");
-            let _ = write_json_str(&mut js, item);
+            let _ = write_json_str(&mut js, &list.item);
             js.push_str(",\"ix\":");
-            let _ = write_json_str(&mut js, index);
+            let _ = write_json_str(&mut js, &list.index);
+            if let Some(key) = &list.key {
+                let _ = write!(js, ",\"k\":{key}");
+            }
             js.push('}');
             self.out.push_str(" data-i-list=\"");
             escape::push_attr(&mut self.out, &js);
@@ -517,15 +532,30 @@ impl<'a> RenderCx<'a> {
     /// rebuilds a list (see [`Element::list`]).
     pub(crate) fn item_template(&mut self, node: &Node, item: &str, index: &str) -> Result<(), RenderError> {
         self.out.push_str("<template>");
+        self.in_client_item(item, index, |cx| cx.children(node))?;
+        self.out.push_str("</template>");
+        Ok(())
+    }
+
+    /// The client-side form of `v` inside an item of a list the browser rebuilds.
+    pub(crate) fn item_val_js(&mut self, v: &Val, item: &str, index: &str) -> Json {
+        self.in_client_item(item, index, |cx| Ok(cx.val_js(v))).unwrap_or(Json::Null)
+    }
+
+    /// Runs `f` with `item` and `index` in scope as names only the browser knows.
+    fn in_client_item<T>(
+        &mut self,
+        item: &str,
+        index: &str,
+        f: impl FnOnce(&mut Self) -> Result<T, RenderError>,
+    ) -> Result<T, RenderError> {
         let n = self.scopes.len();
         for name in [item, index] {
             self.scopes.push(Scope { name: name.to_string(), value: Json::Null, client: true });
         }
-        let result = self.children(node);
+        let result = f(self);
         self.scopes.truncate(n);
-        result?;
-        self.out.push_str("</template>");
-        Ok(())
+        result
     }
 
     /// Renders the node's children where the browser can show and hide them as `when`

@@ -170,23 +170,67 @@
     }
 
     // Lists whose `items` use state carry an item `<template>` as their first child.
-    // When the array changes, every item is rebuilt from it.
+    // When the array changes, items are rebuilt from it. With a `key`, an item whose
+    // key survives keeps its nodes (and their focus and input values) and only gets
+    // its new `item` and `index`; without one, every item is rebuilt.
     function rebuild(el) {
       const cfg = json(el, "data-i-list", "__l");
+      const base = scopeOf(el);
       const items = tv(cfg.v, env(el));
-      if (el.__items === items) return;
+      const old = el.__recs ?? [];
+      if (el.__items === items) {
+        // An outer item may have changed under a kept list: refresh what it copied.
+        if (base) for (const r of old) Object.assign(r.s, base, { [cfg.as]: r.item, [cfg.ix]: r.i });
+        return;
+      }
       el.__items = items;
       const tpl = el.firstElementChild;
-      while (tpl.nextSibling) tpl.nextSibling.remove();
-      const base = scopeOf(el);
-      (Array.isArray(items) ? items : []).forEach((item, i) => {
+      // Each item's nodes run from its first node to the next item's: an `if` inside
+      // may have added some since.
+      old.forEach((r, k) => {
+        r.nodes = [];
+        for (let n = r.first; n && n !== old[k + 1]?.first; n = n.nextSibling) r.nodes.push(n);
+      });
+      if (!el.__recs) while (tpl.nextSibling) tpl.nextSibling.remove(); // server-rendered items
+      // Old items by key; a duplicated key is reused once per occurrence.
+      const free = new Map();
+      if (cfg.k) for (const r of old) free.has(r.key) ? free.get(r.key).push(r) : free.set(r.key, [r]);
+      const all = env(el);
+      const recs = (Array.isArray(items) ? items : []).map((item, i) => {
+        const vars = { [cfg.as]: item, [cfg.ix]: i };
+        const key = cfg.k ? str(tv(cfg.k, { ...all, ...vars })) : null;
+        const r = cfg.k ? free.get(key)?.shift() : undefined;
+        if (r) {
+          Object.assign(r.s, base, vars);
+          r.item = item;
+          r.i = i;
+          r.kept = true;
+          return r;
+        }
         const frag = tpl.content.cloneNode(true);
-        const s = { ...base, [cfg.as]: item, [cfg.ix]: i };
+        if (!frag.firstChild) frag.append(document.createTextNode(""));
+        const s = { ...base, ...vars };
         const nodes = [...frag.childNodes];
         nodes.forEach((n) => (n.__s = s));
-        el.append(frag);
-        inserted(nodes, true);
+        return { key, item, i, s, nodes, first: nodes[0], frag };
       });
+      const focused = el.contains(document.activeElement) ? document.activeElement : null;
+      for (const r of old) if (!r.kept) r.nodes.forEach((n) => n.remove());
+      // Put items in order, moving only those out of place.
+      let at = tpl;
+      for (const r of recs) {
+        if (r.frag) at.after(r.frag);
+        else if (at.nextSibling !== r.first) at.after(...r.nodes);
+        at = r.nodes[r.nodes.length - 1];
+      }
+      // Moving a node blurs it.
+      if (focused?.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
+      for (const r of recs) {
+        if (r.frag) inserted(r.nodes, true);
+        delete r.frag;
+        delete r.kept;
+      }
+      el.__recs = recs;
     }
 
     function structure(n) {
@@ -300,8 +344,15 @@
       }
     }
 
-    // Server-rendered list items already match the initial state.
-    for (const el of root.querySelectorAll("[data-i-list]")) el.__items = tv(json(el, "data-i-list", "__l").v, env(el));
+    // Server-rendered list items already match the initial state. A keyed list's are
+    // replaced by template items on the first update instead, so that they can be kept
+    // later: the server folded their `item` into plain text. Removed before wiring, so
+    // their `mount` actions don't run twice.
+    for (const el of root.querySelectorAll("[data-i-list]")) {
+      const cfg = json(el, "data-i-list", "__l");
+      if (!cfg.k) el.__items = tv(cfg.v, env(el));
+      else while (el.firstElementChild.nextSibling) el.firstElementChild.nextSibling.remove();
+    }
     wire(root);
 
     // Host apps can read and write state: root.__irender.set("qty", 3)

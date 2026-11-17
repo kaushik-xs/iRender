@@ -186,6 +186,66 @@ fn conditionals_lists_and_mount_actions_in_chrome() {
     assert_eq!(lines[6], "remote x,y", "{result}");
 }
 
+/// A keyed list keeps the nodes of items whose key survives: their input values,
+/// focus and `if` blocks stay, `mount` doesn't run again, and nested lists see the
+/// new item.
+const KEYED: &str = r##"{ "version": 1,
+  "state": { "mounted": 0, "todos": [
+    { "id": 1, "t": "a", "done": false, "tags": ["x"] },
+    { "id": 2, "t": "b", "done": false, "tags": ["y"] },
+    { "id": 3, "t": "c", "done": false, "tags": [] } ] },
+  "root": { "type": "list", "props": { "items": "{{ todos }}", "as": "todo", "key": "{{ todo.id }}", "tag": "ul" },
+    "children": [
+      { "type": "element", "props": { "tag": "li" },
+        "on": { "mount": { "action": "set_state", "key": "mounted", "value": "{{ mounted + 1 }}" } },
+        "children": [
+          { "type": "text", "props": { "value": "{{ index }}:{{ todo.t }}" } },
+          { "type": "if", "props": { "when": "{{ todo.done }}" }, "children": [{ "type": "text", "props": { "value": "✓" } }] },
+          { "type": "list", "props": { "items": "{{ todo.tags }}", "tag": "b" },
+            "children": [{ "type": "text", "props": { "value": "{{ todo.t }}/{{ item }}" } }] },
+          { "type": "input" } ] } ] } }"##;
+
+const KEYED_DRIVER: &str = r##"<script>
+window.addEventListener("load", () => {
+  const out = [];
+  const root = document.querySelector("[data-i-root]");
+  const items = () => [...document.querySelectorAll("ul > li")];
+  const snap = (step) => out.push([step, items().map((li) => li.textContent + "[" + li.querySelector("input").value + "]").join(","),
+    document.activeElement.tagName === "INPUT" ? items().indexOf(document.activeElement.closest("li")) : "-",
+    root.__irender.state.mounted].join(" | "));
+  snap("initial");
+  const b = items()[1].querySelector("input");
+  b.value = "typed";
+  b.focus();
+  const [a, , c] = root.__irender.state.todos;
+  const tags = root.__irender.state.todos[1].tags;
+  root.__irender.set("todos", [c, { id: 2, t: "B", done: true, tags }, a]);
+  snap("reordered");
+  root.__irender.set("todos", [{ id: 4, t: "d", done: false, tags: [] }, ...root.__irender.state.todos.slice(0, 2)]);
+  snap("swapped a for d");
+  const pre = document.createElement("pre");
+  pre.id = "result";
+  pre.textContent = out.join("\n");
+  document.body.append(pre);
+});
+</script>"##;
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn keyed_lists_keep_items_in_chrome() {
+    let engine = Engine::new();
+    let ir = engine.load(KEYED, Format::Json).unwrap();
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    let html = page.document("test").replace("</body>", &format!("{KEYED_DRIVER}</body>"));
+    let Some(result) = drive("keyed", &html) else { return };
+    let lines: Vec<&str> = result.lines().collect();
+
+    // Server-rendered items are replaced by template items once, mounting once each.
+    assert_eq!(lines[0], "initial | 0:aa/x[],1:bb/y[],2:c[] | - | 3", "{result}");
+    assert_eq!(lines[1], "reordered | 0:c[],1:B✓B/y[typed],2:aa/x[] | 1 | 3", "{result}");
+    assert_eq!(lines[2], "swapped a for d | 0:d[],1:c[],2:B✓B/y[typed] | 2 | 4", "{result}");
+}
+
 /// Radios (also from a rebuilt list), a numeric select and radios on one key, a
 /// checkbox, selects with fixed and state-driven options, and a textarea.
 const FORM: &str = r##"{ "version": 1,

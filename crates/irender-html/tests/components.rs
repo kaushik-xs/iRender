@@ -434,6 +434,22 @@ fn list_over_state_adds_an_item_template() {
 }
 
 #[test]
+fn keyed_list_writes_its_key_for_the_browser() {
+    let root = json!({ "type": "list", "props": { "items": "{{ todos }}", "as": "todo", "key": "{{ todo.id }}-{{ prefix }}" },
+        "children": [{ "type": "text", "props": { "value": "{{ todo.id }}" } }] });
+    let page = render_with(&Engine::new(), root, json!({ "todos": [{ "id": 1 }] }), json!({ "prefix": "p" })).unwrap();
+    // `todo` stays a path; server data is folded in.
+    assert_eq!(attr_json(&page.body, "data-i-list")["k"], json!({ "t": [{ "p": ["todo", "id"] }, "-", { "l": "p" }] }));
+    assert!(page.body.ends_with("</template><span>1</span></div>"), "{}", page.body);
+
+    // A list over server data renders on the server only, so the key is unused.
+    let root = json!({ "type": "list", "props": { "items": "{{ rows }}", "key": "{{ item }}" },
+        "children": [{ "type": "text", "props": { "value": "{{ item }}" } }] });
+    let page = render_with(&Engine::new(), root, json!({}), json!({ "rows": [1] })).unwrap();
+    assert_eq!(page.body, "<div><span>1</span></div>");
+}
+
+#[test]
 fn list_over_server_data_has_no_template() {
     let root = json!({ "type": "list", "props": { "items": "{{ rows }}" },
         "children": [{ "type": "text", "props": { "value": "{{ item }}" } }] });
