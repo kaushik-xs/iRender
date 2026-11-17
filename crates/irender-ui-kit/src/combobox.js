@@ -146,6 +146,7 @@
       row.setAttribute("role", "option");
       row.id = `${menu.id}-o${ids++}`;
       row.setAttribute("aria-selected", String(!o.create && isSelected(o.value)));
+      if (o.create) row.setAttribute("data-create", "");
       const label = document.createElement("span");
       label.textContent = o.create ? T.create.replace("{input}", o.label) : o.label;
       row.append(label);

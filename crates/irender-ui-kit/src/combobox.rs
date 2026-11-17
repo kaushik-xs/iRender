@@ -6,7 +6,7 @@
 //! once per page through `global_js`) builds the menu and handles input.
 
 use crate::{
-    ACCENT, BORDER, DESTRUCTIVE, MUTED, ON_SECONDARY, RING, SECONDARY, SPIN, SURFACE, TEXT, id_with, instance_id,
+    BORDER, DESTRUCTIVE, MUTED, PRIMARY, RING, SPIN, SURFACE, TEXT, id_with, instance_id,
     lit, server_array,
 };
 use irender_core::{ComponentInfo, Expr, Node, PropDef, PropKind, StyleBlock, Val, expr};
@@ -60,6 +60,11 @@ fn focus_ring() -> StyleBlock {
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
+
+/// A light tint of the primary colour, and text in it that reads on that tint (the
+/// primary, pulled toward the text colour so a pale primary stays legible).
+const PRIMARY_TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--color-surface))";
+const PRIMARY_TEXT: &str = "color-mix(in srgb, var(--color-primary) 75%, var(--color-text))";
 
 /// Everything is styled from the root, through attribute selectors, because the
 /// behaviour creates most of the elements (chips, options) in the browser.
@@ -120,8 +125,9 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("height", sp!(24)),
                 ("padding", sp!(0, 2, 0, 8)),
                 ("border-radius", "var(--radius-sm)"),
-                ("background", SECONDARY),
-                ("color", ON_SECONDARY),
+                // Tinted with the primary colour, like the selected options they stand for.
+                ("background", PRIMARY_TINT),
+                ("color", PRIMARY_TEXT),
                 ("font-size", fs!(12)),
                 ("font-weight", "500"),
             ]),
@@ -181,8 +187,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("width", "14px"),
                 ("height", "14px"),
                 ("margin", sp!(0, 4)),
-                ("border", "2px solid color-mix(in srgb, var(--color-muted) 35%, transparent)"),
-                ("border-top-color", MUTED),
+                ("border", "2px solid color-mix(in srgb, var(--color-primary) 25%, transparent)"),
+                ("border-top-color", PRIMARY),
                 ("border-radius", "999px"),
                 ("animation", "ui-spin .7s linear infinite"),
             ]),
@@ -219,12 +225,13 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("user-select", "none"),
             ]),
         )
-        .nest("& [role=option][data-active]", pairs(&[("background", ACCENT)]))
+        .nest("& [role=option][data-active]", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 10%, transparent)")]))
         .nest("& [role=option][aria-selected=true]", pairs(&[("font-weight", "500")]))
         .nest(
             "& [role=option][aria-selected=true]::after",
-            pairs(&[("content", "'✓'"), ("grid-column", "2"), ("grid-row", "1"), ("color", TEXT)]),
+            pairs(&[("content", "'✓'"), ("grid-column", "2"), ("grid-row", "1"), ("color", PRIMARY)]),
         )
+        .nest("& [role=option][data-create]", pairs(&[("color", PRIMARY), ("font-weight", "500")]))
         .nest("& [role=option][aria-disabled=true]", pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
         .nest("& [data-ui-description]", pairs(&[("grid-column", "1"), ("font-size", fs!(12)), ("font-weight", "400"), ("color", MUTED)]))
         .nest(

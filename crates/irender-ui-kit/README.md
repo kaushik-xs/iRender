@@ -177,7 +177,7 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 
 ## Combobox
 
-`ui-combobox` is a searchable select modelled on [react-select](https://react-select.com/). Its behaviour (about 4 KB gzipped) is added only to pages that use it.
+`ui-combobox` is a searchable select modelled on [react-select](https://react-select.com/). Its behaviour (about 4 KB gzipped) is added only to pages that use it. It takes the theme's primary colour: the focus ring, the chosen values' chips, the highlighted option, the ✓ on chosen options, the spinner and "Create …" follow the palette, custom colours included.
 
 ```yaml
 - type: ui-combobox
