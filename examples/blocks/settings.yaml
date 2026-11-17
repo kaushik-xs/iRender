@@ -1,0 +1,289 @@
+# Block: account settings with a section menu and a form per section, in the style of
+# shadcn/ui's settings forms. Sections switch in the browser; saving shows a toast,
+# and deleting the account asks first.
+#
+#   cargo run -p irender-cli -- render examples/blocks/settings.yaml --ui-kit --icon-kit -o settings.html
+version: 1
+state:
+  section: profile
+  toast: null
+  username: shadcn
+  email: m@example.com
+  bio: I own a computer.
+  name: ""
+  language: en
+  font: inter
+  notify: mentions
+  communication: false
+  marketing: false
+  social: true
+  security: true
+  mobile: false
+  shown: [recents, home]
+  confirmDelete: ""
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 40px 24px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: stack
+      props: { gap: 24 }
+      style: { max-width: 1040, margin: 0 auto }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Settings }, style: { border-bottom: 0, padding-bottom: 0 } }
+            - { type: ui-text, props: { variant: muted, text: Manage your account settings and set e-mail preferences. } }
+        - { type: ui-separator }
+        - type: element
+          style: { display: flex, flex-wrap: wrap, gap: 40, align-items: flex-start }
+          children:
+            # ------------------------------------------------------ section menu
+            - type: element
+              props: { tag: nav }
+              attrs: { aria-label: Settings sections }
+              style: { display: flex, flex-wrap: wrap, gap: 4, flex: 0 0 200px, "@media (min-width: 768px)": { flex-direction: column } }
+              children:
+                - type: list
+                  props:
+                    as: s
+                    items:
+                      - { id: profile, label: Profile, icon: user }
+                      - { id: account, label: Account, icon: settings }
+                      - { id: appearance, label: Appearance, icon: eye }
+                      - { id: notifications, label: Notifications, icon: bell }
+                      - { id: display, label: Display, icon: grid }
+                  style: { display: contents }
+                  children:
+                    - type: ui-button
+                      props: { label: "{{ s.label }}", icon: "{{ s.icon }}", variant: "{{ section == s.id ? 'secondary' : 'ghost' }}" }
+                      attrs: { aria-current: "{{ section == s.id ? 'page' : null }}" }
+                      style: { justify-content: flex-start }
+                      on: { click: { action: set_state, key: section, value: "{{ s.id }}" } }
+
+            - type: element
+              style: { flex: 1, min-width: 280, max-width: 640 }
+              children:
+                # ---------------------------------------------------- profile
+                - type: if
+                  props: { when: "{{ section == 'profile' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 4 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Profile } }
+                            - { type: ui-text, props: { variant: muted, text: This is how others will see you on the site. } }
+                        - { type: ui-separator }
+                        - type: ui-field
+                          props:
+                            label: Username
+                            description: This is your public display name. You can only change it once every 30 days.
+                            error: "{{ username.length < 2 ? 'Username must be at least 2 characters.' : '' }}"
+                          children:
+                            - { type: ui-input, props: { bind: username }, attrs: { aria-invalid: "{{ username.length < 2 }}" } }
+                        - type: ui-field
+                          props: { label: Email, description: You can manage verified email addresses in your email settings. }
+                          children:
+                            - type: ui-select
+                              props: { bind: email, options: [m@example.com, m@google.com, m@support.com] }
+                        - type: ui-field
+                          props:
+                            label: Bio
+                            description: "You can @mention other users and organizations. {{ 160 - bio.length }} characters left."
+                            error: "{{ bio.length > 160 ? 'Bio must not be longer than 160 characters.' : '' }}"
+                          children:
+                            - { type: ui-textarea, props: { bind: bio, placeholder: Tell us a little bit about yourself }, attrs: { aria-invalid: "{{ bio.length > 160 }}" } }
+                        - type: ui-field
+                          props: { label: URLs, description: "Add links to your website, blog, or social media profiles." }
+                          children:
+                            - type: stack
+                              props: { gap: 8 }
+                              children:
+                                - { type: ui-input, props: { value: "https://shadcn.com" }, attrs: { aria-label: URL 1 } }
+                                - { type: ui-input, props: { value: "http://twitter.com/shadcn" }, attrs: { aria-label: URL 2 } }
+                        - type: ui-button
+                          props: { label: Update profile, disabled: "{{ username.length < 2 || bio.length > 160 }}" }
+                          style: { align-self: flex-start }
+                          on: { click: { action: set_state, key: toast, value: { title: Profile updated, description: "Saved as {{ username }}." } } }
+
+                # ---------------------------------------------------- account
+                - type: if
+                  props: { when: "{{ section == 'account' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 4 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Account } }
+                            - { type: ui-text, props: { variant: muted, text: Update your account settings. Set your preferred language and timezone. } }
+                        - { type: ui-separator }
+                        - type: ui-field
+                          props: { label: Name, description: This is the name that will be displayed on your profile and in emails. }
+                          children:
+                            - { type: ui-input, props: { bind: name, placeholder: Your name } }
+                        - type: ui-field
+                          props: { label: Date of birth, description: Your date of birth is used to calculate your age. }
+                          children:
+                            - { type: ui-input, props: { type: date }, style: { max-width: 240 } }
+                        - type: ui-field
+                          props: { label: Language, description: This is the language that will be used in the dashboard. }
+                          children:
+                            - type: ui-combobox
+                              props:
+                                bind: language
+                                options:
+                                  - { value: en, label: English }
+                                  - { value: fr, label: French }
+                                  - { value: de, label: German }
+                                  - { value: es, label: Spanish }
+                                  - { value: pt, label: Portuguese }
+                                  - { value: ja, label: Japanese }
+                                  - { value: ko, label: Korean }
+                                  - { value: zh, label: Chinese }
+                              style: { max-width: 280 }
+                        - type: ui-button
+                          props: { label: Update account }
+                          style: { align-self: flex-start }
+                          on: { click: { action: set_state, key: toast, value: { title: Account updated } } }
+                        - type: ui-card
+                          props: { title: Delete account, description: Permanently remove your account and all of its content. This can't be undone. }
+                          style: { border-color: "color-mix(in srgb, var(--color-destructive, #dc2626) 40%, transparent)", margin-top: 16 }
+                          children:
+                            - type: ui-alert-dialog
+                              props: { id: delete-account, trigger: Delete account, triggerVariant: destructive, title: Delete your account?, description: "Type DELETE to confirm. Your projects, settings and history go with it." }
+                              parts: { trigger: { style: { align-self: flex-start } } }
+                              children:
+                                - { type: ui-input, props: { bind: confirmDelete, placeholder: DELETE }, attrs: { aria-label: Type DELETE to confirm } }
+                                - type: ui-dialog-footer
+                                  children:
+                                    - { type: ui-dialog-close, props: { label: Cancel, variant: outline } }
+                                    - type: ui-dialog-close
+                                      props: { label: Delete account, variant: destructive }
+                                      attrs: { disabled: "{{ confirmDelete != 'DELETE' }}" }
+                                      on: { click: { action: set_state, key: toast, value: { title: Account scheduled for deletion, variant: destructive } } }
+
+                # ---------------------------------------------------- appearance
+                - type: if
+                  props: { when: "{{ section == 'appearance' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 4 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Appearance } }
+                            - { type: ui-text, props: { variant: muted, text: Customize the appearance of the app. Automatically switch between day and night themes. } }
+                        - { type: ui-separator }
+                        - type: ui-field
+                          props: { label: Font, description: Set the font you want to use in the dashboard. }
+                          children:
+                            - type: ui-select
+                              props: { bind: font, options: [{ value: inter, label: Inter }, { value: manrope, label: Manrope }, { value: system, label: System }] }
+                              style: { max-width: 200 }
+                        - type: stack
+                          props: { gap: 8 }
+                          children:
+                            - { type: ui-label, props: { text: Theme } }
+                            - { type: ui-text, props: { variant: muted, text: "Select the theme for the dashboard. It applies to every page, and is remembered." } }
+                            - { type: ui-theme-toggle, props: { size: default } }
+
+                # ---------------------------------------------------- notifications
+                - type: if
+                  props: { when: "{{ section == 'notifications' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 4 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Notifications } }
+                            - { type: ui-text, props: { variant: muted, text: Configure how you receive notifications. } }
+                        - { type: ui-separator }
+                        - type: stack
+                          props: { gap: 12 }
+                          children:
+                            - { type: ui-label, props: { text: Notify me about... } }
+                            - type: ui-radio-group
+                              props:
+                                bind: notify
+                                options:
+                                  - { value: all, label: All new messages }
+                                  - { value: mentions, label: Direct messages and mentions }
+                                  - { value: none, label: Nothing }
+                        - type: stack
+                          props: { gap: 12 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Email Notifications }, style: { font-size: 18 } }
+                            - type: list
+                              props:
+                                as: n
+                                items:
+                                  - { key: communication, label: Communication emails, description: Receive emails about your account activity. }
+                                  - { key: marketing, label: Marketing emails, description: "Receive emails about new products, features, and more." }
+                                  - { key: social, label: Social emails, description: "Receive emails for friend requests, follows, and more." }
+                                  - { key: security, label: Security emails, description: Receive emails about your account activity and security., locked: true }
+                              style: { display: flex, flex-direction: column, gap: 12 }
+                              children:
+                                - type: ui-field
+                                  props: { label: "{{ n.label }}", description: "{{ n.description }}", orientation: horizontal }
+                                  style: { padding: 16, border: 1px solid $color.border, border-radius: 8 }
+                                  children:
+                                    - type: ui-switch
+                                      props: { bind: "{{ n.key }}", disabled: "{{ n.locked == true }}" }
+                        - { type: ui-checkbox, props: { bind: mobile, label: Use different settings for my mobile devices } }
+                        - type: ui-button
+                          props: { label: Update notifications }
+                          style: { align-self: flex-start }
+                          on: { click: { action: set_state, key: toast, value: { title: Notification settings saved } } }
+
+                # ---------------------------------------------------- display
+                - type: if
+                  props: { when: "{{ section == 'display' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 4 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Display } }
+                            - { type: ui-text, props: { variant: muted, text: Turn items on or off to control what's displayed in the app. } }
+                        - { type: ui-separator }
+                        - type: stack
+                          props: { gap: 12 }
+                          children:
+                            - { type: ui-label, props: { text: Sidebar } }
+                            - { type: ui-text, props: { variant: muted, text: Select the items you want to display in the sidebar. } }
+                            - type: ui-toggle-group
+                              props:
+                                bind: shown
+                                multiple: true
+                                variant: outline
+                                options:
+                                  - { value: recents, label: Recents }
+                                  - { value: home, label: Home }
+                                  - { value: applications, label: Applications }
+                                  - { value: desktop, label: Desktop }
+                                  - { value: downloads, label: Downloads }
+                                  - { value: documents, label: Documents }
+                              style: { flex-wrap: wrap }
+                            - { type: ui-text, props: { variant: muted, text: "Showing {{ shown.length }} of 6." } }
+                        - type: ui-button
+                          props: { label: Update display, disabled: "{{ shown.length == 0 }}" }
+                          style: { align-self: flex-start }
+                          on: { click: { action: set_state, key: toast, value: { title: Display updated } } }
+
+    - { type: ui-toaster, props: { bind: toast } }

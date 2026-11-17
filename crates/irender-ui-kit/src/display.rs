@@ -262,13 +262,13 @@ impl Component for Alert {
         if let Some(icon) = node.prop("icon") {
             let mut part = cx.part("span", node, "icon");
             part.base_style_ref(&ALERT_ICON).attr("aria-hidden", "true");
-            let drawn = crate::is_icon(cx, icon);
-            if !drawn {
+            let name = crate::icon_name(cx, icon);
+            if name.is_none() {
                 part.text(icon);
             }
             cx.open(&part, node)?;
-            if drawn {
-                crate::icon_kit(cx, node, icon, 16)?;
+            if let Some(n) = name {
+                crate::icon_kit(cx, node, &n, 16)?;
             }
             cx.close("span");
         }

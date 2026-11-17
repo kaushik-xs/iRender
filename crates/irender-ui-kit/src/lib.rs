@@ -400,13 +400,16 @@ fn field_or(var: &str, field: &str, fallback: Expr) -> Expr {
     cond(bin(BinOp::Ne, f.clone(), Expr::Lit(Json::Null)), f, fallback)
 }
 
-/// Whether `value` is drawn by the icon kit: it is registered, and the value is an
-/// icon name (written in the document, so it can be checked on the server).
-fn is_icon(cx: &RenderCx<'_>, value: &Val) -> bool {
-    let Val::Lit(Json::String(n)) = value else { return false };
-    !n.is_empty()
-        && n.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == ':')
-        && cx.has_component("ui-icon")
+/// The icon name `value` holds, when the icon kit draws it: the kit is registered and
+/// the value is a name like `settings` or `it:database`. Known on the server, written
+/// in the document or from server data (a list item's, say), not from state.
+fn icon_name(cx: &RenderCx<'_>, value: &Val) -> Option<Val> {
+    if cx.is_reactive(value) || !cx.has_component("ui-icon") {
+        return None;
+    }
+    let Json::String(n) = cx.eval(value) else { return None };
+    let name = !n.is_empty() && n.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == ':');
+    name.then(|| lit(n))
 }
 
 /// The icon kit's `ui-icon` for `name`, decorative.
@@ -420,8 +423,8 @@ fn icon_kit(cx: &mut RenderCx<'_>, node: &Node, name: &Val, size: u32) -> Result
 /// value is an icon name (`settings`, `it:database`), otherwise the value as text,
 /// e.g. an emoji. Decorative either way: the label next to it names the thing.
 fn icon(cx: &mut RenderCx<'_>, node: &Node, value: &Val, size: u32) -> Result<(), RenderError> {
-    if is_icon(cx, value) {
-        return icon_kit(cx, node, value, size);
+    if let Some(name) = icon_name(cx, value) {
+        return icon_kit(cx, node, &name, size);
     }
     let mut span = Element::new("span");
     span.attr("aria-hidden", "true").attr("data-icon", true).text(value.clone());

@@ -88,7 +88,7 @@ As with the built-ins, a document can override any attribute with `attrs`, any s
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
 
-`icon` on `ui-button`, `ui-badge`, `ui-alert`, `ui-sidebar-item` and `ui-command-item` takes an icon name, like `settings` or `it:database`, drawn by [irender-icon-kit](../irender-icon-kit/README.md) when it's registered. Otherwise, or for anything that isn't a name, it is shown as text, so an emoji or a character like `⚠` works too.
+`icon` on `ui-button`, `ui-badge`, `ui-alert`, `ui-sidebar-item` and `ui-command-item` takes an icon name, like `settings` or `it:database`, written in the document or coming from server data such as a list item, drawn by [irender-icon-kit](../irender-icon-kit/README.md) when it's registered. Otherwise, or for anything that isn't a name, it is shown as text, so an emoji or a character like `⚠` works too.
 
 ## Sidebar
 

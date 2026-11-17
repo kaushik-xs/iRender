@@ -28,7 +28,7 @@ $irender render examples/ui-kit/gallery.yaml --ui-kit --title "UI kit gallery" -
 cp -R examples/ui-kit/api "$out/"
 # Blocks: whole pages, previewed together on blocks/index.html.
 mkdir -p "$out/blocks"
-for block in login-03 login-04 signup sidebar-03 sidebar-07; do
+for block in login-03 login-04 signup sidebar-03 sidebar-07 settings pricing; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 $irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboard-01.data.json \

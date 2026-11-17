@@ -20,7 +20,7 @@
       "title": "Blocks",
       "href": "blocks/index.html",
       "source": "examples/blocks/index.yaml",
-      "summary": "Whole pages in the style of shadcn/ui's blocks: a dashboard with an inset sidebar, summary cards, an interactive area chart and a paged, selectable table, and a ⌘K command palette; sidebars that collapse to icons or slide away; login and sign-up pages.",
+      "summary": "Whole pages in the style of shadcn/ui's blocks: a dashboard with an inset sidebar, summary cards, an interactive area chart and a paged, selectable table, and a ⌘K command palette; sidebars that collapse to icons or slide away; login, sign-up, settings and pricing pages.",
       "features": [
         "ui-sidebar",
         "irender-chart-kit",
