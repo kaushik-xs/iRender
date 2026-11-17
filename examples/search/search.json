@@ -139,8 +139,8 @@
                     "children": [{ "type": "text", "props": { "value": "Out of stock" }, "style": { "color": "#b91c1c", "font-size": "$font.size.sm" } }]
                   },
                   {
-                    "type": "if",
-                    "props": { "when": "{{ p.stock > 0 && p.stock < 5 }}" },
+                    "type": "else",
+                    "props": { "when": "{{ p.stock < 5 }}" },
                     "children": [{ "type": "text", "props": { "value": "Only {{ p.stock }} left" }, "style": { "color": "#b45309", "font-size": "$font.size.sm" } }]
                   },
                   {

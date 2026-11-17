@@ -203,8 +203,7 @@ root:
                         label: Next
                         disabled: "{{ step == 1 ? !(name && email && role) : step == 2 ? !plan || (plan == 'team' && seats < 2) || (plan == 'enterprise' && !company) : false }}"
                       on: { click: { action: set_state, key: step, value: "{{ step + 1 }}" } }
-                - type: if
-                  props: { when: "{{ step == 4 }}" }
+                - type: else
                   children:
                     - type: button
                       props: { label: Create account }
@@ -216,8 +215,7 @@ root:
                           - { action: set_state, key: done, value: true }
 
     # ---- Done
-    - type: if
-      props: { when: "{{ done }}" }
+    - type: else
       children:
         - type: stack
           props: { align: center, gap: $space.sm }
