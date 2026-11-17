@@ -487,15 +487,17 @@ fn sidebar_layout_panel_groups_and_items() {
     let body = plain(&page.body);
     // The layout's state follows `bind`; the panel comes first, then the main area.
     assert!(body.contains(r#"data-sidebar-layout data-state="expanded" data-collapsible="icon" data-variant="sidebar" data-side="left""#), "{body}");
+    // A behaviour makes it a sheet on phones and adds the keyboard shortcut.
+    assert!(body.contains(r#"data-i-x="ui-sidebar" data-i-xc="{&quot;key&quot;:&quot;open&quot;}""#), "{body}");
     assert!(body.contains(r#"<aside data-sidebar aria-label="Sidebar">"#), "{body}");
     assert!(body.contains(r#"<main><button type="button""#), "the trigger is in the main area: {body}");
     // An item: a link with its icon, label and badge, current when active.
     assert!(
-        body.contains(r#"<li><a data-sidebar-item href="/" aria-current="page"><span aria-hidden="true" data-icon>⌂</span><span data-label>Home</span><span data-badge>3</span></a></li>"#),
+        body.contains(r#"<li><a data-sidebar-item data-tip="Home" href="/" aria-current="page"><span aria-hidden="true" data-icon>⌂</span><span data-label>Home</span><span data-badge>3</span></a></li>"#),
         "{body}"
     );
     // One with children opens a sub-menu.
-    assert!(body.contains(r#"<li><details open><summary data-sidebar-item><span data-label>Docs</span><span data-chevron>"#), "{body}");
+    assert!(body.contains(r#"<li><details open><summary data-sidebar-item data-tip="Docs"><span data-label>Docs</span><span data-chevron>"#), "{body}");
     assert!(body.contains(r#"<li><a data-sidebar-item href="/intro"><span data-label>Intro</span></a></li></ul></details></li>"#), "{body}");
     // The trigger flips the bound key.
     assert!(body.contains(r#"aria-label="Toggle sidebar" data-sidebar-trigger"#), "{body}");

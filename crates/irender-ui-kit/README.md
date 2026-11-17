@@ -124,6 +124,9 @@ root:
 ```
 
 - **Open and closed:** `bind` holds whether the sidebar is open, and `ui-sidebar-trigger` flips it. `collapsible: offcanvas` (the default) slides the panel away, `icon` narrows it to its icons, and `none` keeps it open. Narrowed to icons, labels are hidden from sight but still read by screen readers, and sub-menus close.
+- **Phones:** below 768px wide the sidebar is a sheet over the page instead. It starts hidden, the trigger opens it whatever `bind` says, and a tap on the backdrop, Escape or following one of its links closes it. While it's open the page behind is `inert` and focus is in the panel; closing it returns focus to the trigger.
+- **Keyboard:** ⌘B (Ctrl+B) toggles the sidebar, or the sheet on a phone. With several layouts on a page, the first takes the shortcut.
+- **Labels when collapsed:** narrowed to icons, an item shows its label beside it on hover or keyboard focus.
 - **Variants:** `sidebar` puts a border between the panel and the page, `inset` makes the main area a raised panel on the sidebar's colour, and `floating` floats the panel itself.
 - **Items:** a link with `href`, otherwise a button that runs its `on.click`. `active` marks the current page (`aria-current="page"`). Children make a sub-menu, a native `<details>` the item opens and closes; `open` starts it open.
 - **Colour:** the panel uses `color.sidebar` when the theme has it, otherwise a step off the surface colour, in light and dark.

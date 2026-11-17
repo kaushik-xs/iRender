@@ -1,7 +1,8 @@
 //! The sidebar: a page layout with a collapsible navigation panel, in the style of
 //! shadcn/ui's. `ui-sidebar-layout` holds the page and its open state; its first
 //! `ui-sidebar` child is the panel and the other children are the main area.
-//! Collapsing is CSS on the layout's `data-state`, which follows `bind`.
+//! Collapsing is CSS on the layout's `data-state`, which follows `bind`. On a phone the
+//! panel is a sheet over the page, and ⌘B / Ctrl+B toggles it (sidebar.js).
 
 use crate::{ACCENT, MUTED, RING, SURFACE, TEXT, choice, expr_val, icon, lit, state};
 use irender_core::{
@@ -20,6 +21,19 @@ const SIDES: &[&str] = &["left", "right"];
 
 /// While collapsed to icons.
 const ICONS: &str = "[data-collapsible=icon][data-state=collapsed]";
+/// Open and collapsed apply on wide screens. On a phone the panel is a sheet over the
+/// page instead, opened by the trigger (sidebar.js) whatever `bind` says.
+const WIDE: &str = "@media (min-width: 768px)";
+const PHONE: &str = "@media (max-width: 767px)";
+/// A layout whose sidebar can close, so it becomes a sheet on a phone.
+const CLOSES: &str = "[data-collapsible]:not([data-collapsible=none])";
+
+const SCRIPT: &str = include_str!("sidebar.js");
+
+/// `block` under `key`, for nesting in a media query.
+fn wide(key: impl Into<String>, block: StyleBlock) -> StyleBlock {
+    StyleBlock::new().nest(key, block)
+}
 
 fn info(doc: &'static str, props: &'static [PropDef], parts: &'static [&'static str]) -> ComponentInfo {
     ComponentInfo { doc, props, parts, children: true, open_props: false }
@@ -65,6 +79,11 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     ]))
     .nest("&[data-side=right]", pairs(&[("flex-direction", "row-reverse")]))
     .nest("&[data-variant=inset]", pairs(&[("background", SIDEBAR_BG)]))
+    // The backdrop behind the sheet on a phone; a click on it closes the sheet.
+    .nest(
+        "&[data-mobile-open]::before",
+        pairs(&[("content", "\"\""), ("position", "fixed"), ("inset", "0"), ("z-index", "40"), ("background", "rgb(0 0 0 / 0.5)")]),
+    )
 });
 static MAIN: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("position", "relative"), ("display", "flex"), ("flex-direction", "column"), ("flex", "1"), ("min-width", "0"), ("background", SURFACE)])
@@ -73,8 +92,8 @@ static MAIN: LazyLock<StyleBlock> = LazyLock::new(|| {
             "[data-variant=inset] > &",
             pairs(&[("margin", "8px"), ("border-radius", "var(--radius-lg)"), ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)")]),
         )
-        .nest("[data-variant=inset][data-state=expanded][data-side=left] > &", pairs(&[("margin-left", "0")]))
-        .nest("[data-variant=inset][data-state=expanded][data-side=right] > &", pairs(&[("margin-right", "0")]))
+        .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=left] > &", pairs(&[("margin-left", "0")])))
+        .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=right] > &", pairs(&[("margin-right", "0")])))
 });
 
 impl Component for SidebarLayout {
@@ -105,6 +124,10 @@ impl Component for SidebarLayout {
             .attr("data-collapsible", collapsible)
             .attr("data-variant", VARIANTS[choice(cx, node, "variant", VARIANTS)])
             .attr("data-side", SIDES[choice(cx, node, "side", SIDES)]);
+        if let Some(k) = key.as_ref().filter(|_| collapsible != "none") {
+            cx.global_js("ui-sidebar", SCRIPT);
+            el.behavior("ui-sidebar", json!({ "key": k }));
+        }
         if let Some(w) = node.prop("width") {
             let mut width = StyleBlock::new();
             if let Some(v) = cx.style_value(node, "--sidebar-width", w)? {
@@ -157,9 +180,35 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("[data-side=right]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-left", "1px solid var(--color-border)")]))
     .nest("[data-variant=floating] > &", pairs(&[("padding", "8px"), ("background", "transparent")]))
     // As specific as the border rules above, and after them, so it takes the border too.
-    .nest("[data-collapsible=offcanvas][data-state=collapsed][data-side] > &", pairs(&[("width", "0"), ("border", "0"), ("padding", "0")]))
-    .nest(format!("{ICONS} > &"), pairs(&[("width", "var(--sidebar-width-icon)")]))
-    .nest("[data-variant=floating][data-collapsible=icon][data-state=collapsed] > &", pairs(&[("width", "calc(var(--sidebar-width-icon) + 16px)")]))
+    .nest(WIDE, wide("[data-collapsible=offcanvas][data-state=collapsed][data-side] > &", pairs(&[("width", "0"), ("border", "0"), ("padding", "0")])))
+    .nest(WIDE, wide(format!("{ICONS} > &"), pairs(&[("width", "var(--sidebar-width-icon)"), ("overflow", "visible")])))
+    .nest(WIDE, wide("[data-variant=floating][data-collapsible=icon][data-state=collapsed] > &", pairs(&[("width", "calc(var(--sidebar-width-icon) + 16px)")])))
+    .nest(
+        PHONE,
+        wide(
+            format!("{CLOSES} > &"),
+            pairs(&[
+                ("position", "fixed"),
+                ("top", "0"),
+                ("bottom", "0"),
+                ("left", "0"),
+                ("z-index", "50"),
+                ("width", "min(var(--sidebar-width), 85vw)"),
+                // Stretched between top and bottom: the sticky panel's `align-self:
+                // flex-start` would shrink a fixed box to its content.
+                ("align-self", "stretch"),
+                ("height", "auto"),
+                ("border-right", "1px solid var(--color-border)"),
+                ("background", SIDEBAR_BG),
+                ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
+                ("transform", "translateX(-100%)"),
+                ("visibility", "hidden"),
+                ("transition", "transform .2s ease-out, visibility .2s"),
+            ]),
+        )
+        .nest(format!("[data-side=right]{CLOSES} > &"), pairs(&[("left", "auto"), ("right", "0"), ("border-right", "0"), ("border-left", "1px solid var(--color-border)"), ("transform", "translateX(100%)")]))
+        .nest(format!("[data-mobile-open]{CLOSES} > &"), pairs(&[("transform", "none"), ("visibility", "visible")])),
+    )
     .nest("@media (prefers-reduced-motion: reduce)", pairs(&[("transition", "none")]))
 });
 static INNER: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -222,7 +271,7 @@ static CONTENT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("overflow-x", "hidden"),
         ("scrollbar-width", "thin"),
     ])
-    .nest(format!("{ICONS} &"), pairs(&[("overflow", "hidden")]))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("overflow", "visible")])))
 });
 
 impl Component for SidebarHeader {
@@ -281,7 +330,7 @@ static GROUP_LABEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("white-space", "nowrap"),
         ("transition", "margin .2s, opacity .2s"),
     ])
-    .nest(format!("{ICONS} &"), pairs(&[("margin-top", "-32px"), ("opacity", "0")]))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("margin-top", "-32px"), ("opacity", "0")])))
 });
 static MENU: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "4px"), ("min-width", "0"), ("margin", "0"), ("padding", "0"), ("list-style", "none")])
@@ -358,6 +407,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("text-align", "left"),
         ("text-decoration", "none"),
         ("white-space", "nowrap"),
+        ("position", "relative"),
         ("cursor", "pointer"),
         ("list-style", "none"),
         ("transition", "width .2s, padding .2s"),
@@ -369,9 +419,31 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [data-icon]", pairs(&[("display", "inline-flex"), ("width", "16px"), ("justify-content", "center"), ("flex-shrink", "0")]))
     // Collapsed to icons: a square button with the icon alone; the label stays for
     // screen readers.
-    .nest(format!("{ICONS} &"), pairs(&[("width", "32px"), ("padding", "8px"), ("overflow", "hidden")]))
-    .nest(format!("{ICONS} & > [data-label]"), pairs(HIDDEN_TEXT))
-    .nest(format!("{ICONS} & > [data-badge], {ICONS} & > [data-chevron]"), pairs(&[("display", "none")]))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("width", "32px"), ("padding", "8px")])))
+    // Its label beside it on hover or focus. `/ ""` keeps the copy out of what screen
+    // readers hear: they read the hidden label already.
+    .nest(WIDE, wide(format!("{ICONS} &::after"), pairs(&[
+        ("content", "attr(data-tip) / \"\""),
+        ("position", "absolute"),
+        ("left", "calc(100% + 8px)"),
+        ("top", "50%"),
+        ("z-index", "20"),
+        ("padding", "4px 8px"),
+        ("border-radius", "var(--radius-sm)"),
+        ("background", TEXT),
+        ("color", SURFACE),
+        ("font-size", "12px"),
+        ("font-weight", "500"),
+        ("white-space", "nowrap"),
+        ("transform", "translateY(-50%)"),
+        ("opacity", "0"),
+        ("pointer-events", "none"),
+        ("transition", "opacity .1s"),
+    ])))
+    .nest(WIDE, wide(format!("[data-side=right]{ICONS} &::after"), pairs(&[("left", "auto"), ("right", "calc(100% + 8px)")])))
+    .nest(WIDE, wide(format!("{ICONS} &:hover::after, {ICONS} &:focus-visible::after"), pairs(&[("opacity", "1")])))
+    .nest(WIDE, wide(format!("{ICONS} & > [data-label]"), pairs(HIDDEN_TEXT)))
+    .nest(WIDE, wide(format!("{ICONS} & > [data-badge], {ICONS} & > [data-chevron]"), pairs(&[("display", "none")])))
 });
 static LABEL: LazyLock<StyleBlock> =
     LazyLock::new(|| pairs(&[("flex", "1"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis")]));
@@ -391,7 +463,7 @@ static SUB: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("border-left", "1px solid var(--color-border)"),
         ("list-style", "none"),
     ])
-    .nest(format!("{ICONS} &"), pairs(&[("display", "none")]))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("display", "none")])))
 });
 static SUB_ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("min-height", "28px"), ("padding", "4px 8px"), ("color", "color-mix(in srgb, var(--color-text) 85%, transparent)")])
@@ -429,6 +501,9 @@ impl Component for SidebarItem {
         };
         let mut el = cx.element(tag, node);
         el.base_style_ref(&ITEM).attr("data-sidebar-item", true);
+        if !sub && let Some(l) = node.prop("label") {
+            el.attr("data-tip", l.clone());
+        }
         if sub {
             el.base_style_ref(&SUB_ITEM);
         }

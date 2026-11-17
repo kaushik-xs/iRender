@@ -86,7 +86,7 @@ root:
       style: { display: flex, flex-direction: column, gap: 16, flex: 1, padding: 0 16px 16px }
       children:
         - type: element
-          style: { display: grid, grid-template-columns: "repeat(3, 1fr)", gap: 16 }
+          style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }
           children:
             - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
             - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }

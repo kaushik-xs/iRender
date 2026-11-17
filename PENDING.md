@@ -30,10 +30,9 @@ _Last updated: 2026-11-17._
   - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.
   - [ ] No way to read the search text from state, e.g. to fetch items for it. Idea: a `bind` for the query.
 - [ ] **`ui-sidebar` gaps:**
-  - [ ] No phone layout. shadcn's turns into a sheet on small screens; ours stays beside the page, so on a phone it should start closed or use `collapsible: icon`.
-  - [ ] No keyboard shortcut (shadcn toggles with ⌘B / Ctrl+B) and no remembered state: a reload opens it as `state` says.
-  - [ ] Collapsed to icons, items show no tooltip with their label (screen readers still read it).
+  - [ ] No remembered state: a reload opens it as `state` says (shadcn keeps it in a cookie).
   - [ ] No group actions or per-item action buttons (shadcn's `SidebarGroupAction`, `SidebarMenuAction`); put a `ui-dropdown-menu` beside the item instead.
+  - [ ] The phone sheet makes the page behind it `inert` but doesn't trap Tab inside the panel against the browser's own UI, and it doesn't swipe closed.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
 - [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.

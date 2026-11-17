@@ -1103,3 +1103,89 @@ fn command_palette_in_chrome() {
         "\n{result}"
     );
 }
+
+/// ⌘B / Ctrl+B and labels on a wide screen, and the sheet on a phone (a 390px iframe
+/// of the same page, since media queries follow the frame's width).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sidebar_shortcut_labels_and_phone_sheet_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "open": true },
+        "root": { "type": "ui-sidebar-layout", "props": { "bind": "open", "collapsible": "icon" }, "children": [
+            { "type": "ui-sidebar", "children": [ { "type": "ui-sidebar-content", "children": [
+                { "type": "ui-sidebar-group", "children": [
+                    { "type": "ui-sidebar-item", "props": { "label": "Home", "icon": "H", "href": "#home" } },
+                    { "type": "ui-sidebar-item", "props": { "label": "Docs", "icon": "D", "href": "#docs" } } ] } ] } ] },
+            { "type": "ui-sidebar-trigger" } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let page = page.replace("</body>", "<style>* { transition: none !important; }</style></body>");
+    let frame = serde_json::to_string(&page).unwrap().replace("</", "<\\/");
+    let driver = format!(
+        r##"<script>const FRAME = {frame};</script><script>
+    window.addEventListener("load", async () => {{
+      const out = [];
+      try {{
+      const wait = (ms = 50) => new Promise((r) => setTimeout(r, ms));
+      const key = (doc, k, mods = {{}}) => doc.dispatchEvent(new (doc.defaultView.KeyboardEvent)("keydown", {{ key: k, bubbles: true, cancelable: true, ...mods }}));
+      // Wide: the shortcut flips `bind`; collapsed, each item's label shows beside it.
+      const layout = document.querySelector("[data-sidebar-layout]");
+      key(document, "b", {{ ctrlKey: true }}); await wait();
+      const item = document.querySelector("[data-sidebar-item]");
+      const tip = getComputedStyle(item, "::after");
+      out.push(`wide ${{layout.dataset.state}} tip ${{tip.content}} ${{tip.opacity}} panel ${{getComputedStyle(layout.querySelector("aside")).overflow}}`);
+      key(document, "b", {{ metaKey: true }}); await wait();
+      out.push(`wide ${{layout.dataset.state}}`);
+
+      // A phone: the trigger opens a sheet and leaves `bind` alone.
+      const iframe = document.createElement("iframe");
+      iframe.style.cssText = "width: 390px; height: 600px; border: 0";
+      iframe.srcdoc = FRAME;
+      await new Promise((r) => {{ iframe.onload = r; document.body.append(iframe); }});
+      await wait(200);
+      const d = iframe.contentDocument, w = iframe.contentWindow;
+      // Links stay on the page, as in an app that routes in the browser.
+      d.addEventListener("click", (e) => e.target.closest("a") && e.preventDefault());
+      const lay = d.querySelector("[data-sidebar-layout]"), aside = lay.querySelector("aside"), main = lay.querySelector("main");
+      const trigger = d.querySelector("[data-sidebar-trigger]");
+      const rect = () => Math.round(aside.getBoundingClientRect().left) + "," + Math.round(aside.getBoundingClientRect().height);
+      const sheet = (label) => out.push(`${{label}} ${{lay.hasAttribute("data-mobile-open") ? "open" : "shut"}} ${{w.getComputedStyle(aside).visibility}} ${{rect()}}`
+        + ` inert ${{main.inert}} expanded ${{trigger.getAttribute("aria-expanded")}} bind ${{lay.__irender?.state?.open ?? d.querySelector("[data-i-root]").__irender.state.open}}`
+        + ` focus ${{d.activeElement === trigger ? "trigger" : aside.contains(d.activeElement) ? "panel" : d.activeElement.tagName}}`);
+      sheet("phone");
+      trigger.focus(); trigger.click(); await wait(); sheet("tap");
+      key(d, "Escape"); await wait(); sheet("escape");
+      trigger.click(); await wait();
+      lay.dispatchEvent(new w.MouseEvent("click", {{ bubbles: true, cancelable: true }})); await wait(); sheet("backdrop");
+      trigger.click(); await wait();
+      aside.querySelector("a[href]").click(); await wait(); sheet("link");
+      key(d, "b", {{ ctrlKey: true }}); await wait(); sheet("shortcut");
+      }} catch (e) {{ out.push("EXCEPTION " + e.stack); }}
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    }});
+    </script>"##
+    );
+    let html = page.replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("sidebar-phone", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Collapsed to icons: the label is ready beside the item (shown on hover or focus),
+            // and the panel lets it out.
+            r#"wide collapsed tip "Home" / "" 0 panel visible"#,
+            "wide expanded",
+            // Hidden off to the left until the trigger opens it over the page.
+            "phone shut hidden -256,600 inert false expanded false bind true focus BODY",
+            "tap open visible 0,600 inert true expanded true bind true focus panel",
+            "escape shut hidden -256,600 inert false expanded false bind true focus trigger",
+            "backdrop shut hidden -256,600 inert false expanded false bind true focus trigger",
+            "link shut hidden -256,600 inert false expanded false bind true focus trigger",
+            "shortcut open visible 0,600 inert true expanded true bind true focus panel",
+        ],
+        "\n{result}"
+    );
+}
