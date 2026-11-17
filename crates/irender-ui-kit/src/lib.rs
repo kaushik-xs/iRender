@@ -24,14 +24,21 @@
 //! derived from `color.text` and `color.surface`, so the kit looks right with any
 //! theme, dark mode included. [`apply_theme`] adds the kit's own palette.
 
+mod disclosure;
 mod display;
+mod feedback;
 mod forms;
 mod navigation;
+mod overlay;
 mod theme;
 
 pub use theme::{apply_theme, theme};
 
-use irender_core::{Node, Val, expr};
+use indexmap::IndexMap;
+use irender_core::{
+    Action, Node, Part, Template, Val,
+    expr::{self, BinOp, Expr, UnOp},
+};
 use irender_html::{RenderCx, RenderError, Registry};
 use serde_json::Value as Json;
 
@@ -60,7 +67,28 @@ pub fn register(registry: &mut Registry) {
         .register(forms::Switch)
         .register(forms::RadioGroup)
         .register(navigation::Breadcrumb)
-        .register(navigation::Pagination);
+        .register(navigation::Pagination)
+        .register(forms::Slider)
+        .register(disclosure::Accordion)
+        .register(disclosure::AccordionItem)
+        .register(disclosure::Collapsible)
+        .register(disclosure::Tabs)
+        .register(disclosure::TabPanel)
+        .register(disclosure::Toggle)
+        .register(disclosure::ToggleGroup)
+        .register(overlay::Dialog::DIALOG)
+        .register(overlay::Dialog::ALERT)
+        .register(overlay::Dialog::SHEET)
+        .register(overlay::DialogClose)
+        .register(overlay::DialogFooter)
+        .register(overlay::Popover::POPOVER)
+        .register(overlay::Popover::MENU)
+        .register(overlay::MenuItem)
+        .register(overlay::MenuSeparator)
+        .register(overlay::MenuLabel)
+        .register(overlay::Tooltip)
+        .register(overlay::HoverCard)
+        .register(feedback::Toaster);
 }
 
 // Colours. Tokens the default theme has are used directly; the others fall back
@@ -107,4 +135,82 @@ fn field(item: &Json, key: &str) -> Option<String> {
 
 fn lit(v: impl Into<Json>) -> Val {
     Val::Lit(v.into())
+}
+
+/// The element id for this instance of a component: the `id` prop if given
+/// (templates allowed, e.g. `confirm-{{ item.id }}` inside a list), otherwise one
+/// derived from the node's place in the document and the list item it is in.
+fn instance_id(cx: &RenderCx<'_>, node: &Node, prefix: &str) -> Val {
+    if let Some(id) = node.prop("id") {
+        return id.clone();
+    }
+    let path: String = node.path.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
+    let key = cx.scope_key();
+    let id = if key.is_empty() { format!("{prefix}-{path}") } else { format!("{prefix}-{path}-{key}") };
+    lit(id.replace("--", "-").trim_end_matches('-').to_string())
+}
+
+/// `id` followed by `suffix`, as a value that follows a templated id.
+fn id_with(id: &Val, suffix: &str) -> Val {
+    match id {
+        Val::Lit(v) => lit(format!("{}{suffix}", expr::stringify(v))),
+        Val::Tpl(t) => {
+            let mut t = t.clone();
+            t.parts.push(Part::Lit(suffix.into()));
+            Val::Tpl(t)
+        }
+    }
+}
+
+/// `prefix` followed by `id`, e.g. a CSS anchor name.
+fn id_after(prefix: &str, id: &Val) -> Val {
+    match id {
+        Val::Lit(v) => lit(format!("{prefix}{}", expr::stringify(v))),
+        Val::Tpl(t) => {
+            let mut t = t.clone();
+            t.parts.insert(0, Part::Lit(prefix.into()));
+            Val::Tpl(t)
+        }
+    }
+}
+
+fn expr_val(e: Expr) -> Val {
+    Val::Tpl(Template { parts: vec![Part::Expr(e)] })
+}
+
+fn state(key: &str) -> Expr {
+    Expr::Path(vec![key.to_string()])
+}
+
+/// `{{ key == value }}`: live in the browser because it reads state.
+fn state_eq(key: &str, value: Json) -> Val {
+    expr_val(Expr::Binary(BinOp::Eq, Box::new(state(key)), Box::new(Expr::Lit(value))))
+}
+
+/// `{{ !key }}`
+fn state_not(key: &str) -> Val {
+    expr_val(Expr::Unary(UnOp::Not, Box::new(state(key))))
+}
+
+/// A node the kit renders itself, carrying its own attributes and actions. The
+/// path stays the original node's so errors point at the document.
+fn synthetic(node: &Node, kind: &str, props: Vec<(&str, Val)>, attrs: Vec<(&str, Val)>, on: Vec<(&str, Vec<Action>)>) -> Node {
+    Node {
+        kind: kind.into(),
+        path: node.path.clone(),
+        props: props.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        class: Vec::new(),
+        style: Default::default(),
+        parts: IndexMap::new(),
+        on: on.into_iter().map(|(k, v)| (k.to_string(), v)).collect(),
+        children: Vec::new(),
+    }
+}
+
+/// The value of a name a parent component put in scope for its children (the
+/// dialog a close button belongs to, the accordion an item is in).
+fn context(cx: &RenderCx<'_>, name: &str) -> Option<Val> {
+    let v = cx.lookup(&[name.to_string()]);
+    (!v.is_null()).then_some(Val::Lit(v))
 }

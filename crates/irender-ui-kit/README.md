@@ -1,6 +1,6 @@
 # irender-ui-kit
 
-Ready-made components for [iRender](../../README.md) documents, styled after [shadcn/ui](https://ui.shadcn.com/). Every component is plain config, and nothing needs JavaScript beyond iRender's own runtime.
+Ready-made components for [iRender](../../README.md) documents, styled after [shadcn/ui](https://ui.shadcn.com/). Every component is plain config, and nothing needs JavaScript beyond iRender's own runtime. Overlays use the browser's own `<dialog>`, invoker commands, Popover API and CSS anchor positioning.
 
 ```rust
 let mut engine = irender_html::Engine::new();
@@ -53,6 +53,22 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-radio-group` | `options`, `bind`, `value`, `name`, `orientation`, `disabled` | Options are values or `{ value, label, disabled }`. |
 | `ui-breadcrumb` | `items` (`{ label, href }`), `separator` | The last item is the current page. |
 | `ui-pagination` | `page`, `pages`, `href`, `siblings` | `href` is evaluated per page with `p` in scope: `"/orders?page={{ p }}"`. |
+| `ui-slider` | `bind`, `min`, `max`, `step`, `name`, `disabled` | A range input; `bind` holds a number. |
+| `ui-accordion` + `ui-accordion-item` | accordion: `multiple`, `id`; item: `title`, `open` | Native `<details>`. One item open at a time unless `multiple`. |
+| `ui-collapsible` | `trigger`, `open` | Native `<details>`. |
+| `ui-tabs` + `ui-tab-panel` | tabs: `bind` (required), `id`; panel: `value`, `label` | `bind` holds the open panel's `value`. Tabs carry `role=tab`, `aria-selected`, `aria-controls`. |
+| `ui-toggle` | `bind`, `label`, `variant` (default, outline), `size`, `disabled` | `aria-pressed` follows `bind`. |
+| `ui-toggle-group` | `bind`, `options`, `variant`, `size`, `disabled` | One option pressed at most; pressing it again sets `bind` to null. |
+| `ui-dialog` | `trigger`, `triggerVariant`, `title`, `description`, `id` | A modal `<dialog>`. Escape, its ✕ or a click outside closes it. |
+| `ui-alert-dialog` | same as `ui-dialog` | `role=alertdialog`; only its own buttons close it. |
+| `ui-sheet` | same, plus `side` (right, left, top, bottom) | A dialog along one edge. |
+| `ui-dialog-close` | `label`, `variant` | Closes the dialog it is in; its own `on.click` actions run too. |
+| `ui-dialog-footer` | | A right-aligned row of buttons. |
+| `ui-popover` | `trigger`, `triggerVariant`, `side` (bottom, top, right, left), `align` (center, start, end), `id` | Native popover, placed next to its trigger and flipped when there's no room. |
+| `ui-dropdown-menu` | same as `ui-popover` | Children: `ui-menu-item` (`label`, `shortcut`, `variant`, `href`, `disabled`; choosing it runs its `on.click` and closes the menu), `ui-menu-label`, `ui-menu-separator`. |
+| `ui-tooltip` | `text`, `side` | Shown while its children are hovered or focused. CSS only. |
+| `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
+| `ui-toaster` | `bind` | Shows the toast in `bind` (`{ title, description, variant }`) at the bottom right. |
 
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
@@ -72,6 +88,34 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 
 `apply_theme` merges a neutral, shadcn-style palette (zinc) with a dark mode under the document's theme. Tokens the document sets itself keep their values.
 
+## Overlays and ids
+
+Dialogs, sheets, popovers and menus open from their `trigger` prop's button. To open one from your own button instead, give the overlay an `id` and put `"attrs": { "command": "show-modal", "commandfor": "<id>" }` (dialogs) or `"attrs": { "popovertarget": "<id>" }` (popovers) on the button.
+
+Every overlay needs an element id. Without the `id` prop, one is derived from the node's place in the document, and it stays unique for each item of a list rendered on the server. Inside a list the browser rebuilds from state, pass an `id` built from the item, such as `"confirm-{{ item.id }}"`. Close buttons and menu items inside such an overlay can't find it there, so keep overlays outside browser-rebuilt lists.
+
+A toast is a state value. Set it to show one and to null to hide it, with a `wait` between the two to hide it automatically:
+
+```yaml
+- type: ui-button
+  props: { label: Save }
+  on:
+    click:
+      - { action: set_state, key: toast, value: { title: Saved, description: Your changes are live. } }
+      - { action: wait, ms: 3000 }
+      - { action: set_state, key: toast, value: null }
+- { type: ui-toaster, props: { bind: toast } }
+```
+
+There is one toast at a time. A new toast replaces the current one, and the first toast's `wait` can still hide its replacement early.
+
+## Browser support
+
+The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the Popover API, CSS anchor positioning and exclusive `<details name>`. Chrome and Edge 135 and later support all of them, and the kit's browser tests run in Chrome. Check your other target browsers. Where a feature is missing:
+- A popover still opens, but in the middle of the screen.
+- Light dismiss falls back to Escape.
+- Accordion items stop closing each other.
+
 ## Not included
 
-Components that need focus trapping, keyboard navigation or positioning logic (combobox, command palette, date picker, data table, carousel, menus, context menu) are out of scope for now. So are interactive overlays (dialog, popover, tooltip, tabs, accordion, toast), which are planned next.
+Components that need focus management or keyboard navigation written in JavaScript are out of scope: combobox, command palette, date picker, data table with sorting, carousel, context menu, and menus with arrow-key navigation. Menu items are reachable with Tab. Skeletons don't pulse yet, because the core can't emit `@keyframes`.

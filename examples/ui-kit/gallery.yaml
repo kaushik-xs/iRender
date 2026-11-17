@@ -12,6 +12,14 @@ state:
   airplane: false
   plan: pro
   saved: 0
+  profile: Pedro Duarte
+  tab: account
+  bold: false
+  italic: true
+  align: left
+  volume: 40
+  toast: null
+  projects: 3
 root:
   type: stack
   props: { gap: 40 }
@@ -186,6 +194,197 @@ root:
                 - type: ui-button
                   props: { label: Continue, disabled: "{{ !terms }}" }
                   style: { align-self: flex-start }
+
+    # ---------------------------------------------------------------- dialogs
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Dialog, Alert dialog and Sheet" } }
+        - type: stack
+          props: { direction: row, gap: 8, wrap: true }
+          children:
+            - type: ui-dialog
+              props: { trigger: Edit profile, title: Edit profile, description: "Make changes to your profile here. Click save when you're done.", id: edit-profile }
+              children:
+                - type: stack
+                  props: { gap: 8 }
+                  children:
+                    - { type: ui-label, props: { text: Name, for: profile-name } }
+                    - { type: ui-input, props: { bind: profile }, attrs: { id: profile-name } }
+                - type: ui-dialog-footer
+                  children:
+                    - { type: ui-dialog-close, props: { label: Cancel, variant: outline } }
+                    - type: ui-dialog-close
+                      props: { label: Save changes }
+                      on:
+                        click:
+                          - { action: set_state, key: toast, value: { title: Profile saved } }
+                          - { action: wait, ms: 3000 }
+                          - { action: set_state, key: toast, value: null }
+            - type: ui-alert-dialog
+              props:
+                trigger: "Delete {{ projects }} projects"
+                triggerVariant: destructive
+                title: Are you absolutely sure?
+                description: This permanently deletes your projects. It cannot be undone.
+                id: confirm-delete
+              children:
+                - type: ui-dialog-footer
+                  children:
+                    - { type: ui-dialog-close, props: { label: Cancel, variant: outline } }
+                    - type: ui-dialog-close
+                      props: { label: "Yes, delete", variant: destructive }
+                      on:
+                        click:
+                          - { action: set_state, key: projects, value: 0 }
+                          - { action: set_state, key: toast, value: { title: Projects deleted, description: Nothing is left to delete., variant: destructive } }
+                          - { action: wait, ms: 3000 }
+                          - { action: set_state, key: toast, value: null }
+            - type: ui-sheet
+              props: { trigger: Open sheet, title: Settings, description: A panel along the right edge., id: settings-sheet }
+              children:
+                - { type: ui-switch, props: { bind: notifications, label: Email notifications } }
+                - { type: ui-switch, props: { bind: airplane, label: Airplane mode } }
+                - type: ui-dialog-footer
+                  children:
+                    - { type: ui-dialog-close, props: { label: Done } }
+
+    # ---------------------------------------------------------------- popovers
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Popover, Dropdown menu, Tooltip and Hover card" } }
+        - type: stack
+          props: { direction: row, gap: 12, wrap: true, align: center }
+          children:
+            - type: ui-popover
+              props: { trigger: Dimensions, id: dimensions }
+              children:
+                - type: stack
+                  props: { gap: 8 }
+                  children:
+                    - { type: ui-text, props: { variant: small, text: Dimensions } }
+                    - { type: ui-text, props: { variant: muted, text: Set the dimensions for the layer. } }
+                    - { type: ui-input, props: { value: 100% }, attrs: { aria-label: Width } }
+            - type: ui-dropdown-menu
+              props: { trigger: My account, id: account-menu }
+              children:
+                - { type: ui-menu-label, props: { text: My account } }
+                - type: ui-menu-item
+                  props: { label: Profile, shortcut: "⇧⌘P" }
+                  on: { click: { action: call, name: menu, args: { item: profile } } }
+                - { type: ui-menu-item, props: { label: Billing, shortcut: "⌘B" } }
+                - { type: ui-menu-item, props: { label: Docs, href: "#docs" } }
+                - { type: ui-menu-separator }
+                - { type: ui-menu-item, props: { label: Log out, variant: destructive } }
+            - type: ui-tooltip
+              props: { text: Add to library }
+              children:
+                - { type: ui-button, props: { label: Hover me, variant: outline } }
+            - type: ui-tooltip
+              props: { text: Shown below, side: bottom }
+              children:
+                - { type: ui-button, props: { label: And me, variant: ghost } }
+            - type: ui-hover-card
+              props: { trigger: "@irender", href: "#hover" }
+              children:
+                - type: stack
+                  props: { direction: row, gap: 12 }
+                  children:
+                    - { type: ui-avatar, props: { fallback: iR } }
+                    - type: stack
+                      props: { gap: 4 }
+                      children:
+                        - { type: ui-text, props: { variant: small, text: "@irender" } }
+                        - { type: ui-text, props: { variant: muted, text: "UI from configuration, rendered in Rust." } }
+
+    # ---------------------------------------------------------------- tabs, accordion
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Tabs, Accordion and Collapsible" } }
+        - type: ui-tabs
+          props: { bind: tab, id: settings-tabs }
+          style: { max-width: 420 }
+          children:
+            - type: ui-tab-panel
+              props: { value: account, label: Account }
+              children:
+                - type: ui-card
+                  props: { title: Account, description: "Make changes to your account here." }
+                  children:
+                    - { type: ui-input, props: { bind: profile }, attrs: { aria-label: Name } }
+            - type: ui-tab-panel
+              props: { value: password, label: Password }
+              children:
+                - type: ui-card
+                  props: { title: Password, description: "Change your password here." }
+                  children:
+                    - { type: ui-input, props: { type: password, placeholder: New password }, attrs: { aria-label: New password } }
+        - type: ui-accordion
+          props: { id: faq }
+          style: { max-width: 560 }
+          children:
+            - type: ui-accordion-item
+              props: { title: Is it accessible?, open: true }
+              children:
+                - { type: text, props: { value: "Yes. It uses native <details> elements, so it works with a keyboard and screen readers." } }
+            - type: ui-accordion-item
+              props: { title: Does it need JavaScript? }
+              children:
+                - { type: text, props: { value: "No. Only one item opens at a time thanks to the details element's name attribute." } }
+            - type: ui-accordion-item
+              props: { title: Can several be open? }
+              children:
+                - { type: text, props: { value: "Set multiple: true on the accordion." } }
+        - type: ui-collapsible
+          props: { trigger: "@peduarte starred 3 repositories" }
+          style: { max-width: 360 }
+          children:
+            - type: stack
+              props: { gap: 6 }
+              children:
+                - { type: ui-text, props: { variant: code, text: "@radix-ui/primitives" } }
+                - { type: ui-text, props: { variant: code, text: "@radix-ui/colors" } }
+                - { type: ui-text, props: { variant: code, text: "@stitches/react" } }
+
+    # ---------------------------------------------------------------- toggles, slider
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Toggle, Toggle group and Slider" } }
+        - type: stack
+          props: { direction: row, gap: 12, wrap: true, align: center }
+          children:
+            - { type: ui-toggle, props: { bind: bold, label: B }, attrs: { aria-label: Bold }, style: { font-weight: 700 } }
+            - { type: ui-toggle, props: { bind: italic, label: I, variant: outline }, attrs: { aria-label: Italic }, style: { font-style: italic } }
+            - { type: ui-separator, props: { orientation: vertical }, style: { height: 24 } }
+            - type: ui-toggle-group
+              props:
+                bind: align
+                variant: outline
+                options:
+                  - { value: left, label: Left }
+                  - { value: center, label: Center }
+                  - { value: right, label: Right }
+        - type: ui-text
+          props: { text: "Preview text" }
+          style:
+            font-weight: "{{ bold ? 700 : 400 }}"
+            font-style: "{{ italic ? 'italic' : 'normal' }}"
+            text-align: "{{ align || 'left' }}"
+            max-width: 420
+        - type: stack
+          props: { direction: row, gap: 12, align: center }
+          style: { max-width: 420 }
+          children:
+            - { type: ui-slider, props: { bind: volume }, attrs: { aria-label: Volume } }
+            - { type: ui-text, props: { variant: muted, text: "{{ volume }}%" }, style: { min-width: 40 } }
+        - type: ui-progress
+          props: { value: "{{ volume }}" }
+          style: { max-width: 420 }
+
+    - { type: ui-toaster, props: { bind: toast } }
 
     # ---------------------------------------------------------------- progress, skeleton
     - type: stack

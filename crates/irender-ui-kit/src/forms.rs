@@ -503,3 +503,53 @@ impl Component for RadioGroup {
         Ok(())
     }
 }
+
+// ---------------------------------------------------------------- slider
+
+pub struct Slider;
+
+const SLIDER_PROPS: &[PropDef] = &[
+    PropDef::new("bind", PropKind::StateKey, "State key holding the number"),
+    PropDef::new("min", PropKind::Any, "Default 0"),
+    PropDef::new("max", PropKind::Any, "Default 100"),
+    PropDef::new("step", PropKind::Any, "Default 1"),
+    PropDef::new("name", PropKind::String, "Form field name"),
+    PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
+];
+
+static SLIDER: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("width", "100%"),
+        ("height", "20px"),
+        ("margin", "0"),
+        ("accent-color", PRIMARY),
+        ("color-scheme", "light dark"),
+        ("cursor", "pointer"),
+    ])
+    .nest(":disabled", StyleBlock::from_pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
+    .nest(":focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
+});
+
+impl Component for Slider {
+    fn name(&self) -> &'static str {
+        "ui-slider"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo { doc: "Pick a number by dragging.", props: SLIDER_PROPS, parts: &[], children: false, open_props: false }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let mut extra = Vec::new();
+        for (name, default) in [("min", 0), ("max", 100), ("step", 1)] {
+            extra.push((name, node.prop(name).cloned().unwrap_or_else(|| lit(default))));
+        }
+        let mut input = control(node, passthrough(node, "range"), &extra);
+        // The slider has no inner parts: the node's own attrs and style go on the input.
+        for (k, v) in &node.attrs {
+            input.attrs.insert(k.clone(), v.clone());
+        }
+        input.class = node.class.clone();
+        input.style = node.style.clone();
+        input.on = node.on.clone();
+        irender_html::Input::render_styled(&input, cx, &SLIDER)
+    }
+}

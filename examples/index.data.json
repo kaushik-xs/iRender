@@ -5,12 +5,14 @@
       "title": "UI kit gallery",
       "href": "ui-kit.html",
       "source": "examples/ui-kit/gallery.yaml",
-      "summary": "Every irender-ui-kit component in its variants: buttons, badges, cards, alerts, form controls, table, pagination and more. Follows your system's dark mode.",
+      "summary": "Every irender-ui-kit component: buttons, cards, form controls and tables, plus dialogs, sheets, menus, popovers, tabs, accordions and toasts built on native browser features. Follows your system's dark mode.",
       "features": [
         "irender-ui-kit",
-        "theme preset",
-        "dark mode",
-        "form controls"
+        "dialog",
+        "popover",
+        "tabs",
+        "toast",
+        "dark mode"
       ]
     },
     {

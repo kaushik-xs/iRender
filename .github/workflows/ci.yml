@@ -58,7 +58,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       # Set explicitly so a missing Chrome fails the job instead of skipping the tests.
-      - name: Drive the examples in headless Chrome
-        run: cargo test -p irender-html --test browser -- --ignored
+      - name: Drive the examples and the UI kit in headless Chrome
+        run: cargo test --workspace --test browser -- --ignored
         env:
           CHROME: /usr/bin/google-chrome

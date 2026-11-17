@@ -46,17 +46,35 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-radio-group", json!({ "options": ["a"] })),
         ("ui-breadcrumb", json!({ "items": [] })),
         ("ui-pagination", json!({ "page": 1, "pages": 1, "href": "#{{ p }}" })),
+        ("ui-accordion-item", json!({ "title": "T" })),
+        ("ui-collapsible", json!({ "trigger": "T" })),
+        ("ui-tabs", json!({ "bind": "k" })),
+        ("ui-tab-panel", json!({ "value": "a" })),
+        ("ui-toggle", json!({ "bind": "k" })),
+        ("ui-toggle-group", json!({ "bind": "k", "options": ["a"] })),
+        ("ui-popover", json!({ "trigger": "T" })),
+        ("ui-dropdown-menu", json!({ "trigger": "T" })),
+        ("ui-menu-item", json!({ "label": "L" })),
+        ("ui-menu-label", json!({ "text": "L" })),
+        ("ui-tooltip", json!({ "text": "T" })),
+        ("ui-hover-card", json!({ "trigger": "T" })),
+        ("ui-toaster", json!({ "bind": "k" })),
+        ("ui-dialog-close", json!({ "label": "L" })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
         kit += 1;
         assert!(!c.info().doc.is_empty(), "{} has no doc", c.name());
         let props = minimal.iter().find(|(n, _)| *n == c.name()).map_or(json!({}), |(_, p)| p.clone());
-        let page = render_with(json!({ "type": c.name(), "props": props }), json!({}), json!({}))
+        let mut root = json!({ "type": c.name(), "props": props });
+        if c.name() == "ui-dialog-close" {
+            root = json!({ "type": "ui-dialog", "children": [root] });
+        }
+        let page = render_with(root, json!({ "k": null }), json!({}))
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 23);
+    assert_eq!(kit, 44);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -228,4 +246,134 @@ fn gallery_example_renders() {
     let page = engine.render(&ir, &json!({})).unwrap();
     assert!(page.interactive);
     assert!(page.css.contains("--color-destructive: #dc2626;"), "the preset's tokens are on :root");
+}
+
+// ---------------------------------------------------------------- phase 2
+
+#[test]
+fn dialog_uses_invoker_commands_and_scopes_its_close_buttons() {
+    let body = plain(&render(json!({ "type": "ui-dialog",
+        "props": { "trigger": "Edit", "title": "Edit profile", "description": "Make changes.", "id": "edit" },
+        "children": [{ "type": "ui-dialog-footer", "children": [
+            { "type": "ui-dialog-close", "props": { "label": "Save" },
+              "on": { "click": { "action": "call", "name": "save" } } } ] }] })));
+    assert!(body.starts_with(r#"<button command="show-modal" commandfor="edit" aria-haspopup="dialog" type="button">Edit</button>"#), "{body}");
+    assert!(body.contains(r#"<dialog id="edit" closedby="any" aria-labelledby="edit-title" aria-describedby="edit-description">"#), "{body}");
+    assert!(body.contains(r#"<h2 id="edit-title">Edit profile</h2><p id="edit-description">Make changes.</p>"#), "{body}");
+    // The close button knows its dialog and keeps its own action.
+    assert!(body.contains(r#"<button command="close" commandfor="edit" type="button" data-i-on="{&quot;click&quot;:[{&quot;a&quot;:&quot;call&quot;"#), "{body}");
+    assert!(body.contains(r#"<button type="button" command="close" commandfor="edit" aria-label="Close">✕</button></dialog>"#), "{body}");
+
+    let alert = plain(&render(json!({ "type": "ui-alert-dialog", "props": { "title": "Sure?", "id": "a" } })));
+    assert!(alert.contains(r#"<dialog id="a" role="alertdialog" closedby="none""#), "{alert}");
+    assert!(!alert.contains("aria-label=\"Close\""), "an alert dialog has no ✕: {alert}");
+
+    let err = render_with(json!({ "type": "ui-dialog-close", "props": { "label": "x" } }), json!({}), json!({})).unwrap_err();
+    assert!(err.message.contains("must be inside"), "{err}");
+}
+
+#[test]
+fn ids_stay_unique_across_server_rendered_list_items() {
+    let page = render_with(
+        json!({ "type": "list", "props": { "items": "{{ rows }}" },
+                "children": [{ "type": "ui-popover", "props": { "trigger": "{{ item }}" } }] }),
+        json!({}),
+        json!({ "rows": ["a", "b"] }),
+    )
+    .unwrap();
+    let ids: Vec<&str> = page.body.match_indices(r#"popover="auto" id=""#).map(|(i, m)| {
+        let rest = &page.body[i + m.len()..];
+        &rest[..rest.find('"').unwrap()]
+    }).collect();
+    assert_eq!(ids.len(), 2);
+    assert_ne!(ids[0], ids[1], "{ids:?}");
+    // The same document renders the same ids every time.
+    let again = render_with(
+        json!({ "type": "list", "props": { "items": "{{ rows }}" },
+                "children": [{ "type": "ui-popover", "props": { "trigger": "{{ item }}" } }] }),
+        json!({}),
+        json!({ "rows": ["a", "b"] }),
+    )
+    .unwrap();
+    assert_eq!(page.body, again.body);
+}
+
+#[test]
+fn popover_anchors_to_its_trigger() {
+    let page = render_with(
+        json!({ "type": "ui-dropdown-menu", "props": { "trigger": "Open", "id": "m" }, "children": [
+            { "type": "ui-menu-label", "props": { "text": "Account" } },
+            { "type": "ui-menu-item", "props": { "label": "Profile", "shortcut": "⇧⌘P" } },
+            { "type": "ui-menu-separator" },
+            { "type": "ui-menu-item", "props": { "label": "Log out", "variant": "destructive" } } ] }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    assert!(body.starts_with(r#"<button popovertarget="m" aria-haspopup="menu" type="button">Open</button><div popover="auto" id="m">"#), "{body}");
+    assert!(body.contains(r#"<button type="button" popovertarget="m" popovertargetaction="hide"><span>Profile</span><span>⇧⌘P</span></button>"#), "{body}");
+    for decl in ["anchor-name: --m;", "position-anchor: --m;", "position-area: bottom span-right;", "position-try-fallbacks: flip-block;"] {
+        assert!(page.css.contains(decl), "missing `{decl}`");
+    }
+}
+
+#[test]
+fn tabs_toggle_and_group_drive_state() {
+    let page = render_with(
+        json!({ "type": "element", "children": [
+            { "type": "ui-tabs", "props": { "bind": "tab", "id": "t" }, "children": [
+                { "type": "ui-tab-panel", "props": { "value": "account", "label": "Account" },
+                  "children": [{ "type": "text", "props": { "value": "A" } }] },
+                { "type": "ui-tab-panel", "props": { "value": "password", "label": "Password" } } ] },
+            { "type": "ui-toggle", "props": { "bind": "bold", "label": "B" } },
+            { "type": "ui-toggle-group", "props": { "bind": "align", "options": ["left", "right"] } } ] }),
+        json!({ "tab": "account", "bold": true, "align": "right" }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"<button type="button" role="tab" id="t-tab-0" aria-controls="t-panel-0" aria-selected="true""#), "{body}");
+    assert!(body.contains(r#"aria-selected="false""#), "{body}");
+    assert!(body.contains(r#"<div role="tabpanel" id="t-panel-0" aria-labelledby="t-tab-0" tabindex="0" data-i-b"#), "{body}");
+    assert!(body.contains(r#"<div role="tabpanel" id="t-panel-1" aria-labelledby="t-tab-1" tabindex="0" hidden data-i-b"#), "{body}");
+    assert!(body.contains(r#"<button type="button" aria-pressed="true""#), "{body}");
+    // Pressing the pressed option of a group clears it.
+    assert!(body.contains("&quot;c&quot;:[{&quot;b&quot;:&quot;==&quot;"), "{body}");
+    let err = render_with(json!({ "type": "ui-tabs", "props": { "bind": "tab" }, "children": [{ "type": "element" }] }),
+        json!({ "tab": 1 }), json!({})).unwrap_err();
+    assert!(err.message.contains("must be `ui-tab-panel`"), "{err}");
+}
+
+#[test]
+fn accordion_items_share_a_name_unless_multiple() {
+    let body = plain(&render(json!({ "type": "ui-accordion", "props": { "id": "faq" }, "children": [
+        { "type": "ui-accordion-item", "props": { "title": "Q1", "open": true }, "children": [{ "type": "text", "props": { "value": "A1" } }] },
+        { "type": "ui-accordion-item", "props": { "title": "Q2" } } ] })));
+    assert_eq!(
+        body,
+        concat!(
+            r#"<div id="faq"><details name="faq" open><summary>Q1</summary><div><span>A1</span></div></details>"#,
+            r#"<details name="faq"><summary>Q2</summary><div></div></details></div>"#
+        )
+    );
+    let body = plain(&render(json!({ "type": "ui-accordion", "props": { "multiple": true }, "children": [
+        { "type": "ui-accordion-item", "props": { "title": "Q" } } ] })));
+    assert!(!body.contains("name="), "{body}");
+}
+
+#[test]
+fn wait_action_is_validated_and_serialized() {
+    let ok = render_with(
+        json!({ "type": "ui-button", "props": { "label": "x" }, "on": { "click": [
+            { "action": "set_state", "key": "t", "value": { "title": "Saved" } }, { "action": "wait", "ms": 1500 },
+            { "action": "set_state", "key": "t", "value": null } ] } }),
+        json!({ "t": null }),
+        json!({}),
+    )
+    .unwrap();
+    assert!(ok.body.contains("{&quot;a&quot;:&quot;wait&quot;,&quot;ms&quot;:1500}"), "{}", ok.body);
+    let doc = json!({ "version": 1, "root": { "type": "element", "on": { "click": { "action": "wait", "ms": 600000 } } } });
+    let err = Engine::new().load(&doc.to_string(), Format::Json).unwrap_err();
+    assert_eq!(err.to_string(), "root.on.click[0].ms: waits are at most 60000 ms");
 }
