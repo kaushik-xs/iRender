@@ -38,7 +38,7 @@ root:
       props:
         as: block
         items:
-          - { id: dashboard-01, category: dashboard, title: A dashboard with sidebar, charts and data table, kits: [ui-kit, chart-kit, icon-kit], height: 860 }
+          - { id: dashboard-01, category: dashboard, title: "A dashboard with sidebar, charts, data table and a ⌘K palette", kits: [ui-kit, chart-kit, icon-kit], height: 860 }
           - { id: sidebar-07, category: sidebar, title: A sidebar that collapses to icons, kits: [ui-kit, icon-kit], height: 640 }
           - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }
           - { id: login-03, category: login, title: A login page with a muted background color, kits: [ui-kit, icon-kit], height: 720 }

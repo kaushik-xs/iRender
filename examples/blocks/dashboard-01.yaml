@@ -1,5 +1,6 @@
 # Block: a dashboard with an inset sidebar, summary cards, an interactive area chart and
-# a data table, in the style of shadcn/ui's dashboard-01. Data comes from
+# a data table, in the style of shadcn/ui's dashboard-01, plus a command palette (⌘K, or
+# Search in the sidebar) for its pages and actions. Data comes from
 # dashboard-01.data.json; the chart's range, the table's tabs, row selection and
 # paging are state, so they work in the browser without a server round trip.
 #
@@ -12,6 +13,7 @@ state:
   tab: outline
   page: 1
   selected: []
+  toast: null
 root:
   type: ui-sidebar-layout
   props: { bind: sidebar, variant: inset }
@@ -33,7 +35,10 @@ root:
                   props: { tag: li }
                   style: { display: flex, gap: 8, margin-bottom: 4 }
                   children:
-                    - { type: ui-button, props: { label: Quick Create, icon: add, size: sm }, style: { flex: 1, justify-content: flex-start } }
+                    - type: ui-button
+                      props: { label: Quick Create, icon: add, size: sm }
+                      style: { flex: 1, justify-content: flex-start }
+                      on: { click: { action: set_state, key: toast, value: { title: Document created, description: Untitled document is ready to edit. } } }
                     - { type: ui-button, props: { icon: marketing:email-campaign, size: sm, variant: outline }, attrs: { aria-label: Inbox }, style: { width: 32, padding: 0 } }
                 - { type: ui-sidebar-item, props: { label: Dashboard, icon: grid, href: "#", active: true } }
                 - { type: ui-sidebar-item, props: { label: Lifecycle, icon: list, href: "#" } }
@@ -52,7 +57,8 @@ root:
               children:
                 - { type: ui-sidebar-item, props: { label: Settings, icon: settings, href: "#" } }
                 - { type: ui-sidebar-item, props: { label: Get Help, icon: help, href: "#" } }
-                - { type: ui-sidebar-item, props: { label: Search, icon: search, href: "#" } }
+                # Opens the command palette at the end of the page, as ⌘K / Ctrl+K does.
+                - { type: ui-sidebar-item, props: { label: Search, icon: search, badge: ⌘K }, attrs: { command: show-modal, commandfor: palette } }
         - type: ui-sidebar-footer
           children:
             - type: ui-sidebar-group
@@ -171,7 +177,9 @@ root:
                     - { type: ui-menu-item, props: { label: Section Type } }
                     - { type: ui-menu-item, props: { label: Status } }
                     - { type: ui-menu-item, props: { label: Reviewer } }
-                - { type: ui-button, props: { label: Add Section, icon: add, variant: outline, size: sm } }
+                - type: ui-button
+                  props: { label: Add Section, icon: add, variant: outline, size: sm }
+                  on: { click: { action: set_state, key: toast, value: { title: Section added, description: It's at the end of the outline. } } }
             - type: ui-tabs
               props: { bind: tab }
               children:
@@ -287,3 +295,65 @@ root:
                   props: { value: documents, label: Focus Documents }
                   children:
                     - { type: element, style: { aspect-ratio: 16 / 6, border: 1px dashed $color.border, border-radius: 8 } }
+
+    # ------------------------------------------------------------ command palette
+    - type: ui-command-dialog
+      props: { id: palette, shortcut: mod+k, placeholder: Search pages and actions… }
+      children:
+        - type: ui-command-group
+          props: { heading: Pages }
+          children:
+            - { type: ui-command-item, props: { label: Dashboard, icon: grid, href: "#" } }
+            - { type: ui-command-item, props: { label: Lifecycle, icon: list, href: "#" } }
+            - { type: ui-command-item, props: { label: Analytics, icon: marketing:analytics, href: "#" } }
+            - { type: ui-command-item, props: { label: Projects, icon: kanban, href: "#" } }
+            - { type: ui-command-item, props: { label: Team, icon: hr:employees, keywords: [people, members], href: "#" } }
+        - type: ui-command-group
+          props: { heading: Documents }
+          children:
+            - { type: ui-command-item, props: { label: Data Library, icon: it:database, href: "#" } }
+            - { type: ui-command-item, props: { label: Reports, icon: finance:financial-report, href: "#" } }
+            - { type: ui-command-item, props: { label: Word Assistant, icon: edit, href: "#" } }
+        - { type: ui-command-separator }
+        - type: ui-command-group
+          props: { heading: Actions }
+          children:
+            - type: ui-command-item
+              props: { label: Quick Create, icon: add, keywords: [new, document] }
+              on: { click: { action: set_state, key: toast, value: { title: Document created, description: Untitled document is ready to edit. } } }
+            - type: ui-command-item
+              props: { label: Add Section, icon: add, keywords: [outline, table] }
+              on: { click: { action: set_state, key: toast, value: { title: Section added, description: It's at the end of the outline. } } }
+            - type: ui-command-item
+              props: { label: "{{ sidebar ? 'Hide' : 'Show' }} sidebar", icon: menu, shortcut: ⌘B, keywords: [toggle, navigation] }
+              on: { click: { action: set_state, key: sidebar, value: "{{ !sidebar }}" } }
+            - type: ui-command-item
+              props: { label: Select all rows, icon: check, keywords: [table, selection] }
+              on: { click: { action: set_state, key: selected, value: "{{ range(1, 31) }}" } }
+            - type: ui-command-item
+              props: { label: Clear selection, icon: close, keywords: [table, deselect] }
+              on: { click: { action: set_state, key: selected, value: "{{ range(0) }}" } }
+        - type: ui-command-group
+          props: { heading: Chart range }
+          children:
+            - type: ui-command-item
+              props: { label: Last 3 months, icon: calendar, keywords: [chart, visitors, 90 days] }
+              on: { click: { action: set_state, key: range, value: 90d } }
+            - type: ui-command-item
+              props: { label: Last 30 days, icon: calendar, keywords: [chart, visitors, month] }
+              on: { click: { action: set_state, key: range, value: 30d } }
+            - type: ui-command-item
+              props: { label: Last 7 days, icon: calendar, keywords: [chart, visitors, week] }
+              on: { click: { action: set_state, key: range, value: 7d } }
+        - type: ui-command-group
+          props: { heading: Table pages }
+          children:
+            - type: list
+              props: { items: "{{ range(1, 4) }}", as: n }
+              style: { display: contents }
+              children:
+                - type: ui-command-item
+                  props: { label: "Go to page {{ n }}", icon: arrows:chevron-right, keywords: [table, outline] }
+                  on: { click: { action: set_state, key: page, value: "{{ n }}" } }
+
+    - { type: ui-toaster, props: { bind: toast } }
