@@ -47,7 +47,12 @@ root:
     - type: stack
       props: { gap: 8 }
       children:
-        - { type: ui-heading, props: { level: 1, text: irender-chart-kit } }
+        # The theme toggle shares its choice with the examples index.
+        - type: stack
+          props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
+          children:
+            - { type: ui-heading, props: { level: 1, text: irender-chart-kit } }
+            - { type: ui-theme-toggle }
         - type: ui-text
           props:
             variant: lead
