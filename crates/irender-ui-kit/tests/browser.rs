@@ -1397,8 +1397,6 @@ fn chat_server() -> u16 {
                 let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
                 continue;
             }
-            // Long enough that the tests see the reply still on its way after sending.
-            std::thread::sleep(std::time::Duration::from_millis(150));
             let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
             for chunk in [r#"{"content":"Hi"}"#, r#"{"choices":[{"delta":{"content":" there"}}]}"#, &format!(r#"" ({sent})""#), "[DONE]"] {
                 let _ = write!(stream, "data: {chunk}\n\n");
@@ -1430,6 +1428,9 @@ fn chat_sends_and_streams_replies_in_chrome() {
       const out = [];
       const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Runs the updates queued as microtasks, but no timer or network task, so the
+      // reply can't have arrived yet.
+      const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
       const [form, other] = document.querySelectorAll("form");
       const box = form.querySelector("textarea"), send = form.querySelector("[type=submit]");
       const log = document.querySelector("[role=log]");
@@ -1440,7 +1441,7 @@ fn chat_sends_and_streams_replies_in_chrome() {
       box.value = "Hello"; box.dispatchEvent(new Event("input", { bubbles: true }));
       out.push(`typed ${send.disabled} ${S().draft}`);
       box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-      await wait(0);
+      await settle();
       out.push(`sent ${S().messages.length} last=${S().last} draft=${JSON.stringify(S().draft)} box=${JSON.stringify(box.value)} waiting=${S().waiting} typing=${!!log.querySelector("[aria-label=Typing]")} stop=${send.getAttribute("aria-label")}`);
       for (let i = 0; i < 50 && S().messages.at(-1).role !== "assistant"; i++) await wait(20);
       await wait(100);
@@ -1497,6 +1498,9 @@ fn chat_threads_in_chrome() {
       const box = document.querySelector("textarea");
       const shown = () => [...document.querySelectorAll("[role=log] [data-bubble]")].map((b) => b.textContent).join(",");
       const titles = () => S().threads.map((t) => t.title + ":" + t.messages.length).join(" ");
+      // Runs the updates queued as microtasks, but no timer or network task, so the
+      // reply can't have arrived yet.
+      const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
       const go = async (id) => { root.__irender.set("thread", id); await wait(0); };
       await wait(0);
       out.push(`start ${shown()}`);
@@ -1506,7 +1510,7 @@ fn chat_threads_in_chrome() {
       out.push(`new ${JSON.stringify(shown())}`);
       box.value = "A very long first message that makes the title"; box.dispatchEvent(new Event("input", { bubbles: true }));
       box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-      await wait(0);
+      await settle();
       const created = S().thread;
       out.push(`sent current=${created === S().threads[0].id} ${titles()} waiting=${S().waiting}`);
       for (let i = 0; i < 50 && S().chat.length < 2; i++) await wait(20);
