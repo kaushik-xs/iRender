@@ -196,18 +196,21 @@ fn every_builtin_icon_follows_the_standard_and_renders() {
     let mut total = 0;
     let packs: Vec<_> = IconKit::builtin().collect();
     assert_eq!(packs[0].id(), "core");
+    assert_eq!(packs.last().unwrap().id(), "brands");
     for pack in packs {
+        // Logo marks keep their owners' drawing, padded by a wider viewBox.
+        let view_box = if pack.id() == "brands" { "-2 -2 28 28" } else { "0 0 24 24" };
         assert!(!pack.title().is_empty() && !pack.description().is_empty(), "{}", pack.id());
         assert!(!pack.is_empty(), "{}", pack.id());
         for name in pack.names() {
             let icon = pack.get(name).unwrap();
-            assert_eq!(icon.view_box(), "0 0 24 24", "{}:{name}", pack.id());
+            assert_eq!(icon.view_box(), view_box, "{}:{name}", pack.id());
             assert!(!icon.body().contains("fill=") && !icon.body().contains("stroke"), "{}:{name}", pack.id());
             let full = format!("{}:{name}", pack.id());
             render_in(&engine, json!({ "type": "ui-icon", "props": { "name": full } }), json!({})).unwrap();
             // Every icon has a filled style: its own drawing, or the outline when there's nothing to fill.
             let filled = pack.get_variant(name, Variant::Filled).unwrap_or_else(|| panic!("{full} has no filled style"));
-            assert_eq!(filled.view_box(), "0 0 24 24", "{full}");
+            assert_eq!(filled.view_box(), view_box, "{full}");
             let body = filled.body().replace(r#"fill="none""#, "").replace(r#"fill-rule="evenodd""#, "");
             assert!(!body.contains("fill") && !body.contains("stroke"), "{full} (filled)");
             render_in(&engine, json!({ "type": "ui-icon", "props": { "name": full, "variant": "filled" } }), json!({})).unwrap();

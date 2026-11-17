@@ -41,7 +41,7 @@ Smaller details are drawn to the same grid. Don't scale a big icon down to make 
 
 - **Flat, front or side view.** No perspective. 3-D objects whose shape is the point (box, container, pallet) use the same simple three-quarter form throughout the kit: the parcel in `logistics/package` is the template.
 - **One idea per icon.** A modifier (plus, check, x, arrow, clock) goes in the **bottom-right**, in a 8 × 8 area from 13 to 21, with a 2 px gap cut out of the base shape around it.
-- **Real objects, generic forms.** No brands, logos, trademarks, text or letters (except where the letter *is* the subject, like a currency sign). No people's faces beyond a head circle.
+- **Real objects, generic forms.** No brands, logos, trademarks, text or letters (except where the letter *is* the subject, like a currency sign); logos live only in the `brands` pack (see "Logo marks"). No people's faces beyond a head circle.
 - **Direction:** things that move face right; time and progress go left to right and bottom to top.
 
 ## Elements and markup
@@ -67,6 +67,21 @@ Every icon also has a filled version, for selected states, small sizes and empha
   ```svg
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
   ```
+
+## Logo marks
+
+The `brands` pack is the one exception to the drawing rules. A logo is drawn by its owner, so it's kept as published, not redrawn to the kit's grid:
+
+- Paths are copied unchanged from [Simple Icons](https://simpleicons.org) (CC0). Skip icons that carry their own licence in Simple Icons' data.
+- One style: solid shapes in `currentColor`, with every name listed in `filled/_same.txt`.
+- Only `<path d="…"/>` elements, and the root exactly:
+
+  ```svg
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 28 28" fill="currentColor">
+  ```
+
+  Simple Icons draws to the full 24 × 24 box, and the wider `viewBox` adds the kit's 2 px padding.
+- Named after the brand in kebab-case (`stack-overflow`, `dev-to`). `tools/icons.py lint` checks the markup only.
 
 ## Naming
 

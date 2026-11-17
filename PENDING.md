@@ -91,7 +91,7 @@ These came out of the React Flow research on the builder and client-ui-next repo
 
 ## Icon kit: packs not drawn yet
 
-Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail`, `manufacturing`, `accounting`, `agriculture`, `automotive`, `aviation`, `banking`, `construction`, `education`, `energy`, `finance`, `healthcare`, `hospitality`, `hr`, `insurance`, `it`, `legal`, `marketing`, `maritime`, `media`, `mining`, `oil-gas`, `public-sector`, `robotics`, `simulation`, `space`, `sports` and `telecom`. Every new icon is drawn from scratch to `crates/irender-icon-kit/GUIDELINES.md` and must pass `tools/icons.py lint` and a contact-sheet review. Draw a pack's first few icons as references, then the rest from them.
+Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail`, `manufacturing`, `accounting`, `agriculture`, `automotive`, `aviation`, `banking`, `construction`, `education`, `energy`, `finance`, `healthcare`, `hospitality`, `hr`, `insurance`, `it`, `legal`, `marketing`, `maritime`, `media`, `mining`, `oil-gas`, `public-sector`, `robotics`, `simulation`, `social`, `space`, `sports` and `telecom`, plus `brands` (logo marks from Simple Icons, not drawn to the guidelines). Every new icon is drawn from scratch to `crates/irender-icon-kit/GUIDELINES.md` and must pass `tools/icons.py lint` and a contact-sheet review. Draw a pack's first few icons as references, then the rest from them.
 
 - [ ] **Base packs:**
   - files & documents
@@ -105,7 +105,6 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - commerce basics (currencies, wallet, card, bank)
   - time & scheduling
   - weather & environment
-  - social (generic, no logos)
 - [ ] **Industry packs:**
   - facilities
   - pharma & life sciences
@@ -128,6 +127,10 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - reactions
   - detailed weather
   - accessibility
+- [ ] **`brands` gaps:**
+  - [ ] No LinkedIn or Microsoft: both asked Simple Icons to remove their logos. Add them from the owners' brand kits after checking their terms.
+  - [ ] Marks are single-colour only. Idea: a `brand` colour per mark (Simple Icons has the hex) for `style: { color }`, and multi-colour marks like Google's "G".
+  - [ ] Pinned to Simple Icons 15.0.0; the marks change when brands rebrand, so refresh them now and then.
 - [ ] **`ui-icon`'s `name` can't use state.** Icons are inlined on the server, so a name from `state` (or from a list item the browser rebuilds) is a render error; `if` / `else` covers fixed choices. Idea: a `names` prop listing the possible icons, all rendered with only the current one shown.
 - [ ] **No tags or search.** Packs have names only. Idea: a tags line per icon (in `_pack.txt` or a sidecar) for the gallery and `irender icons --search`.
 - [ ] **Aliases:** no `previous` → `chevron-left`-style aliases between packs.
@@ -162,6 +165,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - simulation: `sandbox`, `optimize`, `physics`
   - space: `astronaut`, `space-helmet`, `thruster`, `docking`
   - sports: `tennis` (reads as a magnifier), `table-tennis` (o), `stadium`, `boxing-glove`
+  - social: `invite` (f) loses the right of the envelope around the plus; `follow` and `hr:onboarding` are the same drawing
   - telecom: `roaming` (f), `network-outage`, `fibre-optic`
 
 ## Housekeeping

@@ -86,7 +86,7 @@ root:
                 disabled: "{{ !(name != '' && email.length > 4 && password.length >= 8 && confirm == password && terms) }}"
               style: { width: 100% }
             - { type: ui-separator, props: { label: Or continue with } }
-            - { type: ui-button, props: { label: Sign up with Google, variant: outline }, style: { width: 100% } }
+            - { type: ui-button, props: { label: Sign up with Google, icon: brands:google, variant: outline }, style: { width: 100% } }
             - type: element
               props: { tag: p }
               style: { margin: 0, text-align: center, font-size: 14 }

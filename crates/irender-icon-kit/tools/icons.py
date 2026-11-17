@@ -28,6 +28,10 @@ ROOT_ATTRS = {
     "stroke-linejoin": "round",
 }
 FILLED_ROOT_ATTRS = dict(ROOT_ATTRS, fill="currentColor")
+# Packs of logo marks: solid shapes kept as their owners drew them, exempt from
+# the drawing rules (see "Logo marks" in the guidelines).
+MARKS = {"brands"}
+MARK_ROOT_ATTRS = {"viewBox": "-2 -2 28 28", "fill": "currentColor"}
 # The only extra attributes a filled shape may set, and their only values.
 FILLED_EXTRAS = {"fill": "none", "fill-rule": "evenodd"}
 SHAPES = {
@@ -280,6 +284,27 @@ def lint_icon(path, filled=False):
     return problems, warnings
 
 
+def lint_mark(path):
+    """A logo mark: kept as its owner drew it, so only the markup is checked."""
+    problems = []
+    if not NAME.match(path.stem):
+        problems.append("name must be kebab-case")
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError as e:
+        return [f"not valid XML: {e}"], []
+    if root.tag != NS + "svg" or dict(root.attrib) != MARK_ROOT_ATTRS:
+        problems.append('root must be exactly <svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 28 28" fill="currentColor">')
+    shapes = list(root)
+    if not shapes:
+        problems.append("no shapes")
+    for el in shapes:
+        if el.tag != NS + "path" or set(el.attrib) != {"d"} or len(el):
+            problems.append("only <path d=\"…\"/> elements are allowed")
+            break
+    return problems, []
+
+
 def lint(args):
     failed = count = 0
     for pack in packs(args.packs):
@@ -289,7 +314,7 @@ def lint(args):
             failed += 1
         for icon in sorted(pack.glob("*.svg")):
             count += 1
-            problems, warnings = lint_icon(icon)
+            problems, warnings = lint_mark(icon) if pack.name in MARKS else lint_icon(icon)
             for p in problems:
                 print(f"{pack.name}/{icon.name}: error: {p}")
             for w in warnings:
@@ -297,6 +322,9 @@ def lint(args):
             failed += bool(problems)
         filled, same = filled_set(pack)
         outline = {i.stem for i in pack.glob("*.svg")}
+        if pack.name in MARKS and filled:
+            print(f"{pack.name}/filled: error: logo marks have one style; list them in filled/_same.txt")
+            failed += 1
         for name in sorted(filled):
             count += 1
             problems, warnings = lint_icon(pack / "filled" / f"{name}.svg", filled=True)

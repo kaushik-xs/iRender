@@ -49,8 +49,8 @@ root:
                 - type: stack
                   props: { gap: 12 }
                   children:
-                    - { type: ui-button, props: { label: Login with Apple, variant: outline }, style: { width: 100% } }
-                    - { type: ui-button, props: { label: Login with Google, variant: outline }, style: { width: 100% } }
+                    - { type: ui-button, props: { label: Login with Apple, icon: brands:apple, variant: outline }, style: { width: 100% } }
+                    - { type: ui-button, props: { label: Login with Google, icon: brands:google, variant: outline }, style: { width: 100% } }
                 - { type: ui-separator, props: { label: Or continue with } }
                 - type: stack
                   props: { gap: 24 }

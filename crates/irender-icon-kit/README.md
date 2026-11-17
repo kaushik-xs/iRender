@@ -72,12 +72,29 @@ cargo run -p irender-cli -- icons --json       # for tooling, or as page data
 | `robotics` | Robots and automation: arms, grippers, mobile and legged robots, drones, actuators, sensors and safety. |
 | `simulation` | Simulation and digital twins: models, scenarios, runs, parameters, randomness, meshes, physics and results. |
 | `space` | Spaceflight and astronomy: rockets, satellites, stations, astronauts, planets, stars and ground stations. |
+| `social` | Social networks, without logos: likes and votes, comments and replies, reposts and messages, following, profiles, feeds and stories, polls and moderation. |
 | `sports` | Sports and fitness: trophies and venues, balls and equipment, athletes in motion, workouts and tracking, teams and officiating. |
 | `telecom` | Telecom networks: towers and antennas, signal and coverage, SIMs and phones, calls and messages, fibre and plans. |
 
-Bare names are looked up in `core`, `arrows` and `status` first, then the industry packs alphabetically. Write `pack:icon` whenever two packs might have the same name. The [icon gallery](../../examples/icons/gallery.yaml) shows every icon.
+| `brands` | Logo marks of social networks and sign-in providers (see below). |
+
+Bare names are looked up in `core`, `arrows` and `status` first, then the industry packs alphabetically, and `brands` last. Write `pack:icon` whenever two packs might have the same name. The [icon gallery](../../examples/icons/gallery.yaml) shows every icon.
 
 More industry packs are planned; see [PENDING.md](../../PENDING.md).
+
+### Logo marks
+
+`brands` holds 56 logos: social networks (`facebook`, `instagram`, `x`, `threads`, `youtube`, `tiktok`, `reddit`, `discord`, `mastodon`, `bluesky`, …), messengers (`whatsapp`, `telegram`, `signal`, `wechat`, `line`, …), developer and creator sites (`github`, `gitlab`, `stack-overflow`, `dribbble`, `behance`, `medium`, `substack`, …) and sign-in providers (`google`, `apple`, `meta`, `slack`). `irender icons brands` lists them all.
+
+```yaml
+- { type: ui-button, props: { label: Login with Google, icon: brands:google, variant: outline } }
+- { type: ui-icon, props: { name: brands:github, label: GitHub, size: 20 } }
+```
+
+- They aren't drawn for the kit. The paths come from [Simple Icons](https://simpleicons.org) 15.0.0 (CC0), unchanged, and are solid single-colour marks in `currentColor`. A `viewBox` of `-2 -2 28 28` gives them the same 2 px padding as the kit's icons.
+- `variant: filled` draws the same mark.
+- The logos are trademarks of their owners. Use them to point to those services (a profile link, "Sign in with …") and follow each brand's guidelines.
+- Some brands aren't available: LinkedIn and Microsoft asked Simple Icons to remove their logos. Add them as your own pack (below) from the owners' brand kits.
 
 ### How the icons are drawn
 

@@ -86,7 +86,7 @@
       "title": "Icon gallery",
       "href": "icons/index.html",
       "source": "examples/icons/gallery.yaml",
-      "summary": "Every irender-icon-kit pack: original icons for everyday interfaces, logistics, warehouses, retail, manufacturing, accounting, agriculture, automotive, aviation, banking, construction, education, energy, finance, healthcare, hospitality, HR, insurance, IT, legal, marketing, maritime, media, mining, oil and gas, public sector, robotics, simulation, space, sports and telecom, each in an outline and a filled style, at several sizes, in buttons, and switched by state.",
+      "summary": "Every irender-icon-kit pack: original icons for everyday interfaces, logistics, warehouses, retail, manufacturing, accounting, agriculture, automotive, aviation, banking, construction, education, energy, finance, healthcare, hospitality, HR, insurance, IT, legal, marketing, maritime, media, mining, oil and gas, public sector, robotics, simulation, social networks, space, sports and telecom, each in an outline and a filled style, plus brand logos, at several sizes, in buttons, and switched by state.",
       "features": [
         "irender-icon-kit",
         "ui-icon",

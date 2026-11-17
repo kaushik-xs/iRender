@@ -5,8 +5,11 @@
 use std::{env, fmt::Write, fs, path::Path};
 
 /// Packs that come first when a bare icon name is looked up; the rest follow
-/// alphabetically.
+/// alphabetically, then `LAST`.
 const FIRST: &[&str] = &["core", "arrows", "status"];
+/// Logo marks, so a bare name like `line` or `signal` never resolves to a logo
+/// when a pack draws that subject.
+const LAST: &[&str] = &["brands"];
 
 fn main() {
     let root = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("icons");
@@ -14,7 +17,12 @@ fn main() {
     let mut packs: Vec<_> = fs::read_dir(&root).unwrap().map(|e| e.unwrap().path()).filter(|p| p.is_dir()).collect();
     packs.sort_by_key(|p| {
         let id = p.file_name().unwrap().to_string_lossy().into_owned();
-        (FIRST.iter().position(|f| *f == id).unwrap_or(FIRST.len()), id)
+        let rank = match (FIRST.iter().position(|f| *f == id), LAST.iter().position(|l| *l == id)) {
+            (Some(i), _) => i,
+            (None, Some(i)) => FIRST.len() + 1 + i,
+            (None, None) => FIRST.len(),
+        };
+        (rank, id)
     });
 
     let mut out = String::from("&[\n");

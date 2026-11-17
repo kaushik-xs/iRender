@@ -63,9 +63,9 @@ root:
                     - type: element
                       style: { display: grid, grid-template-columns: "repeat(3, 1fr)", gap: 16 }
                       children:
-                        - { type: ui-button, props: { label: Apple, variant: outline }, attrs: { aria-label: Login with Apple } }
-                        - { type: ui-button, props: { label: Google, variant: outline }, attrs: { aria-label: Login with Google } }
-                        - { type: ui-button, props: { label: Meta, variant: outline }, attrs: { aria-label: Login with Meta } }
+                        - { type: ui-button, props: { icon: brands:apple, variant: outline }, attrs: { aria-label: Login with Apple } }
+                        - { type: ui-button, props: { icon: brands:google, variant: outline }, attrs: { aria-label: Login with Google } }
+                        - { type: ui-button, props: { icon: brands:meta, variant: outline }, attrs: { aria-label: Login with Meta } }
                     - type: element
                       props: { tag: p }
                       style: { margin: 0, text-align: center, font-size: 14 }
