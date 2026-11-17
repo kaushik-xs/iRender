@@ -139,7 +139,34 @@ engine.fragments = Some(Arc::new(move |name: &str| -> Result<Option<NodeSpec>, S
 }));
 ```
 
-`include` only takes `props.name`, which must be a fixed name. An error from your source is reported at the include's path. Cycles are rejected, and nesting, including fragments, is limited to `MAX_DEPTH` (64) levels. Fragments are expanded at load time, so a fragment that changes per request means loading per request. Loading costs tens of µs for typical documents (see Performance). Cache the `Ir` per fragment version if that matters.
+`include` takes `props.name`, which must be a fixed name, and optionally `props.with`. An error from your source is reported at the include's path. Cycles are rejected, and nesting, including fragments, is limited to `MAX_DEPTH` (64) levels. Fragments are expanded at load time, so a fragment that changes per request means loading per request. Loading costs tens of µs for typical documents (see Performance). Cache the `Ir` per fragment version if that matters.
+
+#### Parameters
+
+`with` passes values into the fragment, so one fragment serves different data:
+
+```yaml
+fragments:
+  stat:
+    type: stack
+    children:
+      - { type: text, props: { value: "{{ label }}" } }
+      - { type: text, props: { value: "{{ value }}" }, style: { color: "{{ tone }}" } }
+root:
+  type: stack
+  children:
+    - { type: include, props: { name: stat, with: { label: Revenue, value: "{{ totals.revenue }}", tone: $color.primary } } }
+    - { type: include, props: { name: stat, with: { label: In cart, value: "{{ cart.length }}", tone: green } } }
+```
+
+A parameter is substituted into the fragment's expressions when the document loads. Inside the fragment above, `{{ value }}` becomes the caller's `{{ totals.revenue }}`, so it behaves exactly as if written in place:
+- Server data is filled in on the server.
+- An argument that reads state, like `{{ cart.length }}`, keeps updating in the browser.
+- An `item` from a list, including one the browser rebuilds, still resolves.
+
+Literal arguments stay literal, so the usual checks apply to them: prop types, `bind` keys, URL policy, and CSS tokens and values. A parameter that is a path or a literal object can be read further (`{{ user.name }}` with `with: { user: "{{ order.customer }}" }`); a computed one (`"{{ a + b }}"`) can't.
+
+Names the fragment uses but no `with` passes are looked up at render time as usual, so fragments can still read the scope they're included in. Defaults are expressions: `{{ size || 'md' }}`. A parameter the fragment never uses gives a warning, which catches typos. A `list` inside the fragment whose `item` or `index` name matches a parameter is an error, since it would hide the parameter.
 
 ## Policies
 

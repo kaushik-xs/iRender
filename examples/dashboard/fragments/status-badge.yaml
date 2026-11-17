@@ -1,11 +1,12 @@
-# A coloured pill for `order.status`. Included by order-row.
+# A coloured pill for an order status. Takes one parameter:
+#   - { type: include, props: { name: status-badge, with: { status: "{{ order.status }}" } } }
 type: text
-props: { value: "{{ order.status }}" }
+props: { value: "{{ status }}" }
 style:
   display: inline-block
   padding: 2px 10px
   border-radius: 999px
   font-size: 12px
   text-transform: capitalize
-  background: "{{ order.status == 'paid' ? '#dcfce7' : order.status == 'pending' ? '#fef9c3' : '#fee2e2' }}"
-  color: "{{ order.status == 'paid' ? '#166534' : order.status == 'pending' ? '#854d0e' : '#991b1b' }}"
+  background: "{{ status == 'paid' ? '#dcfce7' : status == 'pending' ? '#fef9c3' : '#fee2e2' }}"
+  color: "{{ status == 'paid' ? '#166534' : status == 'pending' ? '#854d0e' : '#991b1b' }}"

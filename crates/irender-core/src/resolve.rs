@@ -4,6 +4,7 @@ use crate::{
     Action, Catalog, ComponentInfo, Diagnostics, Document, Fragments, Ir, NoFragments, Node, PartStyle,
     Policy, PropDef, PropKind, Severity, StyleBlock, StyleValue, Template, Theme, Val,
     expr::Part,
+    params::{self, Params},
     spec::{ActionSpec, NodeSpec, VERSION},
     style::{Decl, is_nested_key, is_unitless, number_to_css, to_kebab},
 };
@@ -49,6 +50,7 @@ pub fn resolve_with(
         local: &doc.fragments,
         fragments,
         including: Vec::new(),
+        params: Params::default(),
         depth: 0,
         diags,
     };
@@ -84,6 +86,8 @@ struct Resolver<'a> {
     fragments: &'a dyn Fragments,
     /// Fragments being expanded, outermost first, to catch include cycles.
     including: Vec<String>,
+    /// Parameters of the fragment being resolved (empty outside fragments).
+    params: Params,
     depth: usize,
     diags: Diagnostics,
 }
@@ -108,9 +112,9 @@ impl Resolver<'_> {
             || !spec.parts.is_empty()
             || !spec.on.is_empty()
             || !spec.children.is_empty()
-            || spec.props.keys().any(|k| k != "name")
+            || spec.props.keys().any(|k| k != "name" && k != "with")
         {
-            self.diags.push(path, "`include` only takes `props.name`; style the fragment's root instead");
+            self.diags.push(path, "`include` only takes `props.name` and `props.with`; style the fragment's root instead");
         }
         let name = match spec.props.get("name") {
             Some(Json::String(n)) if !Template::is_template(n) => n.as_str(),
@@ -142,13 +146,72 @@ impl Resolver<'_> {
                 }
             },
         };
+        // Arguments are expressions in the caller's context, so they see the caller's
+        // own parameters; the fragment then sees only its own.
+        let args = self.args(spec.props.get("with"), &format!("{path}.props.with"));
+        let outer = std::mem::replace(&mut self.params, Params::new(args));
         self.including.push(name.to_string());
         let node = self.node(&fragment, &format!("{path}@{name}"));
         self.including.pop();
+        let inner = std::mem::replace(&mut self.params, outer);
+        for unused in inner.unused() {
+            self.diags.warn(
+                format!("{path}.props.with.{unused}"),
+                format!("fragment `{name}` never uses parameter `{unused}`"),
+            );
+        }
         node
     }
 
+    /// `with`: each value becomes an expression, a template or a literal.
+    fn args(&mut self, with: Option<&Json>, path: &str) -> IndexMap<String, crate::Expr> {
+        let mut out = IndexMap::new();
+        let Some(with) = with else { return out };
+        let Json::Object(map) = with else {
+            self.diags.push(path, "`with` must be an object of parameter names to values");
+            return out;
+        };
+        for (k, v) in map {
+            let p = format!("{path}.{k}");
+            if !is_ident(k) {
+                self.diags.push(&p, "parameter names must be identifiers (letters, digits, `_`)");
+                continue;
+            }
+            let expr = match v {
+                Json::String(s) => match Template::parse(s) {
+                    Ok(t) => match self.params.template(&t) {
+                        Ok(t) => params::to_expr(t),
+                        Err(e) => {
+                            self.diags.push(&p, e);
+                            continue;
+                        }
+                    },
+                    Err(e) => {
+                        self.diags.push(&p, format!("invalid expression: {e}"));
+                        continue;
+                    }
+                },
+                other => crate::Expr::Lit(other.clone()),
+            };
+            out.insert(k.clone(), expr);
+        }
+        out
+    }
+
     fn component(&mut self, spec: &NodeSpec, path: &str) -> Node {
+        // Inside a fragment, a list's item or index name would hide a parameter of
+        // the same name from everything below it.
+        if spec.kind == "list" && !self.params.is_empty() {
+            for (prop, default) in [("as", "item"), ("index", "index")] {
+                let name = spec.props.get(prop).and_then(Json::as_str).unwrap_or(default);
+                if self.params.contains(name) {
+                    self.diags.push(
+                        format!("{path}.props"),
+                        format!("this list's `{name}` hides the fragment parameter `{name}`; rename one of them"),
+                    );
+                }
+            }
+        }
         let info = self.catalog.component(&spec.kind);
         if info.is_none() {
             self.diags.push(format!("{path}.type"), format!("unknown component type `{}`", spec.kind));
@@ -238,7 +301,17 @@ impl Resolver<'_> {
     }
 
     fn val(&mut self, raw: &Json, path: &str) -> Option<Val> {
-        Val::parse(raw).map_err(|e| self.diags.push(path, format!("invalid expression: {e}"))).ok()
+        let val = Val::parse(raw).map_err(|e| self.diags.push(path, format!("invalid expression: {e}"))).ok()?;
+        match val {
+            Val::Tpl(t) if !self.params.is_empty() => match self.params.template(&t) {
+                Ok(t) => Some(params::simplify(t)),
+                Err(e) => {
+                    self.diags.push(path, e);
+                    None
+                }
+            },
+            v => Some(v),
+        }
     }
 
     fn check_prop(&mut self, def: &PropDef, v: &Json, path: &str) {
@@ -321,6 +394,26 @@ impl Resolver<'_> {
                 self.diags.push(&p, e);
                 continue;
             }
+            // A template that parameters made fully literal is checked like any static value.
+            let substituted;
+            let raw = match raw {
+                Json::String(s) if Template::is_template(s) && !self.params.is_empty() => {
+                    match Template::parse(s).map_err(|e| format!("invalid expression: {e}")).and_then(|t| self.params.template(&t)) {
+                        Ok(t) => match params::simplify(t) {
+                            Val::Lit(v) => {
+                                substituted = v;
+                                &substituted
+                            }
+                            Val::Tpl(_) => raw,
+                        },
+                        Err(e) => {
+                            self.diags.push(&p, e);
+                            continue;
+                        }
+                    }
+                }
+                _ => raw,
+            };
             let value = match raw {
                 Json::Number(n) => StyleValue::Static(number_to_css(&property, n.as_f64().unwrap_or(0.0))),
                 Json::String(s) if Template::is_template(s) => match self.dynamic_style(s) {
@@ -354,8 +447,9 @@ impl Resolver<'_> {
     }
 
     /// A templated style value; tokens in its literal parts are resolved now.
-    fn dynamic_style(&self, s: &str) -> Result<Template, String> {
+    fn dynamic_style(&mut self, s: &str) -> Result<Template, String> {
         let mut tpl = Template::parse(s).map_err(|e| format!("invalid expression: {e}"))?;
+        tpl = self.params.template(&tpl)?;
         for part in &mut tpl.parts {
             if let Part::Lit(l) = part {
                 *l = self.theme.substitute(l)?;

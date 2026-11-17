@@ -3,6 +3,7 @@
 #
 # Shows:
 #   - fragments from a directory, included inside lists, and nested (order-row → status-badge)
+#   - a fragment with a parameter (status-badge takes `status`)
 #   - a fragment defined in the document itself (order-lines)
 #   - `if` on server data: decided on the server, nothing reaches the browser
 #   - `if` on state inside a server-rendered table: filter tabs and expandable rows

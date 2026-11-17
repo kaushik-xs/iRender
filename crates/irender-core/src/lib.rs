@@ -18,6 +18,7 @@ pub mod catalog;
 pub mod diag;
 pub mod expr;
 pub mod fragment;
+mod params;
 pub mod ir;
 pub mod policy;
 pub mod resolve;

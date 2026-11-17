@@ -517,7 +517,7 @@ fn include_errors_are_located() {
         "root.children[0]@a.children[0]@b.props.name: include cycle: a → b → a",
         "root.children[1]@bad.props.size: `text` has no prop `size` (props: value, tag; use `attrs` for HTML attributes)",
         "root.children[2].props.name: expected a fragment name (expressions are not allowed)",
-        "root.children[3]: `include` only takes `props.name`; style the fragment's root instead",
+        "root.children[3]: `include` only takes `props.name` and `props.with`; style the fragment's root instead",
         "root.children[3]@bad.props.size: `text` has no prop `size` (props: value, tag; use `attrs` for HTML attributes)",
     ], "{err}");
 }
@@ -658,4 +658,109 @@ fn a_bound_radio_needs_a_value() {
     let root = json!({ "type": "input", "props": { "type": "radio", "bind": "size" } });
     let err = render_with(&Engine::new(), root, json!({ "size": "m" }), json!({})).unwrap_err();
     assert_eq!(err.to_string(), "root: a bound radio needs a `value`");
+}
+
+// ---------------------------------------------------------------- include parameters
+
+#[test]
+fn include_parameters_substitute_into_the_fragment() {
+    let doc = json!({ "version": 1, "state": { "qty": 2 },
+        "fragments": {
+            "row": { "type": "text", "props": { "tag": "li", "value": "{{ label }}: {{ who.name }} × {{ n }}" },
+                     "class": ["{{ tone }}"] },
+            "badge": { "type": "include", "props": { "name": "row",
+                       "with": { "label": "[{{ label }}]", "who": "{{ who }}", "n": "{{ n * 10 }}", "tone": "{{ tone }}" } } }
+        },
+        "root": { "type": "list", "props": { "items": "{{ users }}", "as": "u", "tag": "ul" }, "children": [
+            { "type": "include", "props": { "name": "row", "with": { "label": "User", "who": "{{ u }}", "n": "{{ qty }}", "tone": "plain" } } },
+            { "type": "include", "props": { "name": "badge", "with": { "label": "Badge", "who": "{{ u }}", "n": 1, "tone": "{{ u.tone }}" } } }
+        ] } });
+    let engine = Engine::new();
+    let ir = engine.load(&doc.to_string(), Format::Json).unwrap_or_else(|d| panic!("{d}"));
+    assert!(ir.warnings.is_empty(), "{}", ir.warnings);
+    let page = engine.render(&ir, &json!({ "users": [{ "name": "Ada", "tone": "gold" }] })).unwrap();
+    let body = strip_classes(&page.body);
+    // `qty` is state, so the first row still updates live; the second only uses data.
+    assert!(body.starts_with(r#"<ul><li class="plain" data-i-b="#), "{body}");
+    assert!(body.contains(">User: Ada × 2</li>"), "{body}");
+    assert!(body.ends_with(r#"<li class="gold">[Badge]: Ada × 10</li></ul>"#), "{body}");
+    let live = attr_json(&page.body, "data-i-b");
+    assert_eq!(live[0]["v"]["t"][4], json!({ "p": ["qty"] }), "{live}");
+}
+
+#[test]
+fn include_parameters_work_in_lists_the_browser_rebuilds() {
+    let doc = json!({ "version": 1, "state": { "todos": [{ "title": "a" }] },
+        "fragments": { "item": { "type": "text", "props": { "tag": "li", "value": "{{ title }}" } } },
+        "root": { "type": "list", "props": { "items": "{{ todos }}", "as": "t", "tag": "ul" },
+                  "children": [{ "type": "include", "props": { "name": "item", "with": { "title": "{{ t.title }}" } } }] } });
+    let engine = Engine::new();
+    let page = engine.render(&engine.load(&doc.to_string(), Format::Json).unwrap(), &json!({})).unwrap();
+    // The template keeps `t.title` for the browser, exactly as if written inline.
+    let tpl = &page.body[page.body.find("<template>").unwrap()..page.body.find("</template>").unwrap()];
+    assert!(tpl.contains("&quot;p&quot;:[&quot;t&quot;,&quot;title&quot;]"), "{tpl}");
+    assert!(page.body.ends_with("</template><li>a</li></ul>"), "{}", page.body);
+}
+
+#[test]
+fn literal_arguments_are_checked_like_literals() {
+    let doc = |with: Json, root_props: Json| json!({ "version": 1, "state": { "email": "" },
+        "fragments": {
+            "link": { "type": "element", "props": { "tag": "a" }, "attrs": { "href": "{{ url }}" },
+                      "style": { "color": "{{ tone }}" } },
+            "field": { "type": "input", "props": { "bind": "{{ key }}" } }
+        },
+        "root": { "type": "include", "props": { "name": root_props["name"].clone(), "with": with } } });
+    let load = |engine: &Engine, d: Json| engine.load(&d.to_string(), Format::Json);
+
+    // A token passed in becomes a static style; a URL stays a literal attribute.
+    let ir = load(&Engine::new(), doc(json!({ "url": "/home", "tone": "$color.primary" }), json!({ "name": "link" }))).unwrap();
+    let page = Engine::new().render(&ir, &json!({})).unwrap();
+    assert_eq!(strip_classes(&page.body), r#"<a href="/home"></a>"#);
+    assert!(page.css.contains("color: var(--color-primary);"), "{}", page.css);
+
+    // The untrusted policy still rejects an unsafe URL passed as a parameter.
+    let err = load(&Engine::untrusted(), doc(json!({ "url": "javascript:alert(1)", "tone": "red" }), json!({ "name": "link" })))
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("root@link.attrs.href"), "{err}");
+
+    // A state key passed in is still checked against `state`.
+    assert!(load(&Engine::new(), doc(json!({ "key": "email" }), json!({ "name": "field" }))).is_ok());
+    let err = load(&Engine::new(), doc(json!({ "key": "nope" }), json!({ "name": "field" }))).unwrap_err().to_string();
+    assert_eq!(err, "root@field.props.bind: expected a key declared in `state`, got `nope`");
+}
+
+#[test]
+fn include_parameter_errors_are_located() {
+    let doc = json!({ "version": 1,
+        "fragments": {
+            "f": { "type": "text", "props": { "value": "{{ total.x }}" } },
+            "g": { "type": "list", "props": { "items": "{{ rows }}" },
+                   "children": [{ "type": "text", "props": { "value": "{{ item }}" } }] },
+            "h": { "type": "text", "props": { "value": "fixed" } }
+        },
+        "root": { "type": "element", "children": [
+            { "type": "include", "props": { "name": "f", "with": { "total": "{{ a + b }}" } } },
+            { "type": "include", "props": { "name": "g", "with": { "item": 1, "rows": [] } } },
+            { "type": "include", "props": { "name": "h", "with": ["not", "an", "object"] } },
+            { "type": "include", "props": { "name": "h", "with": { "bad name": 1 } } }
+        ] } });
+    let err = Engine::new().load(&doc.to_string(), Format::Json).unwrap_err().to_string();
+    let lines: Vec<_> = err.lines().collect();
+    assert_eq!(lines, [
+        "root.children[0]@f.props.value: `total` is a computed value, so `total.x` has no fields; pass a path or a literal",
+        "root.children[1]@g.props: this list's `item` hides the fragment parameter `item`; rename one of them",
+        "root.children[2].props.with: `with` must be an object of parameter names to values",
+        "root.children[3].props.with.bad name: parameter names must be identifiers (letters, digits, `_`)",
+    ], "{err}");
+}
+
+#[test]
+fn unused_parameters_warn() {
+    let doc = json!({ "version": 1,
+        "fragments": { "h": { "type": "text", "props": { "value": "{{ title }}" } } },
+        "root": { "type": "include", "props": { "name": "h", "with": { "title": "T", "titel": "typo" } } } });
+    let ir = Engine::new().load(&doc.to_string(), Format::Json).unwrap();
+    assert_eq!(ir.warnings.to_string(), "warning: root.props.with.titel: fragment `h` never uses parameter `titel`");
 }

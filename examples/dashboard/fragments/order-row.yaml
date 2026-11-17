@@ -17,7 +17,7 @@ children:
   - type: element
     props: { tag: td }
     children:
-      - { type: include, props: { name: status-badge } }
+      - { type: include, props: { name: status-badge, with: { status: "{{ order.status }}" } } }
   - type: text
     props: { tag: td, value: "₹{{ order.total }}" }
     style: { text-align: right, font-variant-numeric: tabular-nums }
