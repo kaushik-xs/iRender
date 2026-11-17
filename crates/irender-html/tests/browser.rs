@@ -257,3 +257,65 @@ fn form_controls_in_chrome() {
     // Clearing the key brings back the placeholder.
     assert_eq!(lines[5], "typed, cleared ; xs,s* ; 1*,2,3 ; 1 ; true ;  ; Delhi ; Pune,Mumbai,Delhi ; two⏎lines ; s|1|number|true||Delhi|two⏎lines", "{result}");
 }
+
+/// A behaviour registered by a component: started once per element, including
+/// on content an `if` inserts later, and told about every state change.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn component_behaviours_in_chrome() {
+    use irender_core::{ComponentInfo, Node, PropDef, PropKind};
+    use irender_html::{Component, RenderCx, RenderError};
+    use serde_json::json;
+
+    struct Counter;
+    impl Component for Counter {
+        fn name(&self) -> &'static str {
+            "counter"
+        }
+        fn info(&self) -> ComponentInfo {
+            const PROPS: &[PropDef] = &[PropDef::new("step", PropKind::Number, "")];
+            ComponentInfo { doc: "", props: PROPS, parts: &[], children: false, open_props: false }
+        }
+        fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+            cx.global_js(
+                "counter",
+                r#"(window.__irenderBehaviors ||= {}).counter = (el, api) => {
+  el.dataset.starts = String(+(el.dataset.starts || 0) + 1);
+  el.addEventListener("click", () => api.set("n", api.state.n + api.config.step));
+  return { update(state) { el.textContent = "n=" + state.n; } };
+};"#,
+            );
+            let mut el = cx.element("button", node);
+            el.behavior("counter", json!({ "step": cx.prop(node, "step").unwrap_or(json!(1)) }));
+            cx.open(&el, node)?;
+            cx.close("button");
+            Ok(())
+        }
+    }
+
+    let mut engine = Engine::new();
+    engine.registry.register(Counter);
+    let doc = json!({ "version": 1, "state": { "n": 0, "show": false }, "root": { "type": "element", "children": [
+        { "type": "counter", "props": { "step": 2 }, "attrs": { "id": "a" } },
+        { "type": "if", "props": { "when": "{{ show }}" }, "children": [{ "type": "counter", "attrs": { "id": "c" } }] }
+    ] } });
+    let ir = engine.load(&doc.to_string(), Format::Json).unwrap();
+    let driver = r#"<script>
+window.addEventListener("load", () => {
+  const root = document.querySelector("[data-i-root]"), out = [];
+  const a = document.getElementById("a");
+  out.push("start " + a.dataset.starts + " " + a.textContent);
+  a.click(); a.click();
+  out.push("clicks " + a.textContent + " " + root.__irender.state.n);
+  root.__irender.set("show", true);
+  const c = document.getElementById("c");
+  out.push("inserted " + c.dataset.starts + " " + c.textContent);
+  c.click();
+  out.push("both " + a.textContent + " " + c.textContent + " starts " + a.dataset.starts + c.dataset.starts);
+  const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+});
+</script>"#;
+    let html = engine.render(&ir, &json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("behaviours", &html) else { return };
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["start 1 n=0", "clicks n=4 4", "inserted 1 n=4", "both n=5 n=5 starts 11"], "\n{result}");
+}

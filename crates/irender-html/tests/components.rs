@@ -764,3 +764,58 @@ fn unused_parameters_warn() {
     let ir = Engine::new().load(&doc.to_string(), Format::Json).unwrap();
     assert_eq!(ir.warnings.to_string(), "warning: root.props.with.titel: fragment `h` never uses parameter `titel`");
 }
+
+// ---------------------------------------------------------------- component behaviours
+
+/// A component with a client behaviour that counts its starts and updates.
+struct Counter;
+
+const COUNTER_JS: &str = r#"(window.__irenderBehaviors ||= {}).counter = (el, api) => {
+  el.dataset.starts = String(+(el.dataset.starts || 0) + 1);
+  el.dataset.step = String(api.config.step);
+  el.addEventListener("click", () => api.set("n", api.state.n + api.config.step));
+  return { update(state) { el.textContent = "n=" + state.n; } };
+};"#;
+
+impl Component for Counter {
+    fn name(&self) -> &'static str {
+        "counter"
+    }
+    fn info(&self) -> ComponentInfo {
+        const PROPS: &[PropDef] = &[PropDef::new("step", PropKind::Number, "")];
+        ComponentInfo { doc: "", props: PROPS, parts: &[], children: false, open_props: false }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        cx.global_js("counter", COUNTER_JS);
+        let step = cx.prop(node, "step").unwrap_or(json!(1));
+        let mut el = cx.element("button", node);
+        el.behavior("counter", json!({ "step": step }));
+        cx.open(&el, node)?;
+        cx.close("button");
+        Ok(())
+    }
+}
+
+pub fn behaviour_doc() -> Json {
+    json!({ "type": "element", "children": [
+        { "type": "counter", "props": { "step": 2 }, "attrs": { "id": "a" } },
+        { "type": "counter", "attrs": { "id": "b" } },
+        { "type": "if", "props": { "when": "{{ show }}" }, "children": [{ "type": "counter", "attrs": { "id": "c" } }] }
+    ] })
+}
+
+#[test]
+fn behaviours_mark_elements_and_ship_their_script_once() {
+    let mut engine = Engine::new();
+    engine.registry.register(Counter);
+    let page = render_with(&engine, behaviour_doc(), json!({ "n": 0, "show": false }), json!({})).unwrap();
+    assert!(page.interactive);
+    assert_eq!(page.scripts, vec![COUNTER_JS], "one script however many counters");
+    assert!(page.body.contains(r#"<button id="a" data-i-x="counter" data-i-xc="{&quot;step&quot;:2}">"#), "{}", page.body);
+    let html = page.fragment();
+    let (script, runtime) = (html.find("__irenderBehaviors").unwrap(), html.find("iRender browser runtime").unwrap());
+    assert!(script < runtime, "behaviours register before the runtime starts them");
+    // Documents can't mark elements themselves.
+    let forged = json!({ "version": 1, "root": { "type": "element", "attrs": { "data-i-x": "counter" } } });
+    assert!(engine.load(&forged.to_string(), Format::Json).unwrap_err().to_string().contains("reserved"));
+}

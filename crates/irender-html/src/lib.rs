@@ -1,5 +1,5 @@
 //! Renders iRender documents to HTML on the server, with a small browser runtime
-//! (~4 KB gzipped) for state, bindings and actions.
+//! (~4.5 KB gzipped) for state, bindings and actions.
 //!
 //! ```no_run
 //! use irender_html::Engine;
@@ -172,7 +172,7 @@ impl Engine {
         let parallel = None;
         let mut cx = RenderCx::new(&self.registry, &self.policy, &ir.theme, &ir.state, data, parallel);
         cx.render(&ir.root)?;
-        let (body, css, interactive) = cx.finish();
+        let (body, css, interactive, scripts) = cx.finish();
         #[cfg(feature = "lightningcss")]
         let css = if self.minify {
             irender_style::minify(&css).map_err(|e| RenderError { path: String::new(), message: e })?
@@ -180,7 +180,7 @@ impl Engine {
             css
         };
         let state = Json::Object(ir.state.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
-        Ok(Page { css, body, state, interactive })
+        Ok(Page { css, body, state, interactive, scripts })
     }
 }
 
@@ -193,6 +193,9 @@ pub struct Page {
     pub state: Json,
     /// Whether the page has bindings or actions and therefore needs the runtime.
     pub interactive: bool,
+    /// Client behaviour scripts the page's components need (see
+    /// [`RenderCx::global_js`]), included before the runtime.
+    pub scripts: Vec<&'static str>,
 }
 
 impl Page {
@@ -209,6 +212,9 @@ impl Page {
             ));
         }
         s.push_str("</div>\n");
+        for js in &self.scripts {
+            s.push_str(&format!("<script>\n{js}</script>\n"));
+        }
         if self.interactive {
             s.push_str(&format!("<script>\n{RUNTIME_JS}</script>\n"));
         }

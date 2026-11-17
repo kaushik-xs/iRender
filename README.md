@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/kaushik-xs/iRender/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kaushik-xs/iRender/actions/workflows/ci.yml)
 
-Build UI from configuration. Write a document in JSON or YAML, then validate it and render it to HTML with a ~4 KB (gzipped) runtime for state and actions.
+Build UI from configuration. Write a document in JSON or YAML, then validate it and render it to HTML with a ~4.5 KB (gzipped) runtime for state and actions.
 
 ```sh
 cargo run -p irender-cli -- render examples/product.json --data examples/product.data.json -o product.html
@@ -277,3 +277,20 @@ impl Component for Badge {
 let mut engine = Engine::new();
 engine.registry.register(Badge);
 ```
+
+### Page-level CSS and client behaviours
+
+A component that needs more than per-element styles and the built-in actions can add two kinds of page-level code. Both take `&'static str`, so they come from component code and never from a document:
+
+- `cx.global_css(name, css)` adds a rule such as `@keyframes` once per page, however many instances ask for it.
+- `cx.global_js(name, js)` adds a client behaviour's script once per page. `el.behavior(name, config)` marks an element for it. The runtime starts the behaviour on each marked element, including ones an `if` or a rebuilt list inserts later, and calls its `update` after every state change:
+
+```js
+(window.__irenderBehaviors ||= {})["counter"] = (el, api) => {
+  // api.config (from `behavior`), api.state, api.set(key, value), api.emit(event, detail)
+  el.addEventListener("click", () => api.set("n", api.state.n + api.config.step));
+  return { update(state) { el.textContent = state.n; } };
+};
+```
+
+Documents can't mark elements themselves: `data-i-*` attributes are reserved. `irender-ui-kit`'s `ui-combobox` is built this way.

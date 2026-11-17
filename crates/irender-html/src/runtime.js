@@ -96,6 +96,18 @@
     let pending = [];
 
     function wire(n) {
+      // Component behaviours (see `RenderCx::global_js`), started once per element.
+      for (const el of within(n, "[data-i-x]")) {
+        const start = (window.__irenderBehaviors || {})[el.getAttribute("data-i-x")];
+        if (!start || el.__x) continue;
+        el.__x = start(el, {
+          config: json(el, "data-i-xc", "__xc"),
+          get state() { return state; },
+          set,
+          scope: () => scopeOf(el),
+          emit: (name, detail) => emit(el, name, detail),
+        }) || {};
+      }
       for (const el of within(n, "[data-i-on]")) {
         for (const [name, actions] of Object.entries(json(el, "data-i-on", "__on"))) {
           if (name === "mount") pending.push([actions, el]);
@@ -235,6 +247,7 @@
         else if (el.type === "radio") el.checked = el.value === str(v);
         else el.value = str(v);
       }
+      for (const el of root.querySelectorAll("[data-i-x]")) el.__x?.update?.(state);
       const due = pending;
       pending = [];
       for (const [actions, el] of due) run(actions, null, el);

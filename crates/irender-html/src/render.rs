@@ -46,6 +46,8 @@ pub struct Element<'n> {
     list: Option<(&'n Val, String, String)>,
     /// A `<select>`'s options, rebuilt in the browser when they use state.
     options: Option<&'n Val>,
+    /// A client behaviour to start on this element, and its configuration.
+    behavior: Option<(&'static str, Json)>,
 }
 
 impl<'n> Element<'n> {
@@ -62,6 +64,7 @@ impl<'n> Element<'n> {
             bind: None,
             list: None,
             options: None,
+            behavior: None,
         }
     }
 
@@ -127,6 +130,13 @@ impl<'n> Element<'n> {
         self.options = Some(options);
         self
     }
+
+    /// Starts the client behaviour `name` on this element in the browser, passing it
+    /// `config`. The behaviour's script must be added with [`RenderCx::global_js`].
+    pub fn behavior(&mut self, name: &'static str, config: Json) -> &mut Self {
+        self.behavior = Some((name, config));
+        self
+    }
 }
 
 /// A name in scope while rendering, e.g. a list's `item`.
@@ -150,6 +160,8 @@ pub struct RenderCx<'a> {
     styles: StyleCompiler<'a>,
     out: String,
     interactive: bool,
+    /// Client behaviour scripts, by name, in first-use order.
+    scripts: IndexMap<&'static str, &'static str>,
     /// Lists with at least this many items render in parallel.
     #[cfg_attr(not(feature = "parallel"), allow(dead_code))]
     parallel_min_items: Option<usize>,
@@ -174,12 +186,13 @@ impl<'a> RenderCx<'a> {
             styles: StyleCompiler::new(theme),
             out: String::new(),
             interactive: false,
+            scripts: IndexMap::new(),
             parallel_min_items,
         }
     }
 
-    pub(crate) fn finish(self) -> (String, String, bool) {
-        (self.out, self.styles.css(), self.interactive)
+    pub(crate) fn finish(self) -> (String, String, bool, Vec<&'static str>) {
+        (self.out, self.styles.css(), self.interactive, self.scripts.into_values().collect())
     }
 
     pub fn theme(&self) -> &Theme {
@@ -423,6 +436,14 @@ impl<'a> RenderCx<'a> {
             self.write_val_js(&mut bindings, options);
             bindings.push('}');
         }
+        if let Some((name, config)) = &el.behavior {
+            self.out.push_str(" data-i-x=\"");
+            escape::push_attr(&mut self.out, name);
+            self.out.push_str("\" data-i-xc=\"");
+            escape::push_attr(&mut self.out, &config.to_string());
+            self.out.push('"');
+            self.interactive = true;
+        }
         if !bindings.is_empty() {
             self.out.push_str(" data-i-b=\"[");
             escape::push_attr(&mut self.out, &bindings);
@@ -537,11 +558,14 @@ impl<'a> RenderCx<'a> {
                     let vars = vec![(item.to_string(), value.clone()), (index.to_string(), json!(c * chunk + j))];
                     cx.with_scope(vars, |cx| cx.children(node))?;
                 }
-                Ok((cx.out, cx.styles.into_rules(), cx.interactive))
+                Ok((cx.out, cx.styles.into_rules(), cx.interactive, cx.scripts))
             })
             .collect();
         for result in chunks {
-            let (out, rules, interactive) = result?;
+            let (out, rules, interactive, scripts) = result?;
+            for (name, js) in scripts {
+                self.scripts.entry(name).or_insert(js);
+            }
             self.out.push_str(&out);
             self.styles.merge(rules);
             self.interactive |= interactive;
@@ -554,6 +578,25 @@ impl<'a> RenderCx<'a> {
     /// document can never supply it, and it isn't validated.
     pub fn global_css(&mut self, name: &'static str, css: &'static str) {
         self.styles.global(name, css);
+    }
+
+    /// Adds a client behaviour's script once per page. The script registers the
+    /// behaviour, and the runtime starts it on elements marked with
+    /// [`Element::behavior`]:
+    ///
+    /// ```js
+    /// (window.__irenderBehaviors ||= {})["name"] = (el, api) => {
+    ///   // api.config, api.state, api.set(key, value), api.emit(event, detail)
+    ///   return { update(state) { /* after every state change */ } };
+    /// };
+    /// ```
+    ///
+    /// For component code only: the script is `'static`, so a document can never
+    /// supply one. It must not contain `</script`.
+    pub fn global_js(&mut self, name: &'static str, js: &'static str) {
+        debug_assert!(!js.to_ascii_lowercase().contains("</script"), "behaviour `{name}` contains `</script`");
+        self.scripts.entry(name).or_insert(js);
+        self.interactive = true;
     }
 
     /// A short key that differs between the items of a server-rendered list (it hashes
