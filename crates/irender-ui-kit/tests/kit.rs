@@ -436,14 +436,57 @@ fn field_groups_empty_spinner_and_scroll_area_structure() {
     assert_eq!(
         plain(&body),
         concat!(
-            r#"<div><div><label for="e">Email</label><div><span>@</span><input id="e" type="text"><span>.com</span></div>"#,
-            r#"<p>Help</p><p aria-live="polite">Bad</p></div>"#,
+            r#"<div><div><label for="e">Email</label><div><span>@</span>"#,
+            r#"<input id="e" aria-describedby="e-description e-error" type="text"><span>.com</span></div>"#,
+            r#"<p id="e-description">Help</p><p aria-live="polite" id="e-error">Bad</p></div>"#,
             r#"<div role="group" aria-orientation="vertical" aria-label="View"></div>"#,
             r#"<div><div aria-hidden="true">!</div><h3>None</h3><p>Add one</p></div>"#,
             r#"<span role="status" aria-label="Saving"></span>"#,
             r#"<div tabindex="0"></div><div tabindex="0" role="region" aria-label="Log"></div></div>"#,
         )
     );
+}
+
+#[test]
+fn fields_and_tooltips_describe_their_controls() {
+    let body = plain(&render(json!({ "type": "element", "children": [
+        // No `for`: the first control gets an id, inside the input group too.
+        { "type": "ui-field", "props": { "label": "Site", "description": "Help" }, "children": [
+            { "type": "ui-input-group", "children": [ { "type": "ui-input" } ] } ] },
+        // A switch's id and description go on its inner input; one it already has is kept.
+        { "type": "ui-field", "props": { "label": "On", "error": "{{ e }}", "for": "s" }, "children": [
+            { "type": "ui-switch", "parts": { "control": { "attrs": { "id": "s", "aria-describedby": "note" } } } } ] },
+        // The combobox's is its search input.
+        { "type": "ui-field", "props": { "label": "City", "description": "Where" }, "children": [
+            { "type": "ui-combobox", "props": { "options": ["a"] } } ] },
+        { "type": "ui-tooltip", "props": { "text": "Tip", "id": "t" }, "children": [ { "type": "ui-button", "props": { "label": "B" } } ] } ] })));
+    let ids = |s: &str| s.split(" aria-describedby=\"").skip(1).map(|r| r[..r.find('"').unwrap()].to_string()).collect::<Vec<_>>();
+    assert_eq!(
+        ids(&body),
+        ["field-root-children-0-control-description", "note s-error", "field-root-children-2-control-description", "t"],
+        "{body}"
+    );
+    for id in ["field-root-children-0-control", "s", "field-root-children-2-control"] {
+        assert!(body.contains(&format!(r#"for="{id}""#)), "label for {id}: {body}");
+        assert!(body.contains(&format!(r#"<input id="{id}""#)) || body.contains(&format!(r#" id="{id}""#)), "{id}: {body}");
+    }
+    assert!(body.contains(r#"<p id="field-root-children-0-control-description">Help</p>"#), "{body}");
+    assert!(body.contains(r#"<p aria-live="polite" id="s-error" "#) || body.contains(r#"id="s-error""#), "{body}");
+    assert!(body.contains(r#"role="tooltip" id="t">Tip</span>"#), "{body}");
+}
+
+#[test]
+fn tooltips_in_browser_rebuilt_lists_describe_with_live_ids() {
+    let page = render_with(
+        json!({ "type": "list", "props": { "items": "{{ rows }}", "as": "r" }, "children": [
+            { "type": "ui-tooltip", "props": { "text": "{{ r }}" }, "children": [ { "type": "ui-button", "props": { "label": "x" } } ] } ] }),
+        json!({ "rows": ["a"] }),
+        json!({}),
+    )
+    .unwrap();
+    // Each rebuilt item's button points at that item's tip, not at one shared id.
+    assert!(page.body.contains("aria-describedby"), "{}", page.body);
+    assert!(!page.body.contains(r#"aria-describedby="tooltip-root-children-0""#), "{}", page.body);
 }
 
 #[test]

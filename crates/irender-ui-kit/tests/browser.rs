@@ -656,6 +656,8 @@ fn field_groups_spinner_and_scroll_area_in_chrome() {
       const type = (v) => { name.value = v; name.dispatchEvent(new Event("input")); };
       out.push("error " + css(error).display);
       type("ab"); out.push("error " + css(error).display + " " + error.textContent);
+      const described = name.getAttribute("aria-describedby").split(" ").map((id) => document.getElementById(id)?.textContent);
+      out.push("described " + described.join("|") + " labelled " + name.labels[0]?.textContent);
       type("abc"); out.push("error " + css(error).display);
 
       const group = $("#group"), site = $("#site");
@@ -689,6 +691,8 @@ fn field_groups_spinner_and_scroll_area_in_chrome() {
             // The error is hidden while it is empty, and follows state.
             "error none",
             "error block Too short",
+            // The input points at the error, and the label at the input.
+            "described Too short labelled Name",
             "error none",
             // A field in a group gives its border and focus ring to the group.
             "grouped field 0px none",

@@ -28,7 +28,6 @@ _Last updated: 2026-11-17._
   These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
   - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, sidebar, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
-- [ ] **`ui-field` doesn't link its help text and error to the control.** Screen readers announce the error when it appears, but don't read the description or error with the control. Linking them needs `aria-describedby` on the child control, with ids.
 - [ ] **Lists expanded on the server can't follow state:** `ui-radio-group` options, `ui-breadcrumb` items and `ui-pagination`. Using state in them is a render error today.
 - [ ] **Single choice only:** `ui-toggle-group` allows one pressed option at most (no multiple mode), and the built-in `select` has no `multiple`. `ui-combobox` covers multi-select.
 - [ ] **`ui-combobox`:**
@@ -37,7 +36,6 @@ _Last updated: 2026-11-17._
   - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. Idea: a `labels` prop or an initial lookup request.
   - [ ] Not tested inside `ui-dialog` / `ui-sheet`. The menu is a top-layer popover opened after the dialog, so it should sit above it, but this is unverified.
 - [ ] **`ui-theme-toggle`'s choice only applies on pages that have a toggle.** The index and the UI kit and chart kit galleries share it; the other examples still follow the system.
-- [ ] **Tooltip accessibility:** `ui-tooltip` doesn't link the tip to its trigger with `aria-describedby`, because the tooltip can't add attributes to the child it wraps. Idea: a `trigger` prop that renders the trigger itself, or a small behaviour.
 
 ## Flow kit next phases
 

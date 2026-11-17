@@ -4,8 +4,8 @@
 //! its arrow keys (menu.js).
 
 use crate::{
-    ACCENT, DESTRUCTIVE, MUTED, ON_PRIMARY, PRIMARY, SURFACE, TEXT, choice, context, disclosure::merge_node, forms,
-    id_after, id_with, instance_id, lit, synthetic,
+    ACCENT, DESTRUCTIVE, MUTED, ON_PRIMARY, PRIMARY, SURFACE, TEXT, choice, context, describe, disclosure::merge_node,
+    forms, id_after, id_with, instance_id, lit, synthetic,
 };
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
@@ -532,6 +532,7 @@ const TIP_SIDES: &[&str] = &["top", "bottom", "left", "right"];
 const TOOLTIP_PROPS: &[PropDef] = &[
     PropDef::new("text", PropKind::Any, "The tip").required(),
     PropDef::new("side", PropKind::Enum(TIP_SIDES), "Default `top`"),
+    PropDef::new("id", PropKind::Any, "The tip's element id (default: derived from the document)"),
 ];
 
 static TIP_WRAP: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -574,7 +575,8 @@ impl Component for Tooltip {
     }
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
-            doc: "A short tip shown when its children are hovered or focused.",
+            doc: "A short tip shown when its children are hovered or focused. It describes the first child for \
+                  screen readers.",
             props: TOOLTIP_PROPS,
             parts: &["tip"],
             children: true,
@@ -582,12 +584,19 @@ impl Component for Tooltip {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        // The first child (usually a button) is described by the tip, so screen readers
+        // read the tip with it.
+        let id = instance_id(cx, node, "tooltip");
+        let mut children = node.children.clone();
+        if let Some(first) = children.first_mut().filter(|c| c.kind != "text") {
+            describe(first, std::slice::from_ref(&id));
+        }
         let mut el = cx.element("span", node);
         el.base_style_ref(&TIP_WRAP);
         cx.open(&el, node)?;
-        cx.children(node)?;
+        children.iter().try_for_each(|c| cx.render(c))?;
         let mut tip = cx.part("span", node, "tip");
-        tip.base_style_ref(&TIPS[choice(cx, node, "side", TIP_SIDES)]).attr("role", "tooltip");
+        tip.base_style_ref(&TIPS[choice(cx, node, "side", TIP_SIDES)]).attr("role", "tooltip").attr("id", id);
         if let Some(t) = node.prop("text") {
             tip.text(t);
         }

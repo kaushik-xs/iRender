@@ -233,3 +233,53 @@ fn synthetic(node: &Node, kind: &str, props: Vec<(&str, Val)>, attrs: Vec<(&str,
 fn context(cx: &RenderCx<'_>, name: &str) -> Option<Val> {
     cx.context(name).cloned()
 }
+
+/// The kit's and the built-ins' form controls, which a `ui-field` labels and describes.
+const CONTROLS: &[&str] = &[
+    "input", "textarea", "select", "ui-input", "ui-textarea", "ui-select", "ui-checkbox", "ui-switch", "ui-slider",
+    "ui-radio-group", "ui-combobox",
+];
+
+/// The `attrs` that reach the element a control focuses: the inner `<input>` for kit
+/// controls that wrap one, otherwise the node's own.
+fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
+    match node.kind.as_str() {
+        "ui-checkbox" | "ui-switch" => &mut node.parts.entry("control".into()).or_default().attrs,
+        "ui-combobox" => &mut node.parts.entry("input".into()).or_default().attrs,
+        _ => &mut node.attrs,
+    }
+}
+
+fn focus_attr<'a>(node: &'a Node, name: &str) -> Option<&'a Val> {
+    match node.kind.as_str() {
+        "ui-checkbox" | "ui-switch" => node.parts.get("control")?.attrs.get(name),
+        "ui-combobox" => node.parts.get("input")?.attrs.get(name),
+        _ => node.attrs.get(name),
+    }
+}
+
+/// Adds `ids` to the `aria-describedby` of the element `node` focuses, after any it has.
+fn describe(node: &mut Node, ids: &[Val]) {
+    let attrs = focus_attrs(node);
+    let mut all: Vec<Val> = attrs.get("aria-describedby").cloned().into_iter().collect();
+    all.extend_from_slice(ids);
+    attrs.insert("aria-describedby".into(), join(&all));
+}
+
+/// Values joined with spaces: a template if any of them is one.
+fn join(vals: &[Val]) -> Val {
+    let mut parts = Vec::new();
+    for (i, v) in vals.iter().enumerate() {
+        if i > 0 {
+            parts.push(Part::Lit(" ".into()));
+        }
+        match v {
+            Val::Lit(j) => parts.push(Part::Lit(expr::stringify(j))),
+            Val::Tpl(t) => parts.extend(t.parts.iter().cloned()),
+        }
+    }
+    if parts.iter().all(|p| matches!(p, Part::Lit(_))) {
+        return lit(parts.into_iter().map(|p| if let Part::Lit(s) = p { s } else { unreachable!() }).collect::<String>());
+    }
+    Val::Tpl(Template { parts })
+}

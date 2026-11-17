@@ -2,8 +2,8 @@
 //! only change how they look. Button groups, input groups and fields arrange them.
 
 use crate::{
-    ACCENT, DESTRUCTIVE, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING, SECONDARY,
-    SURFACE, TEXT, choice, field, lit, server_array,
+    ACCENT, CONTROLS, DESTRUCTIVE, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING,
+    SECONDARY, SURFACE, TEXT, choice, describe, field, focus_attr, focus_attrs, id_with, instance_id, lit, server_array,
 };
 use indexmap::IndexMap;
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr};
@@ -718,7 +718,7 @@ pub struct Field;
 
 const FIELD_PROPS: &[PropDef] = &[
     PropDef::new("label", PropKind::Any, "The label"),
-    PropDef::new("for", PropKind::Any, "`id` of the control it labels"),
+    PropDef::new("for", PropKind::Any, "`id` of the control it labels; default the first control inside it"),
     PropDef::new("description", PropKind::Any, "Help text under the control"),
     PropDef::new("error", PropKind::Any, "An error under the control; hidden while empty, so it can follow state"),
     PropDef::new("orientation", PropKind::Enum(&["vertical", "horizontal"]), "Default `vertical`; `horizontal` puts the control after the label"),
@@ -750,7 +750,8 @@ impl Component for Field {
     }
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
-            doc: "A label, a control, help text and an error, laid out together. Children are the control.",
+            doc: "A label, a control, help text and an error, laid out together. Children are the control, which \
+                  the label names and the help text and error describe.",
             props: FIELD_PROPS,
             parts: &["label", "description", "error"],
             children: true,
@@ -758,6 +759,33 @@ impl Component for Field {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        // The control: the one `for` names, or the first. The label points at it, and it
+        // points at the help text and error, so screen readers read them with it.
+        let mut children = node.children.clone();
+        let mut control_id = node.prop("for").cloned();
+        let (mut description_id, mut error_id) = (None, None);
+        if let Some(control) = find_control(&mut children, node.prop("for")) {
+            let id = match focus_attr(control, "id") {
+                Some(id) => id.clone(),
+                None => {
+                    let id = id_with(&instance_id(cx, node, "field"), "-control");
+                    focus_attrs(control).insert("id".into(), id.clone());
+                    id
+                }
+            };
+            if node.prop("description").is_some() {
+                description_id = Some(id_with(&id, "-description"));
+            }
+            if node.prop("error").is_some() {
+                error_id = Some(id_with(&id, "-error"));
+            }
+            let ids: Vec<Val> = description_id.iter().chain(&error_id).cloned().collect();
+            if !ids.is_empty() {
+                describe(control, &ids);
+            }
+            control_id = Some(id);
+        }
+
         let o = choice(cx, node, "orientation", &["vertical", "horizontal"]);
         let mut el = cx.element("div", node);
         el.base_style_ref(&FIELD[o]);
@@ -765,16 +793,19 @@ impl Component for Field {
         if let Some(t) = node.prop("label") {
             let mut label = cx.part("label", node, "label");
             label.base_style_ref(&LABEL).text(t);
-            if let Some(f) = node.prop("for") {
-                label.attr("for", f.clone());
+            if let Some(f) = control_id {
+                label.attr("for", f);
             }
             cx.open(&label, node)?;
             cx.close("label");
         }
-        cx.children(node)?;
+        children.iter().try_for_each(|c| cx.render(c))?;
         if let Some(d) = node.prop("description") {
             let mut p = cx.part("p", node, "description");
             p.base_style_ref(&FIELD_DESCRIPTION).text(d);
+            if let Some(id) = description_id {
+                p.attr("id", id);
+            }
             cx.open(&p, node)?;
             cx.close("p");
         }
@@ -782,10 +813,31 @@ impl Component for Field {
             let mut p = cx.part("p", node, "error");
             // Announced when it appears or changes.
             p.base_style_ref(&FIELD_ERROR).attr("aria-live", "polite").text(e);
+            if let Some(id) = error_id {
+                p.attr("id", id);
+            }
             cx.open(&p, node)?;
             cx.close("p");
         }
         cx.close("div");
         Ok(())
     }
+}
+
+/// The control among `nodes`, depth first: the one whose focused element has `id`, or
+/// without an `id` the first one.
+fn find_control<'a>(nodes: &'a mut [Node], id: Option<&Val>) -> Option<&'a mut Node> {
+    for n in nodes {
+        let hit = match id {
+            Some(id) => focus_attr(n, "id") == Some(id),
+            None => CONTROLS.contains(&n.kind.as_str()),
+        };
+        if hit {
+            return Some(n);
+        }
+        if let Some(found) = find_control(&mut n.children, id) {
+            return Some(found);
+        }
+    }
+    None
 }
