@@ -4,6 +4,7 @@ description = "Validate and render iRender documents from the command line"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 repository.workspace = true
 
 [[bin]]

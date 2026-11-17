@@ -4,6 +4,7 @@ description = "Server-side HTML renderer and tiny browser runtime for iRender do
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 repository.workspace = true
 
 [features]

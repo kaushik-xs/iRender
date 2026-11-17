@@ -4,6 +4,7 @@ description = "Compiles iRender style blocks into hashed, deduplicated CSS class
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 repository.workspace = true
 
 [features]
