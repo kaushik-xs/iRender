@@ -17,6 +17,20 @@
       "needsServer": true
     },
     {
+      "title": "Chart kit gallery",
+      "href": "charts/index.html",
+      "source": "examples/charts/gallery.yaml",
+      "summary": "Apache ECharts through irender-chart-kit: every ECharts category in ui-kit cards, drill-downs from region to city, cross-filtering by click, date range, legend and brush, and live charts fed by polling and server-sent events.",
+      "features": [
+        "irender-chart-kit",
+        "drill-down",
+        "cross-filtering",
+        "live data",
+        "dark mode"
+      ],
+      "needsServer": true
+    },
+    {
       "title": "Orders dashboard",
       "href": "dashboard.html",
       "source": "examples/dashboard/dashboard.yaml",

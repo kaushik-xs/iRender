@@ -34,6 +34,9 @@ enum Command {
         /// Enable the `ui-*` components and the kit's theme (irender-ui-kit).
         #[arg(long)]
         ui_kit: bool,
+        /// Enable `ui-chart` and `ui-sparkline` and the chart colours (irender-chart-kit).
+        #[arg(long)]
+        chart_kit: bool,
     },
     /// Render a document to HTML.
     Render {
@@ -55,6 +58,9 @@ enum Command {
         /// Enable the `ui-*` components and the kit's theme (irender-ui-kit).
         #[arg(long)]
         ui_kit: bool,
+        /// Enable `ui-chart` and `ui-sparkline` and the chart colours (irender-chart-kit).
+        #[arg(long)]
+        chart_kit: bool,
         /// Emit an embeddable fragment instead of a full HTML document.
         #[arg(long)]
         fragment: bool,
@@ -79,6 +85,9 @@ enum Command {
         /// Include the `ui-*` components from irender-ui-kit.
         #[arg(long)]
         ui_kit: bool,
+        /// Include `ui-chart` and `ui-sparkline` from irender-chart-kit.
+        #[arg(long)]
+        chart_kit: bool,
     },
 }
 
@@ -99,10 +108,20 @@ fn read(path: &Path) -> Result<(String, Format), String> {
     Ok((src, format))
 }
 
-fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, ui_kit: bool) -> Engine {
+/// The optional component kits a command enables.
+#[derive(Clone, Copy)]
+struct Kits {
+    ui: bool,
+    chart: bool,
+}
+
+fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: Kits) -> Engine {
     let mut engine = if untrusted { Engine::untrusted() } else { Engine::new() };
-    if ui_kit {
+    if kits.ui {
         irender_ui_kit::register(&mut engine.registry);
+    }
+    if kits.chart {
+        irender_chart_kit::register(&mut engine.registry);
     }
     engine.strict_css = strict_css;
     engine.fragments = fragments.map(|dir| Arc::new(FragmentDir(dir)) as Arc<dyn Fragments>);
@@ -115,7 +134,7 @@ struct Loaded {
     resolve: Duration,
 }
 
-fn load(engine: &Engine, file: &Path, ui_kit: bool) -> Result<Loaded, String> {
+fn load(engine: &Engine, file: &Path, kits: Kits) -> Result<Loaded, String> {
     let (src, format) = read(file)?;
     let problems = |d: irender_core::Diagnostics| {
         let n = d.len();
@@ -123,8 +142,11 @@ fn load(engine: &Engine, file: &Path, ui_kit: bool) -> Result<Loaded, String> {
     };
     let start = Instant::now();
     let mut doc = irender_core::parse(&src, format).map_err(problems)?;
-    if ui_kit {
+    if kits.ui {
         irender_ui_kit::apply_theme(&mut doc);
+    }
+    if kits.chart {
+        irender_chart_kit::apply_theme(&mut doc);
     }
     let parse = start.elapsed();
     let start = Instant::now();
@@ -155,8 +177,9 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments, ui_kit } => {
-            load(&engine(untrusted, strict_css, fragments, ui_kit), &file, ui_kit)?;
+        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit } => {
+            let kits = Kits { ui: ui_kit, chart: chart_kit };
+            load(&engine(untrusted, strict_css, fragments, kits), &file, kits)?;
             println!("{}: ok", file.display());
         }
         Command::Render {
@@ -167,6 +190,7 @@ fn run(command: Command) -> Result<(), String> {
             strict_css,
             fragments,
             ui_kit,
+            chart_kit,
             fragment,
             minify,
             title,
@@ -174,10 +198,11 @@ fn run(command: Command) -> Result<(), String> {
             parallel,
             repeat,
         } => {
-            let mut engine = engine(untrusted, strict_css, fragments, ui_kit);
+            let kits = Kits { ui: ui_kit, chart: chart_kit };
+            let mut engine = engine(untrusted, strict_css, fragments, kits);
             engine.minify = minify;
             engine.parallel_min_items = parallel;
-            let Loaded { ir, parse, resolve } = load(&engine, &file, ui_kit)?;
+            let Loaded { ir, parse, resolve } = load(&engine, &file, kits)?;
             let data = match data {
                 Some(path) => {
                     let (src, format) = read(&path)?;
@@ -222,8 +247,8 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components { ui_kit } => {
-            for c in engine(false, false, None, ui_kit).registry.iter() {
+        Command::Components { ui_kit, chart_kit } => {
+            for c in engine(false, false, None, Kits { ui: ui_kit, chart: chart_kit }).registry.iter() {
                 let info = c.info();
                 println!("{}: {}", c.name(), info.doc);
                 for p in info.props {

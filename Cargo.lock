@@ -412,10 +412,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "irender-chart-kit"
+version = "0.1.0"
+dependencies = [
+ "irender-core",
+ "irender-html",
+ "irender-ui-kit",
+ "serde_json",
+]
+
+[[package]]
 name = "irender-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "irender-chart-kit",
  "irender-core",
  "irender-html",
  "irender-ui-kit",

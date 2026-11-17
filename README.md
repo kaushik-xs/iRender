@@ -11,7 +11,7 @@ cargo run -p irender-cli -- components   # built-in components and their props
 cargo run -p irender-cli -- schema       # JSON Schema for documents
 ```
 
-See [`examples/`](examples/README.md) for complete pages: a dashboard built from fragments, a live API search, a multi-step form and a storefront whose config is partly generated in Rust. To browse them all, run `examples/build.sh`, then `python3 -m http.server 8000 -d target/site`.
+See [`examples/`](examples/README.md) for complete pages: a dashboard built from fragments, a live API search, a multi-step form and a storefront whose config is partly generated in Rust. To browse them all, run `examples/build.sh`, then `python3 examples/serve.py` (a static server plus the live endpoints the chart gallery uses).
 
 ## Crates
 
@@ -20,8 +20,9 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 | `irender-core` | Document model (serde), expressions, theme tokens, policy, validation → IR. No HTML. |
 | `irender-style` | Compiles style blocks into hashed, deduplicated classes in cascade layers; CSS validation and minification via lightningcss. |
 | `irender-html` | Server-side renderer, component registry, built-ins, browser runtime. No web-framework dependency. |
-| `irender-cli` | `validate`, `render` (with `--timings`, `--repeat`, `--parallel`, `--minify`, `--ui-kit`), `schema`, `components`. |
+| `irender-cli` | `validate`, `render` (with `--timings`, `--repeat`, `--parallel`, `--minify`, `--ui-kit`, `--chart-kit`), `schema`, `components`. |
 | `irender-ui-kit` | Optional, shadcn-style components (`ui-button`, `ui-card`, `ui-alert`, form controls, table, pagination, …) and a matching theme. See its [README](crates/irender-ui-kit/README.md). |
+| `irender-chart-kit` | Optional charts drawn by Apache ECharts: `ui-chart` (shorthand for 22 series types, or any ECharts option), `ui-sparkline` and `ui-live-data`: filters, grouping and drill-downs in the browser, clicks, zoom, legend and brush as state, live polling, SSE and WebSocket data, themed from the document's tokens. See its [README](crates/irender-chart-kit/README.md). |
 
 ## A node
 

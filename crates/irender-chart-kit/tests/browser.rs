@@ -1,0 +1,424 @@
+//! Draws charts in headless Chrome and checks what ECharts ended up with.
+//!
+//! Ignored by default because it needs Chrome, and ECharts from the CDN:
+//!   cargo test -p irender-chart-kit --test browser -- --ignored
+//! Set CHROME=/path/to/chrome if it isn't found automatically, and
+//! ECHARTS=/path/to/echarts.min.js to test offline.
+
+use irender_chart_kit::{ChartKit, TYPES};
+use irender_core::Format;
+use irender_html::Engine;
+use serde_json::{Value as Json, json};
+use std::{path::PathBuf, process::Command};
+
+fn chrome() -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("CHROME") {
+        return Some(path.into());
+    }
+    ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "google-chrome", "google-chrome-stable", "chromium"]
+        .iter()
+        .map(PathBuf::from)
+        .find(|p| Command::new(p).arg("--version").output().is_ok_and(|o| o.status.success()))
+}
+
+fn kit() -> ChartKit {
+    match std::env::var("ECHARTS") {
+        Ok(path) => ChartKit { src: format!("file://{}", std::fs::canonicalize(path).unwrap().display()), ..ChartKit::default() },
+        Err(_) => ChartKit::default(),
+    }
+}
+
+/// Renders `doc` with `driver` appended, runs it in Chrome and returns what the
+/// driver wrote into `<pre id="result">`, one line per check.
+fn run(name: &str, engine: &Engine, doc: Json, driver: &str) -> Option<Vec<String>> {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return None;
+    };
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    irender_chart_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let dir = std::env::temp_dir().join(format!("irender-chart-kit-{name}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("page.html");
+    std::fs::write(&file, html).unwrap();
+    // `--no-sandbox`: CI runners block the sandbox's user namespaces; the page is ours.
+    let out = Command::new(&chrome)
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--allow-file-access-from-files", "--window-size=1000,900"])
+        // Headless virtual time runs one animation frame, so ECharts' animations would
+        // never finish; this turns them off through the kit's reduced-motion path.
+        .arg("--force-prefers-reduced-motion")
+        .args(["--virtual-time-budget=15000", "--dump-dom"])
+        .arg(format!("file://{}", file.display()))
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let dom = String::from_utf8_lossy(&out.stdout);
+    let start = dom.find("<pre id=\"result\">").unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + 17;
+    let result = dom[start..start + dom[start..].find("</pre>").unwrap()].replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+    Some(result.lines().map(String::from).collect())
+}
+
+/// Shared by the drivers: waits for charts, logs, and reports errors.
+const PRELUDE: &str = r##"
+  const out = [], log = (...a) => out.push(a.join(" "));
+  const errors = [];
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+  const el = (id) => document.getElementById(id), chart = (id) => el(id).__x.chart;
+  const opt = (id) => chart(id).getOption();
+  const ready = async (ids) => { for (let i = 0; i < 100 && !ids.every((id) => el(id).hasAttribute("data-ready")); i++) await wait(50); };
+"##;
+
+const POSTLUDE: &str = r##"
+  const pre = document.createElement("pre"); pre.id = "result";
+  pre.textContent = out.concat(errors.map((e) => "error " + e)).join("\n");
+  document.body.append(pre);
+"##;
+
+fn driver(body: &str) -> String {
+    format!(
+        "<script>\n// Host functions are defined by an ordinary script, before the runtime starts.\n\
+         window.irenderChartFunctions = {{ money: (v) => '$' + v }};\nconst __errors = []; window.addEventListener('error', (e) => __errors.push(e.message));\n\
+         const __ce = console.error; console.error = (...a) => {{ __errors.push(a.join(' ')); __ce(...a); }};\n\
+         window.addEventListener('load', async () => {{\n{PRELUDE}\n errors.push(...__errors);\n try {{\n{body}\n }} catch (e) {{ log('threw', e.message); }}\n\
+         errors.push(...__errors.filter((e) => !errors.includes(e)));\n{POSTLUDE}\n}});\n</script>"
+    )
+}
+
+/// Data the shorthand of each type understands.
+fn sample(t: &str) -> Json {
+    let rows = json!([{ "day": "Mon", "a": 3, "b": 5 }, { "day": "Tue", "a": 4, "b": 2 }, { "day": "Wed", "a": 6, "b": 1 }]);
+    match t {
+        "candlestick" => json!({ "data": [{ "d": "Mon", "open": 1, "high": 4, "low": 0, "close": 3 }, { "d": "Tue", "open": 3, "high": 5, "low": 2, "close": 2 }] }),
+        "boxplot" => json!({ "data": [{ "g": "x", "v": 1 }, { "g": "x", "v": 5 }, { "g": "x", "v": 3 }, { "g": "y", "v": 2 }] }),
+        "pie" | "donut" | "funnel" => json!({ "data": [{ "name": "A", "value": 3 }, { "name": "B", "value": 5 }] }),
+        "heatmap" => json!({ "data": [{ "x": "a", "y": "p", "v": 1 }, { "x": "b", "y": "p", "v": 4 }, { "x": "a", "y": "q", "v": 2 }] }),
+        "gauge" => json!({ "data": 42 }),
+        "tree" => json!({ "data": { "name": "root", "children": [{ "name": "a" }, { "name": "b" }] } }),
+        "treemap" | "sunburst" => json!({ "data": [{ "name": "a", "value": 3 }, { "name": "b", "children": [{ "name": "c", "value": 2 }] }] }),
+        "sankey" | "graph" | "chord" => json!({ "links": [{ "source": "a", "target": "b", "value": 2 }, { "source": "b", "target": "c", "value": 1 }] }),
+        "themeRiver" => json!({ "data": [{ "w": "2026-01-05", "a": 1, "b": 2 }, { "w": "2026-01-12", "a": 3, "b": 1 }] }),
+        _ => json!({ "data": rows }),
+    }
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn charts_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+
+    let mut children: Vec<Json> = TYPES
+        .iter()
+        .map(|t| {
+            let mut props = sample(t);
+            props["type"] = json!(t);
+            json!({ "type": "ui-chart", "attrs": { "id": format!("t-{t}") }, "props": props, "style": { "width": 300 } })
+        })
+        .collect();
+    children.extend([
+        json!({ "type": "ui-chart", "attrs": { "id": "live" },
+            "props": { "type": "{{ kind }}", "data": "{{ rows }}", "x": "day", "bind": "picked",
+                       "option": { "title": { "text": "{{ label }}" } } },
+            "on": { "change": { "action": "set_state", "key": "changes", "value": "{{ changes + 1 }}" } } }),
+        json!({ "type": "ui-chart", "attrs": { "id": "fn" },
+            "props": { "type": "line", "data": [1, 2, 3], "option": { "yAxis": { "axisLabel": { "formatter": { "$fn": "money" } } } } } }),
+        json!({ "type": "if", "props": { "when": "{{ show }}" }, "children": [
+            { "type": "ui-chart", "attrs": { "id": "hidden" }, "props": { "type": "bar", "data": [1, 2] } }] }),
+        json!({ "type": "ui-sparkline", "attrs": { "id": "spark" }, "props": { "data": [3, 1, 4, 1, 5] } }),
+        json!({ "type": "ui-chart", "attrs": { "id": "loading" }, "props": { "type": "bar", "data": [1], "loading": "{{ busy }}" } }),
+    ]);
+    let doc = json!({ "version": 1,
+        "state": { "kind": "bar", "rows": [{ "day": "Mon", "n": 120 }, { "day": "Tue", "n": 80 }, { "day": "Wed", "n": 50 }],
+                   "picked": null, "changes": 0, "label": "First", "show": true, "busy": true },
+        "root": { "type": "stack", "children": children } });
+
+    fn expected_type(t: &str) -> &str {
+        match t {
+            "area" => "line",
+            "donut" => "pie",
+            t => t,
+        }
+    }
+    let types: Vec<String> = TYPES.iter().map(|t| format!("[\"{t}\", \"{}\"]", expected_type(t))).collect();
+    let body = format!(
+        r##"
+    const types = [{types}];
+    await ready(types.map(([t]) => "t-" + t).concat(["live", "fn", "hidden", "spark", "loading"]));
+    const wrong = types.filter(([t, want]) => {{
+      const c = chart("t-" + t), s = c && c.getOption().series[0];
+      return !s || s.type !== want || !((s.data && s.data.length) || (s.links && s.links.length));
+    }});
+    log("types", wrong.length ? JSON.stringify(wrong.map(([t]) => t)) : "ok");
+
+    log("live", opt("live").series[0].type, opt("live").xAxis[0].data.join(","), opt("live").title[0].text);
+    root.__irender.set("kind", "line");
+    root.__irender.set("rows", S().rows.concat([{{ day: "Thu", n: 10 }}]));
+    root.__irender.set("label", "Second");
+    await wait(50);
+    log("updated", opt("live").series[0].type, opt("live").xAxis[0].data.join(","), opt("live").title[0].text);
+    root.__irender.set("kind", "bar");
+    await wait(600);
+
+    // A real click on Tuesday's bar.
+    const [px, py] = chart("live").convertToPixel({{ seriesIndex: 0 }}, ["Tue", 40]);
+    const canvas = el("live").querySelector("canvas"), r = canvas.getBoundingClientRect();
+    const at = {{ bubbles: true, clientX: r.left + px, clientY: r.top + py }};
+    for (const type of ["mousemove", "mousedown", "mouseup", "click"]) canvas.dispatchEvent(new MouseEvent(type, at));
+    await wait(50);
+    log("clicked", S().picked, S().changes);
+
+    log("fn", typeof opt("fn").yAxis[0].axisLabel.formatter);
+    log("spark", opt("spark").xAxis[0].show, opt("spark").yAxis[0].show, opt("spark").legend[0].show);
+    log("aria", el("live").firstElementChild.getAttribute("aria-label").startsWith("This is a chart"));
+    log("palette", opt("live").color[0]);
+
+    // Changing a token restyles every chart.
+    document.documentElement.style.setProperty("--color-chart-1", "rgb(255, 0, 0)");
+    await wait(200);
+    log("restyled", chart("live").getOption().color[0], chart("spark").getOption().color[0]);
+
+    log("loading", !!el("loading").querySelector("canvas"));
+    root.__irender.set("busy", false);
+
+    // Hidden by an `if`: disposed of; shown again: drawn again.
+    const hidden = el("hidden");
+    root.__irender.set("show", false);
+    await wait(200);
+    log("hidden", hidden.isConnected, hidden.__x.chart === null);
+    root.__irender.set("show", true);
+    await wait(200);
+    log("shown", hidden.isConnected, !!hidden.__x.chart, hidden.__x.chart && hidden.__x.chart.getOption().series[0].data.join(","));
+"##,
+        types = types.join(",")
+    );
+    let Some(lines) = run("charts", &engine, doc, &driver(&body)) else { return };
+    let expected = [
+        "types ok",
+        "live bar Mon,Tue,Wed First",
+        "updated line Mon,Tue,Wed,Thu Second",
+        "clicked Tue 1",
+        "fn function",
+        "spark false false false",
+        "aria true",
+        "palette rgba(42,120,214,1)",
+        "restyled rgba(255,0,0,1) rgba(255,0,0,1)",
+        "loading true",
+        "hidden false true",
+        "shown true true 1,2",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn untrusted_documents_in_chrome() {
+    let mut engine = Engine::untrusted();
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1, "root": { "type": "ui-chart", "attrs": { "id": "c" }, "props": {
+        "type": "bar", "data": [{ "n": "<img src=x onerror=alert(1)>", "v": 1 }],
+        "option": {
+            "title": { "text": "t", "link": "javascript:alert(1)" },
+            "tooltip": { "formatter": "<b onmouseover=alert(1)>{b}</b><br/>{c}", "extraCssText": "background:url(https://evil)" } } } } });
+    let body = r##"
+    await ready(["c"]);
+    const o = opt("c");
+    log("formatter", o.tooltip[0].formatter);
+    log("link", o.title[0].link === undefined || o.title[0].link === "");
+    log("css", !String(o.tooltip[0].extraCssText).includes("evil"));
+    // Show the tooltip: the category name is data, and ECharts escapes it.
+    chart("c").dispatchAction({ type: "showTip", seriesIndex: 0, dataIndex: 0 });
+    await wait(100);
+    log("tooltip", document.querySelectorAll("img").length, document.body.innerHTML.includes("&lt;img src=x"));
+"##;
+    let Some(lines) = run("untrusted", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        "formatter &lt;b onmouseover=alert(1)&gt;{b}&lt;/b&gt;<br/>{c}",
+        "link true",
+        "css true",
+        "tooltip 0 true",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
+/// Answers `GET /tick` with the next of an endless series of `{ t, v }` rows, and
+/// `GET /events` with three server-sent events and a long `retry`, so the stream
+/// ends. CORS headers let a file:// page call it.
+fn tick_server() -> u16 {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for (n, stream) in listener.incoming().enumerate() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 2048];
+            let len = stream.read(&mut buf).unwrap_or(0);
+            if String::from_utf8_lossy(&buf[..len]).starts_with("GET /events") {
+                let events: String = (1..=3).map(|i| format!("data: {}\n\n", json!({ "id": i, "at": i, "amount": i * 5 }))).collect();
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\nretry: 600000\n\n{events}"
+                );
+                continue;
+            }
+            let body = json!({ "t": n, "v": n * 10 }).to_string();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    port
+}
+
+/// Sales rows: two regions, their countries and cities, two products, four days.
+fn sales() -> Json {
+    let places = [("Europe", "Germany", "Berlin"), ("Europe", "Germany", "Munich"), ("Europe", "France", "Paris"), ("Asia", "Japan", "Tokyo"), ("Asia", "India", "Pune")];
+    let mut rows = Vec::new();
+    for (d, day) in ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"].iter().enumerate() {
+        for (i, (region, country, city)) in places.iter().enumerate() {
+            for (k, product) in ["A", "B"].iter().enumerate() {
+                let amount = 10 * (i + 1) + d + k * 100;
+                rows.push(json!({ "date": day, "region": region, "country": country, "city": city, "product": product, "amount": amount, "qty": i + k }));
+            }
+        }
+    }
+    Json::Array(rows)
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn drill_filters_and_live_data_in_chrome() {
+    let port = tick_server();
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let tick = format!("http://127.0.0.1:{port}/tick");
+    let chart = |id: &str, props: Json| json!({ "type": "ui-chart", "attrs": { "id": id }, "props": props, "style": { "width": 480 } });
+    let doc = json!({ "version": 1,
+        "state": { "sales": sales(), "path": [], "region": null, "row": null, "products": [], "range": null,
+                   "visible": null, "picked": [], "feed": [], "status": null, "paused": false, "drills": 0 },
+        "root": { "type": "stack", "children": [
+            json!({ "type": "ui-chart", "attrs": { "id": "drill" }, "style": { "width": 480 },
+                "props": { "type": "bar", "data": "{{ sales }}", "drill": ["region", "country", "city"], "y": "amount", "bindDrill": "path" },
+                "on": { "drill": { "action": "set_state", "key": "drills", "value": "{{ drills + 1 }}" } } }),
+            chart("regions", json!({ "type": "bar", "data": "{{ sales }}", "x": "region", "y": "amount", "aggregate": "sum",
+                "sort": "-amount", "bind": "region", "bindRow": "row" })),
+            chart("filtered", json!({ "type": "pie", "data": "{{ sales }}", "x": "product", "y": "amount", "aggregate": "sum",
+                "filter": { "region": "{{ region }}", "product": "{{ products }}", "date": "{{ range }}" } })),
+            chart("time", json!({ "type": "line", "data": "{{ sales }}", "x": "date", "y": "amount", "aggregate": "sum",
+                "zoom": "slider", "bindZoom": "range" })),
+            chart("split", json!({ "type": "area", "data": "{{ sales }}", "x": "date", "y": "amount", "series": "product",
+                "aggregate": "sum", "stack": true, "bindLegend": "visible" })),
+            chart("brush", json!({ "type": "scatter", "data": "{{ sales }}", "x": "qty", "y": "amount", "brush": true, "bindBrush": "picked" })),
+            json!({ "type": "ui-live-data", "props": { "url": tick, "every": 300, "mode": "append", "window": 5, "key": "t",
+                "into": "feed", "status": "status", "paused": "{{ paused }}" } }),
+            chart("live", json!({ "type": "line", "data": "{{ feed }}", "x": "t", "y": "v" })),
+            chart("own", json!({ "type": "bar", "data": [], "x": "t", "y": "v", "live": { "url": tick, "every": 300, "mode": "append", "window": 3 } })),
+            chart("sse", json!({ "type": "bar", "x": "at", "y": "amount",
+                "live": { "url": format!("http://127.0.0.1:{port}/events"), "stream": true, "mode": "append", "key": "id" } })),
+        ] } });
+    let body = r##"
+    const cats = (id, axis = "xAxis") => opt(id)[axis][0].data.join(",");
+    // A real click on a category's bar.
+    const click = (id, category, value) => {
+      const c = chart(id), [px, py] = c.convertToPixel({ seriesIndex: 0 }, [category, value]);
+      const canvas = el(id).querySelector("canvas"), r = canvas.getBoundingClientRect();
+      for (const type of ["mousemove", "mousedown", "mouseup", "click"])
+        canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: r.left + px, clientY: r.top + py }));
+    };
+    const pie = () => opt("filtered").series[0].data.map((d) => d.name + "=" + d.value).join(",");
+    await ready(["drill", "regions", "filtered", "time", "split", "brush", "live", "own", "sse"]);
+
+    // Drill down two levels by clicking, then back up from state.
+    log("drill", cats("drill"), opt("drill").series[0].data.join(","));
+    click("drill", "Europe", 20); await wait(50);
+    log("drill", JSON.stringify(S().path), cats("drill"), !!opt("drill").graphic?.[0]?.elements?.length);
+    click("drill", "Germany", 20); await wait(50);
+    log("drill", JSON.stringify(S().path), cats("drill"));
+    click("drill", "Berlin", 20); await wait(50);
+    log("leaf", JSON.stringify(S().path), S().drills);
+    root.__irender.set("path", []); await wait(50);
+    log("up", cats("drill"));
+
+    // Click a region to filter the pie; again to clear it.
+    log("regions", cats("regions"), pie());
+    click("regions", "Europe", 50); await wait(50);
+    log("region", S().region, S().row && S().row.amount, pie(), opt("regions").series[0].selectedMode);
+    click("regions", "Europe", 50); await wait(50);
+    log("cleared", S().region, S().row, pie());
+    root.__irender.set("products", ["A"]); await wait(50);
+    log("products", pie());
+    root.__irender.set("products", []);
+
+    // A date range from state zooms the time chart and filters the pie.
+    root.__irender.set("range", { from: "2026-11-02", to: "2026-11-03" }); await wait(50);
+    const dz = opt("time").dataZoom[0];
+    log("range", dz.startValue === +echarts.time.parse("2026-11-02"), dz.endValue === +echarts.time.parse("2026-11-03"), pie());
+    // Zooming the chart writes the range back.
+    chart("time").dispatchAction({ type: "dataZoom", start: 0, end: 100 }); await wait(300);
+    log("unzoomed", JSON.stringify(S().range), pie());
+    const day = (d) => +echarts.time.parse(d);
+    chart("time").dispatchAction({ type: "dataZoom", startValue: day("2026-11-03"), endValue: day("2026-11-04") }); await wait(300);
+    log("zoomed", JSON.stringify(S().range));
+
+    // Series from a field, and the legend in state both ways.
+    log("split", opt("split").series.map((s) => s.name + ":" + s.data.length).join(","));
+    root.__irender.set("visible", ["B"]); await wait(50);
+    log("legend", JSON.stringify(opt("split").legend[0].selected));
+    chart("split").dispatchAction({ type: "legendToggleSelect", name: "A" }); await wait(50);
+    log("legend", JSON.stringify(S().visible));
+
+    // Brush the points with qty 0..1 and amount 10..60.
+    chart("brush").dispatchAction({ type: "brush", areas: [{ brushType: "rect", xAxisIndex: 0, coordRange: [[-0.5, 1.5], [0, 60]] }] });
+    await wait(400);
+    log("brush", S().picked.length, S().picked.every((r) => r.qty <= 1 && r.amount <= 60));
+    root.__irender.set("picked", []); await wait(400);
+    log("unbrushed", S().picked.length);
+
+    // Live data: appended, keyed, windowed; paused from state.
+    for (let i = 0; i < 60 && S().feed.length < 5; i++) await wait(100);
+    await wait(700);
+    log("live", S().status, S().feed.length, opt("live").xAxis[0].data.length, opt("own").xAxis[0].data.length);
+    root.__irender.set("paused", true); await wait(50);
+    const n = S().feed.map((r) => r.t).join(",");
+    await wait(1000);
+    log("paused", S().status, S().feed.map((r) => r.t).join(",") === n);
+    root.__irender.set("paused", false);
+    for (let i = 0; i < 30 && S().status !== "live"; i++) await wait(100);
+    log("resumed", S().status);
+    log("sse", el("sse").getAttribute("data-live") !== null, opt("sse").series[0].data.join(","));
+"##;
+    let Some(lines) = run("drill", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        "drill Europe,Asia 1716,1544",
+        "drill [\"Europe\"] Germany,France true",
+        "drill [\"Europe\",\"Germany\"] Berlin,Munich",
+        "leaf [\"Europe\",\"Germany\"] 2",
+        "up Europe,Asia",
+        "regions Europe,Asia A=630,B=2630",
+        // Europe's rows only, and the clicked row is the region's total.
+        "region Europe 1716 A=258,B=1458 single",
+        "cleared   A=630,B=2630",
+        "products A=630",
+        // A time axis zooms in milliseconds: local midnight on 2 and 3 November.
+        "range true true A=315,B=1315",
+        "unzoomed null A=630,B=2630",
+        "zoomed {\"from\":\"2026-11-03\",\"to\":\"2026-11-04\"}",
+        "split A:4,B:4",
+        "legend {\"A\":false,\"B\":true}",
+        "legend [\"A\",\"B\"]",
+        "brush 8 true",
+        "unbrushed 0",
+        "live live 5 5 3",
+        "paused paused true",
+        "resumed live",
+        "sse true 5,10,15",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}

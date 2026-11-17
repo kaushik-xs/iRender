@@ -1,0 +1,22 @@
+[
+ {
+  "product": "Laptops",
+  "sales": 173
+ },
+ {
+  "product": "Phones",
+  "sales": 79
+ },
+ {
+  "product": "Tablets",
+  "sales": 216
+ },
+ {
+  "product": "Audio",
+  "sales": 73
+ },
+ {
+  "product": "Wearables",
+  "sales": 194
+ }
+]

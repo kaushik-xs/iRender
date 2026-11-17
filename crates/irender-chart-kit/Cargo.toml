@@ -1,0 +1,15 @@
+[package]
+name = "irender-chart-kit"
+description = "Charts for iRender documents, drawn by Apache ECharts: every series type, themed from the document's tokens"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core.workspace = true
+irender-html.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+irender-ui-kit.workspace = true

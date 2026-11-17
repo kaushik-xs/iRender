@@ -199,6 +199,12 @@ impl<'a> RenderCx<'a> {
         self.theme
     }
 
+    /// What the document is allowed to do, for components that pass document
+    /// content to client code.
+    pub fn policy(&self) -> &Policy {
+        self.policy
+    }
+
     /// Resolves a path: loop scopes first, then `state`, then server `data`. Names
     /// only known in the browser are null.
     pub fn lookup(&self, path: &[String]) -> Json {
@@ -246,6 +252,12 @@ impl<'a> RenderCx<'a> {
 
     fn write_tpl_js(&self, out: &mut String, t: &Template) {
         let _ = t.write_js(out, &|r| self.is_reactive_root(r), &|p| self.lookup(p));
+    }
+
+    /// The client-side form of `v`, with server data folded in, for a behaviour to
+    /// evaluate with `window.__irender.evaluate(js, state)`.
+    pub fn val_js(&self, v: &Val) -> Json {
+        v.to_js(&|r| self.is_reactive_root(r), &|p| self.lookup(p))
     }
 
     /// The value as of render time.

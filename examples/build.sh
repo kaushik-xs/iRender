@@ -3,10 +3,12 @@
 #
 #   examples/build.sh                 # into target/site
 #   examples/build.sh path/to/out     # somewhere else
-#   python3 -m http.server 8000 -d target/site   # then open http://localhost:8000
+#   python3 examples/serve.py         # then open http://localhost:8000
 #
 # Serve the folder rather than opening the files: the search example fetches its
-# API, which browsers block for file:// pages.
+# API, which browsers block for file:// pages. `serve.py` is a static server plus the
+# live endpoints the chart gallery polls and streams; `python3 -m http.server 8000 -d
+# target/site` serves everything else.
 set -eu
 cd "$(dirname "$0")/.."
 out=${1:-target/site}
@@ -24,10 +26,14 @@ cp -R examples/search/api "$out/search/"
 $irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.html"
 $irender render examples/ui-kit/gallery.yaml --ui-kit --title "UI kit gallery" -o "$out/ui-kit.html"
 cp -R examples/ui-kit/api "$out/"
+mkdir -p "$out/charts"
+$irender render examples/charts/gallery.yaml --data examples/charts/gallery.data.json --ui-kit --chart-kit \
+  --title "Chart kit gallery" -o "$out/charts/index.html"
+cp -R examples/charts/api "$out/charts/"
 $irender render examples/product.json --data examples/product.data.json --title "Product card" -o "$out/product.html"
 $irender render examples/counter.yaml --title "Counter" -o "$out/counter.html"
 cargo run -q -p irender-html --example storefront > "$out/storefront.html"
 cargo run -q -p irender-html --example storefront -- --variant b > "$out/storefront-b.html"
 
 echo "Rendered $(find "$out" -name '*.html' | wc -l | tr -d ' ') pages into $out"
-echo "Serve:  python3 -m http.server 8000 -d $out   then open http://localhost:8000"
+echo "Serve:  python3 examples/serve.py 8000 $out   then open http://localhost:8000"

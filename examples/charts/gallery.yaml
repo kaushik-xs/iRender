@@ -1,0 +1,514 @@
+# Charts from irender-chart-kit, one or more per ECharts example category, inside
+# irender-ui-kit cards and driven by its controls.
+#
+#   cargo run -p irender-cli -- render examples/charts/gallery.yaml --data examples/charts/gallery.data.json \
+#     --ui-kit --chart-kit -o charts.html
+#
+# Clicking a region fetches api/regions/<region>.json and the orders load from
+# api/orders.json, so serve the page next to examples/charts/api (examples/build.sh
+# does this). The live charts poll and stream from examples/serve.py:
+#
+#   examples/build.sh && python3 examples/serve.py     # http://localhost:8000
+version: 1
+state:
+  week: a
+  kind: bar
+  stacked: false
+  metric: orders
+  region: null
+  regionSales: []
+  loadingRegion: false
+  target: 72
+  # Drill-downs and filters
+  orders: []
+  ordersLoading: true
+  products: []
+  channel: null
+  place: null
+  range: null
+  geoPath: []
+  shown: null
+  picked: []
+  # Live data
+  liveOn: true
+  liveStatus: null
+  metrics: []
+root:
+  type: stack
+  props: { gap: 40 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: irender-chart-kit } }
+        - type: ui-text
+          props:
+            variant: lead
+            text: "Apache ECharts as iRender components. Rows in, chart out; a full ECharts option when you need more. Colours come from the theme, so dark mode just works."
+
+    # ---------------------------------------------------------------- together with the ui-kit
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: With the UI kit } }
+        - type: ui-text
+          props: { variant: muted, text: "The controls write state; the charts read it. Click a bar in the regions chart to load that region's products." }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(220px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Revenue, description: "$27.4k this month" }
+              children:
+                - { type: ui-sparkline, props: { data: "{{ kpi.revenue }}" } }
+            - type: ui-card
+              props: { title: Active users, description: "118 this month" }
+              children:
+                - { type: ui-sparkline, props: { data: "{{ kpi.users }}", type: line } }
+            - type: ui-card
+              props: { title: Churn, description: "3.6% this month" }
+              children:
+                - { type: ui-sparkline, props: { data: "{{ kpi.churn }}", type: bar } }
+        - type: ui-card
+          props: { title: This week, description: "Toggle the chart type, stacking, metric and week." }
+          children:
+            - type: element
+              style: { display: flex, flex-wrap: wrap, gap: 12, align-items: center }
+              children:
+                - type: ui-toggle-group
+                  props:
+                    bind: kind
+                    variant: outline
+                    options: [{ value: bar, label: Bar }, { value: line, label: Line }, { value: area, label: Area }]
+                - type: ui-select
+                  style: { width: 180 }
+                  props:
+                    bind: metric
+                    options: [{ value: orders, label: Orders }, { value: revenue, label: Revenue }, { value: all, label: Every metric }]
+                - { type: ui-switch, props: { bind: stacked, label: Stacked } }
+                - type: ui-toggle-group
+                  props:
+                    bind: week
+                    variant: outline
+                    options: [{ value: a, label: Week 1 }, { value: b, label: Week 2 }]
+            - type: ui-chart
+              props:
+                type: "{{ kind || 'bar' }}"
+                data: "{{ week == 'b' ? weekB : weekA }}"
+                x: day
+                # null plots every numeric field.
+                y: "{{ metric == 'all' ? null : metric }}"
+                stack: "{{ stacked }}"
+                smooth: true
+                title: Orders this week
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Sales by region, description: Click a bar to drill down. }
+              children:
+                - type: ui-chart
+                  props: { type: bar, data: "{{ regions }}", bind: region, title: Sales by region }
+                  on:
+                    change:
+                      - { action: set_state, key: loadingRegion, value: true }
+                      - { action: submit, method: GET, endpoint: "api/regions/{{ region }}.json", into: regionSales }
+                      - { action: set_state, key: loadingRegion, value: false }
+            - type: ui-card
+              props: { title: "{{ region ? region + ' by product' : 'Products' }}", description: "{{ region ? 'Loaded from api/regions/' + region + '.json' : 'Pick a region first.' }}" }
+              children:
+                - type: ui-chart
+                  props: { type: donut, data: "{{ regionSales }}", loading: "{{ loadingRegion }}", title: Sales by product }
+            - type: ui-card
+              props: { title: Target, description: "A gauge bound to a slider." }
+              children:
+                - { type: ui-slider, props: { bind: target, min: 0, max: 100 } }
+                - { type: ui-chart, props: { type: gauge, data: { name: of target, value: "{{ target }}" }, height: 240 } }
+
+    # ---------------------------------------------------------------- drill-downs, filters and live data
+    - type: stack
+      props: { gap: 16 }
+      on:
+        mount:
+          - { action: submit, method: GET, endpoint: api/orders.json, into: orders }
+          - { action: set_state, key: ordersLoading, value: false }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Drill-downs, filters and live data" } }
+        - type: ui-text
+          props: { variant: muted, text: "473 orders, loaded once from api/orders.json. Every chart filters, groups and sorts them in the browser, and every control, click, zoom, legend and brush is state, so each one filters the rest." }
+        - type: ui-card
+          props: { title: Filters, description: "{{ (range ? range.from + ' → ' + range.to : 'All dates') + (place ? ' · ' + place : '') + (channel ? ' · ' + channel : '') }}" }
+          children:
+            - type: element
+              style: { display: flex, flex-wrap: wrap, gap: 12, align-items: center }
+              children:
+                - type: element
+                  style: { width: 280 }
+                  children:
+                    - type: ui-combobox
+                      props:
+                        bind: products
+                        multiple: true
+                        clearable: true
+                        label: Products
+                        placeholder: All products
+                        options: [Laptops, Phones, Tablets, Audio, Wearables]
+                - type: ui-toggle-group
+                  props: { bind: channel, variant: outline, options: [Online, Store] }
+                - type: ui-toggle-group
+                  props:
+                    bind: range
+                    variant: outline
+                    options:
+                      - { value: { from: "2026-08-01", to: "2026-08-31" }, label: August }
+                      - { value: { from: "2026-09-01", to: "2026-09-30" }, label: September }
+                      - { value: { from: "2026-10-01", to: "2026-10-31" }, label: October }
+                - type: ui-button
+                  props: { label: Reset, variant: ghost }
+                  on:
+                    click:
+                      - { action: set_state, key: products, value: [] }
+                      - { action: set_state, key: channel, value: null }
+                      - { action: set_state, key: place, value: null }
+                      - { action: set_state, key: range, value: null }
+                      - { action: set_state, key: geoPath, value: [] }
+        - type: ui-card
+          props: { title: Revenue by day, description: "Drag the slider to pick dates: the range is state, and filters every chart below." }
+          children:
+            - type: ui-chart
+              props:
+                type: area
+                data: "{{ orders }}"
+                x: date
+                y: amount
+                aggregate: sum
+                sort: date
+                zoom: slider
+                bindZoom: range
+                loading: "{{ ordersLoading }}"
+                filter: { product: "{{ products }}", channel: "{{ channel }}", region: "{{ place }}" }
+                title: Revenue by day
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Drill down, description: "Click a bar: region, then country, then city. Click the trail to go back up." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: bar
+                    data: "{{ orders }}"
+                    drill: [region, country, city]
+                    y: amount
+                    sort: -amount
+                    bindDrill: geoPath
+                    filter: { product: "{{ products }}", channel: "{{ channel }}", date: "{{ range }}" }
+                    title: Revenue by place
+            - type: ui-card
+              props: { title: By region, description: "Click a slice to filter the other charts; click it again to clear." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: donut
+                    data: "{{ orders }}"
+                    x: region
+                    y: amount
+                    aggregate: sum
+                    bind: place
+                    filter: { product: "{{ products }}", channel: "{{ channel }}", date: "{{ range }}" }
+                    title: Revenue by region
+            - type: ui-card
+              props: { title: Top cities, description: "`sort` and `limit`: the five biggest." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: bar
+                    horizontal: true
+                    labels: true
+                    data: "{{ orders }}"
+                    x: city
+                    y: amount
+                    aggregate: sum
+                    sort: -amount
+                    limit: 5
+                    filter: { product: "{{ products }}", channel: "{{ channel }}", date: "{{ range }}", region: "{{ place }}" }
+        - type: ui-card
+          props: { title: Products by month, description: "`series: product` splits the rows into series. The legend is state too: toggle it here or in the list." }
+          children:
+            - type: element
+              style: { width: 320 }
+              children:
+                - type: ui-combobox
+                  props: { bind: shown, multiple: true, label: Shown series, placeholder: Every series, options: [Laptops, Phones, Tablets, Audio, Wearables] }
+            - type: ui-chart
+              props:
+                type: bar
+                stack: true
+                data: "{{ orders }}"
+                x: month
+                y: amount
+                series: product
+                aggregate: sum
+                sort: month
+                bindLegend: shown
+                filter: { channel: "{{ channel }}", date: "{{ range }}", region: "{{ place }}" }
+        - type: ui-card
+          props: { title: Brush, description: "{{ picked.length ? picked.length + ' orders selected' : 'Drag across the points to select orders.' }}" }
+          children:
+            - type: ui-chart
+              props:
+                type: scatter
+                data: "{{ orders }}"
+                x: qty
+                y: amount
+                brush: true
+                bindBrush: picked
+                filter: { product: "{{ products }}", channel: "{{ channel }}", date: "{{ range }}", region: "{{ place }}" }
+            - type: if
+              props: { when: "{{ picked.length }}" }
+              children:
+                - type: ui-table
+                  children:
+                    - type: element
+                      props: { tag: thead }
+                      children:
+                        - type: element
+                          props: { tag: tr }
+                          children:
+                            - { type: text, props: { tag: th, value: Date } }
+                            - { type: text, props: { tag: th, value: City } }
+                            - { type: text, props: { tag: th, value: Product } }
+                            - { type: text, props: { tag: th, value: Qty } }
+                            - { type: text, props: { tag: th, value: Amount }, style: { text-align: right } }
+                    - type: list
+                      props: { tag: tbody, items: "{{ picked }}", as: o }
+                      children:
+                        - type: element
+                          props: { tag: tr }
+                          children:
+                            - { type: text, props: { tag: td, value: "{{ o.date }}" } }
+                            - { type: text, props: { tag: td, value: "{{ o.city }}" } }
+                            - { type: text, props: { tag: td, value: "{{ o.product }}" } }
+                            - { type: text, props: { tag: td, value: "{{ o.qty }}" } }
+                            - { type: text, props: { tag: td, value: "{{ o.amount }}" }, style: { text-align: right } }
+
+        # Live: one source in state, read by several components.
+        - type: ui-live-data
+          props: { url: api/live/metrics, every: 1000, mode: append, window: 90, key: time, into: metrics, status: liveStatus, paused: "{{ !liveOn }}" }
+        - type: ui-card
+          props: { title: Live, description: "api/live/metrics polled every second into state, and an order stream over server-sent events. Needs examples/serve.py." }
+          children:
+            - type: element
+              style: { display: flex, gap: 12, align-items: center }
+              children:
+                - { type: ui-switch, props: { bind: liveOn, label: Live } }
+                - { type: ui-badge, props: { text: "{{ liveStatus || 'connecting' }}", variant: "{{ liveStatus == 'error' ? 'destructive' : liveStatus == 'live' ? 'default' : 'outline' }}" } }
+            - type: element
+              style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+              children:
+                - type: ui-chart
+                  props: { type: line, data: "{{ metrics }}", x: time, y: [cpu, memory], smooth: true, height: 260, title: CPU and memory }
+                - type: ui-chart
+                  props: { type: bar, data: "{{ metrics }}", x: time, y: requests, xType: time, height: 260, title: Requests per second }
+                - type: ui-chart
+                  props:
+                    type: gauge
+                    height: 260
+                    title: CPU now
+                    y: cpu
+                    live: { url: api/live/metrics, every: 2000, paused: "{{ !liveOn }}" }
+                    option: { series: [{ detail: { formatter: "{value}%" } }] }
+                - type: ui-chart
+                  props:
+                    type: scatter
+                    height: 260
+                    x: time
+                    y: amount
+                    xType: time
+                    title: Orders as they arrive
+                    live: { url: api/live/stream, stream: true, mode: append, window: 40, key: id, paused: "{{ !liveOn }}" }
+
+    # ---------------------------------------------------------------- line, bar, pie
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Line, bar and pie" } }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Line, description: "Three series from one table: every numeric field becomes a series." }
+              children:
+                - { type: ui-chart, props: { type: line, data: "{{ monthly }}", smooth: true } }
+            - type: ui-card
+              props: { title: Stacked area }
+              children:
+                - { type: ui-chart, props: { type: area, data: "{{ monthly }}", stack: true } }
+            - type: ui-card
+              props: { title: Horizontal bars, description: With value labels. }
+              children:
+                - { type: ui-chart, props: { type: bar, data: "{{ stock }}", horizontal: true, labels: true } }
+            - type: ui-card
+              props: { title: Bar and line, description: "`y` entries take series options, so one series can be a line." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: bar
+                    data: "{{ weekA }}"
+                    x: day
+                    y: [orders, { field: revenue, type: line, smooth: true }]
+            - type: ui-card
+              props: { title: Profit and loss, description: "Colour by sign, through `option`." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: bar
+                    data: "{{ profit }}"
+                    option:
+                      visualMap: { show: false, dimension: 1, pieces: [{ lt: 0, color: "#e34948" }, { gte: 0, color: "#1baf7a" }] }
+            - type: ui-card
+              props: { title: Pie }
+              children:
+                - { type: ui-chart, props: { type: pie, data: "{{ regions }}" } }
+            - type: ui-card
+              props: { title: Rose, description: "A pie with `roseType` merged in." }
+              children:
+                - { type: ui-chart, props: { type: pie, data: "{{ regions }}", option: { series: [{ roseType: area }] } } }
+            - type: ui-card
+              props: { title: Pictorial bar }
+              children:
+                - { type: ui-chart, props: { type: pictorialBar, data: "{{ stock }}" } }
+
+    # ---------------------------------------------------------------- distributions and finance
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Scatter, distributions and finance" } }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Scatter, description: Height against weight. }
+              children:
+                - { type: ui-chart, props: { type: scatter, data: "{{ people }}", x: height, y: weight } }
+            - type: ui-card
+              props: { title: Bubbles, description: "`value` sizes each point by age." }
+              children:
+                - { type: ui-chart, props: { type: scatter, data: "{{ people }}", x: height, y: weight, value: age } }
+            - type: ui-card
+              props: { title: Box plot, description: "Raw samples, grouped by service; the quartiles are computed for you." }
+              children:
+                - { type: ui-chart, props: { type: boxplot, data: "{{ latency }}", x: service, y: ms } }
+            - type: ui-card
+              props: { title: Candlestick, description: "Open, high, low and close fields are found by name. Drag or scroll to zoom." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: candlestick
+                    data: "{{ ohlc }}"
+                    x: date
+                    option: { dataZoom: [{ type: inside, start: 40 }, { type: slider, start: 40, height: 20, bottom: 0 }], grid: { bottom: 40 } }
+            - type: ui-card
+              props: { title: Heatmap, description: Commits by day and hour. }
+              children:
+                - { type: ui-chart, props: { type: heatmap, data: "{{ activity }}", x: hour, y: day, value: commits } }
+            - type: ui-card
+              style: { grid-column: 1 / -1 }
+              props: { title: Calendar, description: "A calendar heatmap: `option` alone, no shorthand." }
+              children:
+                - type: ui-chart
+                  props:
+                    height: 220
+                    option:
+                      tooltip: { position: top }
+                      visualMap: { min: 0, max: 16, show: false }
+                      calendar: { range: "2026", top: 24, left: 32, right: 8, cellSize: [auto, 16], itemStyle: { borderWidth: 2 }, yearLabel: { show: false } }
+                      series: [{ type: heatmap, coordinateSystem: calendar, data: "{{ calendar }}" }]
+
+    # ---------------------------------------------------------------- hierarchies and flows
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Hierarchies, networks and flows" } }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Treemap, description: Click a block to zoom in. }
+              children:
+                - { type: ui-chart, props: { type: treemap, data: "{{ budget }}" } }
+            - type: ui-card
+              props: { title: Sunburst }
+              children:
+                - { type: ui-chart, props: { type: sunburst, data: "{{ budget }}" } }
+            - type: ui-card
+              props: { title: Tree, description: Click a node to fold it. }
+              children:
+                - { type: ui-chart, props: { type: tree, data: "{{ tree }}" } }
+            - type: ui-card
+              props: { title: Graph, description: "Force layout; nodes are coloured by `category`. Drag them." }
+              children:
+                - { type: ui-chart, props: { type: graph, data: "{{ graphNodes }}", links: "{{ graphLinks }}" } }
+            - type: ui-card
+              props: { title: Sankey, description: Nodes come from the links. }
+              children:
+                - { type: ui-chart, props: { type: sankey, links: "{{ energy }}" } }
+            - type: ui-card
+              props: { title: Chord, description: New in ECharts 6. }
+              children:
+                - { type: ui-chart, props: { type: chord, links: "{{ trade }}" } }
+
+    # ---------------------------------------------------------------- the rest
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: More series } }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Radar }
+              children:
+                - { type: ui-chart, props: { type: radar, data: "{{ skills }}" } }
+            - type: ui-card
+              props: { title: Funnel }
+              children:
+                - { type: ui-chart, props: { type: funnel, data: "{{ funnel }}" } }
+            - type: ui-card
+              props: { title: Theme river }
+              children:
+                - { type: ui-chart, props: { type: themeRiver, data: "{{ genres }}", x: week } }
+            - type: ui-card
+              props: { title: Parallel coordinates, description: "Every `y` field is an axis; text fields become category axes." }
+              children:
+                - { type: ui-chart, props: { type: parallel, data: "{{ cars }}", y: [mpg, hp, weight, origin] } }
+            - type: ui-card
+              props: { title: Polar bars, description: "Polar coordinates through `option`." }
+              children:
+                - type: ui-chart
+                  props:
+                    option:
+                      polar: { radius: [24, "80%"] }
+                      angleAxis: { max: 1100, startAngle: 90, splitLine: { show: false } }
+                      radiusAxis: { type: category, data: [North, South, East, West, Central] }
+                      tooltip: {}
+                      series: [{ type: bar, coordinateSystem: polar, data: [1048, 735, 580, 484, 300], itemStyle: { borderRadius: 4 }, label: { show: true, position: end } }]
+            - type: ui-card
+              props: { title: Dataset and transform, description: "ECharts' own dataset, sorted by a transform. Pure option." }
+              children:
+                - type: ui-chart
+                  props:
+                    option:
+                      dataset:
+                        - { source: "{{ regions }}" }
+                        - { transform: { type: sort, config: { dimension: sales, order: asc } } }
+                      xAxis: { type: category }
+                      yAxis: {}
+                      tooltip: { trigger: axis }
+                      series: [{ type: bar, datasetIndex: 1, itemStyle: { borderRadius: [4, 4, 0, 0] } }]
