@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path fill-rule="evenodd" d="M5 6h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2zM5 8h4v8h-4zM9.5 8h3.5v8h-3.5z"/>
+  <line x1="15" y1="12" x2="21" y2="12"/>
+  <polyline fill="none" points="18 9 21 12 18 15"/>
+</svg>

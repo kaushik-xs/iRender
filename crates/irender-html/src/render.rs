@@ -507,6 +507,13 @@ impl<'a> RenderCx<'a> {
         escape::push_text(&mut self.out, s);
     }
 
+    /// Writes markup as is, such as an icon's SVG shapes. For component code only,
+    /// with markup the component built or sanitized itself: never pass document
+    /// content through it.
+    pub fn markup(&mut self, html: &str) {
+        self.out.push_str(html);
+    }
+
     pub fn render(&mut self, node: &Node) -> Result<(), RenderError> {
         let registry = self.registry;
         let component = registry

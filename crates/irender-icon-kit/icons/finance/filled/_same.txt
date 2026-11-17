@@ -1,0 +1,3 @@
+trend-up
+trend-down
+forecast

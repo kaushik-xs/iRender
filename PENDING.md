@@ -39,7 +39,7 @@ _Last updated: 2026-11-17._
 
 ## Icon kit: packs not drawn yet
 
-Phase 1 shipped `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail` and `manufacturing`. Every new icon is drawn from scratch to `crates/irender-icon-kit/GUIDELINES.md` and must pass `tools/icons.py lint` and a contact-sheet review. Draw a pack's first few icons as references, then the rest from them.
+Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail`, `manufacturing`, `accounting`, `agriculture`, `automotive`, `aviation`, `banking`, `construction`, `education`, `energy`, `finance`, `healthcare`, `hospitality`, `hr`, `insurance`, `it`, `legal`, `marketing`, `maritime`, `media`, `mining`, `oil-gas`, `public-sector`, `robotics`, `simulation`, `space`, `sports` and `telecom`. Every new icon is drawn from scratch to `crates/irender-icon-kit/GUIDELINES.md` and must pass `tools/icons.py lint` and a contact-sheet review. Draw a pack's first few icons as references, then the rest from them.
 
 - [ ] **Base packs:**
   - files & documents
@@ -55,31 +55,10 @@ Phase 1 shipped `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail` a
   - weather & environment
   - social (generic, no logos)
 - [ ] **Industry packs:**
-  - energy & utilities
-  - oil, gas & mining
-  - construction & real estate
   - facilities
-  - healthcare
   - pharma & life sciences
-  - banking & finance
-  - insurance
-  - accounting & HR
-  - education
-  - hospitality & travel
-  - food & beverage
-  - agriculture
-  - automotive
-  - aviation
-  - maritime
-  - public sector
-  - legal
-  - telecom
-  - IT & DevOps
-  - cybersecurity
-  - marketing & media
   - sales & CRM
   - support
-  - sports & fitness
   - events
   - beauty & wellness
   - textile & apparel
@@ -101,6 +80,38 @@ Phase 1 shipped `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail` a
 - [ ] **No tags or search.** Packs have names only. Idea: a tags line per icon (in `_pack.txt` or a sidecar) for the gallery and `irender icons --search`.
 - [ ] **`ui-alert`'s `icon` is text only.** It can't take a `ui-icon` yet. Idea: when the kit is registered, accept `icon: { name: … }`, or a part slot for a child.
 - [ ] **Aliases:** no `previous` → `chevron-left`-style aliases between packs.
+- [ ] **Icons worth a second pass:** they pass lint and read, but the metaphor is weak, they're crowded at 16 px, or the filled style lost too much. (o) = outline, (f) = filled.
+  - logistics: `freight-train`, `fleet`, `cold-chain`, `seal`, `dimensions`, `eta` (f)
+  - warehouse: `bin`, `kitting`, `aisle`, `rack`, `expiry` (f), `serial-number` (f)
+  - retail: `variant`, `catalog`, `bundle`, `rating`, `gift-card` (f), `pos-terminal` (f)
+  - manufacturing: `lathe`, `tank`, `gears` (the teeth don't mesh), `gloves` (f), `downtime` (f), `safety-goggles` (f)
+  - core / status: `eye-off` (f), `offline`, `scheduled`
+  - accounting: `calculator` (nearly the same as `finance:budget`), `cost-centre`, `profit-centre`, `petty-cash` (f)
+  - agriculture: `weather-station`, `harvester`, `plough`
+  - automotive: `tyre`, `brake` (f), `vin` (f); nine front-view car icons differ only by their corner badge
+  - aviation: `gate`, `jet-bridge`, `de-icing`, `connecting-flight`
+  - banking: `account`, `coins`, `kyc` (f), `loan` (f)
+  - construction: `cement-mixer` (f), `progress-photo`, `square-footage`
+  - education: `course` (f), `lesson` (close to `book-open`), `language` (f)
+  - energy: `substation`, `geothermal`, `load-balancing`
+  - finance: `revenue` / `expense` (arrows read as download / upload), `balance-sheet` (f), coin stacks (f)
+  - healthcare: `nurse` (cap reads as a chef's hat), `lab-result` (f), `vaccine`
+  - hospitality: `parking` uses the letter P; `hotel`, `cake` (f), `allergen`
+  - hr: `diversity`, `bonus` (f), `pension` (f), `salary`
+  - insurance: `auto-insurance`, `accident` (f), `deductible`, `underwriting`
+  - it: `dns`, `vpn`, `app-container` (f, close to `logistics:package`), `network-switch` (f)
+  - legal: `mediation`, `settlement`, `evidence`, `clause`
+  - maritime: `ais-tracking`, `harbour`, `voyage`, `knot`
+  - marketing: `reach`, `brand`, `roi` (f); `banner-ad`, `landing-page` and `social-post` look alike filled
+  - media: `magazine` (f), `news-anchor`, `cinema-seat`, `mixing-desk`
+  - mining: `wheel-loader`, `explosive-storage`, `shaft`
+  - oil-gas: `flare-stack`, `reservoir`, `compressor-station`, `meter-skid`
+  - public-sector: `ballot-box`, `disaster-relief`, `town-planning`, `fire-station`
+  - robotics: `swarm`, `autonomy`, `agv` (f)
+  - simulation: `sandbox`, `optimize`, `physics`
+  - space: `astronaut`, `space-helmet`, `thruster`, `docking`
+  - sports: `tennis` (reads as a magnifier), `table-tennis` (o), `stadium`, `boxing-glove`
+  - telecom: `roaming` (f), `network-outage`, `fibre-optic`
 
 ## Housekeeping
 

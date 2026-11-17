@@ -1,0 +1,117 @@
+# irender-icon-kit
+
+SVG icons for [iRender](../../README.md) documents: `ui-icon`, with packs of original icons for everyday interfaces and for industries, each in an outline and a filled style, and your own packs from SVG files.
+
+```rust
+let mut engine = irender_html::Engine::new();
+irender_icon_kit::register(&mut engine.registry);   // every built-in pack
+```
+
+From the CLI, add `--icon-kit` to `validate`, `render` or `components`, and list what ships with `icons`:
+
+```sh
+cargo run -p irender-cli -- render page.yaml --ui-kit --icon-kit -o page.html
+cargo run -p irender-cli -- icons              # packs and icon names
+cargo run -p irender-cli -- icons logistics    # one pack
+cargo run -p irender-cli -- icons --json       # for tooling, or as page data
+```
+
+```yaml
+- { type: ui-icon, props: { name: logistics:truck } }
+- { type: ui-icon, props: { name: check, size: 16, label: Delivered }, style: { color: $color.primary } }
+- { type: ui-icon, props: { name: retail:shopping-cart, variant: filled } }
+```
+
+## `ui-icon`
+
+| prop | |
+|---|---|
+| `name` | `pack:icon`, e.g. `logistics:truck`, or a bare `icon`, found in the first pack that has it. Required. |
+| `variant` | `outline` (default) or `filled`. |
+| `size` | Number (px) or CSS length. Default `1em`, the size of the text around it. May use state. |
+| `stroke` | Stroke width in grid units. Default 2. May use state. |
+| `label` | Accessible name (`role="img"`, `aria-label`). Without it the icon is decorative and `aria-hidden`. |
+
+- The icon is an inline `<svg>` drawn in `currentColor`, so `color` (or the surrounding text) sets it. `attrs`, `class` and `style` apply to the `<svg>` as usual.
+- Only the icons a page uses are sent: there's no sprite or font to load.
+- `name` and `variant` are resolved on the server. They can come from server data (`"{{ order.icon }}"`), but not from `state`. To switch icons in the browser (say, outline to filled when an item is selected), use `if` / `else` with one `ui-icon` in each branch.
+- An unknown name is a render error that suggests close names (`unknown icon `trcuk`; did you mean `logistics:truck`?`).
+
+## Built-in packs
+
+| pack | contents |
+|---|---|
+| `core` | Everyday interface actions and objects: add, edit, delete, search, filter, settings, share, lock, users, calendar, time. |
+| `arrows` | Arrows, chevrons, carets, corners, rotation, swap and move. |
+| `status` | States of a task or record: done, failed, pending, blocked, draft, archived, scheduled, overdue, sync, online. |
+| `logistics` | Transport, shipping and delivery: vehicles, parcels, containers, docks, routes and proof of delivery. |
+| `warehouse` | Warehouse operations and inventory: racks, bins, picking, packing, stock levels, counts, lots and serials. |
+| `retail` | Stores and e-commerce: carts, checkout, POS, products, promotions, orders, reviews and loyalty. |
+| `manufacturing` | Factories and production: machines, tools, components, process equipment, quality, maintenance and safety. |
+| `accounting` | Accounting operations: payables and receivables, accounts and entries, notes, accruals and depreciation, assets and cost centres, close and tax. |
+| `agriculture` | Farming: machinery, crops, fields, irrigation, soil, livestock, beekeeping and harvest. |
+| `automotive` | Road vehicles: cars, bikes and buses, mobility services, dealerships, keys and plates, parts, servicing, dashboard warnings and roadside help. |
+| `aviation` | Airports and flight: aircraft, terminals, gates, runways, baggage, security and flight status. |
+| `banking` | Banks and payments: branches and ATMs, cards and wallets, cash, accounts, transfers, lending, currencies and compliance. |
+| `construction` | Building sites and real estate: heavy equipment, trades and tools, plans, buildings, site paperwork and safety. |
+| `education` | Schools and e-learning: buildings, books and supplies, people, courses, assessment, timetables and subjects. |
+| `energy` | Power and utilities: generation, renewables, the grid, meters, storage, EV charging and efficiency. |
+| `finance` | Markets and accounting: charts, investing, assets and risk, ledgers and statements, budgets, tax, audit and forecasts. |
+| `healthcare` | Hospitals and clinical care: facilities, instruments, medicines, vital signs, diagnostics, staff and records. |
+| `hospitality` | Hotels, restaurants and leisure: rooms and keys, guest services, food and drink, dining and amenities. |
+| `hr` | Human resources: hiring, people and org, payroll, time and leave, performance and learning, benefits and wellbeing. |
+| `insurance` | Policies and claims: cover, premiums, claims and their status, underwriting, people and lines of insurance. |
+| `it` | IT and software: servers, cloud, networking gear, development and DevOps, data, monitoring and security. |
+| `legal` | Law and compliance: courts and people, contracts and signatures, evidence, rulings, privacy and intellectual property. |
+| `marketing` | Marketing: campaigns, audiences and targeting, funnels and conversion, SEO, social and email, ads, brand and analytics. |
+| `maritime` | Shipping and the sea: vessels, ports and berths, cargo handling, navigation, safety equipment, tides and voyages. |
+| `media` | Media production and distribution: film, TV, radio and podcasts, audio and video, photography, print and news, streaming. |
+| `mining` | Mines and quarries: shafts, tunnels, open pits, heavy equipment, ore, processing, geology and safety. |
+| `oil-gas` | Oil and gas, upstream to downstream: rigs, wells, pipelines, refining, storage, transport, fuel and leaks. |
+| `public-sector` | Government and civic services: buildings, elections, IDs and permits, emergency services, transport, streets and utilities. |
+| `robotics` | Robots and automation: arms, grippers, mobile and legged robots, drones, actuators, sensors and safety. |
+| `simulation` | Simulation and digital twins: models, scenarios, runs, parameters, randomness, meshes, physics and results. |
+| `space` | Spaceflight and astronomy: rockets, satellites, stations, astronauts, planets, stars and ground stations. |
+| `sports` | Sports and fitness: trophies and venues, balls and equipment, athletes in motion, workouts and tracking, teams and officiating. |
+| `telecom` | Telecom networks: towers and antennas, signal and coverage, SIMs and phones, calls and messages, fibre and plans. |
+
+Bare names are looked up in `core`, `arrows` and `status` first, then the industry packs alphabetically. Write `pack:icon` whenever two packs might have the same name. The [icon gallery](../../examples/icons/gallery.yaml) shows every icon.
+
+More industry packs are planned; see [PENDING.md](../../PENDING.md).
+
+### How the icons are drawn
+
+Every built-in icon was drawn for this kit, not taken from another set, to one standard: a 24 px grid with 2 px padding, 2 px round strokes, shared keylines, a half-pixel grid, modifiers in the bottom-right corner and at most about 8 shapes. [GUIDELINES.md](GUIDELINES.md) is the full standard.
+
+The filled style is drawn on the outline's own centrelines, filled *and* stroked, so its silhouette matches the outline's outer edge and the two swap without the icon shifting; inner details become cut-outs. Icons with nothing to fill (arrows, check, close, …) use their outline drawing for both styles; each pack lists them in `filled/_same.txt`.
+
+To add or change an icon:
+
+```sh
+crates/irender-icon-kit/tools/icons.py lint                       # the measurable rules
+crates/irender-icon-kit/tools/icons.py sheet logistics -o s.html  # a contact sheet at 96, 24 and 16 px, light and dark
+crates/irender-icon-kit/tools/icons.py sheet logistics --filled -o s.html   # the filled style beside the outline
+```
+
+## Your own packs
+
+```rust
+use irender_icon_kit::{IconKit, Pack};
+
+let brand = Pack::from_dir("brand", "assets/icons")?;      // every *.svg; `Box Truck.svg` → `box-truck`; filled ones from assets/icons/filled/
+let kit = IconKit::new().with(brand);                       // built-ins first, then yours
+irender_icon_kit::register_with(&mut engine.registry, kit);
+
+// Or your names first, with only the built-in packs you want:
+let kit = IconKit::empty().with(brand).with_builtin("core")?.with_builtin("logistics")?;
+
+// Or from strings:
+let mut pack = Pack::new("brand", "Brand")?;
+pack.add_svg("logo", include_str!("logo.svg"))?;
+pack.add_svg_filled("logo", include_str!("logo-filled.svg"))?;   // optional: `variant: filled`
+pack.same_when_filled("divider")?;                               // or: the outline serves both
+```
+
+CLI: `--icons assets/icons` (a pack named after the directory) or `--icons brand=assets/icons`, repeatable; it implies `--icon-kit`.
+
+Any SVG works, at any `viewBox`. On load it's reduced to its shapes (`path`, `circle`, `ellipse`, `rect`, `line`, `polyline`, `polygon`, `g`), their geometry and drawing attributes, and the root's `viewBox` and drawing defaults (`fill`, `stroke`, `stroke-width`, …). Scripts, styles, links, text, `<use>`, images, gradients, event attributes and `url(…)` references are dropped, so a pack file can't put anything else into a page. For icons that follow the text colour, draw them with `currentColor` (or no colour at all for fills).

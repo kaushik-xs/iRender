@@ -1,0 +1,2 @@
+Core
+Everyday interface actions and objects: add, close, search, settings, users, time.

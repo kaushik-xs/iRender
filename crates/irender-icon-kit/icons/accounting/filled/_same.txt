@@ -1,0 +1,5 @@
+debit
+credit
+double-entry
+vat
+withholding-tax

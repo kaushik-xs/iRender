@@ -1,0 +1,7 @@
+5g
+antenna
+cell-tower
+data-usage
+network-outage
+no-signal
+signal-strength

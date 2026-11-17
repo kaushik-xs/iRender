@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="5" width="18" height="3" rx="1"/>
+  <line x1="8" y1="3" x2="8" y2="5"/>
+  <line x1="16" y1="3" x2="16" y2="5"/>
+  <path d="M3 12H11.5A7.5 7.5 0 0 0 9.5 17V21H3z"/>
+  <path fill-rule="evenodd" d="M17 13a4 4 0 1 1 0 8a4 4 0 1 1 0-8zM15 14h3.5v1.5h1.5v3.5h-5z"/>
+</svg>

@@ -1,0 +1,2 @@
+Retail
+Stores and e-commerce: carts, checkout, products, promotions, orders and loyalty.

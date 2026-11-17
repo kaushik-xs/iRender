@@ -1,0 +1,2 @@
+Status
+States of work and systems: done, failed, paused, pending, blocked, scheduled, synced, online.

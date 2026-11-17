@@ -20,9 +20,10 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 | `irender-core` | Document model (serde), expressions, theme tokens, policy, validation → IR. No HTML. |
 | `irender-style` | Compiles style blocks into hashed, deduplicated classes in cascade layers; CSS validation and minification via lightningcss. |
 | `irender-html` | Server-side renderer, component registry, built-ins, browser runtime. No web-framework dependency. |
-| `irender-cli` | `validate`, `render` (with `--timings`, `--repeat`, `--parallel`, `--minify`, `--ui-kit`, `--chart-kit`), `schema`, `components`. |
+| `irender-cli` | `validate`, `render` (with `--timings`, `--repeat`, `--parallel`, `--minify`, `--ui-kit`, `--chart-kit`, `--icon-kit`, `--icons`), `schema`, `components`, `icons`. |
 | `irender-ui-kit` | Optional, shadcn-style components (`ui-button`, `ui-card`, `ui-alert`, form controls, table, pagination, …) and a matching theme. See its [README](crates/irender-ui-kit/README.md). |
 | `irender-chart-kit` | Optional charts drawn by Apache ECharts: `ui-chart` (shorthand for 22 series types, or any ECharts option), `ui-sparkline` and `ui-live-data`: filters, grouping and drill-downs in the browser, clicks, zoom, legend and brush as state, live polling, SSE and WebSocket data, themed from the document's tokens. See its [README](crates/irender-chart-kit/README.md). |
+| `irender-icon-kit` | Optional `ui-icon`: original SVG icons, outline and filled, in packs (core, arrows, status, logistics, warehouse, retail, manufacturing, accounting, agriculture, automotive, aviation, banking, construction, education, energy, finance, healthcare, hospitality, hr, insurance, it, legal, marketing, maritime, media, mining, oil-gas, public-sector, robotics, simulation, space, sports, telecom) drawn to one standard, plus your own packs from SVG files, sanitized on load. See its [README](crates/irender-icon-kit/README.md). |
 
 ## A node
 

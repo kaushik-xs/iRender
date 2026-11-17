@@ -429,6 +429,7 @@ dependencies = [
  "irender-chart-kit",
  "irender-core",
  "irender-html",
+ "irender-icon-kit",
  "irender-ui-kit",
  "schemars",
  "serde_json",
@@ -458,6 +459,16 @@ dependencies = [
  "rayon",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "irender-icon-kit"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "irender-core",
+ "irender-html",
+ "serde_json",
 ]
 
 [[package]]

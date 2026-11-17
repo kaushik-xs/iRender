@@ -1,0 +1,4 @@
+crop-field
+rice
+soil
+sprinkler

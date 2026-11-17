@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use irender_core::{Document, Format, FragmentDir, Fragments, PropKind};
 use irender_html::Engine;
+use irender_icon_kit::{IconKit, Pack};
 use serde_json::Value as Json;
 use std::{
     fs,
@@ -37,6 +38,8 @@ enum Command {
         /// Enable `ui-chart` and `ui-sparkline` and the chart colours (irender-chart-kit).
         #[arg(long)]
         chart_kit: bool,
+        #[command(flatten)]
+        icons: IconArgs,
     },
     /// Render a document to HTML.
     Render {
@@ -61,6 +64,8 @@ enum Command {
         /// Enable `ui-chart` and `ui-sparkline` and the chart colours (irender-chart-kit).
         #[arg(long)]
         chart_kit: bool,
+        #[command(flatten)]
+        icons: IconArgs,
         /// Emit an embeddable fragment instead of a full HTML document.
         #[arg(long)]
         fragment: bool,
@@ -88,7 +93,53 @@ enum Command {
         /// Include `ui-chart` and `ui-sparkline` from irender-chart-kit.
         #[arg(long)]
         chart_kit: bool,
+        #[command(flatten)]
+        icons: IconArgs,
     },
+    /// List the icon packs and their icons (irender-icon-kit).
+    Icons {
+        /// Only this pack.
+        pack: Option<String>,
+        /// Print JSON: `{ "packs": [{ "id", "title", "description", "icons": [...] }] }`.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        icons: IconArgs,
+    },
+}
+
+#[derive(clap::Args, Clone, Default)]
+struct IconArgs {
+    /// Enable `ui-icon` with the built-in icon packs (irender-icon-kit).
+    #[arg(long)]
+    icon_kit: bool,
+    /// Add an icon pack from a directory of SVG files, as `DIR` (the pack is named
+    /// after the directory) or `NAME=DIR`. Repeatable; implies --icon-kit.
+    #[arg(long = "icons", value_name = "[NAME=]DIR")]
+    packs: Vec<String>,
+}
+
+impl IconArgs {
+    fn enabled(&self) -> bool {
+        self.icon_kit || !self.packs.is_empty()
+    }
+
+    /// The built-in packs, then the ones from `--icons`.
+    fn kit(&self) -> Result<IconKit, String> {
+        let mut kit = IconKit::new();
+        for arg in &self.packs {
+            let (name, dir) = match arg.split_once('=') {
+                Some((name, dir)) => (name.to_string(), PathBuf::from(dir)),
+                None => {
+                    let dir = PathBuf::from(arg);
+                    let name = dir.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+                    (name, dir)
+                }
+            };
+            kit = kit.with(Pack::from_dir(&name, &dir).map_err(|e| format!("--icons {arg}: {e}"))?);
+        }
+        Ok(kit)
+    }
 }
 
 fn main() -> ExitCode {
@@ -109,13 +160,14 @@ fn read(path: &Path) -> Result<(String, Format), String> {
 }
 
 /// The optional component kits a command enables.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct Kits {
     ui: bool,
     chart: bool,
+    icons: IconArgs,
 }
 
-fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: Kits) -> Engine {
+fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: &Kits) -> Result<Engine, String> {
     let mut engine = if untrusted { Engine::untrusted() } else { Engine::new() };
     if kits.ui {
         irender_ui_kit::register(&mut engine.registry);
@@ -123,9 +175,12 @@ fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: K
     if kits.chart {
         irender_chart_kit::register(&mut engine.registry);
     }
+    if kits.icons.enabled() {
+        irender_icon_kit::register_with(&mut engine.registry, kits.icons.kit()?);
+    }
     engine.strict_css = strict_css;
     engine.fragments = fragments.map(|dir| Arc::new(FragmentDir(dir)) as Arc<dyn Fragments>);
-    engine
+    Ok(engine)
 }
 
 struct Loaded {
@@ -134,7 +189,7 @@ struct Loaded {
     resolve: Duration,
 }
 
-fn load(engine: &Engine, file: &Path, kits: Kits) -> Result<Loaded, String> {
+fn load(engine: &Engine, file: &Path, kits: &Kits) -> Result<Loaded, String> {
     let (src, format) = read(file)?;
     let problems = |d: irender_core::Diagnostics| {
         let n = d.len();
@@ -177,9 +232,9 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit };
-            load(&engine(untrusted, strict_css, fragments, kits), &file, kits)?;
+        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, icons } => {
+            let kits = Kits { ui: ui_kit, chart: chart_kit, icons };
+            load(&engine(untrusted, strict_css, fragments, &kits)?, &file, &kits)?;
             println!("{}: ok", file.display());
         }
         Command::Render {
@@ -191,6 +246,7 @@ fn run(command: Command) -> Result<(), String> {
             fragments,
             ui_kit,
             chart_kit,
+            icons,
             fragment,
             minify,
             title,
@@ -198,11 +254,11 @@ fn run(command: Command) -> Result<(), String> {
             parallel,
             repeat,
         } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit };
-            let mut engine = engine(untrusted, strict_css, fragments, kits);
+            let kits = Kits { ui: ui_kit, chart: chart_kit, icons };
+            let mut engine = engine(untrusted, strict_css, fragments, &kits)?;
             engine.minify = minify;
             engine.parallel_min_items = parallel;
-            let Loaded { ir, parse, resolve } = load(&engine, &file, kits)?;
+            let Loaded { ir, parse, resolve } = load(&engine, &file, &kits)?;
             let data = match data {
                 Some(path) => {
                     let (src, format) = read(&path)?;
@@ -247,8 +303,8 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components { ui_kit, chart_kit } => {
-            for c in engine(false, false, None, Kits { ui: ui_kit, chart: chart_kit }).registry.iter() {
+        Command::Components { ui_kit, chart_kit, icons } => {
+            for c in engine(false, false, None, &Kits { ui: ui_kit, chart: chart_kit, icons })?.registry.iter() {
                 let info = c.info();
                 println!("{}: {}", c.name(), info.doc);
                 for p in info.props {
@@ -263,6 +319,30 @@ fn run(command: Command) -> Result<(), String> {
                     println!("  parts: {}", info.parts.join(", "));
                 }
                 println!("  children: {}", if info.children { "yes" } else { "no" });
+            }
+        }
+        Command::Icons { pack, json, icons } => {
+            let kit = icons.kit()?;
+            let packs: Vec<_> = match &pack {
+                Some(id) => vec![kit.pack(id).ok_or_else(|| format!("no icon pack `{id}`"))?],
+                None => kit.packs().collect(),
+            };
+            if json {
+                let packs: Vec<Json> = packs
+                    .iter()
+                    .map(|p| {
+                        serde_json::json!({
+                            "id": p.id(), "title": p.title(), "description": p.description(),
+                            "icons": p.names().collect::<Vec<_>>(),
+                        })
+                    })
+                    .collect();
+                println!("{}", serde_json::json!({ "packs": packs }));
+            } else {
+                for p in packs {
+                    println!("{} ({}, {} icons): {}", p.id(), p.title(), p.len(), p.description());
+                    println!("  {}", p.names().collect::<Vec<_>>().join(" "));
+                }
             }
         }
     }

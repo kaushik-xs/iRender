@@ -1,0 +1,15 @@
+[package]
+name = "irender-icon-kit"
+description = "SVG icons for iRender documents: original outline icons in packs per industry, plus your own"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core.workspace = true
+irender-html.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

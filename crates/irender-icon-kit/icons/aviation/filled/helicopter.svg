@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="6" y1="4" x2="20" y2="4"/>
+  <line x1="13" y1="4" x2="13" y2="7"/>
+  <path fill-rule="evenodd" d="M9 7h6a4 4 0 0 1 4 4v2a2 2 0 0 1-2 2H9zM14 7h1a4 4 0 0 1 4 4v1h-5z"/>
+  <path fill="none" d="M9 11H3V8"/>
+  <path d="M11 15v4M16 15v4M8 19h12"/>
+</svg>

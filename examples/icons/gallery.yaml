@@ -1,0 +1,165 @@
+# Every irender-icon-kit pack and icon, with ui-kit around it.
+#
+#   cargo run -p irender-cli -- icons --json > packs.json
+#   cargo run -p irender-cli -- render examples/icons/gallery.yaml --data packs.json --ui-kit --icon-kit -o icons.html
+#
+# The data is the kit's own pack listing, so the page always shows exactly what ships.
+version: 1
+state:
+  done: false
+  # The gallery's controls: which style to show, and the icon size in px.
+  look: both
+  size: 24
+root:
+  type: stack
+  props: { gap: 40 }
+  style:
+    max-width: 1100px
+    margin: 0 auto
+    padding: 48px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 12 }
+      children:
+        - type: stack
+          props: { direction: row, justify: space-between, align: center }
+          children:
+            - { type: ui-badge, props: { text: irender-icon-kit, variant: outline } }
+            - { type: ui-theme-toggle }
+        - { type: ui-heading, props: { level: 1, text: Icon gallery } }
+        - type: ui-text
+          props:
+            variant: lead
+            text: "Original icons, drawn for this kit on a 24 px grid with 2 px round strokes, each in an outline and a filled style. They take the colour and size of the text around them."
+          style: { max-width: 680 }
+        - type: list
+          props: { items: "{{ packs }}", as: p }
+          style: { display: flex, flex-wrap: wrap, gap: 4 }
+          children:
+            - type: ui-button
+              props: { label: "{{ p.title }}", variant: outline, size: sm, href: "#{{ p.id }}" }
+
+    # How icons sit in text, buttons and alerts.
+    - type: ui-card
+      props: { title: In use, description: "`variant: filled` swaps in the filled style; `size` defaults to the text size; `stroke` thins or thickens the lines; `label` makes an icon meaningful to screen readers." }
+      children:
+        - type: stack
+          props: { direction: row, gap: 24, align: center }
+          style: { flex-wrap: wrap }
+          children:
+            - { type: ui-icon, props: { name: logistics:truck, size: 16 } }
+            - { type: ui-icon, props: { name: logistics:truck, size: 24 } }
+            - { type: ui-icon, props: { name: logistics:truck, size: 32 } }
+            - { type: ui-icon, props: { name: logistics:truck, size: 48, stroke: 1.5 } }
+            - { type: ui-icon, props: { name: logistics:truck, size: 48, stroke: 1 }, style: { color: $color.primary } }
+            - { type: ui-icon, props: { name: logistics:truck, variant: filled, size: 48 } }
+            - { type: ui-icon, props: { name: logistics:truck, variant: filled, size: 48 }, style: { color: $color.primary } }
+        - type: stack
+          props: { direction: row, gap: 8, align: center }
+          style: { flex-wrap: wrap }
+          children:
+            - type: ui-button
+              props: { label: Add to cart }
+              children:
+                - { type: ui-icon, props: { name: retail:shopping-cart, size: 16 }, style: { margin-left: 8 } }
+            - type: ui-button
+              props: { label: "", size: icon, variant: outline }
+              attrs: { aria-label: Search }
+              children:
+                - { type: ui-icon, props: { name: search, size: 16 } }
+            - type: ui-button
+              props: { label: "{{ done ? 'Received' : 'Mark received' }}", variant: secondary }
+              on: { click: { action: set_state, key: done, value: "{{ !done }}" } }
+            # An icon's name is fixed on the server; switch icons with if / else.
+            - type: if
+              props: { when: "{{ done }}" }
+              children:
+                - { type: ui-icon, props: { name: status:circle-check, variant: filled, size: 24, label: Received }, style: { color: "#16a34a" } }
+            - type: else
+              children:
+                - { type: ui-icon, props: { name: status:pending, size: 24, label: Awaiting delivery } }
+
+    # Controls. Both styles are on the page; the class hides one, and the size is one
+    # CSS variable that every icon reads, so changes are instant however many icons there are.
+    - type: stack
+      props: { direction: row, gap: 16, align: center }
+      style:
+        position: sticky
+        top: 0
+        z-index: 10
+        flex-wrap: wrap
+        padding: 12px 16px
+        border: 1px solid $color.border
+        border-radius: $radius.lg
+        background: $color.surface
+      children:
+        - type: ui-toggle-group
+          props:
+            bind: look
+            variant: outline
+            size: sm
+            options:
+              - { value: both, label: Both }
+              - { value: outline, label: Outline }
+              - { value: filled, label: Filled }
+        - type: stack
+          props: { direction: row, gap: 8, align: center }
+          style: { flex: 1, min-width: 220px }
+          children:
+            - { type: ui-label, props: { text: Size, for: icon-size } }
+            - type: ui-slider
+              props: { bind: size, min: 12, max: 64, step: 4 }
+              attrs: { id: icon-size, aria-label: Icon size }
+              style: { flex: 1 }
+            - type: ui-text
+              props: { variant: small, text: "{{ size }} px" }
+              style: { min-width: 48px, font-variant-numeric: tabular-nums }
+
+    - type: list
+      props: { items: "{{ packs }}", as: p }
+      class: ["{{ look == 'outline' ? 'only-outline' : look == 'filled' ? 'only-filled' : 'show-both' }}"]
+      style:
+        display: flex
+        flex-direction: column
+        gap: 40
+        --gallery-icon: "{{ size }}px"
+        "&.only-outline .gi-filled": { display: none }
+        "&.only-filled .gi-outline": { display: none }
+      children:
+        - type: element
+          props: { tag: section }
+          attrs: { id: "{{ p.id }}" }
+          style: { scroll-margin-top: 16px }
+          children:
+            - type: stack
+              props: { gap: 4 }
+              style: { margin-bottom: 16 }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "{{ p.title }}" } }
+                - { type: ui-text, props: { variant: muted, text: "{{ p.description }} {{ p.icons.length }} icons, used as `{{ p.id }}:<name>`, outline and filled." } }
+            - type: list
+              props: { items: "{{ p.icons }}", as: icon }
+              style:
+                display: grid
+                gap: 8
+                grid-template-columns: "repeat(auto-fill, minmax(max(112px, calc(var(--gallery-icon) * 2 + 40px)), 1fr))"
+              children:
+                - type: stack
+                  props: { gap: 8, align: center }
+                  attrs: { title: "{{ p.id }}:{{ icon }}" }
+                  style:
+                    padding: 16px 8px 12px
+                    border: 1px solid $color.border
+                    border-radius: $radius.lg
+                  children:
+                    - type: stack
+                      props: { direction: row, gap: 12, align: center }
+                      children:
+                        - { type: ui-icon, props: { name: "{{ p.id }}:{{ icon }}", size: "var(--gallery-icon)" }, class: [gi-outline] }
+                        - { type: ui-icon, props: { name: "{{ p.id }}:{{ icon }}", variant: filled, size: "var(--gallery-icon)" }, class: [gi-filled] }
+                    - type: ui-text
+                      props: { variant: small, text: "{{ icon }}" }
+                      style: { color: $color.muted, font-family: "ui-monospace, monospace", font-size: 11, text-align: center, word-break: break-all }

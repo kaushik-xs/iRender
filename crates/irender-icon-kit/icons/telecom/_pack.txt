@@ -1,0 +1,2 @@
+Telecom
+Mobile and fixed networks, connectivity, telephony and carrier operations.
