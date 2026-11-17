@@ -1,0 +1,685 @@
+{
+  "canvas": {
+    "nodes": [
+      {
+        "id": "e788d2bc-fc41-50a9-b7a2-d436b966fab5",
+        "type": "custom",
+        "position": {
+          "x": 0,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#E8EEFB",
+          "border": "1px solid #5B7FDE",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#5B7FDE",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #5B7FDE"
+        },
+        "data": {
+          "label": "Kick-off",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-E788",
+          "published": true,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [],
+          "step_color": "slate-blue"
+        }
+      },
+      {
+        "id": "b4026ec8-d1c3-5635-8956-deab5717c9b3",
+        "type": "custom",
+        "position": {
+          "x": 220,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#E8EEFB",
+          "border": "1px solid #5B7FDE",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#5B7FDE",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #5B7FDE"
+        },
+        "data": {
+          "label": "Requirements sign-off",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-B402",
+          "published": true,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Kick-off",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "slate-blue"
+        }
+      },
+      {
+        "id": "abd421ae-be46-539f-b116-7a5c7b2f8ae5",
+        "type": "custom",
+        "position": {
+          "x": 440,
+          "y": 40
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#EEE8FA",
+          "border": "1px solid #8467D6",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#8467D6",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #8467D6"
+        },
+        "data": {
+          "label": "Design",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-ABD4",
+          "published": true,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Requirements sign-off",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "violet"
+        }
+      },
+      {
+        "id": "7e8e0317-f470-5cd9-9c82-3617fcbb3c3d",
+        "type": "custom",
+        "position": {
+          "x": 440,
+          "y": 200
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#FBF3E2",
+          "border": "1px solid #E0A63A",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#E0A63A",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #E0A63A"
+        },
+        "data": {
+          "label": "Procurement plan",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-7E8E",
+          "published": true,
+          "isAllFieldFilled": false,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Requirements sign-off",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "amber"
+        }
+      },
+      {
+        "id": "a3ce524e-9f54-547a-9727-a22ec45aa4a2",
+        "type": "custom",
+        "position": {
+          "x": 660,
+          "y": 40
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#EEE8FA",
+          "border": "1px solid #8467D6",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#8467D6",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #8467D6"
+        },
+        "data": {
+          "label": "Design review",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-A3CE",
+          "published": false,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Design",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "violet"
+        }
+      },
+      {
+        "id": "46825a47-925e-5f2c-b3e9-9633b25289d8",
+        "type": "custom",
+        "position": {
+          "x": 660,
+          "y": 200
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#FBF3E2",
+          "border": "1px solid #E0A63A",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#E0A63A",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #E0A63A"
+        },
+        "data": {
+          "label": "Vendor selection",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-4682",
+          "published": true,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Procurement plan",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "amber"
+        }
+      },
+      {
+        "id": "09a18a73-8e69-5019-aa03-626db1d2c43e",
+        "type": "custom",
+        "position": {
+          "x": 880,
+          "y": 200
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#FBF3E2",
+          "border": "1px solid #E0A63A",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#E0A63A",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #E0A63A"
+        },
+        "data": {
+          "label": "Purchase order",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-09A1",
+          "published": false,
+          "isAllFieldFilled": false,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Vendor selection",
+              "hardInterlock": false
+            },
+            {
+              "milestoneName": "Design review",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "amber"
+        }
+      },
+      {
+        "id": "6bae79d7-fe75-5071-8de9-457a51cf1618",
+        "type": "custom",
+        "position": {
+          "x": 1100,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#FBECE3",
+          "border": "1px solid #E0793C",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#E0793C",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #E0793C"
+        },
+        "data": {
+          "label": "Manufacturing",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-6BAE",
+          "published": true,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Purchase order",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "orange"
+        }
+      },
+      {
+        "id": "d7886e74-7036-51f1-978d-f17bed94bdd1",
+        "type": "custom",
+        "position": {
+          "x": 1320,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#DFF5F1",
+          "border": "1px solid #2BAF9E",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#2BAF9E",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #2BAF9E"
+        },
+        "data": {
+          "label": "Factory acceptance test",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-D788",
+          "published": true,
+          "isAllFieldFilled": true,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Manufacturing",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "teal"
+        }
+      },
+      {
+        "id": "14993168-9198-5971-8fe7-160fb3e516af",
+        "type": "custom",
+        "position": {
+          "x": 1540,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#E2F4FB",
+          "border": "1px solid #3FA9DC",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#3FA9DC",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #3FA9DC"
+        },
+        "data": {
+          "label": "Dispatch",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-1499",
+          "published": false,
+          "isAllFieldFilled": false,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Factory acceptance test",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "sky"
+        }
+      },
+      {
+        "id": "c91646af-14aa-5ace-bfb6-3718279ce775",
+        "type": "custom",
+        "position": {
+          "x": 1760,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#E2F4EA",
+          "border": "1px solid #3FA66B",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#3FA66B",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px",
+          "boxShadow": "inset 4px 0 0 0 #3FA66B"
+        },
+        "data": {
+          "label": "Site installation",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-C916",
+          "published": false,
+          "isAllFieldFilled": false,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Dispatch",
+              "hardInterlock": false
+            }
+          ],
+          "step_color": "emerald"
+        }
+      },
+      {
+        "id": "8bec11ef-cd1d-5e59-9662-cc03da6b2c2c",
+        "type": "custom",
+        "position": {
+          "x": 1980,
+          "y": 120
+        },
+        "width": 150,
+        "height": 62,
+        "className": "",
+        "style": {
+          "background": "#FFFFFF",
+          "border": "1px solid #D1D5DB",
+          "borderRadius": 10,
+          "outline": "none",
+          "outlineOffset": 0,
+          "--step-box-ring": "#D1D5DB",
+          "--step-box-ants-inset": "-4.5px",
+          "color": "var(--card-foreground)",
+          "maxWidth": "150px"
+        },
+        "data": {
+          "label": "Handover",
+          "canvasMode": "workflow",
+          "processCanvasType": "workflow_canvas",
+          "stepId": "MS-8BEC",
+          "published": false,
+          "isAllFieldFilled": false,
+          "showForAll": true,
+          "dependencies": [
+            {
+              "milestoneName": "Site installation",
+              "hardInterlock": false
+            }
+          ]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "dep-e788d2bc-fc41-50a9-b7a2-d436b966fab5-b4026ec8-d1c3-5635-8956-deab5717c9b3",
+        "source": "e788d2bc-fc41-50a9-b7a2-d436b966fab5",
+        "target": "b4026ec8-d1c3-5635-8956-deab5717c9b3",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-b4026ec8-d1c3-5635-8956-deab5717c9b3-abd421ae-be46-539f-b116-7a5c7b2f8ae5",
+        "source": "b4026ec8-d1c3-5635-8956-deab5717c9b3",
+        "target": "abd421ae-be46-539f-b116-7a5c7b2f8ae5",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-b4026ec8-d1c3-5635-8956-deab5717c9b3-7e8e0317-f470-5cd9-9c82-3617fcbb3c3d",
+        "source": "b4026ec8-d1c3-5635-8956-deab5717c9b3",
+        "target": "7e8e0317-f470-5cd9-9c82-3617fcbb3c3d",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-abd421ae-be46-539f-b116-7a5c7b2f8ae5-a3ce524e-9f54-547a-9727-a22ec45aa4a2",
+        "source": "abd421ae-be46-539f-b116-7a5c7b2f8ae5",
+        "target": "a3ce524e-9f54-547a-9727-a22ec45aa4a2",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-7e8e0317-f470-5cd9-9c82-3617fcbb3c3d-46825a47-925e-5f2c-b3e9-9633b25289d8",
+        "source": "7e8e0317-f470-5cd9-9c82-3617fcbb3c3d",
+        "target": "46825a47-925e-5f2c-b3e9-9633b25289d8",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-46825a47-925e-5f2c-b3e9-9633b25289d8-09a18a73-8e69-5019-aa03-626db1d2c43e",
+        "source": "46825a47-925e-5f2c-b3e9-9633b25289d8",
+        "target": "09a18a73-8e69-5019-aa03-626db1d2c43e",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-a3ce524e-9f54-547a-9727-a22ec45aa4a2-09a18a73-8e69-5019-aa03-626db1d2c43e",
+        "source": "a3ce524e-9f54-547a-9727-a22ec45aa4a2",
+        "target": "09a18a73-8e69-5019-aa03-626db1d2c43e",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-09a18a73-8e69-5019-aa03-626db1d2c43e-6bae79d7-fe75-5071-8de9-457a51cf1618",
+        "source": "09a18a73-8e69-5019-aa03-626db1d2c43e",
+        "target": "6bae79d7-fe75-5071-8de9-457a51cf1618",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-6bae79d7-fe75-5071-8de9-457a51cf1618-d7886e74-7036-51f1-978d-f17bed94bdd1",
+        "source": "6bae79d7-fe75-5071-8de9-457a51cf1618",
+        "target": "d7886e74-7036-51f1-978d-f17bed94bdd1",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-d7886e74-7036-51f1-978d-f17bed94bdd1-14993168-9198-5971-8fe7-160fb3e516af",
+        "source": "d7886e74-7036-51f1-978d-f17bed94bdd1",
+        "target": "14993168-9198-5971-8fe7-160fb3e516af",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-14993168-9198-5971-8fe7-160fb3e516af-c91646af-14aa-5ace-bfb6-3718279ce775",
+        "source": "14993168-9198-5971-8fe7-160fb3e516af",
+        "target": "c91646af-14aa-5ace-bfb6-3718279ce775",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      },
+      {
+        "id": "dep-c91646af-14aa-5ace-bfb6-3718279ce775-8bec11ef-cd1d-5e59-9662-cc03da6b2c2c",
+        "source": "c91646af-14aa-5ace-bfb6-3718279ce775",
+        "target": "8bec11ef-cd1d-5e59-9662-cc03da6b2c2c",
+        "animated": true,
+        "style": {
+          "stroke": "var(--foreground)"
+        }
+      }
+    ],
+    "viewport": {
+      "x": 0,
+      "y": 0,
+      "zoom": 1
+    }
+  },
+  "workflowData": {
+    "steps": [
+      {
+        "stepId": "MS-E788",
+        "name": "Kick-off",
+        "step_color": "slate-blue",
+        "dependencies": []
+      },
+      {
+        "stepId": "MS-B402",
+        "name": "Requirements sign-off",
+        "step_color": "slate-blue",
+        "dependencies": [
+          "MS-E788"
+        ]
+      },
+      {
+        "stepId": "MS-ABD4",
+        "name": "Design",
+        "step_color": "violet",
+        "dependencies": [
+          "MS-B402"
+        ]
+      },
+      {
+        "stepId": "MS-7E8E",
+        "name": "Procurement plan",
+        "step_color": "amber",
+        "dependencies": [
+          "MS-B402"
+        ]
+      },
+      {
+        "stepId": "MS-A3CE",
+        "name": "Design review",
+        "step_color": "violet",
+        "dependencies": [
+          "MS-ABD4"
+        ]
+      },
+      {
+        "stepId": "MS-4682",
+        "name": "Vendor selection",
+        "step_color": "amber",
+        "dependencies": [
+          "MS-7E8E"
+        ]
+      },
+      {
+        "stepId": "MS-09A1",
+        "name": "Purchase order",
+        "step_color": "amber",
+        "dependencies": [
+          "MS-4682",
+          "MS-A3CE"
+        ]
+      },
+      {
+        "stepId": "MS-6BAE",
+        "name": "Manufacturing",
+        "step_color": "orange",
+        "dependencies": [
+          "MS-09A1"
+        ]
+      },
+      {
+        "stepId": "MS-D788",
+        "name": "Factory acceptance test",
+        "step_color": "teal",
+        "dependencies": [
+          "MS-6BAE"
+        ]
+      },
+      {
+        "stepId": "MS-1499",
+        "name": "Dispatch",
+        "step_color": "sky",
+        "dependencies": [
+          "MS-D788"
+        ]
+      },
+      {
+        "stepId": "MS-C916",
+        "name": "Site installation",
+        "step_color": "emerald",
+        "dependencies": [
+          "MS-1499"
+        ]
+      },
+      {
+        "stepId": "MS-8BEC",
+        "name": "Handover",
+        "step_color": null,
+        "dependencies": [
+          "MS-C916"
+        ]
+      }
+    ]
+  }
+}

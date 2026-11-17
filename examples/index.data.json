@@ -57,6 +57,19 @@
       ]
     },
     {
+      "title": "Process canvas",
+      "href": "flow/process.html",
+      "source": "examples/flow/process.yaml",
+      "summary": "A workflow canvas loaded in the format client-ui-next's process canvas saves: milestones coloured from their data, a palette to drag from, a form for the selected milestone, cut, copy and paste, undo, and a confirmation before deleting.",
+      "features": [
+        "irender-flow-kit",
+        "React Flow JSON",
+        "editing",
+        "side form",
+        "icons"
+      ]
+    },
+    {
       "title": "Icon gallery",
       "href": "icons/index.html",
       "source": "examples/icons/gallery.yaml",

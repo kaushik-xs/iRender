@@ -37,6 +37,8 @@ $irender render examples/flow/gallery.yaml --data examples/flow/gallery.data.jso
 cargo run -q -p irender-flow-kit --example package_er -- examples/flow/er-package > "$out/flow/er.data.json"
 $irender render examples/flow/er.yaml --data "$out/flow/er.data.json" --ui-kit --flow-kit --icon-kit \
   --title "ER diagram" -o "$out/flow/er.html"
+$irender render examples/flow/process.yaml --data examples/flow/process-canvas.json --ui-kit --flow-kit --icon-kit \
+  --title "Process canvas" -o "$out/flow/process.html"
 # The icon gallery's data is the kit's own pack listing.
 mkdir -p "$out/icons"
 $irender icons --json > "$out/icons/packs.json"

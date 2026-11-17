@@ -99,12 +99,14 @@ const FLOW_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the selected node's id (null when none)"),
     PropDef::new("bindNodes", PropKind::StateKey, "State key that gets the nodes, with new positions, after a drag"),
     PropDef::new("bindViewport", PropKind::StateKey, "State key kept in sync with the view: `{ x, y, zoom }`"),
+    PropDef::new("nodeStyles", PropKind::Any, "Apply each node's saved `style` and `className` (default true). Turn off when the template works the look out from `data`"),
     PropDef::new("filter", PropKind::Any, "Node ids to show; the rest are hidden, except the nodes they connect to, shown as context (`data-neighbor`). Empty or null shows all"),
     PropDef::new("filterNeighbors", PropKind::Any, "With `filter`, also show the nodes the shown ones connect to (default true)"),
     PropDef::new("search", PropKind::Any, "Text to find in the nodes: matches are marked `data-match`, everything else is dimmed"),
     PropDef::new("bindMatches", PropKind::StateKey, "State key holding the ids of the nodes `search` matches"),
     PropDef::new("bindHistory", PropKind::StateKey, "State key holding how many edits can be undone and redone: `{ undo, redo }`"),
     PropDef::new("bindEdges", PropKind::StateKey, "State key that gets the edges after a connection or a deletion"),
+    PropDef::new("bindNode", PropKind::StateKey, "State key holding the selected node itself (its `id`, `type`, `data`, …), or null: for a side panel that shows or edits it"),
     PropDef::new("bindSelection", PropKind::StateKey, "State key holding every selected node and edge: `{ nodes: [ids], edges: [ids] }`"),
     PropDef::new("bindDelete", PropKind::StateKey, "With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open"),
 ];
@@ -114,7 +116,7 @@ const LIVE: &[&str] = &[
     "nodes", "edges", "layout", "direction", "nodeGap", "rankGap", "nodeOrigin", "edgePath", "fit", "fitPadding",
     "viewport", "center", "highlight", "selectable", "draggable", "pan", "zoom", "wheel", "minZoom", "maxZoom",
     "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete", "search", "filter",
-    "filterNeighbors",
+    "filterNeighbors", "nodeStyles",
 ];
 
 struct Flow;
@@ -178,6 +180,7 @@ impl Component for Flow {
             "bindSelection": cx.prop_string(node, "bindSelection"),
             "bindDelete": cx.prop_string(node, "bindDelete"),
             "bindMatches": cx.prop_string(node, "bindMatches"),
+            "bindNode": cx.prop_string(node, "bindNode"),
             "bindHistory": cx.prop_string(node, "bindHistory"),
             // Documents the policy doesn't trust can't load URLs through node styles.
             "safe": !(policy.allow_event_attributes && policy.allow_unsafe_urls),

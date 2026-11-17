@@ -81,6 +81,23 @@ root:
           props:
             variant: lead
             text: "Node-and-edge diagrams from React Flow's JSON. Every node type is an ordinary iRender tree, so nodes can hold any component."
+        # The two full-page examples, each after a real app's canvas.
+        - type: stack
+          props: { direction: row, gap: 12, wrap: true }
+          style: { margin-top: 8 }
+          children:
+            - type: ui-card
+              props: { title: ER diagram, description: "A package's tables and relationships, after the builder's ER view: filter with neighbours, keys only, collapse, LR/TB." }
+              style: { flex: "1 1 320px" }
+              children:
+                - type: ui-card-footer
+                  children: [{ type: ui-button, props: { label: Open the ER diagram, href: er.html, size: sm } }]
+            - type: ui-card
+              props: { title: Process canvas, description: "A workflow canvas loaded in the format client-ui-next saves: coloured milestones, a palette, a side form, cut, copy and paste." }
+              style: { flex: "1 1 320px" }
+              children:
+                - type: ui-card-footer
+                  children: [{ type: ui-button, props: { label: Open the process canvas, href: process.html, size: sm } }]
 
     # ------------------------------------------------------------ plain JSON
     - type: ui-card

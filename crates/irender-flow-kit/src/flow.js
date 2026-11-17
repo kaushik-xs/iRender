@@ -383,7 +383,10 @@
       const before = styled.get(nodeEl) || { classes: [], props: [] };
       nodeEl.classList.remove(...before.classes);
       for (const p of before.props) nodeEl.style.removeProperty(p);
-      const classes = str(n.className).split(/\s+/).filter(Boolean);
+      // `nodeStyles: false` leaves the saved `style` and `className` out, for apps that
+      // work the look out from `data` (the template does that instead).
+      const saved = on("nodeStyles", true);
+      const classes = saved ? str(n.className).split(/\s+/).filter(Boolean) : [];
       nodeEl.classList.add(...classes);
       const props = [];
       const set = (k, v) => {
@@ -394,7 +397,7 @@
         nodeEl.style.setProperty(name, value);
         props.push(name);
       };
-      if (isObj(n.style)) for (const [k, v] of Object.entries(n.style)) set(k, v);
+      if (saved && isObj(n.style)) for (const [k, v] of Object.entries(n.style)) set(k, v);
       // A container or resizable node is exactly its size; others grow with content.
       const t = typeOf(n), fixed = t.container || t.resizable, size = sized.get(str(n.id));
       const w = size?.w ?? n.width, h = size?.h ?? n.height;
@@ -511,6 +514,7 @@
       layout();
       search();
       place(els);
+      if (!writing) exposeNode();
       if (!fitted && on("fit", true) && geo.size && el.clientWidth && el.clientHeight) fitView(false);
       else if (!fitted && !on("fit", true)) {
         const v = cfg.bindViewport && isObj(api.state[cfg.bindViewport]) ? api.state[cfg.bindViewport] : props.viewport;
@@ -836,6 +840,7 @@
         } finally {
           writing = false;
         }
+        exposeNode();
         api.emit("nodeselect", { id: value });
       }
       if (open && selected !== null) api.emit("nodeopen", { id: outId(selected) });
@@ -1119,7 +1124,8 @@
       else if (name === "flow.fullscreen") {
         if (document.fullscreenElement === el) document.exitFullscreen?.();
         else el.requestFullscreen?.().catch(() => {});
-      } else if (name === "flow.undo") undo();
+      } else if (name === "flow.update") updateNode(args);
+      else if (name === "flow.undo") undo();
       else if (name === "flow.redo") redo();
       else if (name === "flow.copy") copy();
       else if (name === "flow.cut") cut();
@@ -1432,6 +1438,34 @@
       };
       list.forEach((n) => put(n));
       return out;
+    }
+
+    // `flow.update`: merges the call's args into a node's `data`: the node `args.id`
+    // names, or the selected one. `flow` and `id` themselves aren't merged.
+    function updateNode(args) {
+      const id = args.id !== undefined && args.id !== null ? str(args.id) : selected === null || selected === undefined ? null : str(selected);
+      if (id === null || !writes("bindNodes", "update nodes")) return;
+      const patch = Object.fromEntries(Object.entries(args).filter(([k]) => k !== "flow" && k !== "id"));
+      let hit = false;
+      const list = rawNodes().map((n) => {
+        if (!isObj(n) || str(n.id) !== id) return n;
+        hit = true;
+        return { ...n, data: { ...(isObj(n.data) ? n.data : {}), ...patch } };
+      });
+      if (!hit) return;
+      edit(() => api.set(cfg.bindNodes, list));
+      api.emit("nodeupdate", { id: outId(id) });
+    }
+    // `bindNode`: the selected node as it is in `nodes`, kept up to date.
+    let shownNode;
+    function exposeNode() {
+      if (!cfg.bindNode) return;
+      const id = selected === null || selected === undefined ? null : str(selected);
+      const n = id === null ? null : rawNodes().find((x) => isObj(x) && str(x.id) === id) ?? null;
+      const json = JSON.stringify(n);
+      if (json === shownNode) return;
+      shownNode = json;
+      api.set(cfg.bindNode, n);
     }
 
     // ---------------------------------------------------------- copy and paste

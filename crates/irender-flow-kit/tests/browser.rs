@@ -569,3 +569,48 @@ fn filter_self_loops_and_packing() {
     let Some(lines) = run("filter", doc, driver) else { return };
     check(&lines, &["packed true true", "selfLoop true true parent", "filter a,b true false true", "all 8"]);
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn side_form_updates_and_saved_styles() {
+    let node = json!({ "type": "ui-flow-node", "props": { "type": "step", "variant": "plain" },
+        "attrs": { "data-colour": "{{ node.data.colour }}" },
+        "style": { "background": "white", "&[data-colour=rose]": { "background": "rgb(250, 230, 239)" } },
+        "children": [{ "type": "text", "props": { "value": "{{ node.data.label }}" } }] });
+    let doc = json!({ "version": 1,
+        "state": { "picked": null, "label": "", "updates": 0,
+            "nodes": [
+                { "id": "a", "type": "step", "position": { "x": 0, "y": 0 }, "data": { "label": "A", "keep": 1 },
+                  "style": { "background": "rgb(0, 0, 255)" }, "className": "saved" },
+                { "id": "b", "type": "step", "position": { "x": 300, "y": 0 }, "data": { "label": "B" } } ] },
+        "root": { "type": "ui-flow", "attrs": { "id": "f" },
+            "props": { "nodes": "{{ nodes }}", "bindNodes": "nodes", "bindNode": "picked", "nodeStyles": false, "fit": false },
+            "on": { "nodeupdate": { "action": "set_state", "key": "updates", "value": "{{ updates + 1 }}" } },
+            "children": [node] } });
+    let driver = r##"
+        const f = "f";
+        // `nodeStyles: false`: the saved style and class are left out; the template's apply.
+        log("saved", getComputedStyle(node(f, "a")).backgroundColor, node(f, "a").classList.contains("saved"));
+        // `bindNode` holds the selected node itself, and follows it.
+        click(node(f, "a"));
+        log("bound", S().picked?.id, S().picked?.data.label);
+        flow(f).dispatchEvent(new CustomEvent("irender:call", { detail: { name: "flow.update", args: { label: "Renamed", colour: "rose" } } }));
+        await wait(50);
+        const a = S().nodes.find((n) => n.id === "a");
+        log("updated", a.data.label, a.data.colour, a.data.keep, S().picked.data.label, S().updates,
+            getComputedStyle(node(f, "a")).backgroundColor, node(f, "a").textContent);
+        // By id, without a selection.
+        flow(f).dispatchEvent(new CustomEvent("irender:call", { detail: { name: "flow.update", args: { id: "b", label: "Bee" } } }));
+        log("byId", S().nodes.find((n) => n.id === "b").data.label, S().picked.id);
+        click(flow(f).querySelector("[data-flow-pane]"));
+        log("cleared", String(S().picked));
+    "##;
+    let Some(lines) = run("form", doc, driver) else { return };
+    check(&lines, &[
+        "saved rgb(255, 255, 255) false",
+        "bound a A",
+        "updated Renamed rose 1 Renamed 1 rgb(250, 230, 239) Renamed",
+        "byId Bee a",
+        "cleared null",
+    ]);
+}

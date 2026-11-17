@@ -1,0 +1,211 @@
+# A workflow canvas after client-ui-next's process canvas, loaded from a canvas saved
+# in the app's own shape: { canvas: { nodes, edges, viewport }, workflowData }, as
+# `reactFlowInstance.toObject()` writes it. The canvas here is made up.
+#
+#   cargo run -p irender-cli -- render examples/flow/process.yaml --data examples/flow/process-canvas.json \
+#     --ui-kit --flow-kit --icon-kit -o process.html
+#
+# What the app does in code and the document can't — keeping each milestone's
+# `dependencies` in step with its edges, and the impact check before deleting — goes
+# to the host through the flow's events (`connect`, `delete`, `nodeupdate`).
+version: 1
+state:
+  nodes: []          # filled from the saved canvas when the page opens
+  edges: []
+  sel: null          # the selected milestone's id …
+  selNode: null      # … and the milestone itself
+  label: ""          # the form's fields
+  colour: ""
+  showForAll: true
+  doomed: null
+  history: null
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1320px
+    margin: 0 auto
+    padding: 32px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  # Opening the canvas: the saved nodes and edges go into state, where edits land.
+  on:
+    mount:
+      - { action: set_state, key: nodes, value: "{{ canvas.nodes }}" }
+      - { action: set_state, key: edges, value: "{{ canvas.edges }}" }
+  children:
+    - type: stack
+      props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 1, text: Project journey } }
+            - { type: ui-text, props: { variant: muted, text: "A workflow canvas after client-ui-next's process canvas, in the format it saves." } }
+        - { type: ui-theme-toggle }
+
+    - type: stack
+      props: { direction: row, gap: 16, align: stretch }
+      children:
+        # The sidebar: the palette, counts, and the canvas as it would be saved.
+        - type: stack
+          props: { gap: 12 }
+          style: { width: 220, flex: none }
+          children:
+            - type: ui-card
+              props: { title: Milestones, description: "{{ nodes.length }} on the canvas" }
+              children:
+                - type: ui-flow-item
+                  props: { flow: canvas, node: { type: custom, data: { label: Milestone, canvasMode: workflow, processCanvasType: workflow_canvas, published: false, isAllFieldFilled: false, showForAll: true } } }
+                  style: { display: flex, align-items: center, gap: 8, padding: "10px 12px", border: 1px dashed $color.border, border-radius: 10, font-size: 13 }
+                  children:
+                    - { type: ui-icon, props: { name: "core:drag-handle" }, style: { color: $color.muted } }
+                    - { type: text, props: { value: Drag or click to add } }
+                - type: if
+                  props: { when: "{{ history && history.undo > 0 }}" }
+                  children:
+                    - { type: ui-badge, props: { text: Unsaved changes, variant: outline }, style: { margin-top: 12 } }
+            - type: ui-collapsible
+              props: { trigger: Canvas JSON }
+              children:
+                - type: text
+                  props: { tag: pre, value: "{{ nodes.length }} nodes, {{ edges.length }} edges\n\n{{ nodes }}" }
+                  style: { max-height: 300, overflow: auto, font-size: 10, white-space: pre-wrap, word-break: break-all, margin: 0 }
+
+        - type: ui-flow
+          attrs: { id: canvas }
+          style:
+            flex: 1
+            border: 1px solid $color.border
+            border-radius: 12
+            # The app's own colour variables, which its saved edges use.
+            "--foreground": $color.text
+            "--card-foreground": $color.text
+          props:
+            nodes: "{{ nodes }}"
+            edges: "{{ edges }}"
+            title: Project journey canvas
+            editable: true
+            bindNodes: nodes
+            bindEdges: edges
+            bind: sel
+            bindNode: selNode
+            bindHistory: history
+            nodeOrigin: [0.5, 0]
+            # The app works each box's look out from `step_color`; so does the template.
+            nodeStyles: false
+            background: lines
+            minimap: true
+            height: 620
+            newEdge: { animated: true, style: { stroke: "var(--foreground)" } }
+            newNode: { type: custom, data: { label: Milestone, canvasMode: workflow, processCanvasType: workflow_canvas, published: false, isAllFieldFilled: false, showForAll: true } }
+            confirmDelete: confirm-delete
+            bindDelete: doomed
+          on:
+            # The form starts from the milestone just selected.
+            nodeselect:
+              - { action: set_state, key: label, value: "{{ selNode ? selNode.data.label : '' }}" }
+              - { action: set_state, key: colour, value: "{{ selNode ? selNode.data.step_color || '' : '' }}" }
+              - { action: set_state, key: showForAll, value: "{{ selNode ? selNode.data.showForAll != false : true }}" }
+          children:
+            # A milestone: the app's step box, coloured by `step_color`, with its
+            # status in the corner.
+            - type: ui-flow-node
+              props: { type: custom, variant: plain }
+              attrs: { data-colour: "{{ node.data.step_color }}", title: "{{ node.data.label }}" }
+              style:
+                width: 150
+                box-sizing: border-box
+                padding: 20px
+                background: $color.surface
+                border: "1px solid #D1D5DB"
+                border-radius: 10
+                text-align: center
+                font-size: 12
+                "&[data-selected]": { border-radius: 5, outline: "1.5px dashed #6b7280", outline-offset: 3 }
+                "&[data-colour=slate-blue]": { background: "#E8EEFB", border-color: "#5B7FDE", box-shadow: "inset 4px 0 0 0 #5B7FDE", color: "#0f172a" }
+                "&[data-colour=sky]": { background: "#E2F4FB", border-color: "#3FA9DC", box-shadow: "inset 4px 0 0 0 #3FA9DC", color: "#0f172a" }
+                "&[data-colour=teal]": { background: "#DFF5F1", border-color: "#2BAF9E", box-shadow: "inset 4px 0 0 0 #2BAF9E", color: "#0f172a" }
+                "&[data-colour=emerald]": { background: "#E2F4EA", border-color: "#3FA66B", box-shadow: "inset 4px 0 0 0 #3FA66B", color: "#0f172a" }
+                "&[data-colour=lime]": { background: "#F0F7E4", border-color: "#8CC152", box-shadow: "inset 4px 0 0 0 #8CC152", color: "#0f172a" }
+                "&[data-colour=amber]": { background: "#FBF3E2", border-color: "#E0A63A", box-shadow: "inset 4px 0 0 0 #E0A63A", color: "#0f172a" }
+                "&[data-colour=orange]": { background: "#FBECE3", border-color: "#E0793C", box-shadow: "inset 4px 0 0 0 #E0793C", color: "#0f172a" }
+                "&[data-colour=brown]": { background: "#F0E8E1", border-color: "#8B5E3C", box-shadow: "inset 4px 0 0 0 #8B5E3C", color: "#0f172a" }
+                "&[data-colour=coral]": { background: "#FBE8E6", border-color: "#E0645B", box-shadow: "inset 4px 0 0 0 #E0645B", color: "#0f172a" }
+                "&[data-colour=rose]": { background: "#FAE6EF", border-color: "#D9538A", box-shadow: "inset 4px 0 0 0 #D9538A", color: "#0f172a" }
+                "&[data-colour=magenta]": { background: "#F5E6F8", border-color: "#B455C4", box-shadow: "inset 4px 0 0 0 #B455C4", color: "#0f172a" }
+                "&[data-colour=violet]": { background: "#EEE8FA", border-color: "#8467D6", box-shadow: "inset 4px 0 0 0 #8467D6", color: "#0f172a" }
+                "&[data-colour=indigo]": { background: "#E8E7F8", border-color: "#5C56C4", box-shadow: "inset 4px 0 0 0 #5C56C4", color: "#0f172a" }
+                "&[data-colour=steel-gray]": { background: "#EBECEE", border-color: "#6B7280", box-shadow: "inset 4px 0 0 0 #6B7280", color: "#0f172a" }
+                "&[data-colour=charcoal]": { background: "#E4E5E8", border-color: "#3F4654", box-shadow: "inset 4px 0 0 0 #3F4654", color: "#0f172a" }
+              children:
+                - type: element
+                  style: { position: absolute, top: 0, right: 0, display: flex, gap: 2, padding: 4 }
+                  children:
+                    - type: if
+                      props: { when: "{{ node.data.isAllFieldFilled }}" }
+                      children:
+                        - { type: ui-icon, props: { name: "core:check", size: 12, label: All fields filled }, style: { color: "{{ node.data.published ? '#15803d' : '#6b7280' }}" } }
+                    - type: if
+                      props: { when: "{{ node.data.published == false }}" }
+                      children:
+                        - type: element
+                          attrs: { title: "Unless the changes are published, a project can't be created with them." }
+                          children: [{ type: ui-icon, props: { name: "core:warning", size: 12, label: Not published }, style: { color: "#b91c1c" } }]
+                - type: text
+                  props: { tag: div, value: "{{ node.data.label }}" }
+                  style: { white-space: nowrap, overflow: hidden, text-overflow: ellipsis }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            - type: ui-flow-panel
+              props: { position: top-left }
+              children:
+                - type: stack
+                  props: { direction: row, gap: 6 }
+                  children:
+                    - { type: ui-button, props: { label: Cut, size: sm, variant: outline }, on: { click: { action: call, name: flow.cut } } }
+                    - { type: ui-button, props: { label: Copy, size: sm, variant: outline }, on: { click: { action: call, name: flow.copy } } }
+                    - { type: ui-button, props: { label: Paste, size: sm, variant: outline }, on: { click: { action: call, name: flow.paste } } }
+                    - { type: ui-button, props: { label: Undo, size: sm, variant: ghost, disabled: "{{ !history || history.undo == 0 }}" }, on: { click: { action: call, name: flow.undo } } }
+
+            # The selected milestone's form, as the app's side panel.
+            - type: ui-flow-panel
+              props: { position: top-right }
+              children:
+                - type: if
+                  props: { when: "{{ selNode }}" }
+                  children:
+                    - type: ui-card
+                      props: { title: Milestone, description: "{{ selNode.data.stepId || selNode.id }}" }
+                      style: { width: 280 }
+                      children:
+                        - type: stack
+                          props: { gap: 10 }
+                          children:
+                            - { type: ui-label, props: { text: Name } }
+                            - { type: ui-input, props: { bind: label } }
+                            - { type: ui-label, props: { text: Box colour } }
+                            - type: ui-select
+                              props: { bind: colour, placeholder: None, options: [{ value: slate-blue, label: Slate blue }, { value: sky, label: Sky }, { value: teal, label: Teal }, { value: emerald, label: Emerald }, { value: lime, label: Lime }, { value: amber, label: Amber }, { value: orange, label: Orange }, { value: brown, label: Brown }, { value: coral, label: Coral }, { value: rose, label: Rose }, { value: magenta, label: Magenta }, { value: violet, label: Violet }, { value: indigo, label: Indigo }, { value: steel-gray, label: Steel gray }, { value: charcoal, label: Charcoal }] }
+                            - { type: ui-switch, props: { bind: showForAll, label: Show for all } }
+                            - type: ui-text
+                              props: { variant: muted, text: "{{ selNode.data.published ? 'Published' : 'Not published yet' }} · {{ selNode.data.dependencies ? selNode.data.dependencies.length : 0 }} dependencies" }
+                        - type: ui-card-footer
+                          children:
+                            - { type: ui-button, props: { label: Delete, size: sm, variant: destructive }, on: { click: { action: call, name: flow.delete } } }
+                            - type: ui-button
+                              props: { label: Apply, size: sm }
+                              on: { click: { action: call, name: flow.update, args: { label: "{{ label }}", step_color: "{{ colour }}", showForAll: "{{ showForAll }}" } } }
+
+    - type: ui-alert-dialog
+      props:
+        id: confirm-delete
+        title: Delete from the canvas?
+        description: "{{ doomed ? doomed.nodes.length + ' milestone(s) and ' + doomed.edges.length + ' dependency link(s) will be removed.' : '' }}"
+      children:
+        - type: ui-dialog-footer
+          children:
+            - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: canvas } } } }
+            - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: canvas } } } }

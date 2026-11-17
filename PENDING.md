@@ -72,7 +72,14 @@ These came out of the React Flow research on the builder and client-ui-next repo
 - [ ] **The builder's `if` and `switch` are diamond and hexagon shapes**; templates can only approximate them with CSS (`clip-path` would cut off ports). Idea: a `shape` on `ui-flow-node` that draws an SVG outline behind the content.
 - [x] **Tried on the builder's ER diagram** (2026-11-17), as `examples/flow/er.yaml` with the `package_er` converter. Run on the dwigital packages (manufacturing_core, siemens, checklist, launchpad, sample_ecommerce): every table and relationship draws, with no overlaps.
   - Added for it: `filter` with neighbours as context, `flow.fullscreen`, loops for floating self-edges, and packing unconnected groups into rows (the layout used to stack them in one tall column).
-- [ ] **Not tried yet:** client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
+- [x] **Tried on client-ui-next's process canvas** (2026-11-17), as `examples/flow/process.yaml`, loading a made-up canvas in the shape the app saves. There is no saved canvas in the repos; they live behind signed URLs.
+  - These work: `nodeOrigin [0.5, 0]`, step colours, status icons, the palette, dropping a connection on empty canvas, the side form, cut, copy and paste, delete with a dialog, and undo.
+  - Added for it: `bindNode`, `flow.update` and `nodeStyles: false`.
+- [ ] **Process canvas: still the host's job.**
+  - Keeping a milestone's `dependencies` in step with its edges, and the delete impact check, need code: listen for `connect` / `delete` and `call` the host.
+  - New nodes get ids like `custom_1`, where the app uses UUIDs. Idea: an `idPattern` or a host hook for new ids.
+- [ ] **Check against a real exported canvas:** export one from the process canvas sidebar and load it into `examples/flow/process.yaml`.
+- [ ] **The yard view doesn't need the kit:** a pan/zoom viewport around absolutely positioned elements would cover it.
 
 ## Icon kit: packs not drawn yet
 

@@ -166,11 +166,13 @@ A template's `style` styles the path. Its children are the label, which sits at 
 | `height` | Default 480. The width is the container's. |
 | `title` | Accessible name. |
 | `bind` | State key with the selected node's id (the last one selected), or null. It works in both directions. |
+| `bindNode` | State key with the selected node itself (`id`, `type`, `data`, …), or null, kept up to date: for a side panel that shows it, with `flow.update` to change it. |
 | `bindSelection` | State key with every selected node and edge, `{ nodes: [ids], edges: [ids] }`, in both directions. |
 | `bindNodes` | State key that gets the nodes array after a drag, an added node or a deletion. Point `nodes` at the same key to keep them in sync. |
 | `bindEdges` | The same for edges, after a connection or a deletion. |
 | `bindDelete` | With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open. Null otherwise. |
 | `bindViewport` | State key kept in sync with `{ x, y, zoom }`. |
+| `nodeStyles` | Apply each node's saved `style` and `className` (default true). Turn it off when the template works the look out from `data`, as the process canvas does from `step_color`, so changing the data changes the look. |
 | `filter` | Node ids to show. The nodes they connect to stay as context, marked `data-neighbor` (dashed); everything else is hidden. Empty or null shows all. The ER example drives it from a multi-select. |
 | `filterNeighbors` | With `filter`, keep the neighbours (default true). |
 | `search` | Text to find in the nodes' text and ids, ignoring case and accents. Matches get `data-match`; everything else is dimmed. The view pans to the first match. |
@@ -187,6 +189,7 @@ The flow fires these events, which you can handle in `on`. Each fires after its 
 - **`connect`:** an edge was added.
 - **`nodeadd`:** a node was added.
 - **`noderesize`:** a node was resized.
+- **`nodeupdate`:** `flow.update` changed a node's data.
 - **`deleterequest`:** a deletion is waiting for its dialog.
 - **`delete`:** nodes or edges were deleted.
 
@@ -264,6 +267,7 @@ A `call` whose name starts with `flow.` is a command to the flow:
 | `flow.undo`, `flow.redo` | Steps back or forward through the flow's own edits |
 | `flow.copy`, `flow.cut`, `flow.paste` | The clipboard, as with the keys |
 | `flow.next`, `flow.prev` | Steps through `search`'s matches, panning to each |
+| `flow.update` | Merges the call's other args into a node's `data`: the node `args.id` names, or the selected one. One undo step. With `bindNode`, this is a side form: fields bound to state, and an Apply button that sends them |
 | `flow.fullscreen` | Shows the flow fullscreen, or leaves fullscreen, fitting the view to the new size |
 
 Commands from inside the flow, such as a panel button, a node, or a dialog in either, reach it directly. From elsewhere, add `args.flow` with the flow's element id; without it, a command reaches the page's only flow.
@@ -315,6 +319,10 @@ The JSON's `style` objects are applied one property at a time, so a value can't 
   - an editable workflow with a palette
   - containers with undo and search
   - an ER diagram from server data
+- [`examples/flow/process.yaml`](../../examples/flow/process.yaml) loads a workflow canvas in the format client-ui-next's process canvas saves ([`process-canvas.json`](../../examples/flow/process-canvas.json), made up):
+  - **Milestones:** coloured from their `step_color` (with `nodeStyles: false`), with status icons.
+  - **Editing:** a palette, a side form for the selected milestone (`bindNode` and `flow.update`), cut, copy and paste, undo, and a confirmation before deleting.
+  - **Edges:** the app's CSS variables, such as `--foreground` in its saved edge styles, are set on the flow from the theme.
 - [`examples/flow/er.yaml`](../../examples/flow/er.yaml) draws a package (the JSON files the builder edits) as an ER diagram, after the builder's own:
   - **Tables:** key and constraint badges, `<details>` to collapse each one, and placeholders for tables in other packages.
   - **Toolbar:** a filter that keeps neighbours, keys only, LR/TB and fullscreen.
