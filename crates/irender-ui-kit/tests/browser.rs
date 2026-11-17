@@ -747,3 +747,65 @@ fn multiple_toggle_group_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn combobox_inside_dialog_and_sheet_in_chrome() {
+    let options = serde_json::json!(["Apple", "Banana", "Cherry", "Damson", "Elderberry", "Fig", "Grape"]);
+    let doc = serde_json::json!({ "version": 1, "state": { "a": null, "b": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-dialog", "props": { "id": "d", "trigger": "Open dialog", "title": "Fruit" }, "children": [
+                { "type": "ui-combobox", "props": { "bind": "a", "options": options } } ] },
+            { "type": "ui-sheet", "props": { "id": "s", "trigger": "Open sheet", "title": "Fruit", "side": "bottom" }, "children": [
+                { "type": "ui-combobox", "props": { "bind": "b", "options": options } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const tick = () => new Promise((r) => setTimeout(r, 50));
+      for (const [id, key] of [["d", "a"], ["s", "b"]]) {
+        const d = document.getElementById(id), input = d.querySelector("[data-ui-input]"), menu = d.querySelector("[data-ui-menu]");
+        const control = d.querySelector("[data-ui-control]");
+        const press = (k) => { const e = new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true });
+          input.dispatchEvent(e); return e.defaultPrevented ? "kept" : "passed on"; };
+        [...document.querySelectorAll("button")].find((b) => b.textContent === (id === "d" ? "Open dialog" : "Open sheet")).click();
+        input.focus();
+        press("ArrowDown"); await tick();
+        const m = menu.getBoundingClientRect(), c = control.getBoundingClientRect();
+        const hit = document.elementFromPoint(m.x + m.width / 2, m.y + 12);
+        // Below the field, or above it when there's no room (the bottom sheet).
+        const place = Math.round(m.top - c.bottom) === 4 ? "below" : Math.round(c.top - m.bottom) === 4 ? "above" : `${m.top},${c.bottom}`;
+        out.push(`${id} menu ${menu.matches(":popover-open")} ${menu.contains(hit) ? "on top" : "covered"} ${place}`);
+        menu.querySelectorAll("[role=option]")[1].dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+        await tick();
+        out.push(`${id} chose ${root().state[key]} ${d.open}`);
+        press("ArrowDown"); await tick();
+        input.value = "ch"; input.dispatchEvent(new Event("input", { bubbles: true })); await tick();
+        // Each Escape the combobox uses is kept from the dialog; the last one closes it.
+        out.push(`${id} escape ${press("Escape")} ${press("Escape")} ${press("Escape")} ${JSON.stringify(input.value)}`);
+        d.close();
+      }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    const root = () => document.querySelector("[data-i-root]").__irender;
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("combobox-dialog", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "d menu true on top below",
+            "d chose Banana true",
+            r#"d escape kept kept passed on """#,
+            "s menu true on top above",
+            "s chose Banana true",
+            r#"s escape kept kept passed on """#,
+        ],
+        "\n{result}"
+    );
+}

@@ -131,7 +131,8 @@ Matching ignores case and accents and looks at labels and values. The keyboard f
 - ↑ ↓ move through the options, skipping disabled ones.
 - Home, End, Page Up and Page Down jump.
 - Enter chooses. Tab chooses when you've typed something.
-- Escape closes the menu, then clears the text.
+- Escape closes the menu, then clears the text. Inside a dialog or sheet, only an Escape with nothing left to undo closes it.
+- Inside a dialog or sheet, the menu sits on top of it and flips above the field when there's no room below.
 - Backspace on an empty field removes the last value.
 - Space opens a non-searchable combobox.
 

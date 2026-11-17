@@ -326,10 +326,15 @@
       if (open && shown[active] && !e.shiftKey && query()) choose(shown[active].o);
       setOpen(false);
     } else if (k === "Escape") {
+      // Each Escape undoes one thing: the menu, then the typed text. Only one that
+      // finds nothing to undo reaches a dialog the combobox is in, and closes it.
       if (open) {
         e.preventDefault();
         setOpen(false);
-      } else if (input.value) resetInput();
+      } else if (input.value) {
+        e.preventDefault();
+        resetInput();
+      }
     } else if (k === "Backspace" && input.value === "") {
       const removable = selected().filter((v) => !fixed(v));
       if (removable.length && (cfg.multiple || cfg.clearable)) {

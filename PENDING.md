@@ -34,7 +34,6 @@ _Last updated: 2026-11-17._
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
   - [ ] No chip animations.
   - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. Idea: a `labels` prop or an initial lookup request.
-  - [ ] Not tested inside `ui-dialog` / `ui-sheet`. The menu is a top-layer popover opened after the dialog, so it should sit above it, but this is unverified.
 - [ ] **`ui-theme-toggle`'s choice only applies on pages that have a toggle.** The index and the UI kit and chart kit galleries share it; the other examples still follow the system.
 
 ## Flow kit next phases
