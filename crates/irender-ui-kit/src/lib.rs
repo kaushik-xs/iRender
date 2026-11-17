@@ -105,6 +105,7 @@ pub fn register(registry: &mut Registry) {
         .register(disclosure::ThemeToggle)
         .register(disclosure::ThemeOption)
         .register(disclosure::ThemePanel)
+        .register(disclosure::ThemeColors)
         .register(overlay::Dialog::DIALOG)
         .register(overlay::Dialog::ALERT)
         .register(overlay::Dialog::SHEET)
@@ -151,6 +152,9 @@ const SECONDARY: &str = "var(--color-secondary, color-mix(in srgb, var(--color-t
 const ON_SECONDARY: &str = "var(--color-on-secondary, var(--color-text))";
 const ACCENT: &str = "var(--color-accent, color-mix(in srgb, var(--color-text) 6%, var(--color-surface)))";
 const SUBTLE: &str = "var(--color-subtle, color-mix(in srgb, var(--color-text) 6%, var(--color-surface)))";
+/// The second brand colour, for the `brand` variants; the primary when a theme has none.
+const BRAND_2: &str = "var(--color-brand-2, var(--color-primary))";
+const ON_BRAND_2: &str = "var(--color-on-brand-2, var(--color-on-primary))";
 const DESTRUCTIVE: &str = "var(--color-destructive, #dc2626)";
 const ON_DESTRUCTIVE: &str = "var(--color-on-destructive, #ffffff)";
 const RING: &str = "var(--color-ring, var(--color-muted))";

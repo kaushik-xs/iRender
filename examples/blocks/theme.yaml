@@ -3,7 +3,8 @@
 # preview on the right is ordinary kit components and charts, restyled live. Choices
 # are remembered and apply on every page rendered with the kit.
 #
-# The kits ship the options; this document adds a palette choice of its own (`brand`)
+# Custom colours, typed as hex or picked, make the palette's and chart colours' `custom`
+# choices. The kits ship the options; this document adds a palette choice of its own (`brand`)
 # and an option of its own (`shadow`, used by its cards through `$shadow.card`).
 #
 #   cargo run -p irender-cli -- render examples/blocks/theme.yaml --ui-kit --chart-kit --icon-kit -o theme.html
@@ -54,7 +55,8 @@ root:
             as: picker
             items:
               - { option: palette, label: Colour, swatch: color.primary }
-              - { option: chart, label: Chart colours, swatch: color.chart-1 }
+              - { colors: true, label: Custom colours }
+              - { option: chart, label: Chart colours, swatch: [color.chart-1, color.chart-2, color.chart-3, color.chart-4] }
               - { option: radius, label: Radius }
               - { option: density, label: Density }
               - { option: text-size, label: Text size }
@@ -66,9 +68,15 @@ root:
               props: { gap: 8 }
               children:
                 - { type: ui-label, props: { text: "{{ picker.label }}" } }
-                - type: ui-theme-option
-                  props: { option: "{{ picker.option }}", swatch: "{{ picker.swatch }}" }
-                  style: { flex-wrap: wrap }
+                # Custom colours, typed as hex or picked; they make the `custom` choices.
+                - type: if
+                  props: { when: "{{ picker.colors == true }}" }
+                  children: [ { type: ui-theme-colors } ]
+                - type: else
+                  children:
+                    - type: ui-theme-option
+                      props: { option: "{{ picker.option }}", swatch: "{{ picker.swatch }}" }
+                      style: { flex-wrap: wrap }
         - type: stack
           props: { gap: 8 }
           children:
@@ -234,5 +242,7 @@ root:
                 - { type: ui-button, props: { label: Outline, variant: outline } }
                 - { type: ui-button, props: { label: Ghost, variant: ghost } }
                 - { type: ui-button, props: { label: Delete, variant: destructive } }
+                - { type: ui-button, props: { label: Second brand, variant: brand } }
+                - { type: ui-badge, props: { text: New, variant: brand }, style: { align-self: center } }
 
     - { type: ui-toaster, props: { bind: toast } }

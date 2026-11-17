@@ -243,7 +243,7 @@ Values such as `color-mix()` are resolved by the browser first. A missing token 
 
 `apply_theme` adds eight series colours. Each has its own step for dark mode, and they're in an order where neighbouring colours stay distinct for colour-blind readers. The heatmap's sequential scale runs from `chart-1` down into the surface colour. When the colour scheme changes, or a theme attribute (`class`, `style`, `data-theme`) changes on `<html>` or `<body>`, every chart restyles itself, as it does when a theme option is picked.
 
-`apply_theme` also adds a `chart` theme option, the colour scheme: Default (the eight hues above), Blue, Rose, Green, Orange and Violet (shades of one colour, to match the UI kit's palettes) and Mono. Pick it with irender-ui-kit's `{ type: ui-theme-option, props: { option: chart, swatch: color.chart-1 } }`, or add schemes of your own under `theme.options.chart.choices`.
+`apply_theme` also adds a `chart` theme option, the colour scheme: Default (the eight hues above), Blue, Rose, Green, Orange and Violet (shades of one colour, to match the UI kit's palettes) Mono, and Custom (eight colours built from the custom primary and second brand colour picked with irender-ui-kit's `ui-theme-colors`). Pick it with irender-ui-kit's `{ type: ui-theme-option, props: { option: chart, swatch: color.chart-1 } }`, or add schemes of your own under `theme.options.chart.choices`.
 
 Defaults follow common charting practice:
 - 2 px lines.

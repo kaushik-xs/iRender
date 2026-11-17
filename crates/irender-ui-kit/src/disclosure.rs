@@ -532,6 +532,11 @@ const THEME_OPTION_PROPS: &[PropDef] = &[
     PropDef::new("size", PropKind::Enum(TOGGLE_SIZES), "Default `sm`"),
 ];
 
+/// The swatch of a `custom` choice: any colour.
+static RAINBOW: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("background", "conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ef4444)")])
+});
+
 /// Several swatches overlap a little, like a fanned palette.
 static SWATCHES: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "inline-flex"), ("flex-shrink", "0")])
@@ -601,7 +606,12 @@ impl Component for ThemeOption {
                     c.tokens.get(t).cloned().or_else(|| (*key == option.default).then(|| cx.theme().tokens().get(t).cloned()).flatten())
                 })
                 .collect();
-            if !colors.is_empty() {
+            if colors.is_empty() && key == "custom" && !swatch.is_empty() {
+                let mut dot = Element::new("span");
+                dot.base_style_ref(&SWATCH).base_style_ref(&RAINBOW).attr("aria-hidden", "true");
+                cx.open(&dot, node)?;
+                cx.close("span");
+            } else if !colors.is_empty() {
                 let mut dots = Element::new("span");
                 dots.base_style_ref(&SWATCHES).attr("aria-hidden", "true");
                 cx.open(&dots, node)?;
@@ -620,6 +630,116 @@ impl Component for ThemeOption {
             cx.text(&c.label);
             cx.close("button");
         }
+        cx.close("div");
+        Ok(())
+    }
+}
+
+pub struct ThemeColors;
+
+const THEME_COLORS_SCRIPT: &str = include_str!("theme_colors.js");
+const THEME_COLORS_PROPS: &[PropDef] = &[
+    PropDef::new("option", PropKind::String, "The option whose `custom` choice the colours make (default `palette`)"),
+];
+/// The custom colours: the stored name, its label, and the token it starts from.
+const CUSTOM_COLORS: [(&str, &str, &str); 2] = [("primary", "Primary", "color.primary"), ("brand-2", "Second colour", "color.brand-2")];
+
+static COLORS_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "grid"), ("grid-template-columns", "1fr auto 7.5em"), ("align-items", "center"), ("gap", sp!(8)), ("font-size", fs!(14))])
+});
+static COLOR_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("width", sp!(32)),
+        ("height", sp!(32)),
+        ("padding", "2px"),
+        ("border", "1px solid var(--color-border)"),
+        ("border-radius", "var(--radius-md)"),
+        ("background", "transparent"),
+        ("cursor", "pointer"),
+    ])
+});
+static HEX_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("box-sizing", "border-box"),
+        ("width", "100%"),
+        ("height", sp!(32)),
+        ("padding", sp!(0, 8)),
+        ("border", "1px solid var(--color-border)"),
+        ("border-radius", "var(--radius-md)"),
+        ("background", "transparent"),
+        ("color", "inherit"),
+        ("font-family", crate::MONO),
+        ("font-size", fs!(13)),
+    ])
+    .nest("&[aria-invalid=true]", StyleBlock::from_pairs(&[("border-color", "var(--color-destructive, #dc2626)")]))
+});
+
+/// `#rgb` as `#rrggbb`, the only form a colour input takes; `None` for anything else.
+fn hex6(v: &str) -> Option<String> {
+    let h = v.trim().strip_prefix('#')?;
+    if !h.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    match h.len() {
+        6 => Some(format!("#{}", h.to_ascii_lowercase())),
+        3 => Some(format!("#{}", h.chars().flat_map(|c| [c, c]).collect::<String>().to_ascii_lowercase())),
+        _ => None,
+    }
+}
+
+impl Component for ThemeColors {
+    fn name(&self) -> &'static str {
+        "ui-theme-colors"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "Colour inputs for a primary and a second brand colour, typed as hex or picked. Changing one picks the \
+             option's `custom` choice; the colours are remembered with the other theme choices.",
+            THEME_COLORS_PROPS,
+            &[],
+            false,
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let option = cx.prop_string(node, "option").unwrap_or_else(|| "palette".into());
+        if !cx.theme().options().get(&option).is_some_and(|o| o.choices.contains_key("custom")) {
+            return Err(RenderError::new(node, format!("`{option}` has no `custom` choice to apply the colours to")));
+        }
+        cx.global_js("ui-theme-colors", THEME_COLORS_SCRIPT);
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&PANEL).behavior("ui-theme-colors", json!({ "option": option }));
+        cx.open(&el, node)?;
+        for (name, label, token) in CUSTOM_COLORS {
+            // Until something is stored (the behaviour fills that in), the theme's colour.
+            let start = cx.theme().tokens().get(token).or(cx.theme().tokens().get("color.primary")).and_then(|v| hex6(v)).unwrap_or_else(|| "#000000".into());
+            let mut row = Element::new("label");
+            row.base_style_ref(&COLORS_ROW).attr("data-color", name);
+            cx.open(&row, node)?;
+            cx.text(label);
+            let mut pick = Element::new("input");
+            pick.base_style_ref(&COLOR_INPUT).attr("type", "color").attr("value", start.as_str()).attr("aria-label", format!("{label}, picked"));
+            cx.open(&pick, node)?;
+            let mut text = Element::new("input");
+            text.base_style_ref(&HEX_INPUT)
+                .attr("type", "text")
+                .attr("value", start.as_str())
+                .attr("aria-label", format!("{label}, as hex"))
+                .attr("spellcheck", "false")
+                .attr("maxlength", "7")
+                .attr("placeholder", "#rrggbb");
+            cx.open(&text, node)?;
+            cx.close("label");
+        }
+        let mut reset = Element::new("button");
+        reset
+            .base_style_ref(&TOGGLE)
+            .base_style_ref(&TOGGLE_VARIANT_STYLES[0])
+            .base_style_ref(&TOGGLE_SIZE_STYLES[1])
+            .attr("type", "button")
+            .attr("data-reset", true)
+            .text(lit("Reset colours"));
+        cx.open(&reset, node)?;
+        cx.close("button");
         cx.close("div");
         Ok(())
     }
@@ -705,6 +825,9 @@ impl Component for ThemePanel {
             let mut picker = synthetic(node, "ui-theme-option", props, Vec::new(), Vec::new());
             picker.style = StyleBlock::from_pairs(&[("flex-wrap", "wrap")]);
             row(cx, &option.label, picker)?;
+            if name == "palette" && option.choices.contains_key("custom") {
+                row(cx, "Custom colours", synthetic(node, "ui-theme-colors", Vec::new(), Vec::new(), Vec::new()))?;
+            }
         }
         if cx.prop(node, "mode").is_none_or(|m| expr::truthy(&m)) {
             row(cx, "Mode", synthetic(node, "ui-theme-toggle", Vec::new(), Vec::new(), Vec::new()))?;

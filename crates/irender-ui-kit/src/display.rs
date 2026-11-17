@@ -3,7 +3,7 @@
 //! area.
 
 use crate::{
-    BORDER, DESTRUCTIVE, MONO, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, SECONDARY, SPIN, SUBTLE,
+    BORDER, BRAND_2, DESTRUCTIVE, MONO, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, SECONDARY, SPIN, SUBTLE,
     SURFACE, TEXT, choice, lit,
 };
 use irender_core::{ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
@@ -58,14 +58,14 @@ const fn info(doc: &'static str, props: &'static [PropDef], parts: &'static [&'s
 
 pub struct Badge;
 
-const BADGE_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline"];
+const BADGE_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline", "brand"];
 const BADGE_PROPS: &[PropDef] = &[
     PropDef::new("text", PropKind::Any, "Badge text").required(),
     PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, before the text"),
     PropDef::new("variant", PropKind::Enum(BADGE_VARIANTS), "Default `default`"),
 ];
 
-static BADGE: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
+static BADGE: LazyLock<[StyleBlock; 5]> = LazyLock::new(|| {
     let base = |bg: &str, fg: &str, border: &str| {
         StyleBlock::from_pairs(&[
             ("display", "inline-flex"),
@@ -88,6 +88,7 @@ static BADGE: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         base(SECONDARY, ON_SECONDARY, "1px solid transparent"),
         base(DESTRUCTIVE, ON_DESTRUCTIVE, "1px solid transparent"),
         base("transparent", TEXT, "1px solid var(--color-border)"),
+        base(BRAND_2, ON_BRAND_2, "1px solid transparent"),
     ]
 });
 

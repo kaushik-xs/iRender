@@ -34,7 +34,7 @@ const DIALOG_PROPS: &[PropDef] = &[
     SEARCH_PROPS[2],
     SEARCH_PROPS[3],
     PropDef::new("trigger", PropKind::Any, "Text of a button that opens it"),
-    PropDef::new("triggerVariant", PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link"]), "The trigger button's variant (default `outline`)"),
+    PropDef::new("triggerVariant", PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link", "brand"]), "The trigger button's variant (default `outline`)"),
     PropDef::new("shortcut", PropKind::String, "Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)"),
     PropDef::new("title", PropKind::Any, "Its accessible name (default `Command palette`)"),
 ];

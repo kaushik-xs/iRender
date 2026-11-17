@@ -14,7 +14,7 @@ use std::sync::LazyLock;
 
 const MENU_SCRIPT: &str = include_str!("menu.js");
 
-const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link"]);
+const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link", "brand"]);
 const BUTTON_SIZES: PropKind = PropKind::Enum(&["default", "sm", "lg", "icon"]);
 
 /// A value as a style value: literal as is, template evaluated live.

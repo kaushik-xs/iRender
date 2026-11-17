@@ -1257,3 +1257,65 @@ fn theme_options_apply_and_persist_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Custom colours: a hex typed or picked picks the palette's `custom` choice, with
+/// readable text on it; an incomplete one is flagged and ignored; the chart scheme
+/// follows them; another palette drops them, and Reset clears them.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn custom_colours_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "theme": { "options": { "chart": { "choices": { "default": {}, "custom": {} } } } },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-theme-panel" },
+            { "type": "ui-button", "props": { "label": "Main" }, "attrs": { "id": "main" } },
+            { "type": "ui-button", "props": { "label": "Second", "variant": "brand" }, "attrs": { "id": "second" } } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const tick = () => new Promise((r) => setTimeout(r, 50));
+      const html = document.documentElement, v = (n) => getComputedStyle(html).getPropertyValue(n).trim();
+      const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
+      const fg = (id) => getComputedStyle(document.getElementById(id)).color;
+      const [p, b] = [...document.querySelectorAll("[data-color]")].map((r) => r.querySelectorAll("input"));
+      const type = async (input, val) => { input.value = val; input.dispatchEvent(new Event("input", { bubbles: true })); await tick(); };
+      await type(p[1], "#ff0");
+      out.push(`yellow ${bg("main")} on ${fg("main")} ${html.dataset.themePalette} ${p[0].value}`);
+      await type(p[1], "#12");
+      out.push(`partial ${p[1].getAttribute("aria-invalid")} ${bg("main")}`);
+      await type(p[1], "#1e3a8a");
+      p[0].value = "#f97316"; b[0].value = "#f97316"; b[0].dispatchEvent(new Event("input", { bubbles: true })); await tick();
+      out.push(`navy ${bg("main")} on ${fg("main")} second ${bg("second")} ${b[1].value}`);
+      document.querySelector("[aria-label=chart] [data-choice=custom]").click(); await tick();
+      out.push(`chart ${v("--color-chart-1")} ${v("--color-chart-2")}`);
+      document.querySelector("[aria-label=Colour] [data-choice=rose]").click(); await tick();
+      out.push(`rose ${bg("main")}`);
+      document.querySelector("[data-reset]").click(); await tick();
+      out.push(`reset ${localStorage.getItem("irender-theme-custom")}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test")
+        .replace("<head>", r#"<head><script>localStorage.clear()</script>"#)
+        .replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("custom-colours", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Yellow gets dark text, navy light text.
+            "yellow rgb(255, 255, 0) on rgb(9, 9, 11) custom #ffff00",
+            "partial true rgb(255, 255, 0)",
+            "navy rgb(30, 58, 138) on rgb(250, 250, 250) second rgb(249, 115, 22) #f97316",
+            "chart #1e3a8a #f97316",
+            "rose rgb(225, 29, 72)",
+            "reset {}",
+        ],
+        "\n{result}"
+    );
+}

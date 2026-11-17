@@ -55,12 +55,13 @@ root:
     - type: stack
       props: { gap: 8 }
       children:
-        # The theme toggle shares its choice with the examples index.
+        # The Theme button picks a palette, radius, density, text size, font, chart
+        # colours and the mode; the choices are shared with every example page.
         - type: stack
           props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
           children:
             - { type: ui-heading, props: { level: 1, text: irender-ui-kit } }
-            - { type: ui-theme-toggle }
+            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
           props: { variant: lead, text: "Ready-made components for iRender documents. Every one is plain config: no JavaScript beyond the runtime." }
 

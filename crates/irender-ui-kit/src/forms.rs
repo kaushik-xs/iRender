@@ -2,7 +2,7 @@
 //! only change how they look. Button groups, input groups and fields arrange them.
 
 use crate::{
-    ACCENT, CONTROLS, DESTRUCTIVE, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING,
+    ACCENT, BRAND_2, CONTROLS, DESTRUCTIVE, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING,
     SECONDARY, SURFACE, TEXT, bin, choice, describe, each_item, field_or, focus_attr, focus_attrs, id_with, instance_id,
     expr_val, items, lit, path,
 };
@@ -26,7 +26,7 @@ fn focus_ring() -> StyleBlock {
 
 pub struct Button;
 
-const BUTTON_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline", "ghost", "link"];
+const BUTTON_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline", "ghost", "link", "brand"];
 const BUTTON_SIZES: &[&str] = &["default", "sm", "lg", "icon"];
 const BUTTON_PROPS: &[PropDef] = &[
     PropDef::new("label", PropKind::Any, "Button text"),
@@ -61,7 +61,7 @@ static BUTTON: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&[aria-disabled=true]", StyleBlock::from_pairs(&[("opacity", "0.5"), ("pointer-events", "none")]))
 });
 
-static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 6]> = LazyLock::new(|| {
+static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
     let v = |rest: &[(&str, &str)], hover: &[(&str, &str)]| {
         StyleBlock::from_pairs(rest).nest(":hover", StyleBlock::from_pairs(hover))
     };
@@ -79,6 +79,8 @@ static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 6]> = LazyLock::new(|| {
             &[("background", "transparent"), ("color", PRIMARY), ("text-underline-offset", "4px")],
             &[("text-decoration", "underline")],
         ),
+        // The second brand colour (`color.brand-2`).
+        v(&[("background", BRAND_2), ("color", ON_BRAND_2)], &[("filter", "brightness(0.92)")]),
     ]
 });
 

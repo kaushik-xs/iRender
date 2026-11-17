@@ -56,6 +56,8 @@ fn schemes() -> Json {
         "violet": scheme("Violet",
             ["#7c3aed", "#a78bfa", "#5b21b6", "#c4b5fd", "#6d28d9", "#8b5cf6", "#4c1d95", "#ddd6fe"],
             ["#8b5cf6", "#c4b5fd", "#7c3aed", "#ddd6fe", "#6d28d9", "#a78bfa", "#5b21b6", "#ede9fe"]),
+        // Built from the custom colours picked with irender-ui-kit's `ui-theme-colors`.
+        "custom": { "label": "Custom" },
         "mono": scheme("Mono",
             ["#18181b", "#71717a", "#3f3f46", "#a1a1aa", "#27272a", "#52525b", "#d4d4d8", "#09090b"],
             ["#fafafa", "#a1a1aa", "#d4d4d8", "#71717a", "#e4e4e7", "#52525b", "#f4f4f5", "#3f3f46"]),

@@ -67,6 +67,8 @@ fn options() -> Json {
         "orange": accent(["#ea580c", "#c2410c", "#fff7ed"], ["#f97316", "#fb923c", "#431407"]),
         "violet": accent(["#7c3aed", "#6d28d9", "#f5f3ff"], ["#8b5cf6", "#a78bfa", "#f5f3ff"]),
     });
+    // Colours someone types or picks with `ui-theme-colors`, kept in the browser.
+    palette["custom"] = json!({});
     for (name, choice) in palette.as_object_mut().unwrap() {
         let mut label = name.clone();
         label[..1].make_ascii_uppercase();

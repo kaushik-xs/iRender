@@ -33,8 +33,8 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 
 | component | props | notes |
 |---|---|---|
-| `ui-button` | `label`, `icon`, `variant` (default, secondary, destructive, outline, ghost, link), `size` (default, sm, lg, icon), `href`, `type`, `disabled` | With `href` it renders a link that looks like a button. Children follow the label. |
-| `ui-badge` | `text`, `icon`, `variant` (default, secondary, destructive, outline) | |
+| `ui-button` | `label`, `icon`, `variant` (default, secondary, destructive, outline, ghost, link, brand), `size` (default, sm, lg, icon), `href`, `type`, `disabled` | With `href` it renders a link that looks like a button. Children follow the label. |
+| `ui-badge` | `text`, `icon`, `variant` (default, secondary, destructive, outline, brand) | |
 | `ui-card` | `title`, `description`, `tag` | Parts: `header`, `title`, `description`. |
 | `ui-card-footer` | | A row of actions; put it last in a card. |
 | `ui-alert` | `title`, `description`, `icon`, `variant` (default, destructive) | `role="alert"`. Parts: `icon`, `title`, `description`. |
@@ -68,6 +68,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-theme-toggle` | `labels` (`{ system, light, dark }`), `variant` (default `outline`), `size` (default `sm`) | System / Light / Dark. Light and Dark override `prefers-color-scheme` for the theme's dark mode and `@dark` styles; the choice is kept in `localStorage` (`irender-theme`) and applied before the page is shown, so a reload doesn't flash. Every page rendered with the kit applies it, with a toggle on it or not. Its behaviour is added only to pages that use it. |
 | `ui-theme-option` | `option` (required), `swatch` (a token, or a list for several dots), `label`, `variant` (default `outline`), `size` (default `sm`) | Picks a choice of a theme option for every page; see [Theme options](#theme-options). |
 | `ui-theme-panel` | `options` (default: every theme option), `mode` (default true) | A labelled `ui-theme-option` per option, palette first and chart colours last, and the mode. Put it in a `ui-popover` for a Theme button. |
+| `ui-theme-colors` | `option` (default `palette`) | Colour inputs (picked, or typed as hex) for a custom primary and second brand colour; changing one picks the `custom` choice. `ui-theme-panel` shows it under the palette. |
 | `ui-dialog` | `trigger`, `triggerVariant`, `title`, `description`, `id` | A modal `<dialog>`. Escape, its ✕ or a click outside closes it. |
 | `ui-alert-dialog` | same as `ui-dialog` | `role=alertdialog`; only its own buttons close it. |
 | `ui-sheet` | same, plus `side` (right, left, top, bottom) | A dialog along one edge. |
@@ -146,6 +147,7 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 | `color.subtle` | skeletons, avatars, code, table hover | text mixed 6% into surface |
 | `color.destructive` / `color.on-destructive` | destructive variants | `#dc2626` / white |
 | `color.ring` | focus rings | `color.muted` |
+| `color.brand-2` / `color.on-brand-2` | the `brand` variant of buttons and badges: a second brand colour | `color.primary` / `color.on-primary` |
 
 `apply_theme` merges a neutral, shadcn-style palette (zinc) with a dark mode under the document's theme. Tokens the document sets itself keep their values.
 
@@ -160,7 +162,7 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 
 | option | choices | sets |
 |---|---|---|
-| `palette` | zinc (default), slate, stone, rose, blue, green, orange, violet | every colour (neutrals) or the primary and ring (colours), each with its dark mode |
+| `palette` | zinc (default), slate, stone, rose, blue, green, orange, violet, custom | every colour (neutrals) or the primary and ring (colours), each with its dark mode; custom: the colours from `ui-theme-colors` |
 | `radius` | 0, 0.3, 0.5 (default), 0.75, 1.0 | `radius.sm`, `radius.md`, `radius.lg` |
 | `density` | compact, default, comfortable | `space.scale`: 0.8, 1, 1.2 |
 | `text-size` | small, default, large | `font.scale`: 0.9, 1, 1.125 |
@@ -169,6 +171,7 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 - **Picking:** `ui-theme-option` shows one button per choice; `swatch` names a token shown as a colour dot, or a list of them: `ui-theme-panel` shows a chart scheme's first four colours. A choice is kept in `localStorage` (`irender-theme-options`) and applied before the page shows on every page rendered with the kit, like `ui-theme-toggle`'s mode. Picking the default clears it. Pages already open follow at once, other tabs and pages in iframes included, so a picker on one page restyles the rest.
 - **A Theme button:** `{ type: ui-popover, props: { trigger: Theme }, children: [ { type: ui-theme-panel } ] }` gives every option and the mode, including ones the document adds. The examples index, the blocks page and the dashboard block have one.
 - **Scales:** the kit's paddings, gaps, margins and control heights are `calc(Npx * var(--space-scale, 1))`, and its font sizes `calc(Npx * var(--font-scale, 1))`, so density and text size reach every component. Use the same tokens in your own styles to follow them: `padding: "calc(16px * var(--space-scale, 1))"`.
+- **Custom colours:** `ui-theme-colors` takes a primary and a second brand colour as hex (`#rgb` or `#rrggbb`, nothing else), typed or picked. They're kept in `localStorage` (`irender-theme-custom`) and set on `<html>` while the palette's `custom` choice is picked, with a hover shade, a ring and dark or light text on them (whichever reads better) derived from each. The chart kit's `custom` chart colours are built from the same two. In script: `window.__irenderTheme.custom()` and `.setCustom("primary", "#1e3a8a")`.
 - **Your own:** add choices to an option (`theme.options.palette.choices.brand`) or options of your own (`theme.options.shadow`); `ui-theme-option` picks those too. The [theme block](../../examples/blocks/theme.yaml) does both.
 - **In script:** `window.__irenderTheme.option("palette")` and `.setOption("palette", "rose")`; changes fire `irender:theme-option`.
 

@@ -85,7 +85,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 68);
+    assert_eq!(kit, 69);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -543,10 +543,37 @@ fn theme_panel_has_a_picker_per_option_and_the_mode() {
     let body = plain(&render(doc));
     let labels: Vec<&str> = body.split(r#"<div aria-hidden="true">"#).skip(1).map(|r| &r[..r.find('<').unwrap()]).collect();
     // The palette first and chart colours (not registered here) last.
-    assert_eq!(labels, ["Colour", "Radius", "Density", "Text size", "Font", "Mode"], "{body}");
+    // Custom colours come with the palette, which has a `custom` choice.
+    assert_eq!(labels, ["Colour", "Custom colours", "Radius", "Density", "Text size", "Font", "Mode"], "{body}");
     assert!(body.contains(r#"data-i-xc="{&quot;option&quot;:&quot;palette&quot;"#) && body.contains(r#"data-i-x="ui-theme-toggle""#), "{body}");
     let some = plain(&render(json!({ "type": "ui-theme-panel", "props": { "options": ["radius"], "mode": false } })));
     assert_eq!(some.matches("data-i-x=").count(), 1, "{some}");
+}
+
+#[test]
+fn custom_colours_and_the_brand_variant() {
+    let page = render_with(
+        json!({ "type": "element", "children": [
+            { "type": "ui-theme-colors" },
+            { "type": "ui-button", "props": { "label": "Go", "variant": "brand" } },
+            { "type": "ui-badge", "props": { "text": "New", "variant": "brand" } },
+            { "type": "ui-theme-option", "props": { "option": "palette", "swatch": "color.primary" } } ] }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // Each colour starts from the theme's, as a colour input and as hex.
+    assert!(body.contains(r##"<label data-color="primary">Primary<input type="color" value="#18181b" aria-label="Primary, picked">"##), "{body}");
+    assert!(body.contains(r##"<input type="text" value="#18181b" aria-label="Primary, as hex" spellcheck="false" maxlength="7" placeholder="#rrggbb">"##), "{body}");
+    assert!(body.contains(r##"data-color="brand-2">Second colour"##), "{body}");
+    // The second brand colour falls back to the primary in themes without one.
+    assert!(page.css.contains("background: var(--color-brand-2, var(--color-primary));"), "{}", page.css);
+    // The custom choice's swatch is a rainbow.
+    assert!(body.contains(r##"data-choice="custom" aria-pressed="false"><span aria-hidden="true"></span>Custom</button>"##), "{body}");
+    assert!(page.css.contains("conic-gradient("));
+    let err = render_with(json!({ "type": "ui-theme-colors", "props": { "option": "radius" } }), json!({}), json!({})).unwrap_err();
+    assert!(err.message.contains("`radius` has no `custom` choice"), "{err}");
 }
 
 #[test]
