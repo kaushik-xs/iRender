@@ -29,9 +29,9 @@ cargo run -p irender-cli -- icons --json       # for tooling, or as page data
 | `name` | `pack:icon`, e.g. `logistics:truck`, or a bare `icon`, found in the first pack that has it. Required. |
 | `variant` | `outline` (default) or `filled`. |
 | `size` | Number (px) or CSS length. Default `1em`, the size of the text around it. May use state. |
-| `stroke` | Stroke width in grid units. Default 2. May use state. |
 | `label` | Accessible name (`role="img"`, `aria-label`). Without it the icon is decorative and `aria-hidden`. |
 
+- Strokes are always 1.4 grid units, the width the icons are drawn and spaced for, so there's no prop to change it.
 - The icon is an inline `<svg>` drawn in `currentColor`, so `color` (or the surrounding text) sets it. `attrs`, `class` and `style` apply to the `<svg>` as usual.
 - Only the icons a page uses are sent: there's no sprite or font to load.
 - `name` and `variant` are resolved on the server. They can come from server data (`"{{ order.icon }}"`), but not from `state`. To switch icons in the browser (say, outline to filled when an item is selected), use `if` / `else` with one `ui-icon` in each branch.
@@ -81,7 +81,7 @@ More industry packs are planned; see [PENDING.md](../../PENDING.md).
 
 ### How the icons are drawn
 
-Every built-in icon was drawn for this kit, not taken from another set, to one standard: a 24 px grid with 2 px padding, 2 px round strokes, shared keylines, a half-pixel grid, modifiers in the bottom-right corner and at most about 8 shapes. [GUIDELINES.md](GUIDELINES.md) is the full standard.
+Every built-in icon was drawn for this kit, not taken from another set, to one standard: a 24 px grid with 2 px padding, 1.4 px round strokes, shared keylines, a half-pixel grid, modifiers in the bottom-right corner and at most about 8 shapes. [GUIDELINES.md](GUIDELINES.md) is the full standard.
 
 The filled style is drawn on the outline's own centrelines, filled *and* stroked, so its silhouette matches the outline's outer edge and the two swap without the icon shifting; inner details become cut-outs. Icons with nothing to fill (arrows, check, close, …) use their outline drawing for both styles; each pack lists them in `filled/_same.txt`.
 

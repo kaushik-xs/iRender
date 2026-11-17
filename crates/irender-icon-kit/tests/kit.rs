@@ -36,7 +36,7 @@ fn plain(html: &str) -> String {
 fn renders_an_inline_svg_in_the_text_colour() {
     let html = plain(&render(json!({ "name": "logistics:truck" })).unwrap());
     assert!(html.starts_with(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="#
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="#
     ), "{html}");
     assert!(html.ends_with("</svg>"));
     assert!(html.contains(r#"<circle cx="7" cy="18" r="2"/>"#));
@@ -48,12 +48,12 @@ fn bare_names_search_every_pack() {
 }
 
 #[test]
-fn label_size_and_stroke() {
+fn label_and_size() {
     let page = {
         let engine = engine_with(IconKit::new());
         let doc = irender_core::parse(
             &json!({ "version": 1, "root": { "type": "ui-icon",
-                "props": { "name": "check", "label": "Done", "size": 20, "stroke": 1.5 } } })
+                "props": { "name": "check", "label": "Done", "size": 20 } } })
             .to_string(),
             Format::Json,
         )
@@ -61,13 +61,24 @@ fn label_size_and_stroke() {
         engine.render(&engine.resolve(&doc).unwrap(), &json!({})).unwrap()
     };
     let html = plain(&page.body);
-    assert!(html.contains(r#"stroke-width="1.5""#) && !html.contains(r#"stroke-width="2""#), "{html}");
+    assert!(html.contains(r#"stroke-width="1.4""#), "{html}");
     assert!(html.contains(r#"role="img" aria-label="Done""#) && !html.contains("aria-hidden"));
     assert!(page.css.contains("width:20px") || page.css.contains("width: 20px"), "{}", page.css);
     let default = engine_with(IconKit::new());
     let doc = irender_core::parse(r#"{ "version": 1, "root": { "type": "ui-icon", "props": { "name": "check" } } }"#, Format::Json).unwrap();
     let css = default.render(&default.resolve(&doc).unwrap(), &json!({})).unwrap().css;
     assert!(css.contains("1em"), "{css}");
+}
+
+#[test]
+fn the_stroke_width_is_fixed() {
+    let doc = irender_core::parse(
+        r#"{ "version": 1, "root": { "type": "ui-icon", "props": { "name": "check", "stroke": 1 } } }"#,
+        Format::Json,
+    )
+    .unwrap();
+    let err = engine_with(IconKit::new()).resolve(&doc).unwrap_err().to_string();
+    assert!(err.contains("stroke"), "{err}");
 }
 
 #[test]

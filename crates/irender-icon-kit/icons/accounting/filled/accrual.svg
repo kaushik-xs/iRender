@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
   <path d="M13.5 5A6 6 0 1 0 5 13.5A10 10 0 0 1 13.5 5z"/>
   <path fill-rule="evenodd" d="M15 9a6 6 0 1 1 0 12a6 6 0 1 1 0-12zM13 10.5h4V13h2.5v4H13z"/>
 </svg>

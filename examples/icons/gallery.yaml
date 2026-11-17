@@ -33,7 +33,7 @@ root:
         - type: ui-text
           props:
             variant: lead
-            text: "Original icons, drawn for this kit on a 24 px grid with 2 px round strokes, each in an outline and a filled style. They take the colour and size of the text around them."
+            text: "Original icons, drawn for this kit on a 24 px grid with 1.4 px round strokes, each in an outline and a filled style. They take the colour and size of the text around them."
           style: { max-width: 680 }
         - type: list
           props: { items: "{{ packs }}", as: p }
@@ -44,7 +44,7 @@ root:
 
     # How icons sit in text, buttons and alerts.
     - type: ui-card
-      props: { title: In use, description: "`variant: filled` swaps in the filled style; `size` defaults to the text size; `stroke` thins or thickens the lines; `label` makes an icon meaningful to screen readers." }
+      props: { title: In use, description: "`variant: filled` swaps in the filled style; `size` defaults to the text size; `label` makes an icon meaningful to screen readers." }
       children:
         - type: stack
           props: { direction: row, gap: 24, align: center }
@@ -53,8 +53,8 @@ root:
             - { type: ui-icon, props: { name: logistics:truck, size: 16 } }
             - { type: ui-icon, props: { name: logistics:truck, size: 24 } }
             - { type: ui-icon, props: { name: logistics:truck, size: 32 } }
-            - { type: ui-icon, props: { name: logistics:truck, size: 48, stroke: 1.5 } }
-            - { type: ui-icon, props: { name: logistics:truck, size: 48, stroke: 1 }, style: { color: $color.primary } }
+            - { type: ui-icon, props: { name: logistics:truck, size: 48 } }
+            - { type: ui-icon, props: { name: logistics:truck, size: 48 }, style: { color: $color.primary } }
             - { type: ui-icon, props: { name: logistics:truck, variant: filled, size: 48 } }
             - { type: ui-icon, props: { name: logistics:truck, variant: filled, size: 48 }, style: { color: $color.primary } }
         - type: stack
