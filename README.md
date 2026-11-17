@@ -11,7 +11,7 @@ cargo run -p irender-cli -- components   # built-in components and their props
 cargo run -p irender-cli -- schema       # JSON Schema for documents
 ```
 
-See [`examples/`](examples/README.md) for complete pages: a dashboard built from fragments, a live API search, a multi-step form and a storefront whose config is partly generated in Rust.
+See [`examples/`](examples/README.md) for complete pages: a dashboard built from fragments, a live API search, a multi-step form and a storefront whose config is partly generated in Rust. To browse them all, run `examples/build.sh`, then `python3 -m http.server 8000 -d target/site`.
 
 ## Crates
 

@@ -1,0 +1,86 @@
+{
+  "repo": "https://github.com/kaushik-xs/iRender/blob/main",
+  "examples": [
+    {
+      "title": "Orders dashboard",
+      "href": "dashboard.html",
+      "source": "examples/dashboard/dashboard.yaml",
+      "summary": "KPI tiles, filter tabs and expandable order rows, built from server data and a folder of fragments.",
+      "features": [
+        "include",
+        "fragments",
+        "server data",
+        "if",
+        "tables"
+      ]
+    },
+    {
+      "title": "Live search",
+      "href": "search/index.html",
+      "source": "examples/search/search.json",
+      "summary": "Fetches results when the page opens and on every search, then rebuilds the result cards from each response.",
+      "features": [
+        "mount",
+        "submit",
+        "lists from state",
+        "loading states"
+      ],
+      "needsServer": true
+    },
+    {
+      "title": "Sign-up wizard",
+      "href": "wizard.html",
+      "source": "examples/wizard.yaml",
+      "summary": "Four steps with conditional fields, validation, a select, a textarea and a review screen. No server at all.",
+      "features": [
+        "if",
+        "select",
+        "textarea",
+        "checkbox",
+        "call"
+      ]
+    },
+    {
+      "title": "Storefront",
+      "href": "storefront.html",
+      "source": "crates/irender-html/examples/storefront.rs",
+      "summary": "A layout whose nav, campaign banner and recommendations are generated in Rust. The cart is handled by host JavaScript.",
+      "features": [
+        "Fragments in Rust",
+        "A/B layouts",
+        "feature flags",
+        "host JS"
+      ]
+    },
+    {
+      "title": "Storefront, variant B",
+      "href": "storefront-b.html",
+      "source": "crates/irender-html/examples/storefront.rs",
+      "summary": "The same page with the other A/B arm: a compact banner with the button beside the text.",
+      "features": [
+        "A/B layouts"
+      ]
+    },
+    {
+      "title": "Product card",
+      "href": "product.html",
+      "source": "examples/product.json",
+      "summary": "Quantity stepper, live price and progress bar, and a buy button that hands off to the host.",
+      "features": [
+        "bindings",
+        "live styles",
+        "call"
+      ]
+    },
+    {
+      "title": "Counter",
+      "href": "counter.html",
+      "source": "examples/counter.yaml",
+      "summary": "The smallest interactive document: two buttons and a number that turns red below zero.",
+      "features": [
+        "set_state",
+        "YAML"
+      ]
+    }
+  ]
+}

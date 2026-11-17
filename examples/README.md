@@ -2,6 +2,17 @@
 
 Each example shows a different way that parts of a page are dynamic. All commands run from the repository root.
 
+## Browse them all
+
+```sh
+examples/build.sh                               # renders everything into target/site
+python3 -m http.server 8000 -d target/site      # open http://localhost:8000
+```
+
+The script renders every example, plus an index page linking them, into one folder. The index is itself an iRender document: `index.yaml` with `index.data.json` as its data. To list a new example, add it to `index.data.json` and to `build.sh`. Serve the folder instead of opening the files, because the search example fetches its API and browsers block that for `file://` pages.
+
+The sections below render each example on its own.
+
 | example | dynamic part comes from | features |
 |---|---|---|
 | [`counter.yaml`](counter.yaml) | browser state | `set_state`, live styles |

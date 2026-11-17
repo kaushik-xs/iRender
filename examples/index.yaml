@@ -1,0 +1,78 @@
+# The page that links every example, itself an iRender document. `build.sh` renders
+# it with index.data.json, next to the examples it links to.
+version: 1
+root:
+  type: stack
+  props: { gap: $space.lg }
+  style:
+    max-width: 960px
+    margin: 0 auto
+    padding: $space.xl $space.lg
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: $space.xs }
+      children:
+        - { type: text, props: { tag: h1, value: iRender examples }, style: { margin: 0 } }
+        - type: text
+          props: { tag: p, value: "Every page here was rendered from a JSON or YAML document. Open one, then read its source." }
+          style: { margin: 0, color: $color.muted }
+
+    - type: list
+      props: { items: "{{ examples }}", as: ex }
+      style:
+        display: grid
+        gap: $space.md
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))
+      children:
+        - type: stack
+          props: { tag: article, gap: $space.sm }
+          style:
+            padding: $space.md
+            border: 1px solid $color.border
+            border-radius: $radius.lg
+            ":hover": { border-color: $color.primary }
+          children:
+            - type: text
+              props: { tag: a, value: "{{ ex.title }}" }
+              attrs: { href: "{{ ex.href }}" }
+              style:
+                font-size: $font.size.lg
+                font-weight: 600
+                color: $color.text
+                text-decoration: none
+                ":hover": { color: $color.primary }
+            - type: text
+              props: { tag: p, value: "{{ ex.summary }}" }
+              style: { margin: 0, color: $color.muted, font-size: $font.size.sm, flex: 1 }
+            - type: list
+              props: { items: "{{ ex.features }}", as: f }
+              style: { display: flex, flex-wrap: wrap, gap: 4 }
+              children:
+                - type: text
+                  props: { value: "{{ f }}" }
+                  style: { font-size: 12, padding: 1px 8px, border-radius: 999, background: "#eef2ff", color: $color.primary }
+            - type: if
+              props: { when: "{{ ex.needsServer }}" }
+              children:
+                - type: text
+                  props: { value: "Fetches its API, so open it through the local server, not as a file." }
+                  style: { font-size: 12, color: "#b45309" }
+            - type: stack
+              props: { direction: row, gap: $space.md }
+              style: { font-size: $font.size.sm }
+              children:
+                - type: text
+                  props: { tag: a, value: Open → }
+                  attrs: { href: "{{ ex.href }}" }
+                  style: { color: $color.primary, font-weight: 500 }
+                - type: text
+                  props: { tag: a, value: Source }
+                  attrs: { href: "{{ repo }}/{{ ex.source }}", target: _blank, rel: noopener }
+                  style: { color: $color.muted }
+
+    - type: text
+      props: { tag: p, value: "Rebuild with examples/build.sh. Serve this folder over HTTP (python3 -m http.server) so the search example can fetch." }
+      style: { margin: 0, color: $color.muted, font-size: 12 }

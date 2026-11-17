@@ -126,6 +126,7 @@ fn examples_load_and_render() {
         ("wizard.yaml", None, None),
         ("dashboard/dashboard.yaml", Some("dashboard/dashboard.data.json"), Some("dashboard/fragments")),
         ("search/search.json", None, None),
+        ("index.yaml", Some("index.data.json"), None),
     ];
     for (doc, data, fragments) in cases {
         let mut engine = Engine::new();
@@ -136,6 +137,7 @@ fn examples_load_and_render() {
         let ir = engine.load(&read(doc), format).unwrap_or_else(|d| panic!("{doc}:\n{d}"));
         let data = data.map_or(json!({}), |d| serde_json::from_str(&read(d)).unwrap());
         let page = engine.render(&ir, &data).unwrap_or_else(|e| panic!("{doc}: {e}"));
-        assert!(page.interactive, "{doc}");
+        // The index is a static page; every other example is interactive.
+        assert_eq!(page.interactive, *doc != "index.yaml", "{doc}");
     }
 }
