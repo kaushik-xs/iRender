@@ -2,8 +2,9 @@
 //!
 //! Supported: paths (`product.price`, `items[0]`, `row['first-name']`, `list.length`),
 //! string / number / bool / null literals, `+ - * / %`, `== != < <= > >=`,
-//! `&& || !`, `?:` and parentheses. Nothing else — configs may be untrusted, so the
-//! language has no calls, assignment or loops.
+//! `&& || !`, `?:`, parentheses and the built-in functions in [`Func`]. Nothing else —
+//! configs may be untrusted, so the language has no user-defined calls, assignment
+//! or loops, and every built-in is bounded.
 //!
 //! The same AST is evaluated here (server-side) and by the browser runtime in
 //! `irender-html/src/runtime.js`. Any change to the semantics must be mirrored there.
@@ -21,6 +22,59 @@ pub enum Expr {
     Unary(UnOp, Box<Expr>),
     Binary(BinOp, Box<Expr>, Box<Expr>),
     Cond(Box<Expr>, Box<Expr>, Box<Expr>),
+    Call(Func, Vec<Expr>),
+}
+
+/// The built-in functions: a closed set, each with a bounded result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Func {
+    /// `range(n)` → `[0, 1, …, n - 1]`; `range(start, end)` → `[start, …, end - 1]`.
+    /// Arguments are truncated to integers; anything not a number counts as 0. At most
+    /// [`MAX_RANGE`] items.
+    Range,
+}
+
+/// The most items `range` returns.
+pub const MAX_RANGE: usize = 1000;
+
+impl Func {
+    pub fn name(self) -> &'static str {
+        match self {
+            Func::Range => "range",
+        }
+    }
+
+    fn from_name(name: &str) -> Option<Func> {
+        match name {
+            "range" => Some(Func::Range),
+            _ => None,
+        }
+    }
+
+    /// How many arguments it takes, at least and at most.
+    fn arity(self) -> (usize, usize) {
+        match self {
+            Func::Range => (1, 2),
+        }
+    }
+
+    fn call(self, args: &[Json]) -> Json {
+        match self {
+            Func::Range => {
+                let int = |v: &Json| {
+                    let n = to_num(v);
+                    if n.is_finite() { n.trunc() } else { 0.0 }
+                };
+                let (start, end) = match args {
+                    [n] => (0.0, int(n)),
+                    [a, b, ..] => (int(a), int(b)),
+                    [] => (0.0, 0.0),
+                };
+                let len = (end - start).clamp(0.0, MAX_RANGE as f64) as usize;
+                Json::Array((0..len).map(|i| num(start + i as f64)).collect())
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -111,6 +165,7 @@ impl Expr {
                     b.eval(lookup)
                 }
             }
+            Expr::Call(f, args) => f.call(&args.iter().map(|a| a.eval(lookup)).collect::<Vec<_>>()),
             Expr::Binary(op, l, r) => {
                 let lv = l.eval(lookup);
                 match op {
@@ -156,6 +211,7 @@ impl Expr {
                 a.visit_paths(f);
                 b.visit_paths(f);
             }
+            Expr::Call(_, args) => args.iter().for_each(|a| a.visit_paths(f)),
         }
     }
 
@@ -176,11 +232,13 @@ impl Expr {
                 Box::new(a.fold(keep, lookup)),
                 Box::new(b.fold(keep, lookup)),
             ),
+            Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| a.fold(keep, lookup)).collect()),
         }
     }
 
     /// Compact JSON form consumed by the browser runtime. Each node kind has a distinct
-    /// discriminating key: `l` literal, `p` path, `u` unary, `b` binary, `c` conditional.
+    /// discriminating key: `l` literal, `p` path, `u` unary, `b` binary, `c` conditional,
+    /// `f` call (with its arguments in `a`).
     pub fn to_js(&self) -> Json {
         match self {
             Expr::Lit(v) => json!({ "l": v }),
@@ -188,6 +246,7 @@ impl Expr {
             Expr::Unary(op, a) => json!({ "u": op.symbol(), "a": a.to_js() }),
             Expr::Binary(op, l, r) => json!({ "b": op.symbol(), "x": l.to_js(), "y": r.to_js() }),
             Expr::Cond(c, a, b) => json!({ "c": [c.to_js(), a.to_js(), b.to_js()] }),
+            Expr::Call(f, args) => json!({ "f": f.name(), "a": args.iter().map(Expr::to_js).collect::<Vec<_>>() }),
         }
     }
 
@@ -231,6 +290,16 @@ impl Expr {
                 a.write_js(out, keep, lookup)?;
                 out.write_char(',')?;
                 b.write_js(out, keep, lookup)?;
+                out.write_str("]}")
+            }
+            Expr::Call(f, args) => {
+                write!(out, "{{\"f\":\"{}\",\"a\":[", f.name())?;
+                for (i, a) in args.iter().enumerate() {
+                    if i > 0 {
+                        out.write_char(',')?;
+                    }
+                    a.write_js(out, keep, lookup)?;
+                }
                 out.write_str("]}")
             }
         }
@@ -305,6 +374,10 @@ impl Hash for Expr {
                 c.hash(state);
                 a.hash(state);
                 b.hash(state);
+            }
+            Expr::Call(f, args) => {
+                f.hash(state);
+                args.hash(state);
             }
         }
     }
@@ -546,7 +619,7 @@ enum Tok {
 }
 
 const OPS2: [&str; 6] = ["==", "!=", "<=", ">=", "&&", "||"];
-const OPS1: [&str; 15] = ["+", "-", "*", "/", "%", "<", ">", "!", "?", ":", "(", ")", ".", "[", "]"];
+const OPS1: [&str; 16] = ["+", "-", "*", "/", "%", "<", ">", "!", "?", ":", "(", ")", ".", "[", "]", ","];
 
 fn lex(src: &str) -> Result<Vec<(Tok, usize)>, ParseError> {
     let mut out: Vec<(Tok, usize)> = Vec::new();
@@ -735,6 +808,7 @@ impl Parser {
                 "true" => Ok(Expr::Lit(Json::Bool(true))),
                 "false" => Ok(Expr::Lit(Json::Bool(false))),
                 "null" => Ok(Expr::Lit(Json::Null)),
+                _ if matches!(self.peek(), Tok::Op("(")) => self.call(&id, at),
                 _ => self.path(id),
             },
             Tok::Op("(") => {
@@ -745,6 +819,28 @@ impl Parser {
             Tok::End => Err(ParseError::new("unexpected end of expression", at)),
             _ => Err(ParseError::new("unexpected token", at)),
         }
+    }
+
+    fn call(&mut self, name: &str, at: usize) -> Result<Expr, ParseError> {
+        let f = Func::from_name(name)
+            .ok_or_else(|| ParseError::new(format!("unknown function `{name}`; the only one is `range`"), at))?;
+        self.expect("(")?;
+        let mut args = Vec::new();
+        if !self.eat(")") {
+            loop {
+                args.push(self.ternary()?);
+                if self.eat(")") {
+                    break;
+                }
+                self.expect(",")?;
+            }
+        }
+        let (min, max) = f.arity();
+        if args.len() < min || args.len() > max {
+            let takes = if min == max { min.to_string() } else { format!("{min} or {max}") };
+            return Err(ParseError::new(format!("`{name}` takes {takes} argument(s)"), at));
+        }
+        Ok(Expr::Call(f, args))
     }
 
     fn path(&mut self, root: String) -> Result<Expr, ParseError> {
@@ -856,5 +952,26 @@ mod tests {
         assert!(Expr::parse("a b").is_err());
         assert!(Expr::parse("a.").is_err());
         assert!(Expr::parse("foo(1)").is_err());
+        assert!(Expr::parse("range()").is_err());
+        assert!(Expr::parse("range(1, 2, 3)").is_err());
+        assert!(Expr::parse("range(1,)").is_err());
+        assert!(Expr::parse("a, b").is_err());
+    }
+
+    #[test]
+    fn range() {
+        let data = json!({ "n": 3, "s": "2", "big": 1e9 });
+        assert_eq!(eval("range(n)", data.clone()), json!([0, 1, 2]));
+        assert_eq!(eval("range(1, n + 1)", data.clone()), json!([1, 2, 3]));
+        assert_eq!(eval("range(s)", data.clone()), json!([0, 1]));
+        assert_eq!(eval("range(2.9)", data.clone()), json!([0, 1]));
+        assert_eq!(eval("range(-1)", data.clone()), json!([]));
+        assert_eq!(eval("range(5, 2)", data.clone()), json!([]));
+        assert_eq!(eval("range(missing)", data.clone()), json!([]));
+        assert!(Expr::parse("range(n).length").is_err(), "`.` follows paths only");
+        assert_eq!(eval("range(big)", data.clone()).as_array().unwrap().len(), MAX_RANGE);
+        assert_eq!(eval("range(n) == range(0, 3)", data), json!(true));
+        let e = Expr::parse("range(n + 1)").unwrap();
+        assert_eq!(e.to_js(), json!({ "f": "range", "a": [{ "b": "+", "x": { "p": ["n"] }, "y": { "l": 1 } }] }));
     }
 }

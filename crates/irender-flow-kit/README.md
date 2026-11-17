@@ -84,7 +84,15 @@ How templates work:
 | `side` | `left`, `right`, `top` or `bottom`. Leave it out and it follows the flow's `direction`: for `LR`, targets go on the left and sources on the right. |
 | `offset` | How far along the side, e.g. `30%` or `24` (px). Leave it out and ports sharing a side of the node are spread evenly. |
 
-A port is placed on the side of its nearest positioned ancestor. For a port directly in the node, that's the node itself, and its edges start at the node's border. A port inside an element with `position: relative`, such as a table row, sits on that element instead. That's how one node can have a port per row.
+A port is placed on the side of its nearest positioned ancestor. Usually that's the node itself, even through wrappers like a `list`'s, and the port's edges start at the node's border. A port inside an element with `position: relative`, such as a table row, sits on that element instead. That's how one node can have a port per row.
+
+For a number of ports, such as a merge's inputs, list over `range`:
+
+```yaml
+- type: list
+  props: { items: "{{ range(node.data.inputCount) }}", as: i }
+  children: [{ type: ui-flow-port, props: { id: "input-{{ i }}", type: target } }]
+```
 
 ### Containers
 

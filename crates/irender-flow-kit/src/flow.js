@@ -380,6 +380,9 @@
       styled.set(nodeEl, { classes, props });
     }
 
+    // A port placed against the node itself, rather than against a positioned
+    // element inside it (such as a row); wrappers like a `list`'s don't count.
+    const onNode = (p) => p.offsetParent === p.closest("[data-flow-node]");
     // Sizes and port offsets, from the DOM. Ports with no side get one from the
     // flow's direction, and ports sharing a side without an offset share it evenly.
     function measure(nodeEl, id) {
@@ -396,7 +399,7 @@
         }
         const offset = p.getAttribute("data-offset");
         if (offset) p.style.setProperty("--flow-port-offset", /^-?\d+(\.\d+)?$/.test(offset) ? offset + "px" : offset);
-        else (groups[p.parentElement === nodeEl ? p.getAttribute("data-side") : "\u0000"] ||= []).push(p);
+        else (groups[onNode(p) ? p.getAttribute("data-side") : "\u0000"] ||= []).push(p);
       }
       for (const [side, ps] of Object.entries(groups)) {
         if (side === "\u0000") continue;
@@ -413,7 +416,7 @@
         // A port on the node itself sits inside its border (`100%` is the padding
         // box), so its edges start from the border instead. Ports deeper inside,
         // e.g. on a row, keep their own point.
-        if (p.parentElement === nodeEl) {
+        if (onNode(p)) {
           if (side === "left") x = 0;
           else if (side === "right") x = w;
           else if (side === "top") y = 0;

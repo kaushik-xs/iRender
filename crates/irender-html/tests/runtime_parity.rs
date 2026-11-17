@@ -35,6 +35,10 @@ fn cases() -> Vec<(&'static str, Json, Json)> {
         "{{ !n }}", "{{ !empty }}", "{{ !list }}", "{{ !!s }}", "{{ empty || 'fallback' }}", "{{ s && n }}",
         "{{ no && missing.x }}", "{{ 0 || nil }}", "{{ f || 0 }}",
         "{{ n > 2 ? 'big' : 'small' }}", "{{ no ? 1 : nil ? 2 : 3 }}", "{{ (n + 1) * 2 }}", "{{ n + 1 * 2 }}",
+        // built-in functions
+        "{{ range(n) }}", "{{ range(1, n + 1) }}", "{{ range(s) }}", "{{ range(num_str) }}", "{{ range(-2) }}",
+        "{{ range(f) }}", "{{ range(neg, 1) }}", "{{ range(big) }}", "{{ range(nil) }}", "{{ range(n) == range(0, 3) }}",
+        "{{ range(0) }}", "{{ range(2.9, 5.1) }}", "x{{ range(2) }}y",
         // templates (string results)
         "₹{{ price * n }}", "{{ n }}{{ s }}", "{{ name }} × {{ n }} = {{ price * n }}", "{{ nil }}-{{ t }}-{{ list }}",
         "{{ rows[0].id + n }}", "{{ f }}", "{{ neg }}px", "{{ big }}", "plain",

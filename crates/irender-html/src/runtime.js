@@ -41,6 +41,16 @@
     return v === undefined ? null : v;
   };
 
+  // The built-in functions (`Func` in expr.rs), each bounded like there.
+  const MAX_RANGE = 1000;
+  const fns = {
+    range: (a) => {
+      const int = (v) => { const n = toNum(v); return Number.isFinite(n) ? Math.trunc(n) : 0; };
+      const [start, end] = a.length > 1 ? [int(a[0]), int(a[1])] : [0, int(a[0])];
+      return Array.from({ length: Math.max(0, Math.min(MAX_RANGE, end - start)) }, (_, i) => fin(start + i));
+    },
+  };
+
   // Evaluates the compact expression JSON produced by `Expr::to_js` against `state`.
   const ev = (e, s) => {
     if ("l" in e) return e.l;
@@ -50,6 +60,7 @@
       return e.u === "!" ? !truthy(a) : fin(-toNum(a));
     }
     if ("c" in e) return truthy(ev(e.c[0], s)) ? ev(e.c[1], s) : ev(e.c[2], s);
+    if ("f" in e) return fns[e.f] ? fns[e.f](e.a.map((x) => ev(x, s))) : null;
     if (e.b === "&&") { const l = ev(e.x, s); return truthy(l) ? ev(e.y, s) : l; }
     if (e.b === "||") { const l = ev(e.x, s); return truthy(l) ? l : ev(e.y, s); }
     const l = ev(e.x, s), r = ev(e.y, s);

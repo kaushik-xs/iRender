@@ -21,7 +21,7 @@ state:
     - { id: courier, type: step, data: { label: Book courier, detail: httpRequest } }
     - { id: post, type: step, data: { label: Book post, detail: httpRequest } }
     - { id: store, type: step, data: { label: Notify store, detail: serviceCall } }
-    - { id: join, type: merge, data: { label: Merge, inputs: [0, 1, 2] } }
+    - { id: join, type: merge, data: { label: Merge, inputCount: 3 } }
     - { id: reply, type: step, data: { label: Reply 201, detail: respond } }
   wfEdges:
     - { id: e1, source: trigger, target: validate }
@@ -115,7 +115,7 @@ root:
               props: { flow: wf, node: { type: if, data: { label: New condition, detail: "x > 0" } } }
               children: [{ type: ui-badge, props: { text: If, variant: outline } }]
             - type: ui-flow-item
-              props: { flow: wf, node: { type: merge, data: { label: Merge, inputs: [0, 1] } } }
+              props: { flow: wf, node: { type: merge, data: { label: Merge, inputCount: 2 } } }
               children: [{ type: ui-badge, props: { text: Merge, variant: outline } }]
         - type: ui-flow
           attrs: { id: wf }
@@ -194,14 +194,14 @@ root:
                         - { type: ui-flow-port, props: { id: "{{ c.handle }}", side: right } }
                 - { type: ui-flow-port, props: { type: target } }
 
-            # As many inputs as the node's data says.
+            # As many inputs as the node's `inputCount`.
             - type: ui-flow-node
               props: { type: merge }
               style: { min-width: 110, min-height: 64, display: flex, align-items: center, justify-content: center, font-weight: 600 }
               children:
                 - { type: text, props: { value: "{{ node.data.label }}" } }
                 - type: list
-                  props: { items: "{{ node.data.inputs }}", as: i }
+                  props: { items: "{{ range(node.data.inputCount) }}", as: i }
                   children:
                     - { type: ui-flow-port, props: { id: "input-{{ i }}", type: target } }
                 - { type: ui-flow-port, props: { type: source } }

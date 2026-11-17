@@ -69,7 +69,6 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - Drags change only `position` and keep the editor's leftover keys (`measured`, `selected`, `dragging`) byte for byte.
   - Undo restores the saved JSON exactly.
   - Fixed on the way: the dot background packed too tight below about 0.5 zoom, and new and pasted ids didn't follow the builder's snake_case.
-- [ ] **No way to turn a number into a list in expressions.** A merge with `inputCount` ports needs a fixed list of ten with an `if` each. Idea: a `range(n)` in expressions, or a `count` prop on `list`.
 - [ ] **The builder's `if` and `switch` are diamond and hexagon shapes**; templates can only approximate them with CSS (`clip-path` would cut off ports). Idea: a `shape` on `ui-flow-node` that draws an SVG outline behind the content.
 - [ ] **Not tried yet:** the builder's ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
 

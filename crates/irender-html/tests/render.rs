@@ -140,3 +140,26 @@ fn examples_load_and_render() {
         assert!(page.interactive, "{doc}");
     }
 }
+
+#[test]
+fn range_lists_on_the_server_and_in_the_browser() {
+    let item = json!([{ "type": "text", "props": { "tag": "li", "value": "#{{ i }}" } }]);
+    // From server data: the items are rendered and nothing is left for the browser.
+    let page = render(
+        &Engine::new(),
+        json!({ "version": 1, "root": { "type": "list", "props": { "items": "{{ range(1, count + 1) }}", "as": "i", "tag": "ul" }, "children": item } }),
+        json!({ "count": 3 }),
+    );
+    assert!(page.body.contains("<li>#1</li><li>#2</li><li>#3</li>"), "{}", page.body);
+    assert!(!page.body.contains("data-i-list"));
+    // From state: the browser gets the call, with the server data folded in.
+    let page = render(
+        &Engine::new(),
+        json!({ "version": 1, "state": { "n": 2 }, "root": { "type": "list", "props": { "items": "{{ range(n + offset) }}", "as": "i", "tag": "ul" }, "children": item } }),
+        json!({ "offset": 1 }),
+    );
+    assert!(page.body.contains("<li>#0</li><li>#1</li><li>#2</li>"), "{}", page.body);
+    let attr = page.body.split("data-i-list=\"").nth(1).unwrap();
+    let attr = attr[..attr.find('"').unwrap()].replace("&quot;", "\"");
+    assert!(attr.contains(r#"{"f":"range","a":[{"b":"+","x":{"p":["n"]},"y":{"l":1}}]}"#), "{attr}");
+}

@@ -159,6 +159,11 @@ fn templates_layout_state_and_dragging() {
         { "type": "ui-flow-port", "props": { "type": "target" } },
         { "type": "ui-flow-port", "props": { "id": "true", "side": "right" } },
         { "type": "ui-flow-port", "props": { "id": "false", "side": "bottom" } } ] });
+    // Ports from a `list` (whose wrapper isn't positioned) still share the side.
+    let merge = json!({ "type": "ui-flow-node", "props": { "type": "merge" }, "children": [
+        { "type": "text", "props": { "value": "Merge" } },
+        { "type": "list", "props": { "items": "{{ range(node.data.inputCount) }}", "as": "i" }, "children": [
+            { "type": "ui-flow-port", "props": { "id": "input-{{ i }}", "type": "target" } } ] } ] });
     let doc = json!({ "version": 1,
         "state": {
             "dir": "LR", "sel": null, "moves": 0,
@@ -166,7 +171,8 @@ fn templates_layout_state_and_dragging() {
                 { "id": "a", "type": "task", "data": { "label": "A" } },
                 { "id": "b", "type": "if", "data": { "label": "B?" } },
                 { "id": "c", "type": "task", "data": { "label": "C" } },
-                { "id": "d", "type": "task", "data": { "label": "D" } } ],
+                { "id": "d", "type": "task", "data": { "label": "D" } },
+                { "id": "m", "type": "merge", "data": { "inputCount": 3 } } ],
             "wfe": [
                 { "id": "ab", "source": "a", "target": "b" },
                 { "id": "bc", "source": "b", "sourceHandle": "true", "target": "c" },
@@ -175,7 +181,7 @@ fn templates_layout_state_and_dragging() {
             "props": { "nodes": "{{ wf }}", "edges": "{{ wfe }}", "layout": "layered", "direction": "{{ dir }}",
                        "bind": "sel", "bindNodes": "wf", "draggable": true, "highlight": "neighbors", "height": 600 },
             "on": { "nodemove": { "action": "set_state", "key": "moves", "value": "{{ moves + 1 }}" } },
-            "children": [task, branch] } });
+            "children": [task, branch, merge] } });
     let driver = r##"
         const f = "w";
         const ga = at(node(f, "a")), gb = at(node(f, "b")), gc = at(node(f, "c"));
@@ -184,6 +190,8 @@ fn templates_layout_state_and_dragging() {
         const b = node(f, "b"), [bx, by] = start(edge(f, "bd").querySelector("path"));
         const [tx, ty] = start(edge(f, "bc").querySelector("path"));
         log("falseFromBottom", near(by, gb[1] + b.offsetHeight), near(bx, gb[0] + b.offsetWidth / 2));
+        const tops = [...node(f, "m").querySelectorAll("[data-flow-port]")].map((p) => Math.round(p.getBoundingClientRect().top));
+        log("rangePorts", tops.length, new Set(tops).size, tops[0] < tops[1] && tops[1] < tops[2]);
         log("trueFromRight", near(tx, gb[0] + b.offsetWidth), near(ty, gb[1] + b.offsetHeight / 2));
 
         // A node added in state is rebuilt in; the others keep their elements.
@@ -222,6 +230,7 @@ fn templates_layout_state_and_dragging() {
             "ranksLR true",
             "template A 3",
             "falseFromBottom true true",
+            "rangePorts 3 3 true",
             "trueFromRight true true",
             "kept true true false true",
             "highlight a true false true true",
