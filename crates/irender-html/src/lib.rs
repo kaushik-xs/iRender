@@ -146,8 +146,8 @@ impl Engine {
 
     /// Validates a parsed document. Non-fatal findings end up in [`Ir::warnings`].
     pub fn resolve(&self, doc: &Document) -> Result<Ir, Diagnostics> {
-        #[allow(unused_mut)]
         let fragments = self.fragments.as_deref().unwrap_or(&NoFragments);
+        #[allow(unused_mut)]
         let mut ir = irender_core::resolve_with(doc, &self.registry, &self.policy, fragments)?;
         #[cfg(feature = "lightningcss")]
         {

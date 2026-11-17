@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR cancels the run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      # The runtime parity test runs every expression through the browser runtime
+      # with node, and skips itself when node is missing.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      # The CLI enables `parallel`, so a workspace run tests the renderer with it…
+      - name: Test workspace
+        run: cargo test --workspace
+      # …and this tests the renderer on its own, without it.
+      - name: Test renderer without `parallel`
+        run: cargo test -p irender-html
+
+      - name: Build without default features
+        run: |
+          cargo check -p irender-core --no-default-features
+          cargo check -p irender-style --no-default-features
+          cargo check -p irender-html --no-default-features
+
+  browser:
+    name: Browser tests (Chrome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Set explicitly so a missing Chrome fails the job instead of skipping the tests.
+      - name: Drive the examples in headless Chrome
+        run: cargo test -p irender-html --test browser -- --ignored
+        env:
+          CHROME: /usr/bin/google-chrome
