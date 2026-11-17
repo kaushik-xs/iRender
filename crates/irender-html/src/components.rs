@@ -519,7 +519,7 @@ impl Component for If {
 
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
-            doc: "Renders its children when `when` is truthy. Adds no element of its own.",
+            doc: "Renders its children when `when` is truthy. Adds no element of its own. A following `else` (with `when` for else-if) renders when it doesn't.",
             props: IF_PROPS,
             parts: &[],
             children: true,

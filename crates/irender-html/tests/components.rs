@@ -143,7 +143,8 @@ fn bindings(body: &str) -> Vec<Json> {
 fn attr_json(body: &str, name: &str) -> Json {
     let start = body.find(&format!("{name}=\"")).unwrap() + name.len() + 2;
     let raw = &body[start..start + body[start..].find('"').unwrap()];
-    serde_json::from_str(&raw.replace("&quot;", "\"").replace("&amp;", "&").replace("&#39;", "'")).unwrap()
+    let raw = raw.replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&#39;", "'");
+    serde_json::from_str(&raw.replace("&amp;", "&")).unwrap()
 }
 
 #[test]
@@ -413,6 +414,79 @@ fn if_requires_when() {
     let doc = json!({ "version": 1, "root": { "type": "if" } });
     let err = Engine::new().load(&doc.to_string(), Format::Json).unwrap_err();
     assert_eq!(err.to_string(), "root.props: missing required prop `when`");
+}
+
+/// `if`, an else-if and an `else` over `n`: big, small, or zero.
+fn branches() -> Json {
+    let text = |v: &str| json!([{ "type": "text", "props": { "value": v } }]);
+    json!({ "type": "element", "children": [
+        { "type": "if", "props": { "when": "{{ n > 2 }}" }, "children": text("big") },
+        { "type": "else", "props": { "when": "{{ n > 0 }}" }, "children": text("small") },
+        { "type": "else", "children": text("zero") } ] })
+}
+
+/// The page as shown: hidden content (inside `<template>`s) and markers removed.
+fn shown(html: &str) -> String {
+    let mut out = String::new();
+    let mut rest = html;
+    while let Some(i) = rest.find("<template") {
+        out.push_str(&rest[..i]);
+        rest = &rest[i + rest[i..].find("</template>").unwrap() + 11..];
+    }
+    out + rest
+}
+
+#[test]
+fn else_shows_when_no_earlier_branch_does() {
+    // Decided on the server: only the matching branch is written.
+    for (n, body) in [(3, "big"), (1, "small"), (0, "zero")] {
+        let page = render_with(&Engine::new(), branches(), json!({}), json!({ "n": n })).unwrap();
+        assert_eq!(page.body, format!("<div><span>{body}</span></div>"));
+    }
+    // From state: every branch has markers, and exactly one is shown.
+    for (n, body) in [(3, "big"), (1, "small"), (0, "zero")] {
+        let page = render_with(&Engine::new(), branches(), json!({ "n": n }), json!({})).unwrap();
+        assert_eq!(shown(&page.body), format!("<div><span>{body}</span></div>"), "{}", page.body);
+        assert_eq!(page.body.matches("data-i-fi").count(), 3);
+    }
+    // The browser gets each branch's full condition.
+    let page = render_with(&Engine::new(), branches(), json!({ "n": 0 }), json!({})).unwrap();
+    let conds: Vec<Json> = page.body.match_indices("data-i-if=\"").map(|(i, _)| attr_json(&page.body[i..], "data-i-if")).collect();
+    let (big, small) = (json!({ "b": ">", "x": { "p": ["n"] }, "y": { "l": 2 } }), json!({ "b": ">", "x": { "p": ["n"] }, "y": { "l": 0 } }));
+    assert_eq!(conds[1], json!({ "r": { "b": "&&", "x": { "u": "!", "a": big }, "y": small } }));
+    assert_eq!(conds[2], json!({ "r": { "b": "&&", "x": { "u": "!", "a": big }, "y": { "u": "!", "a": small } } }));
+}
+
+#[test]
+fn else_after_a_text_template_condition() {
+    // `when` with text around its expression is a string: truthy unless empty.
+    let root = json!({ "type": "element", "children": [
+        { "type": "if", "props": { "when": "{{ name }}{{ suffix }}" }, "children": [{ "type": "text", "props": { "value": "named" } }] },
+        { "type": "else", "children": [{ "type": "text", "props": { "value": "anonymous" } }] } ] });
+    let page = render_with(&Engine::new(), root.clone(), json!({}), json!({ "name": "", "suffix": "" })).unwrap();
+    assert_eq!(page.body, "<div><span>anonymous</span></div>");
+    let page = render_with(&Engine::new(), root, json!({}), json!({ "name": "", "suffix": "x" })).unwrap();
+    assert_eq!(page.body, "<div><span>named</span></div>");
+}
+
+#[test]
+fn else_must_follow_an_if() {
+    let err = |root: Json| load(&Engine::new(), json!({ "version": 1, "root": root })).unwrap_err().to_string();
+    let text = json!({ "type": "text", "props": { "value": "x" } });
+    let msg = "`else` must directly follow an `if`, or an `else` with `when`";
+    assert_eq!(err(json!({ "type": "else" })), format!("root.type: {msg}"));
+    assert_eq!(err(json!({ "type": "element", "children": [text, { "type": "else" }] })), format!("root.children[1].type: {msg}"));
+    // A plain `else` ends the chain.
+    assert_eq!(
+        err(json!({ "type": "element", "children": [
+            { "type": "if", "props": { "when": true } }, { "type": "else" }, { "type": "else" }] })),
+        format!("root.children[2].type: {msg}")
+    );
+    assert_eq!(
+        err(json!({ "type": "element", "children": [
+            { "type": "if", "props": { "when": true } }, { "type": "else", "attrs": { "id": "x" } }] })),
+        "root.children[1]: `else` only takes `props.when` and children"
+    );
 }
 
 // ---------------------------------------------------------------- reactive lists

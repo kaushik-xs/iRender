@@ -186,6 +186,39 @@ fn conditionals_lists_and_mount_actions_in_chrome() {
     assert_eq!(lines[6], "remote x,y", "{result}");
 }
 
+/// `if`, an else-if and an `else` over state: exactly one branch shows as `n` changes.
+const BRANCHES: &str = r##"{ "version": 1, "state": { "n": 0 },
+  "root": { "type": "element", "attrs": { "id": "out" }, "children": [
+    { "type": "if", "props": { "when": "{{ n > 2 }}" }, "children": [{ "type": "text", "props": { "value": "big" } }] },
+    { "type": "else", "props": { "when": "{{ n > 0 }}" }, "children": [{ "type": "text", "props": { "value": "small" } }] },
+    { "type": "else", "children": [{ "type": "text", "props": { "value": "zero" } }] } ] } }"##;
+
+const BRANCHES_DRIVER: &str = r##"<script>
+window.addEventListener("load", () => {
+  const root = document.querySelector("[data-i-root]");
+  const out = [document.getElementById("out").textContent];
+  for (const n of [1, 5, 2, 0]) {
+    root.__irender.set("n", n);
+    out.push(document.getElementById("out").textContent);
+  }
+  const pre = document.createElement("pre");
+  pre.id = "result";
+  pre.textContent = out.join(" ");
+  document.body.append(pre);
+});
+</script>"##;
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn else_branches_in_chrome() {
+    let engine = Engine::new();
+    let ir = engine.load(BRANCHES, Format::Json).unwrap();
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    let html = page.document("test").replace("</body>", &format!("{BRANCHES_DRIVER}</body>"));
+    let Some(result) = drive("branches", &html) else { return };
+    assert_eq!(result, "zero small big small zero");
+}
+
 /// A keyed list keeps the nodes of items whose key survives: their input values,
 /// focus and `if` blocks stay, `mount` doesn't run again, and nested lists see the
 /// new item.

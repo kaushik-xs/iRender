@@ -51,7 +51,7 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 - **parts** style a component's inner elements.
 - **on** maps DOM events to declarative actions: `set_state`, `navigate`, `submit`, `call` and `wait`. A `call` dispatches an `irender:call` DOM event for the host app to handle. A `wait` (`{ "action": "wait", "ms": 3000 }`, at most 60 000) pauses before the next action, e.g. to hide a toast.
 - **Expressions** (`{{ … }}`) support paths, literals, arithmetic, comparisons, `&& || !` and `?:`. An expression that references `state` updates live in the browser. Any other path is filled in from server `data` at render time.
-- **Built-in components:** `element`, `text`, `stack`, `button`, `input`, `select`, `textarea`, `list` and `if`. Run `irender components` for their props. `include` is handled by the resolver; see below.
+- **Built-in components:** `element`, `text`, `stack`, `button`, `input`, `select`, `textarea`, `list` and `if`. Run `irender components` for their props. `include` and `else` are handled by the resolver; see below.
 - **Cascade order:** theme variables → `i-base` layer (component defaults) → `i-instance` layer (the document's `style`). The document always wins.
 
 ## Form controls
@@ -88,7 +88,17 @@ Parts of a page can come from API calls or other runtime work in four ways. Pick
 { "type": "if", "props": { "when": "{{ user.admin }}" }, "children": [ … ] }
 ```
 
-It renders its children only when `when` is truthy, and adds no element of its own. A condition that only reads server `data` is decided on the server and leaves nothing behind. A condition that reads `state` puts the content between two empty `<template>` markers, and the runtime moves it in and out of the page as the condition changes. The markers are valid anywhere, including inside `<table>` and `<ul>`. Hidden content keeps its DOM nodes, so input values and listeners survive being hidden. Note that the markers count as siblings for `:first-child` / `:nth-child`. There is no `else`; use a second `if` with the negated condition.
+It renders its children only when `when` is truthy, and adds no element of its own. A condition that only reads server `data` is decided on the server and leaves nothing behind. A condition that reads `state` puts the content between two empty `<template>` markers, and the runtime moves it in and out of the page as the condition changes. The markers are valid anywhere, including inside `<table>` and `<ul>`. Hidden content keeps its DOM nodes, so input values and listeners survive being hidden. Note that the markers count as siblings for `:first-child` / `:nth-child`.
+
+An `else` right after an `if` renders its children when the `if` doesn't. Give it a `when` to make it an else-if, and chain as many as you like; a plain `else` ends the chain:
+
+```json
+{ "type": "if", "props": { "when": "{{ n > 2 }}" }, "children": [ … ] },
+{ "type": "else", "props": { "when": "{{ n > 0 }}" }, "children": [ … ] },
+{ "type": "else", "children": [ … ] }
+```
+
+The resolver turns each `else` into an `if` whose condition is that no earlier branch matched, so it behaves exactly like one, including updating live when a condition reads `state`. An `else` takes only `when` and children, and must directly follow an `if` or an `else` with `when`.
 
 ### Lists that change in the browser
 
@@ -249,7 +259,7 @@ cargo test -p irender-html --test browser -- --ignored   # drives the example in
 |---|---|
 | `irender-core` unit tests + `tests/core.rs` | expressions and type conversions, error paths, JSON vs YAML, prop/style/action/theme validation, untrusted policy, warnings |
 | `irender-style` unit tests + `tests/compile.rs` | nesting, selector variants, dynamic values, layer order, dark-mode variables, cache, pinned class names |
-| `irender-html/tests/components.rs` | every built-in, `if` markers, list item templates, `include` (scope, sources, cycles, depth, `FragmentDir`), which values update live, actions, URL and `</script>` safety, deterministic output, custom components, rendering from many threads, parallel output identical to sequential |
+| `irender-html/tests/components.rs` | every built-in, `if` markers and `else` chains, list item templates, `include` (scope, sources, cycles, depth, `FragmentDir`), which values update live, actions, URL and `</script>` safety, deterministic output, custom components, rendering from many threads, parallel output identical to sequential |
 | `irender-html/tests/runtime_parity.rs` | the browser runtime has its own copy of the expression evaluator; ~90 expressions run through both (Rust, and JS via `node`), and any disagreement fails. Skips with a message if `node` isn't installed. |
 | `irender-html/tests/browser.rs` | opt-in, needs Chrome: clicks, types and checks the DOM of the product example; toggles `if` blocks, rebuilds lists from state, runs item-scoped and `mount` actions; binds radios, checkboxes, selects (with options from state) and textareas |
 

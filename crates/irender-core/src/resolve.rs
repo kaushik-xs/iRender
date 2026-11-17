@@ -3,7 +3,7 @@
 use crate::{
     Action, Catalog, ComponentInfo, Diagnostics, Document, Fragments, Ir, NoFragments, Node, PartStyle,
     Policy, PropDef, PropKind, Severity, StyleBlock, StyleValue, Template, Theme, Val,
-    expr::Part,
+    expr::{BinOp, Expr, Part, UnOp},
     params::{self, Params},
     spec::{ActionSpec, NodeSpec, VERSION},
     style::{Decl, is_nested_key, is_unitless, number_to_css, to_kebab},
@@ -99,9 +99,63 @@ impl Resolver<'_> {
             return placeholder(path);
         }
         self.depth += 1;
-        let node = if spec.kind == "include" { self.include(spec, path) } else { self.component(spec, path) };
+        let node = match spec.kind.as_str() {
+            "include" => self.include(spec, path),
+            // Siblings handle `else` (see `children`); anywhere else nothing comes before it.
+            "else" => {
+                self.diags.push(format!("{path}.type"), ELSE_PLACEMENT);
+                placeholder(path)
+            }
+            _ => self.component(spec, path),
+        };
         self.depth -= 1;
         node
+    }
+
+    /// Resolves a node's children. An `else` becomes an `if` whose condition is that
+    /// none of the branches before it matched (and its own `when`, for an else-if).
+    fn children(&mut self, specs: &[NodeSpec], path: &str) -> Vec<Node> {
+        // While a chain is open: "no earlier branch matched", or `None` when a
+        // branch's condition was invalid (already reported).
+        let mut chain: Option<Option<Expr>> = None;
+        let mut out = Vec::with_capacity(specs.len());
+        for (i, spec) in specs.iter().enumerate() {
+            let p = format!("{path}.children[{i}]");
+            if spec.kind != "else" {
+                let node = self.node(spec, &p);
+                chain = (node.kind == "if").then(|| node.prop("when").map(|w| not(to_expr(w))));
+                out.push(node);
+                continue;
+            }
+            let Some(earlier) = chain.take() else {
+                self.diags.push(format!("{p}.type"), ELSE_PLACEMENT);
+                out.push(placeholder(&p));
+                continue;
+            };
+            if !spec.attrs.is_empty()
+                || !spec.class.is_empty()
+                || !spec.style.is_empty()
+                || !spec.parts.is_empty()
+                || !spec.on.is_empty()
+                || spec.props.keys().any(|k| k != "when")
+            {
+                self.diags.push(&p, "`else` only takes `props.when` and children");
+            }
+            let as_if = NodeSpec { kind: "if".into(), props: [("when".to_string(), Json::Bool(true))].into(), ..spec.clone() };
+            self.depth += 1;
+            let mut node = self.component(&as_if, &p);
+            self.depth -= 1;
+            let own = spec.props.get("when").and_then(|raw| self.val(raw, &format!("{p}.props.when"))).map(|w| to_expr(&w));
+            let when = earlier.as_ref().map(|e| match &own {
+                Some(w) => Expr::Binary(BinOp::And, Box::new(e.clone()), Box::new(w.clone())),
+                None => e.clone(),
+            });
+            // An else-if keeps the chain open for the branches after it.
+            chain = own.map(|w| earlier.map(|e| Expr::Binary(BinOp::And, Box::new(e), Box::new(not(w)))));
+            node.props.insert("when".into(), when.map_or(Val::Lit(Json::Bool(false)), |e| Val::Tpl(Template { parts: vec![Part::Expr(e)] })));
+            out.push(node);
+        }
+        out
     }
 
     /// Replaces an `include` node with its fragment.
@@ -291,12 +345,7 @@ impl Resolver<'_> {
             style: self.style(spec.style.iter(), &format!("{path}.style")),
             parts,
             on,
-            children: spec
-                .children
-                .iter()
-                .enumerate()
-                .map(|(i, c)| self.node(c, &format!("{path}.children[{i}]")))
-                .collect(),
+            children: self.children(&spec.children, path),
         }
     }
 
@@ -537,6 +586,30 @@ impl Resolver<'_> {
 }
 
 /// Stands in for a node that failed to resolve; the IR is discarded anyway.
+const ELSE_PLACEMENT: &str = "`else` must directly follow an `if`, or an `else` with `when`";
+
+/// A value as one expression: `{{ a }}` → `a`, `x{{ a }}` → `"" + "x" + a`.
+fn to_expr(v: &Val) -> Expr {
+    let t = match v {
+        Val::Lit(j) => return Expr::Lit(j.clone()),
+        Val::Tpl(t) => t,
+    };
+    if let Some(e) = t.as_single_expr() {
+        return e.clone();
+    }
+    t.parts.iter().fold(Expr::Lit(Json::String(String::new())), |acc, part| {
+        let e = match part {
+            Part::Lit(l) => Expr::Lit(Json::String(l.clone())),
+            Part::Expr(e) => e.clone(),
+        };
+        Expr::Binary(BinOp::Add, Box::new(acc), Box::new(e))
+    })
+}
+
+fn not(e: Expr) -> Expr {
+    Expr::Unary(UnOp::Not, Box::new(e))
+}
+
 fn placeholder(path: &str) -> Node {
     Node {
         kind: "element".into(),

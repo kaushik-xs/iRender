@@ -6,8 +6,7 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. `else` for `if` (gaps 2): small, and saves writing every condition twice.
-2. Browser tests in Firefox and WebKit (gaps 3): overlays rely on Chrome-first features.
+1. Browser tests in Firefox and WebKit (gaps 2): overlays rely on Chrome-first features.
 
 ## Gaps you'd hit in real use
 
@@ -15,8 +14,6 @@ _Last updated: 2026-11-17._
   - Problem: a new toast replaces the current one, and the first toast's `wait` can hide its replacement early.
   - Where: `ui-toaster` in `crates/irender-ui-kit/src/feedback.rs`, and the `wait` action.
   - Idea: a toast queue as a client behaviour, with each toast's own timer.
-- [ ] **No `else` for `if`.** Today you write a second `if` with the negated condition.
-  - Where: `If` in `crates/irender-html/src/components.rs`, and `conditional()` in `render.rs`.
 - [ ] **Browser support is only verified in Chrome.**
   - Problem: invoker commands, `closedby`, the Popover API, CSS anchor positioning and `<details name>` were verified in Chrome 157 (locally and in CI), but not in Safari or Firefox. Without anchor positioning, popovers open in the middle of the screen.
   - Idea: run the browser tests in Firefox and WebKit as well (e.g. via Playwright in CI).
