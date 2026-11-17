@@ -1003,3 +1003,103 @@ fn sidebar_collapses_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn command_palette_in_chrome() {
+    let item = |label: &str, extra: serde_json::Value| {
+        let mut props = serde_json::json!({ "label": label });
+        props.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        serde_json::json!({ "type": "ui-command-item", "props": props,
+            "on": { "click": { "action": "set_state", "key": "ran", "value": format!("{{{{ ran + '{label};' }}}}") } } })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "ran": "" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-command", "props": { "id": "cmd" }, "children": [
+                { "type": "ui-command-group", "props": { "heading": "Suggestions" }, "children": [
+                    item("Calendar", serde_json::json!({})),
+                    item("Search emoji", serde_json::json!({ "keywords": ["smiley"] })),
+                    item("Calculator", serde_json::json!({ "disabled": true })) ] },
+                { "type": "ui-command-separator" },
+                { "type": "ui-command-group", "props": { "heading": "Settings" }, "children": [
+                    item("Profile", serde_json::json!({ "shortcut": "⌘P" })),
+                    item("Settings", serde_json::json!({ "keywords": "preferences" })) ] } ] },
+            { "type": "ui-command-dialog", "props": { "id": "dlg", "trigger": "Open", "shortcut": "mod+k" }, "children": [
+                item("New project", serde_json::json!({})),
+                item("Delete project", serde_json::json!({})) ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const tick = () => new Promise((r) => setTimeout(r, 0));
+      const input = (p) => p.querySelector("input");
+      const type = async (p, text) => { input(p).value = text; input(p).dispatchEvent(new Event("input", { bubbles: true })); await tick(); };
+      const key = async (target, k, mods = {}) => { target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods })); await tick(); };
+      // Items on screen, the active one marked *; then the groups, separators and empty message on screen.
+      const shows = (e) => e.getClientRects().length > 0;
+      const view = (p) => {
+        const items = [...p.querySelectorAll("[role=option]")].filter(shows)
+          .map((i) => i.querySelector("[data-ui-label]").textContent + (i.getAttribute("aria-selected") === "true" ? "*" : "") + (i.disabled ? "!" : ""));
+        const groups = [...p.querySelectorAll("[role=group]")].filter(shows).length;
+        const seps = [...p.querySelectorAll("[role=separator]")].filter(shows).length;
+        const active = input(p).getAttribute("aria-activedescendant");
+        const ok = !active || document.getElementById(active)?.getAttribute("aria-selected") === "true";
+        return `${items.join(",")} | groups ${groups} seps ${seps} empty ${shows(p.querySelector("[data-ui-empty]"))}${ok ? "" : " BAD-ACTIVEDESCENDANT"}`;
+      };
+      const p = document.getElementById("cmd");
+      out.push("start " + view(p));
+      await type(p, "set"); out.push("set " + view(p));
+      await type(p, "SMIL"); out.push("keyword " + view(p));
+      await type(p, "sea emo"); out.push("words " + view(p));
+      await type(p, "zzz"); out.push("none " + view(p));
+      await key(input(p), "Escape"); out.push("escape '" + input(p).value + "' " + view(p));
+      await key(input(p), "ArrowDown"); await key(input(p), "ArrowDown"); out.push("down down " + view(p));
+      await key(input(p), "ArrowUp"); await key(input(p), "ArrowUp"); await key(input(p), "ArrowUp"); out.push("up x3 " + view(p));
+      await key(input(p), "Home"); out.push("home " + view(p));
+      await key(input(p), "Enter"); out.push("enter " + S().ran);
+      p.querySelectorAll("[role=option]")[2].click(); await tick(); out.push("disabled click " + S().ran);
+
+      const dlg = document.getElementById("dlg"), dp = dlg.querySelector("[data-ui-command]");
+      const apple = /Mac|iPhone|iPad/.test(navigator.platform);
+      await key(document.body, "k", { metaKey: apple, ctrlKey: !apple });
+      out.push(`shortcut open ${dlg.open} modal ${dlg.matches(":modal")} focused ${document.activeElement === input(dp)}`);
+      await type(dp, "del"); await key(input(dp), "Enter");
+      out.push(`ran ${S().ran} open ${dlg.open}`);
+      document.querySelector("[commandfor=dlg]").click(); await tick();
+      out.push(`button open ${dlg.open} cleared '${input(dp).value}' ${view(dp)}`);
+      await key(document.body, "k", { metaKey: apple, ctrlKey: !apple });
+      out.push(`shortcut closes ${!dlg.open}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("command", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start Calendar*,Search emoji,Calculator!,Profile,Settings | groups 2 seps 1 empty false",
+            "set Settings* | groups 1 seps 0 empty false",
+            "keyword Search emoji* | groups 1 seps 0 empty false",
+            "words Search emoji* | groups 1 seps 0 empty false",
+            "none  | groups 0 seps 0 empty true",
+            "escape '' Calendar*,Search emoji,Calculator!,Profile,Settings | groups 2 seps 1 empty false",
+            // The disabled item is skipped.
+            "down down Calendar,Search emoji,Calculator!,Profile*,Settings | groups 2 seps 1 empty false",
+            // Up wraps from the first to the last.
+            "up x3 Calendar,Search emoji,Calculator!,Profile,Settings* | groups 2 seps 1 empty false",
+            "home Calendar*,Search emoji,Calculator!,Profile,Settings | groups 2 seps 1 empty false",
+            "enter Calendar;",
+            "disabled click Calendar;",
+            "shortcut open true modal true focused true",
+            "ran Calendar;Delete project; open false",
+            "button open true cleared '' New project*,Delete project | groups 0 seps 0 empty false",
+            "shortcut closes true",
+        ],
+        "\n{result}"
+    );
+}

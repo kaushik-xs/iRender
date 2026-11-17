@@ -63,6 +63,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-combobox", json!({ "options": ["a"] })),
         ("ui-split-button", json!({ "label": "Save" })),
         ("ui-sidebar-item", json!({ "label": "Home" })),
+        ("ui-command-item", json!({ "label": "L" })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -73,6 +74,9 @@ fn every_component_is_prefixed_documented_and_renders() {
         if c.name() == "ui-dialog-close" {
             root = json!({ "type": "ui-dialog", "children": [root] });
         }
+        if c.name() == "ui-command-item" {
+            root = json!({ "type": "ui-command", "children": [root] });
+        }
         if c.name() == "ui-sidebar-trigger" {
             root = json!({ "type": "ui-sidebar-layout", "props": { "bind": "k" }, "children": [root] });
         }
@@ -80,7 +84,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 61);
+    assert_eq!(kit, 66);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -734,4 +738,31 @@ fn examples_index_renders_with_a_jump_to_combobox() {
     assert_eq!(options[0]["value"], examples[0]["href"]);
     assert_eq!(options[0]["label"], examples[0]["title"]);
     assert_eq!(options[0]["description"], examples[0]["summary"]);
+}
+
+#[test]
+fn command_palette() {
+    let body = render(json!({ "type": "ui-command", "props": { "id": "cmd", "placeholder": "Search…" }, "children": [
+        { "type": "ui-command-group", "props": { "heading": "Settings" }, "children": [
+            { "type": "ui-command-item", "props": { "label": "Profile", "shortcut": "⌘P", "keywords": ["account", "me"] } },
+            { "type": "ui-command-item", "props": { "label": "Billing", "href": "/billing" } } ] },
+        { "type": "ui-command-separator" } ] }));
+    // The search box points at the list, which items join as options…
+    assert!(body.contains(r#"role="combobox" aria-expanded="true" aria-controls="cmd-list""#), "{body}");
+    assert!(body.contains(r#"role="listbox" id="cmd-list""#), "{body}");
+    assert!(body.contains(r#"placeholder="Search…""#) && !body.contains("autofocus"), "{body}");
+    assert!(body.contains(r#"<button role="option" tabindex="-1" aria-selected="false" data-ui-keywords="account me" type="button">"#), "{body}");
+    assert!(body.contains(r#"<a role="option" tabindex="-1" aria-selected="false" href="/billing">"#), "{body}");
+    // …under a heading that names the group.
+    assert!(body.contains(r#"<div role="group" aria-labelledby="command-group-"#), "{body}");
+    assert!(body.contains(r#"data-ui-empty hidden>No results found.</div>"#), "{body}");
+
+    // The dialog opens from its trigger and focuses the search box.
+    let body = render(json!({ "type": "ui-command-dialog", "props": { "trigger": "Open", "shortcut": "mod+k", "id": "dlg" },
+        "children": [{ "type": "ui-command-item", "props": { "label": "New" } }] }));
+    assert!(body.contains(r#"command="show-modal" commandfor="dlg""#), "{body}");
+    assert!(body.contains(r#"<dialog"#) && body.contains(r#"aria-label="Command palette""#) && body.contains("autofocus"), "{body}");
+
+    let err = render_with(json!({ "type": "ui-command-item", "props": { "label": "Lost" } }), json!({}), json!({})).unwrap_err();
+    assert!(err.message.contains("must be inside"), "{err}");
 }

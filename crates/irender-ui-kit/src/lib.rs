@@ -25,6 +25,7 @@
 //! theme, dark mode included. [`apply_theme`] adds the kit's own palette.
 
 mod combobox;
+mod command;
 mod disclosure;
 mod display;
 mod feedback;
@@ -109,6 +110,11 @@ pub fn register(registry: &mut Registry) {
         .register(sidebar::SidebarItem)
         .register(sidebar::SidebarTrigger)
         .register(combobox::Combobox)
+        .register(command::Command)
+        .register(command::CommandDialog)
+        .register(command::CommandGroup)
+        .register(command::CommandItem)
+        .register(command::CommandSeparator)
         // A Light or Dark choice made with `ui-theme-toggle` holds on every page, with a
         // toggle on it or not.
         .early_js("ui-theme", disclosure::THEME_EARLY_SCRIPT);

@@ -602,6 +602,63 @@ root:
                         - { type: ui-text, props: { variant: small, text: "@irender" } }
                         - { type: ui-text, props: { variant: muted, text: "UI from configuration, rendered in Rust." } }
 
+    # ---------------------------------------------------------------- command palette
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Command } }
+        - type: stack
+          props: { direction: row, gap: 24, wrap: true, align: start }
+          children:
+            - type: ui-command
+              props: { id: command }
+              style: { max-width: 420 }
+              children:
+                - type: ui-command-group
+                  props: { heading: Suggestions }
+                  children:
+                    - type: ui-command-item
+                      props: { label: Calendar, icon: "📅" }
+                      on: { click: { action: set_state, key: toast, value: { title: Calendar, description: Opened the calendar. } } }
+                    - type: ui-command-item
+                      props: { label: Search emoji, icon: "😀", keywords: [smiley, face] }
+                      on: { click: { action: set_state, key: toast, value: { title: Emoji, description: Pick one. } } }
+                    - { type: ui-command-item, props: { label: Calculator, icon: "🧮", disabled: true } }
+                - { type: ui-command-separator }
+                - type: ui-command-group
+                  props: { heading: Settings }
+                  children:
+                    - type: ui-command-item
+                      props: { label: Profile, icon: "👤", shortcut: "⌘P" }
+                      on: { click: { action: set_state, key: toast, value: { title: Profile } } }
+                    - { type: ui-command-item, props: { label: Billing, icon: "💳", shortcut: "⌘B", href: "#billing" } }
+                    - type: ui-command-item
+                      props: { label: Settings, icon: "⚙️", shortcut: "⌘S", keywords: preferences }
+                      on: { click: { action: set_state, key: toast, value: { title: Settings } } }
+            - type: stack
+              props: { gap: 8 }
+              children:
+                - { type: ui-text, props: { variant: muted, text: "Press ⌘K (Ctrl+K) or the button." } }
+                - type: ui-command-dialog
+                  props: { trigger: Open command palette, shortcut: mod+k, id: command-dialog }
+                  children:
+                    - type: ui-command-group
+                      props: { heading: Projects }
+                      children:
+                        - type: ui-command-item
+                          props: { label: New project, shortcut: "⌘N" }
+                          on: { click: { action: set_state, key: projects, value: "{{ projects + 1 }}" } }
+                        - type: ui-command-item
+                          props: { label: Delete all projects, keywords: [remove, clear] }
+                          on: { click: { action: set_state, key: projects, value: 0 } }
+                    - { type: ui-command-separator }
+                    - type: ui-command-group
+                      props: { heading: Theme }
+                      children:
+                        - type: ui-command-item
+                          props: { label: Toggle bold, keywords: [format] }
+                          on: { click: { action: set_state, key: bold, value: "{{ !bold }}" } }
+
     # ---------------------------------------------------------------- tabs, accordion
     - type: stack
       props: { gap: 16 }

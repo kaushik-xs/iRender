@@ -26,7 +26,7 @@ fn style_of(v: &Val) -> StyleValue {
 }
 
 /// The kit's button, opening or closing something through `attrs`.
-fn trigger_button(node: &Node, cx: &mut RenderCx<'_>, attrs: Vec<(&str, Val)>, style: StyleBlock) -> Result<(), RenderError> {
+pub(crate) fn trigger_button(node: &Node, cx: &mut RenderCx<'_>, attrs: Vec<(&str, Val)>, style: StyleBlock) -> Result<(), RenderError> {
     let Some(label) = node.prop("trigger") else { return Ok(()) };
     let variant = node.prop("triggerVariant").cloned().unwrap_or_else(|| lit("outline"));
     let mut props = vec![("label", label.clone()), ("variant", variant)];

@@ -6,7 +6,7 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. Keyboard-driven UI kit components (command palette, date picker, data table).
+1. Keyboard-driven UI kit components (date picker, data table).
 
 ## Gaps you'd hit in real use
 
@@ -16,7 +16,6 @@ _Last updated: 2026-11-17._
 ## UI kit: not built yet
 
 - [ ] **Keyboard-driven components:**
-  - command palette
   - date picker
   - data table with sorting and filtering
   - carousel
@@ -26,6 +25,10 @@ _Last updated: 2026-11-17._
 
   These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
   - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
+- [ ] **`ui-command` gaps:**
+  - [ ] Matching is by words, in document order. cmdk ranks fuzzy matches and puts the best first.
+  - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.
+  - [ ] No way to read the search text from state, e.g. to fetch items for it. Idea: a `bind` for the query.
 - [ ] **`ui-sidebar` gaps:**
   - [ ] No phone layout. shadcn's turns into a sheet on small screens; ours stays beside the page, so on a phone it should start closed or use `collapsible: icon`.
   - [ ] No keyboard shortcut (shadcn toggles with ⌘B / Ctrl+B) and no remembered state: a reload opens it as `state` says.
