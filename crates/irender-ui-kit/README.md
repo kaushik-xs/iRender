@@ -38,16 +38,22 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-card` | `title`, `description`, `tag` | Parts: `header`, `title`, `description`. |
 | `ui-card-footer` | | A row of actions; put it last in a card. |
 | `ui-alert` | `title`, `description`, `icon`, `variant` (default, destructive) | `role="alert"`. Parts: `icon`, `title`, `description`. |
+| `ui-empty` | `title`, `description`, `icon` | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
 | `ui-separator` | `orientation`, `decorative` | |
 | `ui-skeleton` | `width`, `height`, `round` | Pulses gently; still for people who ask their system for reduced motion. |
+| `ui-spinner` | `size` (default 16), `label` (default `Loading`) | A spinning ring in the text colour, `role="status"`. Slows down for people who ask for reduced motion. |
 | `ui-kbd` | `text` | |
 | `ui-progress` | `value` (0–100) | Updates live when `value` uses state, and is clamped to 0–100 in CSS. |
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
+| `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
 | `ui-text` | `text`, `variant` (p, lead, large, small, muted, code, blockquote), `tag` | Takes children, e.g. inline `code`. |
 | `ui-label` | `text`, `for` | Takes children, so it can wrap a control. |
+| `ui-field` | `label`, `for`, `description`, `error`, `orientation` (vertical, horizontal) | A label, the control (its children), help text and an error. The error is hidden while empty, so `"{{ … ? 'Too short' : '' }}"` shows it only when needed, and it is announced when it appears. Parts: `label`, `description`, `error`. |
+| `ui-input-group` | `prefix`, `suffix` | Text or buttons inside one field's border: children are a `ui-input` (or `ui-textarea`, `ui-select`) and any `ui-button`s. The group shows the focus ring and the invalid border. Parts: `prefix`, `suffix`. |
+| `ui-button-group` | `orientation` (horizontal, vertical), `label` | Buttons joined into one control (`role="group"`); outline buttons look best. |
 | `ui-input`, `ui-textarea`, `ui-select` | same as `input`, `textarea`, `select` | Same binding behaviour as the built-ins, restyled. |
 | `ui-checkbox`, `ui-switch` | `label`, `bind`, `checked`, `name`, `disabled` | The switch is a checkbox with `role="switch"`. Parts: `control`, `label`. |
 | `ui-radio-group` | `options`, `bind`, `value`, `name`, `orientation`, `disabled` | Options are values or `{ value, label, disabled }`. |

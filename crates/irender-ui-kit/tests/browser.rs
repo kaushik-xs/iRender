@@ -631,3 +631,73 @@ fn dropdown_menu_keyboard_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn field_groups_spinner_and_scroll_area_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "name": "", "site": "" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-field", "props": { "label": "Name", "for": "name",
+                "error": "{{ name != '' && name.length < 3 ? 'Too short' : '' }}" },
+              "children": [ { "type": "ui-input", "props": { "bind": "name" }, "attrs": { "id": "name" } } ] },
+            { "type": "ui-input-group", "props": { "prefix": "https://" }, "attrs": { "id": "group" },
+              "children": [ { "type": "ui-input", "props": { "bind": "site" }, "attrs": { "id": "site" } } ] },
+            { "type": "ui-button-group", "attrs": { "id": "buttons" }, "children": [
+                { "type": "ui-button", "props": { "label": "A", "variant": "outline" } },
+                { "type": "ui-button", "props": { "label": "B", "variant": "outline" } } ] },
+            { "type": "ui-spinner", "attrs": { "id": "spin" } },
+            { "type": "ui-scroll-area", "props": { "height": 40 }, "attrs": { "id": "scroll" }, "children": [
+                { "type": "element", "style": { "height": 200 } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const $ = (s) => document.querySelector(s), css = (el) => getComputedStyle(el);
+      const name = $("#name"), error = $("[aria-live]");
+      const type = (v) => { name.value = v; name.dispatchEvent(new Event("input")); };
+      out.push("error " + css(error).display);
+      type("ab"); out.push("error " + css(error).display + " " + error.textContent);
+      type("abc"); out.push("error " + css(error).display);
+
+      const group = $("#group"), site = $("#site");
+      out.push("grouped field " + css(site).borderTopWidth + " " + css(site).boxShadow);
+      site.focus({ focusVisible: true });
+      out.push("group ring " + (css(group).boxShadow !== "none") + " field ring " + css(site).boxShadow);
+
+      const [a, b] = document.querySelectorAll("#buttons button");
+      out.push("joined " + (b.getBoundingClientRect().left - a.getBoundingClientRect().right) + " "
+        + css(a).borderTopRightRadius + " " + css(b).borderTopLeftRadius);
+
+      const spin = $("#spin");
+      out.push("spinner " + spin.getAttribute("role") + " " + spin.getAttribute("aria-label") + " " + css(spin).animationName);
+
+      const scroll = $("#scroll");
+      out.push("scrolls " + (scroll.scrollHeight > scroll.clientHeight) + " " + scroll.tabIndex);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("field-groups", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // The error is hidden while it is empty, and follows state.
+            "error none",
+            "error block Too short",
+            "error none",
+            // A field in a group gives its border and focus ring to the group.
+            "grouped field 0px none",
+            "group ring true field ring none",
+            // Neighbouring buttons share a border and square their inner corners.
+            "joined -1 0px 0px",
+            "spinner status Loading ui-spin",
+            "scrolls true 0",
+        ],
+        "\n{result}"
+    );
+}

@@ -6,8 +6,8 @@
 //! once per page through `global_js`) builds the menu and handles input.
 
 use crate::{
-    ACCENT, BORDER, DESTRUCTIVE, MUTED, ON_SECONDARY, RING, SECONDARY, SURFACE, TEXT, id_with, instance_id, lit,
-    server_array,
+    ACCENT, BORDER, DESTRUCTIVE, MUTED, ON_SECONDARY, RING, SECONDARY, SPIN, SURFACE, TEXT, id_with, instance_id,
+    lit, server_array,
 };
 use irender_core::{ComponentInfo, Expr, Node, PropDef, PropKind, StyleBlock, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
@@ -15,7 +15,6 @@ use serde_json::{Map, Value as Json, json};
 use std::sync::LazyLock;
 
 const SCRIPT: &str = include_str!("combobox.js");
-const SPIN: &str = "@keyframes ui-spin {\n  to { transform: rotate(1turn); }\n}";
 
 pub struct Combobox;
 

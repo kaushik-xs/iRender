@@ -60,6 +60,9 @@ pub fn register(registry: &mut Registry) {
         .register(display::Table)
         .register(display::Heading)
         .register(display::Text)
+        .register(display::Spinner)
+        .register(display::Empty)
+        .register(display::ScrollArea)
         .register(forms::Label)
         .register(forms::Input)
         .register(forms::Textarea)
@@ -70,6 +73,9 @@ pub fn register(registry: &mut Registry) {
         .register(navigation::Breadcrumb)
         .register(navigation::Pagination)
         .register(forms::Slider)
+        .register(forms::ButtonGroup)
+        .register(forms::InputGroup)
+        .register(forms::Field)
         .register(disclosure::Accordion)
         .register(disclosure::AccordionItem)
         .register(disclosure::Collapsible)
@@ -111,6 +117,9 @@ const DESTRUCTIVE: &str = "var(--color-destructive, #dc2626)";
 const ON_DESTRUCTIVE: &str = "var(--color-on-destructive, #ffffff)";
 const RING: &str = "var(--color-ring, var(--color-muted))";
 const MONO: &str = "ui-monospace, SFMono-Regular, Menlo, monospace";
+
+/// One turn, for spinners; added to the page once by whichever needs it first.
+const SPIN: &str = "@keyframes ui-spin {\n  to { transform: rotate(1turn); }\n}";
 
 /// The index of the prop's value in `options`, or 0 (the default) when it's
 /// missing or unknown.

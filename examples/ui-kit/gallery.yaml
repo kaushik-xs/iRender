@@ -35,6 +35,11 @@ state:
   locked: false
   busy: false
   team: [kaushik, asha]
+  username: ""
+  site: ""
+  amount: ""
+  marketing: false
+  view: grid
 root:
   type: stack
   props: { gap: 40 }
@@ -214,6 +219,76 @@ root:
                 - type: ui-button
                   props: { label: Continue, disabled: "{{ !terms }}" }
                   style: { align-self: flex-start }
+
+    # ---------------------------------------------------------------- field, input group, button group
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Field, Input group and Button group" } }
+        - type: element
+          style: { display: grid, gap: 24, grid-template-columns: "repeat(auto-fit, minmax(260px, 1fr))" }
+          children:
+            - type: stack
+              props: { gap: 20 }
+              children:
+                - type: ui-field
+                  props:
+                    label: Username
+                    for: username
+                    description: Letters and numbers; at least 3.
+                    error: "{{ username != '' && username.length < 3 ? 'Too short: at least 3 characters.' : '' }}"
+                  children:
+                    - type: ui-input
+                      props: { bind: username, placeholder: pedro }
+                      attrs: { id: username, aria-invalid: "{{ username != '' && username.length < 3 }}" }
+                - type: ui-field
+                  props: { label: Marketing emails, for: marketing, description: About new features and offers., orientation: horizontal }
+                  children:
+                    - { type: ui-switch, props: { bind: marketing }, parts: { control: { attrs: { id: marketing } } } }
+            - type: stack
+              props: { gap: 20 }
+              children:
+                - type: ui-field
+                  props: { label: Website, for: site }
+                  children:
+                    - type: ui-input-group
+                      props: { prefix: "https://", suffix: .com }
+                      children:
+                        - { type: ui-input, props: { bind: site, placeholder: example }, attrs: { id: site } }
+                - type: ui-field
+                  props: { label: Amount, for: amount }
+                  children:
+                    - type: ui-input-group
+                      props: { prefix: "$" }
+                      children:
+                        - { type: ui-input, props: { bind: amount, placeholder: "0.00" }, attrs: { id: amount, inputmode: decimal } }
+                        - type: ui-button
+                          props: { label: Clear, variant: ghost, size: sm }
+                          on: { click: { action: set_state, key: amount, value: "" } }
+        - type: stack
+          props: { direction: row, gap: 12, align: center, wrap: true }
+          children:
+            - type: ui-button-group
+              props: { label: View }
+              children:
+                - type: ui-button
+                  props: { label: Grid, variant: "{{ view == 'grid' ? 'secondary' : 'outline' }}" }
+                  attrs: { aria-pressed: "{{ view == 'grid' }}" }
+                  on: { click: { action: set_state, key: view, value: grid } }
+                - type: ui-button
+                  props: { label: List, variant: "{{ view == 'list' ? 'secondary' : 'outline' }}" }
+                  attrs: { aria-pressed: "{{ view == 'list' }}" }
+                  on: { click: { action: set_state, key: view, value: list } }
+            - type: ui-button-group
+              props: { label: Pages }
+              children:
+                - { type: ui-button, props: { label: "‹ Previous", variant: outline, size: sm } }
+                - { type: ui-button, props: { label: "Next ›", variant: outline, size: sm } }
+            - type: ui-button-group
+              props: { orientation: vertical, label: Zoom }
+              children:
+                - { type: ui-button, props: { label: "+", variant: outline, size: icon } }
+                - { type: ui-button, props: { label: "−", variant: outline, size: icon } }
 
     # ---------------------------------------------------------------- combobox
     - type: stack
@@ -591,6 +666,45 @@ root:
               children:
                 - { type: ui-skeleton, props: { width: 60%, height: 14 } }
                 - { type: ui-skeleton, props: { width: 40%, height: 14 } }
+
+    # ---------------------------------------------------------------- spinner, empty, scroll area
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Spinner, Empty and Scroll area" } }
+        - type: stack
+          props: { direction: row, gap: 16, align: center }
+          children:
+            - { type: ui-spinner }
+            - { type: ui-spinner, props: { size: 24 } }
+            - { type: ui-spinner, props: { size: 32 }, style: { color: $color.muted } }
+            - type: ui-button
+              props: { disabled: true }
+              children:
+                - { type: ui-spinner, props: { label: Saving } }
+                - { type: text, props: { value: Saving… } }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(260px, 1fr))" }
+          children:
+            - type: ui-empty
+              props: { icon: "📁", title: No projects yet, description: "You haven't created any projects. Start by creating your first one." }
+              children:
+                - type: stack
+                  props: { direction: row, gap: 8 }
+                  children:
+                    - { type: ui-button, props: { label: Create project } }
+                    - { type: ui-button, props: { label: Import, variant: outline } }
+            - type: ui-scroll-area
+              props: { height: 220, label: Tags }
+              style: { border: 1px solid $color.border }
+              children:
+                - type: list
+                  props:
+                    items: [v1.2.0-beta.50, v1.2.0-beta.49, v1.2.0-beta.48, v1.2.0-beta.47, v1.2.0-beta.46, v1.2.0-beta.45, v1.2.0-beta.44, v1.2.0-beta.43, v1.2.0-beta.42, v1.2.0-beta.41, v1.2.0-beta.40, v1.2.0-beta.39]
+                    as: tag
+                  style: { padding: 4px 16px }
+                  children:
+                    - { type: element, props: { tag: div }, style: { padding: 8px 0, font-size: 14px, border-bottom: 1px solid $color.border }, children: [ { type: text, props: { value: "{{ tag }}" } } ] }
 
     # ---------------------------------------------------------------- table
     - type: stack

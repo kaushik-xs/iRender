@@ -1,5 +1,5 @@
 //! Buttons and form controls. The inputs reuse the built-ins' state binding and
-//! only change how they look.
+//! only change how they look. Button groups, input groups and fields arrange them.
 
 use crate::{
     ACCENT, DESTRUCTIVE, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING, SECONDARY,
@@ -555,5 +555,237 @@ impl Component for Slider {
         input.style = node.style.clone();
         input.on = node.on.clone();
         irender_html::Input::render_styled(&input, cx, &SLIDER)
+    }
+}
+
+// ---------------------------------------------------------------- button group
+
+pub struct ButtonGroup;
+
+const BUTTON_GROUP_PROPS: &[PropDef] = &[
+    PropDef::new("orientation", PropKind::Enum(&["horizontal", "vertical"]), "Default `horizontal`"),
+    PropDef::new("label", PropKind::Any, "Names the group for screen readers"),
+];
+
+static BUTTON_GROUP: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
+    // Neighbours share a border: inner corners go square and each overlaps the one before.
+    let base = |direction: &str, first: [&str; 2], last: [&str; 2], overlap: &str| {
+        let square = |corners: [&str; 2]| StyleBlock::from_pairs(&[(corners[0], "0"), (corners[1], "0")]);
+        StyleBlock::from_pairs(&[("display", "inline-flex"), ("flex-direction", direction), ("align-items", "stretch")])
+            .nest("& > :not(:first-child)", square(first).set(overlap, "-1px"))
+            .nest("& > :not(:last-child)", square(last))
+            // The focused one's ring isn't hidden under the next one.
+            .nest("& > :focus-visible", StyleBlock::from_pairs(&[("position", "relative"), ("z-index", "1")]))
+    };
+    [
+        base(
+            "row",
+            ["border-start-start-radius", "border-end-start-radius"],
+            ["border-start-end-radius", "border-end-end-radius"],
+            "margin-inline-start",
+        ),
+        base(
+            "column",
+            ["border-start-start-radius", "border-start-end-radius"],
+            ["border-end-start-radius", "border-end-end-radius"],
+            "margin-block-start",
+        ),
+    ]
+});
+
+impl Component for ButtonGroup {
+    fn name(&self) -> &'static str {
+        "ui-button-group"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.",
+            props: BUTTON_GROUP_PROPS,
+            parts: &[],
+            children: true,
+            open_props: false,
+        }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let o = choice(cx, node, "orientation", &["horizontal", "vertical"]);
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&BUTTON_GROUP[o]).attr("role", "group");
+        if o == 1 {
+            el.attr("aria-orientation", "vertical");
+        }
+        if let Some(label) = node.prop("label") {
+            el.attr("aria-label", label.clone());
+        }
+        cx.open(&el, node)?;
+        cx.children(node)?;
+        cx.close("div");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- input group
+
+pub struct InputGroup;
+
+const INPUT_GROUP_PROPS: &[PropDef] = &[
+    PropDef::new("prefix", PropKind::Any, "Text before the field, e.g. `https://` or `$`"),
+    PropDef::new("suffix", PropKind::Any, "Text after the field, e.g. `.com` or `kg`"),
+];
+
+/// The fields inside a group, which give up their own border to the group's.
+const GROUPED: &str = "& :is(input, textarea, select)";
+
+static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
+    let field = StyleBlock::from_pairs(&[
+        ("flex", "1"),
+        ("align-self", "stretch"),
+        ("height", "auto"),
+        ("border", "none"),
+        ("border-radius", "0"),
+        ("background", "transparent"),
+        ("box-shadow", "none"),
+    ]);
+    StyleBlock::from_pairs(&[
+        ("box-sizing", "border-box"),
+        ("display", "flex"),
+        ("align-items", "center"),
+        ("width", "100%"),
+        ("min-height", "36px"),
+        ("border", "1px solid var(--color-border)"),
+        ("border-radius", "var(--radius-md)"),
+        ("color", TEXT),
+        ("font-size", "14px"),
+        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+        ("overflow", "hidden"),
+        ("transition", "border-color .15s, box-shadow .15s"),
+    ])
+    .nest(GROUPED, field)
+    // Next to a prefix or suffix, the field's own padding would double the gap.
+    .nest("& > span + :is(input, textarea, select)", StyleBlock::from_pairs(&[("padding-left", "8px")]))
+    .nest("& > :is(input, textarea, select):has(+ span)", StyleBlock::from_pairs(&[("padding-right", "8px")]))
+    .nest(format!("{GROUPED}:focus-visible"), StyleBlock::from_pairs(&[("box-shadow", "none")]))
+    // The group shows the focus ring, around the field and its addons together.
+    .nest(":has(:focus-visible)", focus_ring().set("border-color", RING))
+    .nest(":has([aria-invalid=true])", StyleBlock::from_pairs(&[("border-color", DESTRUCTIVE)]))
+    .nest(":has(:disabled)", StyleBlock::from_pairs(&[("opacity", "0.5")]))
+    // Buttons sit inside the border, a little smaller than on their own.
+    .nest("& > :is(button, a)", StyleBlock::from_pairs(&[("height", "28px"), ("margin", "0 4px"), ("padding", "0 8px")]))
+});
+static INPUT_GROUP_ADDON: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "center"), ("padding", "0 12px"), ("color", MUTED), ("white-space", "nowrap")])
+});
+static INPUT_GROUP_PREFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-right", "0"));
+static INPUT_GROUP_SUFFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-left", "0"));
+
+impl Component for InputGroup {
+    fn name(&self) -> &'static str {
+        "ui-input-group"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "A field with text or buttons inside its border. Children are a `ui-input` (or `ui-textarea`, \
+                  `ui-select`) and any `ui-button`s.",
+            props: INPUT_GROUP_PROPS,
+            parts: &["prefix", "suffix"],
+            children: true,
+            open_props: false,
+        }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&INPUT_GROUP);
+        cx.open(&el, node)?;
+        let addon = |cx: &mut RenderCx<'_>, name: &str, base: &'static StyleBlock| -> Result<(), RenderError> {
+            if let Some(t) = node.prop(name) {
+                let mut part = cx.part("span", node, name);
+                part.base_style_ref(base).text(t);
+                cx.open(&part, node)?;
+                cx.close("span");
+            }
+            Ok(())
+        };
+        addon(cx, "prefix", &INPUT_GROUP_PREFIX)?;
+        cx.children(node)?;
+        addon(cx, "suffix", &INPUT_GROUP_SUFFIX)?;
+        cx.close("div");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- field
+
+pub struct Field;
+
+const FIELD_PROPS: &[PropDef] = &[
+    PropDef::new("label", PropKind::Any, "The label"),
+    PropDef::new("for", PropKind::Any, "`id` of the control it labels"),
+    PropDef::new("description", PropKind::Any, "Help text under the control"),
+    PropDef::new("error", PropKind::Any, "An error under the control; hidden while empty, so it can follow state"),
+    PropDef::new("orientation", PropKind::Enum(&["vertical", "horizontal"]), "Default `vertical`; `horizontal` puts the control after the label"),
+];
+
+static FIELD: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
+    [
+        StyleBlock::from_pairs(&[("display", "grid"), ("gap", "8px")]),
+        // Label and control side by side; the text under them spans both columns.
+        StyleBlock::from_pairs(&[
+            ("display", "grid"),
+            ("grid-template-columns", "1fr auto"),
+            ("align-items", "center"),
+            ("gap", "8px 16px"),
+        ])
+        .nest("& > p", StyleBlock::from_pairs(&[("grid-column", "1 / -1")])),
+    ]
+});
+static FIELD_DESCRIPTION: LazyLock<StyleBlock> =
+    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "14px"), ("color", MUTED)]));
+static FIELD_ERROR: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "14px"), ("color", DESTRUCTIVE)])
+        .nest(":empty", StyleBlock::from_pairs(&[("display", "none")]))
+});
+
+impl Component for Field {
+    fn name(&self) -> &'static str {
+        "ui-field"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "A label, a control, help text and an error, laid out together. Children are the control.",
+            props: FIELD_PROPS,
+            parts: &["label", "description", "error"],
+            children: true,
+            open_props: false,
+        }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let o = choice(cx, node, "orientation", &["vertical", "horizontal"]);
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&FIELD[o]);
+        cx.open(&el, node)?;
+        if let Some(t) = node.prop("label") {
+            let mut label = cx.part("label", node, "label");
+            label.base_style_ref(&LABEL).text(t);
+            if let Some(f) = node.prop("for") {
+                label.attr("for", f.clone());
+            }
+            cx.open(&label, node)?;
+            cx.close("label");
+        }
+        cx.children(node)?;
+        if let Some(d) = node.prop("description") {
+            let mut p = cx.part("p", node, "description");
+            p.base_style_ref(&FIELD_DESCRIPTION).text(d);
+            cx.open(&p, node)?;
+            cx.close("p");
+        }
+        if let Some(e) = node.prop("error") {
+            let mut p = cx.part("p", node, "error");
+            // Announced when it appears or changes.
+            p.base_style_ref(&FIELD_ERROR).attr("aria-live", "polite").text(e);
+            cx.open(&p, node)?;
+            cx.close("p");
+        }
+        cx.close("div");
+        Ok(())
     }
 }

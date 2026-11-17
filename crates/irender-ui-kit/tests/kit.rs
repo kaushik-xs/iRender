@@ -75,7 +75,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 46);
+    assert_eq!(kit, 52);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -420,6 +420,42 @@ fn skeletons_pulse_with_one_keyframes_rule() {
     assert!(page.css.contains("@media (prefers-reduced-motion: reduce)"), "{}", page.css);
     // Pages without a skeleton don't carry the rule.
     assert!(!render_with(json!({ "type": "ui-badge", "props": { "text": "x" } }), json!({}), json!({})).unwrap().css.contains("@keyframes"));
+}
+
+#[test]
+fn field_groups_empty_spinner_and_scroll_area_structure() {
+    let body = render(json!({ "type": "element", "children": [
+        { "type": "ui-field", "props": { "label": "Email", "for": "e", "description": "Help", "error": "Bad" },
+          "children": [ { "type": "ui-input-group", "props": { "prefix": "@", "suffix": ".com" },
+            "children": [ { "type": "ui-input", "attrs": { "id": "e" } } ] } ] },
+        { "type": "ui-button-group", "props": { "label": "View", "orientation": "vertical" } },
+        { "type": "ui-empty", "props": { "icon": "!", "title": "None", "description": "Add one" } },
+        { "type": "ui-spinner", "props": { "label": "Saving" } },
+        { "type": "ui-scroll-area", "props": { "maxHeight": 100 } },
+        { "type": "ui-scroll-area", "props": { "label": "Log" } } ] }));
+    assert_eq!(
+        plain(&body),
+        concat!(
+            r#"<div><div><label for="e">Email</label><div><span>@</span><input id="e" type="text"><span>.com</span></div>"#,
+            r#"<p>Help</p><p aria-live="polite">Bad</p></div>"#,
+            r#"<div role="group" aria-orientation="vertical" aria-label="View"></div>"#,
+            r#"<div><div aria-hidden="true">!</div><h3>None</h3><p>Add one</p></div>"#,
+            r#"<span role="status" aria-label="Saving"></span>"#,
+            r#"<div tabindex="0"></div><div tabindex="0" role="region" aria-label="Log"></div></div>"#,
+        )
+    );
+}
+
+#[test]
+fn spinner_and_combobox_share_one_keyframes_rule() {
+    let page = render_with(
+        json!({ "type": "element", "children": [ { "type": "ui-spinner" }, { "type": "ui-combobox", "props": { "options": ["a"] } } ] }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap();
+    assert_eq!(page.css.matches("@keyframes ui-spin").count(), 1, "{}", page.css);
+    assert!(page.css.contains("animation: ui-spin .7s linear infinite;"), "{}", page.css);
 }
 
 // ---------------------------------------------------------------- combobox

@@ -1,9 +1,10 @@
 //! Components that show content: badge, card, alert, avatar, separator, skeleton,
-//! kbd, progress, aspect ratio, table and typography.
+//! kbd, progress, aspect ratio, table, typography, spinner, empty state and scroll
+//! area.
 
 use crate::{
-    BORDER, DESTRUCTIVE, MONO, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, SECONDARY, SUBTLE, SURFACE,
-    TEXT, choice, lit,
+    BORDER, DESTRUCTIVE, MONO, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, SECONDARY, SPIN, SUBTLE,
+    SURFACE, TEXT, choice, lit,
 };
 use irender_core::{ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, RenderCx, RenderError};
@@ -718,5 +719,191 @@ impl Component for Text {
         let v = choice(cx, node, "variant", TEXT_VARIANTS);
         let tag = cx.prop_string(node, "tag").unwrap_or_else(|| TEXT_TAGS[v].into());
         container(cx, node, &tag, &TEXTS[v], node.prop("text"))
+    }
+}
+
+// ---------------------------------------------------------------- spinner
+
+pub struct Spinner;
+
+const SPINNER_PROPS: &[PropDef] = &[
+    PropDef::new("size", PropKind::Any, "Number (px) or CSS length; default 16"),
+    PropDef::new("label", PropKind::Any, "What is loading, for screen readers; default `Loading`"),
+];
+
+static SPINNER: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("display", "inline-block"),
+        ("flex-shrink", "0"),
+        ("box-sizing", "border-box"),
+        ("border", "2px solid currentColor"),
+        ("border-right-color", "transparent"),
+        ("border-radius", "999px"),
+        ("animation", "ui-spin .7s linear infinite"),
+    ])
+    // Slower rather than still: a still ring wouldn't say that something is happening.
+    .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::from_pairs(&[("animation-duration", "2s")]))
+});
+
+impl Component for Spinner {
+    fn name(&self) -> &'static str {
+        "ui-spinner"
+    }
+    fn info(&self) -> ComponentInfo {
+        info("A spinning ring that says something is loading. Takes the text colour.", SPINNER_PROPS, &[], false)
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let size = node.prop("size").cloned().unwrap_or_else(|| lit(16));
+        let mut sizing = StyleBlock::new();
+        for property in ["width", "height"] {
+            if let Some(v) = cx.style_value(node, property, &size)? {
+                sizing.push(property, v);
+            }
+        }
+        cx.global_css("ui-spin", SPIN);
+        let mut el = cx.element("span", node);
+        el.base_style_ref(&SPINNER).base_style(sizing).attr("role", "status");
+        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Loading")));
+        cx.open(&el, node)?;
+        cx.close("span");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- empty
+
+pub struct Empty;
+
+const EMPTY_PROPS: &[PropDef] = &[
+    PropDef::new("title", PropKind::Any, "What is empty, e.g. `No projects yet`"),
+    PropDef::new("description", PropKind::Any, "What to do about it"),
+    PropDef::new("icon", PropKind::Any, "A character or emoji shown above the title"),
+];
+
+static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("display", "flex"),
+        ("flex-direction", "column"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("gap", "12px"),
+        ("padding", "48px 24px"),
+        ("border", "1px dashed var(--color-border)"),
+        ("border-radius", "var(--radius-lg)"),
+        ("color", TEXT),
+        ("text-align", "center"),
+    ])
+});
+static EMPTY_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("display", "flex"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("width", "40px"),
+        ("height", "40px"),
+        ("border-radius", "var(--radius-md)"),
+        ("background", SUBTLE),
+        ("font-size", "20px"),
+    ])
+});
+static EMPTY_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "18px"), ("font-weight", "500"), ("line-height", "1.2")])
+});
+static EMPTY_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("margin", "0"), ("max-width", "40ch"), ("font-size", "14px"), ("color", MUTED)])
+});
+
+impl Component for Empty {
+    fn name(&self) -> &'static str {
+        "ui-empty"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "A placeholder for a page or list with nothing in it yet. Children follow the text, usually a button.",
+            EMPTY_PROPS,
+            &["icon", "title", "description"],
+            true,
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&EMPTY);
+        cx.open(&el, node)?;
+        if let Some(icon) = node.prop("icon") {
+            let mut part = cx.part("div", node, "icon");
+            part.base_style_ref(&EMPTY_ICON).attr("aria-hidden", "true").text(icon);
+            cx.open(&part, node)?;
+            cx.close("div");
+        }
+        if let Some(t) = node.prop("title") {
+            part_text(cx, node, "h3", "title", &EMPTY_TITLE, t)?;
+        }
+        if let Some(d) = node.prop("description") {
+            part_text(cx, node, "p", "description", &EMPTY_DESCRIPTION, d)?;
+        }
+        cx.children(node)?;
+        cx.close("div");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- scroll area
+
+pub struct ScrollArea;
+
+const SCROLL_AREA_PROPS: &[PropDef] = &[
+    PropDef::new("height", PropKind::Any, "Number (px) or CSS length"),
+    PropDef::new("maxHeight", PropKind::Any, "Number (px) or CSS length: grows with its content up to this"),
+    PropDef::new("label", PropKind::Any, "Names the region for screen readers"),
+];
+
+static SCROLL_AREA: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("overflow", "auto"),
+        ("overscroll-behavior", "contain"),
+        ("scrollbar-width", "thin"),
+        ("scrollbar-color", "color-mix(in srgb, var(--color-text) 25%, transparent) transparent"),
+        ("border-radius", "var(--radius-md)"),
+    ])
+    .nest(
+        ":focus-visible",
+        StyleBlock::from_pairs(&[
+            ("outline", "none"),
+            ("box-shadow", "0 0 0 3px color-mix(in srgb, var(--color-ring, var(--color-muted)) 50%, transparent)"),
+        ]),
+    )
+});
+
+impl Component for ScrollArea {
+    fn name(&self) -> &'static str {
+        "ui-scroll-area"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "A box that scrolls its children, with a thin scrollbar in the theme's colours. \
+             It can be focused, so the keyboard scrolls it too.",
+            SCROLL_AREA_PROPS,
+            &[],
+            true,
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let mut sizing = StyleBlock::new();
+        for (prop, property) in [("height", "height"), ("maxHeight", "max-height")] {
+            if let Some(v) = node.prop(prop)
+                && let Some(v) = cx.style_value(node, property, v)?
+            {
+                sizing.push(property, v);
+            }
+        }
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&SCROLL_AREA).base_style(sizing).attr("tabindex", "0");
+        if let Some(label) = node.prop("label") {
+            el.attr("role", "region").attr("aria-label", label.clone());
+        }
+        cx.open(&el, node)?;
+        cx.children(node)?;
+        cx.close("div");
+        Ok(())
     }
 }
