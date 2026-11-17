@@ -6,9 +6,8 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. Re-run the benchmarks (housekeeping 1).
-2. Fix the light frame around dark pages (housekeeping 3).
-3. Keyed list updates (gaps 1).
+1. Keyed list updates (gaps 1).
+2. Re-run the benchmarks (housekeeping 1), after keyed lists since they change the numbers.
 
 ## Gaps you'd hit in real use
 
@@ -59,5 +58,4 @@ _Last updated: 2026-11-17._
 - [ ] **CI checks we skipped:**
   - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
   - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.
-- [ ] **Light frame around dark pages:** `Page::document` leaves the browser's default `body` margin and background, which shows as a light frame around dark-mode pages. Set `margin: 0` and the theme's surface colour on `body`.
 - [ ] **`examples/build.sh` doesn't delete pages from earlier builds.** It accepts any output folder, so it shouldn't blindly delete one. Clear only `target/site`, or only files it knows it wrote.

@@ -221,11 +221,15 @@ impl Page {
         s
     }
 
+    /// A full HTML page around [`Page::fragment`]. The `body` loses the browser's
+    /// default margin and takes the theme's surface colour, so dark mode reaches the
+    /// edges of the window.
     pub fn document(&self, title: &str) -> String {
         format!(
             "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
-             <title>{}</title>\n</head>\n<body>\n{}</body>\n</html>\n",
+             <title>{}</title>\n<style>body{{margin:0;background:var(--color-surface)}}</style>\n\
+             </head>\n<body>\n{}</body>\n</html>\n",
             escape::text(title),
             self.fragment()
         )
