@@ -48,7 +48,7 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 - **attrs** accept any HTML attribute and override the component's defaults.
 - **style** accepts any CSS property, including nested `:pseudo`, `&selector`, `@breakpoint`, `@variant` and `@media …` blocks. Numbers get `px` where it makes sense, and `$tokens` compile to `var(--…)`.
 - **parts** style a component's inner elements.
-- **on** maps DOM events to declarative actions: `set_state`, `navigate`, `submit` and `call`. A `call` dispatches an `irender:call` DOM event for the host app to handle.
+- **on** maps DOM events to declarative actions: `set_state`, `navigate`, `submit`, `call` and `wait`. A `call` dispatches an `irender:call` DOM event for the host app to handle. A `wait` (`{ "action": "wait", "ms": 3000 }`, at most 60 000) pauses before the next action, e.g. to hide a toast.
 - **Expressions** (`{{ … }}`) support paths, literals, arithmetic, comparisons, `&& || !` and `?:`. An expression that references `state` updates live in the browser. Any other path is filled in from server `data` at render time.
 - **Built-in components:** `element`, `text`, `stack`, `button`, `input`, `select`, `textarea`, `list` and `if`. Run `irender components` for their props. `include` is handled by the resolver; see below.
 - **Cascade order:** theme variables → `i-base` layer (component defaults) → `i-instance` layer (the document's `style`). The document always wins.

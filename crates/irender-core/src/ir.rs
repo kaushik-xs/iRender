@@ -47,4 +47,5 @@ pub enum Action {
     Navigate { url: Val },
     Submit { endpoint: Val, method: String, body: IndexMap<String, Val>, into: Option<String> },
     Call { name: String, args: IndexMap<String, Val> },
+    Wait { ms: u64 },
 }

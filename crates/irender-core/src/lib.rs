@@ -32,7 +32,7 @@ pub use expr::{Expr, Part, Template};
 pub use fragment::{FragmentDir, Fragments, NoFragments};
 pub use ir::{Action, Ir, Node, PartStyle};
 pub use policy::Policy;
-pub use resolve::{MAX_DEPTH, resolve, resolve_with};
+pub use resolve::{MAX_DEPTH, MAX_WAIT_MS, resolve, resolve_with};
 pub use spec::{Document, Format, NodeSpec, parse, parse_as};
 pub use style::{Decl, StyleBlock, StyleValue};
 pub use theme::Theme;

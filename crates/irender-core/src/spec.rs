@@ -109,6 +109,8 @@ pub enum ActionSpec {
         #[serde(default)]
         args: IndexMap<String, Json>,
     },
+    /// Pause before the next action, e.g. to hide a toast after a few seconds. At most 60 000 ms.
+    Wait { ms: u64 },
 }
 
 fn default_method() -> String {

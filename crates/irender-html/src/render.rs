@@ -549,6 +549,22 @@ impl<'a> RenderCx<'a> {
         Ok(())
     }
 
+    /// A short key that differs between the items of a server-rendered list (it hashes
+    /// the names in scope and their values), and is empty outside lists. Components
+    /// add it to element ids so repeated instances stay unique.
+    pub fn scope_key(&self) -> String {
+        use std::hash::{Hash, Hasher};
+        if self.scopes.is_empty() {
+            return String::new();
+        }
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for s in &self.scopes {
+            s.name.hash(&mut h);
+            expr::hash_json(&s.value, &mut h);
+        }
+        format!("{:x}", h.finish() & 0xffff_ffff)
+    }
+
     /// Runs `f` with extra names in scope (e.g. a list's `item` and `index`).
     pub fn with_scope<T>(
         &mut self,
@@ -633,6 +649,9 @@ impl<'a> RenderCx<'a> {
                 let _ = write_json_str(out, name);
                 out.push_str(",\"args\":");
                 map(out, args);
+            }
+            Action::Wait { ms } => {
+                let _ = write!(out, "{{\"a\":\"wait\",\"ms\":{ms}");
             }
         }
         out.push('}');

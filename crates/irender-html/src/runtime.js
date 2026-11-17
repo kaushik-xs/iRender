@@ -281,6 +281,8 @@
           }
         } else if (a.a === "call") {
           emit(el, "irender:call", { name: a.n, args: values(a.args), state });
+        } else if (a.a === "wait") {
+          await new Promise((resolve) => setTimeout(resolve, a.ms));
         }
       }
     }

@@ -15,6 +15,9 @@ use std::borrow::Cow;
 /// trees are rejected so hostile input cannot overflow the stack while rendering.
 pub const MAX_DEPTH: usize = 64;
 
+/// The longest a `wait` action may pause.
+pub const MAX_WAIT_MS: u64 = 60_000;
+
 /// Validates `doc` and produces the IR. All problems are reported together.
 pub fn resolve(doc: &Document, catalog: &dyn Catalog, policy: &Policy) -> Result<Ir, Diagnostics> {
     resolve_with(doc, catalog, policy, &NoFragments)
@@ -427,6 +430,13 @@ impl Resolver<'_> {
             ActionSpec::Call { name, args } => {
                 let args = self.val_map(args, &format!("{path}.args"));
                 Some(Action::Call { name: name.clone(), args })
+            }
+            ActionSpec::Wait { ms } => {
+                if *ms > MAX_WAIT_MS {
+                    self.diags.push(format!("{path}.ms"), format!("waits are at most {MAX_WAIT_MS} ms"));
+                    return None;
+                }
+                Some(Action::Wait { ms: *ms })
             }
         }
     }
