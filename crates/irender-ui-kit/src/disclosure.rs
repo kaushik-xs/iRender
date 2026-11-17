@@ -472,7 +472,8 @@ impl Component for ToggleGroup {
 
 pub struct ThemeToggle;
 
-const THEME_EARLY_SCRIPT: &str = include_str!("theme_early.js");
+/// Applies the stored scheme; [`crate::register`] adds it to every page.
+pub(crate) const THEME_EARLY_SCRIPT: &str = include_str!("theme_early.js");
 const THEME_TOGGLE_SCRIPT: &str = include_str!("theme_toggle.js");
 const THEME_TOGGLE_PROPS: &[PropDef] = &[
     PropDef::new("labels", PropKind::Any, "Button text as `{ system, light, dark }`; default System, Light, Dark"),

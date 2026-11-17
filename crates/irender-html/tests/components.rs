@@ -911,3 +911,34 @@ fn behaviours_mark_elements_and_ship_their_script_once() {
     let forged = json!({ "version": 1, "root": { "type": "element", "attrs": { "data-i-x": "counter" } } });
     assert!(engine.load(&forged.to_string(), Format::Json).unwrap_err().to_string().contains("reserved"));
 }
+
+struct EarlyUser;
+
+impl Component for EarlyUser {
+    fn name(&self) -> &'static str {
+        "early-user"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo { doc: "", props: &[], parts: &[], children: false, open_props: false }
+    }
+    fn render(&self, _node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        cx.early_js("scheme", "window.scheme = 1;");
+        Ok(())
+    }
+}
+
+#[test]
+fn registry_early_scripts_go_on_every_page_once() {
+    let mut engine = Engine::new();
+    engine.registry.register(EarlyUser).early_js("scheme", "window.scheme = 1;").early_js("other", "window.other = 2;");
+    // On a page that uses none of the registry's components…
+    let page = render_with(&engine, json!({ "type": "text", "props": { "value": "x" } }), json!({}), json!({})).unwrap();
+    assert_eq!(page.early_scripts, ["window.scheme = 1;", "window.other = 2;"]);
+    let html = page.fragment();
+    assert!(html.starts_with(&format!("<style>\n{}</style>\n<script>\nwindow.scheme = 1;</script>\n", page.css)), "{html}");
+    // …and once on a page whose component adds the same one.
+    let page = render_with(&engine, json!({ "type": "early-user" }), json!({}), json!({})).unwrap();
+    assert_eq!(page.early_scripts, ["window.scheme = 1;", "window.other = 2;"]);
+    // An engine without them adds none.
+    assert!(render(json!({ "type": "text", "props": { "value": "x" } })).early_scripts.is_empty());
+}

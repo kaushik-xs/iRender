@@ -437,6 +437,30 @@ fn stored_theme_applies_before_the_content_shows_in_chrome() {
     assert_eq!(result, "rgb(2, 2, 2) dark false | dark");
 }
 
+/// A page without a toggle follows the choice made on one that has it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn stored_theme_applies_on_pages_without_a_toggle_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "ui-badge", "attrs": { "id": "marked" }, "props": { "text": "x" },
+                  "style": { "color": "rgb(1, 1, 1)", "@dark": { "color": "rgb(2, 2, 2)" } } } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let report = r#"<script>window.addEventListener("load", () => {
+      const pre = document.createElement("pre"); pre.id = "result";
+      pre.textContent = getComputedStyle(document.getElementById("marked")).color + " " + document.documentElement.dataset.theme;
+      document.body.append(pre);
+    });</script>"#;
+    let html = html
+        .replace("<head>", r#"<head><script>localStorage.setItem("irender-theme", "dark")</script>"#)
+        .replace("</body>", &format!("{report}</body>"));
+    let Some(result) = drive("theme-no-toggle", &html) else { return };
+    assert_eq!(result, "rgb(2, 2, 2) dark");
+}
+
 /// Form controls' native parts (a select's popup, a checkbox, a slider's track)
 /// follow the toggle, not only the system. `light-dark()` resolves against an
 /// element's used colour scheme, so it shows which one each control gets.

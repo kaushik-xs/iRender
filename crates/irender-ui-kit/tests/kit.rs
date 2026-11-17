@@ -506,6 +506,16 @@ fn tooltips_in_browser_rebuilt_lists_describe_with_live_ids() {
 }
 
 #[test]
+fn every_page_applies_the_stored_theme_once() {
+    let page = render_with(json!({ "type": "ui-badge", "props": { "text": "x" } }), json!({}), json!({})).unwrap();
+    assert_eq!(page.early_scripts.len(), 1);
+    assert!(page.early_scripts[0].contains("irender-theme"));
+    // A toggle on the page doesn't add it twice.
+    let page = render_with(json!({ "type": "ui-theme-toggle" }), json!({}), json!({})).unwrap();
+    assert_eq!(page.early_scripts.len(), 1);
+}
+
+#[test]
 fn spinner_and_combobox_share_one_keyframes_rule() {
     let page = render_with(
         json!({ "type": "element", "children": [ { "type": "ui-spinner" }, { "type": "ui-combobox", "props": { "options": ["a"] } } ] }),

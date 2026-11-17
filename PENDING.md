@@ -34,7 +34,7 @@ _Last updated: 2026-11-17._
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
   - [ ] No chip animations.
   - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. Idea: a `labels` prop or an initial lookup request.
-- [ ] **`ui-theme-toggle`'s choice only applies on pages that have a toggle.** The index and the UI kit and chart kit galleries share it; the other examples still follow the system.
+- [ ] **Pages rendered without the kit ignore `ui-theme-toggle`'s choice.** Every kit page applies it now, but the search, wizard, counter and product examples are rendered without `--ui-kit`, so they still follow the system.
 
 ## Flow kit next phases
 

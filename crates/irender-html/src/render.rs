@@ -208,7 +208,7 @@ impl<'a> RenderCx<'a> {
             out: String::new(),
             interactive: false,
             scripts: IndexMap::new(),
-            early: IndexMap::new(),
+            early: registry.early_scripts().clone(),
             parallel_min_items,
         }
     }

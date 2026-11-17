@@ -43,7 +43,8 @@ use irender_core::{
 use irender_html::{RenderCx, RenderError, Registry};
 use serde_json::Value as Json;
 
-/// Adds every kit component to `registry`.
+/// Adds every kit component to `registry`, and the script that applies the colour
+/// scheme chosen with `ui-theme-toggle` to every page it renders.
 pub fn register(registry: &mut Registry) {
     registry
         .register(forms::Button)
@@ -97,7 +98,10 @@ pub fn register(registry: &mut Registry) {
         .register(overlay::Tooltip)
         .register(overlay::HoverCard)
         .register(feedback::Toaster)
-        .register(combobox::Combobox);
+        .register(combobox::Combobox)
+        // A Light or Dark choice made with `ui-theme-toggle` holds on every page, with a
+        // toggle on it or not.
+        .early_js("ui-theme", disclosure::THEME_EARLY_SCRIPT);
 }
 
 // Colours. Tokens the default theme has are used directly; the others fall back

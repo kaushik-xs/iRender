@@ -51,6 +51,8 @@ pub trait Component: Send + Sync {
 #[derive(Clone, Default)]
 pub struct Registry {
     components: IndexMap<&'static str, Arc<dyn Component>>,
+    /// Early scripts added to every page, whatever components it uses.
+    early: IndexMap<&'static str, &'static str>,
 }
 
 impl Registry {
@@ -77,6 +79,21 @@ impl Registry {
     pub fn register(&mut self, component: impl Component + 'static) -> &mut Self {
         self.components.insert(component.name(), Arc::new(component));
         self
+    }
+
+    /// Adds a script to every page rendered with this registry, run like
+    /// [`RenderCx::early_js`]: right after the page's `<style>`, before its content is
+    /// shown. For a kit whose setting applies to the whole page whatever is on it, such
+    /// as a stored colour scheme. A component's `early_js` with the same name adds it
+    /// only once.
+    pub fn early_js(&mut self, name: &'static str, js: &'static str) -> &mut Self {
+        debug_assert!(!js.to_ascii_lowercase().contains("</script"), "script `{name}` contains `</script`");
+        self.early.insert(name, js);
+        self
+    }
+
+    pub(crate) fn early_scripts(&self) -> &IndexMap<&'static str, &'static str> {
+        &self.early
     }
 
     pub fn get(&self, name: &str) -> Option<&Arc<dyn Component>> {
