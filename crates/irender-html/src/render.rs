@@ -352,13 +352,32 @@ impl<'a> RenderCx<'a> {
             classes.push_str(&compiled.class);
             for var in &compiled.vars {
                 let current = var.tpl.eval(&|p| self.lookup(p));
-                if let Some(css) = css_var_value(&current, var.px) {
-                    sep(&mut inline, "; ");
-                    let _ = write!(inline, "{}: {css}", var.name);
+                sep(&mut inline, "; ");
+                // Every var is set on its element, `initial` when there's no value, so
+                // none is ever inherited from an ancestor's var of the same name.
+                match css_var_value(&current, var.px) {
+                    Some(css) if is_css_wide_keyword(&css) => match &var.property {
+                        Some(p) => {
+                            let _ = write!(inline, "{}: initial; {p}: {}", var.name, css.trim());
+                        }
+                        None => {
+                            let _ = write!(inline, "{}: initial", var.name);
+                        }
+                    },
+                    Some(css) => {
+                        let _ = write!(inline, "{}: {css}", var.name);
+                    }
+                    None => {
+                        let _ = write!(inline, "{}: initial", var.name);
+                    }
                 }
                 if self.is_reactive_tpl(&var.tpl) {
                     sep(&mut bindings, ",");
-                    let _ = write!(bindings, "{{\"k\":\"var\",\"n\":\"{}\",\"px\":{},\"v\":", var.name, var.px);
+                    let _ = write!(bindings, "{{\"k\":\"var\",\"n\":\"{}\",\"px\":{},", var.name, var.px);
+                    if let Some(p) = &var.property {
+                        let _ = write!(bindings, "\"p\":\"{p}\",");
+                    }
+                    bindings.push_str("\"v\":");
                     self.write_tpl_js(&mut bindings, &var.tpl);
                     bindings.push('}');
                 }
@@ -852,6 +871,12 @@ fn is_aria(name: &str) -> bool {
 
 /// A server-rendered custom property value. Values that could inject other
 /// declarations are dropped.
+/// `inherit`, `initial`, `unset`, `revert` or `revert-layer`: a value that applies to
+/// the custom property itself, so it can't be passed through one.
+fn is_css_wide_keyword(css: &str) -> bool {
+    ["inherit", "initial", "unset", "revert", "revert-layer"].iter().any(|k| css.trim().eq_ignore_ascii_case(k))
+}
+
 fn css_var_value(v: &Json, px: bool) -> Option<String> {
     let s = match v {
         Json::Null => return None,

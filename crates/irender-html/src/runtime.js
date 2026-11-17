@@ -5,6 +5,7 @@
   // `evaluate` is exposed so tests can check parity with the Rust evaluator.
   window.__irender = { evaluate: (template, state) => tv(template, state) };
 
+  const CSS_WIDE = /^\s*(inherit|initial|unset|revert|revert-layer)\s*$/i;
   const URL_ATTRS = new Set(["href", "src", "action", "formaction", "poster", "cite", "data", "xlink:href"]);
   const safeUrl = (u) => !/^\s*(javascript|vbscript|data):/i.test(u);
 
@@ -274,8 +275,14 @@
             else el.setAttribute(b.n, s);
             if (b.n === "value" || b.n === "checked") el[b.n] = b.n === "checked" ? truthy(v) : s;
           } else if (b.k === "var") {
-            if (v === null) el.style.removeProperty(b.n);
-            else el.style.setProperty(b.n, typeof v === "number" && b.px ? v + "px" : str(v));
+            // As the server writes it: `initial` when there's no value, so an ancestor's
+            // var of the same name never shows through, and a CSS-wide keyword on the
+            // property itself, since it can't pass through a var.
+            const css = v === null ? null : typeof v === "number" && b.px ? v + "px" : str(v);
+            const keyword = css !== null && CSS_WIDE.test(css);
+            if (b.p) el.style.removeProperty(b.p);
+            el.style.setProperty(b.n, css === null || keyword ? "initial" : css);
+            if (keyword && b.p) el.style.setProperty(b.p, css.trim());
           } else if (b.k === "opts") {
             // A select's options, from state: rebuilt when the array changes.
             if (v === b.prev) continue;

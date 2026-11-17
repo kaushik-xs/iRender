@@ -169,11 +169,26 @@ fn dynamic_styles_use_css_variables() {
             "style": { "width": "{{ pct }}%", "height": "{{ h }}", "opacity": "{{ o }}", "color": "{{ bad }}" } }),
         json!({ "pct": 40, "o": 0.5 }), json!({ "h": 10, "bad": "red; position: fixed" })).unwrap();
     let open = page.body.split('>').next().unwrap();
-    assert!(open.contains(r#"style="--i-d0: 40%; --i-d1: 10px; --i-d2: 0.5; outline: 1px solid red""#), "{open}");
+    // A dropped value is still set, to `initial`, so no ancestor's var shows through.
+    assert!(open.contains(r#"style="--i-d0: 40%; --i-d1: 10px; --i-d2: 0.5; --i-d3: initial; outline: 1px solid red""#), "{open}");
     assert!(!open.contains("position"), "values that could inject declarations are dropped");
     assert!(page.css.contains("width: var(--i-d0);") && page.css.contains("height: var(--i-d1);"));
     let kinds: Vec<_> = bindings(&page.body)[0].as_array().unwrap().iter().map(|b| (b["n"].clone(), b["px"].clone())).collect();
     assert_eq!(kinds, [(json!("--i-d0"), json!(true)), (json!("--i-d2"), json!(false))], "only state-backed vars bind");
+}
+
+#[test]
+fn dynamic_styles_without_a_value_or_with_a_keyword_never_inherit_a_var() {
+    let page = render_with(&Engine::new(),
+        json!({ "type": "element", "style": {
+            "color": "{{ none }}",
+            "border-color": "{{ keyword }}",
+            ":hover": { "background": "{{ keyword }}" } } }),
+        json!({}), json!({ "none": null, "keyword": "inherit" })).unwrap();
+    let open = page.body.split('>').next().unwrap();
+    // No value: `initial`, not left unset for an ancestor's `--i-d0` to fill. A keyword
+    // goes on the property itself; under `:hover` it can't, so that var is emptied too.
+    assert!(open.contains(r#"style="--i-d0: initial; --i-d1: initial; border-color: inherit; --i-d2: initial""#), "{open}");
 }
 
 #[test]

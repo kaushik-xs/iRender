@@ -10,7 +10,7 @@ _Last updated: 2026-11-17._
 
 ## Gaps you'd hit in real use
 
-- [ ] **A dynamic style can't be `inherit`, `initial`, `unset` or `revert`.** Styles that use expressions are written as custom properties (`color: var(--i-d0)` with `--i-d0` set on the element), and a CSS-wide keyword there applies to the custom property itself: `--i-d0: inherit` takes the parent's `--i-d0`, which is some other dynamic style. So `color: "{{ ok ? 'inherit' : 'gray' }}"` can turn out the parent's border colour. Idea: give each element its own variable names, or when the expression can only produce a few values, compile one class per value instead of a variable.
+- [ ] **CSS-wide keywords in conditional dynamic styles.** A dynamic `inherit`, `initial`, `unset` or `revert` works in a plain declaration (it's set on the property inline), but under `:hover`, a media query or a nested selector it can't reach the property and counts as no value. Idea: for those, compile one rule per keyword keyed on a data attribute.
 - [ ] **Older browsers aren't tested.** The browser tests run in Chrome, and in Playwright's WebKit and Firefox (CI, and `tools/playwright/dump-dom.js` locally), which are recent builds (Safari 27.2, Firefox 159 on 2026-11-17). Safari releases and Firefox ESR without anchor positioning, the Popover API, invoker commands, `closedby` or `<details name>` aren't covered; without anchor positioning, popovers open in the middle of the screen.
   - Idea: run the tests in the installed Safari through `safaridriver`.
 

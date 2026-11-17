@@ -37,6 +37,11 @@ pub struct DynVar {
     pub tpl: Template,
     /// Append `px` when the value is a bare number.
     pub px: bool,
+    /// The property it sets, when that declaration is on the element itself (no nested
+    /// selector, condition or at-rule). A CSS-wide keyword (`inherit`, `unset`, …)
+    /// can't pass through a custom property, so renderers set this property to it
+    /// inline instead.
+    pub property: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -123,7 +128,8 @@ impl<'t> StyleCompiler<'t> {
                     StyleValue::Dynamic { tpl, px } => {
                         let name = format!("--i-d{}", vars.len());
                         let value = format!("var({name})");
-                        vars.push(DynVar { name, tpl: tpl.clone(), px: *px });
+                        let own = selector == PLACEHOLDER && wrappers.is_empty();
+                        vars.push(DynVar { name, tpl: tpl.clone(), px: *px, property: own.then(|| d.property.clone()) });
                         value
                     }
                 };

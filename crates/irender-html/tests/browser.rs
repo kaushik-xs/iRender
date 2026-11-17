@@ -412,3 +412,41 @@ window.addEventListener("load", () => {
     let Some(result) = drive("behaviours", &html) else { return };
     assert_eq!(result.lines().collect::<Vec<_>>(), ["start 1 n=0", "clicks n=4 4", "inserted 1 n=4", "both n=5 n=5 starts 11"], "\n{result}");
 }
+
+/// A child's dynamic style with no value, or with a CSS-wide keyword, never picks up
+/// its parent's dynamic style: both use `--i-d0`, and the child's is always set.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn dynamic_styles_never_inherit_a_parents_var_in_chrome() {
+    let doc = r##"{ "version": 1, "state": { "c": null },
+      "root": { "type": "element", "style": { "border": "1px solid", "border-color": "{{ 'rgb(1, 2, 3)' }}", "color": "rgb(9, 9, 9)" },
+        "children": [ { "type": "element", "attrs": { "id": "child" }, "style": { "color": "{{ c }}" } } ] } }"##;
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), child = document.getElementById("child");
+      const step = (label) => out.push(label + " " + getComputedStyle(child).color);
+      step("null");
+      for (const c of ["rgb(4, 5, 6)", "inherit", "initial", null]) { root.__irender.set("c", c); step(String(c)); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let engine = Engine::new();
+    let ir = engine.load(doc, Format::Json).unwrap();
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    let html = page.document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("dynamic-vars", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // No value: the colour it inherits as text, not the parent's border colour.
+            "null rgb(9, 9, 9)",
+            "rgb(4, 5, 6) rgb(4, 5, 6)",
+            "inherit rgb(9, 9, 9)",
+            "initial rgb(0, 0, 0)",
+            "null rgb(9, 9, 9)",
+        ],
+        "\n{result}"
+    );
+}
