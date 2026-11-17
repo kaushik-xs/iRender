@@ -121,15 +121,61 @@
     return bezier(s, t);
   }
 
-  // Where the line between two boxes' centres leaves box `a`, and on which side.
-  function border(a, b) {
-    const ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2;
-    const dx = bx - ax, dy = by - ay;
-    if (!dx && !dy) return { x: ax, y: ay, side: "right" };
-    const sx = dx ? a.w / 2 / Math.abs(dx) : Infinity, sy = dy ? a.h / 2 / Math.abs(dy) : Infinity;
-    const s = Math.min(sx, sy);
-    const side = sx < sy ? (dx > 0 ? "right" : "left") : dy > 0 ? "bottom" : "top";
-    return { x: ax + dx * s, y: ay + dy * s, side };
+  // ------------------------------------------------------------------ shapes
+  // Outlines as corners in fractions of the box; the rounded ones meet edges as
+  // their box does, which is where their curves are anyway at the middles.
+  const POLYGONS = {
+    rect: [[0, 0], [1, 0], [1, 1], [0, 1]],
+    diamond: [[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]],
+    hexagon: [[0.2, 0], [0.8, 0], [1, 0.5], [0.8, 1], [0.2, 1], [0, 0.5]],
+    parallelogram: [[0.15, 0], [1, 0], [0.85, 1], [0, 1]],
+    triangle: [[0.5, 0], [1, 1], [0, 1]],
+  };
+  // `polygon`'s `points`: "x,y x,y …" or [[x, y], …], in percent of the box.
+  const parsePoints = (v) => {
+    const list = Array.isArray(v) ? v : str(v).trim().split(/\s+/).map((p) => p.split(","));
+    const pts = list.map((p) => [num(p?.[0], NaN) / 100, num(p?.[1], NaN) / 100]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+    return pts.length >= 3 ? pts : null;
+  };
+  // A node's outline in its own pixels: its SVG path, and its geometry for `hit`.
+  function outline(kind, points, w, h) {
+    if (kind === "circle" || kind === "ellipse") {
+      const rx = kind === "circle" ? Math.min(w, h) / 2 : w / 2, ry = kind === "circle" ? Math.min(w, h) / 2 : h / 2;
+      const cx = w / 2, cy = h / 2;
+      return { ellipse: true, cx, cy, rx, ry, d: `M${cx - rx},${cy} a${rx},${ry} 0 1,0 ${2 * rx},0 a${rx},${ry} 0 1,0 ${-2 * rx},0 Z` };
+    }
+    const box = POLYGONS.rect.map(([x, y]) => [x * w, y * h]);
+    if (kind === "rounded" || kind === "pill") {
+      const k = kind === "pill" ? Math.min(w, h) / 2 : Math.min(10, w / 2, h / 2);
+      return { pts: box, d: `M${k},0 H${w - k} A${k},${k} 0 0 1 ${w},${k} V${h - k} A${k},${k} 0 0 1 ${w - k},${h} H${k} A${k},${k} 0 0 1 0,${h - k} V${k} A${k},${k} 0 0 1 ${k},0 Z` };
+    }
+    if (kind === "cylinder") {
+      const ry = Math.min(10, h / 4);
+      return { pts: box, d: `M0,${ry} A${w / 2},${ry} 0 0 1 ${w},${ry} V${h - ry} A${w / 2},${ry} 0 0 1 0,${h - ry} Z M0,${ry} A${w / 2},${ry} 0 0 0 ${w},${ry}` };
+    }
+    const pts = (kind === "polygon" ? parsePoints(points) : POLYGONS[kind]) || POLYGONS.rect;
+    const abs = pts.map(([x, y]) => [x * w, y * h]);
+    return { pts: abs, d: "M" + abs.map((p) => p.join(",")).join(" L") + " Z" };
+  }
+  // Where the ray from (ox, oy) along (dx, dy) leaves an outline; null if it doesn't.
+  function hit(o, ox, oy, dx, dy) {
+    if (o.ellipse) {
+      // ((ox + t·dx − cx) / rx)² + ((oy + t·dy − cy) / ry)² = 1, the far root.
+      const px = (ox - o.cx) / o.rx, py = (oy - o.cy) / o.ry, qx = dx / o.rx, qy = dy / o.ry;
+      const a = qx * qx + qy * qy, b = 2 * (px * qx + py * qy), c = px * px + py * py - 1, disc = b * b - 4 * a * c;
+      if (!a || disc < 0) return null;
+      const t = (-b + Math.sqrt(disc)) / (2 * a);
+      return t >= 0 ? [ox + dx * t, oy + dy * t] : null;
+    }
+    let best = Infinity;
+    for (let i = 0; i < o.pts.length; i++) {
+      const [ax, ay] = o.pts[i], [bx, by] = o.pts[(i + 1) % o.pts.length];
+      const ex = bx - ax, ey = by - ay, det = ex * dy - dx * ey;
+      if (Math.abs(det) < 1e-9) continue;
+      const t = (ex * (ay - oy) - ey * (ax - ox)) / det, u = (dx * (ay - oy) - dy * (ax - ox)) / det;
+      if (t >= -1e-9 && u >= -1e-9 && u <= 1 + 1e-9) best = Math.min(best, t);
+    }
+    return Number.isFinite(best) ? [ox + dx * best, oy + dy * best] : null;
   }
 
   // -------------------------------------------------------------------- layout
@@ -336,6 +382,7 @@
     let laidOut = new Map(), layoutKey = "";
     const geo = new Map(); // id → { x, y, w, h }, absolute, in flow coordinates
     const ports = new Map(); // id → [{ id, type, side, x, y }], relative to the node
+    const shapes = new Map(); // id → its outline, for nodes with a `shape`
     const dirty = new Set(); // node elements to measure again
     let nodes = [], byId = new Map(), edges = [];
 
@@ -431,6 +478,18 @@
         if (side === "\u0000") continue;
         ps.forEach((p, i) => p.style.setProperty("--flow-port-offset", ((i + 1) / (ps.length + 1)) * 100 + "%"));
       }
+      // The outline, at the node's size in pixels, so curves and rims don't stretch.
+      const kind = nodeEl.getAttribute("data-shape");
+      const svg = nodeEl.querySelector(":scope > [data-flow-shape]");
+      const o = kind ? outline(kind, nodeEl.getAttribute("data-points"), nodeEl.offsetWidth, nodeEl.offsetHeight) : null;
+      if (o) shapes.set(id, o);
+      else shapes.delete(id);
+      if (svg) {
+        svg.setAttribute("viewBox", `0 0 ${nodeEl.offsetWidth} ${nodeEl.offsetHeight}`);
+        svg.firstElementChild?.setAttribute("d", o ? o.d : "");
+      }
+      // Ports placed on a shape last time are measured afresh from their side.
+      for (const p of list) if (p.__onOutline) { p.style.left = p.style.top = ""; p.__onOutline = false; }
       const box = nodeEl.getBoundingClientRect();
       const z = view.zoom || 1;
       geo.set(id, { ...(geo.get(id) || { x: 0, y: 0 }), w: nodeEl.offsetWidth, h: nodeEl.offsetHeight });
@@ -442,7 +501,17 @@
         // A port on the node itself sits inside its border (`100%` is the padding
         // box), so its edges start from the border instead. Ports deeper inside,
         // e.g. on a row, keep their own point.
-        if (onNode(p)) {
+        if (onNode(p) && o) {
+          // On a shape: where the line through the port, across its side, meets the outline.
+          const [dx, dy] = DIRS[side];
+          const at = hit(o, dx ? w / 2 : x, dy ? h / 2 : y, dx, dy);
+          if (at) {
+            [x, y] = at;
+            p.style.left = x + "px";
+            p.style.top = y + "px";
+            p.__onOutline = true;
+          }
+        } else if (onNode(p)) {
           if (side === "left") x = 0;
           else if (side === "right") x = w;
           else if (side === "top") y = 0;
@@ -502,6 +571,8 @@
         if (!n) continue;
         show(nodeEl, true);
         if (nodeEl.__node !== n) { dress(nodeEl, n); nodeEl.__node = n; dirty.add(nodeEl); }
+        const shape = nodeEl.getAttribute("data-shape") + " " + nodeEl.getAttribute("data-points");
+        if (nodeEl.__shape !== shape) { nodeEl.__shape = shape; dirty.add(nodeEl); }
         if (!watched.has(nodeEl)) { watched.add(nodeEl); observer.observe(nodeEl); dirty.add(nodeEl); }
         if (all) dirty.add(nodeEl);
       }
@@ -510,7 +581,7 @@
         if (nodeEl.isConnected && byId.has(id)) measure(nodeEl, id);
       }
       dirty.clear();
-      for (const id of geo.keys()) if (!byId.has(id)) { geo.delete(id); ports.delete(id); }
+      for (const id of geo.keys()) if (!byId.has(id)) { geo.delete(id); ports.delete(id); shapes.delete(id); }
       layout();
       search();
       place(els);
@@ -614,6 +685,17 @@
     const show = (n, v) => (n.style.display = v ? "" : "none");
     const flag = (n, attr, v) => (v ? n.setAttribute(attr, "") : n.removeAttribute(attr));
 
+    // Where the line between two nodes' centres leaves node `a`'s outline (its box,
+    // without a shape), and on which side, for floating edges.
+    function meet(a, b) {
+      const g = geo.get(a), q = geo.get(b);
+      const dx = q.x + q.w / 2 - (g.x + g.w / 2), dy = q.y + q.h / 2 - (g.y + g.h / 2);
+      if (!dx && !dy) return { x: g.x + g.w / 2, y: g.y + g.h / 2, side: "right" };
+      const [px, py] = hit(shapes.get(a) || outline("rect", null, g.w, g.h), g.w / 2, g.h / 2, dx, dy) || [g.w / 2, g.h / 2];
+      const sx = dx ? g.w / 2 / Math.abs(dx) : Infinity, sy = dy ? g.h / 2 / Math.abs(dy) : Infinity;
+      return { x: g.x + px, y: g.y + py, side: sx < sy ? (dx > 0 ? "right" : "left") : dy > 0 ? "bottom" : "top" };
+    }
+
     // A port's point, by handle id, or the first port of the right type, or the middle
     // of the side the flow's direction gives.
     function end(id, handle, type) {
@@ -652,8 +734,8 @@
         const kind = tc.path || builtin || opt("edgePath", "bezier");
         let a, b;
         if (tc.floating || type === "floating") {
-          a = border(geo.get(s), geo.get(t));
-          b = border(geo.get(t), geo.get(s));
+          a = meet(s, t);
+          b = meet(t, s);
         } else {
           a = end(s, e.sourceHandle, "source");
           b = end(t, e.targetHandle, "target");
@@ -793,7 +875,11 @@
       mini.__map = { ox, oy, s };
       const sel = selected === null || selected === undefined ? null : str(selected);
       let html = "";
-      for (const [id, g] of geo) html += `<rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="${4 * s}"${id === sel ? " data-selected" : ""}/>`;
+      for (const [id, g] of geo) {
+        const mark = id === sel ? " data-selected" : "";
+        const o = shapes.get(id);
+        html += o ? `<path transform="translate(${g.x},${g.y})" d="${o.d}"${mark}/>` : `<rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="${4 * s}"${mark}/>`;
+      }
       html += `<path fill-rule="evenodd" d="M${ox},${oy}h${W * s}v${H * s}h${-W * s}z M${vx},${vy}h${vw}v${vh}h${-vw}z"/>`;
       mini.innerHTML = html;
     }

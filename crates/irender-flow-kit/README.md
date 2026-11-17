@@ -1,6 +1,6 @@
 # irender-flow-kit
 
-Node-and-edge diagrams for [iRender](../../README.md) documents: flowcharts, workflows and ER diagrams. `ui-flow` reads nodes and edges in [React Flow](https://reactflow.dev/)'s JSON shape, so a graph React Flow saved renders as it is. Every node type is a template you write as an ordinary iRender tree, so a node can hold any component, including [irender-ui-kit](../irender-ui-kit/README.md)'s, icons and sparklines. The kit's script handles pan and zoom, automatic layout, edge routing, selection, dragging, connecting, deleting, a palette, containers, copy and paste, undo, search and the minimap. It is about 23 KB gzipped (unminified), needs no other library, and is added once per page that has a flow.
+Node-and-edge diagrams for [iRender](../../README.md) documents: flowcharts, workflows and ER diagrams. `ui-flow` reads nodes and edges in [React Flow](https://reactflow.dev/)'s JSON shape, so a graph React Flow saved renders as it is. Every node type is a template you write as an ordinary iRender tree, so a node can hold any component, including [irender-ui-kit](../irender-ui-kit/README.md)'s, icons and sparklines. The kit's script handles pan and zoom, automatic layout, edge routing, selection, dragging, connecting, deleting, a palette, containers, copy and paste, undo, search and the minimap. It is about 26 KB gzipped (unminified), needs no other library, and is added once per page that has a flow.
 
 ```rust
 let mut engine = irender_html::Engine::new();
@@ -93,6 +93,33 @@ For a number of ports, such as a merge's inputs, list over `range`:
   props: { items: "{{ range(node.data.inputCount) }}", as: i }
   children: [{ type: ui-flow-port, props: { id: "input-{{ i }}", type: target } }]
 ```
+
+### Shapes
+
+```yaml
+- type: ui-flow-node
+  props: { type: if, shape: diamond }          # or "{{ node.data.shape }}"
+  style: { width: 170, height: 96 }
+  parts: { shape: { style: { fill: "#fff1f2", stroke: "#f43f5e" } } }
+  children:
+    - { type: text, props: { value: "{{ node.data.label }}" } }
+    - { type: ui-flow-port, props: { type: target } }        # the left tip
+    - { type: ui-flow-port, props: { id: "true" } }           # the right tip
+    - { type: ui-flow-port, props: { id: "false", side: bottom } }
+```
+
+`shape` draws the node's outline behind its content.
+
+- **Available shapes:** `rect`, `rounded`, `pill`, `circle`, `ellipse`, `diamond`, `hexagon`, `parallelogram`, `triangle` and `cylinder`. `polygon` with `points` (corners in percent of the box, e.g. `0,20 50,0 100,20 85,100 15,100`) covers anything else.
+- **Shape from data:** it can come from the node, e.g. `"{{ node.data.shape || 'rect' }}"`, and a node redraws when its shape changes.
+- **Drawing:**
+  - The outline is drawn at the node's size in pixels, so pill ends and cylinder rims don't stretch.
+  - With `variant: card`, the box itself has no border or background, and the content is centred.
+  - Style the outline through `parts.shape`, with `fill`, `stroke` and `stroke-width`.
+- **Ports:** a port on the node sits on the outline: a diamond's left port is its left tip, and one `offset` 25% down its left side lies on the slanted edge.
+- **Edges:** floating edges meet the outline too, not the box.
+- **State:** selection and keyboard focus show on the outline rather than as a box around the node.
+- **Minimap:** it draws the shapes.
 
 ### Containers
 

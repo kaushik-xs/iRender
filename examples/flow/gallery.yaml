@@ -39,6 +39,27 @@ state:
   dir: LR
   doomed: null
   # Containers: a loop with steps inside it
+  # Shapes: a flowchart, each node's shape in its data
+  fcNodes:
+    - { id: start, type: step, data: { label: Order received, shape: pill } }
+    - { id: check, type: step, data: { label: Check payment, shape: rounded } }
+    - { id: paid, type: step, data: { label: Paid?, shape: diamond } }
+    - { id: read, type: step, data: { label: Read stock, shape: parallelogram } }
+    - { id: stock, type: step, data: { label: Inventory, shape: cylinder } }
+    - { id: remind, type: step, data: { label: Send reminder, shape: hexagon } }
+    - { id: ship, type: step, data: { label: Ship, shape: rounded } }
+    - { id: done, type: step, data: { label: Done, shape: circle } }
+  fcEdges:
+    - { id: f1, source: start, target: check }
+    - { id: f2, source: check, target: paid }
+    - { id: f3, source: paid, target: read, label: "yes" }
+    - { id: f4, source: paid, target: remind, label: "no" }
+    - { id: f5, source: read, target: stock, type: floating }
+    - { id: f6, source: read, target: ship }
+    - { id: f7, source: remind, target: check, type: floating, label: retry }
+    - { id: f8, source: ship, target: done }
+  fcShape: diamond
+  fcSel: null
   sfNodes:
     - { id: fetch, type: step, position: { x: 0, y: 90 }, data: { label: Fetch orders } }
     - { id: each, type: loop, position: { x: 240, y: 0 }, width: 470, height: 230, data: { label: For each order } }
@@ -174,14 +195,14 @@ root:
                 - { type: ui-flow-port, props: { type: target } }
                 - { type: ui-flow-port, props: { type: source } }
 
-            # Two named outputs, in fixed places whatever the direction.
+            # A diamond, as in the builder, with two named outputs on its tips.
             - type: ui-flow-node
-              props: { type: if }
-              style: { text-align: left, min-width: 170, border-style: dashed }
+              props: { type: if, shape: diamond }
+              attrs: { title: "{{ node.data.detail }}" }
+              style: { width: 170, height: 96, padding: "0 34px" }
+              parts: { shape: { style: { fill: "color-mix(in srgb, #f43f5e 8%, var(--color-surface, #fff))", stroke: "#f43f5e" } } }
               children:
-                - { type: ui-badge, props: { text: If, variant: secondary } }
-                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600, margin-top: 6 } }
-                - { type: text, props: { tag: div, value: "{{ node.data.detail }}" }, style: { color: $color.muted, font-size: 11, font-family: "ui-monospace, monospace" } }
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600 } }
                 - { type: ui-flow-port, props: { type: target } }
                 - { type: ui-flow-port, props: { id: "true", side: "{{ dir == 'TB' ? 'bottom' : 'right' }}" }, style: { background: "#16a34a" } }
                 - { type: ui-flow-port, props: { id: "false", side: "{{ dir == 'TB' ? 'right' : 'bottom' }}" }, style: { background: "#dc2626" } }
@@ -257,6 +278,51 @@ root:
               children:
                 - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: wf } } } }
                 - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: wf } } } }
+
+    # ------------------------------------------------------------ shapes
+    - type: ui-card
+      props:
+        title: Shapes
+        description: "A flowchart. Each node's shape comes from its data, its ports sit on the outline, and floating edges meet the outline, not the box. Pick a node and give it another shape."
+      children:
+        - type: stack
+          props: { direction: row, gap: 8, align: center, wrap: true }
+          style: { margin-bottom: 12 }
+          children:
+            - type: ui-select
+              props: { bind: fcShape, options: [rect, rounded, pill, circle, ellipse, diamond, hexagon, parallelogram, triangle, cylinder] }
+              style: { width: 170 }
+            - type: ui-button
+              props: { label: Use for the selected node, size: sm, variant: outline, disabled: "{{ !fcSel }}" }
+              on: { click: { action: call, name: flow.update, args: { flow: shapes, shape: "{{ fcShape }}" } } }
+        - type: ui-flow
+          attrs: { id: shapes }
+          props:
+            nodes: "{{ fcNodes }}"
+            edges: "{{ fcEdges }}"
+            title: Order flowchart
+            layout: layered
+            direction: TB
+            rankGap: 56
+            editable: true
+            bind: fcSel
+            bindNodes: fcNodes
+            bindEdges: fcEdges
+            newNode: { type: step, data: { label: Step, shape: rounded } }
+            height: 560
+          children:
+            - type: ui-flow-node
+              props: { type: step, shape: "{{ node.data.shape || 'rect' }}" }
+              style: { width: 150, height: 64 }
+              children:
+                - { type: text, props: { value: "{{ node.data.label }}" } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+            - type: ui-flow-edge
+              props: { marker: arrowclosed, path: smoothstep }
+            - type: ui-flow-edge
+              props: { type: floating, floating: true, path: straight, marker: arrowclosed }
+              style: { stroke-dasharray: "4 3" }
 
     # ------------------------------------------------------------ containers
     - type: ui-card

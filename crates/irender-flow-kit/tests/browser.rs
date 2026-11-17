@@ -614,3 +614,61 @@ fn side_form_updates_and_saved_styles() {
         "cleared null",
     ]);
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn shapes_outline_ports_and_floating_edges() {
+    let tpl = json!({ "type": "ui-flow-node", "props": { "type": "s", "shape": "{{ node.data.shape }}" },
+        "style": { "width": 200, "height": 100 },
+        "parts": { "shape": { "style": { "fill": "rgb(1, 2, 3)" } } },
+        "children": [
+            { "type": "text", "props": { "value": "{{ node.id }}" } },
+            { "type": "ui-flow-port", "props": { "id": "in", "type": "target" } },
+            { "type": "ui-flow-port", "props": { "id": "up", "type": "target", "side": "left", "offset": "25%" } },
+            { "type": "ui-flow-port", "props": { "id": "out", "type": "source" } } ] });
+    let doc = json!({ "version": 1,
+        "state": { "nodes": [
+                { "id": "d", "type": "s", "position": { "x": 0, "y": 0 }, "data": { "shape": "diamond" } },
+                { "id": "c", "type": "s", "position": { "x": 400, "y": 300 }, "data": { "shape": "circle" } } ],
+            "edges": [{ "id": "dc", "source": "d", "target": "c", "type": "floating" }] },
+        "root": { "type": "ui-flow", "attrs": { "id": "f" },
+            "props": { "nodes": "{{ nodes }}", "edges": "{{ edges }}", "bindNodes": "nodes", "fit": false, "minimap": true,
+                       "viewport": { "x": 0, "y": 0, "zoom": 1 } },
+            "children": [tpl, { "type": "ui-flow-edge", "props": { "floating": true, "path": "straight" } }] } });
+    let driver = r##"
+        const f = "f";
+        const box = (id) => node(f, id).getBoundingClientRect();
+        const portAt = (id, pid) => { const p = node(f, id).querySelector(`[data-flow-port="${pid}"]`).getBoundingClientRect(), b = box(id);
+          return [Math.round(p.left + p.width / 2 - b.left), Math.round(p.top + p.height / 2 - b.top)]; };
+        const svg = node(f, "d").querySelector("[data-flow-shape]");
+        log("outline", svg.getAttribute("viewBox"), /^M100,0 L200,50 L100,100 L0,50 Z$/.test(svg.firstElementChild.getAttribute("d")),
+            getComputedStyle(svg.firstElementChild).fill);
+        // Ports on a diamond: the tips, and a quarter of the way down the left edges.
+        log("ports", portAt("d", "in").join(","), portAt("d", "out").join(","), portAt("d", "up").join(","));
+        // A floating edge meets the circle's outline, not its box.
+        const d = edge(f, "dc").querySelector("[data-flow-path]").getAttribute("d").match(/[-\d.]+/g).map(Number);
+        const [ex, ey] = d.slice(-2), cx = 400 + 100, cy = 300 + 50;
+        log("circle", Math.abs(Math.hypot(ex - cx, ey - cy) - 50) < 1.5);
+        // From the diamond's outline too: |x−100|/100 + |y−50|/50 = 1.
+        const [sx, sy] = d.slice(0, 2);
+        log("diamond", Math.abs(Math.abs(sx - 100) / 100 + Math.abs(sy - 50) / 50 - 1) < 0.02);
+        // The shape can change with the data.
+        set("nodes", S().nodes.map((n) => (n.id === "d" ? { ...n, data: { shape: "ellipse" } } : n)));
+        await wait(100);
+        log("changed", node(f, "d").getAttribute("data-shape"), /a100,50/.test(node(f, "d").querySelector("[data-flow-shape] path").getAttribute("d")));
+        // Selected: the outline shows it, not a box around the node.
+        click(node(f, "c"));
+        log("selected", getComputedStyle(node(f, "c")).outlineStyle, getComputedStyle(node(f, "c").querySelector("[data-flow-shape] path")).strokeWidth);
+        log("minimap", flow(f).querySelectorAll("[data-flow-minimap] path[transform]").length);
+    "##;
+    let Some(lines) = run("shapes", doc, driver) else { return };
+    check(&lines, &[
+        "outline 0 0 200 100 true rgb(1, 2, 3)",
+        "ports 0,50 200,50 50,25",
+        "circle true",
+        "diamond true",
+        "changed ellipse true",
+        "selected none 2px",
+        "minimap 2",
+    ]);
+}

@@ -48,6 +48,10 @@ pub fn register(registry: &mut Registry) {
         .register(Item);
 }
 
+/// The outlines a node can have.
+pub const SHAPES: &[&str] =
+    &["rect", "rounded", "pill", "circle", "ellipse", "diamond", "hexagon", "parallelogram", "triangle", "cylinder", "polygon"];
+
 /// The paths an edge can take.
 pub const PATHS: &[&str] = &["bezier", "straight", "step", "smoothstep"];
 
@@ -351,8 +355,22 @@ fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
     };
     el.base_style_ref(&NODE_BOX);
     let plain = template.and_then(|t| cx.prop_string(t, "variant")).as_deref() == Some("plain");
+    // A shape: the kit draws its outline behind the content, so the box itself has
+    // no border or background. The shape may come from the node, e.g. its data.
+    let shape = template.and_then(|t| t.prop("shape")).filter(|v| !matches!(v, Val::Lit(Json::Null)));
+    if let Some(Val::Lit(Json::String(s))) = shape
+        && !SHAPES.contains(&s.as_str())
+    {
+        return Err(RenderError::new(template.unwrap_or(flow), format!("unknown shape `{s}`; use one of {}", SHAPES.join(", "))));
+    }
     if !plain {
-        el.base_style_ref(&CARD);
+        el.base_style_ref(if shape.is_some() { &SHAPED_CARD } else { &CARD });
+    }
+    if let Some(shape) = shape {
+        el.attr("data-shape", shape.clone());
+    }
+    if let Some(points) = template.and_then(|t| t.prop("points")) {
+        el.attr("data-points", points.clone());
     }
     el.attr("data-flow-node", id.clone())
         .attr("data-type", tpl("{{ node.type }}"))
@@ -369,6 +387,17 @@ fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
     }
     let host = template.unwrap_or(flow);
     cx.open(&el, host)?;
+    if let (Some(t), Some(_)) = (template, shape) {
+        // Sized and drawn by the script, in the node's own pixels.
+        let mut svg = Element::new("svg");
+        svg.base_style_ref(&SHAPE_SVG).attr("data-flow-shape", "").attr("aria-hidden", "true");
+        cx.open(&svg, t)?;
+        let mut outline = cx.part("path", t, "shape");
+        outline.base_style_ref(&OUTLINE);
+        cx.open(&outline, t)?;
+        cx.close("path");
+        cx.close("svg");
+    }
     match template {
         Some(t) => {
             cx.with_context("ui-flow-node", Some(Val::Lit(Json::Bool(true))), |cx| cx.children(t))?;
@@ -500,6 +529,8 @@ struct Template_(Kind);
 const NODE_TEMPLATE_PROPS: &[PropDef] = &[
     PropDef::new("type", PropKind::String, "The node type this template draws. Leave it out (or use `default`) for every type no other template declares"),
     PropDef::new("variant", PropKind::Enum(&["card", "plain"]), "`card` (default) gives the node a border, background and padding; `plain` leaves all of it to `style`"),
+    PropDef::new("shape", PropKind::Any, "The node's outline: `rect`, `rounded`, `pill`, `circle`, `ellipse`, `diamond`, `hexagon`, `parallelogram`, `triangle` or `cylinder`; or `polygon` with `points`. May use the node, e.g. `{{ node.data.shape }}`. Style it through `parts.shape` (`fill`, `stroke`)"),
+    PropDef::new("points", PropKind::Any, "With `shape: polygon`: the corners as percentages of the box, e.g. `50,0 100,50 50,100 0,50`"),
     PropDef::new("container", PropKind::Bool, "Other nodes can sit inside it: dragging a node onto it makes it the node's parent, and off it, takes it out"),
     PropDef::new("resizable", PropKind::Bool, "A handle in the bottom-right corner resizes the node; the size is saved as its `width` and `height`"),
     PropDef::new("minWidth", PropKind::Number, "Smallest width when resizing (default 80)"),
@@ -528,7 +559,7 @@ impl Component for Template_ {
             Kind::Node => ComponentInfo {
                 doc: "A node type of the `ui-flow` it is in: its children are drawn for every node of that `type`, with the node in scope as `node`. Place `ui-flow-port`s inside.",
                 props: NODE_TEMPLATE_PROPS,
-                parts: &[],
+                parts: &["shape"],
                 children: true,
                 open_props: false,
             },
@@ -793,6 +824,13 @@ static NODE_BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&[data-selected]", pairs(&[("outline", &format!("2px solid {PRIMARY}")), ("outline-offset", "2px")]))
     .nest("&:focus-visible", pairs(&[("outline", &format!("2px solid {RING}")), ("outline-offset", "2px")]))
     .nest("&[data-dimmed]", pairs(&[("opacity", "0.3")]))
+    // A shaped node shows its state on its outline, not as a box around it.
+    .nest("&[data-shape]", pairs(&[("isolation", "isolate")]))
+    .nest("&[data-shape][data-selected]", pairs(&[("outline", "none")]))
+    .nest("&[data-shape]:focus-visible", pairs(&[("outline", "none")]))
+    .nest("&[data-shape][data-selected] > [data-flow-shape] > path", pairs(&[("stroke", PRIMARY), ("stroke-width", "2")]))
+    .nest("&[data-shape]:focus-visible > [data-flow-shape] > path", pairs(&[("stroke", RING), ("stroke-width", "2")]))
+    .nest("&[data-shape][data-drop-target]", pairs(&[("outline", "none")]))
     .nest("&[data-neighbor]", pairs(&[("opacity", "0.8"), ("outline", &format!("1px dashed {MUTED}")), ("outline-offset", "3px")]))
 });
 
@@ -809,6 +847,39 @@ static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("text-align", "center"),
         ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.06)"),
     ])
+});
+
+/// A shaped node's content: centred, with the shape's outline behind it.
+static SHAPED_CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("min-width", "100px"),
+        ("min-height", "56px"),
+        ("padding", "12px 18px"),
+        ("display", "grid"),
+        ("place-items", "center"),
+        ("text-align", "center"),
+        ("color", TEXT),
+        ("font-size", "12px"),
+        ("line-height", "1.4"),
+    ])
+});
+
+/// The outline's canvas, behind the node's content.
+static SHAPE_SVG: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("position", "absolute"),
+        ("left", "0"),
+        ("top", "0"),
+        ("width", "100%"),
+        ("height", "100%"),
+        ("overflow", "visible"),
+        ("z-index", "-1"),
+        ("pointer-events", "none"),
+    ])
+});
+
+static OUTLINE: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("fill", SURFACE), ("stroke", "var(--color-border, #d4d4d8)"), ("stroke-width", "1.5"), ("stroke-linejoin", "round")])
 });
 
 static PORT: LazyLock<StyleBlock> = LazyLock::new(|| {

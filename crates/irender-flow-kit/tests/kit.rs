@@ -217,3 +217,23 @@ fn containers_and_search_props() {
     assert_eq!(page.body.matches("data-flow-resize").count(), 1, "only the resizable template has a handle");
     assert!(page.body.contains(r#"data-scope="children""#));
 }
+
+#[test]
+fn shapes_render_an_outline_and_reject_unknown_ones() {
+    let page = render(
+        json!({ "type": "ui-flow", "props": { "nodes": nodes() }, "children": [
+            { "type": "ui-flow-node", "props": { "type": "task", "shape": "diamond" }, "parts": { "shape": { "style": { "fill": "red" } } } } ] }),
+        json!({}),
+    )
+    .unwrap();
+    assert!(page.body.contains(r#"data-shape="diamond""#), "{}", page.body);
+    assert!(page.body.contains("data-flow-shape") && page.body.contains("<path"));
+    assert!(page.css.contains("fill:red") || page.css.contains("fill: red"));
+    let err = render(
+        json!({ "type": "ui-flow", "props": { "nodes": nodes() }, "children": [
+            { "type": "ui-flow-node", "props": { "type": "task", "shape": "star" } } ] }),
+        json!({}),
+    )
+    .unwrap_err();
+    assert!(err.message.contains("unknown shape `star`"), "{}", err.message);
+}
