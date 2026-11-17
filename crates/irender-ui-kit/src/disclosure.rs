@@ -1,15 +1,16 @@
 //! Components that show or switch content: accordion and collapsible (native
-//! `<details>`), tabs, toggle and toggle group (state and actions).
+//! `<details>`), tabs, toggle and toggle group (state and actions), and the theme
+//! toggle (a client behaviour).
 
 use crate::{
-    ACCENT, MUTED, SUBTLE, SURFACE, TEXT, choice, context, expr_val, id_with, instance_id, lit, server_array,
+    ACCENT, MUTED, SUBTLE, SURFACE, TEXT, choice, context, expr_val, field, id_with, instance_id, lit, server_array,
     state, state_eq, state_not, synthetic,
 };
 use irender_core::{
     Action, ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val,
     expr::{self, BinOp, Expr, UnOp},
 };
-use irender_html::{Component, RenderCx, RenderError};
+use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
 
@@ -447,6 +448,59 @@ impl Component for ToggleGroup {
                 el.attr("disabled", true);
             }
             cx.open(&el, &item)?;
+            cx.close("button");
+        }
+        cx.close("div");
+        Ok(())
+    }
+}
+
+pub struct ThemeToggle;
+
+const THEME_TOGGLE_SCRIPT: &str = include_str!("theme_toggle.js");
+const THEME_TOGGLE_PROPS: &[PropDef] = &[
+    PropDef::new("labels", PropKind::Any, "Button text as `{ system, light, dark }`; default System, Light, Dark"),
+    PropDef::new("variant", PropKind::Enum(TOGGLE_VARIANTS), "Default `outline`"),
+    PropDef::new("size", PropKind::Enum(TOGGLE_SIZES), "Default `sm`"),
+];
+const SCHEMES: [(&str, &str); 3] = [("system", "System"), ("light", "Light"), ("dark", "Dark")];
+
+impl Component for ThemeToggle {
+    fn name(&self) -> &'static str {
+        "ui-theme-toggle"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "Switches the page between the system's colour scheme, light and dark, and remembers the choice in the browser.",
+            THEME_TOGGLE_PROPS,
+            &[],
+            false,
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let variant = &TOGGLE_VARIANT_STYLES[cx.prop_string(node, "variant").map_or(1, |_| choice(cx, node, "variant", TOGGLE_VARIANTS))];
+        let size = &TOGGLE_SIZE_STYLES[cx.prop_string(node, "size").map_or(1, |_| choice(cx, node, "size", TOGGLE_SIZES))];
+        let labels = cx.prop(node, "labels").unwrap_or(Json::Null);
+        cx.global_js("ui-theme-toggle", THEME_TOGGLE_SCRIPT);
+        let mut group = cx.element("div", node);
+        group
+            .base_style_ref(&TOGGLE_GROUP)
+            .attr("role", "group")
+            .attr("aria-label", "Colour scheme")
+            .behavior("ui-theme-toggle", json!({}));
+        cx.open(&group, node)?;
+        // The server can't know the stored choice; the behaviour corrects `aria-pressed`.
+        for (scheme, default) in SCHEMES {
+            let mut button = Element::new("button");
+            button
+                .base_style_ref(&TOGGLE)
+                .base_style_ref(variant)
+                .base_style_ref(size)
+                .attr("type", "button")
+                .attr("data-scheme", scheme)
+                .attr("aria-pressed", if scheme == "system" { "true" } else { "false" })
+                .text(lit(field(&labels, scheme).unwrap_or_else(|| default.into())));
+            cx.open(&button, node)?;
             cx.close("button");
         }
         cx.close("div");

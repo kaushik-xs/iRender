@@ -16,12 +16,17 @@ root:
   children:
     - type: stack
       props: { gap: 12 }
-      style: { max-width: 640 }
       children:
-        - { type: ui-badge, props: { text: iRender, variant: outline } }
+        # The theme toggle overrides the system's colour scheme and remembers it.
+        - type: stack
+          props: { direction: row, justify: space-between, align: center }
+          children:
+            - { type: ui-badge, props: { text: iRender, variant: outline } }
+            - { type: ui-theme-toggle }
         - { type: ui-heading, props: { level: 1, text: Examples } }
         - type: ui-text
           props: { variant: lead, text: "Every page here was rendered from a JSON or YAML document. Open one, then read its source." }
+          style: { max-width: 640 }
         # Picking an example goes straight to it.
         - type: ui-combobox
           props:
@@ -32,6 +37,7 @@ root:
             valueField: href
             labelField: title
             descriptionField: summary
+          style: { max-width: 640 }
           on: { change: { action: navigate, url: "{{ goto }}" } }
 
     - type: list

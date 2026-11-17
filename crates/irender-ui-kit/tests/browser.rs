@@ -284,3 +284,62 @@ fn combobox_in_chrome() {
     );
     assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1, "one request for two identical searches");
 }
+
+/// Forces dark, then light, then back to the system scheme (light in headless Chrome).
+const THEME_DRIVER: &str = r##"<style>* { transition: none !important; }</style>
+<script>
+window.addEventListener("load", () => {
+  const out = [];
+  const log = (...a) => out.push(a.join(" "));
+  const bg = () => getComputedStyle(document.body).backgroundColor;
+  const marked = () => getComputedStyle(document.querySelector("#marked")).color;
+  const [first, second] = document.querySelectorAll("[role=group]");
+  const pressed = (g) => [...g.querySelectorAll("button")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.textContent).join();
+  const pick = (g, t) => [...g.querySelectorAll("button")].find((b) => b.textContent === t).click();
+  try {
+    log("start", pressed(first), bg(), marked());
+    pick(first, "Dark");
+    log("dark", pressed(first), pressed(second), bg(), marked(), document.documentElement.style.colorScheme, localStorage.getItem("irender-theme"));
+    pick(second, "Light");
+    log("light", pressed(first), bg(), marked());
+    pick(first, "System");
+    log("system", pressed(second), bg(), marked(), document.documentElement.style.colorScheme === "");
+  } catch (e) {
+    log("error", e.message);
+  }
+  localStorage.removeItem("irender-theme");
+  const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+});
+</script>
+"##;
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn theme_toggle_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "theme": { "tokens": { "color": { "surface": "rgb(255, 255, 255)" } }, "modes": { "dark": { "color": { "surface": "rgb(0, 0, 0)" } } } },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-theme-toggle" },
+            { "type": "ui-theme-toggle", "props": { "labels": { "light": "Light" } } },
+            { "type": "text", "attrs": { "id": "marked" }, "props": { "value": "x" },
+              "style": { "color": "rgb(1, 1, 1)", "@dark": { "color": "rgb(2, 2, 2)" } } }
+        ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{THEME_DRIVER}</body>"));
+    let Some(result) = drive("theme", &html) else { return };
+    let lines: Vec<&str> = result.lines().collect();
+    assert_eq!(
+        lines,
+        [
+            "start System rgb(255, 255, 255) rgb(1, 1, 1)",
+            // The theme's dark mode and `@dark` styles follow, and every toggle shows it.
+            "dark Dark Dark rgb(0, 0, 0) rgb(2, 2, 2) dark dark",
+            "light Light rgb(255, 255, 255) rgb(1, 1, 1)",
+            "system System rgb(255, 255, 255) rgb(1, 1, 1) true",
+        ],
+        "\n{result}"
+    );
+}

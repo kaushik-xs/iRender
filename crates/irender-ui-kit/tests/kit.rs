@@ -75,7 +75,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 45);
+    assert_eq!(kit, 46);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -471,8 +471,10 @@ fn examples_index_renders_with_a_jump_to_combobox() {
     let page = engine.render(&ir, &data).unwrap();
     let examples = data["examples"].as_array().unwrap();
     assert_eq!(page.body.matches("<article").count(), examples.len());
+    assert!(page.body.contains("data-i-x=\"ui-theme-toggle\""), "the index has a theme toggle");
     // The combobox lists every example by title, with its page as the value.
-    let options = &config(&page.body)["options"];
+    let combobox = page.body.find("data-i-x=\"ui-combobox\"").unwrap();
+    let options = &config(&page.body[combobox..])["options"];
     assert_eq!(options.as_array().unwrap().len(), examples.len());
     assert_eq!(options[0]["value"], examples[0]["href"]);
     assert_eq!(options[0]["label"], examples[0]["title"]);

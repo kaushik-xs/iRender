@@ -77,6 +77,7 @@ pub fn register(registry: &mut Registry) {
         .register(disclosure::TabPanel)
         .register(disclosure::Toggle)
         .register(disclosure::ToggleGroup)
+        .register(disclosure::ThemeToggle)
         .register(overlay::Dialog::DIALOG)
         .register(overlay::Dialog::ALERT)
         .register(overlay::Dialog::SHEET)
