@@ -8,9 +8,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-irender-core.workspace = true
-irender-html.workspace = true
+# Without the CSS validator and YAML, so the browser renderer (irender-wasm) stays small;
+# the CLI and hosts turn them on.
+irender-core = { workspace = true, default-features = false }
+irender-html = { workspace = true, default-features = false }
 serde_json.workspace = true
 
 [dev-dependencies]
+irender-html.workspace = true
 irender-ui-kit.workspace = true

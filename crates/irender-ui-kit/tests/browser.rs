@@ -1346,6 +1346,25 @@ fn chat_server() -> u16 {
             }
             // How many messages it was sent, so the reply shows the whole conversation arrived.
             let sent = request.matches("\"content\"").count();
+            let module = [("GET /ok.wasm", 0, "<b>From the browser</b>"), ("GET /err.wasm", 1, "no such component")]
+                .into_iter()
+                .find(|(route, _, _)| request.starts_with(route));
+            if let Some((_, status, out)) = module {
+                let module = fake_renderer(status, out);
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: application/wasm\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", module.len());
+                let _ = stream.write_all(&module);
+                continue;
+            }
+            if request.starts_with("GET ") {
+                let _ = write!(stream, "HTTP/1.1 404 Not Found\r\n{cors}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                continue;
+            }
+            if request.starts_with("POST /render") {
+                let ok = request.contains(r#"{"ui":{"type":"ui-badge"#);
+                let body = if ok { "<i>From the server</i>" } else { "bad request" };
+                let _ = write!(stream, "HTTP/1.1 {}\r\n{cors}\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", if ok { "200 OK" } else { "400 Bad Request" }, body.len());
+                continue;
+            }
             if request.starts_with("POST /ui") {
                 let html = serde_json::to_string(&serde_json::json!({ "html": message_ui() })).unwrap();
                 let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\ndata: {{\"content\":\"Here\"}}\n\ndata: {html}\n\ndata: [DONE]\n\n");
@@ -1574,6 +1593,119 @@ fn message_ui_in_chrome() {
             "slides 4 prev=true next=false",
             // One slide and the gap.
             "next 312",
+        ],
+        "\n{result}"
+    );
+}
+
+/// A WebAssembly module with irender-wasm's exports that answers every render with
+/// `status` and `out`, to drive the page's loader without the real module.
+fn fake_renderer(status: u8, out: &str) -> Vec<u8> {
+    fn uleb(mut n: usize, to: &mut Vec<u8>) {
+        loop {
+            let b = (n & 0x7f) as u8;
+            n >>= 7;
+            to.push(if n == 0 { b } else { b | 0x80 });
+            if n == 0 { break; }
+        }
+    }
+    // `i32.const n` for small non-negative n, then `end`.
+    fn constant(n: usize) -> Vec<u8> {
+        let mut c = vec![0x41];
+        let mut n = n as i64;
+        loop {
+            let b = (n & 0x7f) as u8;
+            n >>= 7;
+            let done = n == 0 && b & 0x40 == 0;
+            c.push(if done { b } else { b | 0x80 });
+            if done { break; }
+        }
+        c.push(0x0b);
+        c
+    }
+    fn section(id: u8, body: Vec<u8>, to: &mut Vec<u8>) {
+        to.push(id);
+        uleb(body.len(), to);
+        to.extend(body);
+    }
+    let name = |n: &str, kind: u8, index: u8| {
+        let mut e = vec![n.len() as u8];
+        e.extend(n.as_bytes());
+        e.extend([kind, index]);
+        e
+    };
+    let (input, output) = (1024, 4096);
+    let mut m = b"\0asm\x01\0\0\0".to_vec();
+    // (i32) -> i32, (i32, i32) -> i32, () -> i32
+    section(1, vec![3, 0x60, 1, 0x7f, 1, 0x7f, 0x60, 2, 0x7f, 0x7f, 1, 0x7f, 0x60, 0, 1, 0x7f], &mut m);
+    section(3, vec![4, 0, 1, 2, 2], &mut m);
+    section(5, vec![1, 0, 1], &mut m);
+    let mut exports = vec![5];
+    for e in [name("memory", 2, 0), name("irender_alloc", 0, 0), name("irender_render", 0, 1), name("irender_out_ptr", 0, 2), name("irender_out_len", 0, 3)] {
+        exports.extend(e);
+    }
+    section(7, exports, &mut m);
+    let mut code = vec![4];
+    for body in [constant(input), constant(status as usize), constant(output), constant(out.len())] {
+        uleb(body.len() + 1, &mut code);
+        code.push(0); // no locals
+        code.extend(body);
+    }
+    section(10, code, &mut m);
+    let mut data = vec![1, 0];
+    data.extend(constant(output));
+    uleb(out.len(), &mut data);
+    data.extend(out.as_bytes());
+    section(11, data, &mut m);
+    m
+}
+
+/// A message's `ui` without `html` is rendered by the first way that works: the browser
+/// module, then the server's endpoint; with neither, the message says so. `html` wins.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn message_ui_render_ways_in_chrome() {
+    let port = chat_server();
+    let at = |p: &str| format!("http://127.0.0.1:{port}{p}");
+    let ui = serde_json::json!({ "type": "ui-badge", "props": { "text": "B" } });
+    let message = |id: &str, render: serde_json::Value, html: Option<&str>| {
+        let mut props = serde_json::json!({ "content": id, "ui": ui, "render": render });
+        if let Some(h) = html {
+            props["html"] = h.into();
+        }
+        serde_json::json!({ "type": "ui-message", "attrs": { "id": id }, "props": props })
+    };
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "stack", "children": [
+        message("browser", serde_json::json!({ "browser": at("/ok.wasm"), "url": at("/render") }), None),
+        message("fallback", serde_json::json!({ "browser": at("/err.wasm"), "url": at("/render") }), None),
+        message("missing", serde_json::json!({ "browser": at("/missing.wasm") }), None),
+        message("server", serde_json::json!({ "url": at("/render") }), None),
+        message("html", serde_json::json!({ "browser": at("/ok.wasm") }), Some("<u>Given</u>")) ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const ids = ["browser", "fallback", "missing", "server", "html"];
+      const shown = () => ids.map((id) => id + ": " + document.querySelector(`#${id} [data-ui]`).innerHTML).join("\n");
+      for (let i = 0; i < 100 && shown().includes(": \n"); i++) await wait(20);
+      await wait(100);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = shown();
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("message-ui-ways", &html) else { return };
+    assert_eq!(
+        result.replace("&lt;", "<").replace("&gt;", ">").lines().collect::<Vec<_>>(),
+        [
+            "browser: <b>From the browser</b>",
+            "fallback: <i>From the server</i>",
+            r#"missing: <p data-ui-note="">This reply has UI that can't be shown here.</p>"#,
+            "server: <i>From the server</i>",
+            "html: <u>Given</u>",
         ],
         "\n{result}"
     );

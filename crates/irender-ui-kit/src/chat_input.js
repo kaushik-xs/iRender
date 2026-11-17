@@ -1,8 +1,8 @@
 // irender-ui-kit: the `ui-chat-input` behaviour. Sending appends the user's message to
 // the `messages` key, emits `send` (so the document's `on.send` actions run), and with
 // an `endpoint` POSTs `{ messages }` and adds the reply: a JSON message, plain text, or
-// server-sent events streamed into it chunk by chunk, any of which may carry `html`:
-// the reply's UI, rendered on the server. While a reply streams, the send button stops it.
+// server-sent events streamed into it chunk by chunk, any of which may carry the reply's
+// UI, as `ui` JSON or server-rendered `html`. While a reply streams, the send button stops it.
 //
 // With `threads` and `thread`, the messages live in the threads (`{ id, title, messages }`)
 // and `messages` shows the current one's. Sending with no current thread starts one,
@@ -60,7 +60,8 @@
     };
   };
   // A chunk: text, or JSON with `content`, `delta`, `text` or OpenAI's
-  // `choices[0].delta.content`, and maybe `html`, the reply's rendered UI.
+  // `choices[0].delta.content`, and maybe the reply's UI: `ui` (JSON, for the page to
+  // render) or `html` (rendered on the server).
   const chunk = (data, append, reply) => {
     let v;
     try {
@@ -71,6 +72,7 @@
     if (typeof v === "string") return append(v);
     append(v?.content ?? v?.delta ?? v?.text ?? v?.choices?.[0]?.delta?.content ?? "");
     if (typeof v?.html === "string") reply(() => ({ html: v.html }));
+    if (v?.ui && typeof v.ui === "object") reply(() => ({ ui: v.ui }));
   };
 
   async function ask(tid) {

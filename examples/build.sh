@@ -37,6 +37,16 @@ $irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboa
 # The chat's replies include charts, images and a video.
 $irender render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit --title "chat" -o "$out/blocks/chat.html"
 cp -R examples/blocks/media "$out/blocks/"
+# The browser renderer for chat replies sent as `ui` JSON, when the WebAssembly target is
+# installed (`rustup target add wasm32-unknown-unknown`). Without it the chat block asks
+# serve.py's render endpoint instead.
+if [ -d "$(rustc --print sysroot)/lib/rustlib/wasm32-unknown-unknown" ]; then
+  cargo build -q -p irender-wasm --target wasm32-unknown-unknown --profile wasm
+  mkdir -p "$out/irender"
+  cp target/wasm32-unknown-unknown/wasm/irender_wasm.wasm "$out/irender/"
+else
+  echo "build.sh: no wasm32-unknown-unknown target; the chat block will render replies' UI on the server" >&2
+fi
 $irender render examples/blocks/markdown.yaml --ui-kit --icon-kit --markdown-kit --title "markdown" -o "$out/blocks/markdown.html"
 $irender render examples/blocks/theme.yaml --ui-kit --chart-kit --icon-kit --title "theme" -o "$out/blocks/theme.html"
 $irender render examples/blocks/index.yaml --ui-kit --chart-kit --title "Blocks" -o "$out/blocks/index.html"

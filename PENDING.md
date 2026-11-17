@@ -16,9 +16,21 @@ _Last updated: 2026-11-17._
 
 ## UI kit: not built yet
 
+- [ ] **Gaps against client-ui-next** (`~/Documents/GitHub/client-ui-next/components`, compared 2026-11-17). Generic components it uses that no kit has yet, most used first:
+  - [ ] **Filters:** a side panel and an "add filter" dialog with list, range, date, number and currency filters (with operators), shown as removable chips above a list (`common/FilterSidePanel`, `AddFilterDialog`, `FilterChipsBar`).
+  - [ ] **Tree view:** select, add a child, delete one or many, and drag a node under another parent (`HierarchyTree`).
+  - [ ] **Calendar views:** events in month, week, year and list views (`factory-calendar/`). More than shadcn's `calendar`.
+  - [ ] **File upload and preview:** a drop zone, files in a grid or table with image, PDF and spreadsheet previews, remove, and download all as a zip (`attachments/`, `FileViewer`).
+  - [ ] **Gantt chart** in chart-kit: a `type: gantt` shorthand with a table of rows on the left, zoom, collapsible groups and markers with a legend (`charts/GanttChart`). Today it has to be an ECharts `custom` series in `option`.
+  - [ ] **Kanban board:** columns of cards moved by drag and drop (`kanban/SimpleDragKanban`).
+  - [ ] **Dashboard grid:** tiles that can be dragged and resized (react-grid-layout).
+  - [ ] **Activity timeline:** a history list with who, when and field changes (old → new) (`tickets/HistoryTimelineEntry`).
+  - [ ] **Notification centre:** a bell with an unread count and an inbox (read/unread, archive), plus preferences (`notifications/`).
+  - [ ] **Progress ring:** a circular `ui-progress` (`ProjectProgressRing`).
+  - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
 - [ ] **Keyboard-driven components:**
-  - date picker
-  - data table with sorting and filtering
+  - date picker, with date+time, min/max, month and quarter (financial year) modes, and a date range (client-ui-next's `DateTimeField`, `PeriodPicker`, `DateRangeFilterInputs`)
+  - data table with sorting and filtering; client-ui-next's `DataTable` and `GroupedDataTable` also have search, row selection with bulk actions, server-side paging and sorting, pinned columns, grouped headers, summary rows, a show/hide columns menu and saved column views
   - context menu
   - menubar / navigation menu
   - OTP input
@@ -37,7 +49,11 @@ _Last updated: 2026-11-17._
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
   - [ ] Message text is plain text with line breaks kept; no Markdown, code blocks or citations. Next: render `content` with irender-markdown-kit's `render` (already safe for any text), and with `markdown.js` while it streams. (A reply's `ui` can carry rich content meanwhile.)
-  - [ ] A message's `ui` only shows once rendered into `html` on a server: the CLI does it for messages in the document, a host for replies. The `html` is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
+  - [ ] A message's `html` (and `ui`) is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
+- [ ] **irender-wasm:**
+  - [ ] Not built or run as WebAssembly yet: this machine's Rust (Homebrew) has no `wasm32-unknown-unknown` target. Its render function and exports are tested natively, and the page's loader against a hand-made module with the same exports; build it once rustup is installed, measure its size, and run the chat block with it.
+  - [ ] No icons (the packs are 9.3 MB). Idea: a small default set, or packs fetched on demand.
+  - [ ] Renders on the main thread. Idea: a worker for large UIs.
   - [ ] Each message's UI carries its own copy of the styles it uses.
   - [ ] The conversation list in a sidebar can't star, rename or delete a thread on its own; the chat block hands those to the host with `call`.
   - [ ] No message actions (copy, retry, thumbs up/down) or edit-and-resend; put buttons in a `ui-message`'s children for messages written in the document.

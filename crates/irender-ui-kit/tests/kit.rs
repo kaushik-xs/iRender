@@ -847,7 +847,7 @@ fn chat_messages_threads_and_input() {
     assert!(body.contains("data-i-list=") && body.contains("ui_message"), "{body}");
     // Each message now: its role, avatar, name and time, and a folded thread.
     assert!(body.contains(r#"<div data-role="user"><span aria-hidden="true">KS</span>"#), "{body}");
-    assert!(body.contains(r#"<div data-role="assistant"><div data-body=""><div><span>Assistant</span><span>9:41</span></div><div data-bubble="">Hello</div><div data-ui="" data-i-x="ui-message-html" data-i-xc="{}"></div><details><summary>2 replies</summary>"#), "{body}");
+    assert!(body.contains(r#"<div data-role="assistant"><div data-body=""><div><span>Assistant</span><span>9:41</span></div><div data-bubble="">Hello</div><div data-ui="" data-i-x="ui-message-html" data-i-xc="{&quot;browser&quot;:null,&quot;url&quot;:null}"></div><details><summary>2 replies</summary>"#), "{body}");
     // The empty text and the typing indicator follow state.
     assert!(body.contains(r#"<template data-i-if="{&quot;r&quot;:{&quot;u&quot;:&quot;!&quot;,&quot;a&quot;:{&quot;p&quot;:[&quot;messages&quot;,&quot;length&quot;]}}}"><div>Ask anything</div>"#), "{body}");
     assert!(body.contains(r#"role="status" aria-label="Typing""#), "{body}");
@@ -886,12 +886,7 @@ fn message_ui_renders_into_html_and_shows_only_when_trusted() {
         Format::Json,
     )
     .unwrap();
-    let embed = |ui: &Json| -> Result<String, String> {
-        let mut d = irender_core::parse(&ui.to_string(), Format::Json).map_err(|e| e.to_string())?;
-        irender_ui_kit::apply_theme(&mut d);
-        let ir = engine.resolve(&d).map_err(|e| e.to_string())?;
-        Ok(engine.render_embedded(&ir, &json!({})).map_err(|e| e.to_string())?.embedded())
-    };
+    let embed = |ui: &Json| irender_ui_kit::render_ui(&engine, ui, irender_ui_kit::apply_theme);
     irender_ui_kit::render_message_ui(&mut doc, embed).unwrap();
     let messages = &doc.state["threads"][0]["messages"];
     // A document keeps its own state; a node becomes a document's root.
@@ -913,6 +908,12 @@ fn message_ui_renders_into_html_and_shows_only_when_trusted() {
     let message = json!({ "type": "ui-message", "props": { "content": "x", "html": "<b>hi</b>" } });
     let body = plain(&render(message.clone()));
     assert!(body.contains(r#"<div data-ui="" data-html="&lt;b&gt;hi&lt;/b&gt;" data-i-x="ui-message-html""#), "{body}");
+
+    // A `ui` without `html` goes to the page, for `render` to render there.
+    let body = plain(&render(json!({ "type": "ui-conversation", "props": {
+        "messages": [{ "role": "assistant", "ui": { "type": "ui-badge", "props": { "text": "B" } } }],
+        "render": { "browser": "/irender.wasm", "url": "/api/render" } } })));
+    assert!(body.contains(r#"data-ui-json="{&quot;type&quot;:&quot;ui-badge&quot;,&quot;props&quot;:{&quot;text&quot;:&quot;B&quot;}}" data-i-x="ui-message-html" data-i-xc="{&quot;browser&quot;:&quot;/irender.wasm&quot;,&quot;url&quot;:&quot;/api/render&quot;}""#), "{body}");
     let mut untrusted = Engine::untrusted();
     irender_ui_kit::register(&mut untrusted.registry);
     let doc = irender_core::parse(&json!({ "version": 1, "root": message }).to_string(), Format::Json).unwrap();

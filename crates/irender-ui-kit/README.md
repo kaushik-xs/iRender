@@ -87,8 +87,8 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 
-| `ui-conversation` | `messages`, `typing`, `assistant`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
-| `ui-message` | `role` (assistant, user, system), `content`, `name`, `time`, `avatar`, `initials`, `html`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
+| `ui-conversation` | `messages`, `typing`, `assistant`, `render`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
+| `ui-message` | `role` (assistant, user, system), `content`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
 | `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 | `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time; a button hides at its end. Parts: `track`, `previous`, `next`. |
@@ -263,11 +263,28 @@ A message can carry UI as well as text: its `ui` is an iRender document (`{ stat
     props: { type: bar, x: region, data: [{ region: Asia, sales: 14 }, { region: Europe, sales: 13 }] }
 ```
 
-The browser can't render iRender, so the server renders each `ui` into the message's `html`, which the message shows and starts as a root of its own. Its state stays its own, it survives the conversation redrawing, and its `call` actions reach the host like the page's.
+A message's UI is shown from its `html`, markup rendered by iRender, made one of three ways. Use any of them, or several together:
 
-- **Messages in the document.** `irender render` with `--ui-kit` renders the `ui` of every message in state, wherever it sits (a message is an object with a `role` and a `ui`), using the same kits. From Rust, call `irender_ui_kit::render_message_ui(&mut doc, …)` before resolving.
-- **Replies.** Render the reply's UI on your server and send it as `html`: in the JSON reply, or as a server-sent event `{ "html": "…" }`, usually after the text. Render it with `Engine::render_embedded(&ir, &data)?.embedded()`, or `irender render reply.yaml --embed --ui-kit`. Its styles leave out the theme's variables, so it takes the page's theme. `examples/serve.py` answers "chart …" and "photos …" this way.
-- **Trust.** `html` is markup inserted into the page, as powerful as a script, so a message shows it only in trusted documents (a policy that allows `<script>`). Render UI a model wrote with an untrusted engine (`Engine::untrusted()`, `--untrusted`), which keeps scripts, event attributes and `javascript:` URLs out of it.
+| | where it renders | set up |
+|---|---|---|
+| **Server, ahead** | Your server renders the `ui` and sends `html` with the message. | Nothing on the page. Messages in the document are rendered by `irender render --ui-kit` (wherever they sit in state: a message is an object with a `role` and a `ui`), or by `irender_ui_kit::render_message_ui(&mut doc, …)` from Rust. A reply's comes from `irender_ui_kit::render_ui` or `irender render reply.json --embed --ui-kit`. |
+| **Browser** | The page renders a `ui` that arrived without `html`, with [irender-wasm](../irender-wasm/README.md). | `render: { browser: /irender/irender_wasm.wasm }` on `ui-conversation` (or `ui-message`). |
+| **Server, on request** | The page posts `{ ui }` to your render endpoint, which answers with the markup (or JSON `{ html }`). | `render: { url: /api/render }`. |
+
+The page uses the first that works: `html` when the message has it, then `browser`, then `url`; with none of them it shows a short note in the message. `browser` falls back to `url` when the module can't load (a Content-Security-Policy without `'wasm-unsafe-eval'`, say) or can't render the `ui` (a component it wasn't built with). So a typical setup renders the document's messages ahead, streams replies as `ui`, renders them in the browser, and keeps an endpoint for the rest:
+
+```yaml
+- type: ui-conversation
+  props:
+    messages: "{{ chat }}"
+    render: { browser: /irender/irender_wasm.wasm, url: /api/render }
+```
+
+A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent event `{ "ui": … }` or `{ "html": … }`, usually after the text. The markup leaves out the theme's variables, so it takes the page's theme. The message starts it as a root of its own: its state is its own, it survives the conversation redrawing, and its `call` actions reach the host like the page's. `render_ui` is the one function behind the CLI, a render endpoint and irender-wasm, so all three give the same markup.
+
+- **Trust.** Markup inserted into the page is as powerful as a script, so a message shows UI only in trusted documents (a policy that allows `<script>`). Render UI a model wrote under the untrusted policy (`Engine::untrusted()`, `--untrusted`), which keeps scripts, event attributes and `javascript:` URLs out; irender-wasm always does.
+- **Self-contained.** A message's `ui` has its own state and fragments; it can't read the page's server `data` or `include` fragments from your fragment directory.
+- `examples/serve.py` shows each way: the chat block's sample replies are rendered ahead, "photos …" is answered with `html`, and "chart …" with `ui`, which the page renders with irender-wasm when it's built and through `api/render` when it isn't.
 
 ## Overlays and ids
 

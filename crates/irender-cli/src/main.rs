@@ -22,6 +22,7 @@ struct Cli {
 enum Command {
     /// Check a document and report every problem with its path.
     Validate {
+        /// The document (.json, .yaml or .yml), or `-` for JSON on stdin.
         file: PathBuf,
         /// Apply the untrusted policy (for user- or LLM-written documents).
         #[arg(long)]
@@ -49,6 +50,7 @@ enum Command {
     },
     /// Render a document to HTML.
     Render {
+        /// The document (.json, .yaml or .yml), or `-` for JSON on stdin.
         file: PathBuf,
         /// Server data (JSON or YAML) available to expressions.
         #[arg(long)]
@@ -175,6 +177,12 @@ fn main() -> ExitCode {
 }
 
 fn read(path: &Path) -> Result<(String, Format), String> {
+    // `-` is a JSON document on stdin, e.g. a chat reply's UI from a server.
+    if path == Path::new("-") {
+        let mut src = String::new();
+        std::io::Read::read_to_string(&mut std::io::stdin(), &mut src).map_err(|e| format!("stdin: {e}"))?;
+        return Ok((src, Format::Json));
+    }
     let format = Format::from_path(path)
         .ok_or_else(|| format!("{}: unsupported file type (use .json, .yaml or .yml)", path.display()))?;
     let src = fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -255,12 +263,9 @@ fn load(engine: &Engine, file: &Path, kits: &Kits) -> Result<Loaded, String> {
     Ok(Loaded { ir, parse, resolve })
 }
 
-/// A message's UI document as a piece of the page, rendered with the same kits.
+/// A message's UI as a piece of the page, rendered with the same kits.
 fn embed(engine: &Engine, kits: &Kits, ui: &Json) -> Result<String, String> {
-    let mut doc = irender_core::parse(&ui.to_string(), Format::Json).map_err(|d| d.to_string())?;
-    kits.apply_themes(&mut doc);
-    let ir = engine.resolve(&doc).map_err(|d| d.to_string())?;
-    Ok(engine.render_embedded(&ir, &Json::Object(Default::default())).map_err(|e| e.to_string())?.embedded())
+    irender_ui_kit::render_ui(engine, ui, |doc| kits.apply_themes(doc))
 }
 
 fn ms(d: Duration) -> String {

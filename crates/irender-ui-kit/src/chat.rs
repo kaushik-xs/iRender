@@ -31,7 +31,7 @@ const REPLY_INDEX: &str = "ui_reply_index";
 
 /// The message fields a list item passes on to its `ui-message`.
 /// `role` comes first.
-const FIELDS: &[&str] = &["role", "content", "name", "avatar", "initials", "time", "html"];
+const FIELDS: &[&str] = &["role", "content", "name", "avatar", "initials", "time", "html", "ui"];
 
 const ROLES: &[&str] = &["assistant", "user", "system"];
 
@@ -62,6 +62,9 @@ fn length(node: &Node, prop: &str, now: usize, live: Option<&Val>) -> Result<Exp
 fn item_message(node: &Node, var: &str, replies: bool) -> Node {
     let mut props: Vec<(&str, Val)> = FIELDS.iter().map(|f| (*f, expr_val(path(&[var, f])))).collect();
     props[0].1 = expr_val(field_or(var, "role", Expr::Lit(json!("assistant"))));
+    if let Some(r) = node.prop("render") {
+        props.push(("render", r.clone()));
+    }
     if replies {
         props.push(("replies", expr_val(path(&[var, "replies"]))));
     }
@@ -84,8 +87,16 @@ const MESSAGE_PROPS: &[PropDef] = &[
     PropDef::new(
         "html",
         PropKind::Any,
-        "UI after the text: markup from `render_message_ui` (the CLI renders each message's `ui` into it) or \
-         `Engine::render_embedded`. Shown only in trusted documents",
+        "UI after the text, rendered on a server: by `render_ui` (the CLI renders each message's `ui` into it), or \
+         `irender render --embed`. Shown only in trusted documents",
+    ),
+    PropDef::new("ui", PropKind::Any, "UI after the text as an iRender document or node, for `render` to render when there's no `html`"),
+    PropDef::new(
+        "render",
+        PropKind::Any,
+        "How a `ui` without `html` is rendered: `{ browser, url }`. `browser` is irender-wasm's `.wasm` file, to render it \
+         in the page; `url` is your server's render endpoint, which gets `{ ui }` and answers with the markup, used when \
+         there's no `browser` or it can't render it",
     ),
     PropDef::new("replies", PropKind::Any, "A thread: an array of messages shown under it, folded away behind `N replies`. May use state"),
     PropDef::new("open", PropKind::Bool, "Show the thread unfolded"),
@@ -138,6 +149,7 @@ static MESSAGE_BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
 static MESSAGE_UI: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("width", "100%"), ("min-width", "0"), ("font-size", fs!(14))])
         .nest("&:empty", StyleBlock::from_pairs(&[("display", "none")]))
+        .nest("& > [data-ui-note]", StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(12)), ("color", MUTED)]))
 });
 static MESSAGE_META: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "baseline"), ("gap", sp!(6)), ("font-size", fs!(12)), ("color", MUTED)])
@@ -251,12 +263,18 @@ impl Component for Message {
         cx.close("div");
         // Markup can do anything a script can, so a document that may not add scripts
         // may not show it either.
-        if let Some(html) = node.prop("html")
-            && !cx.policy().blocked_tags.contains("script")
-        {
+        if (node.prop("html").is_some() || node.prop("ui").is_some()) && !cx.policy().blocked_tags.contains("script") {
             cx.global_js("ui-message-html", HTML_SCRIPT);
+            let render = cx.prop(node, "render").unwrap_or(Json::Null);
+            let config = json!({ "browser": render.get("browser"), "url": render.get("url") });
             let mut ui = cx.part("div", node, "ui");
-            ui.base_style_ref(&MESSAGE_UI).attr("data-ui", lit("")).attr("data-html", html.clone()).behavior("ui-message-html", json!({}));
+            ui.base_style_ref(&MESSAGE_UI).attr("data-ui", lit("")).behavior("ui-message-html", config);
+            if let Some(html) = node.prop("html") {
+                ui.attr("data-html", html.clone());
+            }
+            if let Some(json) = node.prop("ui") {
+                ui.attr("data-ui-json", json.clone());
+            }
             cx.open(&ui, node)?;
             cx.close("div");
         }
@@ -361,6 +379,7 @@ pub struct Conversation;
 const CONVERSATION_PROPS: &[PropDef] = &[
     PropDef::new("messages", PropKind::Any, "Array of messages, after any children. From state, like `{{ messages }}`, it redraws as it changes"),
     PropDef::new("typing", PropKind::Any, "Show a typing indicator after the last message, e.g. `{{ waiting }}`"),
+    PropDef::new("render", PropKind::Any, "How messages' `ui` without `html` is rendered: `{ browser, url }`, as on `ui-message`"),
     PropDef::new("assistant", PropKind::Any, "The typing indicator's sender: `{ name, avatar, initials }`"),
     PropDef::new("empty", PropKind::Any, "Text shown while `messages` is empty"),
     PropDef::new("label", PropKind::Any, "Names the conversation for screen readers (default `Conversation`)"),
@@ -734,13 +753,24 @@ pub fn ui_document(ui: &Json) -> Json {
     }
 }
 
+/// Renders a message's `ui` (a document or a node) as markup for its `html`: the one
+/// function behind the CLI, a server's render endpoint and the browser renderer
+/// (irender-wasm), so all three give the same result. `prepare` adds what the kits
+/// need before resolving, e.g. their themes:
+/// `|doc| { irender_ui_kit::apply_theme(doc); irender_chart_kit::apply_theme(doc); }`.
+/// Use an engine with the untrusted policy for UI a model wrote.
+pub fn render_ui(engine: &irender_html::Engine, ui: &Json, prepare: impl FnOnce(&mut irender_core::Document)) -> Result<String, String> {
+    let mut doc = irender_core::parse(&ui_document(ui).to_string(), irender_core::Format::Json).map_err(|d| d.to_string())?;
+    prepare(&mut doc);
+    let ir = engine.resolve(&doc).map_err(|d| d.to_string())?;
+    Ok(engine.render_embedded(&ir, &Json::Object(Default::default())).map_err(|e| e.to_string())?.embedded())
+}
+
 /// Renders the `ui` of every message in `doc`'s state into its `html`, which
 /// `ui-message` shows. A message is an object with a `role` and a `ui`: an iRender
 /// document or node, so a reply can be a form, a chart or a gallery rather than text.
-/// Messages may sit anywhere in state, e.g. in threads. `render` turns a document
-/// (from [`ui_document`]) into embedded markup, usually with
-/// [`Engine::render_embedded`](irender_html::Engine::render_embedded); use an engine
-/// with the untrusted policy for UI a model wrote. Messages that already have `html`
+/// Messages may sit anywhere in state, e.g. in threads. `render` turns a `ui` into
+/// markup, usually with [`render_ui`]. Messages that already have `html`
 /// are left alone. Errors name the message's place in state.
 pub fn render_message_ui(
     doc: &mut irender_core::Document,
@@ -755,7 +785,7 @@ pub fn render_message_ui(
             }
             Json::Object(o) => {
                 if o.contains_key("role") && o.get("ui").is_some_and(Json::is_object) && !o.contains_key("html") {
-                    let html = render(&ui_document(&o["ui"])).map_err(|e| format!("{at}.ui: {e}"))?;
+                    let html = render(&o["ui"]).map_err(|e| format!("{at}.ui: {e}"))?;
                     o.insert("html".into(), json!(html));
                 }
                 for (k, v) in o.iter_mut() {

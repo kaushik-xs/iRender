@@ -13,7 +13,7 @@ default = ["lightningcss"]
 lightningcss = ["dep:lightningcss"]
 
 [dependencies]
-irender-core.workspace = true
+irender-core = { workspace = true, default-features = false }
 indexmap.workspace = true
 lightningcss = { workspace = true, optional = true }
 

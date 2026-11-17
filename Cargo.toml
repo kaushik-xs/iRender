@@ -28,3 +28,12 @@ lightningcss = { version = "1.0.0-alpha.72", default-features = false }
 clap = { version = "4", features = ["derive"] }
 thiserror = "2"
 rayon = "1"
+
+# The browser renderer: `cargo build -p irender-wasm --target wasm32-unknown-unknown --profile wasm`.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

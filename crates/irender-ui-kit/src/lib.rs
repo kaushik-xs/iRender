@@ -53,7 +53,7 @@ mod overlay;
 mod sidebar;
 mod theme;
 
-pub use chat::{render_message_ui, ui_document};
+pub use chat::{render_message_ui, render_ui, ui_document};
 pub use theme::{apply_theme, theme};
 
 use indexmap::IndexMap;

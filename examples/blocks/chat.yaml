@@ -6,7 +6,8 @@
 # The input keeps every conversation's messages in `threads` and shows the current one's
 # in `chat`. A message's `ui` is an iRender document or node, rendered with the page into
 # its `html`: the replies here show tiles and a chart, a choice with its own state, a
-# carousel, link cards and a video. Share, Rename, Delete and "Use this" are `call`
+# carousel, link cards and a video. A reply that arrives as `ui` JSON (ask for a chart)
+# is rendered in the page by irender-wasm, or by ../api/render when the module is missing. Share, Rename, Delete and "Use this" are `call`
 # actions for the host app: `share`, `rename` and `delete` with the thread's id, and
 # `use-subject` with the subject.
 #
@@ -297,7 +298,13 @@ root:
         - type: else
           children:
             - type: ui-conversation
-              props: { messages: "{{ chat }}", typing: "{{ waiting }}", label: Conversation }
+              props:
+                messages: "{{ chat }}"
+                typing: "{{ waiting }}"
+                label: Conversation
+                # A reply's `ui` without `html`: rendered in the browser, or by the server
+                # when the module isn't there.
+                render: { browser: ../irender/irender_wasm.wasm, url: ../api/render }
               style: { flex: 1 }
               parts:
                 log: { style: { padding: "24px max(16px, calc((100% - 768px) / 2))", gap: 24 } }

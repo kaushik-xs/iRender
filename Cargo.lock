@@ -515,6 +515,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "irender-wasm"
+version = "0.2.0"
+dependencies = [
+ "irender-chart-kit",
+ "irender-core",
+ "irender-html",
+ "irender-ui-kit",
+ "serde_json",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

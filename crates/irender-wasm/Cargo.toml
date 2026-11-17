@@ -1,0 +1,24 @@
+[package]
+name = "irender-wasm"
+description = "iRender's renderer for the browser: renders a chat message's UI JSON to markup in WebAssembly"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["exports"]
+# This crate's own exports. Turn them off to export your own engine with `export_renderer!`.
+exports = []
+
+[dependencies]
+irender-core = { workspace = true, default-features = false }
+irender-html = { workspace = true, default-features = false }
+irender-ui-kit.workspace = true
+irender-chart-kit.workspace = true
+serde_json.workspace = true

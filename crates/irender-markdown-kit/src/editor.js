@@ -37,12 +37,15 @@
 
   // Replaces [from, to) with `text` through the browser's editing (so undo works), then
   // selects [selFrom, selTo).
+  // WebKit's insertText of "" also deletes a newline before the selection, so the result
+  // is checked, and set directly when it isn't what was asked for.
   const replace = (from, to, text, selFrom, selTo) => {
+    const want = area.value.slice(0, from) + text + area.value.slice(to);
     area.focus();
     area.setSelectionRange(from, to);
     const ok = document.queryCommandSupported?.("insertText") && document.execCommand("insertText", false, text);
-    if (!ok) {
-      area.setRangeText(text, from, to, "end");
+    if (!ok || area.value !== want) {
+      area.value = want;
       area.dispatchEvent(new Event("input", { bubbles: true }));
     }
     area.setSelectionRange(selFrom, selTo);

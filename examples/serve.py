@@ -9,9 +9,11 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/live/metrics  JSON: the current cpu, memory and requests, smooth over time
   api/live/stream   server-sent events: an order every second
   api/chat          POST: the chats in the UI kit gallery and the chat block. Streams a canned
-                    reply as server-sent events; "chart …" and "photos …" also get UI, an iRender
-                    document from blocks/chat-replies rendered with `irender render --embed`
-                    (set IRENDER to the binary; default target/debug/irender)
+                    reply as server-sent events. "chart …" also gets UI as JSON (`ui`), which the
+                    page renders: in the browser with irender-wasm, or through api/render.
+                    "photos …" gets UI rendered here (`html`, with `irender render --embed`).
+  api/render        POST { ui }: a message's UI rendered to markup, under the untrusted policy
+UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
 """
 
 import json
@@ -29,18 +31,31 @@ REGIONS = ["Europe", "Asia", "Americas"]
 HERE = os.path.dirname(os.path.abspath(__file__))
 IRENDER = os.environ.get("IRENDER", os.path.join(HERE, "..", "target", "debug", "irender"))
 # Prompts that get UI: the first word in the message picks the reply.
+REPLIES = os.path.join(HERE, "blocks", "chat-replies")
+# Prompts that get UI: a word in the message picks the reply. "chart" sends the UI as
+# JSON for the page to render; "photos" renders it here and sends the markup.
 UI_REPLIES = {
-    "chart": ("Here are this year's sales by month. Switch the range above the chart.", "chart.yaml", "--chart-kit"),
-    "photos": ("Here are a few of Lisbon's sights. Scroll or use the arrows for more.", "photos.yaml", None),
+    "chart": ("Here are this year's sales by month. Switch the range above the chart.", "chart.json"),
+    "photos": ("Here are a few of Lisbon's sights. Scroll or use the arrows for more.", "photos.yaml"),
 }
 _rendered = {}
 
 
-def render_reply(name, kit):
+def render_ui(ui):
+    """A message's UI (a document or a node) as markup, as irender_ui_kit::render_ui does it."""
+    doc = dict(ui, version=ui.get("version", 1)) if "root" in ui else {"version": 1, "root": ui}
+    args = [IRENDER, "render", "-", "--embed", "--untrusted", "--ui-kit", "--chart-kit"]
+    done = subprocess.run(args, input=json.dumps(doc), capture_output=True, text=True)
+    if done.returncode != 0:
+        raise ValueError(done.stderr.strip() or done.stdout.strip())
+    return done.stdout
+
+
+def render_reply(name):
     """A reply's UI document as markup for the page, rendered once."""
     if name not in _rendered:
-        args = [IRENDER, "render", os.path.join(HERE, "blocks", "chat-replies", name), "--ui-kit", "--embed"]
-        _rendered[name] = subprocess.run(args + ([kit] if kit else []), capture_output=True, text=True, check=True).stdout
+        args = [IRENDER, "render", os.path.join(REPLIES, name), "--ui-kit", "--chart-kit", "--embed"]
+        _rendered[name] = subprocess.run(args, capture_output=True, text=True, check=True).stdout
     return _rendered[name]
 
 
@@ -64,20 +79,39 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        if self.path.split("?", 1)[0].endswith("/api/chat"):
+        path = self.path.split("?", 1)[0]
+        if path.endswith("/api/chat"):
             return self.chat()
+        if path.endswith("/api/render"):
+            return self.render()
         self.send_error(404)
+
+    def render(self):
+        try:
+            ui = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")["ui"]
+            body, status = render_ui(ui).encode(), 200
+        except (KeyError, TypeError, ValueError, OSError) as e:
+            body, status = str(e).encode(), 422
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8" if status == 200 else "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def chat(self):
         body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
         messages = body.get("messages") or []
         said = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
         ui = next((v for k, v in UI_REPLIES.items() if k in said.lower()), None)
-        html = None
+        extra = None
         if ui:
             reply = ui[0]
             try:
-                html = render_reply(ui[1], ui[2])
+                if ui[1].endswith(".json"):
+                    with open(os.path.join(REPLIES, ui[1])) as f:
+                        extra = {"ui": json.load(f)}
+                else:
+                    extra = {"html": render_reply(ui[1])}
             except (OSError, subprocess.CalledProcessError) as e:
                 reply += f" (The UI didn't render: {e}. Build the CLI or set IRENDER.)"
         else:
@@ -96,8 +130,8 @@ class Handler(SimpleHTTPRequestHandler):
                 self.wfile.write(f"data: {json.dumps({'content': word + ' '})}\n\n".encode())
                 self.wfile.flush()
                 time.sleep(0.04)
-            if html:
-                self.wfile.write(f"data: {json.dumps({'html': html})}\n\n".encode())
+            if extra:
+                self.wfile.write(f"data: {json.dumps(extra)}\n\n".encode())
             self.wfile.write(b"data: [DONE]\n\n")
         except (BrokenPipeError, ConnectionResetError):
             pass
