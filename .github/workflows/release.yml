@@ -86,6 +86,8 @@ jobs:
       # skipped, so a failed run can be rerun. crates.io allows a burst of new crate
       # names and then one every ten minutes, so a 429 waits and tries again.
       - name: Publish the crates
+        # An explicit bash adds pipefail, so a failed `cargo publish | tee` fails.
+        shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
@@ -121,11 +123,16 @@ jobs:
           merge-multiple: true
       - name: Checksums
         run: cd dist && sha256sum *.tar.gz > SHA256SUMS
+      # On a rerun the release already exists, so replace its files instead.
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "iRender $GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "iRender $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
