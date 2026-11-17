@@ -19,7 +19,46 @@ fn preset() -> Json {
                     "chart-5": "#d55181", "chart-6": "#008300", "chart-7": "#9085e9", "chart-8": "#e66767"
                 }
             }
+        },
+        "options": { "chart": { "label": "Chart colours", "default": "default", "choices": schemes() } }
+    })
+}
+
+/// A chart colour scheme: eight series colours, light then dark.
+fn scheme(label: &str, light: [&str; 8], dark: [&str; 8]) -> Json {
+    let colors = |c: [&str; 8]| {
+        let mut m = serde_json::Map::new();
+        for (i, v) in c.iter().enumerate() {
+            m.insert(format!("chart-{}", i + 1), json!(v));
         }
+        Json::Object(m)
+    };
+    json!({ "label": label, "tokens": { "color": colors(light) }, "modes": { "dark": { "color": colors(dark) } } })
+}
+
+/// The chart colour schemes `ui-theme-option` can pick (`option: chart`): the kit's
+/// categorical hues, shades of one colour to match the UI kit's palettes, and greys.
+fn schemes() -> Json {
+    json!({
+        "default": { "label": "Default" },
+        "blue": scheme("Blue",
+            ["#2563eb", "#60a5fa", "#1e40af", "#93c5fd", "#1d4ed8", "#3b82f6", "#1e3a8a", "#bfdbfe"],
+            ["#3b82f6", "#93c5fd", "#2563eb", "#bfdbfe", "#1d4ed8", "#60a5fa", "#1e40af", "#dbeafe"]),
+        "rose": scheme("Rose",
+            ["#e11d48", "#fb7185", "#9f1239", "#fda4af", "#be123c", "#f43f5e", "#881337", "#fecdd3"],
+            ["#f43f5e", "#fda4af", "#e11d48", "#fecdd3", "#be123c", "#fb7185", "#9f1239", "#ffe4e6"]),
+        "green": scheme("Green",
+            ["#16a34a", "#4ade80", "#166534", "#86efac", "#15803d", "#22c55e", "#14532d", "#bbf7d0"],
+            ["#22c55e", "#86efac", "#16a34a", "#bbf7d0", "#15803d", "#4ade80", "#166534", "#dcfce7"]),
+        "orange": scheme("Orange",
+            ["#ea580c", "#fb923c", "#9a3412", "#fdba74", "#c2410c", "#f97316", "#7c2d12", "#fed7aa"],
+            ["#f97316", "#fdba74", "#ea580c", "#fed7aa", "#c2410c", "#fb923c", "#9a3412", "#ffedd5"]),
+        "violet": scheme("Violet",
+            ["#7c3aed", "#a78bfa", "#5b21b6", "#c4b5fd", "#6d28d9", "#8b5cf6", "#4c1d95", "#ddd6fe"],
+            ["#8b5cf6", "#c4b5fd", "#7c3aed", "#ddd6fe", "#6d28d9", "#a78bfa", "#5b21b6", "#ede9fe"]),
+        "mono": scheme("Mono",
+            ["#18181b", "#71717a", "#3f3f46", "#a1a1aa", "#27272a", "#52525b", "#d4d4d8", "#09090b"],
+            ["#fafafa", "#a1a1aa", "#d4d4d8", "#71717a", "#e4e4e7", "#52525b", "#f4f4f5", "#3f3f46"]),
     })
 }
 

@@ -62,6 +62,30 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 - **Built-in components:** `element`, `text`, `stack`, `button`, `input`, `select`, `textarea`, `list` and `if`. Run `irender components` for their props. `include` and `else` are handled by the resolver; see below.
 - **Cascade order:** theme variables → `i-base` layer (component defaults) → `i-instance` layer (the document's `style`). The document always wins.
 
+### Theme
+
+A document's `theme` sets design tokens (`$color.primary` in styles is `var(--color-primary)`), `modes` that override them under a variant (`dark`), `breakpoints` and `variants`. `options` are sets of overrides people choose between on the page: a palette, a corner radius, a density.
+
+```yaml
+theme:
+  tokens: { color: { primary: "#4f46e5" } }
+  options:
+    palette:
+      label: Colour
+      default: indigo
+      choices:
+        indigo: { tokens: { color: { primary: "#4f46e5" } } }
+        rose:
+          label: Rose
+          tokens: { color: { primary: "#e11d48" } }
+          modes: { dark: { color: { primary: "#fb7185" } } }
+```
+
+- A choice applies through `data-theme-<option>` on `<html>` (`data-theme-palette="rose"`); its `modes` give its own values under a variant, so a palette has its own dark colours. A token a choice sets without a dark value keeps it in dark mode.
+- The default choice (`default`, or the first) is part of the base tokens: a page with nothing chosen looks like it.
+- Option and choice names use lowercase letters, digits and `-`. Mistakes are reported with their paths, like other theme errors.
+- [irender-ui-kit](crates/irender-ui-kit/README.md#theme-options) ships options (palette, radius, density, text size, font) and `ui-theme-option`, which picks one, remembers it and applies it before the page shows. The [chart kit](crates/irender-chart-kit/README.md#theme) adds chart colour schemes. A document adds choices to these or options of its own.
+
 ## Form controls
 
 `input`, `select` and `textarea` take `bind: <state key>` to keep a state value in sync both ways.

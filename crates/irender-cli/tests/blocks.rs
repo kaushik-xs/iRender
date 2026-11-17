@@ -12,6 +12,7 @@ const BLOCKS: &[(&str, Option<&str>)] = &[
     ("signup", None),
     ("settings", None),
     ("pricing", None),
+    ("theme", None),
 ];
 
 fn render(doc: &str, data: Option<&str>) -> String {

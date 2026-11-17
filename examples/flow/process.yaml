@@ -43,7 +43,7 @@ root:
           children:
             - { type: ui-heading, props: { level: 1, text: Project journey } }
             - { type: ui-text, props: { variant: muted, text: "A workflow canvas after client-ui-next's process canvas, in the format it saves." } }
-        - { type: ui-theme-toggle }
+        - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
 
     - type: stack
       props: { direction: row, gap: 16, align: stretch }

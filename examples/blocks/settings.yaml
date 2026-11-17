@@ -12,7 +12,6 @@ state:
   bio: I own a computer.
   name: ""
   language: en
-  font: inter
   notify: mentions
   communication: false
   marketing: false
@@ -186,18 +185,8 @@ root:
                             - { type: ui-heading, props: { level: 4, text: Appearance } }
                             - { type: ui-text, props: { variant: muted, text: Customize the appearance of the app. Automatically switch between day and night themes. } }
                         - { type: ui-separator }
-                        - type: ui-field
-                          props: { label: Font, description: Set the font you want to use in the dashboard. }
-                          children:
-                            - type: ui-select
-                              props: { bind: font, options: [{ value: inter, label: Inter }, { value: manrope, label: Manrope }, { value: system, label: System }] }
-                              style: { max-width: 200 }
-                        - type: stack
-                          props: { gap: 8 }
-                          children:
-                            - { type: ui-label, props: { text: Theme } }
-                            - { type: ui-text, props: { variant: muted, text: "Select the theme for the dashboard. It applies to every page, and is remembered." } }
-                            - { type: ui-theme-toggle, props: { size: default } }
+                        # The theme options and the mode, for every page; choices are remembered.
+                        - { type: ui-theme-panel, props: { options: [palette, radius, density, text-size, font] } }
 
                 # ---------------------------------------------------- notifications
                 - type: if

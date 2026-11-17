@@ -32,7 +32,7 @@ fn summary_rules(block: StyleBlock) -> StyleBlock {
                 ("display", "flex"),
                 ("align-items", "center"),
                 ("justify-content", "space-between"),
-                ("gap", "16px"),
+                ("gap", sp!(16)),
                 ("list-style", "none"),
                 ("cursor", "pointer"),
                 ("font-weight", "500"),
@@ -88,11 +88,11 @@ const ACCORDION_ITEM_PROPS: &[PropDef] = &[
 
 static ACCORDION_ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     summary_rules(StyleBlock::from_pairs(&[("border-bottom", "1px solid var(--color-border)")]))
-        .nest("& > summary", StyleBlock::from_pairs(&[("padding", "16px 0"), ("font-size", "14px")]))
+        .nest("& > summary", StyleBlock::from_pairs(&[("padding", sp!(16, 0)), ("font-size", fs!(14))]))
         .nest("& > summary:hover", StyleBlock::from_pairs(&[("text-decoration", "underline")]))
 });
 static DISCLOSURE_CONTENT: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("padding-bottom", "16px"), ("font-size", "14px")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("padding-bottom", sp!(16)), ("font-size", fs!(14))]));
 
 /// `<details>` with a `<summary>` holding `title`, then the children.
 fn details(node: &Node, cx: &mut RenderCx<'_>, base: &'static StyleBlock, title: &Val, name: Option<Val>) -> Result<(), RenderError> {
@@ -144,10 +144,10 @@ static COLLAPSIBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     summary_rules(StyleBlock::new())
         .nest(
             "& > summary",
-            StyleBlock::from_pairs(&[("padding", "8px 12px"), ("border-radius", "var(--radius-md)"), ("font-size", "14px")]),
+            StyleBlock::from_pairs(&[("padding", sp!(8, 12)), ("border-radius", "var(--radius-md)"), ("font-size", fs!(14))]),
         )
         .nest("& > summary:hover", StyleBlock::from_pairs(&[("background", ACCENT)]))
-        .nest("& > div", StyleBlock::from_pairs(&[("padding", "8px 12px 0")]))
+        .nest("& > div", StyleBlock::from_pairs(&[("padding", sp!(8, 12, 0))]))
 });
 
 impl Component for Collapsible {
@@ -178,14 +178,14 @@ const TAB_PANEL_PROPS: &[PropDef] = &[
 ];
 
 static TABS: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "8px")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8))]));
 static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("gap", "2px"),
+        ("gap", sp!(2)),
         ("width", "fit-content"),
-        ("padding", "3px"),
+        ("padding", sp!(3)),
         ("border-radius", "var(--radius-lg)"),
         ("background", SUBTLE),
         ("color", MUTED),
@@ -196,14 +196,14 @@ static TAB: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("height", "30px"),
-        ("padding", "0 12px"),
+        ("height", sp!(30)),
+        ("padding", sp!(0, 12)),
         ("border", "1px solid transparent"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
         ("color", "inherit"),
         ("font-family", "inherit"),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("font-weight", "500"),
         ("white-space", "nowrap"),
         ("cursor", "pointer"),
@@ -334,13 +334,13 @@ static TOGGLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("gap", "8px"),
+        ("gap", sp!(8)),
         ("border", "1px solid transparent"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
         ("color", TEXT),
         ("font-family", "inherit"),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("font-weight", "500"),
         ("white-space", "nowrap"),
         ("cursor", "pointer"),
@@ -359,13 +359,13 @@ static TOGGLE_VARIANT_STYLES: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
 });
 static TOGGLE_SIZE_STYLES: LazyLock<[StyleBlock; 3]> = LazyLock::new(|| {
     [
-        StyleBlock::from_pairs(&[("height", "36px"), ("min-width", "36px"), ("padding", "0 10px")]),
-        StyleBlock::from_pairs(&[("height", "32px"), ("min-width", "32px"), ("padding", "0 8px")]),
-        StyleBlock::from_pairs(&[("height", "40px"), ("min-width", "40px"), ("padding", "0 12px")]),
+        StyleBlock::from_pairs(&[("height", sp!(36)), ("min-width", sp!(36)), ("padding", sp!(0, 10))]),
+        StyleBlock::from_pairs(&[("height", sp!(32)), ("min-width", sp!(32)), ("padding", sp!(0, 8))]),
+        StyleBlock::from_pairs(&[("height", sp!(40)), ("min-width", sp!(40)), ("padding", sp!(0, 12))]),
     ]
 });
 static TOGGLE_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", "4px"), ("width", "fit-content")])
+    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(4)), ("width", "fit-content")])
 });
 
 impl Component for Toggle {
@@ -515,6 +515,199 @@ impl Component for ThemeToggle {
                 .text(lit(field(&labels, scheme).unwrap_or_else(|| default.into())));
             cx.open(&button, node)?;
             cx.close("button");
+        }
+        cx.close("div");
+        Ok(())
+    }
+}
+
+pub struct ThemeOption;
+
+const THEME_OPTION_SCRIPT: &str = include_str!("theme_option.js");
+const THEME_OPTION_PROPS: &[PropDef] = &[
+    PropDef::new("option", PropKind::String, "The theme option it picks, from `theme.options`, e.g. `palette`").required(),
+    PropDef::new("swatch", PropKind::Any, "A token each choice is shown with as a colour dot, e.g. `color.primary`, or a list of them"),
+    PropDef::new("label", PropKind::Any, "The group's name for screen readers (default: the option's label)"),
+    PropDef::new("variant", PropKind::Enum(TOGGLE_VARIANTS), "Default `outline`"),
+    PropDef::new("size", PropKind::Enum(TOGGLE_SIZES), "Default `sm`"),
+];
+
+/// Several swatches overlap a little, like a fanned palette.
+static SWATCHES: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "inline-flex"), ("flex-shrink", "0")])
+        .nest("& > * + *", StyleBlock::from_pairs(&[("margin-left", "-4px")]))
+});
+static SWATCH: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("width", "12px"),
+        ("height", "12px"),
+        ("flex-shrink", "0"),
+        ("border-radius", "999px"),
+        ("box-shadow", "inset 0 0 0 1px color-mix(in srgb, currentColor 20%, transparent)"),
+    ])
+});
+
+impl Component for ThemeOption {
+    fn name(&self) -> &'static str {
+        "ui-theme-option"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "Picks one choice of a theme option (`theme.options`), such as a palette or a corner radius, for every page, \
+             and remembers it in the browser.",
+            THEME_OPTION_PROPS,
+            &[],
+            false,
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let name = cx.prop_string(node, "option").unwrap_or_default();
+        let Some(option) = cx.theme().options().get(&name).cloned() else {
+            let known = cx.theme().options().keys().map(|k| format!("`{k}`")).collect::<Vec<_>>().join(", ");
+            let known = if known.is_empty() { "none".into() } else { known };
+            return Err(RenderError::new(node, format!("`{name}` is not a theme option (options: {known})")));
+        };
+        let variant = &TOGGLE_VARIANT_STYLES[cx.prop_string(node, "variant").map_or(1, |_| choice(cx, node, "variant", TOGGLE_VARIANTS))];
+        let size = &TOGGLE_SIZE_STYLES[cx.prop_string(node, "size").map_or(1, |_| choice(cx, node, "size", TOGGLE_SIZES))];
+        // One token or several: a palette's primary, or a chart scheme's first colours.
+        let swatch: Vec<String> = match cx.prop(node, "swatch") {
+            Some(Json::Array(list)) => list.iter().map(expr::stringify).collect(),
+            Some(Json::String(t)) => vec![t],
+            _ => Vec::new(),
+        };
+        cx.global_js("ui-theme-option", THEME_OPTION_SCRIPT);
+        let mut group = cx.element("div", node);
+        group
+            .base_style_ref(&TOGGLE_GROUP)
+            .attr("role", "group")
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(option.label.clone())))
+            .behavior("ui-theme-option", json!({ "option": name, "fallback": option.default }));
+        cx.open(&group, node)?;
+        // The server can't know the stored choice; the behaviour corrects `aria-pressed`.
+        for (key, c) in &option.choices {
+            let mut button = Element::new("button");
+            button
+                .base_style_ref(&TOGGLE)
+                .base_style_ref(variant)
+                .base_style_ref(size)
+                .attr("type", "button")
+                .attr("data-choice", key.as_str())
+                .attr("aria-pressed", if *key == option.default { "true" } else { "false" });
+            cx.open(&button, node)?;
+            // A choice that doesn't set a token shows the base value (the default's).
+            let colors: Vec<String> = swatch
+                .iter()
+                .filter_map(|t| {
+                    c.tokens.get(t).cloned().or_else(|| (*key == option.default).then(|| cx.theme().tokens().get(t).cloned()).flatten())
+                })
+                .collect();
+            if !colors.is_empty() {
+                let mut dots = Element::new("span");
+                dots.base_style_ref(&SWATCHES).attr("aria-hidden", "true");
+                cx.open(&dots, node)?;
+                for color in colors {
+                    let mut dot = Element::new("span");
+                    let mut fill = StyleBlock::new();
+                    if let Some(v) = cx.style_value(node, "background", &lit(color))? {
+                        fill.push("background", v);
+                    }
+                    dot.base_style_ref(&SWATCH).base_style(fill);
+                    cx.open(&dot, node)?;
+                    cx.close("span");
+                }
+                cx.close("span");
+            }
+            cx.text(&c.label);
+            cx.close("button");
+        }
+        cx.close("div");
+        Ok(())
+    }
+}
+
+pub struct ThemePanel;
+
+const THEME_PANEL_PROPS: &[PropDef] = &[
+    PropDef::new("options", PropKind::Any, "The options to show, in order, e.g. `[palette, radius]` (default: every theme option, the palette first and chart colours last)"),
+    PropDef::new("mode", PropKind::Bool, "Show the light / dark mode too (default true)"),
+];
+
+static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(16))]));
+static PANEL_ROW: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8))]));
+static PANEL_LABEL: LazyLock<StyleBlock> =
+    LazyLock::new(|| StyleBlock::from_pairs(&[("font-size", fs!(14)), ("font-weight", "500"), ("line-height", "1")]));
+
+/// The token a picker shows as a swatch: the primary for a palette, the first series
+/// colour for chart colours, or the first colour a choice sets.
+fn swatch_for(option: &irender_core::theme::ThemeOption) -> Option<String> {
+    let set: Vec<&String> = option.choices.values().flat_map(|c| c.tokens.keys()).collect();
+    ["color.primary", "color.chart-1"]
+        .iter()
+        .find(|t| set.iter().any(|k| k == *t))
+        .map(|t| t.to_string())
+        .or_else(|| set.into_iter().find(|k| k.starts_with("color.")).cloned())
+}
+
+impl Component for ThemePanel {
+    fn name(&self) -> &'static str {
+        "ui-theme-panel"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "A labelled `ui-theme-option` for each theme option (the kits' and the document's), and the mode. \
+             Put it in a `ui-popover` for a Theme button.",
+            THEME_PANEL_PROPS,
+            &[],
+            false,
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let all = cx.theme().options().clone();
+        let names: Vec<String> = match cx.prop(node, "options") {
+            Some(Json::Array(list)) => list.iter().map(expr::stringify).collect(),
+            // The palette first and chart colours last, whatever order the kits' themes
+            // were merged in; the rest as the theme has them.
+            _ => {
+                let mut keys: Vec<String> = all.keys().cloned().collect();
+                keys.sort_by_key(|k| match k.as_str() {
+                    "palette" => 0,
+                    "chart" => 2,
+                    _ => 1,
+                });
+                keys
+            }
+        };
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&PANEL);
+        cx.open(&el, node)?;
+        let row = |cx: &mut RenderCx<'_>, label: &str, picker: Node| -> Result<(), RenderError> {
+            let mut r = Element::new("div");
+            r.base_style_ref(&PANEL_ROW);
+            cx.open(&r, node)?;
+            let mut l = Element::new("div");
+            l.base_style_ref(&PANEL_LABEL).attr("aria-hidden", "true").text(lit(label));
+            cx.open(&l, node)?;
+            cx.close("div");
+            cx.render(&picker)?;
+            cx.close("div");
+            Ok(())
+        };
+        for name in names {
+            let Some(option) = all.get(&name) else {
+                return Err(RenderError::new(node, format!("`{name}` is not a theme option")));
+            };
+            let mut props = vec![("option", lit(name.clone()))];
+            if let Some(t) = swatch_for(option) {
+                // Chart schemes show their first four colours; anything else one.
+                let shown = if t == "color.chart-1" { json!(["color.chart-1", "color.chart-2", "color.chart-3", "color.chart-4"]) } else { json!(t) };
+                props.push(("swatch", lit(shown)));
+            }
+            let mut picker = synthetic(node, "ui-theme-option", props, Vec::new(), Vec::new());
+            picker.style = StyleBlock::from_pairs(&[("flex-wrap", "wrap")]);
+            row(cx, &option.label, picker)?;
+        }
+        if cx.prop(node, "mode").is_none_or(|m| expr::truthy(&m)) {
+            row(cx, "Mode", synthetic(node, "ui-theme-toggle", Vec::new(), Vec::new(), Vec::new()))?;
         }
         cx.close("div");
         Ok(())

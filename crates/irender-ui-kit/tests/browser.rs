@@ -1189,3 +1189,71 @@ fn sidebar_shortcut_labels_and_phone_sheet_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A theme option picked on one page applies on the next before its content shows,
+/// keeps every picker in step, and its dark colours win in dark mode. Picking the
+/// default clears it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn theme_options_apply_and_persist_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "theme": { "options": { "palette": { "choices": { "rose": { "tokens": { "color": { "primary": "rgb(2, 2, 2)" } },
+            "modes": { "dark": { "color": { "primary": "rgb(3, 3, 3)" } } } } } } } },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-theme-option", "props": { "option": "palette" }, "attrs": { "id": "a" } },
+            { "type": "ui-theme-option", "props": { "option": "palette" }, "attrs": { "id": "b" } },
+            { "type": "ui-theme-option", "props": { "option": "density" } },
+            { "type": "ui-button", "props": { "label": "Probe" }, "attrs": { "id": "probe" } } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let probe = html.find("id=\"probe\"").unwrap();
+    let after = probe + html[probe..].find("</button>").unwrap() + 9;
+    // Before the runtime: the background the stored choice gave the button.
+    let early = r#"<script>window.__early = getComputedStyle(document.getElementById("probe")).backgroundColor</script>"#;
+    // Colours are read straight after a click, so no transitions.
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const tick = () => new Promise((r) => setTimeout(r, 50));
+      const bg = () => getComputedStyle(document.getElementById("probe")).backgroundColor;
+      const pressed = (id) => [...document.querySelectorAll(`#${id} [data-choice=rose], #${id} [data-choice=zinc]`)].map((b) => b.dataset.choice + (b.getAttribute("aria-pressed") === "true" ? "*" : "")).join(" ");
+      const height = () => Math.round(document.getElementById("probe").getBoundingClientRect().height);
+      out.push(`stored ${window.__early} ${pressed("a")} | ${pressed("b")} ${document.documentElement.dataset.themePalette}`);
+      document.querySelector("#b [data-choice=zinc]").click(); await tick();
+      out.push(`zinc ${bg()} ${pressed("a")} attr ${document.documentElement.getAttribute("data-theme-palette")} stored ${localStorage.getItem("irender-theme-options")}`);
+      document.querySelector("#a [data-choice=rose]").click(); await tick();
+      window.__irenderTheme.choose("dark"); await tick();
+      out.push(`rose dark ${bg()} ${pressed("b")}`);
+      const before = height();
+      document.querySelector("[data-choice=compact]").click(); await tick();
+      out.push(`compact ${before} to ${height()}`);
+      // Another page of the site picks blue and clears density: this one follows.
+      localStorage.setItem("irender-theme-options", '{"palette":"blue"}');
+      dispatchEvent(new StorageEvent("storage", { key: "irender-theme-options" })); await tick();
+      out.push(`other page ${document.documentElement.dataset.themePalette} ${document.documentElement.dataset.themeDensity} ${pressed("a")}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = format!("{}{early}{}", &html[..after], &html[after..])
+        .replace("<head>", r#"<head><script>localStorage.setItem("irender-theme-options", '{"palette":"rose"}'); localStorage.removeItem("irender-theme")</script>"#)
+        .replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("theme-options", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "stored rgb(2, 2, 2) zinc rose* | zinc rose* rose",
+            // The default is no attribute and nothing stored: the base tokens.
+            r#"zinc rgb(24, 24, 27) zinc* rose attr null stored {}"#,
+            "rose dark rgb(3, 3, 3) zinc rose*",
+            // Compact density: a 36px control is 0.8 × 36.
+            "compact 36 to 29",
+            "other page blue undefined zinc rose",
+        ],
+        "\n{result}"
+    );
+}

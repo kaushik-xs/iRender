@@ -214,6 +214,31 @@ fn charts_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// Picking a chart colour scheme (the `chart` theme option) recolours the charts on
+/// the page; picking the default goes back to the kit's hues.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn chart_colour_schemes_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1, "root": { "type": "stack", "children": [
+        { "type": "ui-theme-option", "props": { "option": "chart" } },
+        { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "bar", "data": [{ "d": "a", "x": 1, "y": 2 }] } } ] } });
+    let body = r##"
+    await ready(["c"]);
+    log("default", opt("c").color[0]);
+    document.querySelector("[data-choice=blue]").click();
+    await wait(100);
+    log("blue", opt("c").color[0], opt("c").color[1]);
+    document.querySelector("[data-choice=default]").click();
+    await wait(100);
+    log("back", opt("c").color[0]);
+"##;
+    let Some(lines) = run("schemes", &engine, doc, &driver(body)) else { return };
+    assert_eq!(lines, ["default rgba(42,120,214,1)", "blue rgba(37,99,235,1) rgba(96,165,250,1)", "back rgba(42,120,214,1)"], "\n{}", lines.join("\n"));
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn untrusted_documents_in_chrome() {

@@ -24,15 +24,16 @@ root:
           props: { direction: row, align: center, gap: 12 }
           children:
             - { type: ui-heading, props: { level: 1, text: Blocks } }
-            - { type: ui-theme-toggle, style: { margin-left: auto } }
+            # Picks every theme option and the mode; the previews below follow live.
+            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
-          props: { variant: lead, text: "Whole pages to start from: a dashboard, sidebars, login and sign-up, settings and pricing. Each is one document using the UI kit, chart kit and icon kit; open it, or read its source." }
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, sidebars, login and sign-up, settings, pricing and a theme customizer. Each is one document using the UI kit, chart kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group
           props:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: pricing, label: Pricing }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: pricing, label: Pricing }, { value: theme, label: Theme }]
 
     - type: list
       props:
@@ -45,6 +46,7 @@ root:
           - { id: login-04, category: login, title: A login page with form and image, kits: [ui-kit], height: 720 }
           - { id: signup, category: signup, title: A sign-up form that checks itself as you type, kits: [ui-kit, icon-kit], height: 860 }
           - { id: settings, category: settings, title: "Account settings: a section menu, a form per section and a danger zone", kits: [ui-kit, icon-kit], height: 900 }
+          - { id: theme, category: theme, title: "A theme customizer: palette, chart colours, radius, density, text size, font", kits: [ui-kit, chart-kit, icon-kit], height: 1300 }
           - { id: pricing, category: pricing, title: "Pricing: a monthly / yearly switch, plans, a comparison table and questions", kits: [ui-kit, icon-kit], height: 1000 }
       style: { display: flex, flex-direction: column, gap: 48 }
       children:

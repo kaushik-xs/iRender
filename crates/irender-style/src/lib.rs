@@ -219,6 +219,40 @@ impl<'t> StyleCompiler<'t> {
                 None => {}
             }
         }
+        // Theme options: each choice on `:root[data-theme-<option>=…]`, then its own
+        // overrides per variant, after the base modes so a chosen palette's dark colours
+        // win over the base dark ones.
+        for (name, option) in self.theme.options() {
+            let attr = irender_core::theme::ThemeOption::attribute(name);
+            for (choice, c) in &option.choices {
+                let on = format!(":root[{attr}=\"{choice}\"]");
+                if !c.tokens.is_empty() {
+                    let _ = writeln!(css, "{on} {{");
+                    vars(&c.tokens, &mut css);
+                    css.push_str("}\n");
+                }
+                for (mode, tokens) in &c.modes {
+                    match self.theme.condition(mode) {
+                        Some(Condition::AtRule(rule)) => {
+                            let _ = writeln!(css, "{rule} {{\n{on} {{");
+                            vars(tokens, &mut css);
+                            css.push_str("}\n}\n");
+                        }
+                        Some(Condition::Selector(s)) => {
+                            // `[data-theme=dark] &` applies to the root itself here.
+                            let sel = match s.trim_end().strip_suffix('&') {
+                                Some(prefix) if !prefix.trim().is_empty() => format!("{}[{attr}=\"{choice}\"]", prefix.trim()),
+                                _ => s.replace('&', &on),
+                            };
+                            let _ = writeln!(css, "{sel} {{");
+                            vars(tokens, &mut css);
+                            css.push_str("}\n");
+                        }
+                        None => {}
+                    }
+                }
+            }
+        }
         css
     }
 
@@ -349,5 +383,20 @@ mod tests {
         // Outside the layers, after the theme, and the layer order statement stays first.
         assert!(css.starts_with("@layer i-base, i-instance;"));
         assert!(css.find(":root").unwrap() < spin && fade < css.find("@layer i-base {").unwrap(), "{css}");
+    }
+
+    #[test]
+    fn theme_options_compile_to_root_attribute_rules() {
+        let spec: irender_core::theme::ThemeSpec = serde_json::from_value(serde_json::json!({ "options": { "palette": { "choices": {
+            "zinc": { "tokens": { "color": { "primary": "#18181b" } } },
+            "rose": { "tokens": { "color": { "primary": "#e11d48" } }, "modes": { "dark": { "color": { "primary": "#fb7185" } } } }
+        } } } }))
+        .unwrap();
+        let theme = Theme::resolve(&spec, &mut irender_core::Diagnostics::default());
+        let css = StyleCompiler::new(&theme).theme_css();
+        assert!(css.contains(":root[data-theme-palette=\"rose\"] {\n  --color-primary: #e11d48;\n}"), "{css}");
+        // Its dark colours come after the base dark mode, so they win in dark mode.
+        let dark = css.find("@media (prefers-color-scheme: dark) {\n:root[data-theme-palette=\"rose\"] {\n  --color-primary: #fb7185;").unwrap();
+        assert!(dark > css.find("@media (prefers-color-scheme: dark) {\n:root {").unwrap(), "{css}");
     }
 }

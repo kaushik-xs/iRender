@@ -41,6 +41,11 @@ _Last updated: 2026-11-17._
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
   - [ ] No chip animations.
   - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. Idea: a `labels` prop or an initial lookup request.
+- [ ] **Theme options:**
+  - [ ] Picking and applying them needs irender-ui-kit (its picker and early script), like the mode. Without the kit a page shows the default choices.
+  - [ ] A document can't read the current choice from `state` (to show "Rose" in text, say); the picker and `window.__irenderTheme.option()` know it. Idea: an option to mirror choices into state keys.
+  - [ ] The kit's icon sizes, 1px borders, the switch's knob and other small fixed sizes don't follow `space.scale`; everything else does.
+  - [ ] A swatch shows a choice's light value, in dark mode too.
 - [ ] **Pages rendered without the kit ignore `ui-theme-toggle`'s choice.** Every kit page applies it now, but the search, wizard, counter and product examples are rendered without `--ui-kit`, so they still follow the system.
 
 ## Flow kit next phases

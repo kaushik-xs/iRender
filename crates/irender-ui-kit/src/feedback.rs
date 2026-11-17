@@ -27,7 +27,7 @@ static REGION: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "min(360px, calc(100% - 32px))"),
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("gap", "8px"),
+        ("gap", sp!(8)),
     ])
 });
 static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -35,13 +35,13 @@ static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("box-sizing", "border-box"),
         ("position", "relative"),
         ("display", "grid"),
-        ("gap", "4px"),
-        ("padding", "16px 40px 16px 16px"),
+        ("gap", sp!(4)),
+        ("padding", sp!(16, 40, 16, 16)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("background", SURFACE),
         ("color", TEXT),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.15)"),
     ])
     .nest(
@@ -57,7 +57,7 @@ static CLOSE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("top", "8px"),
         ("right", "8px"),
         ("width", "24px"),
-        ("height", "24px"),
+        ("height", sp!(24)),
         ("border", "0"),
         ("border-radius", "var(--radius-sm)"),
         ("background", "transparent"),

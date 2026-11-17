@@ -62,6 +62,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-dialog-close", json!({ "label": "L" })),
         ("ui-combobox", json!({ "options": ["a"] })),
         ("ui-split-button", json!({ "label": "Save" })),
+        ("ui-theme-option", json!({ "option": "palette" })),
         ("ui-sidebar-item", json!({ "label": "Home" })),
         ("ui-command-item", json!({ "label": "L" })),
     ];
@@ -84,7 +85,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 66);
+    assert_eq!(kit, 68);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -112,7 +113,8 @@ fn button_variants_sizes_and_links() {
             r#"<a href="/next" aria-disabled="true">Go</a><button type="button">nonsense</button></div>"#
         )
     );
-    for decl in ["background: var(--color-destructive, #dc2626);", "height: 32px;", "height: 36px;"] {
+    // Sizes follow the theme's `space.scale` (density).
+    for decl in ["background: var(--color-destructive, #dc2626);", "height: calc(32px * var(--space-scale, 1));", "height: calc(36px * var(--space-scale, 1));"] {
         assert!(page.css.contains(decl), "missing `{decl}`");
     }
 }
@@ -516,6 +518,35 @@ fn separator_label_button_and_badge_icons() {
     assert!(body.contains("<div>Or continue with</div>"), "{body}");
     assert!(body.contains(r#"<button type="button"><span aria-hidden="true" data-icon>+</span><span>Add</span></button>"#), "{body}");
     assert!(body.contains(r#"<span><span aria-hidden="true" data-icon>↗</span><span>+12%</span></span>"#), "{body}");
+}
+
+#[test]
+fn theme_option_lists_its_choices_with_swatches() {
+    let page = render_with(json!({ "type": "ui-theme-option", "props": { "option": "palette", "swatch": "color.primary" } }), json!({}), json!({})).unwrap();
+    let body = plain(&page.body);
+    assert!(body.starts_with(r#"<div role="group" aria-label="Colour" data-i-x="ui-theme-option" data-i-xc="{&quot;option&quot;:&quot;palette&quot;,&quot;fallback&quot;:&quot;zinc&quot;}">"#), "{body}");
+    // The default is pressed until the behaviour reads the stored choice.
+    // Zinc, the default, sets no primary of its own: its swatch is the base colour.
+    assert!(body.contains(r#"<button type="button" data-choice="zinc" aria-pressed="true"><span aria-hidden="true"><span></span></span>Zinc</button>"#), "{body}");
+    assert!(page.css.contains("background: #18181b;"), "zinc's swatch");
+    assert!(body.contains(r#"<button type="button" data-choice="rose" aria-pressed="false"><span aria-hidden="true"><span></span></span>Rose</button>"#), "{body}");
+    assert!(page.css.contains("background: #e11d48;"), "rose's swatch");
+    // The kit's options are in the theme CSS, each with its dark colours.
+    assert!(page.css.contains(r#":root[data-theme-palette="rose"] {"#) && page.css.contains(r#":root[data-theme-density="compact"] {"#));
+    let err = render_with(json!({ "type": "ui-theme-option", "props": { "option": "nope" } }), json!({}), json!({})).unwrap_err();
+    assert!(err.message.contains("`nope` is not a theme option (options: `palette`, `radius`, `density`, `text-size`, `font`)"), "{err}");
+}
+
+#[test]
+fn theme_panel_has_a_picker_per_option_and_the_mode() {
+    let doc = json!({ "type": "ui-theme-panel" });
+    let body = plain(&render(doc));
+    let labels: Vec<&str> = body.split(r#"<div aria-hidden="true">"#).skip(1).map(|r| &r[..r.find('<').unwrap()]).collect();
+    // The palette first and chart colours (not registered here) last.
+    assert_eq!(labels, ["Colour", "Radius", "Density", "Text size", "Font", "Mode"], "{body}");
+    assert!(body.contains(r#"data-i-xc="{&quot;option&quot;:&quot;palette&quot;"#) && body.contains(r#"data-i-x="ui-theme-toggle""#), "{body}");
+    let some = plain(&render(json!({ "type": "ui-theme-panel", "props": { "options": ["radius"], "mode": false } })));
+    assert_eq!(some.matches("data-i-x=").count(), 1, "{some}");
 }
 
 #[test]

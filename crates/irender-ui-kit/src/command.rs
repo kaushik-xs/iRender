@@ -49,14 +49,14 @@ fn palette_style(framed: bool) -> StyleBlock {
         ("overflow", "hidden"),
         ("background", SURFACE),
         ("color", TEXT),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
     ]);
     if framed {
         root = root.set("border", "1px solid var(--color-border)").set("border-radius", "var(--radius-lg)");
     }
     root.nest(
             "& [data-ui-search]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", "8px"), ("padding", "0 12px"), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(0, 12)), ("border-bottom", "1px solid var(--color-border)")]),
         )
         .nest("& [data-ui-search-icon]", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
         .nest(
@@ -64,7 +64,7 @@ fn palette_style(framed: bool) -> StyleBlock {
             pairs(&[
                 ("flex", "1"),
                 ("min-width", "0"),
-                ("height", "44px"),
+                ("height", sp!(44)),
                 ("margin", "0"),
                 ("padding", "0"),
                 ("border", "0"),
@@ -75,17 +75,17 @@ fn palette_style(framed: bool) -> StyleBlock {
             ]),
         )
         .nest("& [data-ui-command-input]::placeholder", pairs(&[("color", MUTED)]))
-        .nest("& [role=listbox]", pairs(&[("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", "4px")]))
-        .nest("& [data-ui-heading]", pairs(&[("padding", "6px 8px"), ("font-size", "12px"), ("font-weight", "500"), ("color", MUTED)]))
+        .nest("& [role=listbox]", pairs(&[("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", sp!(4))]))
+        .nest("& [data-ui-heading]", pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(12)), ("font-weight", "500"), ("color", MUTED)]))
         .nest(
             "& [role=option]",
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", "8px"),
+                ("gap", sp!(8)),
                 ("width", "100%"),
-                ("padding", "6px 8px"),
+                ("padding", sp!(6, 8)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "transparent"),
@@ -101,10 +101,10 @@ fn palette_style(framed: bool) -> StyleBlock {
         .nest("& [role=option]:disabled", pairs(&[("opacity", "0.5")]))
         .nest(
             "& [data-ui-shortcut]",
-            pairs(&[("margin-left", "auto"), ("padding-left", "16px"), ("font-size", "12px"), ("letter-spacing", "0.1em"), ("color", MUTED)]),
+            pairs(&[("margin-left", "auto"), ("padding-left", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)]),
         )
-        .nest("& [role=separator]", pairs(&[("height", "1px"), ("margin", "4px -4px"), ("background", BORDER)]))
-        .nest("& [data-ui-empty]", pairs(&[("padding", "24px 8px"), ("text-align", "center"), ("color", MUTED)]))
+        .nest("& [role=separator]", pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", BORDER)]))
+        .nest("& [data-ui-empty]", pairs(&[("padding", sp!(24, 8)), ("text-align", "center"), ("color", MUTED)]))
         .nest(
             "& [data-ui-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),

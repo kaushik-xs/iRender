@@ -1,0 +1,238 @@
+# Block: a theme customizer. The pickers on the left choose theme options (palette,
+# radius, density, text size, font, chart colours) and the light / dark mode; the
+# preview on the right is ordinary kit components and charts, restyled live. Choices
+# are remembered and apply on every page rendered with the kit.
+#
+# The kits ship the options; this document adds a palette choice of its own (`brand`)
+# and an option of its own (`shadow`, used by its cards through `$shadow.card`).
+#
+#   cargo run -p irender-cli -- render examples/blocks/theme.yaml --ui-kit --chart-kit --icon-kit -o theme.html
+version: 1
+theme:
+  options:
+    palette:
+      choices:
+        brand:
+          label: Brand
+          tokens: { color: { primary: "#0d9488", primary-hover: "#0f766e", on-primary: "#f0fdfa", ring: "#0d9488" } }
+          modes: { dark: { color: { primary: "#2dd4bf", primary-hover: "#5eead4", on-primary: "#042f2e", ring: "#2dd4bf" } } }
+    shadow:
+      label: Shadow
+      default: soft
+      choices:
+        flat: { label: Flat, tokens: { shadow: { card: none } } }
+        soft: { label: Soft, tokens: { shadow: { card: "0 1px 3px rgb(0 0 0 / 0.08)" } } }
+        raised: { label: Raised, tokens: { shadow: { card: "0 12px 32px rgb(0 0 0 / 0.14)" } } }
+state:
+  email: ""
+  plan: pro
+  notify: true
+  volume: 60
+  tab: overview
+  toast: null
+root:
+  type: element
+  style:
+    display: flex
+    flex-wrap: wrap
+    align-items: flex-start
+    gap: 32
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 24px 64px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+  children:
+    # ------------------------------------------------------------ pickers
+    - type: ui-card
+      props: { title: Customize, description: Pick a theme. It applies to every page and is remembered. }
+      style: { flex: 0 1 340px, position: sticky, top: 24, box-shadow: $shadow.card }
+      children:
+        - type: list
+          props:
+            as: picker
+            items:
+              - { option: palette, label: Colour, swatch: color.primary }
+              - { option: chart, label: Chart colours, swatch: color.chart-1 }
+              - { option: radius, label: Radius }
+              - { option: density, label: Density }
+              - { option: text-size, label: Text size }
+              - { option: font, label: Font }
+              - { option: shadow, label: Shadow }
+          style: { display: flex, flex-direction: column, gap: 20 }
+          children:
+            - type: stack
+              props: { gap: 8 }
+              children:
+                - { type: ui-label, props: { text: "{{ picker.label }}" } }
+                - type: ui-theme-option
+                  props: { option: "{{ picker.option }}", swatch: "{{ picker.swatch }}" }
+                  style: { flex-wrap: wrap }
+        - type: stack
+          props: { gap: 8 }
+          children:
+            - { type: ui-label, props: { text: Mode } }
+            - { type: ui-theme-toggle }
+
+    # ------------------------------------------------------------ preview
+    - type: element
+      style: { flex: 1 1 560px, display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(280px, 1fr))" }
+      children:
+        - type: ui-card
+          style: { box-shadow: $shadow.card }
+          children:
+            - type: stack
+              props: { gap: 4 }
+              children:
+                - { type: ui-text, props: { variant: muted, text: Total revenue } }
+                - { type: text, props: { value: "$15,231.89" }, style: { font-size: 28, font-weight: 700 } }
+                - { type: ui-text, props: { variant: muted, text: +20.1% from last month } }
+            - type: ui-chart
+              props:
+                type: area
+                height: 120
+                smooth: true
+                legend: false
+                data: [{ m: Jan, v: 4000 }, { m: Feb, v: 3000 }, { m: Mar, v: 5000 }, { m: Apr, v: 4600 }, { m: May, v: 6100 }, { m: Jun, v: 7200 }]
+                x: m
+                option: { grid: { left: 0, right: 0, top: 8, bottom: 0 }, xAxis: { show: false }, yAxis: { show: false } }
+
+        - type: ui-card
+          style: { box-shadow: $shadow.card }
+          children:
+            - type: stack
+              props: { gap: 4 }
+              children:
+                - { type: ui-text, props: { variant: muted, text: Visits by channel } }
+                - { type: text, props: { value: "2,350" }, style: { font-size: 28, font-weight: 700 } }
+            - type: ui-chart
+              props:
+                type: bar
+                height: 140
+                stack: true
+                data:
+                  - { day: Mon, search: 120, social: 80, email: 40 }
+                  - { day: Tue, search: 140, social: 60, email: 55 }
+                  - { day: Wed, search: 100, social: 95, email: 30 }
+                  - { day: Thu, search: 160, social: 70, email: 65 }
+                  - { day: Fri, search: 130, social: 110, email: 50 }
+                x: day
+                option: { grid: { left: 0, right: 0, top: 24, bottom: 0, containLabel: true }, yAxis: { show: false } }
+
+        - type: ui-card
+          props: { title: Create an account, description: Enter your email below to create your account. }
+          style: { box-shadow: $shadow.card }
+          children:
+            - type: element
+              style: { display: grid, grid-template-columns: "1fr 1fr", gap: 8 }
+              children:
+                - { type: ui-button, props: { label: GitHub, variant: outline } }
+                - { type: ui-button, props: { label: Google, variant: outline } }
+            - { type: ui-separator, props: { label: Or continue with } }
+            - type: ui-field
+              props: { label: Email }
+              children: [ { type: ui-input, props: { bind: email, type: email, placeholder: m@example.com } } ]
+            - type: ui-field
+              props: { label: Plan }
+              children:
+                - { type: ui-select, props: { bind: plan, options: [{ value: free, label: Free }, { value: pro, label: Pro }, { value: team, label: Team }] } }
+            - type: ui-button
+              props: { label: Create account }
+              style: { width: 100% }
+              on: { click: { action: set_state, key: toast, value: { title: Account created, description: "Welcome aboard, {{ email || 'friend' }}." } } }
+
+        - type: ui-card
+          props: { title: Team members, description: Invite your team members to collaborate. }
+          style: { box-shadow: $shadow.card }
+          children:
+            - type: list
+              props:
+                as: m
+                items:
+                  - { name: Sofia Davis, email: m@example.com, role: Owner, initials: SD }
+                  - { name: Jackson Lee, email: p@example.com, role: Member, initials: JL }
+                  - { name: Isabella Nguyen, email: i@example.com, role: Member, initials: IN }
+              style: { display: flex, flex-direction: column, gap: 16 }
+              children:
+                - type: stack
+                  props: { direction: row, gap: 12, align: center }
+                  children:
+                    - { type: ui-avatar, props: { fallback: "{{ m.initials }}", size: 36 } }
+                    - type: stack
+                      props: { gap: 2 }
+                      style: { flex: 1, min-width: 0 }
+                      children:
+                        - { type: text, props: { value: "{{ m.name }}" }, style: { font-weight: 500 } }
+                        - { type: ui-text, props: { variant: muted, text: "{{ m.email }}" } }
+                    - { type: ui-badge, props: { text: "{{ m.role }}", variant: "{{ m.role == 'Owner' ? 'default' : 'secondary' }}" } }
+
+        - type: ui-card
+          props: { title: Settings }
+          style: { box-shadow: $shadow.card }
+          children:
+            - type: ui-tabs
+              props: { bind: tab }
+              children:
+                - type: ui-tab-panel
+                  props: { value: overview, label: Overview }
+                  children:
+                    - type: stack
+                      props: { gap: 16 }
+                      children:
+                        - { type: ui-switch, props: { bind: notify, label: Email notifications } }
+                        - { type: ui-checkbox, props: { label: Accept terms and conditions } }
+                        - type: stack
+                          props: { gap: 8 }
+                          children:
+                            - { type: ui-label, props: { text: "Volume: {{ volume }}" } }
+                            - { type: ui-slider, props: { bind: volume } }
+                        - { type: ui-progress, props: { value: "{{ volume }}" } }
+                - type: ui-tab-panel
+                  props: { value: activity, label: Activity }
+                  children:
+                    - { type: ui-alert, props: { icon: info, title: Heads up!, description: You can add components to your app using the CLI. } }
+
+        - type: ui-card
+          props: { title: Recent payments }
+          style: { box-shadow: $shadow.card, grid-column: "1 / -1" }
+          children:
+            - type: ui-table
+              children:
+                - type: element
+                  props: { tag: thead }
+                  children:
+                    - type: element
+                      props: { tag: tr }
+                      children:
+                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Status } } ] }
+                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Email } } ] }
+                        - { type: element, props: { tag: th }, style: { text-align: right }, children: [ { type: text, props: { value: Amount } } ] }
+                - type: list
+                  props:
+                    tag: tbody
+                    as: p
+                    items:
+                      - { status: Success, email: ken99@example.com, amount: "$316.00" }
+                      - { status: Processing, email: abe45@example.com, amount: "$242.00" }
+                      - { status: Failed, email: carmella@example.com, amount: "$721.00" }
+                  children:
+                    - type: element
+                      props: { tag: tr }
+                      children:
+                        - type: element
+                          props: { tag: td }
+                          children:
+                            - { type: ui-badge, props: { text: "{{ p.status }}", variant: "{{ p.status == 'Failed' ? 'destructive' : p.status == 'Success' ? 'default' : 'outline' }}" } }
+                        - { type: element, props: { tag: td }, children: [ { type: text, props: { value: "{{ p.email }}" } } ] }
+                        - { type: element, props: { tag: td }, style: { text-align: right, font-variant-numeric: tabular-nums }, children: [ { type: text, props: { value: "{{ p.amount }}" } } ] }
+            - type: stack
+              props: { direction: row, gap: 8, wrap: true }
+              children:
+                - { type: ui-button, props: { label: Primary } }
+                - { type: ui-button, props: { label: Secondary, variant: secondary } }
+                - { type: ui-button, props: { label: Outline, variant: outline } }
+                - { type: ui-button, props: { label: Ghost, variant: ghost } }
+                - { type: ui-button, props: { label: Delete, variant: destructive } }
+
+    - { type: ui-toaster, props: { bind: toast } }

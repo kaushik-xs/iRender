@@ -80,7 +80,8 @@ root:
         - { type: ui-sidebar-trigger }
         - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin: 0 8px 0 0 } }
         - { type: element, props: { tag: h1 }, style: { margin: 0, font-size: 16, font-weight: 500 }, children: [ { type: text, props: { value: Documents } } ] }
-        - { type: ui-button, props: { label: GitHub, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender" }, style: { margin-left: auto } }
+        - { type: ui-popover, props: { trigger: Theme, triggerVariant: ghost, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
+        - { type: ui-button, props: { label: GitHub, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender" } }
 
     - type: element
       style: { display: flex, flex-direction: column, gap: 24, padding: 24px 0 }

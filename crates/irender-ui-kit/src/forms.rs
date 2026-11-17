@@ -43,13 +43,13 @@ static BUTTON: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("gap", "8px"),
+        ("gap", sp!(8)),
         ("flex-shrink", "0"),
         ("white-space", "nowrap"),
         ("border", "1px solid transparent"),
         ("border-radius", "var(--radius-md)"),
         ("font-family", "inherit"),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("font-weight", "500"),
         ("line-height", "1"),
         ("text-decoration", "none"),
@@ -84,10 +84,10 @@ static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 6]> = LazyLock::new(|| {
 
 static BUTTON_SIZE_STYLES: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     [
-        StyleBlock::from_pairs(&[("height", "36px"), ("padding", "0 16px")]),
-        StyleBlock::from_pairs(&[("height", "32px"), ("padding", "0 12px"), ("gap", "6px")]),
-        StyleBlock::from_pairs(&[("height", "40px"), ("padding", "0 24px")]),
-        StyleBlock::from_pairs(&[("height", "36px"), ("width", "36px"), ("padding", "0")]),
+        StyleBlock::from_pairs(&[("height", sp!(36)), ("padding", sp!(0, 16))]),
+        StyleBlock::from_pairs(&[("height", sp!(32)), ("padding", sp!(0, 12)), ("gap", sp!(6))]),
+        StyleBlock::from_pairs(&[("height", sp!(40)), ("padding", sp!(0, 24))]),
+        StyleBlock::from_pairs(&[("height", sp!(36)), ("width", "36px"), ("padding", "0")]),
     ]
 });
 static LINK_SIZE: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("height", "auto"), ("padding", "0")]));
@@ -164,8 +164,8 @@ static LABEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", "8px"),
-        ("font-size", "14px"),
+        ("gap", sp!(8)),
+        ("font-size", fs!(14)),
         ("font-weight", "500"),
         ("line-height", "1"),
         ("color", TEXT),
@@ -211,13 +211,13 @@ fn field_base(height: Option<&str>) -> StyleBlock {
         ("box-sizing", "border-box"),
         ("width", "100%"),
         ("min-width", "0"),
-        ("padding", "4px 12px"),
+        ("padding", sp!(4, 12)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
         ("color", TEXT),
         ("font-family", "inherit"),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
         ("transition", "border-color .15s, box-shadow .15s"),
     ])
@@ -234,8 +234,8 @@ fn field_base(height: Option<&str>) -> StyleBlock {
 
 static INPUT: LazyLock<StyleBlock> = LazyLock::new(|| field_base(Some("36px")));
 static TEXTAREA: LazyLock<StyleBlock> =
-    LazyLock::new(|| field_base(None).set("min-height", "64px").set("padding", "8px 12px").set("resize", "vertical"));
-static SELECT: LazyLock<StyleBlock> = LazyLock::new(|| field_base(Some("36px")).set("padding", "4px 8px").set("cursor", "pointer"));
+    LazyLock::new(|| field_base(None).set("min-height", sp!(64)).set("padding", sp!(8, 12)).set("resize", "vertical"));
+static SELECT: LazyLock<StyleBlock> = LazyLock::new(|| field_base(Some("36px")).set("padding", sp!(4, 8)).set("cursor", "pointer"));
 
 pub struct Input;
 
@@ -317,8 +317,8 @@ static CHOICE_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("gap", "8px"),
-        ("font-size", "14px"),
+        ("gap", sp!(8)),
+        ("font-size", fs!(14)),
         ("font-weight", "500"),
         ("line-height", "1.2"),
         ("color", TEXT),
@@ -345,7 +345,7 @@ static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("position", "relative"),
         ("flex-shrink", "0"),
         ("width", "36px"),
-        ("height", "20px"),
+        ("height", sp!(20)),
         ("margin", "0"),
         ("border", "1px solid transparent"),
         ("border-radius", "999px"),
@@ -459,8 +459,8 @@ const RADIO_GROUP_PROPS: &[PropDef] = &[
 
 static RADIO_GROUP: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     [
-        StyleBlock::from_pairs(&[("display", "grid"), ("gap", "12px")]),
-        StyleBlock::from_pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", "16px")]),
+        StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(12))]),
+        StyleBlock::from_pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(16))]),
     ]
 });
 
@@ -544,7 +544,7 @@ const SLIDER_PROPS: &[PropDef] = &[
 static SLIDER: LazyLock<StyleBlock> = LazyLock::new(|| {
     native_scheme(StyleBlock::from_pairs(&[
         ("width", "100%"),
-        ("height", "20px"),
+        ("height", sp!(20)),
         ("margin", "0"),
         ("accent-color", PRIMARY),
         ("cursor", "pointer"),
@@ -669,29 +669,29 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("align-items", "center"),
         ("width", "100%"),
-        ("min-height", "36px"),
+        ("min-height", sp!(36)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
         ("color", TEXT),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
         ("overflow", "hidden"),
         ("transition", "border-color .15s, box-shadow .15s"),
     ])
     .nest(GROUPED, field)
     // Next to a prefix or suffix, the field's own padding would double the gap.
-    .nest("& > span + :is(input, textarea, select)", StyleBlock::from_pairs(&[("padding-left", "8px")]))
-    .nest("& > :is(input, textarea, select):has(+ span)", StyleBlock::from_pairs(&[("padding-right", "8px")]))
+    .nest("& > span + :is(input, textarea, select)", StyleBlock::from_pairs(&[("padding-left", sp!(8))]))
+    .nest("& > :is(input, textarea, select):has(+ span)", StyleBlock::from_pairs(&[("padding-right", sp!(8))]))
     .nest(format!("{GROUPED}:focus-visible"), StyleBlock::from_pairs(&[("box-shadow", "none")]))
     // The group shows the focus ring, around the field and its addons together.
     .nest(":has(:focus-visible)", focus_ring().set("border-color", RING))
     .nest(":has([aria-invalid=true])", StyleBlock::from_pairs(&[("border-color", DESTRUCTIVE)]))
     .nest(":has(:disabled)", StyleBlock::from_pairs(&[("opacity", "0.5")]))
     // Buttons sit inside the border, a little smaller than on their own.
-    .nest("& > :is(button, a)", StyleBlock::from_pairs(&[("height", "28px"), ("margin", "0 4px"), ("padding", "0 8px")]))
+    .nest("& > :is(button, a)", StyleBlock::from_pairs(&[("height", sp!(28)), ("margin", sp!(0, 4)), ("padding", sp!(0, 8))]))
 });
 static INPUT_GROUP_ADDON: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "center"), ("padding", "0 12px"), ("color", MUTED), ("white-space", "nowrap")])
+    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "center"), ("padding", sp!(0, 12)), ("color", MUTED), ("white-space", "nowrap")])
 });
 static INPUT_GROUP_PREFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-right", "0"));
 static INPUT_GROUP_SUFFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-left", "0"));
@@ -745,21 +745,21 @@ const FIELD_PROPS: &[PropDef] = &[
 
 static FIELD: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     [
-        StyleBlock::from_pairs(&[("display", "grid"), ("gap", "8px")]),
+        StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(8))]),
         // Label and control side by side; the text under them spans both columns.
         StyleBlock::from_pairs(&[
             ("display", "grid"),
             ("grid-template-columns", "1fr auto"),
             ("align-items", "center"),
-            ("gap", "8px 16px"),
+            ("gap", sp!(8, 16)),
         ])
         .nest("& > p", StyleBlock::from_pairs(&[("grid-column", "1 / -1")])),
     ]
 });
 static FIELD_DESCRIPTION: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "14px"), ("color", MUTED)]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("color", MUTED)]));
 static FIELD_ERROR: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "14px"), ("color", DESTRUCTIVE)])
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("color", DESTRUCTIVE)])
         .nest(":empty", StyleBlock::from_pairs(&[("display", "none")]))
 });
 

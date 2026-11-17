@@ -70,12 +70,12 @@ static BADGE: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("display", "inline-flex"),
             ("align-items", "center"),
-            ("gap", "4px"),
+            ("gap", sp!(4)),
             ("width", "fit-content"),
-            ("padding", "2px 8px"),
+            ("padding", sp!(2, 8)),
             ("border", border),
             ("border-radius", "var(--radius-sm)"),
-            ("font-size", "12px"),
+            ("font-size", fs!(12)),
             ("font-weight", "500"),
             ("line-height", "1.4"),
             ("white-space", "nowrap"),
@@ -128,8 +128,8 @@ static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("gap", "16px"),
-        ("padding", "24px"),
+        ("gap", sp!(16)),
+        ("padding", sp!(24)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("background", SURFACE),
@@ -138,12 +138,12 @@ static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
 });
 static CARD_HEADER: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", "6px")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6))]));
 static CARD_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "16px"), ("font-weight", "600"), ("line-height", "1.2")])
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(16)), ("font-weight", "600"), ("line-height", "1.2")])
 });
 static CARD_DESCRIPTION: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "14px"), ("color", MUTED)]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("color", MUTED)]));
 
 impl Component for Card {
     fn name(&self) -> &'static str {
@@ -188,9 +188,9 @@ static CARD_FOOTER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("align-items", "center"),
         ("justify-content", "flex-end"),
-        ("gap", "8px"),
+        ("gap", sp!(8)),
         ("margin-top", "auto"),
-        ("padding-top", "8px"),
+        ("padding-top", sp!(8)),
     ])
 });
 
@@ -223,15 +223,15 @@ static ALERT: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("display", "grid"),
             ("grid-template-columns", "auto 1fr"),
-            ("column-gap", "12px"),
-            ("row-gap", "2px"),
+            ("column-gap", sp!(12)),
+            ("row-gap", sp!(2)),
             ("align-items", "start"),
-            ("padding", "12px 16px"),
+            ("padding", sp!(12, 16)),
             ("border", border),
             ("border-radius", "var(--radius-lg)"),
             ("background", SURFACE),
             ("color", color),
-            ("font-size", "14px"),
+            ("font-size", fs!(14)),
         ])
     };
     [
@@ -306,7 +306,7 @@ static AVATAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("border-radius", "999px"),
         ("background", SUBTLE),
         ("color", MUTED),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("font-weight", "500"),
     ])
 });
@@ -372,9 +372,9 @@ static SEPARATOR_LABELLED: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", "12px"),
+        ("gap", sp!(12)),
         ("width", "100%"),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("color", MUTED),
         ("white-space", "nowrap"),
     ])
@@ -482,7 +482,7 @@ static KBD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("background", SUBTLE),
         ("color", TEXT),
         ("font-family", MONO),
-        ("font-size", "12px"),
+        ("font-size", fs!(12)),
         ("font-weight", "500"),
     ])
 });
@@ -614,15 +614,15 @@ static TABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "100%"),
         ("border-collapse", "collapse"),
         ("caption-side", "bottom"),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("color", TEXT),
     ])
-    .nest("& caption", StyleBlock::from_pairs(&[("margin-top", "16px"), ("color", MUTED)]))
+    .nest("& caption", StyleBlock::from_pairs(&[("margin-top", sp!(16)), ("color", MUTED)]))
     .nest(
         "& th",
         StyleBlock::from_pairs(&[
-            ("height", "40px"),
-            ("padding", "0 8px"),
+            ("height", sp!(40)),
+            ("padding", sp!(0, 8)),
             ("text-align", "left"),
             ("vertical-align", "middle"),
             ("font-weight", "500"),
@@ -632,7 +632,7 @@ static TABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     )
     .nest(
         "& td",
-        StyleBlock::from_pairs(&[("padding", "8px"), ("vertical-align", "middle"), ("border-bottom", "1px solid var(--color-border)")]),
+        StyleBlock::from_pairs(&[("padding", sp!(8)), ("vertical-align", "middle"), ("border-bottom", "1px solid var(--color-border)")]),
     )
     .nest("& tbody tr:last-child td", StyleBlock::from_pairs(&[("border-bottom", "0")]))
     .nest("& tbody tr:hover", StyleBlock::from_pairs(&[("background", SUBTLE)]))
@@ -698,7 +698,7 @@ static HEADINGS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     };
     [
         base("36px", "800"),
-        base("30px", "600").set("padding-bottom", "8px").set("border-bottom", "1px solid var(--color-border)"),
+        base("30px", "600").set("padding-bottom", sp!(8)).set("border-bottom", "1px solid var(--color-border)"),
         base("24px", "600"),
         base("20px", "600"),
     ]
@@ -735,19 +735,19 @@ static TEXTS: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
     };
     [
         base(&[("line-height", "1.75")]),
-        base(&[("font-size", "20px"), ("color", MUTED)]),
-        base(&[("font-size", "18px"), ("font-weight", "600")]),
-        base(&[("font-size", "14px"), ("font-weight", "500"), ("line-height", "1")]),
-        base(&[("font-size", "14px"), ("color", MUTED)]),
+        base(&[("font-size", fs!(20)), ("color", MUTED)]),
+        base(&[("font-size", fs!(18)), ("font-weight", "600")]),
+        base(&[("font-size", fs!(14)), ("font-weight", "500"), ("line-height", "1")]),
+        base(&[("font-size", fs!(14)), ("color", MUTED)]),
         base(&[
-            ("padding", "2px 5px"),
+            ("padding", sp!(2, 5)),
             ("border-radius", "var(--radius-sm)"),
             ("background", SUBTLE),
             ("font-family", MONO),
             ("font-size", "0.875em"),
             ("font-weight", "600"),
         ]),
-        base(&[("padding-left", "24px"), ("border-left", "2px solid var(--color-border)"), ("font-style", "italic")]),
+        base(&[("padding-left", sp!(24)), ("border-left", "2px solid var(--color-border)"), ("font-style", "italic")]),
     ]
 });
 const TEXT_TAGS: [&str; 7] = ["p", "p", "div", "small", "p", "code", "blockquote"];
@@ -830,8 +830,8 @@ static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-direction", "column"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("gap", "12px"),
-        ("padding", "48px 24px"),
+        ("gap", sp!(12)),
+        ("padding", sp!(48, 24)),
         ("border", "1px dashed var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("color", TEXT),
@@ -844,17 +844,17 @@ static EMPTY_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("align-items", "center"),
         ("justify-content", "center"),
         ("width", "40px"),
-        ("height", "40px"),
+        ("height", sp!(40)),
         ("border-radius", "var(--radius-md)"),
         ("background", SUBTLE),
-        ("font-size", "20px"),
+        ("font-size", fs!(20)),
     ])
 });
 static EMPTY_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "18px"), ("font-weight", "500"), ("line-height", "1.2")])
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(18)), ("font-weight", "500"), ("line-height", "1.2")])
 });
 static EMPTY_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("max-width", "40ch"), ("font-size", "14px"), ("color", MUTED)])
+    StyleBlock::from_pairs(&[("margin", "0"), ("max-width", "40ch"), ("font-size", fs!(14)), ("color", MUTED)])
 });
 
 impl Component for Empty {

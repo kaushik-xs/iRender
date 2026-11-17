@@ -18,6 +18,35 @@ pub struct ThemeSpec {
     /// Variants usable as `@name` in styles: an at-rule (`"@media print"`) or a
     /// selector containing `&` (`"[data-theme=dark] &"`).
     pub variants: IndexMap<String, String>,
+    /// Sets of token overrides people choose between on the page, such as a palette,
+    /// a corner radius or a density: `{"palette": {"choices": {"rose": {"tokens": …}}}}`.
+    /// A choice applies through `data-theme-<option>` on `<html>`; the default one is
+    /// part of the base tokens, so a page with nothing chosen looks like it.
+    pub options: IndexMap<String, OptionSpec>,
+}
+
+/// One theme option: its choices, and which one applies until another is picked.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct OptionSpec {
+    /// What a picker calls the option, e.g. `Colour`. Default: its name.
+    pub label: Option<String>,
+    /// The choice that applies until someone picks another. Default: the first.
+    pub default: Option<String>,
+    pub choices: IndexMap<String, ChoiceSpec>,
+}
+
+/// One choice of a theme option.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(default, deny_unknown_fields)]
+pub struct ChoiceSpec {
+    /// What a picker calls it, e.g. `Rose`. Default: its name.
+    pub label: Option<String>,
+    /// Token overrides while it's chosen, nested like `theme.tokens`.
+    pub tokens: IndexMap<String, Json>,
+    /// Token overrides while it's chosen and a variant applies, like `theme.modes`:
+    /// `{"dark": {"color": {"primary": "#fb7185"}}}`.
+    pub modes: IndexMap<String, IndexMap<String, Json>>,
 }
 
 /// A resolved theme: flat tokens plus the named conditions styles can use.
@@ -27,6 +56,30 @@ pub struct Theme {
     modes: IndexMap<String, IndexMap<String, String>>,
     breakpoints: IndexMap<String, String>,
     variants: IndexMap<String, String>,
+    options: IndexMap<String, ThemeOption>,
+}
+
+/// A resolved theme option (see [`ThemeSpec::options`]).
+#[derive(Debug, Clone, PartialEq)]
+pub struct ThemeOption {
+    pub label: String,
+    pub default: String,
+    pub choices: IndexMap<String, ThemeChoice>,
+}
+
+/// A resolved choice: flat tokens and per-variant overrides.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ThemeChoice {
+    pub label: String,
+    pub tokens: IndexMap<String, String>,
+    pub modes: IndexMap<String, IndexMap<String, String>>,
+}
+
+impl ThemeOption {
+    /// The attribute on `<html>` that holds the choice: `data-theme-palette`.
+    pub fn attribute(name: &str) -> String {
+        format!("data-theme-{name}")
+    }
 }
 
 /// What a style key like `@md` or `@dark` expands to.
@@ -85,6 +138,7 @@ impl Default for Theme {
                 ("motion-safe", "@media (prefers-reduced-motion: no-preference)"),
                 ("motion-reduce", "@media (prefers-reduced-motion: reduce)"),
             ]),
+            options: IndexMap::new(),
         }
     }
 }
@@ -117,7 +171,23 @@ impl Theme {
                 flatten(k, v, target, &path, diags);
             }
         }
+        for (name, spec) in &spec.options {
+            if let Some(option) = resolve_option(name, spec, &theme.variants, diags) {
+                // The default choice is the base: a page with nothing picked shows it.
+                let default = &option.choices[&option.default];
+                theme.tokens.extend(default.tokens.clone());
+                for (mode, tokens) in &default.modes {
+                    theme.modes.entry(mode.clone()).or_default().extend(tokens.clone());
+                }
+                theme.options.insert(name.clone(), option);
+            }
+        }
         theme
+    }
+
+    /// The theme options, by name (see [`ThemeSpec::options`]).
+    pub fn options(&self) -> &IndexMap<String, ThemeOption> {
+        &self.options
     }
 
     pub fn tokens(&self) -> &IndexMap<String, String> {
@@ -129,7 +199,11 @@ impl Theme {
     }
 
     pub fn has_token(&self, name: &str) -> bool {
-        self.tokens.contains_key(name) || self.modes.values().any(|m| m.contains_key(name))
+        self.tokens.contains_key(name)
+            || self.modes.values().any(|m| m.contains_key(name))
+            || self.options.values().flat_map(|o| o.choices.values()).any(|c| {
+                c.tokens.contains_key(name) || c.modes.values().any(|m| m.contains_key(name))
+            })
     }
 
     /// `color.primary` → `--color-primary`.
@@ -197,6 +271,62 @@ impl Theme {
     }
 }
 
+/// Option and choice names end up in attribute names and values, so they're kept plain.
+fn plain_name(name: &str) -> bool {
+    !name.is_empty() && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+fn resolve_option(
+    name: &str,
+    spec: &OptionSpec,
+    variants: &IndexMap<String, String>,
+    diags: &mut Diagnostics,
+) -> Option<ThemeOption> {
+    let path = format!("theme.options.{name}");
+    if !plain_name(name) {
+        diags.push(&path, "option names may only contain lowercase letters, digits and `-`");
+        return None;
+    }
+    if spec.choices.is_empty() {
+        diags.push(format!("{path}.choices"), "an option needs at least one choice");
+        return None;
+    }
+    let mut choices = IndexMap::new();
+    for (choice, c) in &spec.choices {
+        let cpath = format!("{path}.choices.{choice}");
+        if !plain_name(choice) {
+            diags.push(&cpath, "choice names may only contain lowercase letters, digits and `-`");
+            continue;
+        }
+        let mut tokens = IndexMap::new();
+        for (k, v) in &c.tokens {
+            flatten(k, v, &mut tokens, &format!("{cpath}.tokens"), diags);
+        }
+        let mut modes: IndexMap<String, IndexMap<String, String>> = IndexMap::new();
+        for (mode, over) in &c.modes {
+            let mpath = format!("{cpath}.modes.{mode}");
+            if !variants.contains_key(mode) {
+                diags.push(&mpath, format!("`{mode}` is not a variant; declare it in `theme.variants`"));
+            }
+            let target = modes.entry(mode.clone()).or_default();
+            for (k, v) in over {
+                flatten(k, v, target, &mpath, diags);
+            }
+        }
+        let label = c.label.clone().unwrap_or_else(|| choice.clone());
+        choices.insert(choice.clone(), ThemeChoice { label, tokens, modes });
+    }
+    let default = match &spec.default {
+        Some(d) if choices.contains_key(d) => d.clone(),
+        Some(d) => {
+            diags.push(format!("{path}.default"), format!("`{d}` is not one of its choices"));
+            return None;
+        }
+        None => choices.keys().next()?.clone(),
+    };
+    Some(ThemeOption { label: spec.label.clone().unwrap_or_else(|| name.to_string()), default, choices })
+}
+
 fn check_value(v: &str, path: &str, diags: &mut Diagnostics) {
     if let Err(e) = css_value_is_contained(v) {
         diags.push(path, e);
@@ -246,5 +376,55 @@ mod tests {
         );
         assert_eq!(t.substitute("$$5").unwrap(), "$5");
         assert!(t.substitute("$nope").is_err());
+    }
+
+    #[test]
+    fn options_resolve_with_the_default_in_the_base() {
+        let spec: ThemeSpec = serde_json::from_value(json!({
+            "tokens": { "color": { "primary": "#000" } },
+            "options": {
+                "palette": { "label": "Colour", "default": "rose", "choices": {
+                    "zinc": { "tokens": { "color": { "primary": "#18181b" } } },
+                    "rose": { "label": "Rose", "tokens": { "color": { "primary": "#e11d48" } },
+                              "modes": { "dark": { "color": { "primary": "#fb7185" } } } } } },
+                "radius": { "choices": { "none": { "tokens": { "radius": { "md": "0px" } } } } }
+            }
+        }))
+        .unwrap();
+        let mut d = Diagnostics::default();
+        let t = Theme::resolve(&spec, &mut d);
+        assert!(d.is_empty(), "{d}");
+        let palette = &t.options()["palette"];
+        assert_eq!((palette.label.as_str(), palette.default.as_str()), ("Colour", "rose"));
+        assert_eq!(palette.choices["zinc"].label, "zinc", "a choice's label defaults to its name");
+        // The default choice is the base, in its modes too.
+        assert_eq!(t.tokens()["color.primary"], "#e11d48");
+        assert_eq!(t.modes()["dark"]["color.primary"], "#fb7185");
+        assert_eq!(t.options()["radius"].default, "none", "the first choice when none is named");
+        assert!(t.has_token("radius.md"));
+        assert_eq!(ThemeOption::attribute("palette"), "data-theme-palette");
+    }
+
+    #[test]
+    fn option_mistakes_are_reported_with_their_paths() {
+        let spec: ThemeSpec = serde_json::from_value(json!({ "options": {
+            "Palette": { "choices": { "a": {} } },
+            "empty": { "choices": {} },
+            "pick": { "default": "c", "choices": { "a": {} } },
+            "modes": { "choices": { "a": { "modes": { "night": {} } }, "B C": {} } }
+        } }))
+        .unwrap();
+        let mut d = Diagnostics::default();
+        Theme::resolve(&spec, &mut d);
+        let text = d.to_string();
+        for expected in [
+            "theme.options.Palette: option names may only contain lowercase letters, digits and `-`",
+            "theme.options.empty.choices: an option needs at least one choice",
+            "theme.options.pick.default: `c` is not one of its choices",
+            "theme.options.modes.choices.a.modes.night: `night` is not a variant",
+            "theme.options.modes.choices.B C: choice names may only contain",
+        ] {
+            assert!(text.contains(expected), "missing `{expected}` in:\n{text}");
+        }
     }
 }

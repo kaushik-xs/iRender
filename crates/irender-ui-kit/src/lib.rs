@@ -24,6 +24,22 @@
 //! derived from `color.text` and `color.surface`, so the kit looks right with any
 //! theme, dark mode included. [`apply_theme`] adds the kit's own palette.
 
+/// A spacing value that follows the theme's `space.scale` (1 unless a theme option
+/// sets it): `sp!(4, 12)` is `calc(4px * var(--space-scale, 1)) calc(12px * …)`. The
+/// kit's paddings, gaps, margins and control heights use it, so a density option
+/// makes every component more compact or roomier. `0` stays `0`.
+macro_rules! sp {
+    (0) => { "0" };
+    (0, $($rest:literal),+) => { concat!("0 ", sp!($($rest),+)) };
+    ($n:literal) => { concat!("calc(", $n, "px * var(--space-scale, 1))") };
+    ($n:literal, $($rest:literal),+) => { concat!(sp!($n), " ", sp!($($rest),+)) };
+}
+
+/// A font size that follows the theme's `font.scale`: `fs!(14)`.
+macro_rules! fs {
+    ($n:literal) => { concat!("calc(", $n, "px * var(--font-scale, 1))") };
+}
+
 mod combobox;
 mod command;
 mod disclosure;
@@ -87,6 +103,8 @@ pub fn register(registry: &mut Registry) {
         .register(disclosure::Toggle)
         .register(disclosure::ToggleGroup)
         .register(disclosure::ThemeToggle)
+        .register(disclosure::ThemeOption)
+        .register(disclosure::ThemePanel)
         .register(overlay::Dialog::DIALOG)
         .register(overlay::Dialog::ALERT)
         .register(overlay::Dialog::SHEET)

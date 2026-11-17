@@ -89,7 +89,7 @@ const SHEET_PROPS: &[PropDef] = &[
 fn dialog_base() -> StyleBlock {
     StyleBlock::from_pairs(&[
         ("box-sizing", "border-box"),
-        ("padding", "24px"),
+        ("padding", sp!(24)),
         ("border", "1px solid var(--color-border)"),
         ("background", SURFACE),
         ("color", TEXT),
@@ -97,7 +97,7 @@ fn dialog_base() -> StyleBlock {
         ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
         ("overflow", "auto"),
     ])
-    .nest("&[open]", StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "16px")]))
+    .nest("&[open]", StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(16))]))
     .nest("::backdrop", StyleBlock::from_pairs(&[("background", "rgb(0 0 0 / 0.5)")]))
 }
 
@@ -124,24 +124,24 @@ static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     ]
 });
 static DIALOG_HEADER: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", "6px"), ("padding-right", "24px")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6)), ("padding-right", sp!(24))]));
 static DIALOG_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "18px"), ("font-weight", "600"), ("line-height", "1.2")])
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(18)), ("font-weight", "600"), ("line-height", "1.2")])
 });
 static DIALOG_DESCRIPTION: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", "14px"), ("color", MUTED)]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("color", MUTED)]));
 static DIALOG_X: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
         ("top", "14px"),
         ("right", "14px"),
         ("width", "28px"),
-        ("height", "28px"),
+        ("height", sp!(28)),
         ("border", "0"),
         ("border-radius", "var(--radius-sm)"),
         ("background", "transparent"),
         ("color", MUTED),
-        ("font-size", "16px"),
+        ("font-size", fs!(16)),
         ("cursor", "pointer"),
     ])
     .nest(":hover", StyleBlock::from_pairs(&[("background", ACCENT), ("color", TEXT)]))
@@ -268,8 +268,8 @@ static DIALOG_FOOTER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("flex-wrap", "wrap"),
         ("justify-content", "flex-end"),
-        ("gap", "8px"),
-        ("margin-top", "8px"),
+        ("gap", sp!(8)),
+        ("margin-top", sp!(8)),
     ])
 });
 
@@ -329,11 +329,11 @@ fn popover_base() -> StyleBlock {
 }
 
 static POPOVER: LazyLock<StyleBlock> =
-    LazyLock::new(|| popover_base().set("width", "288px").set("padding", "16px").set("font-size", "14px"));
+    LazyLock::new(|| popover_base().set("width", "288px").set("padding", sp!(16)).set("font-size", fs!(14)));
 static MENU: LazyLock<StyleBlock> = LazyLock::new(|| {
     popover_base()
-        .set("min-width", "176px")
-        .set("padding", "4px")
+        .set("min-width", sp!(176))
+        .set("padding", sp!(4))
         .nest(":popover-open", StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column")]))
 });
 
@@ -427,8 +427,8 @@ static SPLIT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("border-start-start-radius", "0"),
                 ("border-end-start-radius", "0"),
                 ("margin-inline-start", "-1px"),
-                ("padding", "0 10px"),
-                ("font-size", "16px"),
+                ("padding", sp!(0, 10)),
+                ("font-size", fs!(16)),
                 ("border-inline-start-color", "color-mix(in srgb, currentColor 25%, transparent)"),
             ]),
         )
@@ -521,15 +521,15 @@ static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("display", "flex"),
             ("align-items", "center"),
-            ("gap", "8px"),
+            ("gap", sp!(8)),
             ("width", "100%"),
-            ("padding", "6px 8px"),
+            ("padding", sp!(6, 8)),
             ("border", "0"),
             ("border-radius", "var(--radius-sm)"),
             ("background", "transparent"),
             ("color", color),
             ("font-family", "inherit"),
-            ("font-size", "14px"),
+            ("font-size", fs!(14)),
             ("text-align", "left"),
             ("text-decoration", "none"),
             ("cursor", "pointer"),
@@ -541,12 +541,12 @@ static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     [base(TEXT), base(DESTRUCTIVE)]
 });
 static SHORTCUT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin-left", "auto"), ("padding-left", "16px"), ("font-size", "12px"), ("letter-spacing", "0.1em"), ("color", MUTED)])
+    StyleBlock::from_pairs(&[("margin-left", "auto"), ("padding-left", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)])
 });
 static MENU_SEPARATOR: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("height", "1px"), ("margin", "4px -4px"), ("background", "var(--color-border)")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", "var(--color-border)")]));
 static MENU_LABEL: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("padding", "6px 8px"), ("font-size", "14px"), ("font-weight", "600")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(14)), ("font-weight", "600")]));
 
 impl Component for MenuItem {
     fn name(&self) -> &'static str {
@@ -656,11 +656,11 @@ static TIPS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         let mut b = StyleBlock::from_pairs(&[
             ("position", "absolute"),
             ("z-index", "50"),
-            ("padding", "6px 10px"),
+            ("padding", sp!(6, 10)),
             ("border-radius", "var(--radius-md)"),
             ("background", PRIMARY),
             ("color", ON_PRIMARY),
-            ("font-size", "12px"),
+            ("font-size", fs!(12)),
             ("line-height", "1.2"),
             ("white-space", "nowrap"),
             ("opacity", "0"),
@@ -751,12 +751,12 @@ static CARD_POP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("top", "calc(100% + 8px)"),
         ("left", "0"),
         ("width", "320px"),
-        ("padding", "16px"),
+        ("padding", sp!(16)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("background", SURFACE),
         ("color", TEXT),
-        ("font-size", "14px"),
+        ("font-size", fs!(14)),
         ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),
         ("opacity", "0"),
         ("visibility", "hidden"),

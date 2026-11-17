@@ -64,16 +64,16 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 /// Everything is styled from the root, through attribute selectors, because the
 /// behaviour creates most of the elements (chips, options) in the browser.
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("position", "relative"), ("width", "100%"), ("font-size", "14px"), ("color", TEXT)])
+    pairs(&[("position", "relative"), ("width", "100%"), ("font-size", fs!(14)), ("color", TEXT)])
         .nest(
             "& [data-ui-control]",
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", "4px"),
-                ("min-height", "36px"),
-                ("padding", "2px 4px 2px 8px"),
+                ("gap", sp!(4)),
+                ("min-height", sp!(36)),
+                ("padding", sp!(2, 4, 2, 8)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -86,16 +86,16 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-disabled] [data-ui-control]", pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
         .nest(
             "& [data-ui-values]",
-            pairs(&[("display", "flex"), ("flex", "1"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", "4px"), ("min-width", "0")]),
+            pairs(&[("display", "flex"), ("flex", "1"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(4)), ("min-width", "0")]),
         )
         .nest(
             "& [data-ui-input]",
             pairs(&[
                 ("flex", "1 1 40px"),
-                ("min-width", "40px"),
-                ("height", "26px"),
+                ("min-width", sp!(40)),
+                ("height", sp!(26)),
                 ("margin", "0"),
-                ("padding", "0 2px"),
+                ("padding", sp!(0, 2)),
                 ("border", "0"),
                 ("outline", "none"),
                 ("background", "transparent"),
@@ -107,7 +107,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ui-input]:read-only", pairs(&[("cursor", "default"), ("caret-color", "transparent")]))
         .nest(
             "& [data-ui-single]",
-            pairs(&[("overflow", "hidden"), ("padding", "0 2px"), ("white-space", "nowrap"), ("text-overflow", "ellipsis")]),
+            pairs(&[("overflow", "hidden"), ("padding", sp!(0, 2)), ("white-space", "nowrap"), ("text-overflow", "ellipsis")]),
         )
         .nest("&[data-typing] [data-ui-single]", pairs(&[("display", "none")]))
         .nest(
@@ -115,20 +115,20 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "inline-flex"),
                 ("align-items", "center"),
-                ("gap", "2px"),
+                ("gap", sp!(2)),
                 ("max-width", "100%"),
-                ("height", "24px"),
-                ("padding", "0 2px 0 8px"),
+                ("height", sp!(24)),
+                ("padding", sp!(0, 2, 0, 8)),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", SECONDARY),
                 ("color", ON_SECONDARY),
-                ("font-size", "12px"),
+                ("font-size", fs!(12)),
                 ("font-weight", "500"),
             ]),
         )
         .nest(
             "& [data-ui-chip][data-fixed]",
-            pairs(&[("padding-right", "8px"), ("background", "color-mix(in srgb, var(--color-muted) 30%, transparent)")]),
+            pairs(&[("padding-right", sp!(8)), ("background", "color-mix(in srgb, var(--color-muted) 30%, transparent)")]),
         )
         .nest(
             "& [data-ui-remove]",
@@ -143,7 +143,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "transparent"),
                 ("color", "inherit"),
-                ("font-size", "10px"),
+                ("font-size", fs!(10)),
                 ("opacity", "0.6"),
                 ("cursor", "pointer"),
             ]),
@@ -154,7 +154,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "& [data-ui-indicators]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("align-self", "stretch"), ("gap", "2px"), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("align-self", "stretch"), ("gap", sp!(2)), ("color", MUTED)]),
         )
         .nest("& [data-ui-indicators] button", indicator())
         .nest("& [data-ui-indicators] button:hover", pairs(&[("color", TEXT)]))
@@ -172,7 +172,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("&[data-open] [data-ui-toggle]", pairs(&[("transform", "rotate(180deg)")]))
-        .nest("& [data-ui-sep]", pairs(&[("width", "1px"), ("align-self", "stretch"), ("margin", "6px 2px"), ("background", BORDER)]))
+        .nest("& [data-ui-sep]", pairs(&[("width", "1px"), ("align-self", "stretch"), ("margin", sp!(6, 2)), ("background", BORDER)]))
         .nest(
             "& [data-ui-spinner]",
             pairs(&[
@@ -180,7 +180,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("box-sizing", "border-box"),
                 ("width", "14px"),
                 ("height", "14px"),
-                ("margin", "0 4px"),
+                ("margin", sp!(0, 4)),
                 ("border", "2px solid color-mix(in srgb, var(--color-muted) 35%, transparent)"),
                 ("border-top-color", MUTED),
                 ("border-radius", "999px"),
@@ -195,15 +195,15 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("box-sizing", "border-box"),
                 ("width", "anchor-size(width)"),
                 ("max-height", "300px"),
-                ("margin", "4px 0"),
+                ("margin", sp!(4, 0)),
                 ("inset", "auto"),
-                ("padding", "4px"),
+                ("padding", sp!(4)),
                 ("overflow-y", "auto"),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", SURFACE),
                 ("color", TEXT),
-                ("font-size", "14px"),
+                ("font-size", fs!(14)),
                 ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),
             ]),
         )
@@ -212,8 +212,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "grid"),
                 ("grid-template-columns", "1fr auto"),
-                ("column-gap", "8px"),
-                ("padding", "6px 8px"),
+                ("column-gap", sp!(8)),
+                ("padding", sp!(6, 8)),
                 ("border-radius", "var(--radius-sm)"),
                 ("cursor", "pointer"),
                 ("user-select", "none"),
@@ -226,16 +226,16 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("content", "'✓'"), ("grid-column", "2"), ("grid-row", "1"), ("color", TEXT)]),
         )
         .nest("& [role=option][aria-disabled=true]", pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
-        .nest("& [data-ui-description]", pairs(&[("grid-column", "1"), ("font-size", "12px"), ("font-weight", "400"), ("color", MUTED)]))
+        .nest("& [data-ui-description]", pairs(&[("grid-column", "1"), ("font-size", fs!(12)), ("font-weight", "400"), ("color", MUTED)]))
         .nest(
             "& [data-ui-group-label]",
-            pairs(&[("padding", "6px 8px 4px"), ("font-size", "12px"), ("font-weight", "600"), ("color", MUTED)]),
+            pairs(&[("padding", sp!(6, 8, 4)), ("font-size", fs!(12)), ("font-weight", "600"), ("color", MUTED)]),
         )
         .nest(
             "& [role=group]:not(:first-child)",
-            pairs(&[("margin-top", "4px"), ("padding-top", "4px"), ("border-top", "1px solid var(--color-border)")]),
+            pairs(&[("margin-top", sp!(4)), ("padding-top", sp!(4)), ("border-top", "1px solid var(--color-border)")]),
         )
-        .nest("& [data-ui-message]", pairs(&[("padding", "8px"), ("text-align", "center"), ("color", MUTED)]))
+        .nest("& [data-ui-message]", pairs(&[("padding", sp!(8)), ("text-align", "center"), ("color", MUTED)]))
         .nest(
             "& [data-ui-live]",
             pairs(&[
@@ -255,13 +255,13 @@ fn indicator() -> StyleBlock {
         ("align-items", "center"),
         ("justify-content", "center"),
         ("width", "26px"),
-        ("height", "26px"),
+        ("height", sp!(26)),
         ("padding", "0"),
         ("border", "0"),
         ("border-radius", "var(--radius-sm)"),
         ("background", "transparent"),
         ("color", "inherit"),
-        ("font-size", "12px"),
+        ("font-size", fs!(12)),
         ("cursor", "pointer"),
         ("transition", "transform .15s, color .15s"),
     ])

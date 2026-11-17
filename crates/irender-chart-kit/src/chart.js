@@ -765,8 +765,9 @@
 
   // ---------------------------------------------------------------- the page
   // Charts on the page, as `{ el, restyle, detach }`. They restyle when the colour
-  // scheme changes or a theme attribute does (on <html> and <body>, or `data-theme`
-  // anywhere), and are disposed of when they leave the page.
+  // scheme changes, a theme attribute does (on <html> and <body>, or `data-theme`
+  // anywhere) or a theme option is picked (a palette's `color.chart-*`), and are
+  // disposed of when they leave the page.
   const live = new Set();
   const restyleAll = () => live.forEach((c) => c.restyle());
   let watching = false;
@@ -774,6 +775,7 @@
     if (watching) return;
     watching = true;
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", restyleAll);
+    addEventListener("irender:theme-option", restyleAll);
     const themes = new MutationObserver(restyleAll);
     for (const n of [document.documentElement, document.body])
       themes.observe(n, { attributes: true, attributeFilter: ["class", "style", "data-theme", "data-mode"] });
