@@ -457,6 +457,7 @@ impl Component for ToggleGroup {
 
 pub struct ThemeToggle;
 
+const THEME_EARLY_SCRIPT: &str = include_str!("theme_early.js");
 const THEME_TOGGLE_SCRIPT: &str = include_str!("theme_toggle.js");
 const THEME_TOGGLE_PROPS: &[PropDef] = &[
     PropDef::new("labels", PropKind::Any, "Button text as `{ system, light, dark }`; default System, Light, Dark"),
@@ -481,6 +482,7 @@ impl Component for ThemeToggle {
         let variant = &TOGGLE_VARIANT_STYLES[cx.prop_string(node, "variant").map_or(1, |_| choice(cx, node, "variant", TOGGLE_VARIANTS))];
         let size = &TOGGLE_SIZE_STYLES[cx.prop_string(node, "size").map_or(1, |_| choice(cx, node, "size", TOGGLE_SIZES))];
         let labels = cx.prop(node, "labels").unwrap_or(Json::Null);
+        cx.early_js("ui-theme", THEME_EARLY_SCRIPT);
         cx.global_js("ui-theme-toggle", THEME_TOGGLE_SCRIPT);
         let mut group = cx.element("div", node);
         group

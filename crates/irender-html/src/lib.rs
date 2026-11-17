@@ -172,7 +172,7 @@ impl Engine {
         let parallel = None;
         let mut cx = RenderCx::new(&self.registry, &self.policy, &ir.theme, &ir.state, data, parallel);
         cx.render(&ir.root)?;
-        let (body, css, interactive, scripts) = cx.finish();
+        let (body, css, interactive, scripts, early_scripts) = cx.finish();
         #[cfg(feature = "lightningcss")]
         let css = if self.minify {
             irender_style::minify(&css).map_err(|e| RenderError { path: String::new(), message: e })?
@@ -180,7 +180,7 @@ impl Engine {
             css
         };
         let state = Json::Object(ir.state.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
-        Ok(Page { css, body, state, interactive, scripts })
+        Ok(Page { css, body, state, interactive, scripts, early_scripts })
     }
 }
 
@@ -196,15 +196,20 @@ pub struct Page {
     /// Client behaviour scripts the page's components need (see
     /// [`RenderCx::global_js`]), included before the runtime.
     pub scripts: Vec<&'static str>,
+    /// Scripts that run before the content is shown (see [`RenderCx::early_js`]),
+    /// written right after the `<style>`.
+    pub early_scripts: Vec<&'static str>,
 }
 
 impl Page {
-    /// `<style>`, the root element, initial state and (if needed) the runtime.
+    /// `<style>`, early scripts, the root element, initial state and (if needed) the
+    /// runtime.
     pub fn fragment(&self) -> String {
-        let mut s = format!(
-            "<style>\n{}</style>\n<div data-i-root style=\"display:contents\">{}",
-            self.css, self.body
-        );
+        let mut s = format!("<style>\n{}</style>\n", self.css);
+        for js in &self.early_scripts {
+            s.push_str(&format!("<script>\n{js}</script>\n"));
+        }
+        s.push_str(&format!("<div data-i-root style=\"display:contents\">{}", self.body));
         if self.interactive {
             s.push_str(&format!(
                 "<script type=\"application/json\" data-i-state>{}</script>",

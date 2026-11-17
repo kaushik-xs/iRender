@@ -306,6 +306,8 @@ A component that needs more than per-element styles and the built-in actions can
 };
 ```
 
+- `cx.early_js(name, js)` adds a script once per page that runs right after the page's `<style>`, before any content is shown. Use it only for what must happen before the first paint. `ui-theme-toggle` uses it to apply a stored colour scheme without a flash.
+
 Documents can't mark elements themselves: `data-i-*` attributes are reserved. `irender-ui-kit`'s `ui-combobox` is built this way.
 
 ### Passing values to nested components

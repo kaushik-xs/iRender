@@ -404,3 +404,35 @@ fn overlays_in_rebuilt_lists_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A stored choice is applied before the content is shown: a script placed right
+/// after the content, which runs before any behaviour starts, already sees it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn stored_theme_applies_before_the_content_shows_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "theme": { "tokens": { "color": { "surface": "rgb(255, 255, 255)" } }, "modes": { "dark": { "color": { "surface": "rgb(0, 0, 0)" } } } },
+        "root": { "type": "stack", "children": [
+            { "type": "text", "attrs": { "id": "marked" }, "props": { "value": "x" },
+              "style": { "color": "rgb(1, 1, 1)", "@dark": { "color": "rgb(2, 2, 2)" } } },
+            { "type": "ui-theme-toggle" } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let marked = html.find("id=\"marked\"").unwrap();
+    let after = marked + html[marked..].find("</span>").unwrap() + 7;
+    let probe = r#"<script>window.__seen = [getComputedStyle(document.getElementById("marked")).color, document.documentElement.dataset.theme, !!window.__irenderBehaviors?.["ui-theme-toggle"]].join(" ")</script>"#;
+    let report = r#"<script>window.addEventListener("load", () => {
+      const pre = document.createElement("pre"); pre.id = "result";
+      pre.textContent = window.__seen + " | " + document.querySelector("[aria-pressed=true]").dataset.scheme;
+      document.body.append(pre);
+    });</script>"#;
+    let html = format!("{}{probe}{}", &html[..after], &html[after..])
+        .replace("<head>", r#"<head><script>localStorage.setItem("irender-theme", "dark")</script>"#)
+        .replace("</body>", &format!("{report}</body>"));
+    let Some(result) = drive("theme-early", &html) else { return };
+    // Dark before the toggle's behaviour is even defined, and the toggle agrees later.
+    assert_eq!(result, "rgb(2, 2, 2) dark false | dark");
+}

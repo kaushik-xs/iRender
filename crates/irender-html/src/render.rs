@@ -178,6 +178,8 @@ pub struct RenderCx<'a> {
     interactive: bool,
     /// Client behaviour scripts, by name, in first-use order.
     scripts: IndexMap<&'static str, &'static str>,
+    /// Scripts that run before the content is shown (see [`RenderCx::early_js`]).
+    early: IndexMap<&'static str, &'static str>,
     /// Lists with at least this many items render in parallel.
     #[cfg_attr(not(feature = "parallel"), allow(dead_code))]
     parallel_min_items: Option<usize>,
@@ -204,12 +206,14 @@ impl<'a> RenderCx<'a> {
             out: String::new(),
             interactive: false,
             scripts: IndexMap::new(),
+            early: IndexMap::new(),
             parallel_min_items,
         }
     }
 
-    pub(crate) fn finish(self) -> (String, String, bool, Vec<&'static str>) {
-        (self.out, self.styles.css(), self.interactive, self.scripts.into_values().collect())
+    pub(crate) fn finish(self) -> (String, String, bool, Vec<&'static str>, Vec<&'static str>) {
+        let (scripts, early) = (self.scripts.into_values().collect(), self.early.into_values().collect());
+        (self.out, self.styles.css(), self.interactive, scripts, early)
     }
 
     pub fn theme(&self) -> &Theme {
@@ -606,13 +610,16 @@ impl<'a> RenderCx<'a> {
                     let vars = vec![(item.to_string(), value.clone()), (index.to_string(), json!(c * chunk + j))];
                     cx.with_scope(vars, |cx| cx.children(node))?;
                 }
-                Ok((cx.out, cx.styles.into_rules(), cx.interactive, cx.scripts))
+                Ok((cx.out, cx.styles.into_rules(), cx.interactive, cx.scripts, cx.early))
             })
             .collect();
         for result in chunks {
-            let (out, rules, interactive, scripts) = result?;
+            let (out, rules, interactive, scripts, early) = result?;
             for (name, js) in scripts {
                 self.scripts.entry(name).or_insert(js);
+            }
+            for (name, js) in early {
+                self.early.entry(name).or_insert(js);
             }
             self.out.push_str(&out);
             self.styles.merge(rules);
@@ -645,6 +652,16 @@ impl<'a> RenderCx<'a> {
         debug_assert!(!js.to_ascii_lowercase().contains("</script"), "behaviour `{name}` contains `</script`");
         self.scripts.entry(name).or_insert(js);
         self.interactive = true;
+    }
+
+    /// Adds a script once per page that runs right after the page's `<style>`, before
+    /// any of its content is parsed or shown. For the little that must happen before
+    /// the first paint, such as applying a stored colour scheme; everything else
+    /// belongs in a behaviour ([`global_js`](Self::global_js)). The same rules apply:
+    /// component code only, and no `</script`.
+    pub fn early_js(&mut self, name: &'static str, js: &'static str) {
+        debug_assert!(!js.to_ascii_lowercase().contains("</script"), "script `{name}` contains `</script`");
+        self.early.entry(name).or_insert(js);
     }
 
     /// A short key that differs between the items of a server-rendered list (it hashes
