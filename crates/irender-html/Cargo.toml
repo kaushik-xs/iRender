@@ -1,0 +1,30 @@
+[package]
+name = "irender-html"
+description = "Server-side HTML renderer and tiny browser runtime for iRender documents"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+default = ["lightningcss", "yaml"]
+# Validate CSS declarations at load time and allow minified output.
+lightningcss = ["irender-style/lightningcss"]
+yaml = ["irender-core/yaml"]
+# Render large lists on several threads (see `Engine::parallel_min_items`).
+parallel = ["dep:rayon"]
+
+[dependencies]
+irender-core = { workspace = true, default-features = false }
+irender-style = { workspace = true, default-features = false }
+indexmap.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+rayon = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "render"
+harness = false

@@ -1,0 +1,32 @@
+# Rust build output (also holds criterion benchmark results under target/criterion)
+/target
+**/*.rs.bk
+*.pdb
+
+# Profiling
+*.profraw
+*.profdata
+flamegraph.svg
+perf.data*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Rendered example output
+/examples/search/index.html

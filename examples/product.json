@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "theme": {
+    "tokens": { "color": { "primary": "#0f766e", "primary-hover": "#115e59" } }
+  },
+  "state": { "qty": 1 },
+  "root": {
+    "type": "stack",
+    "props": { "gap": "$space.md" },
+    "attrs": { "id": "product" },
+    "style": {
+      "max-width": 420,
+      "margin": "40px auto",
+      "padding": "$space.lg",
+      "border": "1px solid $color.border",
+      "border-radius": "$radius.lg",
+      "background": "$color.surface",
+      "color": "$color.text",
+      "font-family": "$font.body",
+      "@md": { "padding": "$space.xl" }
+    },
+    "children": [
+      { "type": "text", "props": { "tag": "h2", "value": "{{ product.name }}" }, "style": { "margin": 0 } },
+      {
+        "type": "text",
+        "props": { "value": "₹{{ product.price * qty }}" },
+        "style": { "font-size": "$font.size.lg", "font-weight": 600 }
+      },
+      {
+        "type": "stack",
+        "props": { "direction": "row", "gap": 8, "align": "center" },
+        "children": [
+          {
+            "type": "button",
+            "props": { "label": "−", "variant": "secondary", "disabled": "{{ qty <= 1 }}" },
+            "attrs": { "aria-label": "Decrease quantity" },
+            "on": { "click": { "action": "set_state", "key": "qty", "value": "{{ qty - 1 }}" } }
+          },
+          {
+            "type": "input",
+            "props": { "bind": "qty", "type": "number" },
+            "attrs": { "min": 1, "aria-label": "Quantity" },
+            "style": { "width": 72, "text-align": "center" }
+          },
+          {
+            "type": "button",
+            "props": { "label": "+", "variant": "secondary" },
+            "attrs": { "aria-label": "Increase quantity" },
+            "on": { "click": { "action": "set_state", "key": "qty", "value": "{{ qty + 1 }}" } }
+          }
+        ]
+      },
+      {
+        "type": "element",
+        "attrs": { "role": "progressbar", "aria-valuenow": "{{ qty }}" },
+        "style": { "height": 6, "border-radius": 3, "background": "$color.border", "overflow": "hidden" },
+        "children": [
+          {
+            "type": "element",
+            "style": {
+              "height": "100%",
+              "width": "{{ qty >= 5 ? 100 : qty * 20 }}%",
+              "background": "$color.primary",
+              "transition": "width .2s"
+            }
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "props": { "tag": "p", "value": "Bulk discount unlocked 🎉" },
+        "attrs": { "hidden": "{{ qty < 5 }}" },
+        "style": { "margin": 0, "color": "$color.primary", "font-size": "$font.size.sm" }
+      },
+      {
+        "type": "button",
+        "props": { "label": "{{ qty == 1 ? 'Buy now' : 'Buy ' + qty }}" },
+        "parts": { "label": { "style": { "letter-spacing": "0.02em" } } },
+        "style": { "width": "100%", ":hover": { "transform": "translateY(-1px)" } },
+        "on": { "click": { "action": "call", "name": "buy", "args": { "sku": "{{ product.sku }}", "qty": "{{ qty }}" } } }
+      },
+      {
+        "type": "list",
+        "props": { "items": "{{ product.reviews }}", "as": "r", "tag": "ul" },
+        "style": { "margin": 0, "padding-left": 18, "color": "$color.muted" },
+        "children": [{ "type": "text", "props": { "tag": "li", "value": "{{ r.author }}: {{ r.body }}" } }]
+      }
+    ]
+  }
+}

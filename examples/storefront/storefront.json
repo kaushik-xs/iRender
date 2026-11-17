@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "theme": { "tokens": { "color": { "primary": "#c2410c", "primary-hover": "#9a3412" } } },
+  "state": { "cart": [], "count": 0, "total": 0, "cartOpen": false },
+  "root": {
+    "type": "stack",
+    "props": { "gap": "$space.lg" },
+    "style": {
+      "max-width": 1040, "margin": "0 auto", "padding": "$space.lg",
+      "font-family": "$font.body", "color": "$color.text", "background": "$color.surface"
+    },
+    "children": [
+      {
+        "type": "stack",
+        "props": { "direction": "row", "justify": "space-between", "align": "center", "gap": "$space.md" },
+        "children": [
+          { "type": "include", "props": { "name": "nav" } },
+          {
+            "type": "button",
+            "props": { "label": "Cart · {{ count }}", "variant": "secondary" },
+            "attrs": { "aria-expanded": "{{ cartOpen }}", "id": "cart-toggle" },
+            "on": { "click": { "action": "set_state", "key": "cartOpen", "value": "{{ !cartOpen }}" } }
+          }
+        ]
+      },
+
+      { "type": "include", "props": { "name": "hero" } },
+
+      {
+        "type": "stack",
+        "props": { "direction": "row", "gap": "$space.sm", "align": "baseline", "wrap": true },
+        "children": [
+          { "type": "text", "props": { "tag": "h2", "value": "Picked for you, {{ user.name }}" }, "style": { "margin": 0 } },
+          {
+            "type": "if",
+            "props": { "when": "{{ user.tier == 'gold' }}" },
+            "children": [{ "type": "text", "props": { "value": "Gold members ship free" }, "style": { "color": "$color.primary", "font-size": "$font.size.sm" } }]
+          }
+        ]
+      },
+
+      {
+        "type": "stack",
+        "props": { "direction": "row", "gap": "$space.lg", "align": "flex-start" },
+        "children": [
+          {
+            "type": "list",
+            "props": { "items": "{{ products }}", "as": "p" },
+            "style": { "flex": 1, "display": "grid", "gap": "$space.md", "grid-template-columns": "repeat(auto-fill, minmax(200px, 1fr))" },
+            "children": [
+              {
+                "type": "stack",
+                "props": { "gap": "$space.xs" },
+                "style": { "padding": "$space.md", "border": "1px solid $color.border", "border-radius": "$radius.lg" },
+                "children": [
+                  { "type": "text", "props": { "value": "{{ p.name }}" }, "style": { "font-weight": 600 } },
+                  { "type": "text", "props": { "value": "₹{{ p.price }}" }, "style": { "color": "$color.muted" } },
+                  {
+                    "type": "button",
+                    "props": { "label": "{{ p.stock == 0 ? 'Sold out' : 'Add to cart' }}", "disabled": "{{ p.stock == 0 }}" },
+                    "attrs": { "data-sku": "{{ p.id }}" },
+                    "on": { "click": { "action": "call", "name": "add", "args": { "id": "{{ p.id }}", "name": "{{ p.name }}", "price": "{{ p.price }}" } } }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "if",
+            "props": { "when": "{{ cartOpen }}" },
+            "children": [
+              {
+                "type": "stack",
+                "props": { "tag": "aside", "gap": "$space.sm" },
+                "attrs": { "aria-label": "Cart" },
+                "style": { "width": 300, "padding": "$space.md", "border-radius": "$radius.lg", "background": "#fff7ed" },
+                "children": [
+                  { "type": "text", "props": { "tag": "h3", "value": "Your cart" }, "style": { "margin": 0 } },
+                  {
+                    "type": "if",
+                    "props": { "when": "{{ count == 0 }}" },
+                    "children": [{ "type": "text", "props": { "value": "Nothing here yet." }, "style": { "color": "$color.muted" } }]
+                  },
+                  {
+                    "type": "list",
+                    "props": { "items": "{{ cart }}", "as": "line", "tag": "ul" },
+                    "style": { "margin": 0, "padding": 0, "list-style": "none", "display": "grid", "gap": "$space.xs" },
+                    "children": [
+                      {
+                        "type": "stack",
+                        "props": { "tag": "li", "direction": "row", "justify": "space-between", "align": "center", "gap": "$space.xs" },
+                        "children": [
+                          { "type": "text", "props": { "value": "{{ line.qty }} × {{ line.name }}" } },
+                          { "type": "text", "props": { "value": "₹{{ line.qty * line.price }}" }, "style": { "margin-left": "auto" } },
+                          {
+                            "type": "button",
+                            "props": { "label": "✕", "variant": "ghost" },
+                            "attrs": { "aria-label": "Remove {{ line.name }}" },
+                            "style": { "padding": "2px 8px" },
+                            "on": { "click": { "action": "call", "name": "remove", "args": { "id": "{{ line.id }}" } } }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "if",
+                    "props": { "when": "{{ count > 0 }}" },
+                    "children": [
+                      {
+                        "type": "stack",
+                        "props": { "direction": "row", "justify": "space-between" },
+                        "style": { "border-top": "1px solid $color.border", "padding-top": "$space.sm", "font-weight": 600 },
+                        "children": [
+                          { "type": "text", "props": { "value": "Total" } },
+                          { "type": "text", "props": { "value": "₹{{ total }}" }, "attrs": { "id": "cart-total" } }
+                        ]
+                      },
+                      {
+                        "type": "button",
+                        "props": { "label": "Checkout" },
+                        "on": { "click": { "action": "call", "name": "checkout", "args": { "lines": "{{ cart }}", "total": "{{ total }}" } } }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+
+      { "type": "include", "props": { "name": "recommendations" } }
+    ]
+  }
+}

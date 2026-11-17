@@ -1,0 +1,639 @@
+use crate::{Registry, escape};
+use irender_core::{
+    Action, Node, Policy, StyleBlock, StyleValue, Template, Theme, Val,
+    expr::{self, stringify, write_json_str},
+    style,
+};
+use irender_style::{Layer, StyleCompiler};
+use indexmap::IndexMap;
+use serde_json::{Value as Json, json};
+use std::{borrow::Cow, fmt::Write};
+
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{path}: {message}")]
+pub struct RenderError {
+    pub path: String,
+    pub message: String,
+}
+
+impl RenderError {
+    pub fn new(node: &Node, message: impl Into<String>) -> Self {
+        Self { path: node.path.clone(), message: message.into() }
+    }
+}
+
+const VOID_TAGS: &[&str] =
+    &["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"];
+
+/// An HTML element under construction. Start one with [`RenderCx::element`] (which
+/// applies the node's `attrs`, `class`, `style` and `on`) or [`RenderCx::part`].
+///
+/// It borrows those from the node rather than copying them, so building one is cheap.
+#[derive(Debug, Clone)]
+pub struct Element<'n> {
+    tag: String,
+    /// The document's attributes. They always win over `attrs`.
+    node_attrs: Option<&'n IndexMap<String, Val>>,
+    /// Attributes set by the component.
+    attrs: Vec<(String, Val)>,
+    node_classes: &'n [Val],
+    classes: Vec<Val>,
+    styles: Vec<(Cow<'n, StyleBlock>, Layer)>,
+    text: Option<Cow<'n, Val>>,
+    on: Option<&'n IndexMap<String, Vec<Action>>>,
+    bind: Option<String>,
+    /// A list the browser rebuilds: items, item name, index name.
+    list: Option<(&'n Val, String, String)>,
+}
+
+impl<'n> Element<'n> {
+    pub fn new(tag: impl Into<String>) -> Self {
+        Self {
+            tag: tag.into(),
+            node_attrs: None,
+            attrs: Vec::new(),
+            node_classes: &[],
+            classes: Vec::new(),
+            styles: Vec::new(),
+            text: None,
+            on: None,
+            bind: None,
+            list: None,
+        }
+    }
+
+    pub fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    pub fn is_void(&self) -> bool {
+        VOID_TAGS.contains(&self.tag.to_ascii_lowercase().as_str())
+    }
+
+    fn document_sets(&self, name: &str) -> bool {
+        self.node_attrs.is_some_and(|a| a.contains_key(name))
+    }
+
+    /// Sets an attribute unless the document already set it: document `attrs` always win.
+    pub fn attr(&mut self, name: &str, value: impl Into<Val>) -> &mut Self {
+        if !self.document_sets(name) && !self.attrs.iter().any(|(n, _)| n == name) {
+            self.attrs.push((name.to_string(), value.into()));
+        }
+        self
+    }
+
+    /// Adds component default styles. Document styles always override these.
+    pub fn base_style(&mut self, block: StyleBlock) -> &mut Self {
+        self.styles.push((Cow::Owned(block), Layer::Base));
+        self
+    }
+
+    /// Like [`Element::base_style`] for a block that outlives the element, e.g. a static.
+    pub fn base_style_ref(&mut self, block: &'n StyleBlock) -> &mut Self {
+        self.styles.push((Cow::Borrowed(block), Layer::Base));
+        self
+    }
+
+    pub fn class(&mut self, class: impl Into<Val>) -> &mut Self {
+        self.classes.push(class.into());
+        self
+    }
+
+    /// Text content, escaped. Reactive templates update in place.
+    pub fn text(&mut self, value: impl Into<Cow<'n, Val>>) -> &mut Self {
+        self.text = Some(value.into());
+        self
+    }
+
+    /// Two-way binds a form control's value to a `state` key.
+    pub fn bind(&mut self, key: impl Into<String>) -> &mut Self {
+        self.bind = Some(key.into());
+        self
+    }
+
+    /// Marks the element as a list that the browser rebuilds from the `<template>`
+    /// written by [`RenderCx::item_template`] whenever `items` changes.
+    pub(crate) fn list(&mut self, items: &'n Val, item: String, index: String) -> &mut Self {
+        self.list = Some((items, item, index));
+        self
+    }
+}
+
+/// A name in scope while rendering, e.g. a list's `item`.
+#[derive(Debug, Clone)]
+struct Scope {
+    name: String,
+    value: Json,
+    /// Only known in the browser (an item of a list the browser rebuilds). Expressions
+    /// that use it are kept for the runtime instead of being folded.
+    client: bool,
+}
+
+/// Render state passed to components.
+pub struct RenderCx<'a> {
+    registry: &'a Registry,
+    policy: &'a Policy,
+    theme: &'a Theme,
+    state: &'a IndexMap<String, Json>,
+    data: &'a Json,
+    scopes: Vec<Scope>,
+    styles: StyleCompiler<'a>,
+    out: String,
+    interactive: bool,
+    /// Lists with at least this many items render in parallel.
+    #[cfg_attr(not(feature = "parallel"), allow(dead_code))]
+    parallel_min_items: Option<usize>,
+}
+
+impl<'a> RenderCx<'a> {
+    pub(crate) fn new(
+        registry: &'a Registry,
+        policy: &'a Policy,
+        theme: &'a Theme,
+        state: &'a IndexMap<String, Json>,
+        data: &'a Json,
+        parallel_min_items: Option<usize>,
+    ) -> Self {
+        Self {
+            registry,
+            policy,
+            theme,
+            state,
+            data,
+            scopes: Vec::new(),
+            styles: StyleCompiler::new(theme),
+            out: String::new(),
+            interactive: false,
+            parallel_min_items,
+        }
+    }
+
+    pub(crate) fn finish(self) -> (String, String, bool) {
+        (self.out, self.styles.css(), self.interactive)
+    }
+
+    pub fn theme(&self) -> &Theme {
+        self.theme
+    }
+
+    /// Resolves a path: loop scopes first, then `state`, then server `data`. Names
+    /// only known in the browser are null.
+    pub fn lookup(&self, path: &[String]) -> Json {
+        let Some((root, rest)) = path.split_first() else { return Json::Null };
+        let base = if let Some(s) = self.scope(root) {
+            &s.value
+        } else if let Some(v) = self.state.get(root) {
+            v
+        } else if let Some(v) = self.data.get(root) {
+            v
+        } else {
+            return Json::Null;
+        };
+        expr::lookup(base, rest)
+    }
+
+    fn scope(&self, name: &str) -> Option<&Scope> {
+        self.scopes.iter().rev().find(|s| s.name == name)
+    }
+
+    fn is_reactive_root(&self, root: &str) -> bool {
+        match self.scope(root) {
+            Some(s) => s.client,
+            None => self.state.contains_key(root),
+        }
+    }
+
+    /// Whether `v` can change in the browser: it reads `state`, or an item of a list
+    /// the browser rebuilds.
+    pub fn is_reactive(&self, v: &Val) -> bool {
+        match v {
+            Val::Tpl(t) => self.is_reactive_tpl(t),
+            Val::Lit(_) => false,
+        }
+    }
+
+    fn is_reactive_tpl(&self, t: &Template) -> bool {
+        t.references(&|r| self.is_reactive_root(r))
+    }
+
+    /// Writes the client-side form of `v`, with server data folded in.
+    fn write_val_js(&self, out: &mut String, v: &Val) {
+        let _ = v.write_js(out, &|r| self.is_reactive_root(r), &|p| self.lookup(p));
+    }
+
+    fn write_tpl_js(&self, out: &mut String, t: &Template) {
+        let _ = t.write_js(out, &|r| self.is_reactive_root(r), &|p| self.lookup(p));
+    }
+
+    /// The value as of render time.
+    pub fn eval(&self, v: &Val) -> Json {
+        v.eval(&|p| self.lookup(p))
+    }
+
+    pub fn prop(&self, node: &Node, name: &str) -> Option<Json> {
+        node.props.get(name).map(|v| self.eval(v))
+    }
+
+    /// A prop as text; `None` when missing or null.
+    pub fn prop_string(&self, node: &Node, name: &str) -> Option<String> {
+        self.prop(node, name).filter(|v| !v.is_null()).map(|v| stringify(&v))
+    }
+
+    /// Converts a prop into a style value: numbers gain `px`, `$tokens` resolve,
+    /// templates become dynamic. `None` for null.
+    pub fn style_value(&self, node: &Node, property: &str, v: &Val) -> Result<Option<StyleValue>, RenderError> {
+        let value = match v {
+            Val::Tpl(t) => StyleValue::Dynamic { tpl: t.clone(), px: !style::is_unitless(property) },
+            Val::Lit(j) => {
+                let Some(css) = style::value_to_css(property, j) else { return Ok(None) };
+                let css = self.theme.substitute(&css).map_err(|e| RenderError::new(node, e))?;
+                self.policy.check_css_value(&css).map_err(|e| RenderError::new(node, e))?;
+                StyleValue::Static(css)
+            }
+        };
+        Ok(Some(value))
+    }
+
+    /// An element carrying the node's `attrs`, `class`, `style` and `on`.
+    pub fn element<'n>(&self, tag: &str, node: &'n Node) -> Element<'n> {
+        let mut el = Element::new(tag);
+        el.node_attrs = Some(&node.attrs);
+        el.node_classes = &node.class;
+        el.styles.push((Cow::Borrowed(&node.style), Layer::Instance));
+        el.on = Some(&node.on);
+        el
+    }
+
+    /// An inner element carrying the overrides from the node's `parts.<name>`.
+    pub fn part<'n>(&self, tag: &str, node: &'n Node, name: &str) -> Element<'n> {
+        let mut el = Element::new(tag);
+        if let Some(p) = node.parts.get(name) {
+            el.node_attrs = Some(&p.attrs);
+            el.node_classes = &p.class;
+            el.styles.push((Cow::Borrowed(&p.style), Layer::Instance));
+        }
+        el
+    }
+
+    /// Writes the start tag (and text content, if any).
+    pub fn open(&mut self, el: &Element<'_>, node: &Node) -> Result<(), RenderError> {
+        self.policy.check_tag(&el.tag).map_err(|e| RenderError::new(node, e))?;
+        // Raw JSON of this element's bindings, comma-separated.
+        let mut bindings = String::new();
+        let mut classes = String::new();
+        let mut inline = String::new();
+        let sep = |s: &mut String, with: &str| {
+            if !s.is_empty() {
+                s.push_str(with);
+            }
+        };
+
+        for (block, layer) in &el.styles {
+            let Some(compiled) = self.styles.compile(block, *layer) else { continue };
+            sep(&mut classes, " ");
+            classes.push_str(&compiled.class);
+            for var in &compiled.vars {
+                let current = var.tpl.eval(&|p| self.lookup(p));
+                if let Some(css) = css_var_value(&current, var.px) {
+                    sep(&mut inline, "; ");
+                    let _ = write!(inline, "{}: {css}", var.name);
+                }
+                if self.is_reactive_tpl(&var.tpl) {
+                    sep(&mut bindings, ",");
+                    let _ = write!(bindings, "{{\"k\":\"var\",\"n\":\"{}\",\"px\":{},\"v\":", var.name, var.px);
+                    self.write_tpl_js(&mut bindings, &var.tpl);
+                    bindings.push('}');
+                }
+            }
+        }
+        for c in el.node_classes.iter().chain(&el.classes) {
+            let current = stringify(&self.eval(c));
+            if self.is_reactive(c) {
+                sep(&mut bindings, ",");
+                bindings.push_str("{\"k\":\"class\",\"i\":");
+                let _ = write_json_str(&mut bindings, &current);
+                bindings.push_str(",\"v\":");
+                self.write_val_js(&mut bindings, c);
+                bindings.push('}');
+            }
+            let current = current.trim();
+            if !current.is_empty() {
+                sep(&mut classes, " ");
+                classes.push_str(current);
+            }
+        }
+
+        let _ = write!(self.out, "<{}", el.tag);
+        if !classes.is_empty() {
+            self.out.push_str(" class=\"");
+            escape::push_attr(&mut self.out, &classes);
+            self.out.push('"');
+        }
+        let attrs = el.node_attrs.into_iter().flatten().chain(el.attrs.iter().map(|(n, v)| (n, v)));
+        if !inline.is_empty() {
+            if let Some((_, user)) = attrs.clone().find(|(n, _)| *n == "style") {
+                let user = stringify(&self.eval(user));
+                if !user.is_empty() {
+                    inline.push_str("; ");
+                    inline.push_str(&user);
+                }
+            }
+            self.out.push_str(" style=\"");
+            escape::push_attr(&mut self.out, &inline);
+            self.out.push('"');
+        }
+        for (name, v) in attrs {
+            if name == "style" && !inline.is_empty() {
+                continue;
+            }
+            if self.is_reactive(v) {
+                sep(&mut bindings, ",");
+                bindings.push_str("{\"k\":\"attr\",\"n\":");
+                let _ = write_json_str(&mut bindings, name);
+                bindings.push_str(",\"v\":");
+                self.write_val_js(&mut bindings, v);
+                bindings.push('}');
+            }
+            let value = self.eval(v);
+            self.write_attr(name, &value);
+        }
+        if let Some(on) = el.on.filter(|on| !on.is_empty()) {
+            let mut js = String::from("{");
+            for (i, (event, actions)) in on.iter().enumerate() {
+                if i > 0 {
+                    js.push(',');
+                }
+                let _ = write_json_str(&mut js, event);
+                js.push_str(":[");
+                for (j, action) in actions.iter().enumerate() {
+                    if j > 0 {
+                        js.push(',');
+                    }
+                    self.write_action_js(&mut js, action);
+                }
+                js.push(']');
+            }
+            js.push('}');
+            self.out.push_str(" data-i-on=\"");
+            escape::push_attr(&mut self.out, &js);
+            self.out.push('"');
+            self.interactive = true;
+        }
+        if let Some(key) = &el.bind {
+            self.out.push_str(" data-i-bind=\"");
+            escape::push_attr(&mut self.out, key);
+            self.out.push('"');
+            self.interactive = true;
+        }
+        if let Some((items, item, index)) = &el.list {
+            let mut js = String::from("{\"v\":");
+            self.write_val_js(&mut js, items);
+            js.push_str(",\"as\":");
+            let _ = write_json_str(&mut js, item);
+            js.push_str(",\"ix\":");
+            let _ = write_json_str(&mut js, index);
+            js.push('}');
+            self.out.push_str(" data-i-list=\"");
+            escape::push_attr(&mut self.out, &js);
+            self.out.push('"');
+            self.interactive = true;
+        }
+        let text = el.text.as_deref().map(|t| {
+            if self.is_reactive(t) {
+                sep(&mut bindings, ",");
+                bindings.push_str("{\"k\":\"text\",\"v\":");
+                self.write_val_js(&mut bindings, t);
+                bindings.push('}');
+            }
+            self.eval(t)
+        });
+        if !bindings.is_empty() {
+            self.out.push_str(" data-i-b=\"[");
+            escape::push_attr(&mut self.out, &bindings);
+            self.out.push_str("]\"");
+            self.interactive = true;
+        }
+        self.out.push('>');
+        if let Some(t) = text
+            && !el.is_void()
+        {
+            match &t {
+                Json::String(s) => escape::push_text(&mut self.out, s),
+                other => escape::push_text(&mut self.out, &stringify(other)),
+            }
+        }
+        Ok(())
+    }
+
+    pub fn close(&mut self, tag: &str) {
+        let _ = write!(self.out, "</{tag}>");
+    }
+
+    /// Writes escaped text.
+    pub fn text(&mut self, s: &str) {
+        escape::push_text(&mut self.out, s);
+    }
+
+    pub fn render(&mut self, node: &Node) -> Result<(), RenderError> {
+        let registry = self.registry;
+        let component = registry
+            .get(&node.kind)
+            .ok_or_else(|| RenderError::new(node, format!("unknown component type `{}`", node.kind)))?;
+        component.render(node, self)
+    }
+
+    pub fn children(&mut self, node: &Node) -> Result<(), RenderError> {
+        node.children.iter().try_for_each(|c| self.render(c))
+    }
+
+    /// Renders the node's children once per item, with the item and its index in scope
+    /// under the given names.
+    ///
+    /// With the `parallel` feature and [`Engine::parallel_min_items`](crate::Engine)
+    /// set, large lists are split into chunks rendered on rayon's thread pool. The
+    /// output is identical to rendering them in order.
+    pub fn each(&mut self, node: &Node, items: Vec<Json>, item: &str, index: &str) -> Result<(), RenderError> {
+        #[cfg(feature = "parallel")]
+        if self.parallel_min_items.is_some_and(|min| items.len() >= min) {
+            return self.each_parallel(node, &items, item, index);
+        }
+        for (i, value) in items.into_iter().enumerate() {
+            self.with_scope(vec![(item.to_string(), value), (index.to_string(), json!(i))], |cx| cx.children(node))?;
+        }
+        Ok(())
+    }
+
+    /// Writes the node's children once into a `<template>`, with `item` and `index`
+    /// left for the browser to fill in. The runtime clones it per item when it
+    /// rebuilds a list (see [`Element::list`]).
+    pub(crate) fn item_template(&mut self, node: &Node, item: &str, index: &str) -> Result<(), RenderError> {
+        self.out.push_str("<template>");
+        let n = self.scopes.len();
+        for name in [item, index] {
+            self.scopes.push(Scope { name: name.to_string(), value: Json::Null, client: true });
+        }
+        let result = self.children(node);
+        self.scopes.truncate(n);
+        result?;
+        self.out.push_str("</template>");
+        Ok(())
+    }
+
+    /// Renders the node's children where the browser can show and hide them as `when`
+    /// changes. The content sits between two `<template>` markers, so this works in any
+    /// parent, tables included. Hidden content is rendered inside the first marker.
+    pub(crate) fn conditional(&mut self, node: &Node, when: &Val) -> Result<(), RenderError> {
+        let show = expr::truthy(&self.eval(when));
+        let mut js = String::new();
+        self.write_val_js(&mut js, when);
+        self.out.push_str("<template data-i-if=\"");
+        escape::push_attr(&mut self.out, &js);
+        self.out.push_str("\">");
+        if show {
+            self.out.push_str("</template>");
+            self.children(node)?;
+        } else {
+            self.children(node)?;
+            self.out.push_str("</template>");
+        }
+        self.out.push_str("<template data-i-fi></template>");
+        self.interactive = true;
+        Ok(())
+    }
+
+    #[cfg(feature = "parallel")]
+    fn each_parallel(&mut self, node: &Node, items: &[Json], item: &str, index: &str) -> Result<(), RenderError> {
+        use rayon::prelude::*;
+        // `self` holds a non-thread-safe style cache, so workers get the shared,
+        // read-only parts and build their own context.
+        let (registry, policy, theme, state, data) = (self.registry, self.policy, self.theme, self.state, self.data);
+        let min = self.parallel_min_items;
+        let scopes = &self.scopes;
+        // A few chunks per thread so uneven items still balance across threads.
+        let chunk = items.len().div_ceil(rayon::current_num_threads() * 4).max(16);
+        let chunks: Vec<_> = items
+            .par_chunks(chunk)
+            .enumerate()
+            .map(|(c, chunk_items)| {
+                let mut cx = RenderCx::new(registry, policy, theme, state, data, min);
+                cx.scopes = scopes.clone();
+                for (j, value) in chunk_items.iter().enumerate() {
+                    let vars = vec![(item.to_string(), value.clone()), (index.to_string(), json!(c * chunk + j))];
+                    cx.with_scope(vars, |cx| cx.children(node))?;
+                }
+                Ok((cx.out, cx.styles.into_rules(), cx.interactive))
+            })
+            .collect();
+        for result in chunks {
+            let (out, rules, interactive) = result?;
+            self.out.push_str(&out);
+            self.styles.merge(rules);
+            self.interactive |= interactive;
+        }
+        Ok(())
+    }
+
+    /// Runs `f` with extra names in scope (e.g. a list's `item` and `index`).
+    pub fn with_scope<T>(
+        &mut self,
+        vars: Vec<(String, Json)>,
+        f: impl FnOnce(&mut Self) -> Result<T, RenderError>,
+    ) -> Result<T, RenderError> {
+        let n = vars.len();
+        self.scopes.extend(vars.into_iter().map(|(name, value)| Scope { name, value, client: false }));
+        let result = f(self);
+        self.scopes.truncate(self.scopes.len() - n);
+        result
+    }
+
+    fn write_attr(&mut self, name: &str, value: &Json) {
+        // ARIA states are the strings "true" / "false", not HTML boolean attributes.
+        if let Json::Bool(b) = value
+            && is_aria(name)
+        {
+            return self.write_attr_str(name, if *b { "true" } else { "false" });
+        }
+        match value {
+            Json::Null | Json::Bool(false) => {}
+            Json::Bool(true) => {
+                self.out.push(' ');
+                self.out.push_str(name);
+            }
+            Json::String(s) => self.write_attr_str(name, s),
+            other => self.write_attr_str(name, &stringify(other)),
+        }
+    }
+
+    fn write_attr_str(&mut self, name: &str, value: &str) {
+        if Policy::is_url_attr(name) && !self.policy.url_allowed(value) {
+            return;
+        }
+        let _ = write!(self.out, " {name}=\"");
+        escape::push_attr(&mut self.out, value);
+        self.out.push('"');
+    }
+
+    fn write_action_js(&self, out: &mut String, action: &Action) {
+        let map = |out: &mut String, m: &IndexMap<String, Val>| {
+            out.push('{');
+            for (i, (k, v)) in m.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                let _ = write_json_str(out, k);
+                out.push(':');
+                self.write_val_js(out, v);
+            }
+            out.push('}');
+        };
+        match action {
+            Action::SetState { key, value } => {
+                out.push_str("{\"a\":\"set\",\"k\":");
+                let _ = write_json_str(out, key);
+                out.push_str(",\"v\":");
+                self.write_val_js(out, value);
+            }
+            Action::Navigate { url } => {
+                out.push_str("{\"a\":\"nav\",\"u\":");
+                self.write_val_js(out, url);
+            }
+            Action::Submit { endpoint, method, body, into } => {
+                out.push_str("{\"a\":\"submit\",\"e\":");
+                self.write_val_js(out, endpoint);
+                out.push_str(",\"m\":");
+                let _ = write_json_str(out, method);
+                out.push_str(",\"b\":");
+                map(out, body);
+                out.push_str(",\"into\":");
+                match into {
+                    Some(k) => {
+                        let _ = write_json_str(out, k);
+                    }
+                    None => out.push_str("null"),
+                }
+            }
+            Action::Call { name, args } => {
+                out.push_str("{\"a\":\"call\",\"n\":");
+                let _ = write_json_str(out, name);
+                out.push_str(",\"args\":");
+                map(out, args);
+            }
+        }
+        out.push('}');
+    }
+}
+
+fn is_aria(name: &str) -> bool {
+    name.get(..5).is_some_and(|p| p.eq_ignore_ascii_case("aria-"))
+}
+
+/// A server-rendered custom property value. Values that could inject other
+/// declarations are dropped.
+fn css_var_value(v: &Json, px: bool) -> Option<String> {
+    let s = match v {
+        Json::Null => return None,
+        Json::Number(_) if px => format!("{}px", stringify(v)),
+        _ => stringify(v),
+    };
+    irender_core::policy::css_value_is_contained(&s).ok().map(|_| s)
+}

@@ -1,0 +1,11 @@
+{
+  "product": {
+    "name": "Ceramic Pour-Over Set",
+    "sku": "POS-01",
+    "price": 1499,
+    "reviews": [
+      { "author": "Asha", "body": "Lovely glaze, pours evenly." },
+      { "author": "Ravi", "body": "Bought a second one as a gift." }
+    ]
+  }
+}

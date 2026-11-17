@@ -1,0 +1,147 @@
+# An orders dashboard. Everything it shows comes from server data (dashboard.data.json),
+# which a real host would assemble from API calls per request.
+#
+# Shows:
+#   - fragments from a directory, included inside lists, and nested (order-row → status-badge)
+#   - a fragment defined in the document itself (order-lines)
+#   - `if` on server data: decided on the server, nothing reaches the browser
+#   - `if` on state inside a server-rendered table: filter tabs and expandable rows
+#
+#   cargo run -p irender-cli -- render examples/dashboard/dashboard.yaml \
+#     --data examples/dashboard/dashboard.data.json --fragments examples/dashboard/fragments -o dashboard.html
+version: 1
+theme:
+  tokens:
+    color: { primary: "#2563eb", primary-hover: "#1d4ed8", positive: "#15803d", negative: "#b91c1c" }
+state:
+  filter: all
+  expanded: null
+fragments:
+  # A document can define its own fragments too. They see the scope they're included
+  # in: this one reads `order` from the list around it.
+  order-lines:
+    type: element
+    props: { tag: tr }
+    children:
+      - type: element
+        props: { tag: td }
+        attrs: { colspan: 4 }
+        style: { padding: 0 10px 14px 34px, background: "#f8fafc" }
+        children:
+          - type: list
+            props: { items: "{{ order.lines }}", as: line, tag: ul }
+            style: { margin: 0, padding: 10px 0 0 16px, color: $color.muted }
+            children:
+              - type: text
+                props: { tag: li, value: "{{ line.qty }} × {{ line.name }} — ₹{{ line.qty * line.price }}" }
+root:
+  type: stack
+  props: { gap: $space.lg }
+  style:
+    max-width: 960px
+    margin: 0 auto
+    padding: $space.lg
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, justify: space-between, align: center, wrap: true, gap: $space.sm }
+      children:
+        - type: text
+          props: { tag: h1, value: "Welcome back, {{ user.name }}" }
+          style: { margin: 0, font-size: 24 }
+        # Decided on the server: viewers never receive the admin tools' markup.
+        - type: if
+          props: { when: "{{ user.role == 'admin' }}" }
+          children:
+            - type: stack
+              props: { direction: row, gap: $space.sm }
+              children:
+                - type: button
+                  props: { label: Export CSV, variant: secondary }
+                  on: { click: { action: call, name: export, args: { filter: "{{ filter }}" } } }
+                - type: button
+                  props: { label: Refund policy, variant: ghost }
+                  on: { click: { action: navigate, url: /admin/refunds } }
+
+    - type: if
+      props: { when: "{{ alerts.length > 0 }}" }
+      children:
+        - type: list
+          props: { items: "{{ alerts }}", as: alert }
+          style: { display: grid, gap: $space.xs }
+          children:
+            - type: text
+              props: { tag: p, value: "⚠ {{ alert }}" }
+              style:
+                margin: 0
+                padding: 10px 14px
+                border-radius: $radius.md
+                background: "#fef3c7"
+                color: "#92400e"
+
+    - type: list
+      props: { items: "{{ stats }}", as: stat }
+      style:
+        display: grid
+        gap: $space.md
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))
+      children:
+        - { type: include, props: { name: stat-card } }
+
+    - type: stack
+      props: { gap: $space.sm }
+      children:
+        - type: text
+          props: { tag: h2, value: Orders }
+          style: { margin: 0, font-size: $font.size.md, color: $color.muted, font-weight: 500 }
+        # Tabs come from data; which one is active is state.
+        - type: list
+          props: { items: "{{ tabs }}", as: tab }
+          attrs: { role: tablist }
+          style: { display: flex, gap: $space.xs, flex-wrap: wrap }
+          children:
+            - type: button
+              props: { label: "{{ tab.label }} · {{ tab.count }}", variant: secondary }
+              attrs: { role: tab, aria-selected: "{{ filter == tab.key }}" }
+              style:
+                border-radius: 999px
+                padding: 6px 14px
+                "&[aria-selected=true]": { background: $color.primary, color: "#fff", border-color: $color.primary }
+              on: { click: { action: set_state, key: filter, value: "{{ tab.key }}" } }
+
+        - type: element
+          props: { tag: table }
+          style:
+            width: 100%
+            border-collapse: collapse
+            font-size: $font.size.sm
+            "& th": { text-align: left, padding: 10px, color: $color.muted, font-weight: 500, border-bottom: 1px solid $color.border }
+          children:
+            - type: element
+              props: { tag: thead }
+              children:
+                - type: list
+                  props: { items: [Order, Customer, Status, Total], tag: tr }
+                  children:
+                    - { type: text, props: { tag: th, value: "{{ item }}" } }
+            - type: list
+              props: { items: "{{ orders }}", as: order, tag: tbody }
+              children:
+                # Rows are rendered on the server; the filter only shows and hides them.
+                - type: if
+                  props: { when: "{{ filter == 'all' || filter == order.status }}" }
+                  children:
+                    - { type: include, props: { name: order-row } }
+                    - type: if
+                      props: { when: "{{ expanded == order.id }}" }
+                      children:
+                        - { type: include, props: { name: order-lines } }
+
+        - type: if
+          props: { when: "{{ orders.length == 0 }}" }
+          children:
+            - type: text
+              props: { tag: p, value: No orders yet. }
+              style: { color: $color.muted, text-align: center }

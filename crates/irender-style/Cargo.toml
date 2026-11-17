@@ -1,0 +1,20 @@
+[package]
+name = "irender-style"
+description = "Compiles iRender style blocks into hashed, deduplicated CSS classes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[features]
+default = ["lightningcss"]
+# Validate every CSS declaration and enable minification.
+lightningcss = ["dep:lightningcss"]
+
+[dependencies]
+irender-core.workspace = true
+indexmap.workspace = true
+lightningcss = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true

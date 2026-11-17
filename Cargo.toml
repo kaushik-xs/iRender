@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+repository = "https://github.com/kaushik-xs/iRender"
+
+[workspace.dependencies]
+irender-core = { path = "crates/irender-core", version = "0.1.0" }
+irender-style = { path = "crates/irender-style", version = "0.1.0" }
+irender-html = { path = "crates/irender-html", version = "0.1.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+indexmap = { version = "2", features = ["serde"] }
+schemars = { version = "1", features = ["indexmap2"] }
+serde_path_to_error = "0.1"
+serde_yaml_ng = "0.10"
+lightningcss = { version = "1.0.0-alpha.72", default-features = false }
+clap = { version = "4", features = ["derive"] }
+thiserror = "2"
+rayon = "1"
