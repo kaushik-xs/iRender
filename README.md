@@ -187,15 +187,15 @@ cargo run --release -p irender-cli -- render doc.json --data data.json --repeat 
 
 `--timings` / `--repeat N` print parse, resolve, render and serialize times for your own document. Load (parse + resolve) is meant to happen once per document change. Render happens per request.
 
-Results on an Apple M4 Pro, release build:
+Results on an Apple M4 Pro, release build (measured 2026-11-17):
 
 | fixture | load | render | per element | render, parallel |
 |---|---|---|---|---|
-| product example (17 elements) | 73 µs | 55 µs | ~3.2 µs | — |
-| table, 100 rows (~500 elements) | 32 µs | 426 µs | ~0.85 µs | 205 µs |
-| table, 1000 rows (~5000 elements) | 32 µs | 4.15 ms | ~0.83 µs | 1.00 ms |
-| 1000 cards with unique styles (~2000 elements) | 5.4 ms | 2.89 ms | ~1.4 µs | — |
-| 50 nested levels | 103 µs | 23 µs | ~0.45 µs | — |
+| product example (17 elements) | 75 µs | 56 µs | ~3.3 µs | — |
+| table, 100 rows (~500 elements) | 32 µs | 442 µs | ~0.88 µs | 210 µs |
+| table, 1000 rows (~5000 elements) | 32 µs | 4.24 ms | ~0.85 µs | 1.06 ms |
+| 1000 cards with unique styles (~2000 elements) | 5.6 ms | 2.88 ms | ~1.4 µs | — |
+| 50 nested levels | 104 µs | 24 µs | ~0.47 µs | — |
 
 **Load** is parse + resolve + CSS validation. **Render, parallel** uses `parallel_min_items = Some(64)`; "—" means the document has no list that large, so it renders on one thread with no overhead.
 

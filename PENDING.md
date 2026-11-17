@@ -6,7 +6,7 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. Re-run the benchmarks (housekeeping 1).
+1. Overlays inside lists the browser rebuilds (gaps 1): with keyed lists, a menu per row is now practical.
 
 ## Gaps you'd hit in real use
 
@@ -53,7 +53,6 @@ _Last updated: 2026-11-17._
 
 ## Housekeeping
 
-- [ ] **Re-run the benchmarks** (`cargo bench -p irender-html`, with and without `--features parallel`). `if`, browser-rebuilt (and keyed) lists, include parameters, behaviours and `scope_key` have landed since the README's table was measured. Update the Performance section with the results.
 - [ ] **CI checks we skipped:**
   - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
   - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.
