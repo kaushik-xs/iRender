@@ -1327,18 +1327,40 @@ fn custom_colours_in_chrome() {
     );
 }
 
+/// Reads a whole HTTP request: the headers, then the body up to its Content-Length.
+/// WebKit sends the body in a separate packet, so one read can miss it, and closing
+/// the connection before it's read fails the fetch.
+fn read_request(stream: &mut std::net::TcpStream) -> String {
+    use std::io::Read;
+    let mut data = Vec::new();
+    let mut buf = [0u8; 8192];
+    loop {
+        let n = stream.read(&mut buf).unwrap_or(0);
+        data.extend_from_slice(&buf[..n]);
+        let text = String::from_utf8_lossy(&data);
+        if let Some(end) = text.find("\r\n\r\n") {
+            let length = text[..end].lines()
+                .find_map(|line| line.to_ascii_lowercase().strip_prefix("content-length:").map(|v| v.trim().parse().unwrap_or(0)))
+                .unwrap_or(0);
+            if n == 0 || data.len() >= end + 4 + length {
+                return text.into_owned();
+            }
+        } else if n == 0 {
+            return text.into_owned();
+        }
+    }
+}
+
 /// A chat API: answers `POST /chat` with the reply as server-sent events, and the
 /// preflight a file:// page sends first. `/json` answers with one JSON message instead.
 fn chat_server() -> u16 {
-    use std::io::{Read, Write};
+    use std::io::Write;
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     std::thread::spawn(move || {
         for stream in listener.incoming() {
             let Ok(mut stream) = stream else { continue };
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let request = read_request(&mut stream);
             let cors = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST";
             if request.starts_with("OPTIONS") {
                 let _ = write!(stream, "HTTP/1.1 204 No Content\r\n{cors}\r\nConnection: close\r\n\r\n");
@@ -1375,6 +1397,8 @@ fn chat_server() -> u16 {
                 let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
                 continue;
             }
+            // Long enough that the tests see the reply still on its way after sending.
+            std::thread::sleep(std::time::Duration::from_millis(150));
             let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
             for chunk in [r#"{"content":"Hi"}"#, r#"{"choices":[{"delta":{"content":" there"}}]}"#, &format!(r#"" ({sent})""#), "[DONE]"] {
                 let _ = write!(stream, "data: {chunk}\n\n");
