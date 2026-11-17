@@ -26,6 +26,14 @@ cp -R examples/search/api "$out/search/"
 $irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.html"
 $irender render examples/ui-kit/gallery.yaml --ui-kit --title "UI kit gallery" -o "$out/ui-kit.html"
 cp -R examples/ui-kit/api "$out/"
+# Blocks: whole pages, previewed together on blocks/index.html.
+mkdir -p "$out/blocks"
+for block in login-03 login-04 signup sidebar-03 sidebar-07; do
+  $irender render "examples/blocks/$block.yaml" --ui-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
+done
+$irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboard-01.data.json \
+  --ui-kit --chart-kit --icon-kit --title "dashboard-01" -o "$out/blocks/dashboard-01.html"
+$irender render examples/blocks/index.yaml --ui-kit --title "Blocks" -o "$out/blocks/index.html"
 mkdir -p "$out/charts"
 $irender render examples/charts/gallery.yaml --data examples/charts/gallery.data.json --ui-kit --chart-kit \
   --title "Chart kit gallery" -o "$out/charts/index.html"

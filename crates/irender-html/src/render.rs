@@ -516,6 +516,12 @@ impl<'a> RenderCx<'a> {
         self.out.push_str(html);
     }
 
+    /// Whether a component named `name` is registered, e.g. for a kit that uses
+    /// another kit's component when it's there.
+    pub fn has_component(&self, name: &str) -> bool {
+        self.registry.get(name).is_some()
+    }
+
     pub fn render(&mut self, node: &Node) -> Result<(), RenderError> {
         let registry = self.registry;
         let component = registry

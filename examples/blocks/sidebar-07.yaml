@@ -1,0 +1,94 @@
+# Block: a sidebar that collapses to icons, in the style of shadcn/ui's sidebar-07. The
+# button in the header narrows it to its icons and back; labels stay for screen readers.
+#
+#   cargo run -p irender-cli -- render examples/blocks/sidebar-07.yaml --ui-kit --icon-kit -o sidebar-07.html
+version: 1
+state:
+  sidebar: true
+root:
+  type: ui-sidebar-layout
+  props: { bind: sidebar, collapsible: icon }
+  children:
+    - type: ui-sidebar
+      children:
+        - type: ui-sidebar-header
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: Acme Inc, icon: grid, badge: Enterprise }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Acme Inc, active: true } }
+                    - { type: ui-sidebar-item, props: { label: Acme Corp. } }
+                    - { type: ui-sidebar-item, props: { label: Evil Corp. } }
+                    - { type: ui-sidebar-item, props: { label: Add team, icon: add } }
+        - type: ui-sidebar-content
+          children:
+            - type: ui-sidebar-group
+              props: { label: Platform }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: Playground, icon: it:command-line, open: true }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: History, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Starred, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Settings, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Models, icon: it:microservices }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Genesis, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Explorer, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Quantum, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Documentation, icon: education:book-open }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Introduction, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Get Started, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Tutorials, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Changelog, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Settings, icon: settings }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: General, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Team, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Billing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Limits, href: "#" } }
+            - type: ui-sidebar-group
+              props: { label: Projects }
+              children:
+                - { type: ui-sidebar-item, props: { label: Design Engineering, icon: marketing:target, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Sales & Marketing, icon: marketing:analytics, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Travel, icon: public-sector:public-transport, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: More, icon: more-horizontal } }
+        - type: ui-sidebar-footer
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: shadcn, icon: user, badge: m@example.com }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Account, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Billing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Notifications, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Log out, href: "#" } }
+
+    - type: element
+      props: { tag: header }
+      style: { display: flex, align-items: center, gap: 8, height: 64, flex-shrink: 0, padding: 0 16px }
+      children:
+        - { type: ui-sidebar-trigger }
+        - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin-right: 8 } }
+        - type: ui-breadcrumb
+          props: { items: [{ label: Build Your Application, href: "#" }, { label: Data Fetching }] }
+    - type: element
+      style: { display: flex, flex-direction: column, gap: 16, flex: 1, padding: 0 16px 16px }
+      children:
+        - type: element
+          style: { display: grid, grid-template-columns: "repeat(3, 1fr)", gap: 16 }
+          children:
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+        - { type: element, style: { flex: 1, min-height: 360, border-radius: 12, background: $color.subtle } }

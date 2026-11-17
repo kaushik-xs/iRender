@@ -947,3 +947,59 @@ fn split_buttons_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sidebar_collapses_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "open": true, "open2": true },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-sidebar-layout", "props": { "bind": "open", "collapsible": "icon" }, "attrs": { "id": "icons" }, "style": { "min-height": 200 }, "children": [
+                { "type": "ui-sidebar", "children": [ { "type": "ui-sidebar-content", "children": [
+                    { "type": "ui-sidebar-group", "props": { "label": "Platform" }, "children": [
+                        { "type": "ui-sidebar-item", "props": { "label": "Home", "icon": "H", "href": "#" } },
+                        { "type": "ui-sidebar-item", "props": { "label": "Docs", "icon": "D", "open": true }, "children": [
+                            { "type": "ui-sidebar-item", "props": { "label": "Intro", "href": "#" } } ] } ] } ] } ] },
+                { "type": "ui-sidebar-trigger" } ] },
+            { "type": "ui-sidebar-layout", "props": { "bind": "open2" }, "attrs": { "id": "slide" }, "style": { "min-height": 200 }, "children": [
+                { "type": "ui-sidebar", "children": [ { "type": "ui-sidebar-content" } ] },
+                { "type": "ui-sidebar-trigger" } ] } ] } });
+    // Widths are measured straight after a click, so no transitions.
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const wait = () => new Promise((r) => setTimeout(r, 50));
+      const $ = (s) => document.querySelector(s);
+      const width = (id) => Math.round($(`#${id} > aside`).getBoundingClientRect().width);
+      const label = $("#icons [data-label]");
+      const shown = (el) => el.getBoundingClientRect().width > 1;
+      const step = (name) => out.push(`${name} ${$("#icons").dataset.state} ${width("icons")} label ${shown(label) ? "shown" : "hidden"} ${label.textContent}`
+        + ` sub ${$("#icons details ul").checkVisibility() ? "shown" : "hidden"} trigger ${$("#icons [data-sidebar-trigger]").getAttribute("aria-expanded")}`);
+      step("open");
+      $("#icons [data-sidebar-trigger]").click(); await wait(); step("icons");
+      $("#icons [data-sidebar-trigger]").click(); await wait(); step("open again");
+      $("#slide [data-sidebar-trigger]").click(); await wait();
+      out.push(`offcanvas ${$("#slide").dataset.state} ${width("slide")}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("sidebar", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "open expanded 256 label shown Home sub shown trigger true",
+            // Narrowed to icons: labels are hidden from sight but still read, sub-menus go.
+            "icons collapsed 48 label hidden Home sub hidden trigger false",
+            "open again expanded 256 label shown Home sub shown trigger true",
+            // Off-canvas, it slides away entirely.
+            "offcanvas collapsed 0",
+        ],
+        "\n{result}"
+    );
+}

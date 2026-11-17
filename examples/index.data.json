@@ -17,6 +17,19 @@
       "needsServer": true
     },
     {
+      "title": "Blocks",
+      "href": "blocks/index.html",
+      "source": "examples/blocks/index.yaml",
+      "summary": "Whole pages in the style of shadcn/ui's blocks: a dashboard with an inset sidebar, summary cards, an interactive area chart and a paged, selectable table; sidebars that collapse to icons or slide away; login and sign-up pages.",
+      "features": [
+        "ui-sidebar",
+        "irender-chart-kit",
+        "irender-icon-kit",
+        "forms",
+        "dark mode"
+      ]
+    },
+    {
       "title": "Chart kit gallery",
       "href": "charts/index.html",
       "source": "examples/charts/gallery.yaml",

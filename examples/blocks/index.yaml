@@ -1,0 +1,87 @@
+# The blocks: whole pages built from the UI kit, chart kit and icon kit, in the style of
+# shadcn/ui's blocks. Each is previewed live; examples/build.sh renders them next to this
+# page.
+#
+#   examples/build.sh && python3 examples/serve.py   # then open /blocks/
+version: 1
+state:
+  filter: all
+root:
+  type: stack
+  props: { gap: 32 }
+  style:
+    max-width: 1200px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 12 }
+      children:
+        - type: stack
+          props: { direction: row, align: center, gap: 12 }
+          children:
+            - { type: ui-heading, props: { level: 1, text: Blocks } }
+            - { type: ui-theme-toggle, style: { margin-left: auto } }
+        - type: ui-text
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, sidebars, login and sign-up. Each is one document using the UI kit, chart kit and icon kit; open it, or read its source." }
+        - type: ui-toggle-group
+          props:
+            bind: filter
+            variant: outline
+            size: sm
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }]
+
+    - type: list
+      props:
+        as: block
+        items:
+          - { id: dashboard-01, category: dashboard, title: A dashboard with sidebar, charts and data table, kits: [ui-kit, chart-kit, icon-kit], height: 860 }
+          - { id: sidebar-07, category: sidebar, title: A sidebar that collapses to icons, kits: [ui-kit, icon-kit], height: 640 }
+          - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }
+          - { id: login-03, category: login, title: A login page with a muted background color, kits: [ui-kit, icon-kit], height: 720 }
+          - { id: login-04, category: login, title: A login page with form and image, kits: [ui-kit], height: 720 }
+          - { id: signup, category: signup, title: A sign-up form that checks itself as you type, kits: [ui-kit, icon-kit], height: 860 }
+      style: { display: flex, flex-direction: column, gap: 48 }
+      children:
+        - type: if
+          props: { when: "{{ filter == null || filter == 'all' || filter == block.category }}" }
+          children:
+            - type: element
+              props: { tag: section }
+              attrs: { id: "{{ block.id }}", aria-labelledby: "{{ block.id }}-title" }
+              style: { display: flex, flex-direction: column, gap: 12 }
+              children:
+                - type: element
+                  style: { display: flex, flex-wrap: wrap, align-items: center, gap: 8 }
+                  children:
+                    - type: element
+                      props: { tag: h2 }
+                      attrs: { id: "{{ block.id }}-title" }
+                      style: { margin: 0, font-size: 15, font-weight: 500 }
+                      children:
+                        - { type: text, props: { value: "{{ block.title }}" } }
+                    - { type: ui-badge, props: { text: "{{ block.id }}", variant: secondary } }
+                    - type: list
+                      props: { items: "{{ block.kits }}", as: kit }
+                      style: { display: contents }
+                      children:
+                        - { type: ui-badge, props: { text: "{{ kit }}", variant: outline } }
+                    - type: element
+                      style: { display: flex, gap: 8, margin-left: auto }
+                      children:
+                        - type: ui-button
+                          props: { label: Source, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/{{ block.id }}.yaml" }
+                        - { type: ui-button, props: { label: Open, size: sm, href: "{{ block.id }}.html" } }
+                - type: element
+                  props: { tag: iframe }
+                  attrs: { src: "{{ block.id }}.html", title: "{{ block.title }}", loading: lazy }
+                  style:
+                    display: block
+                    width: 100%
+                    height: "{{ block.height }}"
+                    border: 1px solid $color.border
+                    border-radius: 12
+                    background: $color.surface

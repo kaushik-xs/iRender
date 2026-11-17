@@ -26,7 +26,13 @@ _Last updated: 2026-11-17._
 
   These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
   - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
-- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, sidebar, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
+- [ ] **`ui-sidebar` gaps:**
+  - [ ] No phone layout. shadcn's turns into a sheet on small screens; ours stays beside the page, so on a phone it should start closed or use `collapsible: icon`.
+  - [ ] No keyboard shortcut (shadcn toggles with ⌘B / Ctrl+B) and no remembered state: a reload opens it as `state` says.
+  - [ ] Collapsed to icons, items show no tooltip with their label (screen readers still read it).
+  - [ ] No group actions or per-item action buttons (shadcn's `SidebarGroupAction`, `SidebarMenuAction`); put a `ui-dropdown-menu` beside the item instead.
+- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
+- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
 - [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.
 - [ ] **`ui-combobox`:**
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
@@ -121,7 +127,6 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - accessibility
 - [ ] **`ui-icon`'s `name` can't use state.** Icons are inlined on the server, so a name from `state` (or from a list item the browser rebuilds) is a render error; `if` / `else` covers fixed choices. Idea: a `names` prop listing the possible icons, all rendered with only the current one shown.
 - [ ] **No tags or search.** Packs have names only. Idea: a tags line per icon (in `_pack.txt` or a sidecar) for the gallery and `irender icons --search`.
-- [ ] **`ui-alert`'s `icon` is text only.** It can't take a `ui-icon` yet. Idea: when the kit is registered, accept `icon: { name: … }`, or a part slot for a child.
 - [ ] **Aliases:** no `previous` → `chevron-left`-style aliases between packs.
 - [ ] **Icons worth a second pass:** they pass lint and read, but the metaphor is weak, they're crowded at 16 px, or the filled style lost too much. (o) = outline, (f) = filled.
   - logistics: `freight-train`, `fleet`, `cold-chain`, `seal`, `dimensions`, `eta` (f)

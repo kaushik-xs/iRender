@@ -62,6 +62,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-dialog-close", json!({ "label": "L" })),
         ("ui-combobox", json!({ "options": ["a"] })),
         ("ui-split-button", json!({ "label": "Save" })),
+        ("ui-sidebar-item", json!({ "label": "Home" })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -72,11 +73,14 @@ fn every_component_is_prefixed_documented_and_renders() {
         if c.name() == "ui-dialog-close" {
             root = json!({ "type": "ui-dialog", "children": [root] });
         }
+        if c.name() == "ui-sidebar-trigger" {
+            root = json!({ "type": "ui-sidebar-layout", "props": { "bind": "k" }, "children": [root] });
+        }
         let page = render_with(root, json!({ "k": null }), json!({}))
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 53);
+    assert_eq!(kit, 61);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -458,6 +462,54 @@ fn split_button_joins_a_primary_action_to_a_menu() {
     assert!(body.contains(r#"<button popovertarget="dl" aria-haspopup="menu" aria-label="More actions" type="button">▾</button>"#), "{body}");
     assert!(body.contains(r#"popover="auto" id="dl" role="menu""#), "{body}");
     assert!(body.contains(r#"role="menuitem""#), "{body}");
+}
+
+#[test]
+fn sidebar_layout_panel_groups_and_items() {
+    let page = render_with(
+        json!({ "type": "ui-sidebar-layout", "props": { "bind": "open", "collapsible": "icon" }, "children": [
+            { "type": "ui-sidebar", "children": [
+                { "type": "ui-sidebar-content", "children": [
+                    { "type": "ui-sidebar-group", "props": { "label": "Platform" }, "children": [
+                        { "type": "ui-sidebar-item", "props": { "label": "Home", "icon": "⌂", "href": "/", "active": true, "badge": 3 } },
+                        { "type": "ui-sidebar-item", "props": { "label": "Docs", "open": true }, "children": [
+                            { "type": "ui-sidebar-item", "props": { "label": "Intro", "href": "/intro" } } ] } ] } ] } ] },
+            { "type": "ui-sidebar-trigger" },
+            { "type": "text", "props": { "value": "Main" } } ] }),
+        json!({ "open": true }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The layout's state follows `bind`; the panel comes first, then the main area.
+    assert!(body.contains(r#"data-sidebar-layout data-state="expanded" data-collapsible="icon" data-variant="sidebar" data-side="left""#), "{body}");
+    assert!(body.contains(r#"<aside data-sidebar aria-label="Sidebar">"#), "{body}");
+    assert!(body.contains(r#"<main><button type="button""#), "the trigger is in the main area: {body}");
+    // An item: a link with its icon, label and badge, current when active.
+    assert!(
+        body.contains(r#"<li><a data-sidebar-item href="/" aria-current="page"><span aria-hidden="true" data-icon>⌂</span><span data-label>Home</span><span data-badge>3</span></a></li>"#),
+        "{body}"
+    );
+    // One with children opens a sub-menu.
+    assert!(body.contains(r#"<li><details open><summary data-sidebar-item><span data-label>Docs</span><span data-chevron>"#), "{body}");
+    assert!(body.contains(r#"<li><a data-sidebar-item href="/intro"><span data-label>Intro</span></a></li></ul></details></li>"#), "{body}");
+    // The trigger flips the bound key.
+    assert!(body.contains(r#"aria-label="Toggle sidebar" data-sidebar-trigger"#), "{body}");
+    assert!(body.contains("&quot;k&quot;:&quot;open&quot;"), "{body}");
+    // A trigger outside a bound layout is an error, not a dead button.
+    let err = render_with(json!({ "type": "ui-sidebar-trigger" }), json!({}), json!({})).unwrap_err();
+    assert!(err.message.contains("inside a `ui-sidebar-layout` with `bind`"), "{err}");
+}
+
+#[test]
+fn separator_label_button_and_badge_icons() {
+    let body = plain(&render(json!({ "type": "element", "children": [
+        { "type": "ui-separator", "props": { "label": "Or continue with" } },
+        { "type": "ui-button", "props": { "label": "Add", "icon": "+" } },
+        { "type": "ui-badge", "props": { "text": "+12%", "icon": "↗", "variant": "outline" } } ] })));
+    assert!(body.contains("<div>Or continue with</div>"), "{body}");
+    assert!(body.contains(r#"<button type="button"><span aria-hidden="true" data-icon>+</span><span>Add</span></button>"#), "{body}");
+    assert!(body.contains(r#"<span><span aria-hidden="true" data-icon>↗</span><span>+12%</span></span>"#), "{body}");
 }
 
 #[test]

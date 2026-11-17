@@ -33,14 +33,14 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 
 | component | props | notes |
 |---|---|---|
-| `ui-button` | `label`, `variant` (default, secondary, destructive, outline, ghost, link), `size` (default, sm, lg, icon), `href`, `type`, `disabled` | With `href` it renders a link that looks like a button. Children follow the label. |
-| `ui-badge` | `text`, `variant` (default, secondary, destructive, outline) | |
+| `ui-button` | `label`, `icon`, `variant` (default, secondary, destructive, outline, ghost, link), `size` (default, sm, lg, icon), `href`, `type`, `disabled` | With `href` it renders a link that looks like a button. Children follow the label. |
+| `ui-badge` | `text`, `icon`, `variant` (default, secondary, destructive, outline) | |
 | `ui-card` | `title`, `description`, `tag` | Parts: `header`, `title`, `description`. |
 | `ui-card-footer` | | A row of actions; put it last in a card. |
 | `ui-alert` | `title`, `description`, `icon`, `variant` (default, destructive) | `role="alert"`. Parts: `icon`, `title`, `description`. |
 | `ui-empty` | `title`, `description`, `icon` | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
-| `ui-separator` | `orientation`, `decorative` | |
+| `ui-separator` | `orientation`, `decorative`, `label` | With `label`, a horizontal line with text in the middle, like "Or continue with". |
 | `ui-skeleton` | `width`, `height`, `round` | Pulses gently; still for people who ask their system for reduced motion. |
 | `ui-spinner` | `size` (default 16), `label` (default `Loading`) | A spinning ring in the text colour, `role="status"`. Slows down for people who ask for reduced motion. |
 | `ui-kbd` | `text` | |
@@ -77,11 +77,55 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-tooltip` | `text`, `side`, `id` | Shown while its children are hovered or focused. CSS only. The first child (usually a button) gets `aria-describedby` pointing at the tip. |
 | `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
 | `ui-toaster` | `bind`, `duration` (default 4000 ms), `max` (default 3) | Toasts at the bottom right. Setting `bind` to `{ title, description, variant, duration }` adds one to the stack. |
+| `ui-sidebar-layout` + `ui-sidebar` | layout: `bind`, `collapsible` (offcanvas, icon, none), `variant` (sidebar, inset, floating), `side`, `width`; sidebar: `label` | See [Sidebar](#sidebar). |
+| `ui-sidebar-header`, `ui-sidebar-content`, `ui-sidebar-footer`, `ui-sidebar-group`, `ui-sidebar-item`, `ui-sidebar-trigger` | group: `label`; item: `label`, `icon`, `href`, `active`, `badge`, `open`; trigger: `label` | The parts of a sidebar. An item with children opens a sub-menu. |
 | `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
 
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
+
+`icon` on `ui-button`, `ui-badge`, `ui-alert` and `ui-sidebar-item` takes an icon name, like `settings` or `it:database`, drawn by [irender-icon-kit](../irender-icon-kit/README.md) when it's registered. Otherwise, or for anything that isn't a name, it is shown as text, so an emoji or a character like `⚠` works too.
+
+## Sidebar
+
+A page with a navigation panel that slides away or narrows to its icons, in the style of shadcn/ui's sidebar:
+
+```yaml
+state: { sidebar: true }
+root:
+  type: ui-sidebar-layout
+  props: { bind: sidebar, collapsible: icon, variant: inset }
+  children:
+    - type: ui-sidebar
+      children:
+        - type: ui-sidebar-header
+          children: [ { type: ui-sidebar-item, props: { label: Acme Inc, icon: grid, href: / } } ]
+        - type: ui-sidebar-content
+          children:
+            - type: ui-sidebar-group
+              props: { label: Platform }
+              children:
+                - { type: ui-sidebar-item, props: { label: Dashboard, icon: grid, href: /, active: true } }
+                - type: ui-sidebar-item
+                  props: { label: Settings, icon: settings }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Team, href: /team } }
+                    - { type: ui-sidebar-item, props: { label: Billing, href: /billing } }
+        - type: ui-sidebar-footer
+          children: [ { type: ui-sidebar-item, props: { label: Account, icon: user } } ]
+    # Everything after the ui-sidebar is the main area.
+    - type: element
+      props: { tag: header }
+      children: [ { type: ui-sidebar-trigger } ]
+```
+
+- **Open and closed:** `bind` holds whether the sidebar is open, and `ui-sidebar-trigger` flips it. `collapsible: offcanvas` (the default) slides the panel away, `icon` narrows it to its icons, and `none` keeps it open. Narrowed to icons, labels are hidden from sight but still read by screen readers, and sub-menus close.
+- **Variants:** `sidebar` puts a border between the panel and the page, `inset` makes the main area a raised panel on the sidebar's colour, and `floating` floats the panel itself.
+- **Items:** a link with `href`, otherwise a button that runs its `on.click`. `active` marks the current page (`aria-current="page"`). Children make a sub-menu, a native `<details>` the item opens and closes; `open` starts it open.
+- **Colour:** the panel uses `color.sidebar` when the theme has it, otherwise a step off the surface colour, in light and dark.
+
+The [blocks](../../examples/blocks/) use it: a dashboard, a sidebar that collapses to icons and one with sub-menus.
 
 ## Theme
 

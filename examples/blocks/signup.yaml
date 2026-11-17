@@ -1,0 +1,99 @@
+# Block: a sign-up form that checks itself as you type, in the style of shadcn/ui's
+# signup blocks. Errors appear under the field once it has text, and the button
+# stays disabled until everything is filled in correctly.
+#
+#   cargo run -p irender-cli -- render examples/blocks/signup.yaml --ui-kit --icon-kit -o signup.html
+version: 1
+state:
+  name: ""
+  email: ""
+  password: ""
+  confirm: ""
+  terms: false
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    align-items: center
+    justify-content: center
+    gap: 24
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 24px
+    background: $color.subtle
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: element
+      props: { tag: a }
+      attrs: { href: "#" }
+      style: { display: flex, align-items: center, gap: 8, color: inherit, font-weight: 500, text-decoration: none }
+      children:
+        - type: element
+          style: { display: flex, align-items: center, justify-content: center, width: 24, height: 24, border-radius: 6, background: $color.primary, color: $color.on-primary }
+          children: [ { type: ui-icon, props: { name: grid, size: 16 } } ]
+        - { type: text, props: { value: Acme Inc. } }
+
+    - type: ui-card
+      props: { title: Create your account, description: Enter your email below to create your account }
+      style: { width: 100%, max-width: 384, box-sizing: border-box }
+      parts:
+        header: { style: { text-align: center } }
+        title: { style: { font-size: 20 } }
+      children:
+        - type: element
+          props: { tag: form }
+          attrs: { action: "#" }
+          style: { display: grid, gap: 20 }
+          children:
+            - type: ui-field
+              props: { label: Full name }
+              children:
+                - { type: ui-input, props: { bind: name, placeholder: John Doe }, attrs: { required: true, autocomplete: name } }
+            - type: ui-field
+              props:
+                label: Email
+                description: We'll use this to contact you. We won't share it with anyone else.
+                error: "{{ email != '' && !(email.length > 4) ? 'That looks too short for an email address.' : '' }}"
+              children:
+                - { type: ui-input, props: { bind: email, type: email, placeholder: m@example.com }, attrs: { required: true, autocomplete: email } }
+            - type: element
+              style: { display: grid, grid-template-columns: "1fr 1fr", gap: 16 }
+              children:
+                - type: ui-field
+                  props: { label: Password }
+                  children:
+                    - { type: ui-input, props: { bind: password, type: password }, attrs: { required: true, autocomplete: new-password, aria-invalid: "{{ password != '' && password.length < 8 }}" } }
+                - type: ui-field
+                  props: { label: Confirm password }
+                  children:
+                    - { type: ui-input, props: { bind: confirm, type: password }, attrs: { required: true, autocomplete: new-password, aria-invalid: "{{ confirm != '' && confirm != password }}" } }
+            - type: ui-text
+              props:
+                variant: small
+                text: "{{ password != '' && password.length < 8 ? 'Use at least 8 characters.' : confirm != '' && confirm != password ? 'The passwords don’t match.' : 'Must be at least 8 characters long.' }}"
+              style:
+                margin-top: -12
+                font-weight: 400
+                line-height: 1.4
+                color: "{{ (password != '' && password.length < 8) || (confirm != '' && confirm != password) ? 'var(--color-destructive, #dc2626)' : 'var(--color-muted)' }}"
+            - { type: ui-checkbox, props: { bind: terms, label: I agree to the Terms of Service and Privacy Policy } }
+            - type: ui-button
+              props:
+                label: Create Account
+                type: submit
+                disabled: "{{ !(name != '' && email.length > 4 && password.length >= 8 && confirm == password && terms) }}"
+              style: { width: 100% }
+            - { type: ui-separator, props: { label: Or continue with } }
+            - { type: ui-button, props: { label: Sign up with Google, variant: outline }, style: { width: 100% } }
+            - type: element
+              props: { tag: p }
+              style: { margin: 0, text-align: center, font-size: 14 }
+              children:
+                - { type: text, props: { value: "Already have an account? " } }
+                - type: element
+                  props: { tag: a }
+                  attrs: { href: login-03.html }
+                  style: { color: inherit, text-underline-offset: 4px }
+                  children: [ { type: text, props: { value: Sign in } } ]

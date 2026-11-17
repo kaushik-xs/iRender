@@ -1,0 +1,731 @@
+{
+ "visitors": [
+  {
+   "date": "2024-04-01",
+   "desktop": 282,
+   "mobile": 249
+  },
+  {
+   "date": "2024-04-02",
+   "desktop": 309,
+   "mobile": 312
+  },
+  {
+   "date": "2024-04-03",
+   "desktop": 229,
+   "mobile": 236
+  },
+  {
+   "date": "2024-04-04",
+   "desktop": 362,
+   "mobile": 237
+  },
+  {
+   "date": "2024-04-05",
+   "desktop": 325,
+   "mobile": 295
+  },
+  {
+   "date": "2024-04-06",
+   "desktop": 190,
+   "mobile": 249
+  },
+  {
+   "date": "2024-04-07",
+   "desktop": 281,
+   "mobile": 178
+  },
+  {
+   "date": "2024-04-08",
+   "desktop": 259,
+   "mobile": 215
+  },
+  {
+   "date": "2024-04-09",
+   "desktop": 365,
+   "mobile": 249
+  },
+  {
+   "date": "2024-04-10",
+   "desktop": 274,
+   "mobile": 218
+  },
+  {
+   "date": "2024-04-11",
+   "desktop": 281,
+   "mobile": 249
+  },
+  {
+   "date": "2024-04-12",
+   "desktop": 366,
+   "mobile": 177
+  },
+  {
+   "date": "2024-04-13",
+   "desktop": 301,
+   "mobile": 132
+  },
+  {
+   "date": "2024-04-14",
+   "desktop": 234,
+   "mobile": 173
+  },
+  {
+   "date": "2024-04-15",
+   "desktop": 401,
+   "mobile": 148
+  },
+  {
+   "date": "2024-04-16",
+   "desktop": 395,
+   "mobile": 205
+  },
+  {
+   "date": "2024-04-17",
+   "desktop": 344,
+   "mobile": 127
+  },
+  {
+   "date": "2024-04-18",
+   "desktop": 293,
+   "mobile": 116
+  },
+  {
+   "date": "2024-04-19",
+   "desktop": 374,
+   "mobile": 211
+  },
+  {
+   "date": "2024-04-20",
+   "desktop": 194,
+   "mobile": 98
+  },
+  {
+   "date": "2024-04-21",
+   "desktop": 245,
+   "mobile": 77
+  },
+  {
+   "date": "2024-04-22",
+   "desktop": 351,
+   "mobile": 92
+  },
+  {
+   "date": "2024-04-23",
+   "desktop": 353,
+   "mobile": 109
+  },
+  {
+   "date": "2024-04-24",
+   "desktop": 345,
+   "mobile": 169
+  },
+  {
+   "date": "2024-04-25",
+   "desktop": 243,
+   "mobile": 72
+  },
+  {
+   "date": "2024-04-26",
+   "desktop": 341,
+   "mobile": 128
+  },
+  {
+   "date": "2024-04-27",
+   "desktop": 179,
+   "mobile": 74
+  },
+  {
+   "date": "2024-04-28",
+   "desktop": 159,
+   "mobile": 90
+  },
+  {
+   "date": "2024-04-29",
+   "desktop": 203,
+   "mobile": 122
+  },
+  {
+   "date": "2024-04-30",
+   "desktop": 203,
+   "mobile": 129
+  },
+  {
+   "date": "2024-05-01",
+   "desktop": 241,
+   "mobile": 114
+  },
+  {
+   "date": "2024-05-02",
+   "desktop": 327,
+   "mobile": 108
+  },
+  {
+   "date": "2024-05-03",
+   "desktop": 274,
+   "mobile": 116
+  },
+  {
+   "date": "2024-05-04",
+   "desktop": 260,
+   "mobile": 135
+  },
+  {
+   "date": "2024-05-05",
+   "desktop": 239,
+   "mobile": 85
+  },
+  {
+   "date": "2024-05-06",
+   "desktop": 284,
+   "mobile": 104
+  },
+  {
+   "date": "2024-05-07",
+   "desktop": 259,
+   "mobile": 170
+  },
+  {
+   "date": "2024-05-08",
+   "desktop": 281,
+   "mobile": 99
+  },
+  {
+   "date": "2024-05-09",
+   "desktop": 372,
+   "mobile": 135
+  },
+  {
+   "date": "2024-05-10",
+   "desktop": 365,
+   "mobile": 169
+  },
+  {
+   "date": "2024-05-11",
+   "desktop": 242,
+   "mobile": 156
+  },
+  {
+   "date": "2024-05-12",
+   "desktop": 266,
+   "mobile": 121
+  },
+  {
+   "date": "2024-05-13",
+   "desktop": 264,
+   "mobile": 150
+  },
+  {
+   "date": "2024-05-14",
+   "desktop": 380,
+   "mobile": 198
+  },
+  {
+   "date": "2024-05-15",
+   "desktop": 294,
+   "mobile": 251
+  },
+  {
+   "date": "2024-05-16",
+   "desktop": 340,
+   "mobile": 184
+  },
+  {
+   "date": "2024-05-17",
+   "desktop": 378,
+   "mobile": 227
+  },
+  {
+   "date": "2024-05-18",
+   "desktop": 197,
+   "mobile": 201
+  },
+  {
+   "date": "2024-05-19",
+   "desktop": 202,
+   "mobile": 217
+  },
+  {
+   "date": "2024-05-20",
+   "desktop": 389,
+   "mobile": 273
+  },
+  {
+   "date": "2024-05-21",
+   "desktop": 323,
+   "mobile": 250
+  },
+  {
+   "date": "2024-05-22",
+   "desktop": 326,
+   "mobile": 289
+  },
+  {
+   "date": "2024-05-23",
+   "desktop": 358,
+   "mobile": 292
+  },
+  {
+   "date": "2024-05-24",
+   "desktop": 340,
+   "mobile": 231
+  },
+  {
+   "date": "2024-05-25",
+   "desktop": 179,
+   "mobile": 259
+  },
+  {
+   "date": "2024-05-26",
+   "desktop": 207,
+   "mobile": 216
+  },
+  {
+   "date": "2024-05-27",
+   "desktop": 215,
+   "mobile": 236
+  },
+  {
+   "date": "2024-05-28",
+   "desktop": 269,
+   "mobile": 311
+  },
+  {
+   "date": "2024-05-29",
+   "desktop": 328,
+   "mobile": 315
+  },
+  {
+   "date": "2024-05-30",
+   "desktop": 287,
+   "mobile": 262
+  },
+  {
+   "date": "2024-05-31",
+   "desktop": 263,
+   "mobile": 336
+  },
+  {
+   "date": "2024-06-01",
+   "desktop": 184,
+   "mobile": 165
+  },
+  {
+   "date": "2024-06-02",
+   "desktop": 202,
+   "mobile": 194
+  },
+  {
+   "date": "2024-06-03",
+   "desktop": 190,
+   "mobile": 285
+  },
+  {
+   "date": "2024-06-04",
+   "desktop": 171,
+   "mobile": 263
+  },
+  {
+   "date": "2024-06-05",
+   "desktop": 154,
+   "mobile": 220
+  },
+  {
+   "date": "2024-06-06",
+   "desktop": 210,
+   "mobile": 200
+  },
+  {
+   "date": "2024-06-07",
+   "desktop": 200,
+   "mobile": 225
+  },
+  {
+   "date": "2024-06-08",
+   "desktop": 178,
+   "mobile": 212
+  },
+  {
+   "date": "2024-06-09",
+   "desktop": 199,
+   "mobile": 125
+  },
+  {
+   "date": "2024-06-10",
+   "desktop": 184,
+   "mobile": 203
+  },
+  {
+   "date": "2024-06-11",
+   "desktop": 248,
+   "mobile": 206
+  },
+  {
+   "date": "2024-06-12",
+   "desktop": 221,
+   "mobile": 239
+  },
+  {
+   "date": "2024-06-13",
+   "desktop": 191,
+   "mobile": 221
+  },
+  {
+   "date": "2024-06-14",
+   "desktop": 272,
+   "mobile": 217
+  },
+  {
+   "date": "2024-06-15",
+   "desktop": 231,
+   "mobile": 100
+  },
+  {
+   "date": "2024-06-16",
+   "desktop": 210,
+   "mobile": 101
+  },
+  {
+   "date": "2024-06-17",
+   "desktop": 278,
+   "mobile": 110
+  },
+  {
+   "date": "2024-06-18",
+   "desktop": 225,
+   "mobile": 84
+  },
+  {
+   "date": "2024-06-19",
+   "desktop": 238,
+   "mobile": 87
+  },
+  {
+   "date": "2024-06-20",
+   "desktop": 258,
+   "mobile": 146
+  },
+  {
+   "date": "2024-06-21",
+   "desktop": 262,
+   "mobile": 58
+  },
+  {
+   "date": "2024-06-22",
+   "desktop": 248,
+   "mobile": 120
+  },
+  {
+   "date": "2024-06-23",
+   "desktop": 270,
+   "mobile": 56
+  },
+  {
+   "date": "2024-06-24",
+   "desktop": 279,
+   "mobile": 86
+  },
+  {
+   "date": "2024-06-25",
+   "desktop": 214,
+   "mobile": 68
+  },
+  {
+   "date": "2024-06-26",
+   "desktop": 319,
+   "mobile": 118
+  },
+  {
+   "date": "2024-06-27",
+   "desktop": 305,
+   "mobile": 130
+  },
+  {
+   "date": "2024-06-28",
+   "desktop": 353,
+   "mobile": 95
+  },
+  {
+   "date": "2024-06-29",
+   "desktop": 178,
+   "mobile": 110
+  },
+  {
+   "date": "2024-06-30",
+   "desktop": 249,
+   "mobile": 107
+  }
+ ],
+ "sections": [
+  {
+   "id": 1,
+   "header": "Cover page",
+   "type": "Cover page",
+   "status": "Done",
+   "target": 8,
+   "limit": 33,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 2,
+   "header": "Table of contents",
+   "type": "Table of contents",
+   "status": "In Process",
+   "target": 30,
+   "limit": 29,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 3,
+   "header": "Executive summary",
+   "type": "Financial",
+   "status": "Done",
+   "target": 30,
+   "limit": 7,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 4,
+   "header": "Technical approach",
+   "type": "Narrative",
+   "status": "Done",
+   "target": 33,
+   "limit": 14,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 5,
+   "header": "Design",
+   "type": "Visual",
+   "status": "Done",
+   "target": 8,
+   "limit": 10,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 6,
+   "header": "Capabilities",
+   "type": "Legal",
+   "status": "Done",
+   "target": 39,
+   "limit": 10,
+   "reviewer": "Emily Whalen"
+  },
+  {
+   "id": 7,
+   "header": "Integration with existing systems",
+   "type": "Legal",
+   "status": "Done",
+   "target": 9,
+   "limit": 17,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 8,
+   "header": "Innovation and advantages",
+   "type": "Technical content",
+   "status": "Done",
+   "target": 21,
+   "limit": 26,
+   "reviewer": "Emily Whalen"
+  },
+  {
+   "id": 9,
+   "header": "Overview of the solution",
+   "type": "Financial",
+   "status": "Done",
+   "target": 12,
+   "limit": 35,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 10,
+   "header": "Security measures",
+   "type": "Financial",
+   "status": "In Process",
+   "target": 24,
+   "limit": 9,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 11,
+   "header": "Risk management",
+   "type": "Narrative",
+   "status": "Done",
+   "target": 26,
+   "limit": 20,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 12,
+   "header": "Implementation timeline",
+   "type": "Plain language",
+   "status": "Done",
+   "target": 38,
+   "limit": 5,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 13,
+   "header": "Project management",
+   "type": "Legal",
+   "status": "In Process",
+   "target": 14,
+   "limit": 5,
+   "reviewer": "Emily Whalen"
+  },
+  {
+   "id": 14,
+   "header": "Quality assurance",
+   "type": "Plain language",
+   "status": "Done",
+   "target": 21,
+   "limit": 27,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 15,
+   "header": "Training plan",
+   "type": "Visual",
+   "status": "Done",
+   "target": 39,
+   "limit": 25,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 16,
+   "header": "Support and maintenance",
+   "type": "Legal",
+   "status": "Done",
+   "target": 20,
+   "limit": 29,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 17,
+   "header": "Pricing",
+   "type": "Technical content",
+   "status": "Done",
+   "target": 36,
+   "limit": 26,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 18,
+   "header": "Terms and conditions",
+   "type": "Narrative",
+   "status": "In Process",
+   "target": 35,
+   "limit": 20,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 19,
+   "header": "Case studies",
+   "type": "Plain language",
+   "status": "Done",
+   "target": 27,
+   "limit": 32,
+   "reviewer": "Emily Whalen"
+  },
+  {
+   "id": 20,
+   "header": "References",
+   "type": "Visual",
+   "status": "Done",
+   "target": 19,
+   "limit": 10,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 21,
+   "header": "Team biographies",
+   "type": "Financial",
+   "status": "Done",
+   "target": 26,
+   "limit": 17,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 22,
+   "header": "Compliance",
+   "type": "Legal",
+   "status": "Done",
+   "target": 5,
+   "limit": 34,
+   "reviewer": "Emily Whalen"
+  },
+  {
+   "id": 23,
+   "header": "Data protection",
+   "type": "Plain language",
+   "status": "Done",
+   "target": 12,
+   "limit": 28,
+   "reviewer": "Jamik Tashpulatov"
+  },
+  {
+   "id": 24,
+   "header": "Accessibility",
+   "type": "Financial",
+   "status": "Done",
+   "target": 32,
+   "limit": 25,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 25,
+   "header": "Performance metrics",
+   "type": "Plain language",
+   "status": "In Process",
+   "target": 34,
+   "limit": 29,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 26,
+   "header": "Scalability",
+   "type": "Plain language",
+   "status": "Done",
+   "target": 15,
+   "limit": 12,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 27,
+   "header": "Disaster recovery",
+   "type": "Technical content",
+   "status": "Done",
+   "target": 34,
+   "limit": 13,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 28,
+   "header": "Appendix A: Glossary",
+   "type": "Plain language",
+   "status": "In Process",
+   "target": 14,
+   "limit": 12,
+   "reviewer": "Eddie Lake"
+  },
+  {
+   "id": 29,
+   "header": "Appendix B: Diagrams",
+   "type": "Narrative",
+   "status": "Done",
+   "target": 11,
+   "limit": 12,
+   "reviewer": "Assign reviewer"
+  },
+  {
+   "id": 30,
+   "header": "Contact information",
+   "type": "Technical content",
+   "status": "Done",
+   "target": 6,
+   "limit": 20,
+   "reviewer": "Jamik Tashpulatov"
+  }
+ ]
+}

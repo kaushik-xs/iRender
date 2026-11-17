@@ -1,0 +1,95 @@
+# Block: a login page on a muted background, centred in a narrow column, in the style
+# of shadcn/ui's login-03.
+#
+#   cargo run -p irender-cli -- render examples/blocks/login-03.yaml --ui-kit --icon-kit -o login-03.html
+version: 1
+state:
+  email: ""
+  password: ""
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    align-items: center
+    justify-content: center
+    gap: 24
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 24px
+    background: $color.subtle
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: element
+      props: { tag: a }
+      attrs: { href: "#" }
+      style: { display: flex, align-items: center, gap: 8, color: inherit, font-weight: 500, text-decoration: none }
+      children:
+        - type: element
+          style: { display: flex, align-items: center, justify-content: center, width: 24, height: 24, border-radius: 6, background: $color.primary, color: $color.on-primary }
+          children: [ { type: ui-icon, props: { name: grid, size: 16 } } ]
+        - { type: text, props: { value: Acme Inc. } }
+
+    - type: stack
+      props: { gap: 24 }
+      style: { width: 100%, max-width: 384 }
+      children:
+        - type: ui-card
+          props: { title: Welcome back, description: Login with your Apple or Google account }
+          parts:
+            header: { style: { text-align: center } }
+            title: { style: { font-size: 20 } }
+          children:
+            - type: element
+              props: { tag: form }
+              attrs: { action: "#" }
+              style: { display: grid, gap: 24 }
+              children:
+                - type: stack
+                  props: { gap: 12 }
+                  children:
+                    - { type: ui-button, props: { label: Login with Apple, variant: outline }, style: { width: 100% } }
+                    - { type: ui-button, props: { label: Login with Google, variant: outline }, style: { width: 100% } }
+                - { type: ui-separator, props: { label: Or continue with } }
+                - type: stack
+                  props: { gap: 24 }
+                  children:
+                    - type: ui-field
+                      props: { label: Email }
+                      children:
+                        - { type: ui-input, props: { bind: email, type: email, placeholder: m@example.com }, attrs: { required: true, autocomplete: email } }
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - type: stack
+                          props: { direction: row, align: center }
+                          children:
+                            - { type: ui-label, props: { text: Password, for: password } }
+                            - type: element
+                              props: { tag: a }
+                              attrs: { href: "#" }
+                              style: { margin-left: auto, font-size: 14, color: inherit, text-underline-offset: 4px }
+                              children: [ { type: text, props: { value: Forgot your password? } } ]
+                        - { type: ui-input, props: { bind: password, type: password }, attrs: { id: password, required: true, autocomplete: current-password } }
+                    - { type: ui-button, props: { label: Login, type: submit }, style: { width: 100% } }
+                - type: element
+                  props: { tag: p }
+                  style: { margin: 0, text-align: center, font-size: 14 }
+                  children:
+                    - { type: text, props: { value: "Don't have an account? " } }
+                    - type: element
+                      props: { tag: a }
+                      attrs: { href: signup.html }
+                      style: { color: inherit, text-underline-offset: 4px }
+                      children: [ { type: text, props: { value: Sign up } } ]
+
+        - type: element
+          props: { tag: p }
+          style: { margin: 0, padding: 0 24px, text-align: center, font-size: 12, color: $color.muted, text-wrap: balance }
+          children:
+            - { type: text, props: { value: "By clicking continue, you agree to our " } }
+            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit }, children: [ { type: text, props: { value: Terms of Service } } ] }
+            - { type: text, props: { value: " and " } }
+            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit }, children: [ { type: text, props: { value: Privacy Policy } } ] }
+            - { type: text, props: { value: . } }

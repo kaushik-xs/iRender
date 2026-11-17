@@ -1,0 +1,115 @@
+# Block: a login form and a picture side by side in one card, in the style of shadcn/ui's
+# login-04. The picture is drawn with CSS; swap in an <img> of your own.
+#
+#   cargo run -p irender-cli -- render examples/blocks/login-04.yaml --ui-kit --icon-kit -o login-04.html
+version: 1
+state:
+  email: ""
+  password: ""
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    align-items: center
+    justify-content: center
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 24px
+    background: $color.subtle
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: stack
+      props: { gap: 24 }
+      style: { width: 100%, max-width: 896 }
+      children:
+        - type: ui-card
+          style: { padding: 0, gap: 0, overflow: hidden }
+          children:
+            - type: element
+              style: { display: grid, grid-template-columns: "1fr 1fr", "@media (max-width: 767px)": { grid-template-columns: 1fr } }
+              children:
+                - type: element
+                  props: { tag: form }
+                  attrs: { action: "#" }
+                  style: { display: flex, flex-direction: column, gap: 24, padding: 32 }
+                  children:
+                    - type: stack
+                      props: { gap: 4 }
+                      style: { align-items: center, text-align: center }
+                      children:
+                        - { type: ui-heading, props: { level: 3, text: Welcome back } }
+                        - { type: ui-text, props: { variant: muted, text: Login to your Acme Inc account } }
+                    - type: ui-field
+                      props: { label: Email }
+                      children:
+                        - { type: ui-input, props: { bind: email, type: email, placeholder: m@example.com }, attrs: { required: true, autocomplete: email } }
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - type: stack
+                          props: { direction: row, align: center }
+                          children:
+                            - { type: ui-label, props: { text: Password, for: password } }
+                            - type: element
+                              props: { tag: a }
+                              attrs: { href: "#" }
+                              style: { margin-left: auto, font-size: 14, color: inherit, text-underline-offset: 4px }
+                              children: [ { type: text, props: { value: Forgot your password? } } ]
+                        - { type: ui-input, props: { bind: password, type: password }, attrs: { id: password, required: true, autocomplete: current-password } }
+                    - { type: ui-button, props: { label: Login, type: submit }, style: { width: 100% } }
+                    - { type: ui-separator, props: { label: Or continue with } }
+                    - type: element
+                      style: { display: grid, grid-template-columns: "repeat(3, 1fr)", gap: 16 }
+                      children:
+                        - { type: ui-button, props: { label: Apple, variant: outline }, attrs: { aria-label: Login with Apple } }
+                        - { type: ui-button, props: { label: Google, variant: outline }, attrs: { aria-label: Login with Google } }
+                        - { type: ui-button, props: { label: Meta, variant: outline }, attrs: { aria-label: Login with Meta } }
+                    - type: element
+                      props: { tag: p }
+                      style: { margin: 0, text-align: center, font-size: 14 }
+                      children:
+                        - { type: text, props: { value: "Don't have an account? " } }
+                        - type: element
+                          props: { tag: a }
+                          attrs: { href: signup.html }
+                          style: { color: inherit, text-underline-offset: 4px }
+                          children: [ { type: text, props: { value: Sign up } } ]
+                # The picture: a gradient and a grid, drawn in CSS.
+                - type: element
+                  attrs: { aria-hidden: "true" }
+                  style:
+                    position: relative
+                    display: flex
+                    align-items: flex-end
+                    min-height: 480
+                    padding: 32
+                    color: "#fafafa"
+                    background: "radial-gradient(circle at 30% 20%, #3f3f46 0%, transparent 55%), linear-gradient(160deg, #27272a, #09090b)"
+                    "@media (max-width: 767px)": { display: none }
+                  children:
+                    - type: element
+                      style:
+                        position: absolute
+                        inset: 0
+                        background: "linear-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px) 0 0 / 32px 32px, linear-gradient(90deg, rgb(255 255 255 / 0.06) 1px, transparent 1px) 0 0 / 32px 32px"
+                    - type: element
+                      props: { tag: blockquote }
+                      style: { position: relative, margin: 0, font-size: 18, line-height: 1.5 }
+                      children:
+                        - { type: text, props: { value: "“This library has saved me countless hours of work and helped me deliver stunning designs to my clients faster than ever before.”" } }
+                        - type: element
+                          props: { tag: footer }
+                          style: { margin-top: 12, font-size: 14, opacity: 0.7 }
+                          children: [ { type: text, props: { value: Sofia Davis } } ]
+
+        - type: element
+          props: { tag: p }
+          style: { margin: 0, text-align: center, font-size: 12, color: $color.muted }
+          children:
+            - { type: text, props: { value: "By clicking continue, you agree to our " } }
+            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit }, children: [ { type: text, props: { value: Terms of Service } } ] }
+            - { type: text, props: { value: " and " } }
+            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit }, children: [ { type: text, props: { value: Privacy Policy } } ] }
+            - { type: text, props: { value: . } }

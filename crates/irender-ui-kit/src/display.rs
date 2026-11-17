@@ -7,7 +7,7 @@ use crate::{
     SURFACE, TEXT, choice, lit,
 };
 use irender_core::{ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
-use irender_html::{Component, RenderCx, RenderError};
+use irender_html::{Component, Element, RenderCx, RenderError};
 use std::sync::LazyLock;
 
 /// Writes `<tag>` with text and no children.
@@ -61,6 +61,7 @@ pub struct Badge;
 const BADGE_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline"];
 const BADGE_PROPS: &[PropDef] = &[
     PropDef::new("text", PropKind::Any, "Badge text").required(),
+    PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, before the text"),
     PropDef::new("variant", PropKind::Enum(BADGE_VARIANTS), "Default `default`"),
 ];
 
@@ -99,7 +100,17 @@ impl Component for Badge {
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let style = &BADGE[choice(cx, node, "variant", BADGE_VARIANTS)];
-        leaf(cx, node, "span", style, node.prop("text"))
+        let Some(i) = node.prop("icon") else { return leaf(cx, node, "span", style, node.prop("text")) };
+        let mut el = cx.element("span", node);
+        el.base_style_ref(style);
+        cx.open(&el, node)?;
+        crate::icon(cx, node, i, 12)?;
+        if let Some(t) = node.prop("text") {
+            cx.open(Element::new("span").text(t), node)?;
+            cx.close("span");
+        }
+        cx.close("span");
+        Ok(())
     }
 }
 
@@ -203,7 +214,7 @@ const ALERT_VARIANTS: &[&str] = &["default", "destructive"];
 const ALERT_PROPS: &[PropDef] = &[
     PropDef::new("title", PropKind::Any, "Bold first line"),
     PropDef::new("description", PropKind::Any, "Body text"),
-    PropDef::new("icon", PropKind::Any, "A character or emoji shown on the left, e.g. `⚠`"),
+    PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, shown on the left, e.g. `warning` or `⚠`"),
     PropDef::new("variant", PropKind::Enum(ALERT_VARIANTS), "Default `default`"),
 ];
 
@@ -250,8 +261,15 @@ impl Component for Alert {
         cx.open(&el, node)?;
         if let Some(icon) = node.prop("icon") {
             let mut part = cx.part("span", node, "icon");
-            part.base_style_ref(&ALERT_ICON).attr("aria-hidden", "true").text(icon);
+            part.base_style_ref(&ALERT_ICON).attr("aria-hidden", "true");
+            let drawn = crate::is_icon(cx, icon);
+            if !drawn {
+                part.text(icon);
+            }
             cx.open(&part, node)?;
+            if drawn {
+                crate::icon_kit(cx, node, icon, 16)?;
+            }
             cx.close("span");
         }
         if let Some(t) = node.prop("title") {
@@ -338,6 +356,7 @@ pub struct Separator;
 const ORIENTATIONS: &[&str] = &["horizontal", "vertical"];
 const SEPARATOR_PROPS: &[PropDef] = &[
     PropDef::new("orientation", PropKind::Enum(ORIENTATIONS), "Default `horizontal`"),
+    PropDef::new("label", PropKind::Any, "Text in the middle of a horizontal line, e.g. `Or continue with`"),
     PropDef::new("decorative", PropKind::Bool, "Hide from assistive technology (default true)"),
 ];
 
@@ -346,6 +365,21 @@ static SEPARATOR: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[("flex-shrink", "0"), ("height", "1px"), ("width", "100%"), ("background", BORDER)]),
         StyleBlock::from_pairs(&[("flex-shrink", "0"), ("width", "1px"), ("align-self", "stretch"), ("background", BORDER)]),
     ]
+});
+
+static SEPARATOR_LABELLED: LazyLock<StyleBlock> = LazyLock::new(|| {
+    let line = StyleBlock::from_pairs(&[("content", "\"\""), ("flex", "1"), ("height", "1px"), ("background", BORDER)]);
+    StyleBlock::from_pairs(&[
+        ("display", "flex"),
+        ("align-items", "center"),
+        ("gap", "12px"),
+        ("width", "100%"),
+        ("font-size", "14px"),
+        ("color", MUTED),
+        ("white-space", "nowrap"),
+    ])
+    .nest("::before", line.clone())
+    .nest("::after", line)
 });
 
 impl Component for Separator {
@@ -357,6 +391,16 @@ impl Component for Separator {
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let o = choice(cx, node, "orientation", ORIENTATIONS);
+        if o == 0
+            && let Some(label) = node.prop("label")
+        {
+            // Lines either side of the text, which reads as part of the content.
+            let mut el = cx.element("div", node);
+            el.base_style_ref(&SEPARATOR_LABELLED).text(label);
+            cx.open(&el, node)?;
+            cx.close("div");
+            return Ok(());
+        }
         let decorative = cx.prop(node, "decorative").is_none_or(|d| expr::truthy(&d));
         let mut el = cx.element("div", node);
         el.base_style_ref(&SEPARATOR[o]);

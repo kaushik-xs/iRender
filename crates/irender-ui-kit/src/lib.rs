@@ -31,6 +31,7 @@ mod feedback;
 mod forms;
 mod navigation;
 mod overlay;
+mod sidebar;
 mod theme;
 
 pub use theme::{apply_theme, theme};
@@ -99,6 +100,14 @@ pub fn register(registry: &mut Registry) {
         .register(overlay::Tooltip)
         .register(overlay::HoverCard)
         .register(feedback::Toaster)
+        .register(sidebar::SidebarLayout)
+        .register(sidebar::Sidebar)
+        .register(sidebar::SidebarHeader)
+        .register(sidebar::SidebarContent)
+        .register(sidebar::SidebarFooter)
+        .register(sidebar::SidebarGroup)
+        .register(sidebar::SidebarItem)
+        .register(sidebar::SidebarTrigger)
         .register(combobox::Combobox)
         // A Light or Dark choice made with `ui-theme-toggle` holds on every page, with a
         // toggle on it or not.
@@ -383,4 +392,34 @@ fn num(n: impl Into<Json>) -> Expr {
 fn field_or(var: &str, field: &str, fallback: Expr) -> Expr {
     let f = path(&[var, field]);
     cond(bin(BinOp::Ne, f.clone(), Expr::Lit(Json::Null)), f, fallback)
+}
+
+/// Whether `value` is drawn by the icon kit: it is registered, and the value is an
+/// icon name (written in the document, so it can be checked on the server).
+fn is_icon(cx: &RenderCx<'_>, value: &Val) -> bool {
+    let Val::Lit(Json::String(n)) = value else { return false };
+    !n.is_empty()
+        && n.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == ':')
+        && cx.has_component("ui-icon")
+}
+
+/// The icon kit's `ui-icon` for `name`, decorative.
+fn icon_kit(cx: &mut RenderCx<'_>, node: &Node, name: &Val, size: u32) -> Result<(), RenderError> {
+    let mut i = synthetic(node, "ui-icon", vec![("name", name.clone()), ("size", lit(size))], Vec::new(), Vec::new());
+    i.style = irender_core::StyleBlock::from_pairs(&[("flex-shrink", "0")]);
+    cx.render(&i)
+}
+
+/// An icon in front of a label: a `ui-icon` when the icon kit is registered and the
+/// value is an icon name (`settings`, `it:database`), otherwise the value as text,
+/// e.g. an emoji. Decorative either way: the label next to it names the thing.
+fn icon(cx: &mut RenderCx<'_>, node: &Node, value: &Val, size: u32) -> Result<(), RenderError> {
+    if is_icon(cx, value) {
+        return icon_kit(cx, node, value, size);
+    }
+    let mut span = Element::new("span");
+    span.attr("aria-hidden", "true").attr("data-icon", true).text(value.clone());
+    cx.open(&span, node)?;
+    cx.close("span");
+    Ok(())
 }

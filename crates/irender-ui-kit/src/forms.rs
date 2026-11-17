@@ -30,6 +30,7 @@ const BUTTON_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outli
 const BUTTON_SIZES: &[&str] = &["default", "sm", "lg", "icon"];
 const BUTTON_PROPS: &[PropDef] = &[
     PropDef::new("label", PropKind::Any, "Button text"),
+    PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, before the label"),
     PropDef::new("variant", PropKind::Enum(BUTTON_VARIANTS), "Default `default`"),
     PropDef::new("size", PropKind::Enum(BUTTON_SIZES), "Default `default`"),
     PropDef::new("href", PropKind::Any, "Render a link that looks like a button"),
@@ -128,10 +129,22 @@ impl Component for Button {
                 }
             }
         }
-        if let Some(label) = node.prop("label") {
+        let icon = node.prop("icon");
+        if icon.is_none()
+            && let Some(label) = node.prop("label")
+        {
             el.text(label);
         }
         cx.open(&el, node)?;
+        if let Some(i) = icon {
+            crate::icon(cx, node, i, 16)?;
+            if let Some(label) = node.prop("label") {
+                let mut text = irender_html::Element::new("span");
+                text.text(label);
+                cx.open(&text, node)?;
+                cx.close("span");
+            }
+        }
         cx.children(node)?;
         cx.close(tag);
         Ok(())
@@ -188,7 +201,7 @@ impl Component for Label {
 /// Native parts (a select's arrow and menu, a checkbox, a slider's track) follow the
 /// page's colour scheme: light, and dark under `@dark`, which `ui-theme-toggle`
 /// redirects to the chosen scheme. (`light dark` would follow only the system.)
-fn native_scheme(b: StyleBlock) -> StyleBlock {
+pub(crate) fn native_scheme(b: StyleBlock) -> StyleBlock {
     b.set("color-scheme", "light").nest("@dark", StyleBlock::from_pairs(&[("color-scheme", "dark")]))
 }
 

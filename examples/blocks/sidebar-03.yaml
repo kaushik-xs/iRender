@@ -1,0 +1,93 @@
+# Block: a sidebar with sub-menus, for documentation, in the style of shadcn/ui's
+# sidebar-03. The button in the header slides the sidebar away and back.
+#
+#   cargo run -p irender-cli -- render examples/blocks/sidebar-03.yaml --ui-kit --icon-kit -o sidebar-03.html
+version: 1
+state:
+  sidebar: true
+root:
+  type: ui-sidebar-layout
+  props: { bind: sidebar }
+  children:
+    - type: ui-sidebar
+      props: { label: Documentation }
+      children:
+        - type: ui-sidebar-header
+          children:
+            - type: element
+              props: { tag: a }
+              attrs: { href: "#" }
+              style: { display: flex, align-items: center, gap: 8, padding: 8, color: inherit, text-decoration: none }
+              children:
+                - type: element
+                  style: { display: flex, align-items: center, justify-content: center, width: 32, height: 32, border-radius: 8, background: $color.primary, color: $color.on-primary }
+                  children: [ { type: ui-icon, props: { name: education:book-open, size: 16 } } ]
+                - type: stack
+                  props: { gap: 2 }
+                  style: { line-height: 1.2 }
+                  children:
+                    - { type: text, props: { value: Documentation }, style: { font-weight: 600 } }
+                    - { type: text, props: { value: v1.0.0 }, style: { font-size: 12, color: $color.muted } }
+        - type: ui-sidebar-content
+          children:
+            - type: ui-sidebar-group
+              children:
+                - type: ui-sidebar-item
+                  props: { label: Getting Started, open: true }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Installation, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Project Structure, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Building Your Application, open: true }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Routing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Data Fetching, href: "#", active: true } }
+                    - { type: ui-sidebar-item, props: { label: Rendering, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Caching, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Styling, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Optimizing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Configuring, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Testing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Authentication, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Deploying, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Upgrading, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Examples, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: API Reference, open: true }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Components, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: File Conventions, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Functions, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Configuration Options, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: CLI, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Edge Runtime, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Architecture }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Accessibility, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Fast Refresh, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Compiler, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Supported Browsers, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Community }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Contribution Guide, href: "#" } }
+
+    - type: element
+      props: { tag: header }
+      style: { display: flex, align-items: center, gap: 8, height: 64, flex-shrink: 0, padding: 0 16px, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-sidebar-trigger }
+        - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin-right: 8 } }
+        - type: ui-breadcrumb
+          props: { items: [{ label: Building Your Application, href: "#" }, { label: Data Fetching }] }
+    - type: element
+      style: { display: flex, flex-direction: column, gap: 16, flex: 1, padding: 16 }
+      children:
+        - type: element
+          style: { display: grid, grid-template-columns: "repeat(3, 1fr)", gap: 16 }
+          children:
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+        - { type: element, style: { flex: 1, min-height: 360, border-radius: 12, background: $color.subtle } }
