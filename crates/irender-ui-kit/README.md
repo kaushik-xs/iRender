@@ -64,7 +64,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-collapsible` | `trigger`, `open` | Native `<details>`. |
 | `ui-tabs` + `ui-tab-panel` | tabs: `bind` (required), `id`; panel: `value`, `label` | `bind` holds the open panel's `value`. Tabs carry `role=tab`, `aria-selected`, `aria-controls`. |
 | `ui-toggle` | `bind`, `label`, `variant` (default, outline), `size`, `disabled` | `aria-pressed` follows `bind`. |
-| `ui-toggle-group` | `bind`, `options`, `variant`, `size`, `disabled` | One option pressed at most; pressing it again sets `bind` to null. |
+| `ui-toggle-group` | `bind`, `options`, `multiple`, `variant`, `size`, `disabled` | One option pressed at most; pressing it again sets `bind` to null. With `multiple`, `bind` holds a list and each press adds or removes its option. |
 | `ui-theme-toggle` | `labels` (`{ system, light, dark }`), `variant` (default `outline`), `size` (default `sm`) | System / Light / Dark. Light and Dark override `prefers-color-scheme` for the theme's dark mode and `@dark` styles; the choice is kept in `localStorage` (`irender-theme`) and applied before the page is shown, so a reload doesn't flash. Its behaviour is added only to pages that use it. |
 | `ui-dialog` | `trigger`, `triggerVariant`, `title`, `description`, `id` | A modal `<dialog>`. Escape, its ✕ or a click outside closes it. |
 | `ui-alert-dialog` | same as `ui-dialog` | `role=alertdialog`; only its own buttons close it. |

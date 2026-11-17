@@ -705,3 +705,45 @@ fn field_groups_spinner_and_scroll_area_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn multiple_toggle_group_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "marks": ["i"] },
+        "root": { "type": "ui-toggle-group", "props": { "bind": "marks", "multiple": true, "options": ["b", "i", "u"] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]");
+      const buttons = [...document.querySelectorAll("[role=group] button")];
+      const press = (t) => buttons.find((b) => b.textContent === t).click();
+      const step = (label) => out.push(label + " " + JSON.stringify(root.__irender.state.marks) + " "
+        + buttons.map((b) => b.getAttribute("aria-pressed") === "true" ? b.textContent : "-").join(""));
+      step("start");
+      press("b"); step("b");
+      press("u"); step("u");
+      press("i"); step("i");
+      press("b"); press("u"); step("off");
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("toggle-multiple", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r#"start ["i"] -i-"#,
+            // Each press adds its option at the end, or takes it out.
+            r#"b ["i","b"] bi-"#,
+            r#"u ["i","b","u"] biu"#,
+            r#"i ["b","u"] b-u"#,
+            "off [] ---",
+        ],
+        "\n{result}"
+    );
+}

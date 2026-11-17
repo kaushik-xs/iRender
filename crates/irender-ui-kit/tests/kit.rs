@@ -374,6 +374,22 @@ fn tabs_toggle_and_group_drive_state() {
 }
 
 #[test]
+fn multiple_toggle_group_presses_each_option_in_the_list() {
+    let page = render_with(
+        json!({ "type": "ui-toggle-group", "props": { "bind": "marks", "multiple": true, "options": ["b", "i", "u"] } }),
+        json!({ "marks": ["b", "u"] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    let pressed: Vec<&str> = body.split("aria-pressed=\"").skip(1).map(|r| &r[..r.find('"').unwrap()]).collect();
+    assert_eq!(pressed, ["true", "false", "true"], "{body}");
+    // Pressed follows `includes`, and a press `toggle`s the option in the list.
+    assert!(body.contains("{&quot;f&quot;:&quot;includes&quot;,&quot;a&quot;:[{&quot;p&quot;:[&quot;marks&quot;]},{&quot;l&quot;:&quot;i&quot;}]}"), "{body}");
+    assert!(body.contains("{&quot;f&quot;:&quot;toggle&quot;,&quot;a&quot;:[{&quot;p&quot;:[&quot;marks&quot;]},{&quot;l&quot;:&quot;i&quot;}]}"), "{body}");
+}
+
+#[test]
 fn accordion_items_share_a_name_unless_multiple() {
     let body = plain(&render(json!({ "type": "ui-accordion", "props": { "id": "faq" }, "children": [
         { "type": "ui-accordion-item", "props": { "title": "Q1", "open": true }, "children": [{ "type": "text", "props": { "value": "A1" } }] },

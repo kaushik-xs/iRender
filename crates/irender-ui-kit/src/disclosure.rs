@@ -8,7 +8,7 @@ use crate::{
 };
 use irender_core::{
     Action, ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val,
-    expr::{self, BinOp, Expr, UnOp},
+    expr::{self, BinOp, Expr, Func, UnOp},
 };
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
@@ -321,8 +321,9 @@ const TOGGLE_PROPS: &[PropDef] = &[
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
 ];
 const TOGGLE_GROUP_PROPS: &[PropDef] = &[
-    PropDef::new("bind", PropKind::StateKey, "State key holding the pressed value, or null").required(),
+    PropDef::new("bind", PropKind::StateKey, "State key holding the pressed value, or null (a list of them with `multiple`)").required(),
     PropDef::new("options", PropKind::Any, "Array of values or `{ value, label, disabled }`; fixed on the server").required(),
+    PropDef::new("multiple", PropKind::Bool, "Let several be pressed; `bind` holds a list"),
     PropDef::new("variant", PropKind::Enum(TOGGLE_VARIANTS), "Default `default`"),
     PropDef::new("size", PropKind::Enum(TOGGLE_SIZES), "Default `default`"),
     PropDef::new("disabled", PropKind::Any, "Disable every option"),
@@ -407,7 +408,13 @@ impl Component for ToggleGroup {
         "ui-toggle-group"
     }
     fn info(&self) -> ComponentInfo {
-        info("A row of toggles where one at most is pressed; pressing it again clears it.", TOGGLE_GROUP_PROPS, &[], false)
+        info(
+            "A row of toggles where one at most is pressed; pressing it again clears it. With `multiple`, any \
+             number can be pressed.",
+            TOGGLE_GROUP_PROPS,
+            &[],
+            false,
+        )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let Some(key) = cx.prop_string(node, "bind") else {
@@ -417,6 +424,7 @@ impl Component for ToggleGroup {
         let variant = &TOGGLE_VARIANT_STYLES[choice(cx, node, "variant", TOGGLE_VARIANTS)];
         let size = &TOGGLE_SIZE_STYLES[choice(cx, node, "size", TOGGLE_SIZES)];
         let disabled_all = cx.prop(node, "disabled").is_some_and(|d| expr::truthy(&d));
+        let multiple = cx.prop(node, "multiple").is_some_and(|m| expr::truthy(&m));
         let mut group = cx.element("div", node);
         group.base_style_ref(&TOGGLE_GROUP).attr("role", "group");
         cx.open(&group, node)?;
@@ -429,17 +437,24 @@ impl Component for ToggleGroup {
                 }
                 other => (other.clone(), other.clone()),
             };
-            // Pressing the pressed option clears the choice.
-            let next = expr_val(Expr::Cond(
-                Box::new(Expr::Binary(BinOp::Eq, Box::new(state(&key)), Box::new(Expr::Lit(value.clone())))),
-                Box::new(Expr::Lit(Json::Null)),
-                Box::new(Expr::Lit(value.clone())),
-            ));
+            let (pressed, next) = if multiple {
+                // Pressing adds the option to the list, or takes it out.
+                let call = |f| expr_val(Expr::Call(f, vec![state(&key), Expr::Lit(value.clone())]));
+                (call(Func::Includes), call(Func::Toggle))
+            } else {
+                // Pressing the pressed option clears the choice.
+                let next = expr_val(Expr::Cond(
+                    Box::new(Expr::Binary(BinOp::Eq, Box::new(state(&key)), Box::new(Expr::Lit(value.clone())))),
+                    Box::new(Expr::Lit(Json::Null)),
+                    Box::new(Expr::Lit(value.clone())),
+                ));
+                (state_eq(&key, value.clone()), next)
+            };
             let item = synthetic(
                 node,
                 "button",
                 Vec::new(),
-                vec![("type", lit("button")), ("aria-pressed", state_eq(&key, value.clone()))],
+                vec![("type", lit("button")), ("aria-pressed", pressed)],
                 vec![("click", vec![Action::SetState { key: key.clone(), value: next }])],
             );
             let mut el = cx.element("button", &item);

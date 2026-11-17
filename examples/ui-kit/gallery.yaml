@@ -40,6 +40,7 @@ state:
   amount: ""
   marketing: false
   view: grid
+  marks: [underline]
 root:
   type: stack
   props: { gap: 40 }
@@ -620,12 +621,22 @@ root:
                   - { value: left, label: Left }
                   - { value: center, label: Center }
                   - { value: right, label: Right }
+            - { type: ui-separator, props: { orientation: vertical }, style: { height: 24 } }
+            - type: ui-toggle-group
+              props:
+                bind: marks
+                multiple: true
+                variant: outline
+                options:
+                  - { value: underline, label: Underline }
+                  - { value: strike, label: Strike }
         - type: ui-text
           props: { text: "Preview text" }
           style:
             font-weight: "{{ bold ? 700 : 400 }}"
             font-style: "{{ italic ? 'italic' : 'normal' }}"
             text-align: "{{ align || 'left' }}"
+            text-decoration-line: "{{ (includes(marks, 'underline') ? 'underline ' : '') + (includes(marks, 'strike') ? 'line-through' : '') || 'none' }}"
             max-width: 420
         - type: stack
           props: { direction: row, gap: 12, align: center }

@@ -49,6 +49,12 @@
       const [start, end] = a.length > 1 ? [int(a[0]), int(a[1])] : [0, int(a[0])];
       return Array.from({ length: Math.max(0, Math.min(MAX_RANGE, end - start)) }, (_, i) => fin(start + i));
     },
+    includes: ([list, v]) => Array.isArray(list) && list.some((x) => eq(x, v)),
+    toggle: ([list, v]) => {
+      const items = Array.isArray(list) ? list : [];
+      const rest = items.filter((x) => !eq(x, v));
+      return rest.length === items.length ? [...items, v] : rest;
+    },
   };
 
   // Evaluates the compact expression JSON produced by `Expr::to_js` against `state`.

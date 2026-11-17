@@ -32,6 +32,13 @@ pub enum Func {
     /// Arguments are truncated to integers; anything not a number counts as 0. At most
     /// [`MAX_RANGE`] items.
     Range,
+    /// `includes(list, value)`: whether the list has an item equal to `value` (as `==`).
+    /// False when `list` isn't a list.
+    Includes,
+    /// `toggle(list, value)`: the list without `value` if it has it, otherwise with
+    /// `value` added at the end. Anything not a list counts as empty. For a set of
+    /// choices kept in state: `set_state` with `"{{ toggle(tags, 'rust') }}"`.
+    Toggle,
 }
 
 /// The most items `range` returns.
@@ -41,12 +48,16 @@ impl Func {
     pub fn name(self) -> &'static str {
         match self {
             Func::Range => "range",
+            Func::Includes => "includes",
+            Func::Toggle => "toggle",
         }
     }
 
     fn from_name(name: &str) -> Option<Func> {
         match name {
             "range" => Some(Func::Range),
+            "includes" => Some(Func::Includes),
+            "toggle" => Some(Func::Toggle),
             _ => None,
         }
     }
@@ -55,6 +66,7 @@ impl Func {
     fn arity(self) -> (usize, usize) {
         match self {
             Func::Range => (1, 2),
+            Func::Includes | Func::Toggle => (2, 2),
         }
     }
 
@@ -72,6 +84,23 @@ impl Func {
                 };
                 let len = (end - start).clamp(0.0, MAX_RANGE as f64) as usize;
                 Json::Array((0..len).map(|i| num(start + i as f64)).collect())
+            }
+            Func::Includes => {
+                let (Some(Json::Array(list)), Some(v)) = (args.first(), args.get(1)) else { return Json::Bool(false) };
+                Json::Bool(list.iter().any(|x| loose_eq(x, v)))
+            }
+            Func::Toggle => {
+                let mut list = match args.first() {
+                    Some(Json::Array(list)) => list.clone(),
+                    _ => Vec::new(),
+                };
+                let v = args.get(1).cloned().unwrap_or(Json::Null);
+                let len = list.len();
+                list.retain(|x| !loose_eq(x, &v));
+                if list.len() == len {
+                    list.push(v);
+                }
+                Json::Array(list)
             }
         }
     }
@@ -823,7 +852,7 @@ impl Parser {
 
     fn call(&mut self, name: &str, at: usize) -> Result<Expr, ParseError> {
         let f = Func::from_name(name)
-            .ok_or_else(|| ParseError::new(format!("unknown function `{name}`; the only one is `range`"), at))?;
+            .ok_or_else(|| ParseError::new(format!("unknown function `{name}`; the functions are `range`, `includes` and `toggle`"), at))?;
         self.expect("(")?;
         let mut args = Vec::new();
         if !self.eat(")") {
@@ -973,5 +1002,22 @@ mod tests {
         assert_eq!(eval("range(n) == range(0, 3)", data), json!(true));
         let e = Expr::parse("range(n + 1)").unwrap();
         assert_eq!(e.to_js(), json!({ "f": "range", "a": [{ "b": "+", "x": { "p": ["n"] }, "y": { "l": 1 } }] }));
+    }
+
+    #[test]
+    fn includes_and_toggle() {
+        let data = json!({ "tags": ["a", 2], "s": "abc", "dup": [1, 1, 2] });
+        assert_eq!(eval("includes(tags, 'a')", data.clone()), json!(true));
+        assert_eq!(eval("includes(tags, 2.0)", data.clone()), json!(true));
+        assert_eq!(eval("includes(tags, '2')", data.clone()), json!(false));
+        assert_eq!(eval("includes(s, 'a')", data.clone()), json!(false), "a string isn't a list");
+        assert_eq!(eval("includes(missing, 1)", data.clone()), json!(false));
+        assert_eq!(eval("toggle(tags, 'a')", data.clone()), json!([2]));
+        assert_eq!(eval("toggle(tags, 'b')", data.clone()), json!(["a", 2, "b"]));
+        assert_eq!(eval("toggle(missing, 'b')", data.clone()), json!(["b"]));
+        assert_eq!(eval("toggle(dup, 1)", data.clone()), json!([2]), "every copy goes");
+        assert!(Expr::parse("includes(tags)").is_err());
+        let err = Expr::parse("contains(tags, 1)").unwrap_err().to_string();
+        assert!(err.contains("`range`, `includes` and `toggle`"), "{err}");
     }
 }

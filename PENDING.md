@@ -29,7 +29,7 @@ _Last updated: 2026-11-17._
   - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, sidebar, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
 - [ ] **Lists expanded on the server can't follow state:** `ui-radio-group` options, `ui-breadcrumb` items and `ui-pagination`. Using state in them is a render error today.
-- [ ] **Single choice only:** `ui-toggle-group` allows one pressed option at most (no multiple mode), and the built-in `select` has no `multiple`. `ui-combobox` covers multi-select.
+- [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.
 - [ ] **`ui-combobox`:**
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
   - [ ] No chip animations.
