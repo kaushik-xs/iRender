@@ -1,5 +1,7 @@
 # iRender
 
+[![CI](https://github.com/kaushik-xs/iRender/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/kaushik-xs/iRender/actions/workflows/ci.yml)
+
 Build UI from configuration. Write a document in JSON or YAML, then validate it and render it to HTML with a ~4 KB (gzipped) runtime for state and actions.
 
 ```sh
