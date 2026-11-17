@@ -29,7 +29,7 @@ window.addEventListener("load", async () => {
   const root = $("[data-i-root]"), S = () => root.__irender.state;
   const calls = []; root.addEventListener("irender:call", (e) => calls.push(e.detail));
   const btn = (t) => $$("button").find((b) => b.textContent === t);
-  const toast = () => { const t = $("[role=status] > div"); return t.hidden ? "hidden" : t.firstElementChild.textContent; };
+  const toast = () => $$("[role=status] > div").map((t) => t.firstElementChild.textContent).join(",") || "hidden";
   const rect = (el) => el.getBoundingClientRect();
   try {
     const edit = $("#edit-profile");
@@ -38,7 +38,7 @@ window.addEventListener("load", async () => {
     const input = edit.querySelector("input"); input.value = "Ada"; input.dispatchEvent(new Event("input"));
     btn("Save changes").click();
     log("saved", edit.open, S().profile, toast());
-    await wait(3200);
+    await wait(4200);
     log("toast after wait", toast());
 
     const confirm = $("#confirm-delete");
@@ -117,7 +117,7 @@ fn gallery_overlays_and_controls_in_chrome() {
     let expected = [
         "dialog true true",
         "saved false Ada Profile saved",
-        // The `wait` action hides the toast again.
+        // The toast hides after its duration.
         "toast after wait hidden",
         "alert true alertdialog false",
         "deleted false 0 Projects deleted",
@@ -480,6 +480,75 @@ fn form_controls_follow_the_theme_toggle_in_chrome() {
     assert_eq!(
         result,
         format!("5\nsystem {}\ndark {}\nlight {}\nsystem {}", five("light"), five("dark"), five("light"), five("light")),
+        "\n{result}"
+    );
+}
+
+/// Toasts stack, each hiding on its own timer: a newer toast no longer hides early,
+/// `max` drops the oldest, `duration: 0` stays until dismissed, and hovering pauses
+/// the timers.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn toasts_queue_with_their_own_timers_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "toast": null },
+        "root": { "type": "ui-toaster", "props": { "bind": "toast", "duration": 1000, "max": 2 } } });
+    let driver = r#"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]");
+      const region = document.querySelector("[role=status]");
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const toasts = () => [...region.querySelectorAll(":scope > div")]
+        .map((t) => [...t.children].filter((c) => c.tagName === "DIV").map((c) => c.textContent).join(":") + (t.dataset.variant ? "!" : "")).join(",") || "-";
+      const add = async (toast) => { root.__irender.set("toast", toast); await wait(0); };
+      await add({ title: "A", description: "first" });
+      out.push("A " + toasts() + " key=" + root.__irender.state.toast);
+      await wait(500); await add({ title: "B", variant: "destructive" });
+      out.push("B " + toasts());
+      await wait(600);
+      out.push("A's time " + toasts());
+      await add({ title: "C" }); await add({ title: "D" });
+      out.push("max " + toasts());
+      await add({ title: "E", duration: 0 });
+      out.push("sticky " + toasts());
+      region.dispatchEvent(new PointerEvent("pointerenter"));
+      await wait(1500);
+      out.push("hovered " + toasts());
+      region.dispatchEvent(new PointerEvent("pointerleave"));
+      await wait(1100);
+      out.push("left " + toasts());
+      region.querySelector("[data-dismiss]").click();
+      out.push("dismissed " + toasts());
+      await add({ title: "A", description: "first" });
+      out.push("again " + toasts());
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"#;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("toasts", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Shown, and the key is cleared for the next toast.
+            "A A:first key=null",
+            "B A:first,B!",
+            // A hides on its own timer; B, added later, stays.
+            "A's time B!",
+            // At most two: B goes first.
+            "max C,D",
+            "sticky D,E",
+            // Hovering pauses D's timer; leaving gives it a moment more. E stays.
+            "hovered D,E",
+            "left E",
+            "dismissed -",
+            // The same toast again shows again.
+            "again A:first",
+        ],
         "\n{result}"
     );
 }

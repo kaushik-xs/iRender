@@ -401,8 +401,6 @@ root:
                       on:
                         click:
                           - { action: set_state, key: toast, value: { title: Profile saved } }
-                          - { action: wait, ms: 3000 }
-                          - { action: set_state, key: toast, value: null }
             - type: ui-alert-dialog
               props:
                 trigger: "Delete {{ projects }} projects"
@@ -420,8 +418,6 @@ root:
                         click:
                           - { action: set_state, key: projects, value: 0 }
                           - { action: set_state, key: toast, value: { title: Projects deleted, description: Nothing is left to delete., variant: destructive } }
-                          - { action: wait, ms: 3000 }
-                          - { action: set_state, key: toast, value: null }
             - type: ui-sheet
               props: { trigger: Open sheet, title: Settings, description: A panel along the right edge., id: settings-sheet }
               children:

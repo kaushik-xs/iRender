@@ -69,7 +69,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-dropdown-menu` | same as `ui-popover` | Children: `ui-menu-item` (`label`, `shortcut`, `variant`, `href`, `disabled`; choosing it runs its `on.click` and closes the menu), `ui-menu-label`, `ui-menu-separator`. |
 | `ui-tooltip` | `text`, `side` | Shown while its children are hovered or focused. CSS only. |
 | `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
-| `ui-toaster` | `bind` | Shows the toast in `bind` (`{ title, description, variant }`) at the bottom right. |
+| `ui-toaster` | `bind`, `duration` (default 4000 ms), `max` (default 3) | Toasts at the bottom right. Setting `bind` to `{ title, description, variant, duration }` adds one to the stack. |
 | `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
 
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
@@ -143,20 +143,17 @@ Dialogs, sheets, popovers and menus open from their `trigger` prop's button. To 
 
 Every overlay needs an element id. Without the `id` prop, one is derived from the node's place in the document. It stays unique for each item of a list rendered on the server, and inside a list the browser rebuilds from state, it ends with the item's index and follows it when the list changes. An `id` you pass can use the item too, such as `"confirm-{{ item.id }}"`. Either way, the trigger, close buttons and menu items inside follow the same id.
 
-A toast is a state value. Set it to show one and to null to hide it, with a `wait` between the two to hide it automatically:
+To show a toast, set the toaster's state key to it:
 
 ```yaml
 - type: ui-button
   props: { label: Save }
   on:
-    click:
-      - { action: set_state, key: toast, value: { title: Saved, description: Your changes are live. } }
-      - { action: wait, ms: 3000 }
-      - { action: set_state, key: toast, value: null }
+    click: { action: set_state, key: toast, value: { title: Saved, description: Your changes are live. } }
 - { type: ui-toaster, props: { bind: toast } }
 ```
 
-There is one toast at a time. A new toast replaces the current one, and the first toast's `wait` can still hide its replacement early.
+The toaster adds it to a stack and clears the key, so the next one can follow. Each toast hides after its own `duration` (the toaster's, 4 seconds by default; `0` keeps it until dismissed), and at most `max` show at once, the oldest leaving first. Timers pause while the pointer is over the toasts or focus is in them. `variant: destructive` shows an error. Toasts need JavaScript: the toaster's behaviour builds them from a template the server renders, so the `toast` part still styles them.
 
 ## Browser support
 
