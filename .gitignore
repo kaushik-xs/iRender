@@ -30,3 +30,6 @@ Desktop.ini
 
 # Rendered example output
 /examples/search/index.html
+
+# Browser test tooling
+/tools/playwright/node_modules

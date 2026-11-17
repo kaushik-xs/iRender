@@ -62,3 +62,29 @@ jobs:
         run: cargo test --workspace --test browser -- --ignored
         env:
           CHROME: /usr/bin/google-chrome
+
+  # The same tests in the other engines: tools/playwright/dump-dom.js stands in for
+  # Chrome's `--dump-dom` and opens each page in Playwright's WebKit or Firefox.
+  other-browsers:
+    name: Browser tests (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [webkit, firefox]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright's ${{ matrix.browser }}
+        run: |
+          npm ci --prefix tools/playwright
+          npx --prefix tools/playwright playwright-core install --with-deps ${{ matrix.browser }}
+      - name: Drive the examples and the UI kit in ${{ matrix.browser }}
+        run: cargo test --workspace --test browser -- --ignored
+        env:
+          BROWSER: ${{ matrix.browser }}
+          CHROME: ${{ github.workspace }}/tools/playwright/dump-dom.js

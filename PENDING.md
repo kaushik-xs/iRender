@@ -6,13 +6,12 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. Browser tests in Firefox and WebKit (gaps 2): overlays rely on Chrome-first features.
+1. Keyboard-driven UI kit components (command palette, date picker, data table).
 
 ## Gaps you'd hit in real use
 
-- [ ] **Browser support is only verified in Chrome.**
-  - Problem: invoker commands, `closedby`, the Popover API, CSS anchor positioning and `<details name>` were verified in Chrome 157 (locally and in CI), but not in Safari or Firefox. Without anchor positioning, popovers open in the middle of the screen.
-  - Idea: run the browser tests in Firefox and WebKit as well (e.g. via Playwright in CI).
+- [ ] **Older browsers aren't tested.** The browser tests run in Chrome, and in Playwright's WebKit and Firefox (CI, and `tools/playwright/dump-dom.js` locally), which are recent builds (Safari 27.2, Firefox 159 on 2026-11-17). Safari releases and Firefox ESR without anchor positioning, the Popover API, invoker commands, `closedby` or `<details name>` aren't covered; without anchor positioning, popovers open in the middle of the screen.
+  - Idea: run the tests in the installed Safari through `safaridriver`.
 
 ## UI kit: not built yet
 

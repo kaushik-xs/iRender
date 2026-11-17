@@ -68,7 +68,8 @@ const PRELUDE: &str = r##"
   const node = (f, id) => flow(f).querySelector(`[data-flow-nodes] > [data-flow-node="${id}"]`);
   const edge = (f, id) => flow(f).querySelector(`[data-flow-edges] > svg[data-flow-edge="${id}"]`);
   const label = (f, id) => flow(f).querySelector(`[data-flow-edges] > [data-flow-label="${id}"]`);
-  const at = (n) => (n.style.transform.match(/translate\(([-\d.e]+)px, ([-\d.e]+)px\)/) || []).slice(1).map(Number);
+  // Firefox writes `translate(40px, 0px)` back as `translate(40px)`.
+  const at = (n) => (n.style.transform.match(/translate\(([-\d.e]+)px(?:, ([-\d.e]+)px)?\)/) || []).slice(1).map((v) => Number(v ?? 0));
   const start = (p) => p.getAttribute("d").match(/^M([-\d.e]+),([-\d.e]+)/).slice(1).map(Number);
   const near = (a, b, d = 1) => Math.abs(a - b) <= d;
   const pointer = (target, type, x, y) =>

@@ -1,0 +1,8 @@
+{
+  "name": "irender-browser-tests",
+  "private": true,
+  "description": "Runs the browser tests in WebKit and Firefox; see dump-dom.js",
+  "dependencies": {
+    "playwright-core": "1.65.1"
+  }
+}

@@ -262,6 +262,13 @@ cargo test -p irender-html --features parallel           # renderer with `parall
 cargo test -p irender-html --test browser -- --ignored   # drives the example in headless Chrome (CHROME=… to override)
 ```
 
+The browser tests run in WebKit and Firefox too, through a stand-in for Chrome built on Playwright:
+
+```sh
+npm ci --prefix tools/playwright && npx --prefix tools/playwright playwright-core install webkit firefox
+BROWSER=webkit CHROME=$PWD/tools/playwright/dump-dom.js cargo test --workspace --test browser -- --ignored   # or BROWSER=firefox
+```
+
 | suite | covers |
 |---|---|
 | `irender-core` unit tests + `tests/core.rs` | expressions and type conversions, error paths, JSON vs YAML, prop/style/action/theme validation, untrusted policy, warnings |
