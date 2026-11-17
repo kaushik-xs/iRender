@@ -436,3 +436,50 @@ fn stored_theme_applies_before_the_content_shows_in_chrome() {
     // Dark before the toggle's behaviour is even defined, and the toggle agrees later.
     assert_eq!(result, "rgb(2, 2, 2) dark false | dark");
 }
+
+/// Form controls' native parts (a select's popup, a checkbox, a slider's track)
+/// follow the toggle, not only the system. `light-dark()` resolves against an
+/// element's used colour scheme, so it shows which one each control gets.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn form_controls_follow_the_theme_toggle_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "on": true, "n": 5, "s": "a", "t": "" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-theme-toggle" },
+            { "type": "ui-input", "props": { "bind": "t" } },
+            { "type": "ui-select", "props": { "bind": "s", "options": ["a", "b"] } },
+            { "type": "ui-checkbox", "props": { "bind": "on", "label": "On" } },
+            { "type": "ui-switch", "props": { "bind": "on", "label": "On" } },
+            { "type": "ui-slider", "props": { "bind": "n" } } ] } });
+    let driver = r#"<script>
+    window.addEventListener("load", () => {
+      const controls = ["input:not([type])", "input[type=text]", "select", "input[type=checkbox]:not([role])", "input[role=switch]", "input[type=range]"]
+        .map((sel) => document.querySelector(sel)).filter(Boolean);
+      const schemes = () => controls.map((el) => {
+        el.style.outlineColor = "light-dark(rgb(1, 1, 1), rgb(2, 2, 2))";
+        return getComputedStyle(el).outlineColor === "rgb(2, 2, 2)" ? "dark" : "light";
+      }).join(",");
+      const pick = (s) => document.querySelector(`[data-scheme=${s}]`).click();
+      const out = ["system " + schemes()];
+      pick("dark"); out.push("dark " + schemes());
+      pick("light"); out.push("light " + schemes());
+      pick("system"); out.push("system " + schemes());
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = controls.length + "\n" + out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"#;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("form-schemes", &html) else { return };
+    // Headless Chrome's system scheme is light.
+    let five = |s: &str| [s; 5].join(",");
+    assert_eq!(
+        result,
+        format!("5\nsystem {}\ndark {}\nlight {}\nsystem {}", five("light"), five("dark"), five("light"), five("light")),
+        "\n{result}"
+    );
+}

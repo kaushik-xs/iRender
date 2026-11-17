@@ -39,9 +39,7 @@ _Last updated: 2026-11-17._
   - [ ] No chip animations.
   - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. Idea: a `labels` prop or an initial lookup request.
   - [ ] Not tested inside `ui-dialog` / `ui-sheet`. The menu is a top-layer popover opened after the dialog, so it should sit above it, but this is unverified.
-- [ ] **`ui-theme-toggle` limits:**
-  - [ ] The choice only applies on pages that have a toggle. The index and the UI kit and chart kit galleries share it; the other examples still follow the system.
-  - [ ] Kit form controls set `color-scheme: light dark` on themselves, so their native parts (checkbox, select popup, slider) probably follow the system, not the toggle (unverified).
+- [ ] **`ui-theme-toggle`'s choice only applies on pages that have a toggle.** The index and the UI kit and chart kit galleries share it; the other examples still follow the system.
 - [ ] **Tooltip accessibility:** `ui-tooltip` doesn't link the tip to its trigger with `aria-describedby`, because the tooltip can't add attributes to the child it wraps. Idea: a `trigger` prop that renders the trigger itself, or a small behaviour.
 
 ## Housekeeping

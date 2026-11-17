@@ -181,12 +181,17 @@ impl Component for Label {
 
 // ---------------------------------------------------------------- text fields
 
+/// Native parts (a select's arrow and menu, a checkbox, a slider's track) follow the
+/// page's colour scheme: light, and dark under `@dark`, which `ui-theme-toggle`
+/// redirects to the chosen scheme. (`light dark` would follow only the system.)
+fn native_scheme(b: StyleBlock) -> StyleBlock {
+    b.set("color-scheme", "light").nest("@dark", StyleBlock::from_pairs(&[("color-scheme", "dark")]))
+}
+
 fn field_base(height: Option<&str>) -> StyleBlock {
     let mut b = StyleBlock::from_pairs(&[
         // Padding and border count inside `width: 100%` and `height`.
         ("box-sizing", "border-box"),
-        // Native parts (the select's arrow and menu) follow the page's colour scheme.
-        ("color-scheme", "light dark"),
         ("width", "100%"),
         ("min-width", "0"),
         ("padding", "4px 12px"),
@@ -203,6 +208,7 @@ fn field_base(height: Option<&str>) -> StyleBlock {
     .nest(":focus-visible", focus_ring().set("border-color", RING))
     .nest(":disabled", StyleBlock::from_pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
     .nest("&[aria-invalid=true]", StyleBlock::from_pairs(&[("border-color", DESTRUCTIVE)]));
+    b = native_scheme(b);
     if let Some(h) = height {
         b = b.set("height", h);
     }
@@ -305,16 +311,15 @@ static CHOICE_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 static CHECKBOX: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[
+    native_scheme(StyleBlock::from_pairs(&[
         ("width", "16px"),
         ("height", "16px"),
         ("margin", "0"),
         ("flex-shrink", "0"),
         ("accent-color", PRIMARY),
-        ("color-scheme", "light dark"),
         ("cursor", "inherit"),
     ])
-    .nest(":focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
+    .nest(":focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")])))
 });
 
 static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -518,16 +523,15 @@ const SLIDER_PROPS: &[PropDef] = &[
 ];
 
 static SLIDER: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[
+    native_scheme(StyleBlock::from_pairs(&[
         ("width", "100%"),
         ("height", "20px"),
         ("margin", "0"),
         ("accent-color", PRIMARY),
-        ("color-scheme", "light dark"),
         ("cursor", "pointer"),
     ])
     .nest(":disabled", StyleBlock::from_pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
-    .nest(":focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
+    .nest(":focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")])))
 });
 
 impl Component for Slider {
