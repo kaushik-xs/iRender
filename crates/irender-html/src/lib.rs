@@ -20,7 +20,7 @@ mod escape;
 mod render;
 
 pub use components::{Button, ElementComponent, If, Input, List, Select, Stack, Text, Textarea};
-pub use render::{Element, RenderCx, RenderError};
+pub use render::{ClientList, Element, RenderCx, RenderError};
 
 use irender_core::{Catalog, ComponentInfo, Diagnostics, Document, Format, Fragments, Ir, NoFragments, Node, Policy};
 use indexmap::IndexMap;

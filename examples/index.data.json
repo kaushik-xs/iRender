@@ -31,6 +31,19 @@
       "needsServer": true
     },
     {
+      "title": "Flow kit gallery",
+      "href": "flow/index.html",
+      "source": "examples/flow/gallery.yaml",
+      "summary": "Node-and-edge diagrams through irender-flow-kit: React Flow JSON as saved, a workflow whose node types are iRender trees with ports from the node's data, and an ER diagram with floating edges, neighbour highlighting and automatic layout.",
+      "features": [
+        "irender-flow-kit",
+        "React Flow JSON",
+        "layered layout",
+        "pan & zoom",
+        "dark mode"
+      ]
+    },
+    {
       "title": "Icon gallery",
       "href": "icons/index.html",
       "source": "examples/icons/gallery.yaml",

@@ -30,6 +30,9 @@ mkdir -p "$out/charts"
 $irender render examples/charts/gallery.yaml --data examples/charts/gallery.data.json --ui-kit --chart-kit \
   --title "Chart kit gallery" -o "$out/charts/index.html"
 cp -R examples/charts/api "$out/charts/"
+mkdir -p "$out/flow"
+$irender render examples/flow/gallery.yaml --data examples/flow/gallery.data.json --ui-kit --flow-kit \
+  --title "Flow kit gallery" -o "$out/flow/index.html"
 # The icon gallery's data is the kit's own pack listing.
 mkdir -p "$out/icons"
 $irender icons --json > "$out/icons/packs.json"

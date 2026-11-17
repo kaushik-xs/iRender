@@ -428,6 +428,7 @@ dependencies = [
  "clap",
  "irender-chart-kit",
  "irender-core",
+ "irender-flow-kit",
  "irender-html",
  "irender-icon-kit",
  "irender-ui-kit",
@@ -446,6 +447,16 @@ dependencies = [
  "serde_path_to_error",
  "serde_yaml_ng",
  "thiserror",
+]
+
+[[package]]
+name = "irender-flow-kit"
+version = "0.1.0"
+dependencies = [
+ "irender-core",
+ "irender-html",
+ "irender-ui-kit",
+ "serde_json",
 ]
 
 [[package]]

@@ -1,0 +1,15 @@
+[package]
+name = "irender-flow-kit"
+description = "Node-and-edge diagrams for iRender documents: React Flow-compatible JSON, node types written as ordinary iRender trees"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core.workspace = true
+irender-html.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+irender-ui-kit.workspace = true

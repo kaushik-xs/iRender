@@ -37,6 +37,28 @@ _Last updated: 2026-11-17._
 - [ ] **`ui-theme-toggle`'s choice only applies on pages that have a toggle.** The index and the UI kit and chart kit galleries share it; the other examples still follow the system.
 - [ ] **Tooltip accessibility:** `ui-tooltip` doesn't link the tip to its trigger with `aria-describedby`, because the tooltip can't add attributes to the child it wraps. Idea: a `trigger` prop that renders the trigger itself, or a small behaviour.
 
+## Flow kit next phases
+
+Phase 1, the viewer, has shipped: React Flow JSON, node, edge and port templates, layered layout, pan and zoom, selection, neighbour highlighting, dragging with `bindNodes`, the minimap and panels. These came out of the React Flow research on the builder and client-ui-next repos.
+
+- [ ] **Phase 2, editing:**
+  - [ ] Drag from a port to connect, with declarative rules (`sameParent`, a port's `accepts: [types]`, `scope: children` for a loop's start port) and a host `call` for anything else.
+  - [ ] Select and delete edges.
+  - [ ] Delete nodes with a hook to confirm first (the process canvas checks what a delete affects).
+  - [ ] Drop from a palette, and add a node at the centre of the view.
+  - [ ] Drop a connection on empty canvas to create a node there.
+  - [ ] Box and multi-select.
+- [ ] **Phase 3, containers and extras:**
+  - [ ] Parent nodes can be resized.
+  - [ ] Dropping a node in or out of a container reparents it, converting between absolute and relative positions and removing edges that now cross a scope.
+  - [ ] Copy, cut and paste with new ids.
+  - [ ] Search with dimming.
+  - [ ] Undo.
+- [ ] **Edges are drawn only by the script.** Nodes have server positions, but a page without JS shows no edges. Idea: draw straight edges on the server when the positions are known.
+- [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`.
+- [ ] **No edge hit area or edge events yet**, so clicking an edge does nothing.
+- [ ] **Not tried yet in the real apps:** the builder's workflow editor and ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
+
 ## Icon kit: packs not drawn yet
 
 Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail`, `manufacturing`, `accounting`, `agriculture`, `automotive`, `aviation`, `banking`, `construction`, `education`, `energy`, `finance`, `healthcare`, `hospitality`, `hr`, `insurance`, `it`, `legal`, `marketing`, `maritime`, `media`, `mining`, `oil-gas`, `public-sector`, `robotics`, `simulation`, `space`, `sports` and `telecom`. Every new icon is drawn from scratch to `crates/irender-icon-kit/GUIDELINES.md` and must pass `tools/icons.py lint` and a contact-sheet review. Draw a pack's first few icons as references, then the rest from them.

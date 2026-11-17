@@ -38,6 +38,9 @@ enum Command {
         /// Enable `ui-chart` and `ui-sparkline` and the chart colours (irender-chart-kit).
         #[arg(long)]
         chart_kit: bool,
+        /// Enable `ui-flow` and its node, edge, port and panel templates (irender-flow-kit).
+        #[arg(long)]
+        flow_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
     },
@@ -64,6 +67,9 @@ enum Command {
         /// Enable `ui-chart` and `ui-sparkline` and the chart colours (irender-chart-kit).
         #[arg(long)]
         chart_kit: bool,
+        /// Enable `ui-flow` and its node, edge, port and panel templates (irender-flow-kit).
+        #[arg(long)]
+        flow_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
         /// Emit an embeddable fragment instead of a full HTML document.
@@ -93,6 +99,9 @@ enum Command {
         /// Include `ui-chart` and `ui-sparkline` from irender-chart-kit.
         #[arg(long)]
         chart_kit: bool,
+        /// Enable `ui-flow` and its node, edge, port and panel templates (irender-flow-kit).
+        #[arg(long)]
+        flow_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
     },
@@ -164,6 +173,7 @@ fn read(path: &Path) -> Result<(String, Format), String> {
 struct Kits {
     ui: bool,
     chart: bool,
+    flow: bool,
     icons: IconArgs,
 }
 
@@ -174,6 +184,9 @@ fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: &
     }
     if kits.chart {
         irender_chart_kit::register(&mut engine.registry);
+    }
+    if kits.flow {
+        irender_flow_kit::register(&mut engine.registry);
     }
     if kits.icons.enabled() {
         irender_icon_kit::register_with(&mut engine.registry, kits.icons.kit()?);
@@ -232,8 +245,8 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, icons } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit, icons };
+        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, flow_kit, icons } => {
+            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, icons };
             load(&engine(untrusted, strict_css, fragments, &kits)?, &file, &kits)?;
             println!("{}: ok", file.display());
         }
@@ -246,6 +259,7 @@ fn run(command: Command) -> Result<(), String> {
             fragments,
             ui_kit,
             chart_kit,
+            flow_kit,
             icons,
             fragment,
             minify,
@@ -254,7 +268,7 @@ fn run(command: Command) -> Result<(), String> {
             parallel,
             repeat,
         } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit, icons };
+            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, icons };
             let mut engine = engine(untrusted, strict_css, fragments, &kits)?;
             engine.minify = minify;
             engine.parallel_min_items = parallel;
@@ -303,8 +317,8 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components { ui_kit, chart_kit, icons } => {
-            for c in engine(false, false, None, &Kits { ui: ui_kit, chart: chart_kit, icons })?.registry.iter() {
+        Command::Components { ui_kit, chart_kit, flow_kit, icons } => {
+            for c in engine(false, false, None, &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, icons })?.registry.iter() {
                 let info = c.info();
                 println!("{}: {}", c.name(), info.doc);
                 for p in info.props {

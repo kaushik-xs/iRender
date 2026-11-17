@@ -15,6 +15,7 @@ irender-html = { path = "crates/irender-html", version = "0.1.0" }
 irender-ui-kit = { path = "crates/irender-ui-kit", version = "0.1.0" }
 irender-chart-kit = { path = "crates/irender-chart-kit", version = "0.1.0" }
 irender-icon-kit = { path = "crates/irender-icon-kit", version = "0.1.0" }
+irender-flow-kit = { path = "crates/irender-flow-kit", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 indexmap = { version = "2", features = ["serde"] }

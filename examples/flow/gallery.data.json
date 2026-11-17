@@ -1,0 +1,402 @@
+{
+  "basic": {
+    "nodes": [
+      {
+        "id": "1",
+        "type": "input",
+        "position": {
+          "x": 0,
+          "y": 80
+        },
+        "data": {
+          "label": "Order placed"
+        }
+      },
+      {
+        "id": "2",
+        "position": {
+          "x": 240,
+          "y": 0
+        },
+        "data": {
+          "label": "Charge card"
+        }
+      },
+      {
+        "id": "3",
+        "position": {
+          "x": 240,
+          "y": 160
+        },
+        "data": {
+          "label": "Reserve stock"
+        }
+      },
+      {
+        "id": "4",
+        "position": {
+          "x": 480,
+          "y": 80
+        },
+        "data": {
+          "label": "Ship"
+        },
+        "className": "done"
+      },
+      {
+        "id": "5",
+        "type": "output",
+        "position": {
+          "x": 720,
+          "y": 80
+        },
+        "data": {
+          "label": "Delivered"
+        },
+        "style": {
+          "background": "#ecfdf5",
+          "borderColor": "#10b981",
+          "color": "#065f46"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "1-2",
+        "source": "1",
+        "target": "2",
+        "label": "paid"
+      },
+      {
+        "id": "1-3",
+        "source": "1",
+        "target": "3",
+        "type": "smoothstep"
+      },
+      {
+        "id": "2-4",
+        "source": "2",
+        "target": "4",
+        "type": "step",
+        "markerEnd": {
+          "type": "arrowclosed"
+        }
+      },
+      {
+        "id": "3-4",
+        "source": "3",
+        "target": "4",
+        "animated": true
+      },
+      {
+        "id": "4-5",
+        "source": "4",
+        "target": "5",
+        "type": "straight",
+        "markerEnd": "arrow",
+        "label": "2–3 days"
+      }
+    ]
+  },
+  "er": {
+    "tables": [
+      {
+        "id": "customers",
+        "type": "entity",
+        "data": {
+          "label": "customers",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "email",
+              "type": "text"
+            },
+            {
+              "name": "name",
+              "type": "text"
+            },
+            {
+              "name": "created_at",
+              "type": "timestamptz"
+            }
+          ]
+        }
+      },
+      {
+        "id": "addresses",
+        "type": "entity",
+        "data": {
+          "label": "addresses",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "customer_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "line1",
+              "type": "text"
+            },
+            {
+              "name": "city",
+              "type": "text"
+            },
+            {
+              "name": "postcode",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      {
+        "id": "orders",
+        "type": "entity",
+        "data": {
+          "label": "orders",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "customer_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "address_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "status",
+              "type": "order_status"
+            },
+            {
+              "name": "total",
+              "type": "numeric"
+            },
+            {
+              "name": "placed_at",
+              "type": "timestamptz"
+            }
+          ]
+        }
+      },
+      {
+        "id": "order_items",
+        "type": "entity",
+        "data": {
+          "label": "order_items",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "order_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "product_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "qty",
+              "type": "int"
+            },
+            {
+              "name": "price",
+              "type": "numeric"
+            }
+          ]
+        }
+      },
+      {
+        "id": "products",
+        "type": "entity",
+        "data": {
+          "label": "products",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "sku",
+              "type": "text"
+            },
+            {
+              "name": "name",
+              "type": "text"
+            },
+            {
+              "name": "category_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "price",
+              "type": "numeric"
+            }
+          ]
+        }
+      },
+      {
+        "id": "categories",
+        "type": "entity",
+        "data": {
+          "label": "categories",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "name",
+              "type": "text"
+            },
+            {
+              "name": "parent_id",
+              "type": "uuid",
+              "fk": true
+            }
+          ]
+        }
+      },
+      {
+        "id": "payments",
+        "type": "entity",
+        "data": {
+          "label": "payments",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "order_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "amount",
+              "type": "numeric"
+            },
+            {
+              "name": "method",
+              "type": "text"
+            },
+            {
+              "name": "paid_at",
+              "type": "timestamptz"
+            }
+          ]
+        }
+      },
+      {
+        "id": "shipments",
+        "type": "entity",
+        "data": {
+          "label": "shipments",
+          "columns": [
+            {
+              "name": "id",
+              "type": "uuid",
+              "pk": true
+            },
+            {
+              "name": "order_id",
+              "type": "uuid",
+              "fk": true
+            },
+            {
+              "name": "carrier",
+              "type": "text"
+            },
+            {
+              "name": "tracking",
+              "type": "text"
+            }
+          ]
+        }
+      }
+    ],
+    "relations": [
+      {
+        "id": "addresses-customers",
+        "source": "addresses",
+        "target": "customers",
+        "label": "customer_id → id"
+      },
+      {
+        "id": "orders-customers",
+        "source": "orders",
+        "target": "customers",
+        "label": "customer_id → id"
+      },
+      {
+        "id": "orders-addresses",
+        "source": "orders",
+        "target": "addresses",
+        "label": "address_id → id"
+      },
+      {
+        "id": "order_items-orders",
+        "source": "order_items",
+        "target": "orders",
+        "label": "order_id → id"
+      },
+      {
+        "id": "order_items-products",
+        "source": "order_items",
+        "target": "products",
+        "label": "product_id → id"
+      },
+      {
+        "id": "products-categories",
+        "source": "products",
+        "target": "categories",
+        "label": "category_id → id"
+      },
+      {
+        "id": "payments-orders",
+        "source": "payments",
+        "target": "orders",
+        "label": "order_id → id"
+      },
+      {
+        "id": "shipments-orders",
+        "source": "shipments",
+        "target": "orders",
+        "label": "order_id → id"
+      }
+    ],
+    "names": [
+      "customers",
+      "addresses",
+      "orders",
+      "order_items",
+      "products",
+      "categories",
+      "payments",
+      "shipments"
+    ]
+  }
+}

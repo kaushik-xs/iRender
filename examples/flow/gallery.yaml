@@ -1,0 +1,252 @@
+# Diagrams from irender-flow-kit, in irender-ui-kit cards.
+#
+#   cargo run -p irender-cli -- render examples/flow/gallery.yaml --data examples/flow/gallery.data.json \
+#     --ui-kit --flow-kit -o flow.html
+#
+# The first flow is React Flow JSON exactly as React Flow saves it, drawn with the
+# kit's default node and edge. The workflow and the ER diagram define their own
+# node types, which are ordinary iRender trees with ports placed inside them.
+version: 1
+state:
+  # The workflow: nodes and edges in state, so drags write back and the list of
+  # nodes rebuilds in the browser.
+  wfNodes:
+    - { id: trigger, type: trigger, data: { label: POST /orders, detail: HTTP trigger } }
+    - { id: validate, type: step, data: { label: Validate order, detail: setVariable } }
+    - { id: in_stock, type: if, data: { label: In stock?, detail: "items.all(i => i.available)" } }
+    - id: route
+      type: switch
+      data: { label: Shipping, detail: order.shipping, cases: [{ handle: express, label: Express }, { handle: standard, label: Standard }, { handle: pickup, label: Pickup }] }
+    - { id: backorder, type: step, data: { label: Create backorder, detail: serviceCall } }
+    - { id: courier, type: step, data: { label: Book courier, detail: httpRequest } }
+    - { id: post, type: step, data: { label: Book post, detail: httpRequest } }
+    - { id: store, type: step, data: { label: Notify store, detail: serviceCall } }
+    - { id: join, type: merge, data: { label: Merge, inputs: [0, 1, 2] } }
+    - { id: reply, type: step, data: { label: Reply 201, detail: respond } }
+  wfEdges:
+    - { id: e1, source: trigger, target: validate }
+    - { id: e2, source: validate, target: in_stock }
+    - { id: e3, source: in_stock, sourceHandle: "true", target: route }
+    - { id: e4, source: in_stock, sourceHandle: "false", target: backorder, type: retry, label: no stock }
+    - { id: e5, source: route, sourceHandle: express, target: courier }
+    - { id: e6, source: route, sourceHandle: standard, target: post }
+    - { id: e7, source: route, sourceHandle: pickup, target: store }
+    - { id: e8, source: courier, target: join, targetHandle: input-0 }
+    - { id: e9, source: post, target: join, targetHandle: input-1 }
+    - { id: e10, source: store, target: join, targetHandle: input-2 }
+    - { id: e11, source: join, target: reply, animated: true }
+  step: null
+  dir: LR
+  # The ER diagram
+  table: null
+  keysOnly: false
+  erDir: LR
+  goTo: null
+root:
+  type: stack
+  props: { gap: 40 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - type: stack
+          props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
+          children:
+            - { type: ui-heading, props: { level: 1, text: irender-flow-kit } }
+            - { type: ui-theme-toggle }
+        - type: ui-text
+          props:
+            variant: lead
+            text: "Node-and-edge diagrams from React Flow's JSON. Every node type is an ordinary iRender tree, so nodes can hold any component."
+
+    # ------------------------------------------------------------ plain JSON
+    - type: ui-card
+      props:
+        title: React Flow JSON, as saved
+        description: "No templates: the kit's default node shows data.label. Edge types pick the path (default, step, smoothstep, straight); labels, markers and animated edges come from the edge."
+      children:
+        - type: ui-flow
+          props:
+            nodes: "{{ basic.nodes }}"
+            edges: "{{ basic.edges }}"
+            title: A plain flow
+            height: 360
+            draggable: true
+
+    # -------------------------------------------------------------- workflow
+    - type: ui-card
+      props:
+        title: A workflow, with node types of its own
+        description: "Laid out automatically. The switch has a port per case and the merge a port per input, from the node's data. Drag a node, click one to select it, double-click to open it."
+      children:
+        - type: ui-flow
+          props:
+            nodes: "{{ wfNodes }}"
+            edges: "{{ wfEdges }}"
+            title: Order workflow
+            layout: layered
+            direction: "{{ dir }}"
+            edgePath: smoothstep
+            rankGap: 64
+            draggable: true
+            bind: step
+            bindNodes: wfNodes
+            height: 520
+            minimap: true
+          children:
+            - type: ui-flow-node
+              props: { type: trigger }
+              style: { text-align: left, border-color: $color.primary, min-width: 170 }
+              children:
+                - { type: ui-badge, props: { text: Trigger, variant: default } }
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600, margin-top: 6 } }
+                - { type: text, props: { tag: div, value: "{{ node.data.detail }}" }, style: { color: $color.muted, font-size: 11 } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            - type: ui-flow-node
+              props: { type: step }
+              style: { text-align: left, min-width: 170 }
+              children:
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600 } }
+                - { type: text, props: { tag: div, value: "{{ node.data.detail }}" }, style: { color: $color.muted, font-size: 11, font-family: "ui-monospace, monospace" } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            # Two named outputs, in fixed places whatever the direction.
+            - type: ui-flow-node
+              props: { type: if }
+              style: { text-align: left, min-width: 170, border-style: dashed }
+              children:
+                - { type: ui-badge, props: { text: If, variant: secondary } }
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600, margin-top: 6 } }
+                - { type: text, props: { tag: div, value: "{{ node.data.detail }}" }, style: { color: $color.muted, font-size: 11, font-family: "ui-monospace, monospace" } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { id: "true", side: "{{ dir == 'TB' ? 'bottom' : 'right' }}" }, style: { background: "#16a34a" } }
+                - { type: ui-flow-port, props: { id: "false", side: "{{ dir == 'TB' ? 'right' : 'bottom' }}" }, style: { background: "#dc2626" } }
+
+            # A port per case: each row is positioned, so its port sits on the row.
+            - type: ui-flow-node
+              props: { type: switch, variant: plain }
+              style:
+                min-width: 190
+                border: 1px solid $color.border
+                border-radius: 8
+                background: $color.surface
+                font-size: 12
+              children:
+                - type: element
+                  style: { padding: "8px 12px", border-bottom: 1px solid $color.border }
+                  children:
+                    - { type: ui-badge, props: { text: Switch, variant: secondary } }
+                    - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600, margin-top: 6 } }
+                - type: list
+                  props: { items: "{{ node.data.cases }}", as: c }
+                  children:
+                    - type: element
+                      style: { position: relative, padding: "4px 12px", text-align: right, color: $color.muted }
+                      children:
+                        - { type: text, props: { value: "{{ c.label }}" } }
+                        - { type: ui-flow-port, props: { id: "{{ c.handle }}", side: right } }
+                - { type: ui-flow-port, props: { type: target } }
+
+            # As many inputs as the node's data says.
+            - type: ui-flow-node
+              props: { type: merge }
+              style: { min-width: 110, min-height: 64, display: flex, align-items: center, justify-content: center, font-weight: 600 }
+              children:
+                - { type: text, props: { value: "{{ node.data.label }}" } }
+                - type: list
+                  props: { items: "{{ node.data.inputs }}", as: i }
+                  children:
+                    - { type: ui-flow-port, props: { id: "input-{{ i }}", type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            - type: ui-flow-edge
+              props: { marker: arrowclosed }
+            - type: ui-flow-edge
+              props: { type: retry, path: step, marker: arrowclosed }
+              style: { stroke: "#dc2626", stroke-dasharray: "4 3" }
+              parts: { label: { style: { color: "#dc2626", font-weight: 600 } } }
+
+            - type: ui-flow-panel
+              props: { position: top-left }
+              children:
+                - { type: ui-toggle-group, props: { bind: dir, options: [LR, TB], size: sm, variant: outline } }
+            - type: ui-flow-panel
+              props: { position: top-right }
+              children:
+                - type: if
+                  props: { when: "{{ step }}" }
+                  children:
+                    - type: ui-card
+                      props: { title: "{{ step }}", description: Selected step }
+                      style: { width: 220 }
+                      children:
+                        - { type: ui-button, props: { label: Deselect, size: sm, variant: outline }, on: { click: { action: set_state, key: step, value: null } } }
+
+    # ------------------------------------------------------------ ER diagram
+    - type: ui-card
+      props:
+        title: An ER diagram from server data
+        description: "Tables are server data; the keys-only switch is state, read inside each node. Floating edges meet the boxes' borders. Click a table to highlight its neighbours."
+      children:
+        - type: ui-flow
+          props:
+            nodes: "{{ er.tables }}"
+            edges: "{{ er.relations }}"
+            title: Orders schema
+            layout: layered
+            direction: "{{ erDir }}"
+            rankGap: 100
+            highlight: neighbors
+            bind: table
+            center: "{{ goTo }}"
+            draggable: true
+            background: lines
+            minimap: true
+            height: 560
+          children:
+            - type: ui-flow-node
+              props: { variant: plain }
+              style:
+                width: 230
+                border: 1px solid $color.border
+                border-radius: 8
+                background: $color.surface
+                font-size: 12
+                overflow: hidden
+                box-shadow: 0 1px 2px rgb(0 0 0 / 0.06)
+              children:
+                - type: element
+                  style: { padding: "8px 12px", font-weight: 600, background: $color.subtle, border-bottom: 1px solid $color.border }
+                  children: [{ type: text, props: { value: "{{ node.data.label }}" } }]
+                - type: list
+                  props: { items: "{{ node.data.columns }}", as: col }
+                  children:
+                    - type: if
+                      props: { when: "{{ !keysOnly || col.pk || col.fk }}" }
+                      children:
+                        - type: element
+                          style: { display: flex, justify-content: space-between, gap: 12, padding: "4px 12px", font-family: "ui-monospace, monospace", font-size: 11 }
+                          children:
+                            - { type: text, props: { value: "{{ col.pk ? '🔑 ' : col.fk ? '↗ ' : '' }}{{ col.name }}" } }
+                            - { type: text, props: { value: "{{ col.type }}" }, style: { color: $color.muted } }
+            - type: ui-flow-edge
+              props: { floating: true, marker: arrowclosed, path: bezier }
+            - type: ui-flow-panel
+              props: { position: top-left }
+              children:
+                - type: stack
+                  props: { direction: row, gap: 12, align: center }
+                  style: { background: $color.surface, padding: "6px 10px", border: 1px solid $color.border, border-radius: 8 }
+                  children:
+                    - { type: ui-switch, props: { bind: keysOnly, label: Keys only } }
+                    - { type: ui-toggle-group, props: { bind: erDir, options: [LR, TB], size: sm, variant: outline } }
+                    - { type: ui-select, props: { bind: goTo, placeholder: Go to table…, options: "{{ er.names }}" }, style: { width: 160 } }

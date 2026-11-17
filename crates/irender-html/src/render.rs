@@ -118,8 +118,10 @@ impl<'n> Element<'n> {
     }
 
     /// Marks the element as a list that the browser rebuilds from the `<template>`
-    /// written by [`RenderCx::item_template`] whenever `items` changes.
-    pub(crate) fn list(&mut self, list: ClientList<'n>) -> &mut Self {
+    /// written by [`RenderCx::item_template`] (or [`RenderCx::item_template_with`])
+    /// whenever `items` changes. The template must be the element's first child,
+    /// followed only by the server-rendered items.
+    pub fn list(&mut self, list: ClientList<'n>) -> &mut Self {
         self.list = Some(list);
         self
     }
@@ -141,7 +143,7 @@ impl<'n> Element<'n> {
 
 /// A list the browser rebuilds (see [`Element::list`]).
 #[derive(Debug, Clone)]
-pub(crate) struct ClientList<'n> {
+pub struct ClientList<'n> {
     pub items: &'n Val,
     /// The names of the current item and its index.
     pub item: String,
@@ -547,14 +549,27 @@ impl<'a> RenderCx<'a> {
     /// left for the browser to fill in. The runtime clones it per item when it
     /// rebuilds a list (see [`Element::list`]).
     pub(crate) fn item_template(&mut self, node: &Node, item: &str, index: &str) -> Result<(), RenderError> {
+        self.item_template_with(item, index, |cx| cx.children(node))
+    }
+
+    /// Writes a list's item `<template>` from whatever `f` renders, with `item` and
+    /// `index` left for the browser to fill in. For components that render their own
+    /// items rather than their children (see [`Element::list`]).
+    pub fn item_template_with(
+        &mut self,
+        item: &str,
+        index: &str,
+        f: impl FnOnce(&mut Self) -> Result<(), RenderError>,
+    ) -> Result<(), RenderError> {
         self.out.push_str("<template>");
-        self.in_client_item(item, index, |cx| cx.children(node))?;
+        self.in_client_item(item, index, f)?;
         self.out.push_str("</template>");
         Ok(())
     }
 
-    /// The client-side form of `v` inside an item of a list the browser rebuilds.
-    pub(crate) fn item_val_js(&mut self, v: &Val, item: &str, index: &str) -> Json {
+    /// The client-side form of `v` inside an item of a list the browser rebuilds,
+    /// such as a list's `key`.
+    pub fn item_val_js(&mut self, v: &Val, item: &str, index: &str) -> Json {
         self.in_client_item(item, index, |cx| Ok(cx.val_js(v))).unwrap_or(Json::Null)
     }
 
@@ -578,6 +593,16 @@ impl<'a> RenderCx<'a> {
     /// changes. The content sits between two `<template>` markers, so this works in any
     /// parent, tables included. Hidden content is rendered inside the first marker.
     pub(crate) fn conditional(&mut self, node: &Node, when: &Val) -> Result<(), RenderError> {
+        self.conditional_with(when, |cx| cx.children(node))
+    }
+
+    /// Like `if` with a `when` that uses state: renders whatever `f` renders where the
+    /// browser can show and hide it as `when` changes.
+    pub fn conditional_with(
+        &mut self,
+        when: &Val,
+        f: impl FnOnce(&mut Self) -> Result<(), RenderError>,
+    ) -> Result<(), RenderError> {
         let show = expr::truthy(&self.eval(when));
         let mut js = String::new();
         self.write_val_js(&mut js, when);
@@ -586,9 +611,9 @@ impl<'a> RenderCx<'a> {
         self.out.push_str("\">");
         if show {
             self.out.push_str("</template>");
-            self.children(node)?;
+            f(self)?;
         } else {
-            self.children(node)?;
+            f(self)?;
             self.out.push_str("</template>");
         }
         self.out.push_str("<template data-i-fi></template>");
