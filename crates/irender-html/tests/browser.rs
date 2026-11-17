@@ -76,7 +76,7 @@ fn drive(name: &str, html: &str) -> Option<String> {
     // `--no-sandbox`: CI runners (e.g. Ubuntu 24.04) block the sandbox's user
     // namespaces, and the page is one this test just generated.
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=600,800", "--virtual-time-budget=5000", "--dump-dom"])
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=600,800", "--virtual-time-budget=5000", "--dump-dom"])
         .arg(format!("file://{}", file.display()))
         .output()
         .unwrap();

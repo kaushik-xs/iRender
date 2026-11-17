@@ -46,7 +46,7 @@ fn run(name: &str, engine: &Engine, doc: Json, driver: &str) -> Option<Vec<Strin
     std::fs::write(&file, html).unwrap();
     // `--no-sandbox`: CI runners block the sandbox's user namespaces; the page is ours.
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--allow-file-access-from-files", "--window-size=1000,900"])
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--allow-file-access-from-files", "--window-size=1000,900"])
         // Headless virtual time runs one animation frame, so ECharts' animations would
         // never finish; this turns them off through the kit's reduced-motion path.
         .arg("--force-prefers-reduced-motion")

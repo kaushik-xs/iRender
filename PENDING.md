@@ -159,7 +159,6 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 
 ## Housekeeping
 
-- [ ] **Theme browser tests depend on the machine's colour scheme.** `theme_toggle_in_chrome`, `form_controls_follow_the_theme_toggle_in_chrome` and the chart kit's `charts_in_chrome` expect System to mean light, so they fail when macOS is in Dark mode (they pass with `--blink-settings=preferredColorScheme=1`). Idea: pass that flag in the tests' Chrome arguments.
 - [ ] **CI checks we skipped:**
   - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
   - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.

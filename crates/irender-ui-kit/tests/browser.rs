@@ -104,7 +104,7 @@ fn gallery_overlays_and_controls_in_chrome() {
     std::fs::write(&file, html).unwrap();
     // `--no-sandbox`: CI runners block the sandbox's user namespaces; the page is ours.
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1000,800", "--virtual-time-budget=8000", "--dump-dom"])
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1000,800", "--virtual-time-budget=8000", "--dump-dom"])
         .arg(format!("file://{}", file.display()))
         .output()
         .unwrap();
@@ -145,7 +145,7 @@ fn drive(name: &str, html: &str) -> Option<String> {
     let file = dir.join("page.html");
     std::fs::write(&file, html).unwrap();
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1000,900", "--virtual-time-budget=10000", "--dump-dom"])
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1000,900", "--virtual-time-budget=10000", "--dump-dom"])
         .arg(format!("file://{}", file.display()))
         .output()
         .unwrap();
@@ -285,7 +285,7 @@ fn combobox_in_chrome() {
     assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1, "one request for two identical searches");
 }
 
-/// Forces dark, then light, then back to the system scheme (light in headless Chrome).
+/// Forces dark, then light, then back to the system scheme (light: `drive` pins it, whatever the machine uses).
 const THEME_DRIVER: &str = r##"<style>* { transition: none !important; }</style>
 <script>
 window.addEventListener("load", () => {

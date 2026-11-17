@@ -44,7 +44,7 @@ fn run(name: &str, doc: Json, driver: &str) -> Option<Vec<String>> {
     std::fs::write(&file, html).unwrap();
     // `--no-sandbox`: CI runners block the sandbox's user namespaces; the page is ours.
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1200,900", "--force-prefers-reduced-motion"])
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1200,900", "--force-prefers-reduced-motion"])
         .args(["--virtual-time-budget=10000", "--dump-dom"])
         .arg(format!("file://{}", file.display()))
         .output()
