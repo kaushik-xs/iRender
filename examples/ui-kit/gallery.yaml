@@ -1,0 +1,308 @@
+# Every irender-ui-kit component, in its variants.
+#
+#   cargo run -p irender-cli -- render examples/ui-kit/gallery.yaml --ui-kit -o gallery.html
+version: 1
+state:
+  progress: 40
+  email: ""
+  bio: ""
+  framework: ""
+  terms: false
+  notifications: true
+  airplane: false
+  plan: pro
+  saved: 0
+root:
+  type: stack
+  props: { gap: 40 }
+  style:
+    max-width: 920px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: irender-ui-kit } }
+        - type: ui-text
+          props: { variant: lead, text: "Ready-made components for iRender documents. Every one is plain config: no JavaScript beyond the runtime." }
+
+    # ---------------------------------------------------------------- buttons
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Button } }
+        - type: stack
+          props: { direction: row, gap: 8, wrap: true, align: center }
+          children:
+            - { type: ui-button, props: { label: Default } }
+            - { type: ui-button, props: { label: Secondary, variant: secondary } }
+            - { type: ui-button, props: { label: Destructive, variant: destructive } }
+            - { type: ui-button, props: { label: Outline, variant: outline } }
+            - { type: ui-button, props: { label: Ghost, variant: ghost } }
+            - { type: ui-button, props: { label: Link, variant: link } }
+        - type: stack
+          props: { direction: row, gap: 8, wrap: true, align: center }
+          children:
+            - { type: ui-button, props: { label: Small, size: sm, variant: outline } }
+            - { type: ui-button, props: { label: Default size, variant: outline } }
+            - { type: ui-button, props: { label: Large, size: lg, variant: outline } }
+            - { type: ui-button, props: { label: "+", size: icon, variant: outline }, attrs: { aria-label: Add } }
+            - { type: ui-button, props: { label: Disabled, disabled: true } }
+            - { type: ui-button, props: { label: "Link that looks like a button", href: "#button", variant: secondary } }
+            - type: ui-button
+              props: { label: "Saved {{ saved }} times" }
+              on: { click: { action: set_state, key: saved, value: "{{ saved + 1 }}" } }
+
+    # ---------------------------------------------------------------- badges, kbd
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Badge and Kbd } }
+        - type: stack
+          props: { direction: row, gap: 8, wrap: true, align: center }
+          children:
+            - { type: ui-badge, props: { text: Default } }
+            - { type: ui-badge, props: { text: Secondary, variant: secondary } }
+            - { type: ui-badge, props: { text: Destructive, variant: destructive } }
+            - { type: ui-badge, props: { text: Outline, variant: outline } }
+            - { type: ui-separator, props: { orientation: vertical }, style: { height: 20 } }
+            - { type: ui-text, props: { variant: muted, text: "Press" } }
+            - { type: ui-kbd, props: { text: "⌘K" } }
+            - { type: ui-text, props: { variant: muted, text: "to search" } }
+
+    # ---------------------------------------------------------------- cards
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Card } }
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(260px, 1fr))" }
+          children:
+            - type: ui-card
+              props: { title: Create project, description: Deploy your new project in one click. }
+              children:
+                - type: stack
+                  props: { gap: 8 }
+                  children:
+                    - { type: ui-label, props: { text: Name, for: project-name } }
+                    - { type: ui-input, props: { placeholder: Name of your project }, attrs: { id: project-name } }
+                - type: ui-card-footer
+                  children:
+                    - { type: ui-button, props: { label: Cancel, variant: outline } }
+                    - { type: ui-button, props: { label: Deploy } }
+            - type: ui-card
+              props: { title: Team members, description: Invite people to work with you. }
+              children:
+                - type: list
+                  props:
+                    items:
+                      - { name: Sofia Davis, email: sofia@example.com, initials: SD, role: Owner }
+                      - { name: Jackson Lee, email: jackson@example.com, initials: JL, role: Member }
+                    as: m
+                  style: { display: grid, gap: 12 }
+                  children:
+                    - type: stack
+                      props: { direction: row, gap: 12, align: center }
+                      children:
+                        - { type: ui-avatar, props: { fallback: "{{ m.initials }}" } }
+                        - type: stack
+                          props: { gap: 2 }
+                          style: { flex: 1 }
+                          children:
+                            - { type: ui-text, props: { variant: small, text: "{{ m.name }}" } }
+                            - { type: ui-text, props: { variant: muted, text: "{{ m.email }}" } }
+                        - { type: ui-badge, props: { text: "{{ m.role }}", variant: outline } }
+
+    # ---------------------------------------------------------------- alerts
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Alert } }
+        - type: ui-alert
+          props: { icon: "ℹ", title: Heads up!, description: You can add components to your app using the CLI. }
+        - type: ui-alert
+          props: { variant: destructive, icon: "⚠", title: Error, description: Your session has expired. Please log in again. }
+
+    # ---------------------------------------------------------------- form
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Form controls } }
+        - type: element
+          style: { display: grid, gap: 24, grid-template-columns: "repeat(auto-fit, minmax(260px, 1fr))", align-items: start }
+          children:
+            - type: stack
+              props: { gap: 16 }
+              children:
+                - type: stack
+                  props: { gap: 8 }
+                  children:
+                    - { type: ui-label, props: { text: Email, for: email } }
+                    - { type: ui-input, props: { bind: email, type: email, placeholder: you@example.com }, attrs: { id: email } }
+                    - type: ui-text
+                      props: { variant: muted, text: "{{ email ? 'We will write to ' + email : 'We never share it.' }}" }
+                - type: stack
+                  props: { gap: 8 }
+                  children:
+                    - { type: ui-label, props: { text: Framework, for: framework } }
+                    - type: ui-select
+                      props:
+                        bind: framework
+                        placeholder: Select a framework
+                        options:
+                          - { value: axum, label: Axum }
+                          - { value: actix, label: Actix Web }
+                          - { value: rocket, label: Rocket }
+                      attrs: { id: framework }
+                - type: stack
+                  props: { gap: 8 }
+                  children:
+                    - { type: ui-label, props: { text: Bio, for: bio } }
+                    - { type: ui-textarea, props: { bind: bio, placeholder: Tell us a little about yourself }, attrs: { id: bio } }
+                    - type: ui-text
+                      props: { variant: muted, text: "{{ bio.length }} / 160 characters" }
+                      style: { color: "{{ bio.length > 160 ? 'var(--color-destructive)' : 'inherit' }}" }
+            - type: stack
+              props: { gap: 16 }
+              children:
+                - { type: ui-checkbox, props: { bind: terms, label: Accept terms and conditions } }
+                - { type: ui-checkbox, props: { label: Disabled checkbox, disabled: true, checked: true } }
+                - { type: ui-switch, props: { bind: notifications, label: Email notifications } }
+                - { type: ui-switch, props: { bind: airplane, label: "Airplane mode {{ airplane ? 'on' : 'off' }}" } }
+                - { type: ui-separator }
+                - { type: ui-label, props: { text: Plan } }
+                - type: ui-radio-group
+                  props:
+                    bind: plan
+                    options:
+                      - { value: free, label: Free }
+                      - { value: pro, label: Pro }
+                      - { value: team, label: Team (coming soon), disabled: true }
+                - { type: ui-text, props: { variant: muted, text: "Chosen: {{ plan }}" } }
+                - type: ui-button
+                  props: { label: Continue, disabled: "{{ !terms }}" }
+                  style: { align-self: flex-start }
+
+    # ---------------------------------------------------------------- progress, skeleton
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Progress and Skeleton } }
+        - type: ui-progress
+          props: { value: "{{ progress }}" }
+        - type: stack
+          props: { direction: row, gap: 8, align: center }
+          children:
+            - type: ui-button
+              props: { label: "−10", variant: outline, size: sm }
+              on: { click: { action: set_state, key: progress, value: "{{ progress <= 10 ? 0 : progress - 10 }}" } }
+            - type: ui-button
+              props: { label: "+10", variant: outline, size: sm }
+              on: { click: { action: set_state, key: progress, value: "{{ progress >= 90 ? 100 : progress + 10 }}" } }
+            - { type: ui-text, props: { variant: muted, text: "{{ progress }}%" } }
+        - type: stack
+          props: { direction: row, gap: 12, align: center }
+          children:
+            - { type: ui-skeleton, props: { width: 48, height: 48, round: true } }
+            - type: stack
+              props: { gap: 8 }
+              style: { flex: 1 }
+              children:
+                - { type: ui-skeleton, props: { width: 60%, height: 14 } }
+                - { type: ui-skeleton, props: { width: 40%, height: 14 } }
+
+    # ---------------------------------------------------------------- table
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Table } }
+        - type: ui-table
+          props: { caption: A list of your recent invoices. }
+          children:
+            - type: element
+              props: { tag: thead }
+              children:
+                - type: element
+                  props: { tag: tr }
+                  children:
+                    - { type: text, props: { tag: th, value: Invoice } }
+                    - { type: text, props: { tag: th, value: Status } }
+                    - { type: text, props: { tag: th, value: Method } }
+                    - { type: text, props: { tag: th, value: Amount }, style: { text-align: right } }
+            - type: list
+              props:
+                tag: tbody
+                as: inv
+                items:
+                  - { id: INV001, status: Paid, method: Credit card, amount: "₹2,500" }
+                  - { id: INV002, status: Pending, method: UPI, amount: "₹1,500" }
+                  - { id: INV003, status: Unpaid, method: Bank transfer, amount: "₹3,500" }
+              children:
+                - type: element
+                  props: { tag: tr }
+                  children:
+                    - { type: text, props: { tag: td, value: "{{ inv.id }}" }, style: { font-weight: 500 } }
+                    - type: element
+                      props: { tag: td }
+                      children:
+                        - type: ui-badge
+                          props:
+                            text: "{{ inv.status }}"
+                            variant: "{{ inv.status == 'Paid' ? 'secondary' : inv.status == 'Unpaid' ? 'destructive' : 'outline' }}"
+                    - { type: text, props: { tag: td, value: "{{ inv.method }}" } }
+                    - { type: text, props: { tag: td, value: "{{ inv.amount }}" }, style: { text-align: right } }
+
+    # ---------------------------------------------------------------- navigation
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Breadcrumb and Pagination } }
+        - type: ui-breadcrumb
+          props:
+            items:
+              - { label: Home, href: "#" }
+              - { label: Components, href: "#" }
+              - { label: Breadcrumb }
+        - type: ui-pagination
+          props: { page: 5, pages: 12, href: "#page-{{ p }}" }
+
+    # ---------------------------------------------------------------- avatar, aspect ratio
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Avatar and Aspect ratio } }
+        - type: stack
+          props: { direction: row, gap: 12, align: center }
+          children:
+            - { type: ui-avatar, props: { fallback: KS } }
+            - { type: ui-avatar, props: { fallback: AB, size: 56 } }
+            - { type: ui-avatar, props: { fallback: SM, size: 32 } }
+        - type: ui-aspect-ratio
+          props: { ratio: "16 / 9" }
+          style: { max-width: 480, border-radius: $radius.lg, background: "linear-gradient(135deg, #18181b, #71717a)" }
+          children:
+            - type: stack
+              props: { align: center, justify: center }
+              children:
+                - { type: text, props: { value: "16 : 9" }, style: { color: "#fafafa", font-size: 24, font-weight: 600 } }
+
+    # ---------------------------------------------------------------- typography
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Typography } }
+        - { type: ui-heading, props: { level: 3, text: The joke tax } }
+        - type: ui-text
+          props: { text: "The king, seeing how much happier his subjects were, realized the error of his ways and repealed the joke tax." }
+        - { type: ui-text, props: { variant: blockquote, text: "\"After all,\" he said, \"everyone enjoys a good joke, so it's only fair that they should pay for the privilege.\"" } }
+        - type: ui-text
+          children:
+            - { type: text, props: { value: "Render with " } }
+            - { type: ui-text, props: { variant: code, text: "irender render --ui-kit" } }
+            - { type: text, props: { value: " to enable these components." } }
+        - { type: ui-text, props: { variant: large, text: Are you absolutely sure? } }
+        - { type: ui-text, props: { variant: small, text: Email address } }

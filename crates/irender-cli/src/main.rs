@@ -31,6 +31,9 @@ enum Command {
         /// Directory that `include` nodes read fragments from (`<name>.json` / `.yaml`).
         #[arg(long, value_name = "DIR")]
         fragments: Option<PathBuf>,
+        /// Enable the `ui-*` components and the kit's theme (irender-ui-kit).
+        #[arg(long)]
+        ui_kit: bool,
     },
     /// Render a document to HTML.
     Render {
@@ -49,6 +52,9 @@ enum Command {
         /// Directory that `include` nodes read fragments from (`<name>.json` / `.yaml`).
         #[arg(long, value_name = "DIR")]
         fragments: Option<PathBuf>,
+        /// Enable the `ui-*` components and the kit's theme (irender-ui-kit).
+        #[arg(long)]
+        ui_kit: bool,
         /// Emit an embeddable fragment instead of a full HTML document.
         #[arg(long)]
         fragment: bool,
@@ -69,7 +75,11 @@ enum Command {
     /// Print the JSON Schema for documents.
     Schema,
     /// List the available components and their props.
-    Components,
+    Components {
+        /// Include the `ui-*` components from irender-ui-kit.
+        #[arg(long)]
+        ui_kit: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -89,8 +99,11 @@ fn read(path: &Path) -> Result<(String, Format), String> {
     Ok((src, format))
 }
 
-fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>) -> Engine {
+fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, ui_kit: bool) -> Engine {
     let mut engine = if untrusted { Engine::untrusted() } else { Engine::new() };
+    if ui_kit {
+        irender_ui_kit::register(&mut engine.registry);
+    }
     engine.strict_css = strict_css;
     engine.fragments = fragments.map(|dir| Arc::new(FragmentDir(dir)) as Arc<dyn Fragments>);
     engine
@@ -102,14 +115,17 @@ struct Loaded {
     resolve: Duration,
 }
 
-fn load(engine: &Engine, file: &Path) -> Result<Loaded, String> {
+fn load(engine: &Engine, file: &Path, ui_kit: bool) -> Result<Loaded, String> {
     let (src, format) = read(file)?;
     let problems = |d: irender_core::Diagnostics| {
         let n = d.len();
         format!("{}: {n} problem{}\n{d}", file.display(), if n == 1 { "" } else { "s" })
     };
     let start = Instant::now();
-    let doc = irender_core::parse(&src, format).map_err(problems)?;
+    let mut doc = irender_core::parse(&src, format).map_err(problems)?;
+    if ui_kit {
+        irender_ui_kit::apply_theme(&mut doc);
+    }
     let parse = start.elapsed();
     let start = Instant::now();
     let ir = engine.resolve(&doc).map_err(problems)?;
@@ -139,8 +155,8 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments } => {
-            load(&engine(untrusted, strict_css, fragments), &file)?;
+        Command::Validate { file, untrusted, strict_css, fragments, ui_kit } => {
+            load(&engine(untrusted, strict_css, fragments, ui_kit), &file, ui_kit)?;
             println!("{}: ok", file.display());
         }
         Command::Render {
@@ -150,6 +166,7 @@ fn run(command: Command) -> Result<(), String> {
             untrusted,
             strict_css,
             fragments,
+            ui_kit,
             fragment,
             minify,
             title,
@@ -157,10 +174,10 @@ fn run(command: Command) -> Result<(), String> {
             parallel,
             repeat,
         } => {
-            let mut engine = engine(untrusted, strict_css, fragments);
+            let mut engine = engine(untrusted, strict_css, fragments, ui_kit);
             engine.minify = minify;
             engine.parallel_min_items = parallel;
-            let Loaded { ir, parse, resolve } = load(&engine, &file)?;
+            let Loaded { ir, parse, resolve } = load(&engine, &file, ui_kit)?;
             let data = match data {
                 Some(path) => {
                     let (src, format) = read(&path)?;
@@ -205,8 +222,8 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components => {
-            for c in Engine::new().registry.iter() {
+        Command::Components { ui_kit } => {
+            for c in engine(false, false, None, ui_kit).registry.iter() {
                 let info = c.info();
                 println!("{}: {}", c.name(), info.doc);
                 for p in info.props {

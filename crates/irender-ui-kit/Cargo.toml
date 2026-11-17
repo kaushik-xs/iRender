@@ -1,0 +1,13 @@
+[package]
+name = "irender-ui-kit"
+description = "A ready-made component kit for iRender: buttons, cards, alerts, form controls, tables and more"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core.workspace = true
+irender-html.workspace = true
+indexmap.workspace = true
+serde_json.workspace = true

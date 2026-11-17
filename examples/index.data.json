@@ -2,6 +2,18 @@
   "repo": "https://github.com/kaushik-xs/iRender/blob/main",
   "examples": [
     {
+      "title": "UI kit gallery",
+      "href": "ui-kit.html",
+      "source": "examples/ui-kit/gallery.yaml",
+      "summary": "Every irender-ui-kit component in its variants: buttons, badges, cards, alerts, form controls, table, pagination and more. Follows your system's dark mode.",
+      "features": [
+        "irender-ui-kit",
+        "theme preset",
+        "dark mode",
+        "form controls"
+      ]
+    },
+    {
       "title": "Orders dashboard",
       "href": "dashboard.html",
       "source": "examples/dashboard/dashboard.yaml",

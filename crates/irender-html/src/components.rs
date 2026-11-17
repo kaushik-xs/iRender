@@ -256,8 +256,16 @@ impl Component for Input {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        Self::render_styled(node, cx, &INPUT_BASE)
+    }
+}
+
+impl Input {
+    /// Renders with `base` as the default style instead of the built-in one, so a
+    /// component library can reuse the binding behaviour with its own look.
+    pub fn render_styled(node: &Node, cx: &mut RenderCx<'_>, base: &'static StyleBlock) -> Result<(), RenderError> {
         let mut el = cx.element("input", node);
-        el.base_style_ref(&INPUT_BASE);
+        el.base_style_ref(base);
         let ty = cx.prop_string(node, "type").unwrap_or_else(|| "text".into());
         el.attr("type", ty.clone());
         for name in ["placeholder", "name", "disabled"] {
@@ -334,6 +342,13 @@ impl Component for Select {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        Self::render_styled(node, cx, &SELECT_BASE)
+    }
+}
+
+impl Select {
+    /// Renders with `base` as the default style; see [`Input::render_styled`].
+    pub fn render_styled(node: &Node, cx: &mut RenderCx<'_>, base: &'static StyleBlock) -> Result<(), RenderError> {
         let options = match cx.prop(node, "options") {
             Some(Json::Array(options)) => options,
             None | Some(Json::Null) => Vec::new(),
@@ -347,7 +362,7 @@ impl Component for Select {
         let selected = expr::stringify(&selected);
 
         let mut el = cx.element("select", node);
-        el.base_style_ref(&SELECT_BASE);
+        el.base_style_ref(base);
         for name in ["name", "disabled"] {
             if let Some(v) = node.prop(name) {
                 el.attr(name, v.clone());
@@ -407,8 +422,15 @@ impl Component for Textarea {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        Self::render_styled(node, cx, &TEXTAREA_BASE)
+    }
+}
+
+impl Textarea {
+    /// Renders with `base` as the default style; see [`Input::render_styled`].
+    pub fn render_styled(node: &Node, cx: &mut RenderCx<'_>, base: &'static StyleBlock) -> Result<(), RenderError> {
         let mut el = cx.element("textarea", node);
-        el.base_style_ref(&TEXTAREA_BASE);
+        el.base_style_ref(base);
         el.attr("rows", node.prop("rows").cloned().unwrap_or(Val::Lit(Json::from(3))));
         for name in ["placeholder", "name", "disabled"] {
             if let Some(v) = node.prop(name) {

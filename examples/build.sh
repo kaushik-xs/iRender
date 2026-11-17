@@ -22,6 +22,7 @@ $irender render examples/dashboard/dashboard.yaml --data examples/dashboard/dash
 $irender render examples/search/search.json --title "Live search" -o "$out/search/index.html"
 cp -R examples/search/api "$out/search/"
 $irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.html"
+$irender render examples/ui-kit/gallery.yaml --ui-kit --title "UI kit gallery" -o "$out/ui-kit.html"
 $irender render examples/product.json --data examples/product.data.json --title "Product card" -o "$out/product.html"
 $irender render examples/counter.yaml --title "Counter" -o "$out/counter.html"
 cargo run -q -p irender-html --example storefront > "$out/storefront.html"

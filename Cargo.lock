@@ -418,6 +418,7 @@ dependencies = [
  "clap",
  "irender-core",
  "irender-html",
+ "irender-ui-kit",
  "schemars",
  "serde_json",
 ]
@@ -455,6 +456,16 @@ dependencies = [
  "indexmap",
  "irender-core",
  "lightningcss",
+ "serde_json",
+]
+
+[[package]]
+name = "irender-ui-kit"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "irender-core",
+ "irender-html",
  "serde_json",
 ]
 
