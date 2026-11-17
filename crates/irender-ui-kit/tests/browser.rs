@@ -1285,18 +1285,23 @@ fn custom_colours_in_chrome() {
       const [p, b] = [...document.querySelectorAll("[data-color]")].map((r) => r.querySelectorAll("input"));
       const type = async (input, val) => { input.value = val; input.dispatchEvent(new Event("input", { bubbles: true })); await tick(); };
       await type(p[1], "#ff0");
-      out.push(`yellow ${bg("main")} on ${fg("main")} ${html.dataset.themePalette} ${p[0].value}`);
+      out.push(`yellow ${bg("main")} on ${fg("main")} ${html.dataset.themePalette} ${p[0].value} charts ${html.dataset.themeChart}`);
       await type(p[1], "#12");
       out.push(`partial ${p[1].getAttribute("aria-invalid")} ${bg("main")}`);
       await type(p[1], "#1e3a8a");
       p[0].value = "#f97316"; b[0].value = "#f97316"; b[0].dispatchEvent(new Event("input", { bubbles: true })); await tick();
       out.push(`navy ${bg("main")} on ${fg("main")} second ${bg("second")} ${b[1].value}`);
-      document.querySelector("[aria-label=chart] [data-choice=custom]").click(); await tick();
       out.push(`chart ${v("--color-chart-1")} ${v("--color-chart-2")}`);
       document.querySelector("[aria-label=Colour] [data-choice=rose]").click(); await tick();
       out.push(`rose ${bg("main")}`);
       document.querySelector("[data-reset]").click(); await tick();
-      out.push(`reset ${localStorage.getItem("irender-theme-custom")}`);
+      out.push(`reset ${localStorage.getItem("irender-theme-custom")} charts ${html.dataset.themeChart}`);
+      // A chart scheme picked by hand stays when colours change.
+      document.querySelector("[aria-label=chart] [data-choice=default]").click(); await tick();
+      localStorage.setItem("irender-theme-options", JSON.stringify({ chart: "mono" }));
+      window.__irenderTheme.setOption("chart", "mono");
+      await type(p[1], "#123456");
+      out.push(`kept ${html.dataset.themeChart}`);
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
       document.body.append(pre);
     });
@@ -1309,12 +1314,14 @@ fn custom_colours_in_chrome() {
         result.lines().collect::<Vec<_>>(),
         [
             // Yellow gets dark text, navy light text.
-            "yellow rgb(255, 255, 0) on rgb(9, 9, 11) custom #ffff00",
+            // Charts follow the custom colours while they're on their default.
+            "yellow rgb(255, 255, 0) on rgb(9, 9, 11) custom #ffff00 charts custom",
             "partial true rgb(255, 255, 0)",
             "navy rgb(30, 58, 138) on rgb(250, 250, 250) second rgb(249, 115, 22) #f97316",
             "chart #1e3a8a #f97316",
             "rose rgb(225, 29, 72)",
-            "reset {}",
+            "reset {} charts undefined",
+            "kept mono",
         ],
         "\n{result}"
     );

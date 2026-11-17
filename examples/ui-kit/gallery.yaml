@@ -79,6 +79,8 @@ root:
             - { type: ui-button, props: { label: Outline, variant: outline } }
             - { type: ui-button, props: { label: Ghost, variant: ghost } }
             - { type: ui-button, props: { label: Link, variant: link } }
+            # The second brand colour: Theme > Custom colours > Second colour.
+            - { type: ui-button, props: { label: Brand, variant: brand } }
         - type: stack
           props: { direction: row, gap: 8, wrap: true, align: center }
           children:
@@ -104,6 +106,7 @@ root:
             - { type: ui-badge, props: { text: Secondary, variant: secondary } }
             - { type: ui-badge, props: { text: Destructive, variant: destructive } }
             - { type: ui-badge, props: { text: Outline, variant: outline } }
+            - { type: ui-badge, props: { text: Brand, variant: brand } }
             - { type: ui-separator, props: { orientation: vertical }, style: { height: 20 } }
             - { type: ui-text, props: { variant: muted, text: "Press" } }
             - { type: ui-kbd, props: { text: "⌘K" } }

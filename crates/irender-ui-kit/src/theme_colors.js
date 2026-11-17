@@ -1,7 +1,8 @@
 // irender-ui-kit: the `ui-theme-colors` behaviour. A colour typed as hex or picked is
 // stored (theme_early.js applies it) and picks the option's `custom` choice, so the
-// page shows it at once; other pages follow. Reset clears the colours and goes back
-// to the option's default.
+// page shows it at once; other pages follow. Chart colours follow too, unless someone
+// picked a chart scheme of their own. Reset clears the colours and goes back to the
+// defaults.
 (window.__irenderBehaviors ||= {})["ui-theme-colors"] = (el, api) => {
   const { option } = api.config;
   const theme = window.__irenderTheme;
@@ -24,6 +25,9 @@
   const choose = (r, value) => {
     if (!theme.setCustom(r.name, value)) return;
     if (theme.option(option) !== "custom") theme.setOption(option, "custom");
+    // Charts too, while they're on their default scheme (the chart kit's `custom`
+    // scheme is built from these colours).
+    if (theme.option("chart") == null) theme.setOption("chart", "custom");
   };
   for (const r of rows) {
     r.pick.addEventListener("input", () => {
@@ -45,6 +49,7 @@
   el.querySelector("[data-reset]")?.addEventListener("click", () => {
     for (const r of rows) theme.setCustom(r.name, null);
     if (theme.option(option) === "custom") theme.setOption(option, null);
+    if (theme.option("chart") === "custom") theme.setOption("chart", null);
     show();
   });
   addEventListener("irender:theme-option", (e) => e.detail.name === "custom" && show());
