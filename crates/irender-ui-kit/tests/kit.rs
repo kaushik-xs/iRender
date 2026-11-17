@@ -60,6 +60,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-hover-card", json!({ "trigger": "T" })),
         ("ui-toaster", json!({ "bind": "k" })),
         ("ui-dialog-close", json!({ "label": "L" })),
+        ("ui-combobox", json!({ "options": ["a"] })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -74,7 +75,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 44);
+    assert_eq!(kit, 45);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -392,4 +393,88 @@ fn skeletons_pulse_with_one_keyframes_rule() {
     assert!(page.css.contains("@media (prefers-reduced-motion: reduce)"), "{}", page.css);
     // Pages without a skeleton don't carry the rule.
     assert!(!render_with(json!({ "type": "ui-badge", "props": { "text": "x" } }), json!({}), json!({})).unwrap().css.contains("@keyframes"));
+}
+
+// ---------------------------------------------------------------- combobox
+
+fn config(body: &str) -> Json {
+    let start = body.find("data-i-xc=\"").unwrap() + 11;
+    let raw = &body[start..start + body[start..].find('"').unwrap()];
+    serde_json::from_str(&raw.replace("&quot;", "\"").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")).unwrap()
+}
+
+#[test]
+fn combobox_renders_its_value_and_configures_the_behaviour() {
+    let page = render_with(
+        json!({ "type": "ui-combobox", "props": { "bind": "picked", "multiple": true, "clearable": true, "fixed": ["a"],
+            "name": "pick", "id": "c", "label": "Letters",
+            "options": ["a", { "value": "b", "label": "Bee", "description": "buzz" }, { "label": "More", "options": [{ "value": "c", "disabled": true }] }] } }),
+        json!({ "picked": ["a", "b"] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The value shows before any script runs: a fixed chip, a removable one, hidden inputs.
+    assert!(body.contains(r#"<span data-ui-chip data-fixed><span>a</span></span>"#), "{body}");
+    assert!(body.contains(r#"<span data-ui-chip><span>Bee</span><button type="button" tabindex="-1" data-ui-remove aria-label="Remove Bee">✕</button></span>"#), "{body}");
+    assert!(body.contains(r#"<input type="hidden" name="pick" value="a"><input type="hidden" name="pick" value="b">"#), "{body}");
+    assert!(body.contains(r#"role="combobox" aria-expanded="false" aria-controls="c-listbox" aria-autocomplete="list""#), "{body}");
+    assert!(body.contains(r#"popover="manual" role="listbox" id="c-listbox" aria-multiselectable="true""#), "{body}");
+    assert!(!body.contains("data-ui-clear hidden"), "clear shows: a removable value is chosen\n{body}");
+    let cfg = config(&page.body);
+    assert_eq!(cfg["key"], "picked");
+    assert_eq!(cfg["hideSelected"], true);
+    assert_eq!(cfg["closeOnSelect"], false);
+    assert_eq!(cfg["options"][1], json!({ "value": "b", "label": "Bee", "description": "buzz" }));
+    assert_eq!(cfg["options"][2], json!({ "group": "More", "options": [{ "value": "c", "label": "c", "disabled": true }] }));
+    // Its script and spinner keyframes ship once.
+    assert_eq!(page.scripts.len(), 1);
+    assert!(page.scripts[0].contains(r#"["ui-combobox"]"#));
+    assert_eq!(page.css.matches("@keyframes ui-spin").count(), 1);
+}
+
+#[test]
+fn combobox_options_from_state_are_a_path() {
+    let page = render_with(
+        json!({ "type": "ui-combobox", "props": { "bind": "city", "options": "{{ cities }}" } }),
+        json!({ "city": "Pune", "cities": [{ "value": "Pune", "label": "Pune, MH" }] }),
+        json!({}),
+    )
+    .unwrap();
+    assert_eq!(config(&page.body)["optionsPath"], json!(["cities"]));
+    assert!(page.body.contains(">Pune, MH</span>"), "the label comes from the current options\n{}", page.body);
+    let err = render_with(json!({ "type": "ui-combobox", "props": { "options": "{{ a ? b : c }}" } }), json!({ "a": 1 }), json!({}))
+        .unwrap_err();
+    assert!(err.message.contains("must be a plain path"), "{err}");
+}
+
+#[test]
+fn combobox_rejects_unsafe_search_urls() {
+    for url in ["javascript:alert(1)", "//evil.example/x", "data:application/json,[]"] {
+        let err = render_with(json!({ "type": "ui-combobox", "props": { "searchUrl": url } }), json!({}), json!({})).unwrap_err();
+        assert!(err.message.contains("`searchUrl` must be a path or an http(s) URL"), "{url}: {err}");
+    }
+    let ok = render_with(json!({ "type": "ui-combobox", "props": { "searchUrl": "/api/s?kind={{ k }}" } }), json!({}), json!({ "k": "x" }));
+    assert_eq!(config(&ok.unwrap().body)["searchUrl"], "/api/s?kind=x");
+}
+
+#[test]
+fn examples_index_renders_with_a_jump_to_combobox() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
+    let src = std::fs::read_to_string(format!("{dir}/index.yaml")).unwrap();
+    let data: Json = serde_json::from_str(&std::fs::read_to_string(format!("{dir}/index.data.json")).unwrap()).unwrap();
+    let engine = engine();
+    let mut doc = irender_core::parse(&src, Format::Yaml).unwrap_or_else(|d| panic!("{d}"));
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    assert!(ir.warnings.is_empty(), "{}", ir.warnings);
+    let page = engine.render(&ir, &data).unwrap();
+    let examples = data["examples"].as_array().unwrap();
+    assert_eq!(page.body.matches("<article").count(), examples.len());
+    // The combobox lists every example by title, with its page as the value.
+    let options = &config(&page.body)["options"];
+    assert_eq!(options.as_array().unwrap().len(), examples.len());
+    assert_eq!(options[0]["value"], examples[0]["href"]);
+    assert_eq!(options[0]["label"], examples[0]["title"]);
+    assert_eq!(options[0]["description"], examples[0]["summary"]);
 }

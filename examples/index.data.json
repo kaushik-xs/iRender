@@ -5,15 +5,16 @@
       "title": "UI kit gallery",
       "href": "ui-kit.html",
       "source": "examples/ui-kit/gallery.yaml",
-      "summary": "Every irender-ui-kit component: buttons, cards, form controls and tables, plus dialogs, sheets, menus, popovers, tabs, accordions and toasts built on native browser features. Follows your system's dark mode.",
+      "summary": "Every irender-ui-kit component: buttons, cards, form controls and tables; dialogs, sheets, menus, popovers, tabs and toasts; and a react-select-style combobox with search, multi-select, groups, async and creatable options.",
       "features": [
         "irender-ui-kit",
+        "combobox",
         "dialog",
         "popover",
         "tabs",
-        "toast",
         "dark mode"
-      ]
+      ],
+      "needsServer": true
     },
     {
       "title": "Orders dashboard",

@@ -69,6 +69,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-tooltip` | `text`, `side` | Shown while its children are hovered or focused. CSS only. |
 | `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
 | `ui-toaster` | `bind` | Shows the toast in `bind` (`{ title, description, variant }`) at the bottom right. |
+| `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
 
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
@@ -87,6 +88,53 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 | `color.ring` | focus rings | `color.muted` |
 
 `apply_theme` merges a neutral, shadcn-style palette (zinc) with a dark mode under the document's theme. Tokens the document sets itself keep their values.
+
+## Combobox
+
+`ui-combobox` is a searchable select modelled on [react-select](https://react-select.com/). Its behaviour (about 4 KB gzipped) is added only to pages that use it.
+
+```yaml
+- type: ui-combobox
+  props:
+    bind: flavours            # state key: a value, or an array with `multiple`
+    multiple: true
+    clearable: true
+    creatable: true           # offers "Create “…”" for new text
+    fixed: [chocolate]        # chips that can't be removed
+    options:
+      - { value: vanilla, label: Vanilla, description: Creamy and classic }
+      - { label: Fruity, options: [mango, { value: lime, disabled: true }] }   # a group
+```
+
+| react-select | `ui-combobox` |
+|---|---|
+| `isMulti`, `isClearable`, `isSearchable`, `isDisabled`, `isLoading` | `multiple`, `clearable`, `searchable` (default true), `disabled`, `loading`. The last two can be expressions. |
+| grouped options, `isOptionDisabled` | groups `{ label, options }`, `disabled` on an option |
+| `getOptionValue`, `getOptionLabel` | `valueField`, `labelField`, `descriptionField`: read options from objects shaped your way, e.g. `{ href, title, summary }` |
+| `AsyncSelect` `loadOptions`, `cacheOptions` | `searchUrl`: `GET <url>?q=<text>` answering an array (or `{ options }`), debounced (`debounce`, default 250 ms) after `minChars` (default 1), cached per query, stale answers dropped |
+| `CreatableSelect` | `creatable`, `createText` |
+| `closeMenuOnSelect`, `hideSelectedOptions` | `closeOnSelect` (default: unless `multiple`), `hideSelected` (default: with `multiple`) |
+| fixed options | `fixed` |
+| `name` for forms | `name`: one hidden input per value |
+| `noOptionsMessage`, `loadingMessage`, `placeholder` | `noOptionsText`, `loadingText`, `placeholder` |
+| options from props | `options` from data, or a state path (`"{{ cities }}"`) read live |
+| `onChange` | `bind`; the element also fires a bubbling `change` event |
+
+Matching ignores case and accents and looks at labels and values. The keyboard follows react-select:
+- ↑ ↓ move through the options, skipping disabled ones.
+- Home, End, Page Up and Page Down jump.
+- Enter chooses. Tab chooses when you've typed something.
+- Escape closes the menu, then clears the text.
+- Backspace on an empty field removes the last value.
+- Space opens a non-searchable combobox.
+
+It follows the WAI-ARIA combobox pattern (`role=combobox` / `listbox` / `option`, `aria-activedescendant`), and a live region announces result counts and choices. The menu is a popover placed under the field at its width, and flips above near the bottom of the screen.
+
+Not replicated:
+- Custom render functions (`formatOptionLabel` and friends). Options take a `description` instead.
+- Chip animations.
+- Values that are whole option objects: values are plain values, and their labels come from the options.
+- `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
 
 ## Overlays and ids
 

@@ -1,6 +1,9 @@
 # Every irender-ui-kit component, in its variants.
 #
 #   cargo run -p irender-cli -- render examples/ui-kit/gallery.yaml --ui-kit -o gallery.html
+#
+# The combobox's "Load as you type" example fetches api/fruits.json, so serve the page over
+# HTTP next to examples/ui-kit/api (examples/build.sh does this).
 version: 1
 state:
   progress: 40
@@ -20,6 +23,18 @@ state:
   volume: 40
   toast: null
   projects: 3
+  colour: ocean
+  flavours: [chocolate, vanilla]
+  tags: [rust]
+  grouped: null
+  fruit: null
+  fruits: []
+  city: null
+  cities: [Mumbai, Pune, Bengaluru]
+  size: m
+  locked: false
+  busy: false
+  team: [kaushik, asha]
 root:
   type: stack
   props: { gap: 40 }
@@ -194,6 +209,168 @@ root:
                 - type: ui-button
                   props: { label: Continue, disabled: "{{ !terms }}" }
                   style: { align-self: flex-start }
+
+    # ---------------------------------------------------------------- combobox
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Combobox } }
+        - type: ui-text
+          props: { variant: muted, text: "A searchable select in the style of react-select. Keyboard: ↑ ↓ to move, Enter or Tab to choose, Esc to close, Backspace to remove the last value." }
+
+    # ---------------------------------------------------------------- single
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Single, searchable and clearable" } }
+        - type: ui-combobox
+          props:
+            bind: colour
+            clearable: true
+            label: Colour
+            options:
+              - { value: ocean, label: Ocean }
+              - { value: blue, label: Blue }
+              - { value: purple, label: Purple, disabled: true }
+              - { value: red, label: Red }
+              - { value: orange, label: Orange }
+              - { value: yellow, label: Yellow }
+              - { value: green, label: Green }
+              - { value: forest, label: Forest }
+              - { value: slate, label: Slate }
+              - { value: silver, label: Silver }
+        - { type: ui-text, props: { variant: muted, text: "colour = {{ colour }}" } }
+
+    # ---------------------------------------------------------------- multi
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Multi, with a fixed value" } }
+        - type: ui-combobox
+          props:
+            bind: flavours
+            multiple: true
+            clearable: true
+            fixed: [chocolate]
+            label: Flavours
+            options:
+              - { value: chocolate, label: Chocolate }
+              - { value: strawberry, label: Strawberry }
+              - { value: vanilla, label: Vanilla }
+              - { value: salted-caramel, label: Salted caramel }
+              - { value: pistachio, label: Pistachio }
+              - { value: mango, label: Mango }
+        - { type: ui-text, props: { variant: muted, text: "flavours = {{ flavours }} (Chocolate can't be removed)" } }
+
+    # ---------------------------------------------------------------- groups
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: Grouped options with descriptions } }
+        - type: ui-combobox
+          props:
+            bind: grouped
+            clearable: true
+            label: Grouped
+            placeholder: Pick a colour or a flavour…
+            options:
+              - label: Colours
+                options:
+                  - { value: ocean, label: Ocean, description: "#00B8D9" }
+                  - { value: red, label: Red, description: "#FF5630" }
+                  - { value: green, label: Green, description: "#36B37E" }
+              - label: Flavours
+                options:
+                  - { value: vanilla, label: Vanilla, description: Creamy and classic }
+                  - { value: chocolate, label: Chocolate, description: Rich cocoa }
+                  - { value: mango, label: Mango, description: Seasonal, disabled: true }
+        - { type: ui-text, props: { variant: muted, text: "grouped = {{ grouped }}" } }
+
+    # ---------------------------------------------------------------- async
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: Load as you type } }
+        - type: ui-combobox
+          props:
+            bind: fruits
+            multiple: true
+            searchUrl: api/fruits.json
+            debounce: 300
+            label: Fruits
+            placeholder: Type to search fruits…
+            noOptionsText: Type to search
+        - { type: ui-text, props: { variant: muted, text: "Each pause in typing asks api/fruits.json?q=…; answers are cached. fruits = {{ fruits }}" } }
+
+    # ---------------------------------------------------------------- creatable
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Creatable: type a new tag and press Enter" } }
+        - type: ui-combobox
+          props:
+            bind: tags
+            multiple: true
+            creatable: true
+            clearable: true
+            label: Tags
+            options: [rust, javascript, python, go, kotlin, swift]
+        - { type: ui-text, props: { variant: muted, text: "tags = {{ tags }}" } }
+
+    # ---------------------------------------------------------------- options from state
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: Options from state } }
+        - type: stack
+          props: { direction: row, gap: 8 }
+          children:
+            - type: ui-button
+              props: { label: Indian cities, variant: outline, size: sm }
+              on: { click: [{ action: set_state, key: cities, value: [Mumbai, Pune, Bengaluru, Chennai] }, { action: set_state, key: city, value: null }] }
+            - type: ui-button
+              props: { label: German cities, variant: outline, size: sm }
+              on: { click: [{ action: set_state, key: cities, value: [Berlin, Munich, Hamburg] }, { action: set_state, key: city, value: null }] }
+        - { type: ui-combobox, props: { bind: city, options: "{{ cities }}", clearable: true, label: City, placeholder: Choose a city… } }
+        - { type: ui-text, props: { variant: muted, text: "city = {{ city }}" } }
+
+    # ---------------------------------------------------------------- states
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Not searchable, disabled and loading" } }
+        - type: ui-combobox
+          props:
+            bind: size
+            searchable: false
+            disabled: "{{ locked }}"
+            loading: "{{ busy }}"
+            label: Size
+            options: [{ value: s, label: Small }, { value: m, label: Medium }, { value: l, label: Large }]
+        - type: stack
+          props: { direction: row, gap: 16 }
+          children:
+            - { type: ui-switch, props: { bind: locked, label: Disabled } }
+            - { type: ui-switch, props: { bind: busy, label: Loading } }
+
+    # ---------------------------------------------------------------- forms
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: In a form } }
+        - type: element
+          props: { tag: form }
+          attrs: { action: "#", id: team-form }
+          style: { display: grid, gap: 8 }
+          children:
+            - type: ui-combobox
+              props:
+                bind: team
+                multiple: true
+                name: member
+                label: Team
+                options: [{ value: kaushik, label: Kaushik }, { value: asha, label: Asha }, { value: ravi, label: Ravi }, { value: lena, label: Lena }]
+            - { type: ui-text, props: { variant: muted, text: "Submitting sends one member=… field per chosen person." } }
 
     # ---------------------------------------------------------------- dialogs
     - type: stack

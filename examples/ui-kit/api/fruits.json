@@ -1,0 +1,142 @@
+[
+ {
+  "value": "apple",
+  "label": "Apple"
+ },
+ {
+  "value": "apricot",
+  "label": "Apricot"
+ },
+ {
+  "value": "avocado",
+  "label": "Avocado"
+ },
+ {
+  "value": "banana",
+  "label": "Banana"
+ },
+ {
+  "value": "blackberry",
+  "label": "Blackberry"
+ },
+ {
+  "value": "blueberry",
+  "label": "Blueberry"
+ },
+ {
+  "value": "cherry",
+  "label": "Cherry"
+ },
+ {
+  "value": "coconut",
+  "label": "Coconut"
+ },
+ {
+  "value": "cranberry",
+  "label": "Cranberry"
+ },
+ {
+  "value": "date",
+  "label": "Date"
+ },
+ {
+  "value": "dragon-fruit",
+  "label": "Dragon fruit"
+ },
+ {
+  "value": "fig",
+  "label": "Fig"
+ },
+ {
+  "value": "grape",
+  "label": "Grape"
+ },
+ {
+  "value": "grapefruit",
+  "label": "Grapefruit"
+ },
+ {
+  "value": "guava",
+  "label": "Guava"
+ },
+ {
+  "value": "jackfruit",
+  "label": "Jackfruit"
+ },
+ {
+  "value": "kiwi",
+  "label": "Kiwi"
+ },
+ {
+  "value": "lemon",
+  "label": "Lemon"
+ },
+ {
+  "value": "lime",
+  "label": "Lime"
+ },
+ {
+  "value": "lychee",
+  "label": "Lychee"
+ },
+ {
+  "value": "mango",
+  "label": "Mango"
+ },
+ {
+  "value": "mangosteen",
+  "label": "Mangosteen"
+ },
+ {
+  "value": "nectarine",
+  "label": "Nectarine"
+ },
+ {
+  "value": "orange",
+  "label": "Orange"
+ },
+ {
+  "value": "papaya",
+  "label": "Papaya"
+ },
+ {
+  "value": "passion-fruit",
+  "label": "Passion fruit"
+ },
+ {
+  "value": "peach",
+  "label": "Peach"
+ },
+ {
+  "value": "pear",
+  "label": "Pear"
+ },
+ {
+  "value": "pineapple",
+  "label": "Pineapple"
+ },
+ {
+  "value": "plum",
+  "label": "Plum"
+ },
+ {
+  "value": "pomegranate",
+  "label": "Pomegranate"
+ },
+ {
+  "value": "raspberry",
+  "label": "Raspberry"
+ },
+ {
+  "value": "strawberry",
+  "label": "Strawberry"
+ },
+ {
+  "value": "tamarind",
+  "label": "Tamarind"
+ },
+ {
+  "value": "watermelon",
+  "label": "Watermelon"
+ }
+]

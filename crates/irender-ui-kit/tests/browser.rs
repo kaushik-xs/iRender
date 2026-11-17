@@ -133,3 +133,154 @@ fn gallery_overlays_and_controls_in_chrome() {
     ];
     assert_eq!(lines, expected, "\n{result}");
 }
+
+/// Opens `html` in headless Chrome and returns what the driver wrote to `#result`.
+fn drive(name: &str, html: &str) -> Option<String> {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return None;
+    };
+    let dir = std::env::temp_dir().join(format!("irender-ui-kit-{name}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("page.html");
+    std::fs::write(&file, html).unwrap();
+    let out = Command::new(&chrome)
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1000,900", "--virtual-time-budget=10000", "--dump-dom"])
+        .arg(format!("file://{}", file.display()))
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let dom = String::from_utf8_lossy(&out.stdout);
+    let start = dom.find("<pre id=\"result\">").unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + 17;
+    Some(dom[start..start + dom[start..].find("</pre>").unwrap()].replace("&quot;", "\"").replace("&amp;", "&"))
+}
+
+/// A tiny search API: `GET /fruits?q=an` answers the fruits containing `an`, with
+/// CORS headers so a file:// page can call it. Returns the port and a request count.
+fn fruit_server() -> (u16, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let hits = Arc::new(AtomicUsize::new(0));
+    let counter = hits.clone();
+    std::thread::spawn(move || {
+        const FRUITS: [&str; 8] = ["Apple", "Banana", "Cherry", "Mango", "Mangosteen", "Orange", "Pineapple", "Tangerine"];
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 2048];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]);
+            let q = request.split_whitespace().nth(1).and_then(|p| p.split("q=").nth(1)).unwrap_or("").to_lowercase();
+            counter.fetch_add(1, Ordering::SeqCst);
+            let found: Vec<_> = FRUITS
+                .iter()
+                .filter(|f| f.to_lowercase().contains(&q))
+                .map(|f| serde_json::json!({ "value": f.to_lowercase(), "label": f }))
+                .collect();
+            let body = serde_json::to_string(&found).unwrap();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    (port, hits)
+}
+
+const COMBO_DRIVER: &str = r##"<style>* { transition: none !important; }</style>
+<script>
+window.addEventListener("load", async () => {
+  const out = [], log = (...a) => out.push(a.join(" "));
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+  const box = (label) => [...document.querySelectorAll("[data-ui-input]")].find((i) => i.getAttribute("aria-label") === label).closest("[data-i-x]");
+  const inp = (b) => b.querySelector("[data-ui-input]");
+  const key = (b, k) => inp(b).dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+  const type = (b, t) => { inp(b).value = t; inp(b).dispatchEvent(new Event("input", { bubbles: true })); };
+  const opts = (b) => [...b.querySelectorAll("[role=option]")].map((o) => o.firstChild.textContent + (o.hasAttribute("data-active") ? "*" : ""));
+  const chips = (b) => [...b.querySelectorAll("[data-ui-chip]")].map((c) => c.firstChild.textContent).join(",");
+  const open = (b) => b.querySelector("[data-ui-menu]").matches(":popover-open");
+  try {
+    const one = box("One"); inp(one).focus();
+    key(one, "ArrowDown"); key(one, "ArrowDown");
+    log("keyboard", open(one), opts(one).join(","), inp(one).getAttribute("aria-activedescendant") === one.querySelector("[data-active]").id);
+    type(one, "ÉL"); log("search", opts(one).join(","));
+    key(one, "Enter"); log("chose", S().one, open(one), one.querySelector("[data-ui-single]").textContent);
+    inp(one).blur();
+
+    const many = box("Many"); inp(many).focus();
+    key(many, "Backspace"); key(many, "Backspace");
+    log("backspace", JSON.stringify(S().many), chips(many));
+    key(many, "ArrowDown"); key(many, "Enter");
+    log("add", JSON.stringify(S().many), open(many));
+    many.querySelector("[data-ui-clear]").dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+    log("clear", JSON.stringify(S().many));
+    type(many, "kiwi"); key(many, "Enter");
+    log("create", JSON.stringify(S().many), chips(many));
+    inp(many).blur();
+
+    const fruit = box("Fruit"); inp(fruit).focus();
+    type(fruit, "man"); log("loading", fruit.hasAttribute("data-loading"), fruit.querySelector("[data-ui-message]").textContent);
+    await wait(800);
+    log("loaded", opts(fruit).join(","), fruit.hasAttribute("data-loading"));
+    key(fruit, "ArrowDown"); key(fruit, "Enter");
+    log("fruit", S().fruit);
+    type(fruit, "man"); await wait(800);
+    log("cached", opts(fruit).join(","));
+    inp(fruit).blur();
+  } catch (e) {
+    log("EXCEPTION", e.stack);
+  }
+  log("requests", window.__hits ?? "-");
+  const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+});
+</script>"##;
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn combobox_in_chrome() {
+    let (port, hits) = fruit_server();
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "one": null, "many": ["a", "b"], "fruit": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-combobox", "props": { "bind": "one", "label": "One",
+                "options": [{ "value": "x", "label": "Xylophone", "disabled": true }, "Apple", "Élan", "Yellow"] } },
+            { "type": "ui-combobox", "props": { "bind": "many", "label": "Many", "multiple": true, "clearable": true,
+                "creatable": true, "fixed": ["a"], "options": [{ "value": "a", "label": "A" }, { "value": "b", "label": "B" }, { "value": "c", "label": "C" }] } },
+            { "type": "ui-combobox", "props": { "bind": "fruit", "label": "Fruit", "debounce": 100,
+                "searchUrl": format!("http://127.0.0.1:{port}/fruits") } }
+        ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{COMBO_DRIVER}</body>"));
+    let Some(result) = drive("combobox", &html) else { return };
+    let lines: Vec<&str> = result.lines().collect();
+    assert_eq!(
+        lines[..lines.len() - 1],
+        [
+            // ↓ opens on the first enabled option, ↓ again moves on; aria-activedescendant follows.
+            "keyboard true Xylophone,Apple,Élan*,Yellow true",
+            // Case and accents are ignored; "el" also matches inside "Yellow".
+            "search Élan*,Yellow",
+            "chose Élan false Élan",
+            // Backspace removes the last value but not the fixed one.
+            r#"backspace ["a"] A"#,
+            r#"add ["a","b"] true"#,
+            r#"clear ["a"]"#,
+            r#"create ["a","kiwi"] A,kiwi"#,
+            "loading true Loading…",
+            // The spinner stops once the answer arrives.
+            "loaded Mango*,Mangosteen false",
+            "fruit mangosteen",
+            // The same search is answered from the cache.
+            "cached Mango*,Mangosteen",
+        ],
+        "\n{result}"
+    );
+    assert_eq!(hits.load(std::sync::atomic::Ordering::SeqCst), 1, "one request for two identical searches");
+}

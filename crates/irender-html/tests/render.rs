@@ -116,6 +116,7 @@ fn examples_render() {
 }
 
 /// Every document under `examples/` loads without errors and renders with its data.
+/// The ones built with irender-ui-kit (the gallery and the index) are checked in its tests.
 #[test]
 fn examples_load_and_render() {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
@@ -126,7 +127,6 @@ fn examples_load_and_render() {
         ("wizard.yaml", None, None),
         ("dashboard/dashboard.yaml", Some("dashboard/dashboard.data.json"), Some("dashboard/fragments")),
         ("search/search.json", None, None),
-        ("index.yaml", Some("index.data.json"), None),
     ];
     for (doc, data, fragments) in cases {
         let mut engine = Engine::new();
@@ -137,7 +137,6 @@ fn examples_load_and_render() {
         let ir = engine.load(&read(doc), format).unwrap_or_else(|d| panic!("{doc}:\n{d}"));
         let data = data.map_or(json!({}), |d| serde_json::from_str(&read(d)).unwrap());
         let page = engine.render(&ir, &data).unwrap_or_else(|e| panic!("{doc}: {e}"));
-        // The index is a static page; every other example is interactive.
-        assert_eq!(page.interactive, *doc != "index.yaml", "{doc}");
+        assert!(page.interactive, "{doc}");
     }
 }

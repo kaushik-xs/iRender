@@ -16,13 +16,14 @@ cargo build -q -p irender-cli
 # Where cargo put it, which `CARGO_TARGET_DIR` can change.
 irender="${CARGO_TARGET_DIR:-target}/debug/irender"
 
-$irender render examples/index.yaml --data examples/index.data.json --title "iRender examples" -o "$out/index.html"
+$irender render examples/index.yaml --data examples/index.data.json --ui-kit --title "iRender examples" -o "$out/index.html"
 $irender render examples/dashboard/dashboard.yaml --data examples/dashboard/dashboard.data.json \
   --fragments examples/dashboard/fragments --title "Orders dashboard" -o "$out/dashboard.html"
 $irender render examples/search/search.json --title "Live search" -o "$out/search/index.html"
 cp -R examples/search/api "$out/search/"
 $irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.html"
 $irender render examples/ui-kit/gallery.yaml --ui-kit --title "UI kit gallery" -o "$out/ui-kit.html"
+cp -R examples/ui-kit/api "$out/"
 $irender render examples/product.json --data examples/product.data.json --title "Product card" -o "$out/product.html"
 $irender render examples/counter.yaml --title "Counter" -o "$out/counter.html"
 cargo run -q -p irender-html --example storefront > "$out/storefront.html"

@@ -24,6 +24,7 @@
 //! derived from `color.text` and `color.surface`, so the kit looks right with any
 //! theme, dark mode included. [`apply_theme`] adds the kit's own palette.
 
+mod combobox;
 mod disclosure;
 mod display;
 mod feedback;
@@ -88,7 +89,8 @@ pub fn register(registry: &mut Registry) {
         .register(overlay::MenuLabel)
         .register(overlay::Tooltip)
         .register(overlay::HoverCard)
-        .register(feedback::Toaster);
+        .register(feedback::Toaster)
+        .register(combobox::Combobox);
 }
 
 // Colours. Tokens the default theme has are used directly; the others fall back
