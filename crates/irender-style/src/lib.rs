@@ -50,12 +50,15 @@ pub struct Compiled {
 pub struct Rules {
     base: IndexMap<String, String>,
     instance: IndexMap<String, String>,
+    globals: IndexMap<&'static str, &'static str>,
 }
 
 pub struct StyleCompiler<'t> {
     theme: &'t Theme,
     base: IndexMap<String, String>,
     instance: IndexMap<String, String>,
+    /// Page-level rules components need once, such as `@keyframes`, by name.
+    globals: IndexMap<&'static str, &'static str>,
     /// Blocks already compiled, by content. A list renders the same blocks once per
     /// item; this turns every repeat into a hash and a comparison.
     cache: HashMap<u64, Vec<(StyleBlock, Layer, Rc<Compiled>)>>,
@@ -65,7 +68,14 @@ const PLACEHOLDER: &str = ".__irender__";
 
 impl<'t> StyleCompiler<'t> {
     pub fn new(theme: &'t Theme) -> Self {
-        Self { theme, base: IndexMap::new(), instance: IndexMap::new(), cache: HashMap::new() }
+        Self { theme, base: IndexMap::new(), instance: IndexMap::new(), globals: IndexMap::new(), cache: HashMap::new() }
+    }
+
+    /// Adds a page-level rule, such as `@keyframes`, once per `name`. Later calls
+    /// with the same name are ignored. The CSS is trusted: it comes from component
+    /// code (it is `'static`), never from a document, and isn't validated.
+    pub fn global(&mut self, name: &'static str, css: &'static str) {
+        self.globals.entry(name).or_insert(css);
     }
 
     /// Returns the class for `block`, or `None` when the block is empty.
@@ -153,7 +163,7 @@ impl<'t> StyleCompiler<'t> {
 
     /// Takes the rules compiled so far, e.g. from a compiler used on another thread.
     pub fn into_rules(self) -> Rules {
-        Rules { base: self.base, instance: self.instance }
+        Rules { base: self.base, instance: self.instance, globals: self.globals }
     }
 
     /// Adds rules from another compiler. Rules already present keep their position, so
@@ -165,6 +175,9 @@ impl<'t> StyleCompiler<'t> {
         }
         for (class, css) in rules.instance {
             self.instance.entry(class).or_insert(css);
+        }
+        for (name, css) in rules.globals {
+            self.globals.entry(name).or_insert(css);
         }
     }
 
@@ -206,8 +219,9 @@ impl<'t> StyleCompiler<'t> {
     /// The complete stylesheet.
     pub fn css(&self) -> String {
         let layer = |rules: &IndexMap<String, String>| rules.values().map(String::as_str).collect::<String>();
+        let globals: String = self.globals.values().map(|css| format!("{}\n", css.trim_end())).collect();
         format!(
-            "@layer i-base, i-instance;\n{}@layer i-base {{\n{}}}\n@layer i-instance {{\n{}}}\n",
+            "@layer i-base, i-instance;\n{}{globals}@layer i-base {{\n{}}}\n@layer i-instance {{\n{}}}\n",
             self.theme_css(),
             layer(&self.base),
             layer(&self.instance),
@@ -215,8 +229,9 @@ impl<'t> StyleCompiler<'t> {
     }
 }
 
-/// FNV-1a. Stable across Rust versions, unlike `DefaultHasher`.
-struct Fnv(u64);
+/// FNV-1a. Stable across Rust versions, unlike `DefaultHasher`, so anything derived
+/// from it (class names, ids) stays the same after a toolchain upgrade.
+pub struct Fnv(u64);
 
 impl Default for Fnv {
     fn default() -> Self {
@@ -308,5 +323,25 @@ mod tests {
         assert!(css.starts_with("@layer i-base, i-instance;"));
         assert!(css.contains("--color-primary: #4f46e5;"));
         assert!(css.contains("@media (prefers-color-scheme: dark) {\n:root {\n  --color-surface: #111827;"));
+    }
+
+    #[test]
+    fn global_rules_appear_once_in_first_use_order_and_survive_merges() {
+        let theme = Theme::default();
+        let mut a = StyleCompiler::new(&theme);
+        a.global("spin", "@keyframes spin { to { rotate: 1turn; } }");
+        a.global("pulse", "@keyframes pulse { 50% { opacity: .5; } }");
+        a.global("spin", "@keyframes spin { ignored }");
+        let mut b = StyleCompiler::new(&theme);
+        b.global("pulse", "@keyframes pulse { 50% { opacity: .5; } }");
+        b.global("fade", "@keyframes fade { from { opacity: 0; } }");
+        a.merge(b.into_rules());
+        let css = a.css();
+        assert_eq!(css.matches("@keyframes").count(), 3, "{css}");
+        let (spin, pulse, fade) = (css.find("spin").unwrap(), css.find("pulse").unwrap(), css.find("fade").unwrap());
+        assert!(spin < pulse && pulse < fade, "{css}");
+        // Outside the layers, after the theme, and the layer order statement stays first.
+        assert!(css.starts_with("@layer i-base, i-instance;"));
+        assert!(css.find(":root").unwrap() < spin && fade < css.find("@layer i-base {").unwrap(), "{css}");
     }
 }

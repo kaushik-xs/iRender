@@ -549,6 +549,13 @@ impl<'a> RenderCx<'a> {
         Ok(())
     }
 
+    /// Adds a page-level CSS rule, such as `@keyframes`, once per page however many
+    /// components ask for it. For component code only: the CSS is `'static`, so a
+    /// document can never supply it, and it isn't validated.
+    pub fn global_css(&mut self, name: &'static str, css: &'static str) {
+        self.styles.global(name, css);
+    }
+
     /// A short key that differs between the items of a server-rendered list (it hashes
     /// the names in scope and their values), and is empty outside lists. Components
     /// add it to element ids so repeated instances stay unique.
@@ -557,7 +564,7 @@ impl<'a> RenderCx<'a> {
         if self.scopes.is_empty() {
             return String::new();
         }
-        let mut h = std::collections::hash_map::DefaultHasher::new();
+        let mut h = irender_style::Fnv::default();
         for s in &self.scopes {
             s.name.hash(&mut h);
             expr::hash_json(&s.value, &mut h);

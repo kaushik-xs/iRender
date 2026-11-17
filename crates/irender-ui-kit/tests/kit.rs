@@ -377,3 +377,19 @@ fn wait_action_is_validated_and_serialized() {
     let err = Engine::new().load(&doc.to_string(), Format::Json).unwrap_err();
     assert_eq!(err.to_string(), "root.on.click[0].ms: waits are at most 60000 ms");
 }
+
+#[test]
+fn skeletons_pulse_with_one_keyframes_rule() {
+    let page = render_with(
+        json!({ "type": "element", "children": [
+            { "type": "ui-skeleton" }, { "type": "ui-skeleton", "props": { "round": true } }, { "type": "ui-skeleton" } ] }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap();
+    assert_eq!(page.css.matches("@keyframes ui-pulse").count(), 1, "{}", page.css);
+    assert!(page.css.contains("animation: ui-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;"), "{}", page.css);
+    assert!(page.css.contains("@media (prefers-reduced-motion: reduce)"), "{}", page.css);
+    // Pages without a skeleton don't carry the rule.
+    assert!(!render_with(json!({ "type": "ui-badge", "props": { "text": "x" } }), json!({}), json!({})).unwrap().css.contains("@keyframes"));
+}

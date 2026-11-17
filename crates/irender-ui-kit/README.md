@@ -40,7 +40,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-alert` | `title`, `description`, `icon`, `variant` (default, destructive) | `role="alert"`. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
 | `ui-separator` | `orientation`, `decorative` | |
-| `ui-skeleton` | `width`, `height`, `round` | A static placeholder (no pulse animation yet). |
+| `ui-skeleton` | `width`, `height`, `round` | Pulses gently; still for people who ask their system for reduced motion. |
 | `ui-kbd` | `text` | |
 | `ui-progress` | `value` (0–100) | Updates live when `value` uses state, and is clamped to 0–100 in CSS. |
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
@@ -118,4 +118,4 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript are out of scope: combobox, command palette, date picker, data table with sorting, carousel, context menu, and menus with arrow-key navigation. Menu items are reachable with Tab. Skeletons don't pulse yet, because the core can't emit `@keyframes`.
+Components that need focus management or keyboard navigation written in JavaScript are out of scope: combobox, command palette, date picker, data table with sorting, carousel, context menu, and menus with arrow-key navigation. Menu items are reachable with Tab.

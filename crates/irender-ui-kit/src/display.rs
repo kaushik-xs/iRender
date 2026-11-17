@@ -380,15 +380,25 @@ const SKELETON_PROPS: &[PropDef] = &[
     PropDef::new("round", PropKind::Bool, "A circle instead of a rounded rectangle"),
 ];
 
-static SKELETON: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("background", SUBTLE), ("border-radius", "var(--radius-md)")]));
+/// The skeleton's pulse, added to the page once by the first skeleton.
+const PULSE: &str = "@keyframes ui-pulse {\n  50% { opacity: 0.5; }\n}";
+
+static SKELETON: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("background", SUBTLE),
+        ("border-radius", "var(--radius-md)"),
+        ("animation", "ui-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"),
+    ])
+    // People who ask their system for less motion get a still placeholder.
+    .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::from_pairs(&[("animation", "none")]))
+});
 
 impl Component for Skeleton {
     fn name(&self) -> &'static str {
         "ui-skeleton"
     }
     fn info(&self) -> ComponentInfo {
-        info("A placeholder block shown while content loads.", SKELETON_PROPS, &[], false)
+        info("A pulsing placeholder block shown while content loads.", SKELETON_PROPS, &[], false)
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let mut sizing = StyleBlock::new();
@@ -401,6 +411,7 @@ impl Component for Skeleton {
         if cx.prop(node, "round").is_some_and(|r| expr::truthy(&r)) {
             sizing = sizing.set("border-radius", "999px");
         }
+        cx.global_css("ui-pulse", PULSE);
         let mut el = cx.element("div", node);
         el.base_style_ref(&SKELETON).base_style(sizing).attr("aria-hidden", "true");
         cx.open(&el, node)?;
