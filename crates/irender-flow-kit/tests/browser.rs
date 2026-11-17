@@ -225,9 +225,173 @@ fn templates_layout_state_and_dragging() {
             "trueFromRight true true",
             "kept true true false true",
             "highlight a true false true true",
-            "dragged true true 1 a",
+            "dragged true true 1 d",
             "ranksTB true",
             "portsFollowDirection true",
+        ],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn editing() {
+    let step = json!({ "type": "ui-flow-node", "props": { "type": "step" }, "children": [
+        { "type": "text", "props": { "value": "{{ node.data.label }}" } },
+        { "type": "ui-flow-port", "props": { "type": "target", "accepts": ["step", "start"] } },
+        { "type": "ui-flow-port", "props": { "type": "source", "max": 2 } } ] });
+    let start = json!({ "type": "ui-flow-node", "props": { "type": "start" }, "children": [
+        { "type": "text", "props": { "value": "Start" } },
+        { "type": "ui-flow-port", "props": { "type": "source" } } ] });
+    let end = json!({ "type": "ui-flow-node", "props": { "type": "end" }, "children": [
+        { "type": "text", "props": { "value": "End" } },
+        { "type": "ui-flow-port", "props": { "type": "target", "connectable": "{{ open }}" } } ] });
+    let doc = json!({ "version": 1,
+        "state": {
+            "open": false, "sel": null, "selection": null, "doomed": null, "connects": 0, "adds": 0,
+            "nodes": [
+                { "id": "s", "type": "start", "position": { "x": 0, "y": 0 } },
+                { "id": "a", "type": "step", "position": { "x": 250, "y": 0 }, "data": { "label": "A" } },
+                { "id": "b", "type": "step", "position": { "x": 250, "y": 150 }, "data": { "label": "B" } },
+                { "id": "z", "type": "end", "position": { "x": 500, "y": 0 } } ],
+            "edges": [] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-flow", "attrs": { "id": "f" },
+              "props": { "nodes": "{{ nodes }}", "edges": "{{ edges }}", "editable": true, "fit": false,
+                         "viewport": { "x": 20, "y": 20, "zoom": 1 }, "height": 500,
+                         "bindNodes": "nodes", "bindEdges": "edges", "bind": "sel", "bindSelection": "selection",
+                         "newEdge": { "type": "smoothstep" }, "newNode": { "type": "step", "data": { "label": "New" } },
+                         "confirmDelete": "{{ open ? 'ask' : null }}", "bindDelete": "doomed" },
+              "on": { "connect": { "action": "set_state", "key": "connects", "value": "{{ connects + 1 }}" },
+                      "nodeadd": { "action": "set_state", "key": "adds", "value": "{{ adds + 1 }}" } },
+              "children": [step, start, end,
+                { "type": "ui-flow-panel", "children": [
+                    { "type": "button", "attrs": { "id": "fit" }, "props": { "label": "Fit" }, "on": { "click": { "action": "call", "name": "flow.fit" } } } ] }] },
+            { "type": "ui-flow-item", "attrs": { "id": "palette" }, "props": { "node": { "type": "step", "data": { "label": "From palette" } } },
+              "children": [{ "type": "text", "props": { "value": "Step" } }] },
+            { "type": "button", "attrs": { "id": "del" }, "props": { "label": "Delete" }, "on": { "click": { "action": "call", "name": "flow.delete" } } },
+            { "type": "element", "props": { "tag": "dialog" }, "attrs": { "id": "ask" } } ] } });
+    let driver = r##"
+        const f = "f";
+        const port = (id, type) => node(f, id).querySelector(`[data-flow-port][data-port-type="${type}"]`);
+        const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+        const drag = (from, [x, y], opts = {}) => {
+          const [x0, y0] = centre(from);
+          from.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x0, clientY: y0, ...opts }));
+          const over = document.elementFromPoint(x, y) || flow(f);
+          for (const k of [0.3, 0.7, 1]) over.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, pointerType: "mouse", clientX: x0 + (x - x0) * k, clientY: y0 + (y - y0) * k, ...opts }));
+          over.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x, clientY: y, ...opts }));
+        };
+        log("connectable", flow(f).hasAttribute("data-connectable"));
+
+        // start → A: allowed. The edge gets `newEdge`'s fields.
+        drag(port("s", "source"), centre(port("a", "target")));
+        log("edge1", JSON.stringify(S().edges.map((e) => [e.source, e.target, e.type])), S().connects);
+        // The same again: `unique` refuses it.
+        drag(port("s", "source"), centre(port("a", "target")));
+        log("unique", S().edges.length);
+        // Dropped on a node's body: joins its first port that fits.
+        drag(port("a", "source"), centre(node(f, "b")));
+        log("onBody", S().edges.some((e) => e.source === "a" && e.target === "b"));
+        // A → A: no self-connections.
+        drag(port("a", "source"), centre(port("a", "target")));
+        log("self", S().edges.length);
+        // From a target port backwards: B's target ← A's source would be a duplicate,
+        // but start's source → B is fine.
+        drag(port("b", "target"), centre(port("s", "source")));
+        log("backwards", S().edges.some((e) => e.source === "s" && e.target === "b"));
+        // `accepts`: end isn't a step or start, so B can't take it... and the end port
+        // isn't connectable while `open` is false.
+        drag(port("a", "source"), centre(port("z", "target")));
+        log("closed", S().edges.some((e) => e.target === "z"));
+        set("open", true);
+        await wait(50);
+        drag(port("a", "source"), centre(port("z", "target")));
+        log("opened", S().edges.some((e) => e.target === "z"));
+        // `max: 2` on A's source: it has b and z now.
+        log("max", S().edges.filter((e) => e.source === "a").length);
+        set("open", false);
+
+        // Dropped on empty canvas: a `newNode` there, joined to the port.
+        const r = flow(f).getBoundingClientRect();
+        drag(port("b", "source"), [r.left + 400, r.top + 380]);
+        const made = S().nodes.find((n) => n.data?.label === "New");
+        log("newNode", !!made, S().edges.some((e) => e.source === "b" && e.target === made?.id), S().sel === made?.id, S().adds);
+
+        // Selecting an edge, then deleting it with the keyboard. (Near its end: s-a and
+        // s-b share their first stretch.)
+        const hit = edge(f, "s-a").querySelector("[data-flow-hit]");
+        const [hx, hy] = (() => { const p = hit.getPointAtLength(hit.getTotalLength() * 0.9); const m = hit.getScreenCTM(); return [p.x * m.a + m.e, p.y * m.d + m.f]; })();
+        const target = document.elementFromPoint(hx, hy);
+        pointer(target, "pointerdown", hx, hy); pointer(target, "pointerup", hx, hy);
+        log("edgeSelected", JSON.stringify(S().selection.edges), edge(f, "s-a").querySelector("[data-flow-path]").hasAttribute("data-selected"));
+        flow(f).dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+        log("edgeDeleted", S().edges.some((e) => e.id === "s-a"));
+
+        // Box select with Shift, then drag the group.
+        const pane = flow(f).querySelector("[data-flow-pane]");
+        const [ax, ay] = centre(node(f, "a")), [bx, by] = centre(node(f, "b"));
+        pointer(pane, "pointerdown", r.left + 230, r.top + 5);
+        const box = { bubbles: true, pointerId: 1, pointerType: "mouse", shiftKey: true };
+        pane.dispatchEvent(new PointerEvent("pointerdown", { ...box, button: 0, clientX: r.left + 240, clientY: r.top + 8 }));
+        pane.dispatchEvent(new PointerEvent("pointermove", { ...box, clientX: r.left + 440, clientY: r.top + 260 }));
+        pane.dispatchEvent(new PointerEvent("pointerup", { ...box, button: 0, clientX: r.left + 440, clientY: r.top + 260 }));
+        log("boxed", JSON.stringify(S().selection.nodes.slice().sort()));
+        const pa = S().nodes.find((n) => n.id === "a").position, pb = S().nodes.find((n) => n.id === "b").position;
+        drag(node(f, "a"), [ax + 30, ay + 40]);
+        const qa = S().nodes.find((n) => n.id === "a").position, qb = S().nodes.find((n) => n.id === "b").position;
+        log("groupDrag", qa.x - pa.x, qa.y - pa.y, qb.x - pb.x, qb.y - pb.y);
+
+        // Deleting a node takes its edges; with `confirmDelete`, only after the dialog.
+        set("open", true);
+        await wait(50);
+        click(node(f, "b"));
+        flow(f).dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
+        log("asked", JSON.stringify(S().doomed?.nodes), document.getElementById("ask").open, S().nodes.some((n) => n.id === "b"));
+        document.getElementById("del").click(); // a `flow.delete` call from outside the flow
+        await wait(50);
+        log("confirmed", S().nodes.some((n) => n.id === "b"), S().edges.some((e) => e.source === "b" || e.target === "b"), String(S().doomed));
+
+        // The palette: a click adds in the middle of the view, a drop where it lands.
+        const before = S().nodes.length;
+        document.getElementById("palette").click();
+        log("paletteClick", S().nodes.length - before, S().nodes.at(-1).data.label, S().nodes.at(-1).id);
+        const dt = new DataTransfer();
+        document.getElementById("palette").dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+        const over = new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt, clientX: r.left + 120, clientY: r.top + 300 });
+        pane.dispatchEvent(over);
+        pane.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientX: r.left + 120, clientY: r.top + 300 }));
+        const dropped = S().nodes.at(-1);
+        log("paletteDrop", over.defaultPrevented, dropped.position.x, dropped.position.y);
+
+        // A command from a panel button.
+        const z0 = flow(f).querySelector("[data-flow-pane]").style.transform;
+        document.getElementById("fit").click();
+        await wait(400);
+        log("command", flow(f).querySelector("[data-flow-pane]").style.transform !== z0);
+    "##;
+    let Some(lines) = run("editing", doc, driver) else { return };
+    check(
+        &lines,
+        &[
+            "connectable true",
+            r#"edge1 [["s","a","smoothstep"]] 1"#,
+            "unique 1",
+            "onBody true",
+            "self 2",
+            "backwards true",
+            "closed false",
+            "opened true",
+            "max 2",
+            "newNode true true true 1",
+            r#"edgeSelected ["s-a"] true"#,
+            "edgeDeleted false",
+            r#"boxed ["a","b"]"#,
+            "groupDrag 30 40 30 40",
+            r#"asked ["b"] true true"#,
+            "confirmed false false null",
+            "paletteClick 1 From palette step_2",
+            "paletteDrop true 100 280",
+            "command true",
         ],
     );
 }

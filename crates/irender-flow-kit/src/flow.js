@@ -11,6 +11,8 @@
   // Must agree with EDGE_ID in lib.rs.
   const edgeId = (e) => (truthy(e.id) ? str(e.id) : str(e.source) + "-" + str(e.target));
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  // What a palette item carries while it is dragged.
+  const MIME = "application/x-irender-flow-node";
   let flows = 0;
 
   // Resolves a behaviour's `{ "$irender": template }` values against the state
@@ -298,6 +300,9 @@
 
     let view = { x: 0, y: 0, zoom: 1 };
     let selected = cfg.bind ? api.state[cfg.bind] ?? null : null;
+    let picked = { nodes: new Set(selected === null ? [] : [str(selected)]), edges: new Set() };
+    let pending = null; // a deletion waiting for `confirmDelete`
+    let writing = false; // while the flow writes its selection to state
     let fitted = false, centred;
     const dragged = new Map(); // id → position set by dragging
     let laidOut = new Map(), layoutKey = "";
@@ -308,6 +313,8 @@
 
     const opt = (name, d) => (props[name] === undefined || props[name] === null ? d : props[name]);
     const on = (name, d) => truthy(opt(name, d));
+    // `draggable`, `connectable` and `deletable` follow `editable` unless set.
+    const can = (name) => on(name, on("editable", false));
     const direction = () => (FLOW_SIDES[String(opt("direction", "LR")).toUpperCase()] ? String(opt("direction", "LR")).toUpperCase() : "LR");
     const zoomRange = () => [num(opt("minZoom"), 0.1), num(opt("maxZoom"), 2)];
 
@@ -393,7 +400,7 @@
           else if (side === "top") y = 0;
           else y = h;
         }
-        return { id: p.getAttribute("data-flow-port") ?? "", type: p.getAttribute("data-port-type") === "target" ? "target" : "source", side, x, y };
+        return { el: p, id: p.getAttribute("data-flow-port") ?? "", type: p.getAttribute("data-port-type") === "target" ? "target" : "source", side, x, y };
       }));
     }
 
@@ -508,13 +515,14 @@
           if (str(e.target) === sel) near.add(str(e.source));
         }
       }
-      const selectable = on("selectable", true), draggable = on("draggable", false);
+      const selectable = on("selectable", true), draggable = can("draggable");
+      flag(el, "data-connectable", connectable());
       for (const [id, nodeEl] of els) {
         const g = geo.get(id);
         show(nodeEl, !!g);
         if (!g) continue;
         nodeEl.style.transform = `translate(${g.x}px, ${g.y}px)`;
-        flag(nodeEl, "data-selected", id === sel);
+        flag(nodeEl, "data-selected", picked.nodes.has(id));
         flag(nodeEl, "data-dimmed", focusing && !near.has(id));
         flag(nodeEl, "data-selectable", selectable);
         flag(nodeEl, "data-draggable", draggable);
@@ -575,6 +583,13 @@
         const p = route(kind, a, b);
         const path = r.svg.querySelector("[data-flow-path]");
         path.setAttribute("d", p.d);
+        // A wide, invisible copy of the path takes the clicks.
+        const hit = r.svg.querySelector("[data-flow-hit]");
+        if (hit) {
+          hit.setAttribute("d", p.d);
+          hit.style.pointerEvents = on("selectable", true) ? "stroke" : "none";
+        }
+        flag(path, "data-selected", picked.edges.has(id));
         const me = marker(e.markerEnd, tc.marker), ms = marker(e.markerStart, tc.markerStart);
         me ? path.setAttribute("marker-end", me) : path.removeAttribute("marker-end");
         ms ? path.setAttribute("marker-start", ms) : path.removeAttribute("marker-start");
@@ -716,24 +731,297 @@
     }
 
     // -------------------------------------------------------------- selection
-    function select(id, open) {
+    // The node selected last is the primary one: `bind` holds it, and `highlight`
+    // follows it. `bindSelection` holds every selected node and edge.
+    const outId = (id) => byId.get(id)?.id ?? id; // as the node has it, so a number stays a number
+    const selectionKey = () => JSON.stringify([[...picked.nodes], [...picked.edges]]);
+    function choose(change, open) {
       if (!on("selectable", true)) return;
-      const next = id === null ? null : id;
-      const changed = str(next) !== str(selected) || (next === null) !== (selected === null || selected === undefined);
-      selected = next;
-      if (changed) {
+      const before = selectionKey();
+      change();
+      if (selectionKey() !== before) {
+        const list = [...picked.nodes];
+        selected = list.length ? list[list.length - 1] : null;
         place();
-        // The id as the node has it, so a number stays a number.
-        const value = next === null ? null : byId.get(next)?.id ?? next;
-        if (cfg.bind) api.set(cfg.bind, value);
+        const value = selected === null ? null : outId(selected);
+        // Each write runs `update`, which mustn't take the other key's old value
+        // for a selection made outside.
+        writing = true;
+        try {
+          if (cfg.bind) api.set(cfg.bind, value);
+          if (cfg.bindSelection) api.set(cfg.bindSelection, { nodes: list.map(outId), edges: [...picked.edges] });
+        } finally {
+          writing = false;
+        }
         api.emit("nodeselect", { id: value });
       }
-      if (open && next !== null) api.emit("nodeopen", { id: byId.get(next)?.id ?? next });
+      if (open && selected !== null) api.emit("nodeopen", { id: outId(selected) });
+    }
+    const toggle = (set, id, add) => {
+      if (!add) {
+        picked.nodes.clear();
+        picked.edges.clear();
+        set.add(id);
+      } else if (set.has(id)) set.delete(id);
+      else set.add(id);
+    };
+    const selectNode = (id, add, open) => choose(() => toggle(picked.nodes, id, add), open);
+    const selectEdge = (id, add) => choose(() => toggle(picked.edges, id, add));
+    const clearSelection = () => choose(() => { picked.nodes.clear(); picked.edges.clear(); });
+
+    // ---------------------------------------------------------------- writing
+    // Edits go to the state keys in `bindNodes` and `bindEdges`; point `nodes` and
+    // `edges` at the same keys to see them.
+    const rawNodes = () => (Array.isArray(props.nodes) ? props.nodes : []);
+    const rawEdges = () => (Array.isArray(props.edges) ? props.edges : []);
+    const warned = new Set();
+    const writes = (key, what) => {
+      if (cfg[key]) return true;
+      if (!warned.has(key)) { warned.add(key); console.warn(`ui-flow: set \`${key}\` to ${what}`); }
+      return false;
+    };
+    const toFlow = (e) => {
+      const r = el.getBoundingClientRect();
+      return { x: (e.clientX - r.left - el.clientLeft - view.x) / view.zoom, y: (e.clientY - r.top - el.clientTop - view.y) / view.zoom };
+    };
+    function freshId(type) {
+      const base = str(type || "node").replace(/[^A-Za-z0-9_-]/g, "_") || "node";
+      const taken = new Set(rawNodes().filter(isObj).map((n) => str(n.id)));
+      let i = 1;
+      while (taken.has(`${base}_${i}`)) i++;
+      return `${base}_${i}`;
+    }
+    // Adds a node made from `template` (`type`, `data`, … ; `id` if it's free) with
+    // its `position` at `at`.
+    function addNode(template, at) {
+      if (!writes("bindNodes", "add nodes")) return null;
+      const t = isObj(template) ? template : {};
+      const raw = rawNodes();
+      const free = t.id !== undefined && t.id !== null && !raw.some((n) => isObj(n) && str(n.id) === str(t.id));
+      const node = { ...t, id: free ? t.id : freshId(t.type), position: { x: Math.round(at.x), y: Math.round(at.y) }, data: isObj(t.data) ? { ...t.data } : {} };
+      api.set(cfg.bindNodes, [...raw, node]);
+      api.emit("nodeadd", { id: node.id });
+      return node;
+    }
+    // In the middle of the view, nudged off any node already there.
+    function addAtCentre(template, position) {
+      let at = isObj(position) ? { x: num(position.x, 0), y: num(position.y, 0) }
+        : { x: (el.clientWidth / 2 - view.x) / view.zoom, y: (el.clientHeight / 2 - view.y) / view.zoom };
+      if (!isObj(position)) {
+        const [ox, oy] = origin();
+        at = { x: at.x - 75 + ox * 150, y: at.y - 20 + oy * 40 };
+        for (let i = 0; i < 20 && nodes.some((n) => isObj(n.position) && Math.abs(num(n.position.x, 0) - at.x) < 8 && Math.abs(num(n.position.y, 0) - at.y) < 8); i++)
+          at = { x: at.x + 24, y: at.y + 24 };
+      }
+      const node = addNode(template, at);
+      if (node) selectNode(str(node.id));
+      return node;
     }
 
-    // --------------------------------------------------- pointer: pan and drag
+    // ------------------------------------------------------------- connecting
+    const connectable = () => can("connectable") && !!cfg.bindEdges;
+    const rules = () => (isObj(props.connect) ? props.connect : {});
+    const sameHandle = (a, b) => str(a ?? "") === str(b ?? "");
+    const handleOf = (p) => (p.id === "" ? null : p.id);
+    const count = (nodeId, handle, type) =>
+      edges.filter((e) => (type === "source" ? str(e.source) === nodeId && sameHandle(e.sourceHandle, handle) : str(e.target) === nodeId && sameHandle(e.targetHandle, handle))).length;
+    // A port's own rules, read when they're needed, since they may follow state.
+    const rulesOf = (port) => {
+      const p = port.el, accepts = p?.getAttribute("data-accepts"), max = p?.getAttribute("data-max");
+      let list = null;
+      if (accepts) {
+        try { list = accepts.startsWith("[") ? JSON.parse(accepts).map(str) : accepts.split(",").map((a) => a.trim()); } catch {}
+      }
+      return { connectable: !p?.hasAttribute("data-noconnect"), accepts: list, max: max ? num(max, null) : null };
+    };
+    // Whether an edge may join `s` (a source port) to `t` (a target port), each
+    // `{ node, port }`, under the flow's `connect` rules and the ports' own.
+    function allowed(s, t) {
+      if (!s?.port || !t?.port || s.port.type !== "source" || t.port.type !== "target") return false;
+      const sr = rulesOf(s.port), tr = rulesOf(t.port);
+      if (!sr.connectable || !tr.connectable) return false;
+      const r = rules(), a = byId.get(s.node), b = byId.get(t.node);
+      if (!a || !b) return false;
+      if (s.node === t.node && !truthy(r.self)) return false;
+      const sh = handleOf(s.port), th = handleOf(t.port);
+      if (r.unique !== false && edges.some((e) => str(e.source) === s.node && str(e.target) === t.node && sameHandle(e.sourceHandle, sh) && sameHandle(e.targetHandle, th))) return false;
+      if (truthy(r.sameParent) && str(a.parentId ?? "") !== str(b.parentId ?? "")) return false;
+      const ta = str(a.type || "default"), tb = str(b.type || "default");
+      if (sr.accepts && !sr.accepts.includes(tb)) return false;
+      if (tr.accepts && !tr.accepts.includes(ta)) return false;
+      if (sr.max !== null && count(s.node, sh, "source") >= sr.max) return false;
+      if (tr.max !== null && count(t.node, th, "target") >= tr.max) return false;
+      if (Array.isArray(r.pairs) && !r.pairs.some((p) => isObj(p) && (p.source == null || str(p.source) === ta) && (p.target == null || str(p.target) === tb))) return false;
+      return true;
+    }
+    // Either way round: a drag may start at a target port.
+    const fits = (from, to) => (from.port.type === "source" ? allowed(from, to) : allowed(to, from));
+    function connect(from, to) {
+      const [s, t] = from.port.type === "source" ? [from, to] : [to, from];
+      if (!writes("bindEdges", "add edges")) return;
+      const sh = handleOf(s.port), th = handleOf(t.port);
+      const taken = new Set(edges.map(edgeId));
+      let id = `${s.node}-${t.node}`;
+      if (taken.has(id)) id = `${s.node}${sh === null ? "" : "." + sh}-${t.node}${th === null ? "" : "." + th}`;
+      for (let i = 2; taken.has(id); i++) id = id.replace(/~\d+$/, "") + "~" + i;
+      const edge = { ...(isObj(props.newEdge) ? props.newEdge : {}), id, source: outId(s.node), target: outId(t.node) };
+      if (sh !== null) edge.sourceHandle = sh;
+      if (th !== null) edge.targetHandle = th;
+      api.set(cfg.bindEdges, [...rawEdges(), edge]);
+      api.emit("connect", { id, source: edge.source, target: edge.target });
+    }
+    // The port a dragged connection would join: the nearest one of the other type
+    // within reach, or, over a node, the first of its ports that fits.
+    function candidate(e, from) {
+      const want = from.port.type === "source" ? "target" : "source";
+      const at = toFlow(e);
+      let best = null, reach = 24 / view.zoom;
+      for (const [id, list] of ports) {
+        const g = geo.get(id);
+        if (!g) continue;
+        for (const p of list) {
+          if (p.type !== want) continue;
+          const d = Math.hypot(g.x + p.x - at.x, g.y + p.y - at.y);
+          if (d < reach) { reach = d; best = { node: id, port: p }; }
+        }
+      }
+      if (best) return best;
+      const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("[data-flow-node]");
+      if (!over || !nodeLayer.contains(over)) return null;
+      const id = over.getAttribute("data-flow-node");
+      for (const p of ports.get(id) || []) if (p.type === want && fits(from, { node: id, port: p })) return { node: id, port: p };
+      return { node: id, port: null };
+    }
+    // The line drawn while connecting.
+    const wire = document.createElementNS(NS, "svg");
+    wire.setAttribute("aria-hidden", "true");
+    wire.style.cssText = "position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none;display:none";
+    wire.innerHTML = `<path fill="none" stroke="var(--color-primary, #18181b)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    pane.append(wire);
+    let marked = null;
+    const mark = (portEl, state) => {
+      if (marked && marked !== portEl) marked.removeAttribute("data-connect");
+      marked = portEl;
+      if (portEl) portEl.setAttribute("data-connect", state);
+    };
+    function drawWire(e, from, to) {
+      const g = geo.get(from.node);
+      const a = { x: g.x + from.port.x, y: g.y + from.port.y, side: from.port.side };
+      let b;
+      if (to?.port) {
+        const h = geo.get(to.node);
+        b = { x: h.x + to.port.x, y: h.y + to.port.y, side: to.port.side };
+      } else b = { ...toFlow(e), side: OPPOSITE[a.side] };
+      const kind = str(isObj(props.newEdge) && props.newEdge.type) || opt("edgePath", "bezier");
+      const path = route({ default: "bezier", simplebezier: "bezier" }[kind] || kind, a, b);
+      wire.style.display = "";
+      wire.firstChild.setAttribute("d", path.d);
+    }
+    // A connection dropped on empty canvas: with `newNode`, a node is made there
+    // and joined to the port the drag started from.
+    function dropped(e, from) {
+      if (!isObj(props.newNode) || !cfg.bindNodes) return;
+      const at = toFlow(e);
+      const node = addNode(props.newNode, at);
+      if (!node) return;
+      const id = str(node.id), want = from.port.type === "source" ? "target" : "source";
+      const port = (ports.get(id) || []).find((p) => p.type === want) || { id: "", type: want, side: OPPOSITE[from.port.side], x: 0, y: 0 };
+      connect(from, { node: id, port });
+      selectNode(id);
+    }
+
+    // --------------------------------------------------------------- deleting
+    // The selection, a deleted node's children and every edge touching a deleted node.
+    function doomed() {
+      const ns = new Set(picked.nodes);
+      for (let grew = true; grew; ) {
+        grew = false;
+        for (const n of rawNodes()) if (isObj(n) && !ns.has(str(n.id)) && ns.has(str(n.parentId))) { ns.add(str(n.id)); grew = true; }
+      }
+      const es = new Set(picked.edges);
+      for (const e of edges) if (ns.has(str(e.source)) || ns.has(str(e.target))) es.add(edgeId(e));
+      return { nodes: [...ns], edges: [...es] };
+    }
+    // Deletes the selection, or with `confirmDelete` first writes what would go to
+    // `bindDelete` and opens that dialog, whose button sends `flow.delete`.
+    function requestDelete() {
+      if (!can("deletable")) return;
+      const d = doomed();
+      if (!d.nodes.length && !d.edges.length) return;
+      const dialog = opt("confirmDelete", null);
+      if (!dialog) return remove(d);
+      pending = d;
+      if (cfg.bindDelete) api.set(cfg.bindDelete, { nodes: d.nodes.map(outId), edges: d.edges });
+      try { document.getElementById(str(dialog))?.showModal?.(); } catch {}
+      api.emit("deleterequest", { nodes: d.nodes.map(outId), edges: d.edges });
+    }
+    function remove(d) {
+      const ns = new Set(d.nodes), es = new Set(d.edges);
+      pending = null;
+      if ((ns.size || es.size) && writes("bindEdges", "delete edges"))
+        api.set(cfg.bindEdges, rawEdges().filter((e) => !isObj(e) || !(es.has(edgeId(e)) || ns.has(str(e.source)) || ns.has(str(e.target)))));
+      if (ns.size && writes("bindNodes", "delete nodes")) api.set(cfg.bindNodes, rawNodes().filter((n) => !isObj(n) || !ns.has(str(n.id))));
+      if (cfg.bindDelete) api.set(cfg.bindDelete, null);
+      choose(() => { ns.forEach((id) => picked.nodes.delete(id)); es.forEach((id) => picked.edges.delete(id)); });
+      api.emit("delete", { nodes: d.nodes.map(outId), edges: d.edges });
+    }
+    const cancelDelete = () => {
+      pending = null;
+      if (cfg.bindDelete) api.set(cfg.bindDelete, null);
+    };
+
+    // ---------------------------------------------------------------- commands
+    // `{ action: call, name: flow.fit }` and friends: from a button inside the flow
+    // (a panel, a node, a dialog in either), or from anywhere with `args.flow` set
+    // to the flow's element id. Without `args.flow`, a call from outside reaches
+    // the page's only flow.
+    function command(name, args) {
+      if (name === "flow.fit") fitView(true);
+      else if (name === "flow.zoomin") zoomBy(1.2, undefined, undefined, true);
+      else if (name === "flow.zoomout") zoomBy(1 / 1.2, undefined, undefined, true);
+      else if (name === "flow.delete") pending ? remove(pending) : requestDelete();
+      else if (name === "flow.cancel") cancelDelete();
+      else if (name === "flow.add") addAtCentre(args.node, args.position);
+      else if (name === "flow.select") args.id === null || args.id === undefined ? clearSelection() : selectNode(str(args.id));
+      else if (name === "flow.center") centreOn(str(args.id));
+      else if (name === "flow.relayout") { dragged.clear(); layoutKey = ""; refresh(false); fitView(true); }
+      else return false;
+      return true;
+    }
+    const calls = (e) => (typeof e.detail?.name === "string" && e.detail.name.startsWith("flow.") ? e.detail : null);
+    el.addEventListener("irender:call", (e) => {
+      const d = calls(e);
+      if (!d || (d.args?.flow != null && str(d.args.flow) !== el.id)) return;
+      if (command(d.name, d.args || {})) e.stopPropagation();
+    });
+    const outside = (e) => {
+      const d = calls(e);
+      if (!d || !el.isConnected) return document.removeEventListener("irender:call", outside);
+      const mine = d.args?.flow != null ? el.id !== "" && str(d.args.flow) === el.id : document.querySelectorAll('[data-i-x="ui-flow"]').length === 1;
+      if (mine && !el.contains(e.target)) command(d.name, d.args || {});
+    };
+    document.addEventListener("irender:call", outside);
+
+    // ------------------------------------------------- palette: drag and drop
+    el.addEventListener("dragover", (e) => {
+      if (!cfg.bindNodes || ![...(e.dataTransfer?.types || [])].includes(MIME)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    });
+    el.addEventListener("drop", (e) => {
+      const raw = e.dataTransfer?.getData(MIME);
+      if (!raw || !cfg.bindNodes) return;
+      e.preventDefault();
+      let template;
+      try { template = JSON.parse(raw); } catch { return; }
+      const node = addNode(template, toFlow(e));
+      if (node) selectNode(str(node.id));
+    });
+
+    // ------------------------------------------- pointer: pan, drag, connect
     const pointers = new Map();
-    let gesture = null; // { kind: "pan" | "node" | "pinch", … }
+    let gesture = null; // { kind: "pan" | "node" | "connect" | "box" | "pinch", … }
+    let box = null; // the selection rectangle
     const interactive = (t) => t.closest("button, a[href], input, select, textarea, label, summary, [contenteditable], [data-flow-controls], [data-flow-minimap], [data-flow-nodrag]");
     el.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 && e.pointerType === "mouse") return;
@@ -742,20 +1030,32 @@
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pointers.size === 2 && on("zoom", true)) {
         const [p, q] = [...pointers.values()];
+        if (gesture?.kind === "connect") stopConnecting();
         gesture = { kind: "pinch", d: Math.hypot(p.x - q.x, p.y - q.y), zoom: view.zoom, view: { ...view }, mid: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 } };
         return;
       }
       if (pointers.size > 1) return;
+      const base = { x: e.clientX, y: e.clientY, shift: e.shiftKey || e.metaKey || e.ctrlKey, moved: false };
+      const portEl = t.closest("[data-flow-port]");
       const nodeEl = t.closest("[data-flow-node]");
       const inNode = nodeEl && nodeLayer.contains(nodeEl);
+      if (portEl && inNode && connectable()) {
+        const id = nodeEl.getAttribute("data-flow-node");
+        const port = (ports.get(id) || []).find((p) => p.el === portEl);
+        if (port && rulesOf(port).connectable) {
+          e.preventDefault();
+          gesture = { ...base, kind: "connect", from: { node: id, port } };
+          return;
+        }
+      }
       // Controls inside a node work as usual.
       if (inNode && interactive(t)) return;
       if (inNode) {
-        const id = nodeEl.getAttribute("data-flow-node");
-        const n = byId.get(id);
-        gesture = { kind: "node", id, el: nodeEl, x: e.clientX, y: e.clientY, from: n ? { ...relative(n) } : { x: 0, y: 0 }, moved: false };
+        gesture = { ...base, kind: "node", id: nodeEl.getAttribute("data-flow-node"), el: nodeEl };
+      } else if (t.closest("[data-flow-hit]") && edgeLayer.contains(t)) {
+        gesture = { ...base, kind: "pan", view: { ...view }, edge: t.closest("svg[data-flow-edge]")?.getAttribute("data-flow-edge") };
       } else if (!t.closest("[data-flow-label]")) {
-        gesture = { kind: "pan", x: e.clientX, y: e.clientY, view: { ...view }, moved: false };
+        gesture = { ...base, kind: base.shift && on("selectable", true) ? "box" : "pan", view: { ...view } };
       }
     });
     // Captured only once a drag starts, so that a plain click still reaches the
@@ -766,72 +1066,120 @@
         if (!el.hasPointerCapture(e.pointerId)) el.setPointerCapture(e.pointerId);
       } catch {} // not an active pointer, e.g. a synthetic event
     };
+    // The nodes a drag moves: the selection when it includes the node, less any
+    // node whose parent moves with it.
+    function grab(id) {
+      if (!picked.nodes.has(id)) selectNode(id);
+      const ids = picked.nodes.has(id) ? [...picked.nodes] : [id];
+      const set = new Set(ids);
+      const under = (n) => { for (let p = byId.get(str(n.parentId)), i = 0; p && i < 64; p = byId.get(str(p.parentId)), i++) if (set.has(str(p.id))) return true; return false; };
+      return ids.filter((x) => byId.has(x) && !under(byId.get(x))).map((x) => [x, { ...relative(byId.get(x)) }]);
+    }
     el.addEventListener("pointermove", (e) => {
       if (!pointers.has(e.pointerId)) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (!gesture) return;
-      if (gesture.kind === "pinch") {
+      const g = gesture;
+      if (!g) return;
+      if (g.kind === "pinch") {
         const [p, q] = [...pointers.values()];
         const d = Math.hypot(p.x - q.x, p.y - q.y);
         const r = el.getBoundingClientRect();
         const [lo, hi] = zoomRange();
-        const z = clamp((gesture.zoom * d) / (gesture.d || 1), lo, hi);
-        const cx = gesture.mid.x - r.left, cy = gesture.mid.y - r.top;
-        const v = gesture.view;
-        setView({ x: cx - ((cx - v.x) * z) / v.zoom, y: cy - ((cy - v.y) * z) / v.zoom, zoom: z });
+        const z = clamp((g.zoom * d) / (g.d || 1), lo, hi);
+        const cx = g.mid.x - r.left, cy = g.mid.y - r.top;
+        setView({ x: cx - ((cx - g.view.x) * z) / g.view.zoom, y: cy - ((cy - g.view.y) * z) / g.view.zoom, zoom: z });
         return;
       }
-      const dx = e.clientX - gesture.x, dy = e.clientY - gesture.y;
-      if (!gesture.moved && Math.hypot(dx, dy) < 4) return;
-      if (gesture.kind === "pan") {
+      const dx = e.clientX - g.x, dy = e.clientY - g.y;
+      if (!g.moved && Math.hypot(dx, dy) < 4) return;
+      if (g.kind === "pan") {
         if (!on("pan", true)) return;
         start(e);
         el.setAttribute("data-panning", "");
-        setView({ x: gesture.view.x + dx, y: gesture.view.y + dy, zoom: view.zoom });
-      } else if (gesture.kind === "node") {
-        if (!on("draggable", false)) return;
+        setView({ x: g.view.x + dx, y: g.view.y + dy, zoom: view.zoom });
+      } else if (g.kind === "node") {
+        if (!can("draggable")) return;
+        if (!g.moved) { g.group = grab(g.id); g.el.setAttribute("data-dragging", ""); }
         start(e);
-        gesture.el.setAttribute("data-dragging", "");
-        dragged.set(gesture.id, { x: gesture.from.x + dx / view.zoom, y: gesture.from.y + dy / view.zoom });
+        for (const [id, from] of g.group) dragged.set(id, { x: from.x + dx / view.zoom, y: from.y + dy / view.zoom });
         place();
+      } else if (g.kind === "connect") {
+        start(e);
+        el.setAttribute("data-connecting", "");
+        const to = candidate(e, g.from);
+        g.to = to?.port && fits(g.from, to) ? to : null;
+        mark(to?.port?.el || null, g.to ? "valid" : "invalid");
+        drawWire(e, g.from, g.to);
+      } else if (g.kind === "box") {
+        start(e);
+        const r = el.getBoundingClientRect();
+        if (!box) {
+          box = document.createElement("div");
+          box.setAttribute("data-flow-box", "");
+          box.style.cssText = "position:absolute;z-index:3;pointer-events:none;border:1px solid var(--color-primary, #18181b);background:color-mix(in srgb, var(--color-primary, #18181b) 8%, transparent);border-radius:2px";
+          el.append(box);
+        }
+        const x0 = Math.min(g.x, e.clientX) - r.left, y0 = Math.min(g.y, e.clientY) - r.top;
+        Object.assign(box.style, { left: x0 + "px", top: y0 + "px", width: Math.abs(dx) + "px", height: Math.abs(dy) + "px" });
+        g.end = { clientX: e.clientX, clientY: e.clientY };
       }
     });
+    function stopConnecting() {
+      wire.style.display = "none";
+      mark(null);
+      el.removeAttribute("data-connecting");
+    }
     const release = (e) => {
       pointers.delete(e.pointerId);
       const g = gesture;
       if (!g || pointers.size) { if (g?.kind === "pinch" && pointers.size === 1) gesture = null; return; }
       gesture = null;
       el.removeAttribute("data-panning");
+      if (g.kind === "connect") stopConnecting();
+      if (g.kind === "box") { box?.remove(); box = null; }
       if (e.type === "pointercancel") return;
-      if (g.kind === "pan" && !g.moved) select(null);
-      else if (g.kind === "node" && !g.moved) select(g.id);
+      if (g.kind === "pan" && !g.moved) {
+        if (g.edge !== undefined && g.edge !== null) selectEdge(g.edge, g.shift);
+        else if (!g.shift) clearSelection();
+      } else if (g.kind === "node" && !g.moved) selectNode(g.id, g.shift);
       else if (g.kind === "node") {
         g.el.removeAttribute("data-dragging");
-        moved(g.id);
+        moved(g.group.map(([id]) => id));
+      } else if (g.kind === "connect") {
+        if (!g.moved) return selectNode(g.from.node, g.shift);
+        const to = candidate(e, g.from);
+        if (to?.port && fits(g.from, to)) connect(g.from, to);
+        else if (!to) dropped(e, g.from);
+      } else if (g.kind === "box") {
+        if (!g.moved || !g.end) return;
+        const a = toFlow({ clientX: g.x, clientY: g.y }), b = toFlow(g.end);
+        const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+        const inside = [...geo].filter(([, r]) => r.x >= x0 && r.y >= y0 && r.x + r.w <= x1 && r.y + r.h <= y1).map(([id]) => id);
+        choose(() => inside.forEach((id) => { picked.nodes.delete(id); picked.nodes.add(id); }));
       }
     };
     el.addEventListener("pointerup", release);
     el.addEventListener("pointercancel", release);
     el.addEventListener("dblclick", (e) => {
       const nodeEl = e.target.closest("[data-flow-node]");
-      if (nodeEl && nodeLayer.contains(nodeEl) && !interactive(e.target)) select(nodeEl.getAttribute("data-flow-node"), true);
+      if (nodeEl && nodeLayer.contains(nodeEl) && !interactive(e.target)) selectNode(nodeEl.getAttribute("data-flow-node"), false, true);
     });
 
-    // After a drag: the nodes, with the dragged one's new position, go to `bindNodes`.
-    function moved(id) {
-      const p = dragged.get(id);
-      if (!p) return;
-      const all = Array.isArray(props.nodes) ? props.nodes : [];
-      const node = byId.get(id);
+    // After a drag: the nodes, with the moved ones' new positions, go to `bindNodes`.
+    function moved(ids) {
+      const at = new Map(ids.filter((id) => dragged.has(id)).map((id) => [id, dragged.get(id)]));
+      if (!at.size) return;
       if (cfg.bindNodes) {
         const [ox, oy] = origin();
-        const g = geo.get(id) || { w: 0, h: 0 };
-        // Laid-out positions are corners; saved positions follow `nodeOrigin`.
-        const laid = laidOut.has(id);
-        const position = { x: Math.round(p.x + (laid ? ox * g.w : 0)), y: Math.round(p.y + (laid ? oy * g.h : 0)) };
-        api.set(cfg.bindNodes, all.map((n) => (isObj(n) && str(n.id) === id ? { ...n, position } : n)));
+        const position = (id) => {
+          const p = at.get(id), g = geo.get(id) || { w: 0, h: 0 };
+          // Laid-out positions are corners; saved positions follow `nodeOrigin`.
+          const laid = laidOut.has(id);
+          return { x: Math.round(p.x + (laid ? ox * g.w : 0)), y: Math.round(p.y + (laid ? oy * g.h : 0)) };
+        };
+        api.set(cfg.bindNodes, rawNodes().map((n) => (isObj(n) && at.has(str(n.id)) ? { ...n, position: position(str(n.id)) } : n)));
       }
-      api.emit("nodemove", { id: node?.id ?? id });
+      for (const id of at.keys()) api.emit("nodemove", { id: outId(id) });
     }
 
     el.addEventListener("wheel", (e) => {
@@ -841,7 +1189,7 @@
       const zooming = e.ctrlKey || e.metaKey || opt("wheel", "zoom") !== "pan";
       if (zooming && on("zoom", true)) {
         e.preventDefault();
-        zoomBy(Math.exp((-e.deltaY * scale * (e.ctrlKey ? 0.01 : 0.002))), e.clientX - r.left, e.clientY - r.top);
+        zoomBy(Math.exp(-e.deltaY * scale * (e.ctrlKey ? 0.01 : 0.002)), e.clientX - r.left, e.clientY - r.top);
       } else if (!zooming && on("pan", true)) {
         e.preventDefault();
         setView({ x: view.x - e.deltaX * scale, y: view.y - e.deltaY * scale, zoom: view.zoom });
@@ -864,9 +1212,18 @@
       const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
       if ((e.key === "Enter" || e.key === " ") && id !== null) {
         e.preventDefault();
-        select(id, e.key === "Enter" && str(selected) === id);
-      } else if (e.key === "Escape" && selected !== null && selected !== undefined) {
-        select(null);
+        const open = e.key === "Enter" && picked.nodes.has(id);
+        selectNode(id, e.shiftKey && !open, open);
+      } else if (e.key === "Escape") {
+        if (gesture?.kind === "connect") { stopConnecting(); gesture = null; }
+        else if (picked.nodes.size || picked.edges.size) clearSelection();
+        else return;
+      } else if ((e.key === "Delete" || e.key === "Backspace") && can("deletable")) {
+        e.preventDefault();
+        requestDelete();
+      } else if (e.key === "a" && (e.metaKey || e.ctrlKey) && on("selectable", true)) {
+        e.preventDefault();
+        choose(() => { for (const n of nodes) picked.nodes.add(str(n.id)); });
       } else if ((e.key === "+" || e.key === "=") && on("zoom", true)) {
         zoomBy(1.2, undefined, undefined, true);
       } else if (e.key === "-" && on("zoom", true)) {
@@ -875,24 +1232,40 @@
         e.preventDefault();
         const [dx, dy] = arrows[e.key];
         const step = e.shiftKey ? 50 : 10;
-        if (id !== null && on("draggable", false) && byId.has(id)) {
-          const p = relative(byId.get(id));
-          dragged.set(id, { x: p.x + dx * step, y: p.y + dy * step });
+        if (id !== null && can("draggable") && byId.has(id)) {
+          const group = grab(id);
+          for (const [x, from] of group) dragged.set(x, { x: from.x + dx * step, y: from.y + dy * step });
           place();
-          clearTimeout(nodeEl.__moveTimer);
-          nodeEl.__moveTimer = setTimeout(() => moved(id), 300);
+          clearTimeout(el.__moveTimer);
+          el.__moveTimer = setTimeout(() => moved(group.map(([x]) => x)), 300);
         } else if (on("pan", true)) setView({ x: view.x - dx * step * 4, y: view.y - dy * step * 4, zoom: view.zoom });
       } else return;
     });
 
     refresh(true);
     return {
+      // For `ui-flow-item` and host code: adds a node in the middle of the view.
+      add: (template, position) => addAtCentre(template, position),
+      command: (name, args) => command(name, args || {}),
       update(state) {
         if (cfg.reactive) props = resolve(cfg.props);
-        if (cfg.bind) {
-          const v = state[cfg.bind];
-          if (str(v) !== str(selected)) selected = v ?? null;
+        // Selections written from outside replace the flow's own.
+        if (!writing && cfg.bindSelection && isObj(state[cfg.bindSelection])) {
+          const v = state[cfg.bindSelection];
+          const next = [Array.isArray(v.nodes) ? v.nodes.map(str) : [], Array.isArray(v.edges) ? v.edges.map(str) : []];
+          if (JSON.stringify(next) !== selectionKey()) {
+            picked = { nodes: new Set(next[0]), edges: new Set(next[1]) };
+            selected = next[0].length ? next[0][next[0].length - 1] : null;
+          }
         }
+        if (!writing && cfg.bind) {
+          const v = state[cfg.bind];
+          if (str(v) !== str(selected)) {
+            selected = v ?? null;
+            picked = { nodes: new Set(selected === null ? [] : [str(selected)]), edges: new Set() };
+          }
+        }
+        if (cfg.bindDelete && state[cfg.bindDelete] === null) pending = null;
         if (cfg.bindViewport && isObj(state[cfg.bindViewport])) {
           const v = state[cfg.bindViewport];
           if (Math.abs(num(v.x, 0) - view.x) > 0.5 || Math.abs(num(v.y, 0) - view.y) > 0.5 || Math.abs(num(v.zoom, 1) - view.zoom) > 0.001)
@@ -903,5 +1276,30 @@
         this.dir = dir;
       },
     };
+  };
+
+  // ----------------------------------------------------------- ui-flow-item
+  // A palette entry: drag it onto a flow, or click it (Enter, Space) to add its
+  // node in the middle of the view.
+  window.__irenderBehaviors["ui-flow-item"] = (el, api) => {
+    const resolve = resolver(api);
+    const node = () => resolve(api.config.node);
+    const target = () => {
+      const id = api.config.flow;
+      if (id) return document.getElementById(id);
+      const all = document.querySelectorAll('[data-i-x="ui-flow"]');
+      return el.closest('[data-i-x="ui-flow"]') || (all.length === 1 ? all[0] : null);
+    };
+    el.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData(MIME, JSON.stringify(node()));
+      e.dataTransfer.effectAllowed = "copy";
+    });
+    const add = () => target()?.__x?.add?.(node());
+    el.addEventListener("click", add);
+    el.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      add();
+    });
   };
 })();

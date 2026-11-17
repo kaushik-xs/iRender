@@ -39,24 +39,28 @@ _Last updated: 2026-11-17._
 
 ## Flow kit next phases
 
-Phase 1, the viewer, has shipped: React Flow JSON, node, edge and port templates, layered layout, pan and zoom, selection, neighbour highlighting, dragging with `bindNodes`, the minimap and panels. These came out of the React Flow research on the builder and client-ui-next repos.
+These came out of the React Flow research on the builder and client-ui-next repos.
 
-- [ ] **Phase 2, editing:**
-  - [ ] Drag from a port to connect, with declarative rules (`sameParent`, a port's `accepts: [types]`, `scope: children` for a loop's start port) and a host `call` for anything else.
-  - [ ] Select and delete edges.
-  - [ ] Delete nodes with a hook to confirm first (the process canvas checks what a delete affects).
-  - [ ] Drop from a palette, and add a node at the centre of the view.
-  - [ ] Drop a connection on empty canvas to create a node there.
-  - [ ] Box and multi-select.
+- Phase 1, the viewer, has shipped: React Flow JSON, node, edge and port templates, layered layout, pan and zoom, selection, neighbour highlighting, dragging, the minimap and panels.
+- Phase 2, editing, has shipped:
+  - connecting, with flow and port rules
+  - dropping a connection on empty canvas to add a `newNode`
+  - edge, multi and box selection, and dragging a group
+  - deleting, with a confirmation dialog
+  - a `ui-flow-item` palette (drag or click)
+  - `flow.*` commands
+
 - [ ] **Phase 3, containers and extras:**
   - [ ] Parent nodes can be resized.
   - [ ] Dropping a node in or out of a container reparents it, converting between absolute and relative positions and removing edges that now cross a scope.
+  - [ ] Port rule `scope: children`, for a loop's start port.
   - [ ] Copy, cut and paste with new ids.
   - [ ] Search with dimming.
   - [ ] Undo.
+- [ ] **Reconnecting an edge** by dragging its end to another port isn't supported; delete it and connect again.
+- [ ] **The palette's drag uses HTML drag and drop**, which touch screens don't support. A tap adds the node in the middle of the view instead.
 - [ ] **Edges are drawn only by the script.** Nodes have server positions, but a page without JS shows no edges. Idea: draw straight edges on the server when the positions are known.
-- [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`.
-- [ ] **No edge hit area or edge events yet**, so clicking an edge does nothing.
+- [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`. With `layout: layered`, an added node's position is replaced by the layout.
 - [ ] **Not tried yet in the real apps:** the builder's workflow editor and ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
 
 ## Icon kit: packs not drawn yet

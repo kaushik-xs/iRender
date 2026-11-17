@@ -26,7 +26,10 @@
 //! The kit's script (pan and zoom, layout, edge routing, selection, dragging, the
 //! minimap) is added once per page that has a flow. It needs no other library.
 
-use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Template, Val, expr};
+use irender_core::{
+    ComponentInfo, Node, PropDef, PropKind, StyleBlock, Template, Val,
+    expr::{self, Expr, Part, UnOp},
+};
 use irender_html::{ClientList, Component, Element, RenderCx, RenderError, Registry};
 use serde_json::{Map, Value as Json, json};
 use std::{borrow::Cow, sync::LazyLock};
@@ -36,7 +39,13 @@ const SCRIPT: &str = include_str!("flow.js");
 /// Adds `ui-flow`, `ui-flow-node`, `ui-flow-edge`, `ui-flow-port` and
 /// `ui-flow-panel` to `registry`.
 pub fn register(registry: &mut Registry) {
-    registry.register(Flow).register(Template_(Kind::Node)).register(Template_(Kind::Edge)).register(Port).register(Panel);
+    registry
+        .register(Flow)
+        .register(Template_(Kind::Node))
+        .register(Template_(Kind::Edge))
+        .register(Port)
+        .register(Panel)
+        .register(Item);
 }
 
 /// The paths an edge can take.
@@ -68,8 +77,15 @@ const FLOW_PROPS: &[PropDef] = &[
     PropDef::new("viewport", PropKind::Any, "The view to start at when `fit` is false: `{ x, y, zoom }`"),
     PropDef::new("center", PropKind::Any, "A node id: the view pans to that node whenever this changes"),
     PropDef::new("highlight", PropKind::Any, "`neighbors`: while a node is selected, dim everything not connected to it"),
-    PropDef::new("selectable", PropKind::Any, "Click or Enter selects a node (default true)"),
-    PropDef::new("draggable", PropKind::Any, "Nodes can be dragged (default false)"),
+    PropDef::new("selectable", PropKind::Any, "Click or Enter selects a node or edge; Shift adds to the selection (default true)"),
+    PropDef::new("editable", PropKind::Any, "Turns on `draggable`, `connectable` and `deletable` together (default false)"),
+    PropDef::new("draggable", PropKind::Any, "Nodes can be dragged (default: `editable`)"),
+    PropDef::new("connectable", PropKind::Any, "Drag from a port to another to connect them; needs `bindEdges` (default: `editable`)"),
+    PropDef::new("deletable", PropKind::Any, "Delete or Backspace removes the selection; needs `bindNodes` / `bindEdges` (default: `editable`)"),
+    PropDef::new("connect", PropKind::Any, "Connection rules: `{ sameParent, self, unique, pairs: [{ source, target }] }` (node types)"),
+    PropDef::new("newEdge", PropKind::Any, "Fields every new edge starts with, e.g. `{ type: smoothstep, markerEnd: arrowclosed }`"),
+    PropDef::new("newNode", PropKind::Any, "A node (`{ type, data }`) made where a connection is dropped on empty canvas, and joined to it"),
+    PropDef::new("confirmDelete", PropKind::Any, "The id of a dialog to open before deleting; its button sends `flow.delete`"),
     PropDef::new("pan", PropKind::Any, "Drag the background to pan (default true)"),
     PropDef::new("zoom", PropKind::Any, "Wheel, pinch and keys zoom (default true)"),
     PropDef::new("wheel", PropKind::Any, "What the wheel does: `zoom` (default) or `pan` (Ctrl/⌘ + wheel zooms)"),
@@ -83,12 +99,16 @@ const FLOW_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the selected node's id (null when none)"),
     PropDef::new("bindNodes", PropKind::StateKey, "State key that gets the nodes, with new positions, after a drag"),
     PropDef::new("bindViewport", PropKind::StateKey, "State key kept in sync with the view: `{ x, y, zoom }`"),
+    PropDef::new("bindEdges", PropKind::StateKey, "State key that gets the edges after a connection or a deletion"),
+    PropDef::new("bindSelection", PropKind::StateKey, "State key holding every selected node and edge: `{ nodes: [ids], edges: [ids] }`"),
+    PropDef::new("bindDelete", PropKind::StateKey, "With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open"),
 ];
 
 /// Props the browser resolves against state; the rest are read once on the server.
 const LIVE: &[&str] = &[
     "nodes", "edges", "layout", "direction", "nodeGap", "rankGap", "nodeOrigin", "edgePath", "fit", "fitPadding",
     "viewport", "center", "highlight", "selectable", "draggable", "pan", "zoom", "wheel", "minZoom", "maxZoom",
+    "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete",
 ];
 
 struct Flow;
@@ -137,6 +157,9 @@ impl Component for Flow {
             "bind": cx.prop_string(node, "bind"),
             "bindNodes": cx.prop_string(node, "bindNodes"),
             "bindViewport": cx.prop_string(node, "bindViewport"),
+            "bindEdges": cx.prop_string(node, "bindEdges"),
+            "bindSelection": cx.prop_string(node, "bindSelection"),
+            "bindDelete": cx.prop_string(node, "bindDelete"),
             // Documents the policy doesn't trust can't load URLs through node styles.
             "safe": !(policy.allow_event_attributes && policy.allow_unsafe_urls),
         });
@@ -361,6 +384,10 @@ fn edge_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
     path.base_style_ref(&PATH).attr("data-flow-path", "");
     cx.open(&path, at)?;
     cx.close("path");
+    let mut hit = Element::new("path");
+    hit.base_style_ref(&HIT).attr("data-flow-hit", "");
+    cx.open(&hit, at)?;
+    cx.close("path");
     cx.close("svg");
 
     let mut label = match template {
@@ -491,6 +518,9 @@ const PORT_PROPS: &[PropDef] = &[
     PropDef::new("type", PropKind::Enum(&["source", "target"]), "Edges leave from `source` ports (default) and arrive at `target` ports"),
     PropDef::new("side", PropKind::Any, "`left`, `right`, `top` or `bottom`. Default: from the flow's `direction`, e.g. targets left and sources right for `LR`"),
     PropDef::new("offset", PropKind::Any, "Where along the side, e.g. `30%` or `24px`. Default: ports on one side share it evenly"),
+    PropDef::new("accepts", PropKind::Any, "Node types allowed at the other end of a new connection, e.g. `[step, merge]`"),
+    PropDef::new("max", PropKind::Any, "How many edges this port takes at most"),
+    PropDef::new("connectable", PropKind::Any, "Whether new connections can start or end here (default true)"),
 ];
 
 /// `ui-flow-port`: where edges attach to a node.
@@ -523,14 +553,39 @@ impl Component for Port {
         el.base_style_ref(&PORT)
             .attr("data-flow-port", node.prop("id").cloned().unwrap_or_else(|| Val::from("")))
             .attr("data-port-type", kind);
-        for (prop, attr) in [("side", "data-side"), ("offset", "data-offset")] {
+        for (prop, attr) in [
+            ("side", "data-side"),
+            ("offset", "data-offset"),
+            ("accepts", "data-accepts"),
+            ("max", "data-max"),
+        ] {
             if let Some(v) = node.prop(prop) {
                 el.attr(attr, v.clone());
             }
         }
+        // Present when the port takes no new connections. (A `false` attribute isn't
+        // written at all, so the attribute says "not" rather than "connectable".)
+        if let Some(v) = node.prop("connectable") {
+            el.attr("data-noconnect", not(v));
+        }
         cx.open(&el, node)?;
         cx.close("span");
         Ok(())
+    }
+}
+
+/// `!v`, as a value that stays live when `v` is.
+fn not(v: &Val) -> Val {
+    match v {
+        Val::Lit(j) => Val::Lit(Json::Bool(!expr::truthy(j))),
+        Val::Tpl(t) => {
+            let e = match t.as_single_expr() {
+                Some(e) => e.clone(),
+                // A template with text in it is never empty, so always truthy.
+                None => Expr::Lit(Json::Bool(true)),
+            };
+            Val::Tpl(Template { parts: vec![Part::Expr(Expr::Unary(UnOp::Not, Box::new(e)))] })
+        }
     }
 }
 
@@ -559,6 +614,48 @@ impl Component for Panel {
 
     fn render(&self, node: &Node, _cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         Err(RenderError::new(node, "`ui-flow-panel` must be a direct child of `ui-flow`"))
+    }
+}
+
+const ITEM_PROPS: &[PropDef] = &[
+    PropDef::new("node", PropKind::Any, "The node to add: `{ type, data }`, and `id` if it should keep one").required(),
+    PropDef::new("flow", PropKind::String, "The element id of the flow to add to. Default: the flow it is in, or the page's only flow"),
+];
+
+/// `ui-flow-item`: a palette entry, dragged onto a flow or clicked to add a node.
+struct Item;
+
+impl Component for Item {
+    fn name(&self) -> &'static str {
+        "ui-flow-item"
+    }
+
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "A palette entry: drag it onto a `ui-flow` to add its `node` there, or click it to add the node in the middle of the view. The flow needs `bindNodes`.",
+            props: ITEM_PROPS,
+            parts: &[],
+            children: true,
+            open_props: false,
+        }
+    }
+
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let Some(template) = node.prop("node") else {
+            return Err(RenderError::new(node, "`ui-flow-item` needs a `node`"));
+        };
+        let (value, _) = dynamic(cx, node, "node", template)?;
+        cx.global_js("ui-flow", SCRIPT);
+        let mut el = cx.element("div", node);
+        el.base_style_ref(&ITEM)
+            .attr("role", "button")
+            .attr("tabindex", "0")
+            .attr("draggable", "true")
+            .behavior("ui-flow-item", json!({ "node": value, "flow": cx.prop_string(node, "flow") }));
+        cx.open(&el, node)?;
+        cx.children(node)?;
+        cx.close("div");
+        Ok(())
     }
 }
 
@@ -692,6 +789,12 @@ static PORT: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&[data-side=right]", at("left", "100%"))
     .nest("&[data-side=top]", at("top", "0"))
     .nest("&[data-side=bottom]", at("top", "100%"))
+    // Ports take connections while the flow is connectable.
+    .nest("[data-connectable] &", pairs(&[("pointer-events", "auto"), ("cursor", "crosshair"), ("width", "10px"), ("height", "10px")]))
+    .nest("[data-connectable] &[data-noconnect]", pairs(&[("pointer-events", "none"), ("cursor", "default")]))
+    .nest("[data-connectable] &:hover", pairs(&[("background", PRIMARY)]))
+    .nest("&[data-connect=valid]", pairs(&[("background", "#16a34a"), ("width", "12px"), ("height", "12px")]))
+    .nest("&[data-connect=invalid]", pairs(&[("background", "var(--color-destructive, #dc2626)")]))
 });
 
 static EDGE_SVG: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -713,6 +816,17 @@ static PATH: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("fill", "none"), ("stroke", "var(--color-muted, #a1a1aa)"), ("stroke-width", "1.5")])
         .nest("&[data-animated]", pairs(&[("stroke-dasharray", "5"), ("animation", "ui-flow-dash .5s linear infinite")]))
         .nest("&[data-highlighted]", pairs(&[("stroke", PRIMARY), ("stroke-width", "2")]))
+        .nest("&[data-selected]", pairs(&[("stroke", PRIMARY), ("stroke-width", "2.5")]))
+});
+
+/// The invisible, wider copy of an edge's path that takes clicks.
+static HIT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("fill", "none"), ("stroke", "transparent"), ("stroke-width", "14"), ("pointer-events", "none"), ("cursor", "pointer")])
+});
+
+static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("cursor", "grab"), ("user-select", "none"), ("touch-action", "manipulation")])
+        .nest("&:focus-visible", pairs(&[("outline", &format!("2px solid {RING}")), ("outline-offset", "2px")]))
 });
 
 static LABEL: LazyLock<StyleBlock> = LazyLock::new(|| {

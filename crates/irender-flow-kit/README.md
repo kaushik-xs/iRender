@@ -1,6 +1,6 @@
 # irender-flow-kit
 
-Node-and-edge diagrams for [iRender](../../README.md) documents: flowcharts, workflows and ER diagrams. `ui-flow` reads nodes and edges in [React Flow](https://reactflow.dev/)'s JSON shape, so a graph React Flow saved renders as it is. Every node type is a template you write as an ordinary iRender tree, so a node can hold any component, including [irender-ui-kit](../irender-ui-kit/README.md)'s, icons and sparklines. The kit's script handles pan and zoom, automatic layout, edge routing, selection, dragging and the minimap. It is about 13 KB gzipped (unminified), needs no other library, and is added once per page that has a flow.
+Node-and-edge diagrams for [iRender](../../README.md) documents: flowcharts, workflows and ER diagrams. `ui-flow` reads nodes and edges in [React Flow](https://reactflow.dev/)'s JSON shape, so a graph React Flow saved renders as it is. Every node type is a template you write as an ordinary iRender tree, so a node can hold any component, including [irender-ui-kit](../irender-ui-kit/README.md)'s, icons and sparklines. The kit's script handles pan and zoom, automatic layout, edge routing, selection, dragging, connecting, deleting, a palette and the minimap. It is about 19 KB gzipped (unminified), needs no other library, and is added once per page that has a flow.
 
 ```rust
 let mut engine = irender_html::Engine::new();
@@ -114,26 +114,110 @@ A template's `style` styles the path. Its children are the label, which sits at 
 | `viewport` | `{ x, y, zoom }` to start at when `fit` is false. React Flow saves this with `toObject()`. |
 | `center` | A node id; the view pans to that node whenever this changes. |
 | `highlight` | `neighbors`: while a node is selected, everything not connected to it is dimmed. |
-| `selectable`, `draggable`, `pan`, `zoom` | Defaults: true, false, true, true. |
+| `selectable`, `pan`, `zoom` | Defaults: all true. |
+| `editable` | Turns on `draggable`, `connectable` and `deletable` together. Each can still be set on its own. See [Editing](#editing). |
+| `draggable`, `connectable`, `deletable` | Default: `editable`. |
+| `connect` | Connection rules; see [Editing](#editing). |
+| `newEdge` | Fields every new edge starts with, e.g. `{ type: smoothstep, markerEnd: arrowclosed }`. |
+| `newNode` | A node (`{ type, data }`) made where a connection is dropped on empty canvas, and joined to it. |
+| `confirmDelete` | The element id of a dialog to open before deleting. |
 | `wheel` | `zoom` (default) or `pan`, which leaves zooming to Ctrl/⌘ + wheel. |
 | `minZoom`, `maxZoom` | 0.1 and 2. |
 | `background` | `dots` (default), `lines` or `none`. |
 | `controls`, `minimap` | The zoom/fit buttons (default on) and an overview that pans the view when clicked or dragged (default off). Style them through `parts`. |
 | `height` | Default 480. The width is the container's. |
 | `title` | Accessible name. |
-| `bind` | State key with the selected node's id, or null. It works in both directions. |
-| `bindNodes` | State key that gets the nodes array, with the new position, after a drag. Point `nodes` at the same key to keep them in sync. |
+| `bind` | State key with the selected node's id (the last one selected), or null. It works in both directions. |
+| `bindSelection` | State key with every selected node and edge, `{ nodes: [ids], edges: [ids] }`, in both directions. |
+| `bindNodes` | State key that gets the nodes array after a drag, an added node or a deletion. Point `nodes` at the same key to keep them in sync. |
+| `bindEdges` | The same for edges, after a connection or a deletion. |
+| `bindDelete` | With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open. Null otherwise. |
 | `bindViewport` | State key kept in sync with `{ x, y, zoom }`. |
 
 Every prop except `background`, `controls`, `minimap`, `height` and `title` can use state.
 
-The flow fires three events, which you can handle in `on`. Each fires after its bound state is written, so actions can read it:
+The flow fires these events, which you can handle in `on`. Each fires after its bound state is written, so actions can read it:
 
-- **`nodeselect`:** after `bind`.
+- **`nodeselect`:** the selection changed.
 - **`nodeopen`:** on a double-click, or Enter on a node that is already selected.
-- **`nodemove`:** after `bindNodes`.
+- **`nodemove`:** a node was dragged.
+- **`connect`:** an edge was added.
+- **`nodeadd`:** a node was added.
+- **`deleterequest`:** a deletion is waiting for its dialog.
+- **`delete`:** nodes or edges were deleted.
 
 `ui-flow-panel` children (`position`: `top-left` … `bottom-right`) float above the flow without panning or zooming, so toolbars and legends go there.
+
+## Editing
+
+```yaml
+- type: ui-flow
+  attrs: { id: wf }
+  props:
+    nodes: "{{ wf.nodes }}"
+    edges: "{{ wf.edges }}"
+    bindNodes: wf.nodes          # edits are written here …
+    bindEdges: wf.edges          # … and here
+    editable: true
+    connect: { sameParent: true, pairs: [{ source: trigger, target: step }, { source: step }] }
+    newEdge: { type: smoothstep }
+    newNode: { type: step, data: { label: New step } }
+    confirmDelete: confirm-delete
+    bindDelete: doomed
+- type: ui-flow-item             # a palette entry: drag it onto the flow, or click it
+  props: { flow: wf, node: { type: step, data: { label: New step } } }
+  children: [{ type: ui-badge, props: { text: Step } }]
+```
+
+The kit makes every edit itself and writes the result to `bindNodes` / `bindEdges`; expressions can't build arrays. Point `nodes` and `edges` at the same keys and the flow follows.
+
+- **Connecting:** drag from a port to a port of the other type, starting at either end. Dropping on a node's body joins the first of its ports that the rules allow. While dragging, the port under the pointer turns green or red. Dropping on empty canvas makes a `newNode` there and joins it.
+- **Connection rules:** a connection is refused when any rule says no.
+
+  | Rule | What it refuses |
+  |---|---|
+  | `connect.self` | A node joined to itself, unless set |
+  | `connect.unique` | A second edge between the same two ports (set it to false to allow one) |
+  | `connect.sameParent` | Two nodes with different parents |
+  | `connect.pairs` | Any pair of node types not in this allow-list of `{ source, target }` (either may be left out) |
+  | A port's `accepts` | Node types not in this list at the other end |
+  | A port's `max` | More edges than this at the port |
+  | A port's `connectable: false` | Any new connection at the port |
+
+  A port's rules can use state.
+- **Selecting:**
+  - Click a node or an edge to select it. Shift, ⌘ or Ctrl + click adds it to the selection.
+  - Shift + drag on the background selects every node inside the box.
+  - ⌘/Ctrl + A selects all nodes.
+  - Dragging a selected node moves the whole selection.
+- **Deleting:** Delete or Backspace removes the selection. A deleted node's edges and child nodes go with it. With `confirmDelete`, the flow writes what would go to `bindDelete` and opens that dialog instead. The dialog's buttons answer it with `flow.delete` or `flow.cancel`:
+
+  ```yaml
+  - type: ui-alert-dialog
+    props: { id: confirm-delete, title: Delete?, description: "{{ doomed.nodes.length }} node(s) and {{ doomed.edges.length }} edge(s)" }
+    children:
+      - type: ui-dialog-footer
+        children:
+          - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: wf } } } }
+          - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: wf } } } }
+  ```
+- **Adding:** `ui-flow-item` takes a `node` (`{ type, data }`, and an `id` to keep). Dragging it onto the flow adds the node where it's dropped; clicking it, or pressing Enter or Space, adds it in the middle of the view. Its `flow` is the flow's element id. It can be left out when the item is inside the flow, or the page has one flow. New ids are the type plus a number, such as `step_3`.
+
+### Commands
+
+A `call` whose name starts with `flow.` is a command to the flow:
+
+| Command | What it does |
+|---|---|
+| `flow.fit`, `flow.zoomin`, `flow.zoomout` | Fit or zoom the view |
+| `flow.delete` | Answers a pending `confirmDelete`, or deletes the selection |
+| `flow.cancel` | Drops a pending deletion |
+| `flow.add` | Adds `args.node` in the middle of the view, or at `args.position` |
+| `flow.select` | Selects `args.id`, or clears the selection when it's null |
+| `flow.center` | Pans to `args.id` |
+| `flow.relayout` | Clears dragged positions and lays the nodes out again |
+
+Commands from inside the flow, such as a panel button, a node, or a dialog in either, reach it directly. From elsewhere, add `args.flow` with the flow's element id; without it, a command reaches the page's only flow.
 
 ## Mouse, touch and keyboard
 
@@ -141,9 +225,11 @@ The flow fires three events, which you can handle in `on`. Each fires after its 
 |---|---|
 | Drag the background | Pans the view |
 | Wheel or pinch | Zooms |
-| Click a node | Selects it |
+| Click a node or edge | Selects it (Shift adds to the selection) |
 | Click the background | Clears the selection |
-| Drag a node | Moves it, when `draggable` is on |
+| Shift + drag the background | Box selection |
+| Drag a node | Moves it, with the rest of the selection, when `draggable` is on |
+| Drag from a port | Connects, when `connectable` is on |
 
 Controls inside nodes (buttons, inputs, links) work as usual and don't start a drag. Add `data-flow-nodrag` to any other element that should behave the same way.
 
@@ -153,9 +239,11 @@ The flow and its nodes are focusable:
 |---|---|
 | Tab | Moves focus to the flow and its nodes |
 | Enter / Space | Selects the focused node |
-| Escape | Clears the selection |
+| Escape | Cancels a connection, or clears the selection |
+| Delete / Backspace | Deletes the selection, when `deletable` is on |
+| ⌘/Ctrl + A | Selects all nodes |
 | `+` / `-` | Zoom |
-| Arrows | Pan, or move the selected node when `draggable` is on (Shift for bigger steps) |
+| Arrows | Pan, or move the selection when a node has focus and `draggable` is on (Shift for bigger steps) |
 
 ## Safety
 

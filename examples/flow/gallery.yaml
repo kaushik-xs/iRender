@@ -37,6 +37,7 @@ state:
     - { id: e11, source: join, target: reply, animated: true }
   step: null
   dir: LR
+  doomed: null
   # The ER diagram
   table: null
   keysOnly: false
@@ -83,10 +84,26 @@ root:
     # -------------------------------------------------------------- workflow
     - type: ui-card
       props:
-        title: A workflow, with node types of its own
-        description: "Laid out automatically. The switch has a port per case and the merge a port per input, from the node's data. Drag a node, click one to select it, double-click to open it."
+        title: A workflow you can edit, with node types of its own
+        description: "Laid out automatically. The switch has a port per case and the merge a port per input, from the node's data. Drag from a port to connect, or onto empty canvas to add a step there. Click or Shift-drag to select, Delete to remove (it asks first), and drag or click a palette item to add one."
       children:
+        # The palette: drag an item onto the flow, or click it.
+        - type: stack
+          props: { direction: row, gap: 8, align: center, wrap: true }
+          style: { margin-bottom: 12 }
+          children:
+            - { type: ui-text, props: { variant: muted, text: "Add:" } }
+            - type: ui-flow-item
+              props: { flow: wf, node: { type: step, data: { label: New step, detail: setVariable } } }
+              children: [{ type: ui-badge, props: { text: Step, variant: outline } }]
+            - type: ui-flow-item
+              props: { flow: wf, node: { type: if, data: { label: New condition, detail: "x > 0" } } }
+              children: [{ type: ui-badge, props: { text: If, variant: outline } }]
+            - type: ui-flow-item
+              props: { flow: wf, node: { type: merge, data: { label: Merge, inputs: [0, 1] } } }
+              children: [{ type: ui-badge, props: { text: Merge, variant: outline } }]
         - type: ui-flow
+          attrs: { id: wf }
           props:
             nodes: "{{ wfNodes }}"
             edges: "{{ wfEdges }}"
@@ -95,9 +112,15 @@ root:
             direction: "{{ dir }}"
             edgePath: smoothstep
             rankGap: 64
-            draggable: true
+            editable: true
             bind: step
             bindNodes: wfNodes
+            bindEdges: wfEdges
+            # A trigger may only lead to a step; other nodes connect freely.
+            connect: { pairs: [{ source: trigger, target: step }, { source: step }, { source: if }, { source: switch }, { source: merge }] }
+            newNode: { type: step, data: { label: New step, detail: setVariable } }
+            confirmDelete: confirm-delete
+            bindDelete: doomed
             height: 520
             minimap: true
           children:
@@ -190,6 +213,18 @@ root:
                       style: { width: 220 }
                       children:
                         - { type: ui-button, props: { label: Deselect, size: sm, variant: outline }, on: { click: { action: set_state, key: step, value: null } } }
+
+        # Opened by the flow before it deletes; its buttons answer it.
+        - type: ui-alert-dialog
+          props:
+            id: confirm-delete
+            title: Delete from the workflow?
+            description: "{{ doomed ? doomed.nodes.length + ' step(s) and ' + doomed.edges.length + ' connection(s) will be removed.' : '' }}"
+          children:
+            - type: ui-dialog-footer
+              children:
+                - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: wf } } } }
+                - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: wf } } } }
 
     # ------------------------------------------------------------ ER diagram
     - type: ui-card

@@ -162,3 +162,37 @@ fn misplaced_children_are_errors() {
     .contains("fixed name"));
     assert!(err(json!({ "type": "ui-flow", "props": { "nodes": 3 } })).contains("`nodes` must evaluate to an array"));
 }
+
+#[test]
+fn editing_props_ports_and_palette_items() {
+    let page = render(
+        json!({ "type": "stack", "children": [
+            { "type": "ui-flow", "props": { "nodes": "{{ wf }}", "edges": "{{ links }}", "editable": true,
+                "bindNodes": "wf", "bindEdges": "links", "bindSelection": "picked", "bindDelete": "doomed",
+                "confirmDelete": "ask", "connect": { "sameParent": true }, "newEdge": { "type": "step" } },
+              "children": [{ "type": "ui-flow-node", "props": { "type": "task" }, "children": [
+                  { "type": "ui-flow-port", "props": { "type": "target", "accepts": ["task"], "max": 1, "connectable": false } },
+                  { "type": "ui-flow-port", "props": { "connectable": "{{ open }}" } } ] }] },
+            { "type": "ui-flow-item", "props": { "node": { "type": "task", "data": { "label": "{{ label }}" } } },
+              "children": [{ "type": "text", "props": { "value": "Task" } }] } ] }),
+        json!({ "wf": nodes(), "links": [{ "id": "e", "source": "a", "target": "b" }], "picked": null, "doomed": null, "open": true, "label": "New" }),
+    )
+    .unwrap();
+    let body = unescape(&page.body);
+    let cfg = config(&page);
+    for key in ["bindNodes", "bindEdges", "bindSelection", "bindDelete"] {
+        assert!(cfg[key].is_string(), "{key}: {cfg}");
+    }
+    assert_eq!(cfg["props"]["connect"], json!({ "sameParent": true }));
+    assert_eq!(cfg["props"]["confirmDelete"], "ask");
+    // Port rules: a fixed `connectable: false` and one that follows state.
+    assert!(body.contains(r#"data-accepts="[&quot;task&quot;]""#) || body.contains(r#"data-accepts="["task"]""#), "{body}");
+    assert!(body.contains(r#"data-max="1""#));
+    assert!(body.contains("data-noconnect"));
+    assert!(body.contains(r#""n":"data-noconnect""#), "a live binding: {body}");
+    // Every edge has a hit path for clicks.
+    assert!(body.contains("data-flow-hit"));
+    // The palette item: draggable, focusable, with its node (state read in the browser).
+    assert!(body.contains(r#"draggable="true""#) && body.contains(r#"data-i-x="ui-flow-item""#), "{body}");
+    assert!(body.contains(r#""node":{"type":"task","data":{"label":{"$irender""#), "{body}");
+}
