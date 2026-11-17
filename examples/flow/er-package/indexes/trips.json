@@ -1,0 +1,16 @@
+[
+  {
+    "id": "idx_trips_vehicle_started",
+    "table_id": "tbl_trips",
+    "name": "idx_trips_vehicle_started",
+    "method": "btree",
+    "unique": false,
+    "columns": [
+      "vehicle_id",
+      "started_at"
+    ],
+    "include": [],
+    "where": null,
+    "comment": null
+  }
+]

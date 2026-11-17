@@ -1,0 +1,80 @@
+[
+  {
+    "id": "col_vehicles_id",
+    "table_id": "tbl_vehicles",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_depot_id",
+    "table_id": "tbl_vehicles",
+    "name": "depot_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_registration",
+    "table_id": "tbl_vehicles",
+    "name": "registration",
+    "type": "text",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_make",
+    "table_id": "tbl_vehicles",
+    "name": "make",
+    "type": "text",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_model",
+    "table_id": "tbl_vehicles",
+    "name": "model",
+    "type": "text",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_capacity_kg",
+    "table_id": "tbl_vehicles",
+    "name": "capacity_kg",
+    "type": "numeric",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_status",
+    "table_id": "tbl_vehicles",
+    "name": "status",
+    "type": "text",
+    "nullable": false,
+    "default": {
+      "expression": "'active'"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_vehicles_created_at",
+    "table_id": "tbl_vehicles",
+    "name": "created_at",
+    "type": "timestamptz",
+    "nullable": false,
+    "default": {
+      "expression": "now()"
+    },
+    "comment": null
+  }
+]

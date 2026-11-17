@@ -1,0 +1,60 @@
+[
+  {
+    "id": "col_fuel_logs_id",
+    "table_id": "tbl_fuel_logs",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_fuel_logs_vehicle_id",
+    "table_id": "tbl_fuel_logs",
+    "name": "vehicle_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_fuel_logs_trip_id",
+    "table_id": "tbl_fuel_logs",
+    "name": "trip_id",
+    "type": "uuid",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_fuel_logs_litres",
+    "table_id": "tbl_fuel_logs",
+    "name": "litres",
+    "type": "numeric",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_fuel_logs_price",
+    "table_id": "tbl_fuel_logs",
+    "name": "price",
+    "type": "numeric",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_fuel_logs_logged_at",
+    "table_id": "tbl_fuel_logs",
+    "name": "logged_at",
+    "type": "timestamptz",
+    "nullable": false,
+    "default": {
+      "expression": "now()"
+    },
+    "comment": null
+  }
+]

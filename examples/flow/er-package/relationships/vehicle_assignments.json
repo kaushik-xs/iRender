@@ -1,0 +1,26 @@
+[
+  {
+    "id": "rel_vehicle_assignments_vehicle_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_vehicle_assignments",
+    "from_column_id": "col_vehicle_assignments_vehicle_id",
+    "to_schema_id": "default",
+    "to_table_id": "tbl_vehicles",
+    "to_column_id": "col_vehicles_id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_vehicle_assignments_vehicle_id"
+  },
+  {
+    "id": "rel_vehicle_assignments_driver_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_vehicle_assignments",
+    "from_column_id": "col_vehicle_assignments_driver_id",
+    "to_schema_id": "default",
+    "to_table_id": "tbl_drivers",
+    "to_column_id": "col_drivers_id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_vehicle_assignments_driver_id"
+  }
+]

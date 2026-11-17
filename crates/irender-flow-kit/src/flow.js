@@ -109,6 +109,11 @@
     return { d, x, y };
   }
 
+  function selfLoop(g) {
+    const x = g.x + g.w, y = g.y, k = 36;
+    return { d: `M${x - 24},${y} C${x - 24},${y - k * 1.4} ${x + k * 1.4},${y + 24} ${x},${y + 24}`, x: x + k * 0.55, y: y - k * 0.55 };
+  }
+
   function route(kind, s, t) {
     if (kind === "straight") return { d: `M${s.x},${s.y} L${t.x},${t.y}`, x: (s.x + t.x) / 2, y: (s.y + t.y) / 2 };
     if (kind === "step") return polyline(orthogonal(s, t, 20), 0);
@@ -131,7 +136,8 @@
   // A layered (Sugiyama-style) layout of the top-level nodes: cycles broken,
   // longest-path ranks, barycentre ordering, then positions that pull each node
   // towards its neighbours without letting nodes in a rank overlap. Components are
-  // laid out separately and stacked. Returns top-left corners by id.
+  // laid out separately, then packed into rows, largest first. Returns top-left
+  // corners by id.
   function layered(ids, links, size, dir, nodeGap, rankGap) {
     const horizontal = dir === "LR" || dir === "RL";
     const along = (id) => (horizontal ? size(id).w : size(id).h); // rank axis
@@ -160,7 +166,7 @@
       comps.push(list.sort((a, b) => ids.indexOf(a) - ids.indexOf(b)));
     }
     const pos = new Map();
-    let offset = 0;
+    const boxes = []; // each component's nodes and size, to pack afterwards
     for (const list of comps) {
       // Break cycles: edges back to a node still on the DFS stack are reversed.
       const state = new Map(), succ = new Map(list.map((id) => [id, []]));
@@ -242,11 +248,27 @@
       }
       let lo = Infinity, hi = -Infinity;
       for (const id of list) { lo = Math.min(lo, centre.get(id) - across(id) / 2); hi = Math.max(hi, centre.get(id) + across(id) / 2); }
+      const own = new Map();
+      let depth = 0;
       for (const id of list) {
-        const a = rankAt.get(id), c = centre.get(id) - across(id) / 2 - lo + offset;
-        pos.set(id, horizontal ? { x: a, y: c } : { x: c, y: a });
+        const a = rankAt.get(id), c = centre.get(id) - across(id) / 2 - lo;
+        own.set(id, horizontal ? { x: a, y: c } : { x: c, y: a });
+        depth = Math.max(depth, a + along(id));
       }
-      offset += hi - lo + nodeGap * 2;
+      boxes.push({ own, w: horizontal ? depth : hi - lo, h: horizontal ? hi - lo : depth, n: list.length });
+    }
+    // Pack the components in rows, largest first, wrapping at a width that keeps the
+    // whole roughly 16:10, so many small, unconnected groups don't make one long strip.
+    boxes.sort((a, b) => b.n - a.n || b.w * b.h - a.w * a.h);
+    const gap = nodeGap * 2;
+    const area = boxes.reduce((s, b) => s + (b.w + gap) * (b.h + gap), 0);
+    const width = Math.max(Math.sqrt(area * 1.6), ...boxes.map((b) => b.w));
+    let x = 0, y = 0, row = 0;
+    for (const b of boxes) {
+      if (x > 0 && x + b.w > width) { x = 0; y += row + gap; row = 0; }
+      for (const [id, p] of b.own) pos.set(id, { x: p.x + x, y: p.y + y });
+      x += b.w + gap;
+      row = Math.max(row, b.h);
     }
     // RL and BT are LR and TB mirrored along the rank axis.
     if (dir === "RL" || dir === "BT") {
@@ -310,6 +332,7 @@
     const sized = new Map(); // id → { w, h } set by resizing
     let history = [], future = [], batching = 0; // undo and redo
     let found = null, query = "", active = 0; // `search`'s matches
+    let neighbours = new Set(); // nodes shown only as context for `filter`
     let laidOut = new Map(), layoutKey = "";
     const geo = new Map(); // id → { x, y, w, h }, absolute, in flow coordinates
     const ports = new Map(); // id → [{ id, type, side, x, y }], relative to the node
@@ -441,13 +464,34 @@
     });
     observer.observe(el);
     const watched = new WeakSet();
+    // Entering or leaving fullscreen changes the view's size: fit the nodes to it.
+    document.addEventListener("fullscreenchange", () => {
+      if (el.isConnected && (document.fullscreenElement === el || !document.fullscreenElement)) requestAnimationFrame(() => fitView(false));
+    });
 
     // Reads the nodes and edges, measures new or resized nodes, lays them out and
     // draws everything.
     function refresh(all) {
       nodes = (Array.isArray(props.nodes) ? props.nodes : []).filter((n) => isObj(n) && n.id !== null && n.id !== undefined && !n.hidden);
-      byId = new Map(nodes.map((n) => [str(n.id), n]));
       edges = (Array.isArray(props.edges) ? props.edges : []).filter(isObj);
+      // `filter`: only these nodes, with the nodes they connect to as context.
+      neighbours = new Set();
+      const shown = Array.isArray(props.filter) && props.filter.length ? new Set(props.filter.map(str)) : null;
+      if (shown) {
+        if (on("filterNeighbors", true))
+          for (const e of edges) {
+            const s = str(e.source), t = str(e.target);
+            if (shown.has(s) && !shown.has(t)) neighbours.add(t);
+            if (shown.has(t) && !shown.has(s)) neighbours.add(s);
+          }
+        // A shown node's container is shown too, or the node would have nowhere to sit.
+        const all = new Map(nodes.map((n) => [str(n.id), n]));
+        for (const id of [...shown, ...neighbours])
+          for (let p = all.get(str(all.get(id)?.parentId)), i = 0; p && i < 64; p = all.get(str(p.parentId)), i++)
+            if (!shown.has(str(p.id))) neighbours.add(str(p.id));
+        nodes = nodes.filter((n) => shown.has(str(n.id)) || neighbours.has(str(n.id)));
+      }
+      byId = new Map(nodes.map((n) => [str(n.id), n]));
       for (const id of dragged.keys()) if (!byId.has(id)) dragged.delete(id);
       const els = nodeEls();
       for (const [id, nodeEl] of els) {
@@ -552,6 +596,7 @@
         flag(nodeEl, "data-selected", picked.nodes.has(id));
         flag(nodeEl, "data-dimmed", (focusing && !near.has(id)) || (hits && !hits.has(id)));
         flag(nodeEl, "data-match", !!hits?.has(id));
+        flag(nodeEl, "data-neighbor", neighbours.has(id));
         flag(nodeEl, "data-active", id === activeId);
         flag(nodeEl, "data-selectable", selectable);
         flag(nodeEl, "data-draggable", draggable);
@@ -609,7 +654,9 @@
           a = end(s, e.sourceHandle, "source");
           b = end(t, e.targetHandle, "target");
         }
-        const p = route(kind, a, b);
+        // A floating edge from a node to itself has no direction: a loop off its
+        // top-right corner.
+        const p = s === t && (tc.floating || type === "floating") ? selfLoop(geo.get(s)) : route(kind, a, b);
         const path = r.svg.querySelector("[data-flow-path]");
         path.setAttribute("d", p.d);
         // A wide, invisible copy of the path takes the clicks.
@@ -1069,7 +1116,10 @@
       else if (name === "flow.select") args.id === null || args.id === undefined ? clearSelection() : selectNode(str(args.id));
       else if (name === "flow.center") centreOn(str(args.id));
       else if (name === "flow.relayout") { dragged.clear(); layoutKey = ""; refresh(false); fitView(true); }
-      else if (name === "flow.undo") undo();
+      else if (name === "flow.fullscreen") {
+        if (document.fullscreenElement === el) document.exitFullscreen?.();
+        else el.requestFullscreen?.().catch(() => {});
+      } else if (name === "flow.undo") undo();
       else if (name === "flow.redo") redo();
       else if (name === "flow.copy") copy();
       else if (name === "flow.cut") cut();

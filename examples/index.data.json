@@ -44,6 +44,19 @@
       ]
     },
     {
+      "title": "ER diagram",
+      "href": "flow/er.html",
+      "source": "examples/flow/er.yaml",
+      "summary": "A package's tables and relationships as an ER diagram, after the builder's own: key and constraint badges, floating labelled edges, tables from other packages, a filter that keeps neighbours as context, keys-only and collapsed views, and LR/TB layout.",
+      "features": [
+        "irender-flow-kit",
+        "ER diagram",
+        "host code",
+        "filter",
+        "icons"
+      ]
+    },
+    {
       "title": "Icon gallery",
       "href": "icons/index.html",
       "source": "examples/icons/gallery.yaml",

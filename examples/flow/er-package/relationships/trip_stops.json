@@ -1,0 +1,14 @@
+[
+  {
+    "id": "rel_trip_stops_trip_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_trip_stops",
+    "from_column_id": "col_trip_stops_trip_id",
+    "to_schema_id": "default",
+    "to_table_id": "tbl_trips",
+    "to_column_id": "col_trips_id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_trip_stops_trip_id"
+  }
+]

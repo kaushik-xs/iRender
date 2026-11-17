@@ -1,0 +1,58 @@
+[
+  {
+    "id": "col_trip_stops_id",
+    "table_id": "tbl_trip_stops",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_trip_stops_trip_id",
+    "table_id": "tbl_trip_stops",
+    "name": "trip_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trip_stops_seq",
+    "table_id": "tbl_trip_stops",
+    "name": "seq",
+    "type": "integer",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trip_stops_address",
+    "table_id": "tbl_trip_stops",
+    "name": "address",
+    "type": "text",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trip_stops_arrived_at",
+    "table_id": "tbl_trip_stops",
+    "name": "arrived_at",
+    "type": "timestamptz",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trip_stops_proof",
+    "table_id": "tbl_trip_stops",
+    "name": "proof",
+    "type": "jsonb",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  }
+]

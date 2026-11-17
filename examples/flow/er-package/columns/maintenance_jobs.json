@@ -1,0 +1,78 @@
+[
+  {
+    "id": "col_maintenance_jobs_id",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_vehicle_id",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "vehicle_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_follows_job_id",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "follows_job_id",
+    "type": "uuid",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_kind",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "kind",
+    "type": "text",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_due_on",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "due_on",
+    "type": "timestamptz",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_done_on",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "done_on",
+    "type": "timestamptz",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_cost",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "cost",
+    "type": "numeric",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_maintenance_jobs_done",
+    "table_id": "tbl_maintenance_jobs",
+    "name": "done",
+    "type": "boolean",
+    "nullable": false,
+    "default": {
+      "expression": "false"
+    },
+    "comment": null
+  }
+]

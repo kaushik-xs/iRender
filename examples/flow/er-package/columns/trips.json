@@ -1,0 +1,67 @@
+[
+  {
+    "id": "col_trips_id",
+    "table_id": "tbl_trips",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_trips_vehicle_id",
+    "table_id": "tbl_trips",
+    "name": "vehicle_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trips_driver_id",
+    "table_id": "tbl_trips",
+    "name": "driver_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trips_started_at",
+    "table_id": "tbl_trips",
+    "name": "started_at",
+    "type": "timestamptz",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trips_ended_at",
+    "table_id": "tbl_trips",
+    "name": "ended_at",
+    "type": "timestamptz",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trips_distance_km",
+    "table_id": "tbl_trips",
+    "name": "distance_km",
+    "type": "numeric",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_trips_notes",
+    "table_id": "tbl_trips",
+    "name": "notes",
+    "type": "text",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  }
+]

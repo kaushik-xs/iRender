@@ -1,0 +1,7 @@
+{
+  "id": "fleet",
+  "name": "Fleet",
+  "version": "0.1.0",
+  "schema": "fleet",
+  "description": "A made-up fleet-management package, in the package format the builder edits, for the flow kit's ER example."
+}

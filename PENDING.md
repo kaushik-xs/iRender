@@ -70,7 +70,9 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - Undo restores the saved JSON exactly.
   - Fixed on the way: the dot background packed too tight below about 0.5 zoom, and new and pasted ids didn't follow the builder's snake_case.
 - [ ] **The builder's `if` and `switch` are diamond and hexagon shapes**; templates can only approximate them with CSS (`clip-path` would cut off ports). Idea: a `shape` on `ui-flow-node` that draws an SVG outline behind the content.
-- [ ] **Not tried yet:** the builder's ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
+- [x] **Tried on the builder's ER diagram** (2026-11-17), as `examples/flow/er.yaml` with the `package_er` converter. Run on the dwigital packages (manufacturing_core, siemens, checklist, launchpad, sample_ecommerce): every table and relationship draws, with no overlaps.
+  - Added for it: `filter` with neighbours as context, `flow.fullscreen`, loops for floating self-edges, and packing unconnected groups into rows (the layout used to stack them in one tall column).
+- [ ] **Not tried yet:** client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
 
 ## Icon kit: packs not drawn yet
 

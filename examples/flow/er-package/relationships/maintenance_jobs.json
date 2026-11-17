@@ -1,0 +1,26 @@
+[
+  {
+    "id": "rel_maintenance_jobs_vehicle_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_maintenance_jobs",
+    "from_column_id": "col_maintenance_jobs_vehicle_id",
+    "to_schema_id": "default",
+    "to_table_id": "tbl_vehicles",
+    "to_column_id": "col_vehicles_id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_maintenance_jobs_vehicle_id"
+  },
+  {
+    "id": "rel_maintenance_jobs_follows_job_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_maintenance_jobs",
+    "from_column_id": "col_maintenance_jobs_follows_job_id",
+    "to_schema_id": "default",
+    "to_table_id": "tbl_maintenance_jobs",
+    "to_column_id": "col_maintenance_jobs_id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_maintenance_jobs_follows_job_id"
+  }
+]

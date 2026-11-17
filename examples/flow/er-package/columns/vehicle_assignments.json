@@ -1,0 +1,49 @@
+[
+  {
+    "id": "col_vehicle_assignments_id",
+    "table_id": "tbl_vehicle_assignments",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_vehicle_assignments_vehicle_id",
+    "table_id": "tbl_vehicle_assignments",
+    "name": "vehicle_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicle_assignments_driver_id",
+    "table_id": "tbl_vehicle_assignments",
+    "name": "driver_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicle_assignments_starts_at",
+    "table_id": "tbl_vehicle_assignments",
+    "name": "starts_at",
+    "type": "timestamptz",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_vehicle_assignments_ends_at",
+    "table_id": "tbl_vehicle_assignments",
+    "name": "ends_at",
+    "type": "timestamptz",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  }
+]

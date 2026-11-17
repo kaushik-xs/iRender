@@ -99,6 +99,8 @@ const FLOW_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the selected node's id (null when none)"),
     PropDef::new("bindNodes", PropKind::StateKey, "State key that gets the nodes, with new positions, after a drag"),
     PropDef::new("bindViewport", PropKind::StateKey, "State key kept in sync with the view: `{ x, y, zoom }`"),
+    PropDef::new("filter", PropKind::Any, "Node ids to show; the rest are hidden, except the nodes they connect to, shown as context (`data-neighbor`). Empty or null shows all"),
+    PropDef::new("filterNeighbors", PropKind::Any, "With `filter`, also show the nodes the shown ones connect to (default true)"),
     PropDef::new("search", PropKind::Any, "Text to find in the nodes: matches are marked `data-match`, everything else is dimmed"),
     PropDef::new("bindMatches", PropKind::StateKey, "State key holding the ids of the nodes `search` matches"),
     PropDef::new("bindHistory", PropKind::StateKey, "State key holding how many edits can be undone and redone: `{ undo, redo }`"),
@@ -111,7 +113,8 @@ const FLOW_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "nodes", "edges", "layout", "direction", "nodeGap", "rankGap", "nodeOrigin", "edgePath", "fit", "fitPadding",
     "viewport", "center", "highlight", "selectable", "draggable", "pan", "zoom", "wheel", "minZoom", "maxZoom",
-    "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete", "search",
+    "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete", "search", "filter",
+    "filterNeighbors",
 ];
 
 struct Flow;
@@ -758,6 +761,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )]),
     )
     .nest("&[data-panning]", pairs(&[("cursor", "grabbing"), ("user-select", "none")]))
+    .nest("&:fullscreen", pairs(&[("height", "100vh"), ("background-color", SURFACE)]))
     .nest("&:focus-visible", pairs(&[("box-shadow", &format!("inset 0 0 0 2px {RING}"))]))
 });
 
@@ -786,6 +790,7 @@ static NODE_BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&[data-selected]", pairs(&[("outline", &format!("2px solid {PRIMARY}")), ("outline-offset", "2px")]))
     .nest("&:focus-visible", pairs(&[("outline", &format!("2px solid {RING}")), ("outline-offset", "2px")]))
     .nest("&[data-dimmed]", pairs(&[("opacity", "0.3")]))
+    .nest("&[data-neighbor]", pairs(&[("opacity", "0.8"), ("outline", &format!("1px dashed {MUTED}")), ("outline-offset", "3px")]))
 });
 
 static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {

@@ -1,0 +1,15 @@
+[
+  {
+    "id": "idx_vehicles_registration",
+    "table_id": "tbl_vehicles",
+    "name": "idx_vehicles_registration",
+    "method": "btree",
+    "unique": true,
+    "columns": [
+      "registration"
+    ],
+    "include": [],
+    "where": null,
+    "comment": "Registrations are unique"
+  }
+]

@@ -1,0 +1,226 @@
+# An ER diagram of a package — the JSON files the builder edits — after the builder's
+# own ER view. The package is turned into nodes and edges by host code, here the flow
+# kit's `package_er` example; this document only draws them.
+#
+#   cargo run -p irender-flow-kit --example package_er -- examples/flow/er-package > er.data.json
+#   cargo run -p irender-cli -- render examples/flow/er.yaml --data er.data.json \
+#     --ui-kit --flow-kit --icon-kit -o er.html
+#
+# examples/build.sh does both. `er-package` is a made-up fleet package; point the
+# example at any package directory to draw that one instead.
+version: 1
+state:
+  picked: []       # tables to show, with their neighbours; none shows all
+  goTo: null       # a table to pan to
+  table: null      # the selected table
+  erDir: LR
+  keysOnly: false
+  expanded: true
+root:
+  type: stack
+  props: { gap: 24 }
+  style:
+    max-width: 1280px
+    margin: 0 auto
+    padding: 32px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - type: stack
+          props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
+          children:
+            - type: stack
+              props: { direction: row, gap: 10, align: center }
+              children:
+                - { type: ui-icon, props: { name: "it:database", size: 28 } }
+                - { type: ui-heading, props: { level: 1, text: "{{ er.package.name }}" } }
+                - { type: ui-badge, props: { text: "v{{ er.package.version }}", variant: outline } }
+            - { type: ui-theme-toggle }
+        - { type: ui-text, props: { variant: lead, text: "{{ er.package.description }}" } }
+
+    - type: ui-card
+      children:
+        # The builder's toolbar: filter, go to, direction, density, collapse, layout.
+        - type: stack
+          props: { direction: row, gap: 8, align: center, wrap: true }
+          style: { margin-bottom: 12 }
+          children:
+            - type: ui-combobox
+              props: { bind: picked, multiple: true, clearable: true, options: "{{ er.tables }}", placeholder: Filter tables…, label: Filter tables }
+              style: { width: 300 }
+            - type: ui-select
+              props: { bind: goTo, placeholder: Go to table…, options: "{{ er.tables }}" }
+              style: { width: 170 }
+            - { type: ui-toggle-group, props: { bind: erDir, options: [{ value: LR, label: "⇄ LR" }, { value: TB, label: "⇅ TB" }], size: sm, variant: outline } }
+            - { type: ui-switch, props: { bind: keysOnly, label: Keys only } }
+            - { type: element, style: { flex: 1 } }
+            - type: ui-button
+              props: { label: "{{ expanded ? 'Collapse all' : 'Expand all' }}", size: sm, variant: outline }
+              on: { click: { action: set_state, key: expanded, value: "{{ !expanded }}" } }
+            - type: ui-button
+              props: { label: Re-layout, size: sm, variant: outline }
+              on: { click: { action: call, name: flow.relayout, args: { flow: er } } }
+            - type: ui-button
+              props: { label: Fullscreen, size: sm, variant: outline }
+              on: { click: { action: call, name: flow.fullscreen, args: { flow: er } } }
+
+        - type: ui-flow
+          attrs: { id: er }
+          props:
+            nodes: "{{ er.nodes }}"
+            edges: "{{ er.edges }}"
+            title: "{{ er.package.name }} tables"
+            layout: layered
+            direction: "{{ erDir }}"
+            rankGap: 120
+            nodeGap: 40
+            filter: "{{ picked }}"
+            highlight: neighbors
+            bind: table
+            center: "{{ goTo }}"
+            draggable: true
+            minimap: true
+            height: 680
+          children:
+            # A table: header, then a row per column (or only the keys), then the
+            # composite UNIQUE and CHECK constraints. `<details>` collapses it.
+            - type: ui-flow-node
+              props: { type: table, variant: plain }
+              style:
+                width: 248
+                border: 1px solid $color.border
+                border-radius: 8
+                background: $color.surface
+                overflow: hidden
+                font-size: 11
+                box-shadow: 0 1px 3px rgb(0 0 0 / 0.08)
+                "&[data-selected]": { outline: "2px solid #0ea5e9", outline-offset: 2 }
+              children:
+                - type: element
+                  props: { tag: details }
+                  attrs: { open: "{{ expanded }}" }
+                  style:
+                    "&[open] [data-chevron]": { transform: none }
+                  children:
+                    - type: element
+                      props: { tag: summary }
+                      attrs: { title: "{{ node.data.comment || node.data.label }}" }
+                      style:
+                        display: flex
+                        align-items: center
+                        gap: 6
+                        height: 30
+                        padding: 0 10px
+                        background: $color.subtle
+                        cursor: pointer
+                        list-style: none
+                        "&::-webkit-details-marker": { display: none }
+                      children:
+                        - { type: ui-icon, props: { name: "core:grid" }, style: { color: $color.muted, flex: none } }
+                        - type: text
+                          props: { value: "{{ node.data.label }}" }
+                          style: { flex: 1, min-width: 0, font-family: "ui-monospace, monospace", font-size: 12, font-weight: 600, overflow: hidden, text-overflow: ellipsis, white-space: nowrap }
+                        - type: text
+                          props: { value: "{{ node.data.columns.length }}" }
+                          attrs: { title: "{{ node.data.keyCount }} key(s) · {{ node.data.columns.length }} columns" }
+                          style: { font-size: 9, padding: "0 4px", border-radius: 3, background: $color.border, color: $color.muted }
+                        - type: ui-icon
+                          props: { name: "arrows:chevron-down" }
+                          attrs: { data-chevron: "" }
+                          style: { color: $color.muted, transform: rotate(-90deg), transition: transform .15s, flex: none }
+                    - type: element
+                      style: { padding: "4px 0", border-top: 1px solid $color.border }
+                      children:
+                        - type: if
+                          props: { when: "{{ keysOnly && node.data.keyCount == 0 }}" }
+                          children:
+                            - { type: text, props: { tag: div, value: no key columns }, style: { padding: "2px 10px", font-style: italic, color: $color.muted, font-size: 10 } }
+                        - type: list
+                          props: { items: "{{ node.data.columns }}", as: col }
+                          children:
+                            - type: if
+                              props: { when: "{{ !keysOnly || col.pk || col.fk }}" }
+                              children:
+                                - type: element
+                                  attrs:
+                                    title: "{{ col.name }} : {{ col.type }}{{ col.pk ? ' · PRIMARY KEY' : '' }}{{ col.fk ? ' · FOREIGN KEY' : '' }}{{ col.unique && !col.pk ? ' · UNIQUE' : '' }}{{ col.nullable ? '' : ' · NOT NULL' }}{{ col.default ? ' · DEFAULT ' + col.default : '' }}"
+                                  style: { display: flex, align-items: center, gap: 6, height: 22, padding: 0 10px, font-family: "ui-monospace, monospace" }
+                                  children:
+                                    - type: element
+                                      style: { width: 14, flex: none, display: flex, justify-content: center }
+                                      children:
+                                        - type: if
+                                          props: { when: "{{ col.pk }}" }
+                                          children: [{ type: ui-icon, props: { name: "it:key-vault", label: Primary key }, style: { color: "#d97706" } }]
+                                        - type: else
+                                          props: { when: "{{ col.fk }}" }
+                                          children: [{ type: ui-icon, props: { name: "core:link", label: Foreign key }, style: { color: "#0284c7" } }]
+                                    - type: text
+                                      props: { value: "{{ col.name }}" }
+                                      style: { flex: 1, min-width: 0, overflow: hidden, text-overflow: ellipsis, white-space: nowrap, font-weight: "{{ col.pk ? 600 : 400 }}" }
+                                    - type: if
+                                      props: { when: "{{ !col.nullable }}" }
+                                      children: [{ type: text, props: { value: "*" }, attrs: { title: NOT NULL }, style: { color: "#e11d48", font-size: 9 } }]
+                                    - type: if
+                                      props: { when: "{{ col.unique && !col.pk }}" }
+                                      children:
+                                        - { type: text, props: { value: uq }, attrs: { title: UNIQUE }, style: { font-size: 8, font-weight: 700, text-transform: uppercase, padding: "0 3px", border-radius: 3, background: "color-mix(in srgb, #10b981 18%, transparent)", color: "#059669" } }
+                                    - type: if
+                                      props: { when: "{{ col.default }}" }
+                                      children: [{ type: text, props: { value: "=" }, attrs: { title: "DEFAULT {{ col.default }}" }, style: { color: $color.muted, font-size: 9 } }]
+                                    - type: text
+                                      props: { value: "{{ col.type }}" }
+                                      style: { max-width: 76, overflow: hidden, text-overflow: ellipsis, white-space: nowrap, color: $color.muted, font-size: 10 }
+                        - type: if
+                          props: { when: "{{ !keysOnly && (node.data.uniques.length > 0 || node.data.checks.length > 0) }}" }
+                          children:
+                            - type: element
+                              style: { margin-top: 2, border-top: 1px solid $color.border, padding-top: 2 }
+                              children:
+                                - type: list
+                                  props: { items: "{{ node.data.uniques }}", as: u }
+                                  children:
+                                    - type: text
+                                      props: { tag: div, value: "uq ({{ u }})" }
+                                      attrs: { title: "UNIQUE ({{ u }})" }
+                                      style: { padding: "2px 10px", font-family: "ui-monospace, monospace", font-size: 10, color: "#059669", overflow: hidden, text-overflow: ellipsis, white-space: nowrap }
+                                - type: list
+                                  props: { items: "{{ node.data.checks }}", as: ck }
+                                  children:
+                                    - type: text
+                                      props: { tag: div, value: "ck {{ ck.name }}" }
+                                      attrs: { title: "CHECK ({{ ck.expression }})" }
+                                      style: { padding: "2px 10px", font-family: "ui-monospace, monospace", font-size: 10, color: "#d97706", overflow: hidden, text-overflow: ellipsis, white-space: nowrap }
+
+            # A table in another package: a placeholder.
+            - type: ui-flow-node
+              props: { type: external, variant: plain }
+              style:
+                width: 248
+                border: "1px solid color-mix(in srgb, #7c3aed 60%, transparent)"
+                border-radius: 8
+                background: $color.surface
+                overflow: hidden
+                font-size: 11
+              children:
+                - type: element
+                  attrs: { title: "{{ node.data.ref }}" }
+                  style: { display: flex, align-items: center, gap: 6, height: 30, padding: 0 10px, background: "color-mix(in srgb, #7c3aed 12%, transparent)" }
+                  children:
+                    - { type: ui-icon, props: { name: "core:external-link" }, style: { color: "#7c3aed" } }
+                    - { type: text, props: { value: "{{ node.data.label }}" }, style: { font-family: "ui-monospace, monospace", font-size: 12, font-weight: 600 } }
+                - { type: text, props: { tag: div, value: "external · {{ node.data.ref }}" }, style: { padding: "6px 10px", font-family: "ui-monospace, monospace", font-size: 10, color: "#7c3aed" } }
+
+            # Relationships attach to the boxes' borders, facing each other.
+            - type: ui-flow-edge
+              props: { floating: true, marker: arrowclosed, path: bezier }
+
+        - type: ui-text
+          props:
+            variant: muted
+            text: "Click a table to highlight its relationships, drag tables to move them, and pick tables in the filter to see just those and what they connect to (dashed). Hover a column for its constraints."
+          style: { margin-top: 12 }

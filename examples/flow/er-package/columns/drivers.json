@@ -1,0 +1,49 @@
+[
+  {
+    "id": "col_drivers_id",
+    "table_id": "tbl_drivers",
+    "name": "id",
+    "type": "uuid",
+    "nullable": false,
+    "default": {
+      "expression": "gen_random_uuid()"
+    },
+    "comment": null
+  },
+  {
+    "id": "col_drivers_user_id",
+    "table_id": "tbl_drivers",
+    "name": "user_id",
+    "type": "uuid",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_drivers_licence_no",
+    "table_id": "tbl_drivers",
+    "name": "licence_no",
+    "type": "text",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_drivers_licence_expires",
+    "table_id": "tbl_drivers",
+    "name": "licence_expires",
+    "type": "timestamptz",
+    "nullable": false,
+    "default": null,
+    "comment": null
+  },
+  {
+    "id": "col_drivers_home_depot_id",
+    "table_id": "tbl_drivers",
+    "name": "home_depot_id",
+    "type": "uuid",
+    "nullable": true,
+    "default": null,
+    "comment": null
+  }
+]

@@ -134,7 +134,7 @@ Edge templates have these props:
 - **`path`:** `bezier`, `straight`, `step` or `smoothstep`.
 - **`marker` / `markerStart`:** `none`, `arrow` or `arrowclosed`.
 - **`animated`:** moving dashes.
-- **`floating`:** the edge attaches to the two boxes' borders, facing each other, instead of to ports. This suits ER diagrams.
+- **`floating`:** the edge attaches to the two boxes' borders, facing each other, instead of to ports. This suits ER diagrams. A floating edge from a node to itself, such as a `parent_id`, is drawn as a loop off its top-right corner.
 
 A template's `style` styles the path. Its children are the label, which sits at the middle of the path. Without children, the label is `edge.label`.
 
@@ -143,7 +143,7 @@ A template's `style` styles the path. Its children are the label, which sits at 
 | prop | |
 |---|---|
 | `nodes`, `edges` | Arrays in React Flow's shape. From state, the browser rebuilds them whenever they change, keyed by id: a node that stays keeps its DOM, including input values and the state of the components inside it. |
-| `layout` | `layered` places the top-level nodes in ranks along `direction`, ignoring their positions; the layout also updates when the nodes or their sizes change. Default: use `position`. |
+| `layout` | `layered` places the top-level nodes in ranks along `direction`, ignoring their positions; the layout also updates when the nodes or their sizes change. Groups of nodes that don't connect to each other are packed into rows, largest first. Default: use `position`. |
 | `direction` | `LR` (default), `TB`, `RL` or `BT`. |
 | `nodeGap`, `rankGap` | Layout spacing (40, 80). |
 | `nodeOrigin` | Which point of the node `position` names: `[0, 0]` top left (default), `[0.5, 0]` top centre, … |
@@ -171,6 +171,8 @@ A template's `style` styles the path. Its children are the label, which sits at 
 | `bindEdges` | The same for edges, after a connection or a deletion. |
 | `bindDelete` | With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open. Null otherwise. |
 | `bindViewport` | State key kept in sync with `{ x, y, zoom }`. |
+| `filter` | Node ids to show. The nodes they connect to stay as context, marked `data-neighbor` (dashed); everything else is hidden. Empty or null shows all. The ER example drives it from a multi-select. |
+| `filterNeighbors` | With `filter`, keep the neighbours (default true). |
 | `search` | Text to find in the nodes' text and ids, ignoring case and accents. Matches get `data-match`; everything else is dimmed. The view pans to the first match. |
 | `bindMatches` | State key with the ids `search` matches. |
 | `bindHistory` | State key with how many edits can be undone and redone, `{ undo, redo }`, e.g. to disable buttons. |
@@ -262,6 +264,7 @@ A `call` whose name starts with `flow.` is a command to the flow:
 | `flow.undo`, `flow.redo` | Steps back or forward through the flow's own edits |
 | `flow.copy`, `flow.cut`, `flow.paste` | The clipboard, as with the keys |
 | `flow.next`, `flow.prev` | Steps through `search`'s matches, panning to each |
+| `flow.fullscreen` | Shows the flow fullscreen, or leaves fullscreen, fitting the view to the new size |
 
 Commands from inside the flow, such as a panel button, a node, or a dialog in either, reach it directly. From elsewhere, add `args.flow` with the flow's element id; without it, a command reaches the page's only flow.
 
@@ -304,6 +307,23 @@ The flow and its nodes are focusable:
 ## Safety
 
 The JSON's `style` objects are applied one property at a time, so a value can't escape its property. In documents rendered with `Engine::untrusted()`, values containing `url(` are dropped as well. `className` only adds classes. Labels are text, unless a template renders them.
+
+## Examples
+
+- [`examples/flow/gallery.yaml`](../../examples/flow/gallery.yaml):
+  - plain React Flow JSON
+  - an editable workflow with a palette
+  - containers with undo and search
+  - an ER diagram from server data
+- [`examples/flow/er.yaml`](../../examples/flow/er.yaml) draws a package (the JSON files the builder edits) as an ER diagram, after the builder's own:
+  - **Tables:** key and constraint badges, `<details>` to collapse each one, and placeholders for tables in other packages.
+  - **Toolbar:** a filter that keeps neighbours, keys only, LR/TB and fullscreen.
+  - **Data:** the [`package_er`](examples/package_er.rs) example turns the package into nodes and edges. That's host code, the same work the builder does in `buildGraph`:
+
+    ```sh
+    cargo run -p irender-flow-kit --example package_er -- path/to/package > er.data.json
+    cargo run -p irender-cli -- render examples/flow/er.yaml --data er.data.json --ui-kit --flow-kit --icon-kit -o er.html
+    ```
 
 ## Not built yet
 

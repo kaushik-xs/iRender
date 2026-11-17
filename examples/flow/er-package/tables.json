@@ -1,0 +1,100 @@
+[
+  {
+    "id": "tbl_depots",
+    "name": "depots",
+    "comment": "Depots vehicles start from and return to",
+    "primary_key": "id",
+    "unique": [
+      [
+        "code"
+      ]
+    ],
+    "check": []
+  },
+  {
+    "id": "tbl_vehicles",
+    "name": "vehicles",
+    "comment": "Vehicles in the fleet",
+    "primary_key": "id",
+    "unique": [],
+    "check": [
+      {
+        "name": "vehicles_capacity_positive",
+        "expression": "capacity_kg IS NULL OR capacity_kg > 0"
+      }
+    ]
+  },
+  {
+    "id": "tbl_drivers",
+    "name": "drivers",
+    "comment": "Drivers, each linked to a user account",
+    "primary_key": "id",
+    "unique": [
+      [
+        "licence_no"
+      ]
+    ],
+    "check": []
+  },
+  {
+    "id": "tbl_vehicle_assignments",
+    "name": "vehicle_assignments",
+    "comment": "Who drives which vehicle, and when",
+    "primary_key": "id",
+    "unique": [
+      [
+        "vehicle_id",
+        "driver_id",
+        "starts_at"
+      ]
+    ],
+    "check": [
+      {
+        "name": "assignment_ends_after_start",
+        "expression": "ends_at IS NULL OR ends_at > starts_at"
+      }
+    ]
+  },
+  {
+    "id": "tbl_trips",
+    "name": "trips",
+    "comment": "A vehicle's journey with a driver",
+    "primary_key": "id",
+    "unique": [],
+    "check": [
+      {
+        "name": "trips_end_after_start",
+        "expression": "ended_at IS NULL OR ended_at > started_at"
+      }
+    ]
+  },
+  {
+    "id": "tbl_trip_stops",
+    "name": "trip_stops",
+    "comment": "Stops along a trip, in order",
+    "primary_key": "id",
+    "unique": [
+      [
+        "trip_id",
+        "seq"
+      ]
+    ],
+    "check": []
+  },
+  {
+    "id": "tbl_maintenance_jobs",
+    "name": "maintenance_jobs",
+    "comment": "Services and repairs; a job can follow up an earlier one",
+    "primary_key": "id",
+    "unique": [],
+    "check": []
+  },
+  {
+    "id": "tbl_fuel_logs",
+    "name": "fuel_logs",
+    "comment": "Fuel bought for a vehicle",
+    "primary_key": "id",
+    "unique": [],
+    "check": []
+  }
+]

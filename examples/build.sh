@@ -33,6 +33,10 @@ cp -R examples/charts/api "$out/charts/"
 mkdir -p "$out/flow"
 $irender render examples/flow/gallery.yaml --data examples/flow/gallery.data.json --ui-kit --flow-kit \
   --title "Flow kit gallery" -o "$out/flow/index.html"
+# The ER example's data is a package turned into nodes and edges by host code.
+cargo run -q -p irender-flow-kit --example package_er -- examples/flow/er-package > "$out/flow/er.data.json"
+$irender render examples/flow/er.yaml --data "$out/flow/er.data.json" --ui-kit --flow-kit --icon-kit \
+  --title "ER diagram" -o "$out/flow/er.html"
 # The icon gallery's data is the kit's own pack listing.
 mkdir -p "$out/icons"
 $irender icons --json > "$out/icons/packs.json"

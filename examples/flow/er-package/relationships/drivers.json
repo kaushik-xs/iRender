@@ -1,0 +1,26 @@
+[
+  {
+    "id": "rel_drivers_user_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_drivers",
+    "from_column_id": "col_drivers_user_id",
+    "to_package_id": "identity",
+    "to_table_id": "users",
+    "to_column_id": "id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_drivers_user_id"
+  },
+  {
+    "id": "rel_drivers_home_depot_id",
+    "from_schema_id": "default",
+    "from_table_id": "tbl_drivers",
+    "from_column_id": "col_drivers_home_depot_id",
+    "to_schema_id": "default",
+    "to_table_id": "tbl_depots",
+    "to_column_id": "col_depots_id",
+    "on_update": "CASCADE",
+    "on_delete": "RESTRICT",
+    "name": "fk_drivers_home_depot_id"
+  }
+]

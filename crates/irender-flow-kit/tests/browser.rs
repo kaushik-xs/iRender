@@ -536,3 +536,36 @@ fn containers_clipboard_history_and_search() {
         ],
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn filter_self_loops_and_packing() {
+    // a → b → c, a self-reference on c, and five unconnected nodes.
+    let mut nodes: Vec<Json> = ["a", "b", "c"].iter().map(|id| json!({ "id": id, "data": { "label": id } })).collect();
+    nodes.extend((1..=5).map(|i| json!({ "id": format!("lone{i}"), "data": { "label": format!("lone {i}") } })));
+    let doc = json!({ "version": 1, "state": { "picked": [] },
+        "root": { "type": "ui-flow", "attrs": { "id": "f" },
+            "props": { "nodes": nodes, "edges": [
+                    { "id": "ab", "source": "a", "target": "b" }, { "id": "bc", "source": "b", "target": "c" },
+                    { "id": "cc", "source": "c", "target": "c", "type": "floating", "label": "parent" } ],
+                "layout": "layered", "filter": "{{ picked }}", "height": 600 } } });
+    let driver = r##"
+        const f = "f";
+        const shown = () => [...flow(f).querySelectorAll("[data-flow-nodes] > [data-flow-node]")].filter((n) => n.style.display !== "none").map((n) => n.getAttribute("data-flow-node")).sort().join(",");
+        // Unconnected nodes are packed into rows, not one long column.
+        const lone = [1, 2, 3, 4, 5].map((i) => at(node(f, "lone" + i)));
+        log("packed", new Set(lone.map(([x]) => x)).size > 1, new Set(lone.map(([, y]) => y)).size < 5);
+        // A floating self-edge is a loop, with its label.
+        const d = edge(f, "cc").querySelector("[data-flow-path]").getAttribute("d");
+        log("selfLoop", /^M[-\d.]+,[-\d.]+ C/.test(d), !edge(f, "cc").hidden, label(f, "cc").textContent);
+        // `filter`: the picked node, its neighbours as context, nothing else.
+        set("picked", ["a"]);
+        await wait(100);
+        log("filter", shown(), node(f, "b").hasAttribute("data-neighbor"), node(f, "a").hasAttribute("data-neighbor"), edge(f, "bc").hidden);
+        set("picked", []);
+        await wait(100);
+        log("all", shown().split(",").length);
+    "##;
+    let Some(lines) = run("filter", doc, driver) else { return };
+    check(&lines, &["packed true true", "selfLoop true true parent", "filter a,b true false true", "all 8"]);
+}
