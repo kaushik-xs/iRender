@@ -1,0 +1,28 @@
+# The same model works in any serde format.
+version: 1
+state:
+  count: 0
+root:
+  type: stack
+  props: { direction: row, gap: $space.sm, align: center }
+  style:
+    padding: $space.lg
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: button
+      props: { label: "−", variant: secondary }
+      on:
+        click: { action: set_state, key: count, value: "{{ count - 1 }}" }
+    - type: text
+      props: { value: "{{ count }}" }
+      style:
+        min-width: 3ch
+        text-align: center
+        font-variant-numeric: tabular-nums
+        color: "{{ count < 0 ? 'crimson' : 'inherit' }}"
+    - type: button
+      props: { label: "+" }
+      on:
+        click: { action: set_state, key: count, value: "{{ count + 1 }}" }

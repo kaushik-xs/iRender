@@ -175,6 +175,16 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 
 ## Housekeeping
 
+- [ ] **`{{ }}` inside a literal `set_state` value is never evaluated, and nothing warns.** `value: { description: "Hi {{ name }}" }` stores the braces as text, while `submit` `body` fields are evaluated. Found by a model writing a toast. Fix: evaluate templated leaves of literal values (as `body` does), or at least warn in `validate`. Then drop the caveat from `skills/irender/references/authoring.md`.
+- [ ] **`tools/llm-docs.sh --check` isn't in CI yet.** Until it is, the skill's references and `llms-full.txt` go stale whenever a component, icon or README changes. Run `tools/llm-docs.sh` after such changes.
+- [ ] **MCP server (`irender mcp`), deferred.** Agents with a shell already get everything from the skill and the CLI, so an MCP server only pays off for chat clients without a shell (Claude Desktop, claude.ai, IDE chat) and for apps whose own agent generates UI at runtime. If built, it would be a stdio subcommand of the CLI with these tools:
+  - `validate`, with kits and `untrusted`
+  - `component`, for one component's props, so the 40 KB listing stays out of context
+  - `search_icons`
+  - `render`, returning HTML or a preview file path
+  - `schema`
+
+  It would also offer `authoring.md` as a resource.
 - [ ] **CI checks we skipped:**
   - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
   - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.

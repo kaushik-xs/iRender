@@ -1,0 +1,360 @@
+# Block: a dashboard with an inset sidebar, summary cards, an interactive area chart and
+# a data table, in the style of shadcn/ui's dashboard-01, plus a command palette (⌘K, or
+# Search in the sidebar) for its pages and actions. Data comes from
+# dashboard-01.data.json; the chart's range, the table's tabs, row selection and
+# paging are state, so they work in the browser without a server round trip.
+#
+#   cargo run -p irender-cli -- render examples/blocks/dashboard-01.yaml \
+#     --data examples/blocks/dashboard-01.data.json --ui-kit --chart-kit --icon-kit -o dashboard-01.html
+version: 1
+state:
+  sidebar: true
+  range: 90d
+  tab: outline
+  page: 1
+  selected: []
+  toast: null
+root:
+  type: ui-sidebar-layout
+  props: { bind: sidebar, variant: inset }
+  children:
+    # ------------------------------------------------------------ sidebar
+    - type: ui-sidebar
+      children:
+        - type: ui-sidebar-header
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - { type: ui-sidebar-item, props: { label: Acme Inc., icon: grid, href: "#" }, style: { font-weight: 600 } }
+        - type: ui-sidebar-content
+          children:
+            - type: ui-sidebar-group
+              children:
+                - type: element
+                  props: { tag: li }
+                  style: { display: flex, gap: 8, margin-bottom: 4 }
+                  children:
+                    - type: ui-button
+                      props: { label: Quick Create, icon: add, size: sm }
+                      style: { flex: 1, justify-content: flex-start }
+                      on: { click: { action: set_state, key: toast, value: { title: Document created, description: Untitled document is ready to edit. } } }
+                    - { type: ui-button, props: { icon: marketing:email-campaign, size: sm, variant: outline }, attrs: { aria-label: Inbox }, style: { width: 32, padding: 0 } }
+                - { type: ui-sidebar-item, props: { label: Dashboard, icon: grid, href: "#", active: true } }
+                - { type: ui-sidebar-item, props: { label: Lifecycle, icon: list, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Analytics, icon: marketing:analytics, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Projects, icon: kanban, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Team, icon: hr:employees, href: "#" } }
+            - type: ui-sidebar-group
+              props: { label: Documents }
+              children:
+                - { type: ui-sidebar-item, props: { label: Data Library, icon: it:database, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Reports, icon: finance:financial-report, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Word Assistant, icon: edit, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: More, icon: more-horizontal } }
+            - type: ui-sidebar-group
+              style: { margin-top: auto }
+              children:
+                - { type: ui-sidebar-item, props: { label: Settings, icon: settings, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Get Help, icon: help, href: "#" } }
+                # Opens the command palette at the end of the page, as ⌘K / Ctrl+K does.
+                - { type: ui-sidebar-item, props: { label: Search, icon: search, badge: ⌘K }, attrs: { command: show-modal, commandfor: palette } }
+        - type: ui-sidebar-footer
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: shadcn, icon: user, badge: m@example.com }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Account, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Billing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Notifications, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Log out, href: "#" } }
+
+    # ------------------------------------------------------------ header
+    - type: element
+      props: { tag: header }
+      style: { display: flex, align-items: center, gap: 8, height: 48, flex-shrink: 0, padding: 0 16px, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-sidebar-trigger }
+        - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin: 0 8px 0 0 } }
+        - { type: element, props: { tag: h1 }, style: { margin: 0, font-size: 16, font-weight: 500 }, children: [ { type: text, props: { value: Documents } } ] }
+        - { type: ui-popover, props: { trigger: Theme, triggerVariant: ghost, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
+        - { type: ui-button, props: { label: GitHub, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender" } }
+
+    - type: element
+      style: { display: flex, flex-direction: column, gap: 24, padding: 24px 0 }
+      children:
+        # ---------------------------------------------------------- summary cards
+        - type: element
+          style: { display: grid, gap: 16, padding: 0 24px, grid-template-columns: "repeat(auto-fit, minmax(200px, 1fr))" }
+          children:
+            - type: list
+              props:
+                items:
+                  - { label: Total Revenue, value: "$1,250.00", change: "+12.5%", up: true, note: Trending up this month, detail: Visitors for the last 6 months }
+                  - { label: New Customers, value: "1,234", change: "-20%", up: false, note: Down 20% this period, detail: Acquisition needs attention }
+                  - { label: Active Accounts, value: "45,678", change: "+12.5%", up: true, note: Strong user retention, detail: Engagement exceeds targets }
+                  - { label: Growth Rate, value: "4.5%", change: "+4.5%", up: true, note: Steady performance increase, detail: Meets growth projections }
+                as: card
+              style: { display: contents }
+              children:
+                - type: ui-card
+                  style:
+                    gap: 24
+                    padding: 20px 24px
+                    background: "linear-gradient(to top, color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)), var(--color-surface))"
+                  children:
+                    - type: element
+                      style: { display: flex, flex-wrap: wrap, align-items: flex-start, gap: 8 }
+                      children:
+                        - type: stack
+                          props: { gap: 6 }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: "{{ card.label }}" } }
+                            - { type: text, props: { value: "{{ card.value }}" }, style: { font-size: 28, font-weight: 600, font-variant-numeric: tabular-nums, line-height: 1 } }
+                        - type: ui-badge
+                          props: { text: "{{ card.change }}", icon: "{{ card.up ? '↗' : '↘' }}", variant: outline }
+                          style: { margin-left: auto }
+                    - type: stack
+                      props: { gap: 4 }
+                      style: { font-size: 14 }
+                      children:
+                        - { type: text, props: { value: "{{ card.note }} {{ card.up ? '↗' : '↘' }}" }, style: { font-weight: 500 } }
+                        - { type: text, props: { value: "{{ card.detail }}" }, style: { color: $color.muted } }
+
+        # ---------------------------------------------------------- chart
+        - type: element
+          style: { padding: 0 24px }
+          children:
+            - type: ui-card
+              style: { gap: 8 }
+              children:
+                - type: element
+                  style: { display: flex, flex-wrap: wrap, align-items: flex-start, gap: 12 }
+                  children:
+                    - type: stack
+                      props: { gap: 4 }
+                      children:
+                        - { type: element, props: { tag: h3 }, style: { margin: 0, font-size: 16, font-weight: 600 }, children: [ { type: text, props: { value: Total Visitors } } ] }
+                        - type: ui-text
+                          props: { variant: muted, text: "Total for the last {{ range == '7d' ? '7 days' : range == '30d' ? '30 days' : '3 months' }}" }
+                    - type: ui-toggle-group
+                      props:
+                        bind: range
+                        variant: outline
+                        size: sm
+                        options: [{ value: 90d, label: Last 3 months }, { value: 30d, label: Last 30 days }, { value: 7d, label: Last 7 days }]
+                      style: { margin-left: auto }
+                - type: ui-chart
+                  props:
+                    type: area
+                    title: Visitors per day
+                    data: "{{ visitors }}"
+                    x: date
+                    y: [{ field: mobile, name: Mobile }, { field: desktop, name: Desktop }]
+                    stack: true
+                    smooth: true
+                    height: 260
+                    filter: { date: { from: "{{ range == '7d' ? '2024-06-24' : range == '30d' ? '2024-06-01' : null }}" } }
+                    option:
+                      grid: { left: 8, right: 8, top: 16, bottom: 8, containLabel: true }
+                      legend: { show: false }
+                      xAxis: { axisLabel: { show: true, hideOverlap: true }, axisTick: { show: false }, axisLine: { show: false } }
+                      yAxis: { show: false }
+
+        # ---------------------------------------------------------- table
+        - type: element
+          style: { position: relative, padding: 0 24px }
+          children:
+            - type: element
+              style: { position: absolute, top: 0, right: 24, display: flex, gap: 8 }
+              children:
+                - type: ui-dropdown-menu
+                  props: { trigger: Customize Columns, triggerSize: sm, align: end }
+                  children:
+                    - { type: ui-menu-label, props: { text: Columns } }
+                    - { type: ui-menu-item, props: { label: Section Type } }
+                    - { type: ui-menu-item, props: { label: Status } }
+                    - { type: ui-menu-item, props: { label: Reviewer } }
+                - type: ui-button
+                  props: { label: Add Section, icon: add, variant: outline, size: sm }
+                  on: { click: { action: set_state, key: toast, value: { title: Section added, description: It's at the end of the outline. } } }
+            - type: ui-tabs
+              props: { bind: tab }
+              children:
+                - type: ui-tab-panel
+                  props: { value: outline, label: Outline }
+                  children:
+                    - type: element
+                      style: { border: 1px solid $color.border, border-radius: 8, overflow: hidden }
+                      children:
+                        - type: ui-table
+                          children:
+                            - type: element
+                              props: { tag: thead }
+                              style: { background: $color.subtle }
+                              children:
+                                - type: element
+                                  props: { tag: tr }
+                                  children:
+                                    - type: element
+                                      props: { tag: th }
+                                      style: { width: 32 }
+                                      children:
+                                        - type: input
+                                          props: { type: checkbox }
+                                          attrs: { aria-label: Select all, checked: "{{ selected.length == 30 }}" }
+                                          on: { change: { action: set_state, key: selected, value: "{{ selected.length == 30 ? range(0) : range(1, 31) }}" } }
+                                    - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Header } } ] }
+                                    - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Section Type } } ] }
+                                    - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Status } } ] }
+                                    - { type: element, props: { tag: th }, style: { text-align: right }, children: [ { type: text, props: { value: Target } } ] }
+                                    - { type: element, props: { tag: th }, style: { text-align: right }, children: [ { type: text, props: { value: Limit } } ] }
+                                    - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Reviewer } } ] }
+                                    - { type: element, props: { tag: th }, attrs: { aria-label: Actions } }
+                            - type: list
+                              props: { items: "{{ sections }}", as: row, index: i, tag: tbody }
+                              children:
+                                - type: if
+                                  props: { when: "{{ i >= (page - 1) * 10 && i < page * 10 }}" }
+                                  children:
+                                    - type: element
+                                      props: { tag: tr }
+                                      attrs: { data-selected: "{{ includes(selected, row.id) }}" }
+                                      children:
+                                        - type: element
+                                          props: { tag: td }
+                                          children:
+                                            - type: input
+                                              props: { type: checkbox }
+                                              attrs: { aria-label: "Select {{ row.header }}", checked: "{{ includes(selected, row.id) }}" }
+                                              on: { change: { action: set_state, key: selected, value: "{{ toggle(selected, row.id) }}" } }
+                                        - { type: element, props: { tag: td }, style: { font-weight: 500 }, children: [ { type: text, props: { value: "{{ row.header }}" } } ] }
+                                        - type: element
+                                          props: { tag: td }
+                                          children: [ { type: ui-badge, props: { text: "{{ row.type }}", variant: outline }, style: { color: $color.muted } } ]
+                                        - type: element
+                                          props: { tag: td }
+                                          children:
+                                            - type: ui-badge
+                                              props: { text: "{{ row.status }}", variant: outline, icon: "{{ row.status == 'Done' ? '✓' : '◌' }}" }
+                                              style: { color: $color.muted }
+                                        - { type: element, props: { tag: td }, style: { text-align: right, font-variant-numeric: tabular-nums }, children: [ { type: text, props: { value: "{{ row.target }}" } } ] }
+                                        - { type: element, props: { tag: td }, style: { text-align: right, font-variant-numeric: tabular-nums }, children: [ { type: text, props: { value: "{{ row.limit }}" } } ] }
+                                        - type: element
+                                          props: { tag: td }
+                                          style: { color: "{{ row.reviewer == 'Assign reviewer' ? 'var(--color-muted)' : 'inherit' }}" }
+                                          children: [ { type: text, props: { value: "{{ row.reviewer }}" } } ]
+                                        - type: element
+                                          props: { tag: td }
+                                          style: { width: 32 }
+                                          children:
+                                            - type: ui-dropdown-menu
+                                              props: { trigger: ⋮, triggerVariant: ghost, triggerSize: icon, align: end }
+                                              parts: { trigger: { attrs: { aria-label: "Actions for {{ row.header }}" }, style: { width: 32, height: 32 } } }
+                                              children:
+                                                - { type: ui-menu-item, props: { label: Edit } }
+                                                - { type: ui-menu-item, props: { label: Make a copy } }
+                                                - { type: ui-menu-item, props: { label: Favorite } }
+                                                - { type: ui-menu-separator }
+                                                - { type: ui-menu-item, props: { label: Delete, variant: destructive } }
+                    - type: element
+                      style: { display: flex, flex-wrap: wrap, align-items: center, gap: 16, padding-top: 16, font-size: 14 }
+                      children:
+                        - { type: text, props: { value: "{{ selected.length }} of 30 row(s) selected." }, style: { color: $color.muted, flex: 1 } }
+                        - { type: text, props: { value: "Page {{ page }} of 3" }, style: { font-weight: 500 } }
+                        - type: ui-button-group
+                          props: { label: Pages }
+                          children:
+                            - type: ui-button
+                              props: { label: "«", variant: outline, size: icon, disabled: "{{ page <= 1 }}" }
+                              attrs: { aria-label: Go to first page }
+                              on: { click: { action: set_state, key: page, value: 1 } }
+                            - type: ui-button
+                              props: { label: "‹", variant: outline, size: icon, disabled: "{{ page <= 1 }}" }
+                              attrs: { aria-label: Go to previous page }
+                              on: { click: { action: set_state, key: page, value: "{{ page - 1 }}" } }
+                            - type: ui-button
+                              props: { label: "›", variant: outline, size: icon, disabled: "{{ page >= 3 }}" }
+                              attrs: { aria-label: Go to next page }
+                              on: { click: { action: set_state, key: page, value: "{{ page + 1 }}" } }
+                            - type: ui-button
+                              props: { label: "»", variant: outline, size: icon, disabled: "{{ page >= 3 }}" }
+                              attrs: { aria-label: Go to last page }
+                              on: { click: { action: set_state, key: page, value: 3 } }
+                - type: ui-tab-panel
+                  props: { value: performance, label: Past Performance }
+                  children:
+                    - { type: element, style: { aspect-ratio: 16 / 6, border: 1px dashed $color.border, border-radius: 8 } }
+                - type: ui-tab-panel
+                  props: { value: personnel, label: Key Personnel }
+                  children:
+                    - { type: element, style: { aspect-ratio: 16 / 6, border: 1px dashed $color.border, border-radius: 8 } }
+                - type: ui-tab-panel
+                  props: { value: documents, label: Focus Documents }
+                  children:
+                    - { type: element, style: { aspect-ratio: 16 / 6, border: 1px dashed $color.border, border-radius: 8 } }
+
+    # ------------------------------------------------------------ command palette
+    - type: ui-command-dialog
+      props: { id: palette, shortcut: mod+k, placeholder: Search pages and actions… }
+      children:
+        - type: ui-command-group
+          props: { heading: Pages }
+          children:
+            - { type: ui-command-item, props: { label: Dashboard, icon: grid, href: "#" } }
+            - { type: ui-command-item, props: { label: Lifecycle, icon: list, href: "#" } }
+            - { type: ui-command-item, props: { label: Analytics, icon: marketing:analytics, href: "#" } }
+            - { type: ui-command-item, props: { label: Projects, icon: kanban, href: "#" } }
+            - { type: ui-command-item, props: { label: Team, icon: hr:employees, keywords: [people, members], href: "#" } }
+        - type: ui-command-group
+          props: { heading: Documents }
+          children:
+            - { type: ui-command-item, props: { label: Data Library, icon: it:database, href: "#" } }
+            - { type: ui-command-item, props: { label: Reports, icon: finance:financial-report, href: "#" } }
+            - { type: ui-command-item, props: { label: Word Assistant, icon: edit, href: "#" } }
+        - { type: ui-command-separator }
+        - type: ui-command-group
+          props: { heading: Actions }
+          children:
+            - type: ui-command-item
+              props: { label: Quick Create, icon: add, keywords: [new, document] }
+              on: { click: { action: set_state, key: toast, value: { title: Document created, description: Untitled document is ready to edit. } } }
+            - type: ui-command-item
+              props: { label: Add Section, icon: add, keywords: [outline, table] }
+              on: { click: { action: set_state, key: toast, value: { title: Section added, description: It's at the end of the outline. } } }
+            - type: ui-command-item
+              props: { label: "{{ sidebar ? 'Hide' : 'Show' }} sidebar", icon: menu, shortcut: ⌘B, keywords: [toggle, navigation] }
+              on: { click: { action: set_state, key: sidebar, value: "{{ !sidebar }}" } }
+            - type: ui-command-item
+              props: { label: Select all rows, icon: check, keywords: [table, selection] }
+              on: { click: { action: set_state, key: selected, value: "{{ range(1, 31) }}" } }
+            - type: ui-command-item
+              props: { label: Clear selection, icon: close, keywords: [table, deselect] }
+              on: { click: { action: set_state, key: selected, value: "{{ range(0) }}" } }
+        - type: ui-command-group
+          props: { heading: Chart range }
+          children:
+            - type: ui-command-item
+              props: { label: Last 3 months, icon: calendar, keywords: [chart, visitors, 90 days] }
+              on: { click: { action: set_state, key: range, value: 90d } }
+            - type: ui-command-item
+              props: { label: Last 30 days, icon: calendar, keywords: [chart, visitors, month] }
+              on: { click: { action: set_state, key: range, value: 30d } }
+            - type: ui-command-item
+              props: { label: Last 7 days, icon: calendar, keywords: [chart, visitors, week] }
+              on: { click: { action: set_state, key: range, value: 7d } }
+        - type: ui-command-group
+          props: { heading: Table pages }
+          children:
+            - type: list
+              props: { items: "{{ range(1, 4) }}", as: n }
+              style: { display: contents }
+              children:
+                - type: ui-command-item
+                  props: { label: "Go to page {{ n }}", icon: arrows:chevron-right, keywords: [table, outline] }
+                  on: { click: { action: set_state, key: page, value: "{{ n }}" } }
+
+    - { type: ui-toaster, props: { bind: toast } }

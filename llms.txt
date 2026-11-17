@@ -1,0 +1,29 @@
+# iRender
+
+> Build UI from configuration: a JSON or YAML document (`version`, `theme`, `state`, `fragments`, `root`) is validated, with every problem reported at its path, and rendered to HTML with a small browser runtime for state and declarative actions. Optional kits add shadcn-style components (`ui-*`), Apache ECharts charts, node-and-edge diagrams and icons. Documents contain no code: expressions are a small, closed language and behaviour is limited to `set_state`, `navigate`, `submit`, `call` and `wait`.
+
+To write documents, read the authoring rules first, then look up each component's props in the component reference instead of guessing. Check every document with `irender validate <file> [--ui-kit] [--chart-kit] [--flow-kit] [--icon-kit]` and fix every reported path until it prints `ok`. For everything in one file, use [llms-full.txt](https://raw.githubusercontent.com/kaushik-xs/iRender/main/llms-full.txt).
+
+## Docs
+
+- [Authoring rules](https://raw.githubusercontent.com/kaushik-xs/iRender/main/skills/irender/references/authoring.md): document and node shape, expressions, state and actions, YAML pitfalls, common mistakes
+- [Components](https://raw.githubusercontent.com/kaushik-xs/iRender/main/skills/irender/references/components.md): every component, its props and types, parts and children, all kits
+- [Core](https://raw.githubusercontent.com/kaushik-xs/iRender/main/README.md): nodes, theme and theme options, form binding, `if`/`else`, lists, `mount`, `include` with parameters, policies, Rust API
+- [UI kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-ui-kit/README.md): `ui-*` components, theme tokens and options, sidebar, combobox, command palette
+- [Chart kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-chart-kit/README.md): `ui-chart` shorthand and ECharts options, filters, grouping, drill-downs, live data
+- [Flow kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-flow-kit/README.md): `ui-flow` with React Flow JSON, node templates, ports, editing
+- [Icon kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-icon-kit/README.md): `ui-icon`, packs and custom packs
+
+## Examples
+
+- [Counter](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/counter.yaml): state and actions in 30 lines
+- [Wizard](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/wizard.yaml): multi-step form, conditional fields, validation expressions
+- [Login block](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/blocks/login-03.yaml): a ui-kit form card
+- [Dashboard block](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/blocks/dashboard-01.yaml): sidebar, cards, chart, table, command palette
+
+## Optional
+
+- [Icon names](https://raw.githubusercontent.com/kaushik-xs/iRender/main/skills/irender/references/icons.md): every icon in every pack
+- [Chart gallery](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/charts/gallery.yaml): a chart for every ECharts category
+- [Flow gallery](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/flow/gallery.yaml): workflow, ER and process diagrams
+- JSON Schema for documents: `irender schema`

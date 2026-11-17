@@ -250,4 +250,4 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript are out of scope: command palette, date picker, data table with sorting, carousel and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
+Components that need focus management or keyboard navigation written in JavaScript are out of scope: date picker, data table with sorting, carousel and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
