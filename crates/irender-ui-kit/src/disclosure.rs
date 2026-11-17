@@ -68,12 +68,12 @@ impl Component for Accordion {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let id = instance_id(cx, node, "ui-accordion");
         let multiple = cx.prop(node, "multiple").is_some_and(|m| expr::truthy(&m));
-        // Items read the group name from scope; `<details name>` makes them exclusive.
-        let group = if multiple { Json::Null } else { json!(expr::stringify(&cx.eval(&id))) };
+        // Items name their `<details>` after the accordion, which makes them exclusive.
+        let group = (!multiple).then(|| id.clone());
         let mut el = cx.element("div", node);
         el.base_style_ref(&ACCORDION).attr("id", id);
         cx.open(&el, node)?;
-        cx.with_scope(vec![("ui_accordion".into(), group)], |cx| cx.children(node))?;
+        cx.with_context("ui-accordion", group, |cx| cx.children(node))?;
         cx.close("div");
         Ok(())
     }
@@ -127,7 +127,7 @@ impl Component for AccordionItem {
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let title = node.prop("title").cloned().unwrap_or_else(|| lit(""));
-        details(node, cx, &ACCORDION_ITEM, &title, context(cx, "ui_accordion"))
+        details(node, cx, &ACCORDION_ITEM, &title, context(cx, "ui-accordion"))
     }
 }
 

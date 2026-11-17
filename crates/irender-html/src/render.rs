@@ -1,7 +1,7 @@
 use crate::{Registry, escape};
 use irender_core::{
     Action, Node, Policy, StyleBlock, StyleValue, Template, Theme, Val,
-    expr::{self, stringify, write_json_str},
+    expr::{self, Expr, Part, stringify, write_json_str},
     style,
 };
 use irender_style::{Layer, StyleCompiler};
@@ -159,6 +159,8 @@ struct Scope {
     /// Only known in the browser (an item of a list the browser rebuilds). Expressions
     /// that use it are kept for the runtime instead of being folded.
     client: bool,
+    /// The index of a list the browser rebuilds (see [`RenderCx::client_key`]).
+    index: bool,
 }
 
 /// Render state passed to components.
@@ -169,6 +171,8 @@ pub struct RenderCx<'a> {
     state: &'a IndexMap<String, Json>,
     data: &'a Json,
     scopes: Vec<Scope>,
+    /// Values components pass to the components inside them (see [`RenderCx::with_context`]).
+    contexts: Vec<(&'static str, Option<Val>)>,
     styles: StyleCompiler<'a>,
     out: String,
     interactive: bool,
@@ -195,6 +199,7 @@ impl<'a> RenderCx<'a> {
             state,
             data,
             scopes: Vec::new(),
+            contexts: Vec::new(),
             styles: StyleCompiler::new(theme),
             out: String::new(),
             interactive: false,
@@ -550,8 +555,8 @@ impl<'a> RenderCx<'a> {
         f: impl FnOnce(&mut Self) -> Result<T, RenderError>,
     ) -> Result<T, RenderError> {
         let n = self.scopes.len();
-        for name in [item, index] {
-            self.scopes.push(Scope { name: name.to_string(), value: Json::Null, client: true });
+        for (name, is_index) in [(item, false), (index, true)] {
+            self.scopes.push(Scope { name: name.to_string(), value: Json::Null, client: true, index: is_index });
         }
         let result = f(self);
         self.scopes.truncate(n);
@@ -587,7 +592,7 @@ impl<'a> RenderCx<'a> {
         // read-only parts and build their own context.
         let (registry, policy, theme, state, data) = (self.registry, self.policy, self.theme, self.state, self.data);
         let min = self.parallel_min_items;
-        let scopes = &self.scopes;
+        let (scopes, contexts) = (&self.scopes, &self.contexts);
         // A few chunks per thread so uneven items still balance across threads.
         let chunk = items.len().div_ceil(rayon::current_num_threads() * 4).max(16);
         let chunks: Vec<_> = items
@@ -596,6 +601,7 @@ impl<'a> RenderCx<'a> {
             .map(|(c, chunk_items)| {
                 let mut cx = RenderCx::new(registry, policy, theme, state, data, min);
                 cx.scopes = scopes.clone();
+                cx.contexts = contexts.clone();
                 for (j, value) in chunk_items.iter().enumerate() {
                     let vars = vec![(item.to_string(), value.clone()), (index.to_string(), json!(c * chunk + j))];
                     cx.with_scope(vars, |cx| cx.children(node))?;
@@ -657,6 +663,41 @@ impl<'a> RenderCx<'a> {
         format!("{:x}", h.finish() & 0xffff_ffff)
     }
 
+    /// The indexes of the lists the browser rebuilds around this point, as a template
+    /// such as `{{ index }}` (`None` outside them). [`scope_key`](Self::scope_key)
+    /// can't tell those items apart, so components add this to element ids too.
+    pub fn client_key(&self) -> Option<Template> {
+        let mut parts = Vec::new();
+        for s in self.scopes.iter().filter(|s| s.index) {
+            if !parts.is_empty() {
+                parts.push(Part::Lit("-".into()));
+            }
+            parts.push(Part::Expr(Expr::Path(vec![s.name.clone()])));
+        }
+        (!parts.is_empty()).then_some(Template { parts })
+    }
+
+    /// Runs `f` with `value` available to the components inside under `name`, e.g. the
+    /// id of the dialog a close button belongs to. Unlike a scope, the value isn't a
+    /// name documents can read, and it stays a template when it depends on an item
+    /// only the browser knows. `None` hides an outer value of the same name.
+    pub fn with_context<T>(
+        &mut self,
+        name: &'static str,
+        value: Option<Val>,
+        f: impl FnOnce(&mut Self) -> Result<T, RenderError>,
+    ) -> Result<T, RenderError> {
+        self.contexts.push((name, value));
+        let result = f(self);
+        self.contexts.pop();
+        result
+    }
+
+    /// The innermost value passed down under `name` by [`with_context`](Self::with_context).
+    pub fn context(&self, name: &str) -> Option<&Val> {
+        self.contexts.iter().rev().find(|(n, _)| *n == name).and_then(|(_, v)| v.as_ref())
+    }
+
     /// Runs `f` with extra names in scope (e.g. a list's `item` and `index`).
     pub fn with_scope<T>(
         &mut self,
@@ -664,7 +705,7 @@ impl<'a> RenderCx<'a> {
         f: impl FnOnce(&mut Self) -> Result<T, RenderError>,
     ) -> Result<T, RenderError> {
         let n = vars.len();
-        self.scopes.extend(vars.into_iter().map(|(name, value)| Scope { name, value, client: false }));
+        self.scopes.extend(vars.into_iter().map(|(name, value)| Scope { name, value, client: false, index: false }));
         let result = f(self);
         self.scopes.truncate(self.scopes.len() - n);
         result

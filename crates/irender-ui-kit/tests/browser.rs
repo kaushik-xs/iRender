@@ -343,3 +343,64 @@ fn theme_toggle_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Dialogs and menus inside a list the browser rebuilds: each item's trigger opens
+/// its own overlay, which opens next to it and closes from inside, also after the
+/// keyed list reorders.
+const LIST_OVERLAYS_DRIVER: &str = r##"<script>
+window.addEventListener("load", () => {
+  const out = [];
+  const root = document.querySelector("[data-i-root]");
+  const sections = () => [...document.querySelectorAll("#rows > section")];
+  const open = () => document.querySelector("dialog[open] h2")?.textContent ?? "-";
+  const menu = () => document.querySelector("[popover]:popover-open");
+  const dialogIds = () => new Set([...document.querySelectorAll("#rows dialog")].map((d) => d.id)).size;
+  const step = (i) => {
+    const s = sections()[i];
+    s.querySelector("button[aria-haspopup=dialog]").click();
+    const shown = open();
+    document.querySelector("dialog[open] button[command=close]").click();
+    const trigger = s.querySelector("button[aria-haspopup=menu]");
+    trigger.click();
+    const m = menu();
+    const near = m && s.contains(m) && Math.abs(m.getBoundingClientRect().top - trigger.getBoundingClientRect().bottom) < 20;
+    const item = m?.querySelector("button")?.textContent;
+    m?.querySelector("button").click();
+    return [shown, open(), item, near, menu() ? "menu open" : "menu closed"].join(" ");
+  };
+  out.push("ids " + dialogIds());
+  out.push("row 2: " + step(1));
+  root.__irender.set("rows", [...root.__irender.state.rows].reverse());
+  out.push("reversed, row 1: " + step(0));
+  out.push("ids " + dialogIds());
+  const pre = document.createElement("pre");
+  pre.id = "result";
+  pre.textContent = out.join("\n");
+  document.body.append(pre);
+});
+</script>"##;
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn overlays_in_rebuilt_lists_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "rows": [{ "id": 1, "name": "a" }, { "id": 2, "name": "b" }] },
+        "root": { "type": "list", "attrs": { "id": "rows" }, "props": { "items": "{{ rows }}", "as": "r", "key": "{{ r.id }}" },
+          "children": [{ "type": "element", "props": { "tag": "section" }, "style": { "padding": 40 }, "children": [
+            { "type": "ui-dialog", "props": { "trigger": "Open {{ r.name }}", "title": "{{ r.name }}" },
+              "children": [{ "type": "ui-dialog-close", "props": { "label": "Done" } }] },
+            { "type": "ui-dropdown-menu", "props": { "trigger": "Menu" },
+              "children": [{ "type": "ui-menu-item", "props": { "label": "Edit {{ r.name }}" } }] } ] }] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{LIST_OVERLAYS_DRIVER}</body>"));
+    let Some(result) = drive("list-overlays", &html) else { return };
+    let lines: Vec<&str> = result.lines().collect();
+    assert_eq!(
+        lines,
+        ["ids 2", "row 2: b - Edit b true menu closed", "reversed, row 1: b - Edit b true menu closed", "ids 2"],
+        "\n{result}"
+    );
+}

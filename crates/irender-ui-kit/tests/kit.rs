@@ -300,6 +300,33 @@ fn ids_stay_unique_across_server_rendered_list_items() {
 }
 
 #[test]
+fn overlays_in_browser_rebuilt_lists_get_live_ids() {
+    let row = |dialog: Json| json!({ "type": "list", "props": { "items": "{{ rows }}", "as": "r" },
+        "children": [dialog, { "type": "ui-dropdown-menu", "props": { "trigger": "Menu" },
+            "children": [{ "type": "ui-menu-item", "props": { "label": "Edit" } }] }] });
+    let close = json!([{ "type": "ui-dialog-close", "props": { "label": "Done" } }]);
+    let page = render_with(row(json!({ "type": "ui-dialog", "props": { "trigger": "Open" }, "children": close })),
+        json!({ "rows": [{ "id": 7 }] }), json!({})).unwrap();
+    let tpl = &page.body[page.body.find("<template>").unwrap()..page.body.find("</template>").unwrap()];
+    let tpl = tpl.replace("&quot;", "\"");
+    // Items share a scope key, so the index tells their ids apart; every reference follows.
+    let live = |name: &str| tpl.matches(&format!(r#""n":"{name}","v":{{"t":["#)).count();
+    assert_eq!(live("id"), 2, "dialog and menu: {tpl}");
+    assert_eq!(live("commandfor"), 3, "trigger, close button and ✕: {tpl}");
+    assert_eq!(live("popovertarget"), 2, "menu trigger and item: {tpl}");
+    assert!(tpl.contains(r#"{"p":["index"]}"#), "{tpl}");
+
+    // A templated `id` reaches the close button as a template too.
+    let page = render_with(
+        row(json!({ "type": "ui-dialog", "props": { "trigger": "Open", "id": "dlg-{{ r.id }}" }, "children": close })),
+        json!({ "rows": [{ "id": 7 }] }), json!({})).unwrap();
+    let tpl = page.body[page.body.find("<template>").unwrap()..].replace("&quot;", "\"");
+    assert_eq!(tpl.matches(r#""n":"commandfor","v":{"t":["dlg-",{"p":["r","id"]}]}"#).count(), 3, "{tpl}");
+    // The server-rendered item has plain ids.
+    assert!(plain(&page.body).contains(r#"<dialog id="dlg-7""#), "{}", page.body);
+}
+
+#[test]
 fn popover_anchors_to_its_trigger() {
     let page = render_with(
         json!({ "type": "ui-dropdown-menu", "props": { "trigger": "Open", "id": "m" }, "children": [

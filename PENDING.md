@@ -6,14 +6,11 @@ _Last updated: 2026-11-17._
 
 ## Suggested next
 
-1. Overlays inside lists the browser rebuilds (gaps 1): with keyed lists, a menu per row is now practical.
+1. `else` for `if` (gaps 2): small, and saves writing every condition twice.
+2. Browser tests in Firefox and WebKit (gaps 3): overlays rely on Chrome-first features.
 
 ## Gaps you'd hit in real use
 
-- [ ] **Overlays inside lists the browser rebuilds don't fully work.**
-  - Problem: `ui-dialog-close` and `ui-menu-item` find their overlay through a server-side scope value (`ui_dialog`, `ui_popover`), which is null in a list's item template. Workaround: keep overlays outside those lists.
-  - Where: `context()` in `crates/irender-ui-kit/src/lib.rs`, and `overlay.rs`.
-  - Idea: let the browser look up the nearest `<dialog>` or `[popover]` ancestor for close buttons and menu items.
 - [ ] **One toast at a time.**
   - Problem: a new toast replaces the current one, and the first toast's `wait` can hide its replacement early.
   - Where: `ui-toaster` in `crates/irender-ui-kit/src/feedback.rs`, and the `wait` action.

@@ -150,7 +150,15 @@ fn instance_id(cx: &RenderCx<'_>, node: &Node, prefix: &str) -> Val {
     let path: String = node.path.chars().map(|c| if c.is_ascii_alphanumeric() { c } else { '-' }).collect();
     let key = cx.scope_key();
     let id = if key.is_empty() { format!("{prefix}-{path}") } else { format!("{prefix}-{path}-{key}") };
-    lit(id.replace("--", "-").trim_end_matches('-').to_string())
+    let id = id.replace("--", "-").trim_end_matches('-').to_string();
+    // Items of a list the browser rebuilds share a scope key; their index tells them apart.
+    match cx.client_key() {
+        Some(mut t) => {
+            t.parts.insert(0, Part::Lit(format!("{id}-")));
+            Val::Tpl(t)
+        }
+        None => lit(id),
+    }
 }
 
 /// `id` followed by `suffix`, as a value that follows a templated id.
@@ -211,9 +219,8 @@ fn synthetic(node: &Node, kind: &str, props: Vec<(&str, Val)>, attrs: Vec<(&str,
     }
 }
 
-/// The value of a name a parent component put in scope for its children (the
-/// dialog a close button belongs to, the accordion an item is in).
+/// The value a parent component passed to its children (the dialog a close button
+/// belongs to, the accordion an item is in).
 fn context(cx: &RenderCx<'_>, name: &str) -> Option<Val> {
-    let v = cx.lookup(&[name.to_string()]);
-    (!v.is_null()).then_some(Val::Lit(v))
+    cx.context(name).cloned()
 }

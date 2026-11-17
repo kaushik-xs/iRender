@@ -8,7 +8,6 @@ use crate::{
 };
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
-use serde_json::json;
 use std::sync::LazyLock;
 
 const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link"]);
@@ -200,9 +199,8 @@ impl Component for Dialog {
             }
             cx.close("div");
         }
-        // Close buttons inside read the dialog's id from scope.
-        let scoped = expr::stringify(&cx.eval(&id));
-        cx.with_scope(vec![("ui_dialog".into(), json!(scoped))], |cx| cx.children(node))?;
+        // Close buttons inside target the dialog's id.
+        cx.with_context("ui-dialog", Some(id.clone()), |cx| cx.children(node))?;
         if self.kind != Kind::Alert {
             let mut x = Element::new("button");
             x.base_style_ref(&DIALOG_X)
@@ -240,7 +238,7 @@ impl Component for DialogClose {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let Some(dialog) = context(cx, "ui_dialog") else {
+        let Some(dialog) = context(cx, "ui-dialog") else {
             return Err(RenderError::new(node, "`ui-dialog-close` must be inside a `ui-dialog`, `ui-alert-dialog` or `ui-sheet`"));
         };
         let mut props = vec![("label", node.prop("label").cloned().unwrap_or_else(|| lit("Close")))];
@@ -379,8 +377,7 @@ impl Component for Popover {
         el.base_style_ref(if self.menu { &MENU } else { &POPOVER }).base_style(placement);
         el.attr("popover", "auto").attr("id", id.clone());
         cx.open(&el, node)?;
-        let scoped = expr::stringify(&cx.eval(&id));
-        cx.with_scope(vec![("ui_popover".into(), json!(scoped))], |cx| cx.children(node))?;
+        cx.with_context("ui-popover", Some(id), |cx| cx.children(node))?;
         cx.close("div");
         Ok(())
     }
@@ -454,7 +451,7 @@ impl Component for MenuItem {
             }
             None => {
                 el.attr("type", "button");
-                if let Some(menu) = context(cx, "ui_popover") {
+                if let Some(menu) = context(cx, "ui-popover") {
                     el.attr("popovertarget", menu).attr("popovertargetaction", "hide");
                 }
                 if let Some(d) = node.prop("disabled") {
