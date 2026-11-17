@@ -19,7 +19,7 @@ mod components;
 mod escape;
 mod render;
 
-pub use components::{Button, ElementComponent, If, Input, List, Stack, Text};
+pub use components::{Button, ElementComponent, If, Input, List, Select, Stack, Text, Textarea};
 pub use render::{Element, RenderCx, RenderError};
 
 use irender_core::{Catalog, ComponentInfo, Diagnostics, Document, Format, Fragments, Ir, NoFragments, Node, Policy};
@@ -58,7 +58,7 @@ impl Registry {
         Self::default()
     }
 
-    /// `element`, `text`, `stack`, `button`, `input`, `list` and `if`.
+    /// `element`, `text`, `stack`, `button`, `input`, `select`, `textarea`, `list` and `if`.
     pub fn with_builtins() -> Self {
         let mut r = Self::new();
         r.register(ElementComponent)
@@ -66,6 +66,8 @@ impl Registry {
             .register(Stack)
             .register(Button)
             .register(Input)
+            .register(Select)
+            .register(Textarea)
             .register(List)
             .register(If);
         r

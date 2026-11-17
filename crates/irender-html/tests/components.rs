@@ -574,3 +574,88 @@ fn aria_booleans_are_strings() {
     let page = render_with(&Engine::new(), root, json!({ "open": false }), json!({})).unwrap();
     assert!(page.body.starts_with(r#"<div aria-expanded="false" aria-hidden="false" ARIA-busy="true" inert data-i-b="#), "{}", page.body);
 }
+
+// ---------------------------------------------------------------- form controls
+
+#[test]
+fn select_renders_options_and_the_bound_value() {
+    let root = json!({ "type": "select", "props": { "bind": "country", "placeholder": "Choose…",
+        "options": ["in", { "value": "de", "label": "Germany" }, { "value": "us", "label": null, "disabled": true }, 3] } });
+    let page = render_with(&Engine::new(), root, json!({ "country": "de" }), json!({})).unwrap();
+    assert_eq!(
+        strip_classes(&page.body),
+        concat!(
+            r#"<select data-i-bind="country">"#,
+            r#"<option value="" disabled data-i-ph>Choose…</option>"#,
+            r#"<option value="in">in</option>"#,
+            r#"<option selected value="de">Germany</option>"#,
+            r#"<option disabled value="us">us</option>"#,
+            r#"<option value="3">3</option>"#,
+            "</select>"
+        )
+    );
+    // Nothing chosen yet: the placeholder is selected.
+    let root = json!({ "type": "select", "props": { "bind": "n", "placeholder": "Pick", "options": [1, 2] } });
+    let page = render_with(&Engine::new(), root, json!({ "n": null }), json!({})).unwrap();
+    assert!(page.body.contains(r#"<option value="" disabled selected data-i-ph>Pick</option>"#), "{}", page.body);
+}
+
+#[test]
+fn select_options_from_state_are_rebuilt_in_the_browser() {
+    let root = json!({ "type": "select", "props": { "bind": "city", "options": "{{ cities }}" } });
+    let page = render_with(&Engine::new(), root, json!({ "city": "b", "cities": ["a", "b"] }), json!({})).unwrap();
+    assert_eq!(bindings(&page.body), [json!([{ "k": "opts", "v": { "r": { "p": ["cities"] } } }])]);
+    assert!(page.body.contains(r#"<option selected value="b">b</option>"#), "{}", page.body);
+    // Options from server data are fixed: no binding.
+    let root = json!({ "type": "select", "props": { "value": 2, "options": "{{ sizes }}" } });
+    let page = render_with(&Engine::new(), root, json!({}), json!({ "sizes": [1, 2] })).unwrap();
+    assert!(!page.body.contains("data-i-b"), "{}", page.body);
+    assert!(page.body.contains(r#"<option selected value="2">2</option>"#), "{}", page.body);
+}
+
+#[test]
+fn select_options_must_be_an_array() {
+    let root = json!({ "type": "select", "props": { "options": "{{ nope }}" } });
+    assert!(render_with(&Engine::new(), root.clone(), json!({}), json!({ "nope": null })).is_ok());
+    let err = render_with(&Engine::new(), root, json!({}), json!({ "nope": "x" })).unwrap_err();
+    assert_eq!(err.to_string(), "root: `options` must evaluate to an array");
+}
+
+#[test]
+fn textarea_holds_escaped_text() {
+    let root = json!({ "type": "textarea", "props": { "bind": "notes", "rows": 5, "placeholder": "Notes" } });
+    let page = render_with(&Engine::new(), root, json!({ "notes": "a < b\n</textarea>" }), json!({})).unwrap();
+    assert_eq!(
+        strip_classes(&page.body),
+        "<textarea rows=\"5\" placeholder=\"Notes\" data-i-bind=\"notes\">a &lt; b\n&lt;/textarea&gt;</textarea>"
+    );
+    let page = render(json!({ "type": "textarea", "props": { "value": "hi" } }));
+    assert_eq!(strip_classes(&page.body), r#"<textarea rows="3">hi</textarea>"#);
+}
+
+#[test]
+fn bound_radios_and_checkboxes_render_checked() {
+    let radio = |value: Json| json!({ "type": "input", "props": { "type": "radio", "bind": "size", "value": value } });
+    let root = json!({ "type": "element", "children": [radio(json!("s")), radio(json!("m")), radio(json!(2)),
+        { "type": "input", "props": { "type": "checkbox", "bind": "gift" } }] });
+    let page = render_with(&Engine::new(), root, json!({ "size": "m", "gift": true }), json!({})).unwrap();
+    assert_eq!(
+        strip_classes(&page.body),
+        concat!(
+            r#"<div><input type="radio" value="s" name="size" data-i-bind="size">"#,
+            r#"<input type="radio" value="m" checked name="size" data-i-bind="size">"#,
+            r#"<input type="radio" value="2" name="size" data-i-bind="size">"#,
+            r#"<input type="checkbox" checked data-i-bind="gift"></div>"#
+        )
+    );
+    // Numbers in state match radios by their text, as in the browser.
+    let page = render_with(&Engine::new(), radio(json!(2)), json!({ "size": 2 }), json!({})).unwrap();
+    assert!(page.body.contains("checked"), "{}", page.body);
+}
+
+#[test]
+fn a_bound_radio_needs_a_value() {
+    let root = json!({ "type": "input", "props": { "type": "radio", "bind": "size" } });
+    let err = render_with(&Engine::new(), root, json!({ "size": "m" }), json!({})).unwrap_err();
+    assert_eq!(err.to_string(), "root: a bound radio needs a `value`");
+}

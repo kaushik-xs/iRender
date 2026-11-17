@@ -185,3 +185,75 @@ fn conditionals_lists_and_mount_actions_in_chrome() {
     assert_eq!(lines[5], "clicked b | panel 2 | a,b✓* | b1 | 4", "{result}");
     assert_eq!(lines[6], "remote x,y", "{result}");
 }
+
+/// Radios (also from a rebuilt list), a numeric select and radios on one key, a
+/// checkbox, selects with fixed and state-driven options, and a textarea.
+const FORM: &str = r##"{ "version": 1,
+  "state": { "sizes": ["s", "m", "l"], "size": "m", "qty": 2, "gift": false, "country": "",
+             "cities": ["Pune", "Delhi"], "city": "Delhi", "notes": "hi" },
+  "root": { "type": "element", "children": [
+    { "type": "list", "props": { "items": "{{ sizes }}", "as": "s" }, "attrs": { "id": "sizes" },
+      "children": [{ "type": "input", "props": { "type": "radio", "bind": "size", "value": "{{ s }}" } }] },
+    { "type": "list", "props": { "items": [1, 2, 3], "as": "n" }, "attrs": { "id": "qty" },
+      "children": [{ "type": "input", "props": { "type": "radio", "bind": "qty", "value": "{{ n }}" } }] },
+    { "type": "select", "props": { "bind": "qty", "options": [1, 2, 3] }, "attrs": { "id": "qty-select" } },
+    { "type": "input", "props": { "type": "checkbox", "bind": "gift" }, "attrs": { "id": "gift" } },
+    { "type": "select", "props": { "bind": "country", "placeholder": "Country",
+      "options": [{ "value": "in", "label": "India" }, { "value": "de", "label": "Germany" }] }, "attrs": { "id": "country" } },
+    { "type": "select", "props": { "bind": "city", "options": "{{ cities }}" }, "attrs": { "id": "city" } },
+    { "type": "textarea", "props": { "bind": "notes" }, "attrs": { "id": "notes" } } ] } }"##;
+
+const FORM_DRIVER: &str = r##"<script>
+window.addEventListener("load", () => {
+  const out = [];
+  const root = document.querySelector("[data-i-root]");
+  const $ = (s) => document.querySelector(s);
+  const checked = (sel) => [...document.querySelectorAll(sel + " input")].map((r) => r.value + (r.checked ? "*" : "")).join(",");
+  const state = () => { const s = root.__irender.state; return [s.size, s.qty, typeof s.qty, s.gift, s.country, s.city, s.notes].join("|"); };
+  const snap = (step) => out.push([step, checked("#sizes"), checked("#qty"), $("#qty-select").value, $("#gift").checked,
+    $("#country").value, $("#city").value, [...$("#city").options].map((o) => o.value).join(","), $("#notes").value, state()].join(" ; ").replace(/\n/g, "⏎"));
+  const pick = (el, value) => { el.value = value; el.dispatchEvent(new Event("change")); };
+  snap("initial");
+  document.querySelectorAll("#sizes input")[2].click();
+  document.querySelectorAll("#qty input")[2].click();
+  snap("clicked l, 3");
+  pick($("#qty-select"), "1");
+  $("#gift").click();
+  pick($("#country"), "de");
+  snap("select 1, gift, de");
+  root.__irender.set("cities", ["Pune", "Mumbai", "Delhi"]);
+  snap("more cities");
+  root.__irender.set("sizes", ["xs", "s"]);
+  root.__irender.set("size", "s");
+  snap("new sizes");
+  $("#notes").value = "two\nlines"; $("#notes").dispatchEvent(new Event("input"));
+  root.__irender.set("country", "");
+  snap("typed, cleared");
+  const pre = document.createElement("pre");
+  pre.id = "result";
+  pre.textContent = out.join("\n");
+  document.body.append(pre);
+});
+</script>"##;
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn form_controls_in_chrome() {
+    let engine = Engine::new();
+    let ir = engine.load(FORM, Format::Json).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{FORM_DRIVER}</body>"));
+    let Some(result) = drive("form", &html) else { return };
+    let lines: Vec<&str> = result.lines().collect();
+
+    assert_eq!(lines[0], "initial ; s,m*,l ; 1,2*,3 ; 2 ; false ;  ; Delhi ; Pune,Delhi ; hi ; m|2|number|false||Delhi|hi", "{result}");
+    // Radios write their own value; a number-typed key stays a number.
+    assert_eq!(lines[1], "clicked l, 3 ; s,m,l* ; 1,2,3* ; 3 ; false ;  ; Delhi ; Pune,Delhi ; hi ; l|3|number|false||Delhi|hi", "{result}");
+    // The select and the radios share `qty`.
+    assert_eq!(lines[2], "select 1, gift, de ; s,m,l* ; 1*,2,3 ; 1 ; true ; de ; Delhi ; Pune,Delhi ; hi ; l|1|number|true|de|Delhi|hi", "{result}");
+    // Options rebuilt from state keep the bound choice.
+    assert_eq!(lines[3], "more cities ; s,m,l* ; 1*,2,3 ; 1 ; true ; de ; Delhi ; Pune,Mumbai,Delhi ; hi ; l|1|number|true|de|Delhi|hi", "{result}");
+    // Radios rebuilt by a list pick up the current state.
+    assert_eq!(lines[4], "new sizes ; xs,s* ; 1*,2,3 ; 1 ; true ; de ; Delhi ; Pune,Mumbai,Delhi ; hi ; s|1|number|true|de|Delhi|hi", "{result}");
+    // Clearing the key brings back the placeholder.
+    assert_eq!(lines[5], "typed, cleared ; xs,s* ; 1*,2,3 ; 1 ; true ;  ; Delhi ; Pune,Mumbai,Delhi ; two⏎lines ; s|1|number|true||Delhi|two⏎lines", "{result}");
+}

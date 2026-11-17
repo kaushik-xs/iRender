@@ -2,7 +2,7 @@
 //! attribute through `attrs`, any style through `style`, and inner elements through
 //! `parts`.
 
-use crate::{Component, RenderCx, RenderError};
+use crate::{Component, Element, RenderCx, RenderError};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr};
 use serde_json::Value as Json;
 use std::sync::LazyLock;
@@ -238,11 +238,11 @@ static INPUT_BASE: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 const INPUT_PROPS: &[PropDef] = &[
-    PropDef::new("bind", PropKind::StateKey, "State key kept in sync with the value"),
+    PropDef::new("bind", PropKind::StateKey, "State key kept in sync with the value (`checked` for checkboxes)"),
     PropDef::new("type", PropKind::String, "Input type (default `text`)"),
     PropDef::new("placeholder", PropKind::Any, ""),
-    PropDef::new("name", PropKind::String, "Form field name"),
-    PropDef::new("value", PropKind::Any, "Initial value when not bound"),
+    PropDef::new("name", PropKind::String, "Form field name (bound radios default to the `bind` key)"),
+    PropDef::new("value", PropKind::Any, "Initial value when not bound; for a bound radio, the value it stands for"),
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
 ];
 
@@ -258,19 +258,173 @@ impl Component for Input {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let mut el = cx.element("input", node);
         el.base_style_ref(&INPUT_BASE);
-        el.attr("type", cx.prop_string(node, "type").unwrap_or_else(|| "text".into()));
+        let ty = cx.prop_string(node, "type").unwrap_or_else(|| "text".into());
+        el.attr("type", ty.clone());
         for name in ["placeholder", "name", "disabled"] {
             if let Some(v) = node.prop(name) {
                 el.attr(name, v.clone());
             }
         }
         if let Some(key) = cx.prop_string(node, "bind") {
-            el.attr("value", cx.lookup(std::slice::from_ref(&key)));
+            let current = cx.lookup(std::slice::from_ref(&key));
+            match ty.as_str() {
+                "checkbox" => {
+                    el.attr("checked", expr::truthy(&current));
+                }
+                // A radio keeps its own value and is checked when the state matches it.
+                "radio" => {
+                    let Some(v) = node.prop("value") else {
+                        return Err(RenderError::new(node, "a bound radio needs a `value`"));
+                    };
+                    el.attr("value", v.clone());
+                    el.attr("checked", expr::stringify(&cx.eval(v)) == expr::stringify(&current));
+                    el.attr("name", key.clone());
+                }
+                _ => {
+                    el.attr("value", current);
+                }
+            }
             el.bind(key);
         } else if let Some(v) = node.prop("value") {
             el.attr("value", v.clone());
         }
         cx.open(&el, node)
+    }
+}
+
+/// `select`: a dropdown, optionally bound to state.
+pub struct Select;
+
+static SELECT_BASE: LazyLock<StyleBlock> =
+    LazyLock::new(|| INPUT_BASE.clone().set("cursor", "pointer"));
+
+const SELECT_PROPS: &[PropDef] = &[
+    PropDef::new(
+        "options",
+        PropKind::Any,
+        "Array of values or `{ value, label, disabled }`. Rebuilt in the browser when it uses state.",
+    )
+    .required(),
+    PropDef::new("bind", PropKind::StateKey, "State key kept in sync with the selected value"),
+    PropDef::new("placeholder", PropKind::Any, "Text of a first, empty option"),
+    PropDef::new("name", PropKind::String, "Form field name"),
+    PropDef::new("value", PropKind::Any, "Initially selected value when not bound"),
+    PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
+];
+
+/// An option's value, label and whether it's disabled. Plain values are their own label.
+fn option_parts(o: &Json) -> (Json, Json, bool) {
+    match o {
+        Json::Object(m) => {
+            let value = m.get("value").cloned().unwrap_or(Json::Null);
+            let label = m.get("label").filter(|l| !l.is_null()).cloned().unwrap_or_else(|| value.clone());
+            (value, label, m.get("disabled").is_some_and(expr::truthy))
+        }
+        other => (other.clone(), other.clone(), false),
+    }
+}
+
+impl Component for Select {
+    fn name(&self) -> &'static str {
+        "select"
+    }
+
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo { doc: "Dropdown.", props: SELECT_PROPS, parts: &[], children: false, open_props: false }
+    }
+
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let options = match cx.prop(node, "options") {
+            Some(Json::Array(options)) => options,
+            None | Some(Json::Null) => Vec::new(),
+            Some(_) => return Err(RenderError::new(node, "`options` must evaluate to an array")),
+        };
+        let bind = cx.prop_string(node, "bind");
+        let selected = match &bind {
+            Some(key) => cx.lookup(std::slice::from_ref(key)),
+            None => cx.prop(node, "value").unwrap_or(Json::Null),
+        };
+        let selected = expr::stringify(&selected);
+
+        let mut el = cx.element("select", node);
+        el.base_style_ref(&SELECT_BASE);
+        for name in ["name", "disabled"] {
+            if let Some(v) = node.prop(name) {
+                el.attr(name, v.clone());
+            }
+        }
+        if let Some(o) = node.prop("options") {
+            el.options(o);
+        }
+        if let Some(key) = bind {
+            el.bind(key);
+        }
+        cx.open(&el, node)?;
+        if let Some(text) = cx.prop_string(node, "placeholder") {
+            let mut opt = Element::new("option");
+            opt.attr("value", "").attr("disabled", true).attr("selected", selected.is_empty());
+            // The runtime keeps this option when it rebuilds the others.
+            opt.attr("data-i-ph", true).text(Val::from(text));
+            cx.open(&opt, node)?;
+            cx.close("option");
+        }
+        for o in &options {
+            let (value, label, disabled) = option_parts(o);
+            let value = expr::stringify(&value);
+            let mut opt = Element::new("option");
+            opt.attr("selected", value == selected).attr("disabled", disabled);
+            opt.attr("value", value).text(Val::Lit(label));
+            cx.open(&opt, node)?;
+            cx.close("option");
+        }
+        cx.close("select");
+        Ok(())
+    }
+}
+
+/// `textarea`: multi-line text, optionally bound to state.
+pub struct Textarea;
+
+static TEXTAREA_BASE: LazyLock<StyleBlock> =
+    LazyLock::new(|| INPUT_BASE.clone().set("resize", "vertical"));
+
+const TEXTAREA_PROPS: &[PropDef] = &[
+    PropDef::new("bind", PropKind::StateKey, "State key kept in sync with the text"),
+    PropDef::new("placeholder", PropKind::Any, ""),
+    PropDef::new("name", PropKind::String, "Form field name"),
+    PropDef::new("rows", PropKind::Any, "Visible lines (default 3)"),
+    PropDef::new("value", PropKind::Any, "Initial text when not bound"),
+    PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
+];
+
+impl Component for Textarea {
+    fn name(&self) -> &'static str {
+        "textarea"
+    }
+
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo { doc: "Multi-line text input.", props: TEXTAREA_PROPS, parts: &[], children: false, open_props: false }
+    }
+
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let mut el = cx.element("textarea", node);
+        el.base_style_ref(&TEXTAREA_BASE);
+        el.attr("rows", node.prop("rows").cloned().unwrap_or(Val::Lit(Json::from(3))));
+        for name in ["placeholder", "name", "disabled"] {
+            if let Some(v) = node.prop(name) {
+                el.attr(name, v.clone());
+            }
+        }
+        if let Some(key) = cx.prop_string(node, "bind") {
+            // Initial text only: the runtime keeps the value in sync from then on.
+            el.text(Val::Lit(cx.lookup(std::slice::from_ref(&key))));
+            el.bind(key);
+        } else if let Some(v) = node.prop("value") {
+            el.text(v);
+        }
+        cx.open(&el, node)?;
+        cx.close("textarea");
+        Ok(())
     }
 }
 

@@ -87,6 +87,8 @@
       const s = scopeOf(el);
       return s ? { ...state, ...s } : state;
     };
+    // Controls that choose a value rather than type one.
+    const picks = (el) => el.type === "checkbox" || el.type === "radio" || el.tagName === "SELECT";
     // `n` and its descendants that match `sel` (template contents excluded).
     const within = (n, sel) =>
       n.nodeType !== 1 ? [] : n.matches(sel) ? [n, ...n.querySelectorAll(sel)] : [...n.querySelectorAll(sel)];
@@ -102,10 +104,12 @@
       }
       for (const el of within(n, "[data-i-bind]")) {
         const key = el.getAttribute("data-i-bind");
-        const evt = el.type === "checkbox" || el.tagName === "SELECT" ? "change" : "input";
+        const evt = picks(el) ? "change" : "input";
         el.addEventListener(evt, () => {
           let v = el.type === "checkbox" ? el.checked : el.value;
           if (el.type === "number" || el.type === "range") v = el.value === "" ? null : Number(el.value);
+          // A radio or select over numbers keeps a number-typed key a number.
+          else if (picks(el) && el.type !== "checkbox" && typeof state[key] === "number" && v.trim() !== "" && !Number.isNaN(Number(v))) v = Number(v);
           set(key, v);
         });
       }
@@ -199,6 +203,21 @@
           } else if (b.k === "var") {
             if (v === null) el.style.removeProperty(b.n);
             else el.style.setProperty(b.n, typeof v === "number" && b.px ? v + "px" : str(v));
+          } else if (b.k === "opts") {
+            // A select's options, from state: rebuilt when the array changes.
+            if (v === b.prev) continue;
+            b.prev = v;
+            const keep = el.value;
+            for (const o of [...el.options]) if (!o.hasAttribute("data-i-ph")) o.remove();
+            for (const o of Array.isArray(v) ? v : []) {
+              const obj = o !== null && typeof o === "object";
+              const opt = document.createElement("option");
+              opt.value = str(obj ? o.value : o);
+              opt.textContent = str(obj ? (o.label ?? o.value) : o);
+              opt.disabled = obj && truthy(o.disabled);
+              el.append(opt);
+            }
+            el.value = keep;
           } else if (b.k === "class") {
             const prev = (b.prev ?? b.i).split(/\s+/).filter(Boolean);
             const next = str(v).split(/\s+/).filter(Boolean);
@@ -209,9 +228,11 @@
         }
       }
       for (const el of root.querySelectorAll("[data-i-bind]")) {
-        if (el === document.activeElement) continue;
+        // Don't fight someone typing; controls that pick a value are safe to set.
+        if (el === document.activeElement && !picks(el)) continue;
         const v = state[el.getAttribute("data-i-bind")];
         if (el.type === "checkbox") el.checked = truthy(v);
+        else if (el.type === "radio") el.checked = el.value === str(v);
         else el.value = str(v);
       }
       const due = pending;

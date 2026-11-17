@@ -44,6 +44,8 @@ pub struct Element<'n> {
     bind: Option<String>,
     /// A list the browser rebuilds: items, item name, index name.
     list: Option<(&'n Val, String, String)>,
+    /// A `<select>`'s options, rebuilt in the browser when they use state.
+    options: Option<&'n Val>,
 }
 
 impl<'n> Element<'n> {
@@ -59,6 +61,7 @@ impl<'n> Element<'n> {
             on: None,
             bind: None,
             list: None,
+            options: None,
         }
     }
 
@@ -115,6 +118,13 @@ impl<'n> Element<'n> {
     /// written by [`RenderCx::item_template`] whenever `items` changes.
     pub(crate) fn list(&mut self, items: &'n Val, item: String, index: String) -> &mut Self {
         self.list = Some((items, item, index));
+        self
+    }
+
+    /// Rebuilds a `<select>`'s `<option>`s in the browser whenever `options` changes.
+    /// Only needed when they use state; the server renders the initial options.
+    pub(crate) fn options(&mut self, options: &'n Val) -> &mut Self {
+        self.options = Some(options);
         self
     }
 }
@@ -407,6 +417,12 @@ impl<'a> RenderCx<'a> {
             }
             self.eval(t)
         });
+        if let Some(options) = el.options.filter(|o| self.is_reactive(o)) {
+            sep(&mut bindings, ",");
+            bindings.push_str("{\"k\":\"opts\",\"v\":");
+            self.write_val_js(&mut bindings, options);
+            bindings.push('}');
+        }
         if !bindings.is_empty() {
             self.out.push_str(" data-i-b=\"[");
             escape::push_attr(&mut self.out, &bindings);

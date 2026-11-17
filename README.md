@@ -49,8 +49,25 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 - **parts** style a component's inner elements.
 - **on** maps DOM events to declarative actions: `set_state`, `navigate`, `submit` and `call`. A `call` dispatches an `irender:call` DOM event for the host app to handle.
 - **Expressions** (`{{ … }}`) support paths, literals, arithmetic, comparisons, `&& || !` and `?:`. An expression that references `state` updates live in the browser. Any other path is filled in from server `data` at render time.
-- **Built-in components:** `element`, `text`, `stack`, `button`, `input`, `list` and `if`. Run `irender components` for their props. `include` is handled by the resolver; see below.
+- **Built-in components:** `element`, `text`, `stack`, `button`, `input`, `select`, `textarea`, `list` and `if`. Run `irender components` for their props. `include` is handled by the resolver; see below.
 - **Cascade order:** theme variables → `i-base` layer (component defaults) → `i-instance` layer (the document's `style`). The document always wins.
+
+## Form controls
+
+`input`, `select` and `textarea` take `bind: <state key>` to keep a state value in sync both ways.
+
+```json
+{ "type": "select", "props": { "bind": "country", "placeholder": "Country",
+  "options": [{ "value": "in", "label": "India" }, { "value": "de", "label": "Germany", "disabled": true }] } }
+{ "type": "input", "props": { "type": "radio", "bind": "size", "value": "m" } }
+{ "type": "input", "props": { "type": "checkbox", "bind": "gift" } }
+{ "type": "textarea", "props": { "bind": "notes", "rows": 4 } }
+```
+
+- **`select`:** `options` is an array of plain values or `{ value, label, disabled }`. If it comes from server data, the options are fixed. If it reads `state`, the browser rebuilds them when the array changes and keeps the current choice. `placeholder` adds a first, empty option that shows while the key is empty.
+- **Radios:** a bound radio needs a `value`. It is checked when the state equals that value, and choosing it writes the value. Radios bound to the same key share `name` automatically, so the browser keeps one checked.
+- **Checkboxes:** a bound checkbox stores `true` / `false`.
+- **Types:** the DOM holds option and radio values as text. If a key starts out as a number, choosing a radio or option keeps it a number, as a `number` input does. Otherwise it becomes a string.
 
 ## Dynamic content
 
@@ -203,7 +220,7 @@ cargo test -p irender-html --test browser -- --ignored   # drives the example in
 | `irender-style` unit tests + `tests/compile.rs` | nesting, selector variants, dynamic values, layer order, dark-mode variables, cache, pinned class names |
 | `irender-html/tests/components.rs` | every built-in, `if` markers, list item templates, `include` (scope, sources, cycles, depth, `FragmentDir`), which values update live, actions, URL and `</script>` safety, deterministic output, custom components, rendering from many threads, parallel output identical to sequential |
 | `irender-html/tests/runtime_parity.rs` | the browser runtime has its own copy of the expression evaluator; ~90 expressions run through both (Rust, and JS via `node`), and any disagreement fails. Skips with a message if `node` isn't installed. |
-| `irender-html/tests/browser.rs` | opt-in, needs Chrome: clicks, types and checks the DOM of the product example; toggles `if` blocks, rebuilds lists from state, runs item-scoped and `mount` actions |
+| `irender-html/tests/browser.rs` | opt-in, needs Chrome: clicks, types and checks the DOM of the product example; toggles `if` blocks, rebuilds lists from state, runs item-scoped and `mount` actions; binds radios, checkboxes, selects (with options from state) and textareas |
 
 ## Custom components
 
