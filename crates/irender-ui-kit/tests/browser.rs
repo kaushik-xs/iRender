@@ -552,3 +552,82 @@ fn toasts_queue_with_their_own_timers_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The dropdown menu's keyboard pattern: opening focuses the first item, the arrow
+/// keys move and wrap, Home and End jump, typing jumps to a matching item, disabled
+/// items are skipped, Tab closes the menu, and Up on the button opens it on the last
+/// item. Choosing an item puts focus back on the button.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn dropdown_menu_keyboard_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "ui-dropdown-menu", "props": { "trigger": "Menu", "id": "m" }, "children": [
+            { "type": "ui-menu-label", "props": { "text": "Account" } },
+            { "type": "ui-menu-item", "props": { "label": "Profile" } },
+            { "type": "ui-menu-item", "props": { "label": "Billing", "disabled": true } },
+            { "type": "ui-menu-item", "props": { "label": "Settings" } },
+            { "type": "ui-menu-separator" },
+            { "type": "ui-menu-item", "props": { "label": "Support", "href": "#support" } },
+            { "type": "ui-menu-item", "props": { "label": "Sign out" } } ] } });
+    let driver = r#"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const menu = document.getElementById("m");
+      const trigger = document.querySelector("[popovertarget=m]");
+      const press = (key) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+      const where = () => menu.contains(document.activeElement) ? document.activeElement.textContent
+        : document.activeElement === trigger ? "button" : document.activeElement.tagName;
+      const step = (label) => out.push(label + " " + where() + (menu.matches(":popover-open") ? "" : " (closed)"));
+      out.push("roles " + menu.getAttribute("role") + " " + [...menu.querySelectorAll("[role=menuitem]")].length
+        + " " + [...menu.querySelectorAll("[role=menuitem]")].every((i) => i.tabIndex === -1));
+      // The menu focuses its first item on the popover's `toggle` event, a task later.
+      const tick = () => new Promise((r) => setTimeout(r, 0));
+      trigger.focus(); trigger.click(); await tick(); step("open");
+      press("ArrowDown"); step("down");
+      press("ArrowDown"); step("down");
+      press("ArrowDown"); step("down");
+      press("ArrowDown"); step("wrap");
+      press("ArrowUp"); step("up");
+      press("End"); step("end");
+      press("Home"); step("home");
+      press("s"); step("s");
+      press("s"); step("s");
+      await new Promise((r) => setTimeout(r, 600));
+      press("s"); press("i"); step("si");
+      press("Tab"); step("tab");
+      trigger.focus(); press("ArrowUp"); await tick(); step("button up");
+      document.activeElement.click(); step("chose");
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"#;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("menu-keys", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "roles menu 5 true",
+            "open Profile",
+            // Billing is disabled, so it's skipped.
+            "down Settings",
+            "down Support",
+            "down Sign out",
+            "wrap Profile",
+            "up Sign out",
+            "end Sign out",
+            "home Profile",
+            // A letter steps through the items starting with it; after a pause, "si" spells it out.
+            "s Settings",
+            "s Support",
+            "si Sign out",
+            "tab button (closed)",
+            "button up Sign out",
+            "chose button (closed)",
+        ],
+        "\n{result}"
+    );
+}

@@ -1,6 +1,7 @@
 //! Overlays built on the platform: `<dialog>` opened with invoker commands
 //! (`command="show-modal"`), the Popover API placed with CSS anchor positioning,
-//! and CSS-only tooltips and hover cards. None of them adds JavaScript.
+//! and CSS-only tooltips and hover cards. Only the dropdown menu adds JavaScript, for
+//! its arrow keys (menu.js).
 
 use crate::{
     ACCENT, DESTRUCTIVE, MUTED, ON_PRIMARY, PRIMARY, SURFACE, TEXT, choice, context, disclosure::merge_node, forms,
@@ -8,7 +9,10 @@ use crate::{
 };
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
+use serde_json::json;
 use std::sync::LazyLock;
+
+const MENU_SCRIPT: &str = include_str!("menu.js");
 
 const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link"]);
 
@@ -376,8 +380,14 @@ impl Component for Popover {
         let mut el = cx.element("div", node);
         el.base_style_ref(if self.menu { &MENU } else { &POPOVER }).base_style(placement);
         el.attr("popover", "auto").attr("id", id.clone());
+        if self.menu {
+            // Items are reached with the arrow keys, so Tab leaves the menu.
+            cx.global_js("ui-dropdown-menu", MENU_SCRIPT);
+            el.attr("role", "menu").behavior("ui-dropdown-menu", json!({}));
+        }
         cx.open(&el, node)?;
-        cx.with_context("ui-popover", Some(id), |cx| cx.children(node))?;
+        let menu = self.menu.then(|| lit(true));
+        cx.with_context("ui-popover", Some(id), |cx| cx.with_context("ui-menu", menu, |cx| cx.children(node)))?;
         cx.close("div");
         Ok(())
     }
@@ -445,6 +455,9 @@ impl Component for MenuItem {
         let tag = if href.is_some() { "a" } else { "button" };
         let mut el = cx.element(tag, node);
         el.base_style_ref(&MENU_ITEM[choice(cx, node, "variant", &["default", "destructive"])]);
+        if context(cx, "ui-menu").is_some() {
+            el.attr("role", "menuitem").attr("tabindex", "-1");
+        }
         match href {
             Some(h) => {
                 el.attr("href", h.clone());

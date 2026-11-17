@@ -339,8 +339,8 @@ fn popover_anchors_to_its_trigger() {
     )
     .unwrap();
     let body = plain(&page.body);
-    assert!(body.starts_with(r#"<button popovertarget="m" aria-haspopup="menu" type="button">Open</button><div popover="auto" id="m">"#), "{body}");
-    assert!(body.contains(r#"<button type="button" popovertarget="m" popovertargetaction="hide"><span>Profile</span><span>⇧⌘P</span></button>"#), "{body}");
+    assert!(body.starts_with(r#"<button popovertarget="m" aria-haspopup="menu" type="button">Open</button><div popover="auto" id="m" role="menu" data-i-x="ui-dropdown-menu""#), "{body}");
+    assert!(body.contains(r#"<button role="menuitem" tabindex="-1" type="button" popovertarget="m" popovertargetaction="hide"><span>Profile</span><span>⇧⌘P</span></button>"#), "{body}");
     for decl in ["anchor-name: --m;", "position-anchor: --m;", "position-area: bottom span-right;", "position-try-fallbacks: flip-block;"] {
         assert!(page.css.contains(decl), "missing `{decl}`");
     }

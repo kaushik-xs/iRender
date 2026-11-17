@@ -66,7 +66,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-dialog-close` | `label`, `variant` | Closes the dialog it is in; its own `on.click` actions run too. |
 | `ui-dialog-footer` | | A right-aligned row of buttons. |
 | `ui-popover` | `trigger`, `triggerVariant`, `side` (bottom, top, right, left), `align` (center, start, end), `id` | Native popover, placed next to its trigger and flipped when there's no room. |
-| `ui-dropdown-menu` | same as `ui-popover` | Children: `ui-menu-item` (`label`, `shortcut`, `variant`, `href`, `disabled`; choosing it runs its `on.click` and closes the menu), `ui-menu-label`, `ui-menu-separator`. |
+| `ui-dropdown-menu` | same as `ui-popover` | Children: `ui-menu-item` (`label`, `shortcut`, `variant`, `href`, `disabled`; choosing it runs its `on.click` and closes the menu), `ui-menu-label`, `ui-menu-separator`. Keyboard: opening focuses the first item; Up/Down, Home/End and typing move between items; Down or Up on the button opens it; Tab closes it. |
 | `ui-tooltip` | `text`, `side` | Shown while its children are hovered or focused. CSS only. |
 | `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
 | `ui-toaster` | `bind`, `duration` (default 4000 ms), `max` (default 3) | Toasts at the bottom right. Setting `bind` to `{ title, description, variant, duration }` adds one to the stack. |
@@ -164,4 +164,4 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript are out of scope: combobox, command palette, date picker, data table with sorting, carousel, context menu, and menus with arrow-key navigation. Menu items are reachable with Tab.
+Components that need focus management or keyboard navigation written in JavaScript are out of scope: command palette, date picker, data table with sorting, carousel and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
