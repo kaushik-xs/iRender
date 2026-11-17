@@ -89,6 +89,10 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 
+| `ui-conversation` | `messages`, `typing`, `assistant`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
+| `ui-message` | `role` (assistant, user, system), `content`, `name`, `time`, `avatar`, `initials`, `replies`, `open` | One message bubble, with an optional thread. Children go in the bubble. |
+| `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
+| `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
@@ -224,6 +228,28 @@ Not replicated:
 - Chip animations.
 - Values that are whole option objects: values are plain values, and their labels come from the options.
 - `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
+
+## Chat
+
+Messages are `{ id, role, content, name, avatar, initials, time, replies }`: `role` is `assistant` (on the left; the default), `user` (on the right, in the primary colour) or `system` (a small centred note). Keep them in state and the conversation redraws as they change, keeping each message whose `id` it has seen.
+
+```yaml
+state: { messages: [], draft: "", waiting: false }
+root:
+  type: stack
+  children:
+    - type: ui-conversation
+      props: { messages: "{{ messages }}", typing: "{{ waiting }}", height: 480, empty: Ask anything. }
+    - type: ui-chat-input
+      props: { messages: messages, bind: draft, waiting: waiting, endpoint: /api/chat, suggestions: [What can you do?] }
+```
+
+- **Sending.** Enter sends and Shift+Enter starts a new line. Sending appends `{ id, role: user, content }` to `messages`, then runs the input's `on.send` actions (the bound key still holds the text then), then clears the box. Suggestions show while `messages` is empty, and clicking one sends it.
+- **Replies.** With `endpoint`, the input POSTs `{ messages }` there and adds the reply as an assistant message. The reply may be JSON (a message, `{ message }` or `{ content }`), plain text streamed as it arrives, or server-sent events whose `data` is text or JSON with `content`, `delta`, `text` or OpenAI's `choices[0].delta.content`, ending with `[DONE]`. `waiting` is true from sending until the first text arrives, which suits the conversation's `typing`. While a reply streams the send button stops it. A failed request adds a `system` message saying so.
+- **Without an endpoint**, listen for `send` (an `on.send` action, or the bubbling DOM event, whose `detail` has `text` and `message`) and append the reply to the state key yourself, e.g. with `root.__irender.set`.
+- **Threads.** A message's `replies` fold away under "N replies", indented with a rule; `open` unfolds them. Replies don't nest further.
+- **Scrolling.** The conversation keeps to its latest message as messages arrive or stream in. Once you scroll up it stays put and shows a button that jumps back down; sending a message always does. It's a `role="log"`, so screen readers announce new messages.
+- `parts.bubble`, `parts.avatar`, `parts.meta` and so on, set on the conversation, style every message it draws from `messages`.
 
 ## Overlays and ids
 

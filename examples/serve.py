@@ -8,11 +8,17 @@
 Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/live/metrics  JSON: the current cpu, memory and requests, smooth over time
   api/live/stream   server-sent events: an order every second
+  api/chat          POST: the chats in the UI kit gallery and the chat block. Streams a canned
+                    reply as server-sent events; "chart …" and "photos …" also get UI, an iRender
+                    document from blocks/chat-replies rendered with `irender render --embed`
+                    (set IRENDER to the binary; default target/debug/irender)
 """
 
 import json
 import math
+import os
 import random
+import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -20,6 +26,22 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 REGIONS = ["Europe", "Asia", "Americas"]
+HERE = os.path.dirname(os.path.abspath(__file__))
+IRENDER = os.environ.get("IRENDER", os.path.join(HERE, "..", "target", "debug", "irender"))
+# Prompts that get UI: the first word in the message picks the reply.
+UI_REPLIES = {
+    "chart": ("Here are this year's sales by month. Switch the range above the chart.", "chart.yaml", "--chart-kit"),
+    "photos": ("Here are a few of Lisbon's sights. Scroll or use the arrows for more.", "photos.yaml", None),
+}
+_rendered = {}
+
+
+def render_reply(name, kit):
+    """A reply's UI document as markup for the page, rendered once."""
+    if name not in _rendered:
+        args = [IRENDER, "render", os.path.join(HERE, "blocks", "chat-replies", name), "--ui-kit", "--embed"]
+        _rendered[name] = subprocess.run(args + ([kit] if kit else []), capture_output=True, text=True, check=True).stdout
+    return _rendered[name]
 
 
 def metrics():
@@ -40,6 +62,45 @@ class Handler(SimpleHTTPRequestHandler):
         if path.endswith("/api/live/stream"):
             return self.stream()
         return super().do_GET()
+
+    def do_POST(self):
+        if self.path.split("?", 1)[0].endswith("/api/chat"):
+            return self.chat()
+        self.send_error(404)
+
+    def chat(self):
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+        messages = body.get("messages") or []
+        said = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
+        ui = next((v for k, v in UI_REPLIES.items() if k in said.lower()), None)
+        html = None
+        if ui:
+            reply = ui[0]
+            try:
+                html = render_reply(ui[1], ui[2])
+            except (OSError, subprocess.CalledProcessError) as e:
+                reply += f" (The UI didn't render: {e}. Build the CLI or set IRENDER.)"
+        else:
+            reply = (
+                f"You said “{said}”. This is a canned reply from examples/serve.py, streamed a word at a "
+                f"time as server-sent events, like a model's would be. Ask for a chart or photos to get "
+                f"a reply with UI. The conversation so far has {len(messages)} messages."
+            )
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        try:
+            time.sleep(0.6)
+            for word in reply.split(" "):
+                self.wfile.write(f"data: {json.dumps({'content': word + ' '})}\n\n".encode())
+                self.wfile.flush()
+                time.sleep(0.04)
+            if html:
+                self.wfile.write(f"data: {json.dumps({'html': html})}\n\n".encode())
+            self.wfile.write(b"data: [DONE]\n\n")
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def send_json(self, value):
         body = json.dumps(value).encode()

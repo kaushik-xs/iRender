@@ -1,0 +1,26 @@
+# examples/serve.py's reply to "photos …": a carousel of images, then a link.
+version: 1
+root:
+  type: stack
+  props: { gap: 12 }
+  children:
+    - type: ui-carousel
+      props: { label: Lisbon, size: 240 }
+      children:
+        - type: list
+          props:
+            as: p
+            items:
+              - { src: /blocks/media/alfama.svg, title: Alfama }
+              - { src: /blocks/media/tram.svg, title: Tram 28 }
+              - { src: /blocks/media/belem.svg, title: Belém Tower }
+              - { src: /blocks/media/sintra.svg, title: "Pena Palace, Sintra" }
+          style: { display: contents }
+          children:
+            - type: element
+              props: { tag: figure }
+              style: { margin: 0, display: grid, gap: 6 }
+              children:
+                - { type: element, props: { tag: img }, attrs: { src: "{{ p.src }}", alt: "{{ p.title }}", loading: lazy }, style: { display: block, width: 100%, aspect-ratio: 4 / 3, object-fit: cover, border-radius: $radius.lg } }
+                - { type: element, props: { tag: figcaption }, style: { font-size: 13, font-weight: 500 }, children: [ { type: text, props: { value: "{{ p.title }}" } } ] }
+    - { type: ui-button, props: { label: "More on visitlisboa.com ↗", variant: outline, size: sm, href: "https://www.visitlisboa.com/" }, attrs: { target: _blank, rel: noopener noreferrer }, style: { width: fit-content } }

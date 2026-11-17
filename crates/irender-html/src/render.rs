@@ -213,9 +213,12 @@ impl<'a> RenderCx<'a> {
         }
     }
 
-    pub(crate) fn finish(self) -> (String, String, bool, Vec<&'static str>, Vec<&'static str>) {
+    /// The output: markup, stylesheet (with the theme's variables when `theme`),
+    /// whether it's interactive, and its scripts.
+    pub(crate) fn finish(self, theme: bool) -> (String, String, bool, Vec<&'static str>, Vec<&'static str>) {
         let (scripts, early) = (self.scripts.into_values().collect(), self.early.into_values().collect());
-        (self.out, self.styles.css(), self.interactive, scripts, early)
+        let css = if theme { self.styles.css() } else { self.styles.rules_css() };
+        (self.out, css, self.interactive, scripts, early)
     }
 
     pub fn theme(&self) -> &Theme {

@@ -40,6 +40,8 @@ macro_rules! fs {
     ($n:literal) => { concat!("calc(", $n, "px * var(--font-scale, 1))") };
 }
 
+mod carousel;
+mod chat;
 mod combobox;
 mod command;
 mod disclosure;
@@ -51,6 +53,7 @@ mod overlay;
 mod sidebar;
 mod theme;
 
+pub use chat::{render_message_ui, ui_document};
 pub use theme::{apply_theme, theme};
 
 use indexmap::IndexMap;
@@ -134,6 +137,11 @@ pub fn register(registry: &mut Registry) {
         .register(command::CommandGroup)
         .register(command::CommandItem)
         .register(command::CommandSeparator)
+        .register(chat::Conversation)
+        .register(chat::Message)
+        .register(chat::TypingIndicator)
+        .register(chat::ChatInput)
+        .register(carousel::Carousel)
         // A Light or Dark choice made with `ui-theme-toggle` holds on every page, with a
         // toggle on it or not.
         .early_js("ui-theme", disclosure::THEME_EARLY_SCRIPT);

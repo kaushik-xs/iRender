@@ -34,6 +34,10 @@ for block in login-03 login-04 signup sidebar-03 sidebar-07 settings pricing; do
 done
 $irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboard-01.data.json \
   --ui-kit --chart-kit --icon-kit --title "dashboard-01" -o "$out/blocks/dashboard-01.html"
+# The chat's replies include charts, images and a video.
+$irender render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit --title "chat" -o "$out/blocks/chat.html"
+cp -R examples/blocks/media "$out/blocks/"
+$irender render examples/blocks/markdown.yaml --ui-kit --icon-kit --markdown-kit --title "markdown" -o "$out/blocks/markdown.html"
 $irender render examples/blocks/theme.yaml --ui-kit --chart-kit --icon-kit --title "theme" -o "$out/blocks/theme.html"
 $irender render examples/blocks/index.yaml --ui-kit --chart-kit --title "Blocks" -o "$out/blocks/index.html"
 mkdir -p "$out/charts"

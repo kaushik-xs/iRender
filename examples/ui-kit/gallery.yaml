@@ -41,6 +41,21 @@ state:
   marketing: false
   view: grid
   marks: [underline]
+  chat:
+    - { id: 1, role: system, content: "Today" }
+    - { id: 2, role: user, name: You, initials: KS, time: "9:41", content: "Can you summarise the Q3 report?" }
+    - id: 3
+      role: assistant
+      name: Assistant
+      initials: AI
+      time: "9:41"
+      content: "Revenue grew 12% on Q2, led by the Asia region.\nCosts were flat, so margins improved by two points."
+      replies:
+        - { id: 31, role: user, name: Asha, initials: AS, content: "Does that include the one-off licence deal?" }
+        - { id: 32, role: assistant, name: Assistant, initials: AI, content: "No, that's booked in Q4." }
+  chatDraft: ""
+  chatWaiting: false
+  sidebar: true
 root:
   type: stack
   props: { gap: 40 }
@@ -882,6 +897,106 @@ root:
               - { label: Breadcrumb }
         - type: ui-pagination
           props: { page: 5, pages: 12, href: "#page-{{ p }}" }
+
+    # ---------------------------------------------------------------- sidebar
+    # A sidebar is a whole-page layout; here it's boxed in so it fits the gallery. See the
+    # blocks for full pages.
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Sidebar } }
+        - type: ui-text
+          props: { variant: muted, text: "The button in the header, or ⌘B / Ctrl+B, narrows it to its icons. On a phone it opens as a sheet." }
+        - type: ui-sidebar-layout
+          props: { bind: sidebar, collapsible: icon }
+          style: { min-height: 0, height: 440, overflow: hidden, border: 1px solid $color.border, border-radius: $radius.lg }
+          children:
+            - type: ui-sidebar
+              style: { height: 100% }
+              children:
+                - type: ui-sidebar-header
+                  children:
+                    - type: ui-sidebar-group
+                      style: { padding: 0 }
+                      children:
+                        - type: ui-sidebar-item
+                          props: { label: Acme Inc, icon: "◆", badge: Enterprise }
+                          children:
+                            - { type: ui-sidebar-item, props: { label: Acme Inc, active: true } }
+                            - { type: ui-sidebar-item, props: { label: Acme Corp. } }
+                - type: ui-sidebar-content
+                  children:
+                    - type: ui-sidebar-group
+                      props: { label: Platform }
+                      children:
+                        - { type: ui-sidebar-item, props: { label: Dashboard, icon: "⌂", href: "#", active: true } }
+                        - { type: ui-sidebar-item, props: { label: Inbox, icon: "✉", href: "#", badge: 12 } }
+                        - type: ui-sidebar-item
+                          props: { label: Documentation, icon: "☰", open: true }
+                          children:
+                            - { type: ui-sidebar-item, props: { label: Introduction, href: "#" } }
+                            - { type: ui-sidebar-item, props: { label: Get Started, href: "#" } }
+                            - { type: ui-sidebar-item, props: { label: Changelog, href: "#" } }
+                        - { type: ui-sidebar-item, props: { label: Settings, icon: "⚙", href: "#" } }
+                - type: ui-sidebar-footer
+                  children:
+                    - type: ui-sidebar-group
+                      style: { padding: 0 }
+                      children:
+                        - { type: ui-sidebar-item, props: { label: shadcn, icon: "☺", badge: m@example.com, href: "#" } }
+            - type: element
+              props: { tag: header }
+              style: { display: flex, align-items: center, gap: 8, height: 56, flex-shrink: 0, padding: 0 16px }
+              children:
+                - { type: ui-sidebar-trigger }
+                - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin-right: 8 } }
+                - type: ui-breadcrumb
+                  props: { items: [{ label: Platform, href: "#" }, { label: Dashboard }] }
+            - type: element
+              style: { display: flex, flex-direction: column, gap: 16, flex: 1, padding: 0 16px 16px }
+              children:
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 16 }
+                  children:
+                    - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+                    - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+                    - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+                - { type: element, style: { flex: 1, border-radius: 12, background: $color.subtle } }
+
+    # ---------------------------------------------------------------- chat
+    # The input appends to `chat` and streams the reply from api/chat, which
+    # examples/serve.py answers; a plain static server can't, so the reply fails there.
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Chat } }
+        - type: ui-text
+          props: { variant: muted, text: "A conversation that keeps to its latest message, bubbles with threaded replies, and an input that streams the reply in. Enter sends; Shift+Enter starts a new line." }
+        - type: ui-card
+          style: { padding: 0, gap: 0, overflow: hidden }
+          children:
+            - type: ui-conversation
+              props: { messages: "{{ chat }}", typing: "{{ chatWaiting }}", assistant: { name: Assistant, initials: AI }, height: 380, empty: "Ask anything to start." }
+            - type: element
+              style: { padding: 12, border-top: 1px solid $color.border }
+              children:
+                - type: ui-chat-input
+                  props:
+                    messages: chat
+                    bind: chatDraft
+                    waiting: chatWaiting
+                    endpoint: api/chat
+                    placeholder: Ask about the report…
+                    suggestions: [What drove the growth?, Compare with last year]
+                  children:
+                    - { type: ui-button, props: { label: "+", variant: ghost, size: icon }, attrs: { aria-label: Attach } }
+        - type: stack
+          props: { direction: row, gap: 8, align: center }
+          children:
+            - { type: ui-button, props: { label: New chat, variant: outline, size: sm }, on: { click: { action: set_state, key: chat, value: [] } } }
+            - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, margin: 0 8px } }
+            - { type: ui-typing-indicator }
+            - { type: ui-text, props: { variant: muted, text: "ui-typing-indicator on its own" } }
 
     # ---------------------------------------------------------------- avatar, aspect ratio
     - type: stack

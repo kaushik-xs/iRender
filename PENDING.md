@@ -19,7 +19,6 @@ _Last updated: 2026-11-17._
 - [ ] **Keyboard-driven components:**
   - date picker
   - data table with sorting and filtering
-  - carousel
   - context menu
   - menubar / navigation menu
   - OTP input
@@ -35,7 +34,18 @@ _Last updated: 2026-11-17._
   - [ ] No group actions or per-item action buttons (shadcn's `SidebarGroupAction`, `SidebarMenuAction`); put a `ui-dropdown-menu` beside the item instead.
   - [ ] The phone sheet makes the page behind it `inert` but doesn't trap Tab inside the panel against the browser's own UI, and it doesn't swipe closed.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
-- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
+- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
+- [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
+  - [ ] Message text is plain text with line breaks kept; no Markdown, code blocks or citations. Next: render `content` with irender-markdown-kit's `render` (already safe for any text), and with `markdown.js` while it streams. (A reply's `ui` can carry rich content meanwhile.)
+  - [ ] A message's `ui` only shows once rendered into `html` on a server: the CLI does it for messages in the document, a host for replies. The `html` is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
+  - [ ] Each message's UI carries its own copy of the styles it uses.
+  - [ ] The conversation list in a sidebar can't star, rename or delete a thread on its own; the chat block hands those to the host with `call`.
+  - [ ] No message actions (copy, retry, thumbs up/down) or edit-and-resend; put buttons in a `ui-message`'s children for messages written in the document.
+  - [ ] No attachments or images in the input, and no tool-call or reasoning ("trace") blocks.
+- [ ] **`ui-carousel` gaps:** no slide indicators (dots), autoplay or looping, and the arrows scroll by the first slide's width, so slides of mixed widths step unevenly.
+  - [ ] The endpoint gets `{ messages }` only: no extra body fields or headers (auth), and no retry after a failure.
+  - [ ] Replies in a thread don't nest further, and a reply can't be sent into a thread from the input.
+  - [ ] A streamed reply rebuilds its message on each chunk, so screen readers may announce it more than once.
 - [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.
 - [ ] **`ui-combobox`:**
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.

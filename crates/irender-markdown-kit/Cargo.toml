@@ -1,0 +1,17 @@
+[package]
+name = "irender-markdown-kit"
+description = "Markdown for iRender documents: a safe renderer and an editor with a toolbar and live preview"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core.workspace = true
+irender-html.workspace = true
+serde_json.workspace = true
+indexmap.workspace = true
+
+[dev-dependencies]
+irender-ui-kit.workspace = true

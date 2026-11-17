@@ -65,6 +65,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-theme-option", json!({ "option": "palette" })),
         ("ui-sidebar-item", json!({ "label": "Home" })),
         ("ui-command-item", json!({ "label": "L" })),
+        ("ui-chat-input", json!({ "messages": "k" })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -85,7 +86,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 69);
+    assert_eq!(kit, 74);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -825,4 +826,107 @@ fn command_palette() {
 
     let err = render_with(json!({ "type": "ui-command-item", "props": { "label": "Lost" } }), json!({}), json!({})).unwrap_err();
     assert!(err.message.contains("must be inside"), "{err}");
+}
+
+#[test]
+fn chat_messages_threads_and_input() {
+    let page = render_with(
+        json!({ "type": "ui-conversation", "props": { "messages": "{{ messages }}", "typing": "{{ waiting }}", "empty": "Ask anything" },
+            "children": [{ "type": "ui-message", "props": { "role": "system", "content": "Today" } }] }),
+        json!({ "waiting": false, "messages": [
+            { "id": 1, "role": "user", "content": "Hi", "initials": "KS" },
+            { "id": 2, "content": "Hello", "name": "Assistant", "time": "9:41",
+              "replies": [{ "role": "user", "content": "One" }, { "role": "user", "content": "Two" }] }] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A log the browser rebuilds from `messages`, keyed by id, after the children.
+    assert!(body.contains(r#"role="log" aria-label="Conversation" tabindex="0""#), "{body}");
+    assert!(body.contains(r#"<div data-role="system"><div data-body=""><div data-bubble="">Today</div>"#), "{body}");
+    assert!(body.contains("data-i-list=") && body.contains("ui_message"), "{body}");
+    // Each message now: its role, avatar, name and time, and a folded thread.
+    assert!(body.contains(r#"<div data-role="user"><span aria-hidden="true">KS</span>"#), "{body}");
+    assert!(body.contains(r#"<div data-role="assistant"><div data-body=""><div><span>Assistant</span><span>9:41</span></div><div data-bubble="">Hello</div><div data-ui="" data-i-x="ui-message-html" data-i-xc="{}"></div><details><summary>2 replies</summary>"#), "{body}");
+    // The empty text and the typing indicator follow state.
+    assert!(body.contains(r#"<template data-i-if="{&quot;r&quot;:{&quot;u&quot;:&quot;!&quot;,&quot;a&quot;:{&quot;p&quot;:[&quot;messages&quot;,&quot;length&quot;]}}}"><div>Ask anything</div>"#), "{body}");
+    assert!(body.contains(r#"role="status" aria-label="Typing""#), "{body}");
+
+    let body = plain(&render(json!({ "type": "ui-message", "props": { "content": "x", "replies": [{ "content": "y" }], "open": true } })));
+    assert!(body.contains("<details open><summary>1 reply</summary>"), "{body}");
+
+    let page = render_with(
+        json!({ "type": "ui-chat-input", "props": { "messages": "messages", "bind": "draft", "endpoint": "/chat", "suggestions": ["Hi"] } }),
+        json!({ "messages": [], "draft": "so far" }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"data-i-xc="{&quot;messages&quot;:&quot;messages&quot;,&quot;endpoint&quot;:&quot;/chat&quot;,&quot;bind&quot;:&quot;draft&quot;,&quot;waiting&quot;:null,&quot;threads&quot;:null,&quot;thread&quot;:null}""#), "{body}");
+    assert!(body.contains(r#"<button type="button" data-suggestion="">Hi</button>"#), "{body}");
+    assert!(body.contains(r#"aria-label="Message" data-input="" data-i-bind="draft">so far</textarea>"#), "{body}");
+    assert!(body.contains(r#"<button type="submit" aria-label="Send" data-send-button="">"#), "{body}");
+
+    // Messages from state must be a path, so the empty text can count them.
+    let err = render_with(json!({ "type": "ui-conversation", "props": { "messages": "{{ a || b }}", "empty": "-" } }), json!({ "a": [], "b": [] }), json!({}))
+        .unwrap_err();
+    assert!(err.message.contains("must be a path"), "{err}");
+}
+
+#[test]
+fn message_ui_renders_into_html_and_shows_only_when_trusted() {
+    let engine = engine();
+    let mut doc = irender_core::parse(
+        &json!({ "version": 1, "state": { "threads": [{ "id": "a", "messages": [
+            { "role": "assistant", "content": "Here:", "ui": { "state": { "n": 1 }, "root": { "type": "ui-button", "props": { "label": "N {{ n }}" } } } },
+            { "role": "assistant", "ui": { "type": "ui-badge", "props": { "text": "Node" } } },
+            { "role": "user", "content": "kept", "ui": { "type": "nope" }, "html": "<b>as is</b>" },
+            { "ui": { "type": "ui-badge", "props": { "text": "no role, not a message" } } }] }] },
+            "root": { "type": "text", "props": { "value": "x" } } }).to_string(),
+        Format::Json,
+    )
+    .unwrap();
+    let embed = |ui: &Json| -> Result<String, String> {
+        let mut d = irender_core::parse(&ui.to_string(), Format::Json).map_err(|e| e.to_string())?;
+        irender_ui_kit::apply_theme(&mut d);
+        let ir = engine.resolve(&d).map_err(|e| e.to_string())?;
+        Ok(engine.render_embedded(&ir, &json!({})).map_err(|e| e.to_string())?.embedded())
+    };
+    irender_ui_kit::render_message_ui(&mut doc, embed).unwrap();
+    let messages = &doc.state["threads"][0]["messages"];
+    // A document keeps its own state; a node becomes a document's root.
+    let html = messages[0]["html"].as_str().unwrap();
+    assert!(html.contains(r#"<div data-i-root style="display:contents">"#) && html.contains(r#"data-i-state>{"n":1}</script>"#), "{html}");
+    assert!(html.contains("N 1</button>"), "{html}");
+    // Styles without the theme's variables, so it takes the page's.
+    assert!(html.starts_with("<style>") && !html.contains(":root"), "{html}");
+    assert!(messages[1]["html"].as_str().unwrap().contains(">Node</span>"));
+    assert_eq!(messages[2]["html"], "<b>as is</b>");
+    assert!(messages[3].get("html").is_none());
+
+    // A bad `ui` names its message.
+    let mut bad = irender_core::parse(r#"{ "version": 1, "state": { "chat": [{ "role": "assistant", "ui": { "type": "nope" } }] }, "root": { "type": "text" } }"#, Format::Json).unwrap();
+    let err = irender_ui_kit::render_message_ui(&mut bad, embed).unwrap_err();
+    assert!(err.starts_with("state.chat[0].ui: ") && err.contains("unknown component type `nope`"), "{err}");
+
+    // The message shows it in trusted documents only: markup can do what a script can.
+    let message = json!({ "type": "ui-message", "props": { "content": "x", "html": "<b>hi</b>" } });
+    let body = plain(&render(message.clone()));
+    assert!(body.contains(r#"<div data-ui="" data-html="&lt;b&gt;hi&lt;/b&gt;" data-i-x="ui-message-html""#), "{body}");
+    let mut untrusted = Engine::untrusted();
+    irender_ui_kit::register(&mut untrusted.registry);
+    let doc = irender_core::parse(&json!({ "version": 1, "root": message }).to_string(), Format::Json).unwrap();
+    let body = untrusted.render(&untrusted.resolve(&doc).unwrap(), &json!({})).unwrap().body;
+    assert!(!body.contains("data-html") && body.contains(">x</div>"), "{body}");
+}
+
+#[test]
+fn carousel_structure() {
+    let body = plain(&render(json!({ "type": "ui-carousel", "props": { "label": "Photos", "size": 240, "gap": 8 },
+        "children": [{ "type": "text", "props": { "value": "A" } }] })));
+    assert!(body.contains(r#"<section aria-roledescription="carousel" aria-label="Photos" data-i-x="ui-carousel""#), "{body}");
+    assert!(body.contains(r#"<div tabindex="0" data-track=""><span>A</span></div>"#), "{body}");
+    assert!(body.contains(r#"aria-label="Previous slide" data-prev="">‹</button>"#) && body.contains(r#"aria-label="Next slide" data-next="">›</button>"#), "{body}");
+    let page = render_with(json!({ "type": "ui-carousel", "props": { "size": 240 } }), json!({}), json!({})).unwrap();
+    assert!(page.css.contains("--ui-slide: 240px;"), "{}", page.css);
 }

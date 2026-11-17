@@ -91,7 +91,7 @@
 
   function mount(root) {
     if (root.__irender) return;
-    const stateEl = root.querySelector("script[data-i-state]");
+    const stateEl = [...root.children].find((c) => c.matches("script[data-i-state]"));
     let state = stateEl ? JSON.parse(stateEl.textContent) : {};
 
     // An attribute's JSON, parsed once per element.
@@ -107,9 +107,13 @@
     };
     // Controls that choose a value rather than type one.
     const picks = (el) => el.type === "checkbox" || el.type === "radio" || el.tagName === "SELECT";
+    // A root can hold other roots, e.g. a rendered fragment in a chat message: their
+    // elements belong to them, not to this one.
+    const own = (els) => (root.querySelector("[data-i-root]") ? els.filter((el) => el.closest("[data-i-root]") === root) : els);
     // `n` and its descendants that match `sel` (template contents excluded).
     const within = (n, sel) =>
-      n.nodeType !== 1 ? [] : n.matches(sel) ? [n, ...n.querySelectorAll(sel)] : [...n.querySelectorAll(sel)];
+      own(n.nodeType !== 1 ? [] : n.matches(sel) ? [n, ...n.querySelectorAll(sel)] : [...n.querySelectorAll(sel)]);
+    const all = (sel) => own([...root.querySelectorAll(sel)]);
     // `mount` actions of inserted elements, run after the next update.
     let pending = [];
 
@@ -261,7 +265,7 @@
 
     function update() {
       structure(root);
-      for (const el of root.querySelectorAll("[data-i-b]")) {
+      for (const el of all("[data-i-b]")) {
         const scope = env(el);
         for (const b of json(el, "data-i-b", "__b")) {
           const v = tv(b.v, scope);
@@ -307,7 +311,7 @@
           }
         }
       }
-      for (const el of root.querySelectorAll("[data-i-bind]")) {
+      for (const el of all("[data-i-bind]")) {
         // Don't fight someone typing; controls that pick a value are safe to set.
         if (el === document.activeElement && !picks(el)) continue;
         const v = state[el.getAttribute("data-i-bind")];
@@ -315,7 +319,7 @@
         else if (el.type === "radio") el.checked = el.value === str(v);
         else el.value = str(v);
       }
-      for (const el of root.querySelectorAll("[data-i-x]")) el.__x?.update?.(state);
+      for (const el of all("[data-i-x]")) el.__x?.update?.(state);
       const due = pending;
       pending = [];
       for (const [actions, el] of due) run(actions, null, el);
@@ -372,7 +376,7 @@
     // replaced by template items on the first update instead, so that they can be kept
     // later: the server folded their `item` into plain text. Removed before wiring, so
     // their `mount` actions don't run twice.
-    for (const el of root.querySelectorAll("[data-i-list]")) {
+    for (const el of all("[data-i-list]")) {
       const cfg = json(el, "data-i-list", "__l");
       if (!cfg.k) el.__items = tv(cfg.v, env(el));
       else while (el.firstElementChild.nextSibling) el.firstElementChild.nextSibling.remove();
@@ -385,6 +389,8 @@
   }
 
   const init = () => document.querySelectorAll("[data-i-root]").forEach(mount);
+  // Starts the roots in `el`, e.g. a fragment rendered on the server and inserted later.
+  window.__irender.mount = (el) => [...(el.matches?.("[data-i-root]") ? [el] : []), ...el.querySelectorAll("[data-i-root]")].forEach(mount);
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 })();

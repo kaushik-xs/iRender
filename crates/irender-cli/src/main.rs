@@ -41,6 +41,9 @@ enum Command {
         /// Enable `ui-flow` and its node, edge, port and panel templates (irender-flow-kit).
         #[arg(long)]
         flow_kit: bool,
+        /// Enable `ui-markdown` and `ui-markdown-editor` (irender-markdown-kit).
+        #[arg(long)]
+        markdown_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
     },
@@ -70,11 +73,18 @@ enum Command {
         /// Enable `ui-flow` and its node, edge, port and panel templates (irender-flow-kit).
         #[arg(long)]
         flow_kit: bool,
+        /// Enable `ui-markdown` and `ui-markdown-editor` (irender-markdown-kit).
+        #[arg(long)]
+        markdown_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
         /// Emit an embeddable fragment instead of a full HTML document.
         #[arg(long)]
         fragment: bool,
+        /// Emit a piece of another iRender page, such as a chat message's UI: no theme
+        /// variables and no runtime, for `window.__irender.mount`.
+        #[arg(long, conflicts_with = "fragment")]
+        embed: bool,
         #[arg(long)]
         minify: bool,
         #[arg(long, default_value = "iRender")]
@@ -102,6 +112,9 @@ enum Command {
         /// Enable `ui-flow` and its node, edge, port and panel templates (irender-flow-kit).
         #[arg(long)]
         flow_kit: bool,
+        /// Enable `ui-markdown` and `ui-markdown-editor` (irender-markdown-kit).
+        #[arg(long)]
+        markdown_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
     },
@@ -174,7 +187,20 @@ struct Kits {
     ui: bool,
     chart: bool,
     flow: bool,
+    markdown: bool,
     icons: IconArgs,
+}
+
+impl Kits {
+    /// The kits' theme tokens, so their styles resolve.
+    fn apply_themes(&self, doc: &mut Document) {
+        if self.ui {
+            irender_ui_kit::apply_theme(doc);
+        }
+        if self.chart {
+            irender_chart_kit::apply_theme(doc);
+        }
+    }
 }
 
 fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: &Kits) -> Result<Engine, String> {
@@ -187,6 +213,9 @@ fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: &
     }
     if kits.flow {
         irender_flow_kit::register(&mut engine.registry);
+    }
+    if kits.markdown {
+        irender_markdown_kit::register(&mut engine.registry);
     }
     if kits.icons.enabled() {
         irender_icon_kit::register_with(&mut engine.registry, kits.icons.kit()?);
@@ -210,11 +239,11 @@ fn load(engine: &Engine, file: &Path, kits: &Kits) -> Result<Loaded, String> {
     };
     let start = Instant::now();
     let mut doc = irender_core::parse(&src, format).map_err(problems)?;
+    kits.apply_themes(&mut doc);
     if kits.ui {
-        irender_ui_kit::apply_theme(&mut doc);
-    }
-    if kits.chart {
-        irender_chart_kit::apply_theme(&mut doc);
+        // Messages whose `ui` is a document or node show it, rendered now.
+        irender_ui_kit::render_message_ui(&mut doc, |ui| embed(engine, kits, ui))
+            .map_err(|e| format!("{}: {e}", file.display()))?;
     }
     let parse = start.elapsed();
     let start = Instant::now();
@@ -224,6 +253,14 @@ fn load(engine: &Engine, file: &Path, kits: &Kits) -> Result<Loaded, String> {
         eprintln!("{}: {w}", file.display());
     }
     Ok(Loaded { ir, parse, resolve })
+}
+
+/// A message's UI document as a piece of the page, rendered with the same kits.
+fn embed(engine: &Engine, kits: &Kits, ui: &Json) -> Result<String, String> {
+    let mut doc = irender_core::parse(&ui.to_string(), Format::Json).map_err(|d| d.to_string())?;
+    kits.apply_themes(&mut doc);
+    let ir = engine.resolve(&doc).map_err(|d| d.to_string())?;
+    Ok(engine.render_embedded(&ir, &Json::Object(Default::default())).map_err(|e| e.to_string())?.embedded())
 }
 
 fn ms(d: Duration) -> String {
@@ -245,8 +282,8 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, flow_kit, icons } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, icons };
+        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, flow_kit, markdown_kit, icons } => {
+            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, icons };
             load(&engine(untrusted, strict_css, fragments, &kits)?, &file, &kits)?;
             println!("{}: ok", file.display());
         }
@@ -260,15 +297,17 @@ fn run(command: Command) -> Result<(), String> {
             ui_kit,
             chart_kit,
             flow_kit,
+            markdown_kit,
             icons,
             fragment,
+            embed,
             minify,
             title,
             timings,
             parallel,
             repeat,
         } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, icons };
+            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, icons };
             let mut engine = engine(untrusted, strict_css, fragments, &kits)?;
             engine.minify = minify;
             engine.parallel_min_items = parallel;
@@ -285,10 +324,17 @@ fn run(command: Command) -> Result<(), String> {
             let mut rendered = None;
             for _ in 0..repeat {
                 let start = Instant::now();
-                let page = engine.render(&ir, &data).map_err(|e| e.to_string())?;
+                let page = if embed { engine.render_embedded(&ir, &data) } else { engine.render(&ir, &data) };
+                let page = page.map_err(|e| e.to_string())?;
                 render_times.push(start.elapsed());
                 let start = Instant::now();
-                let html = if fragment { page.fragment() } else { page.document(&title) };
+                let html = if embed {
+                    page.embedded()
+                } else if fragment {
+                    page.fragment()
+                } else {
+                    page.document(&title)
+                };
                 serialize_times.push(start.elapsed());
                 rendered = Some((page, html));
             }
@@ -317,8 +363,8 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components { ui_kit, chart_kit, flow_kit, icons } => {
-            for c in engine(false, false, None, &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, icons })?.registry.iter() {
+        Command::Components { ui_kit, chart_kit, flow_kit, markdown_kit, icons } => {
+            for c in engine(false, false, None, &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, icons })?.registry.iter() {
                 let info = c.info();
                 println!("{}: {}", c.name(), info.doc);
                 for p in info.props {

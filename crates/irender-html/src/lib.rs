@@ -183,13 +183,25 @@ impl Engine {
     /// Renders the document. `data` is read-only server data available to expressions
     /// alongside `state`.
     pub fn render(&self, ir: &Ir, data: &Json) -> Result<Page, RenderError> {
+        self.render_page(ir, data, true)
+    }
+
+    /// Renders `ir` as a piece of another iRender page, such as the UI in a chat
+    /// message. Its styles leave out the theme's variables, so it takes the host page's
+    /// theme. Insert its [`Page::embedded`] markup into the page and start it with
+    /// `window.__irender.mount(element)`.
+    pub fn render_embedded(&self, ir: &Ir, data: &Json) -> Result<Page, RenderError> {
+        self.render_page(ir, data, false)
+    }
+
+    fn render_page(&self, ir: &Ir, data: &Json, theme: bool) -> Result<Page, RenderError> {
         #[cfg(feature = "parallel")]
         let parallel = self.parallel_min_items;
         #[cfg(not(feature = "parallel"))]
         let parallel = None;
         let mut cx = RenderCx::new(&self.registry, &self.policy, &ir.theme, &ir.state, data, parallel);
         cx.render(&ir.root)?;
-        let (body, css, interactive, scripts, early_scripts) = cx.finish();
+        let (body, css, interactive, scripts, early_scripts) = cx.finish(theme);
         #[cfg(feature = "lightningcss")]
         let css = if self.minify {
             irender_style::minify(&css).map_err(|e| RenderError { path: String::new(), message: e })?
@@ -239,6 +251,22 @@ impl Page {
         }
         if self.interactive {
             s.push_str(&format!("<script>\n{RUNTIME_JS}</script>\n"));
+        }
+        s
+    }
+
+    /// Markup to insert into a page that already runs iRender: the styles, the
+    /// behaviour scripts and a root with its own state, without the runtime or early
+    /// scripts. Its `<script>`s only run when added as new script elements, which
+    /// `window.__irender.mount` doesn't do; see `Engine::render_embedded`.
+    pub fn embedded(&self) -> String {
+        let mut s = format!("<style>\n{}</style>\n<div data-i-root style=\"display:contents\">{}", self.css, self.body);
+        if self.interactive {
+            s.push_str(&format!("<script type=\"application/json\" data-i-state>{}</script>", escape::script_json(&self.state)));
+        }
+        s.push_str("</div>\n");
+        for js in &self.scripts {
+            s.push_str(&format!("<script>\n{js}</script>\n"));
         }
         s
     }

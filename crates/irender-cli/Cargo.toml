@@ -17,6 +17,7 @@ irender-html = { workspace = true, features = ["parallel"] }
 irender-ui-kit.workspace = true
 irender-chart-kit.workspace = true
 irender-flow-kit.workspace = true
+irender-markdown-kit.workspace = true
 irender-icon-kit.workspace = true
 clap.workspace = true
 schemars.workspace = true

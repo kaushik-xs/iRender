@@ -258,11 +258,21 @@ impl<'t> StyleCompiler<'t> {
 
     /// The complete stylesheet.
     pub fn css(&self) -> String {
+        self.stylesheet(true)
+    }
+
+    /// The stylesheet without the theme's `:root` variables, for content embedded in a
+    /// page that already has them.
+    pub fn rules_css(&self) -> String {
+        self.stylesheet(false)
+    }
+
+    fn stylesheet(&self, theme: bool) -> String {
         let layer = |rules: &IndexMap<String, String>| rules.values().map(String::as_str).collect::<String>();
         let globals: String = self.globals.values().map(|css| format!("{}\n", css.trim_end())).collect();
         format!(
             "@layer i-base, i-instance;\n{}{globals}@layer i-base {{\n{}}}\n@layer i-instance {{\n{}}}\n",
-            self.theme_css(),
+            if theme { self.theme_css() } else { String::new() },
             layer(&self.base),
             layer(&self.instance),
         )

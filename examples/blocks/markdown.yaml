@@ -1,0 +1,87 @@
+# Block: writing a post in Markdown. The editor has a formatting toolbar, shortcuts
+# (⌘B, ⌘I, ⌘K, ⌘E), lists that continue on Enter and a preview tab; the card beside it
+# shows the post as readers will see it, rendered by `ui-markdown` from the same state.
+#
+#   cargo run -p irender-cli -- render examples/blocks/markdown.yaml --ui-kit --markdown-kit --icon-kit -o markdown.html
+version: 1
+state:
+  title: Theme options are here
+  post: |
+    Pick a **palette**, a corner radius, a density and a font from the *Theme* button,
+    and every page follows. Read the [README](https://github.com/kaushik-xs/iRender) for more.
+
+    ## What's new
+
+    - [x] Eight palettes, each with a dark mode
+    - [x] Custom colours, typed as hex
+    - [ ] More chart schemes
+
+    > Choices are remembered, and pages that are already open follow at once.
+
+    | Option | Choices |
+    |---|---|
+    | Radius | 0, 0.3, 0.5, 0.75, 1.0 |
+    | Density | Compact, Default, Comfortable |
+
+    ```yaml
+    theme:
+      options:
+        palette: { choices: { brand: { tokens: { color: { primary: "#0d9488" } } } } }
+    ```
+  toast: null
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 24px 64px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: stack
+      props: { gap: 24 }
+      style: { max-width: 1200, margin: 0 auto }
+      children:
+        - type: stack
+          props: { direction: row, align: center, gap: 12, wrap: true }
+          children:
+            - type: stack
+              props: { gap: 4 }
+              children:
+                - { type: ui-heading, props: { level: 2, text: New post }, style: { border-bottom: 0, padding-bottom: 0 } }
+                - { type: ui-text, props: { variant: muted, text: Write in Markdown; the preview on the right is what readers see. } }
+            - type: stack
+              props: { direction: row, gap: 8 }
+              style: { margin-left: auto }
+              children:
+                - type: ui-button
+                  props: { label: Save draft, variant: outline }
+                  on: { click: { action: set_state, key: toast, value: { title: Draft saved } } }
+                - type: ui-button
+                  props: { label: Publish, disabled: "{{ title == '' || post.length > 4000 }}" }
+                  on: { click: { action: set_state, key: toast, value: { title: Published, description: "“{{ title }}” is live." } } }
+        - type: element
+          style: { display: grid, gap: 24, grid-template-columns: "repeat(auto-fit, minmax(340px, 1fr))", align-items: start }
+          children:
+            - type: stack
+              props: { gap: 16 }
+              children:
+                - type: ui-field
+                  props: { label: Title }
+                  children: [ { type: ui-input, props: { bind: title, placeholder: A title for your post } } ]
+                - type: ui-field
+                  props: { label: Post, description: "Toolbar or shortcuts: ⌘B bold, ⌘I italic, ⌘K link, ⌘E code. Enter continues a list; Tab nests it." }
+                  children:
+                    - { type: ui-markdown-editor, props: { bind: post, rows: 18, maxLength: 4000, placeholder: Start writing… } }
+            - type: ui-card
+              style: { position: sticky, top: 24 }
+              children:
+                - type: stack
+                  props: { gap: 4 }
+                  children:
+                    - { type: ui-badge, props: { text: How it will look, variant: secondary } }
+                    - { type: element, props: { tag: h1 }, style: { margin: 8px 0 0, font-size: 28, line-height: 1.2 }, children: [ { type: text, props: { value: "{{ title || 'Untitled' }}" } } ] }
+                - { type: ui-separator }
+                - { type: ui-markdown, props: { text: "{{ post }}" } }
+    - { type: ui-toaster, props: { bind: toast } }

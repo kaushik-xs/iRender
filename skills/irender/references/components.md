@@ -478,6 +478,41 @@ ui-command-item: An action in a command palette: clicking it, or Enter while it 
   children: no
 ui-command-separator: A line between groups in a command palette, hidden while searching.
   children: no
+ui-conversation: A scrolling chat log that keeps to its latest message as messages arrive, unless you've scrolled up to read; then a button jumps back down. Children are `ui-message`s, followed by `messages`. Its `parts.bubble`, `parts.avatar` and so on style the messages drawn from `messages`.
+  messages     any  Array of messages, after any children. From state, like `{{ messages }}`, it redraws as it changes
+  typing       any  Show a typing indicator after the last message, e.g. `{{ waiting }}`
+  assistant    any  The typing indicator's sender: `{ name, avatar, initials }`
+  empty        any  Text shown while `messages` is empty
+  label        any  Names the conversation for screen readers (default `Conversation`)
+  height       any  Number (px) or CSS length
+  maxHeight    any  Number (px) or CSS length: grows with the messages up to this
+  parts: log, empty, latest, avatar, body, meta, bubble, thread, replies
+  children: yes
+ui-message: One chat message: a bubble with the sender's avatar, name and time, and an optional thread of replies. Children go in the bubble after the text.
+  role         one of: assistant, user, system  Who it's from: `assistant` (default, on the left), `user` (on the right) or `system` (centred)
+  content      any  The text; line breaks are kept
+  name         any  Sender's name, shown above the bubble
+  time         any  When it was sent, as text, shown after the name
+  avatar       any  Avatar image URL
+  initials     any  Shown in the avatar when there's no image
+  replies      any  A thread: an array of messages shown under it, folded away behind `N replies`. May use state
+  open         bool  Show the thread unfolded
+  parts: avatar, body, meta, bubble, thread, replies
+  children: yes
+ui-typing-indicator: Three bouncing dots that say a reply is on its way. Takes the text colour.
+  label        any  What's happening, for screen readers; default `Typing`
+  children: no
+ui-chat-input: The box a chat message is written in. Enter sends and Shift+Enter starts a new line. Sending appends `{ id, role: user, content }` to `messages`, runs the document's `on.send` actions, and with `endpoint` asks it for the reply, streaming it into a new assistant message; while it streams, the send button stops it. Children go in the toolbar, left of the send button.
+  messages     statekey (required)  State key of the messages array: sending appends the user's message, and the reply
+  endpoint     any  URL to POST `{ messages }` to. The reply may be JSON (a message, or `{ content }`), plain text, or server-sent events, which stream into the reply as they arrive
+  bind         statekey  State key holding the text being written
+  waiting      statekey  State key set true from sending until the reply starts: give it to the conversation's `typing`
+  placeholder  any  Default `Send a message…`
+  label        any  Names the text box for screen readers (default `Message`)
+  suggestions  any  Prompts shown while the conversation is empty; clicking one sends it
+  disabled     any  Boolean or expression
+  parts: suggestions, box, input, toolbar, send
+  children: yes
 ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) or a full ECharts `option`.
   type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel  Series type the shorthand builds; leave it out to use `option` alone
   data         any  Rows (objects or arrays), numbers, or a tree / node list, depending on `type`

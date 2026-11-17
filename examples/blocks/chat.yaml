@@ -1,0 +1,327 @@
+# Block: a full-screen AI chat with its conversations in a sidebar, starred ones first.
+# "New chat" opens the home screen; the first message there starts a conversation, which
+# joins Recents, titled after it. Replies stream from ../api/chat, which
+# examples/serve.py answers; on a plain static server they fail with a note instead.
+#
+# The input keeps every conversation's messages in `threads` and shows the current one's
+# in `chat`. A message's `ui` is an iRender document or node, rendered with the page into
+# its `html`: the replies here show tiles and a chart, a choice with its own state, a
+# carousel, link cards and a video. Share, Rename, Delete and "Use this" are `call`
+# actions for the host app: `share`, `rename` and `delete` with the thread's id, and
+# `use-subject` with the subject.
+#
+#   cargo run -p irender-cli -- render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit -o chat.html
+version: 1
+state:
+  sidebar: true
+  thread: q3
+  chat: []
+  draft: ""
+  waiting: false
+  model: Balanced
+  threads:
+    - id: q3
+      title: Summarise the Q3 report
+      starred: true
+      messages:
+        - { id: 1, role: user, content: "Can you summarise the Q3 report? The PDF is in the finance folder." }
+        - id: 2
+          role: assistant
+          content: "Here's the short version:\n\n• Revenue grew 12% on Q2, led by Asia (+21%).\n• Costs were flat, so the operating margin rose two points to 18%.\n• Churn fell to 2.1%, its lowest in two years.\n\nThe one risk flagged is the delayed Europe launch, now planned for Q1."
+          replies:
+            - { id: 21, role: user, content: "Does the revenue figure include the one-off licence deal?" }
+            - { id: 22, role: assistant, content: "No. It's booked in Q4, so it's not in these numbers." }
+        - { id: 3, role: user, content: "What drove the growth in Asia?" }
+        - { id: 4, role: assistant, content: "Mostly new enterprise accounts in Singapore and Japan, which made up two thirds of the region's growth. Renewals were steady, and the self-serve plan grew 9%." }
+        - { id: 5, role: user, content: "Show me the numbers by region." }
+        # A reply with UI: tiles and a chart, rendered when the page is.
+        - id: 6
+          role: assistant
+          content: "Here are the headline figures, and revenue by region for both quarters:"
+          ui:
+            root:
+              type: stack
+              props: { gap: 12 }
+              children:
+                - type: list
+                  props:
+                    as: k
+                    items:
+                      - { label: Revenue, value: $48.2M, delta: +12% }
+                      - { label: Operating margin, value: 18%, delta: +2 pts }
+                      - { label: Churn, value: 2.1%, delta: −0.4 pts }
+                  style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 8 }
+                  children:
+                    - type: ui-card
+                      style: { padding: 12, gap: 4 }
+                      children:
+                        - { type: text, props: { value: "{{ k.label }}" }, style: { font-size: 12, color: $color.muted } }
+                        - { type: text, props: { value: "{{ k.value }}" }, style: { font-size: 22, font-weight: 600 } }
+                        - { type: ui-badge, props: { text: "{{ k.delta }}", variant: secondary } }
+                - type: ui-card
+                  style: { padding: 12 }
+                  children:
+                    - type: ui-chart
+                      props:
+                        type: bar
+                        height: 240
+                        x: region
+                        y: [Q2, Q3]
+                        data:
+                          - { region: Americas, Q2: 18.6, Q3: 19.8 }
+                          - { region: Europe, Q2: 12.9, Q3: 13.1 }
+                          - { region: Asia, Q2: 11.6, Q3: 14.0 }
+                          - { region: Other, Q2: 1.3, Q3: 1.3 }
+    - id: launch
+      title: Launch email for the mobile app
+      starred: true
+      messages:
+        - { id: 1, role: user, content: "Draft a short launch email for our new mobile app." }
+        - { id: 2, role: assistant, content: "Subject: Your projects, now in your pocket\n\nHi there,\n\nThe Acme app is here. Check progress, reply to comments and approve changes from anywhere, with everything in sync with the web.\n\nGet it on the App Store or Google Play.\n\nThe Acme team" }
+        - { id: 3, role: user, content: "Give me a few other subject lines to pick from." }
+        # UI with its own state: the choice stays in the message.
+        - id: 4
+          role: assistant
+          content: "Pick one and I'll use it:"
+          ui:
+            state: { subject: "Your projects, now in your pocket" }
+            root:
+              type: ui-card
+              style: { padding: 16, gap: 12 }
+              children:
+                - type: ui-radio-group
+                  props:
+                    bind: subject
+                    options:
+                      - Your projects, now in your pocket
+                      - Approve changes from anywhere
+                      - "Acme, meet your phone"
+                      - Work doesn't wait for your desk
+                - type: stack
+                  props: { direction: row, gap: 8, align: center, wrap: true }
+                  children:
+                    - { type: ui-text, props: { variant: muted, text: "Subject: {{ subject }}" }, style: { flex: 1 } }
+                    - type: ui-button
+                      props: { label: Use this, size: sm }
+                      on: { click: { action: call, name: use-subject, args: { subject: "{{ subject }}" } } }
+    - id: sql
+      title: Why is this SQL query slow?
+      messages:
+        - { id: 1, role: user, content: "SELECT * FROM orders WHERE lower(email) = 'a@b.com' takes 4 seconds. Why?" }
+        - { id: 2, role: assistant, content: "lower(email) stops the database from using the index on email, so it scans every row. Either store emails lower-cased and compare directly, or add an index on lower(email)." }
+    - id: trip
+      title: Three days in Lisbon
+      messages:
+        - { id: 1, role: user, content: "Plan three days in Lisbon in March." }
+        - id: 2
+          role: assistant
+          content: "Day 1: Alfama and the castle, then fado in the evening.\nDay 2: Belém, its tower and monastery, and pastéis de nata.\nDay 3: A day trip to Sintra."
+          # A carousel of the places, then links to plan with.
+          ui:
+            root:
+              type: stack
+              props: { gap: 12 }
+              children:
+                - type: ui-carousel
+                  props: { label: Places to see, size: 220 }
+                  children:
+                    - type: list
+                      props:
+                        as: p
+                        items:
+                          - { src: media/alfama.svg, title: Alfama, caption: Day 1 }
+                          - { src: media/tram.svg, title: Tram 28, caption: Day 1 }
+                          - { src: media/belem.svg, title: Belém Tower, caption: Day 2 }
+                          - { src: media/sintra.svg, title: Pena Palace, caption: Day 3 }
+                      style: { display: contents }
+                      children:
+                        - type: element
+                          props: { tag: figure }
+                          style: { margin: 0, display: grid, gap: 6 }
+                          children:
+                            - { type: element, props: { tag: img }, attrs: { src: "{{ p.src }}", alt: "{{ p.title }}", loading: lazy }, style: { display: block, width: 100%, aspect-ratio: 4 / 3, object-fit: cover, border-radius: $radius.lg } }
+                            - type: element
+                              props: { tag: figcaption }
+                              style: { font-size: 13 }
+                              children:
+                                - { type: text, props: { value: "{{ p.title }}" }, style: { font-weight: 500 } }
+                                - { type: text, props: { value: " · {{ p.caption }}" }, style: { color: $color.muted } }
+                - type: list
+                  props:
+                    as: l
+                    items:
+                      - { url: "https://www.visitlisboa.com/", site: visitlisboa.com, title: Visit Lisboa, description: "The city's official guide: sights, events and the Lisboa Card.", image: media/tram.svg }
+                      - { url: "https://www.parquesdesintra.pt/", site: parquesdesintra.pt, title: Parques de Sintra, description: Tickets and opening hours for Pena Palace and the Moorish Castle., image: media/sintra.svg }
+                  style: { display: grid, gap: 8 }
+                  children:
+                    - type: element
+                      props: { tag: a }
+                      attrs: { href: "{{ l.url }}", target: _blank, rel: noopener noreferrer }
+                      style: { display: flex, gap: 12, align-items: center, padding: 8, border: 1px solid $color.border, border-radius: $radius.lg, color: $color.text, text-decoration: none, background: $color.surface, ":hover": { background: $color.subtle } }
+                      children:
+                        - { type: element, props: { tag: img }, attrs: { src: "{{ l.image }}", alt: "" }, style: { width: 72, height: 54, object-fit: cover, border-radius: $radius.md, flex-shrink: 0 } }
+                        - type: stack
+                          props: { gap: 2 }
+                          style: { min-width: 0 }
+                          children:
+                            - { type: text, props: { value: "{{ l.site }} ↗" }, style: { font-size: 12, color: $color.muted } }
+                            - { type: text, props: { value: "{{ l.title }}" }, style: { font-weight: 500 } }
+                            - { type: text, props: { value: "{{ l.description }}" }, style: { font-size: 13, color: $color.muted } }
+        - { id: 3, role: user, content: "Is there a video of the walk?" }
+        - id: 4
+          role: assistant
+          content: "Here's a short one:"
+          ui:
+            type: element
+            props: { tag: video }
+            attrs: { src: media/tour.mp4, poster: media/tour.jpg, controls: true, playsinline: true, preload: metadata }
+            style: { display: block, width: 100%, border-radius: $radius.lg, background: black }
+    - id: names
+      title: Names for a coffee subscription
+      messages:
+        - { id: 1, role: user, content: "Give me five names for a coffee subscription." }
+        - { id: 2, role: assistant, content: "Daily Grind, Bean There, First Pour, The Roast Post, Cup Club." }
+fragments:
+  # A conversation in the sidebar; picking it makes it the current one.
+  thread-item:
+    type: ui-sidebar-item
+    props: { label: "{{ t.title }}", active: "{{ t.id == thread }}" }
+    on: { click: { action: set_state, key: thread, value: "{{ t.id }}" } }
+root:
+  type: ui-sidebar-layout
+  props: { bind: sidebar }
+  style: { height: 100dvh, min-height: 0, overflow: hidden }
+  children:
+    - type: ui-sidebar
+      props: { label: Conversations }
+      children:
+        - type: ui-sidebar-header
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - { type: ui-sidebar-item, props: { label: Assistant, icon: robot } }
+                - type: ui-sidebar-item
+                  props: { label: New chat, icon: edit, active: "{{ thread == null }}" }
+                  on: { click: { action: set_state, key: thread, value: null } }
+        - type: ui-sidebar-content
+          children:
+            - type: ui-sidebar-group
+              props: { label: Starred }
+              children:
+                - type: list
+                  props: { items: "{{ threads }}", as: t, key: "{{ t.id }}" }
+                  style: { display: contents }
+                  children:
+                    - type: if
+                      props: { when: "{{ t.starred }}" }
+                      children: [ { type: include, props: { name: thread-item } } ]
+            - type: ui-sidebar-group
+              props: { label: Recents }
+              children:
+                - type: list
+                  props: { items: "{{ threads }}", as: t, key: "{{ t.id }}" }
+                  style: { display: contents }
+                  children:
+                    - type: if
+                      props: { when: "{{ !t.starred }}" }
+                      children: [ { type: include, props: { name: thread-item } } ]
+        - type: ui-sidebar-footer
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: Sam Lee, icon: user, badge: Pro plan }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Settings, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Help, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Log out, href: "#" } }
+
+    - type: element
+      props: { tag: header }
+      style: { display: flex, align-items: center, gap: 8, height: 56, flex-shrink: 0, padding: 0 16px, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-sidebar-trigger }
+        - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin-right: 8 } }
+        # The current conversation's title: the one thread whose id matches.
+        - type: list
+          props: { items: "{{ threads }}", as: t, key: "{{ t.id }}" }
+          style: { display: contents }
+          children:
+            - type: if
+              props: { when: "{{ t.id == thread }}" }
+              children:
+                - { type: text, props: { tag: h1, value: "{{ t.title }}" }, style: { min-width: 0, margin: 0, font-size: 14, font-weight: 500, white-space: nowrap, overflow: hidden, text-overflow: ellipsis } }
+        - type: if
+          props: { when: "{{ thread != null }}" }
+          children:
+            - type: stack
+              props: { direction: row, gap: 4, align: center }
+              style: { margin-left: auto }
+              children:
+                - type: ui-button
+                  props: { label: Share, icon: share, variant: outline, size: sm }
+                  on: { click: { action: call, name: share, args: { thread: "{{ thread }}" } } }
+                - type: ui-dropdown-menu
+                  props: { trigger: "⋯", triggerVariant: ghost, triggerSize: icon, align: end }
+                  attrs: { aria-label: Conversation actions }
+                  children:
+                    - type: ui-menu-item
+                      props: { label: Rename }
+                      on: { click: { action: call, name: rename, args: { thread: "{{ thread }}" } } }
+                    - type: ui-menu-item
+                      props: { label: Delete, variant: destructive }
+                      on: { click: { action: call, name: delete, args: { thread: "{{ thread }}" } } }
+
+    # The conversation above the input; on the home screen, a greeting above it, both
+    # in the middle of the screen.
+    - type: element
+      props: { tag: main }
+      style:
+        display: flex
+        flex-direction: column
+        justify-content: "{{ thread == null ? 'center' : 'flex-start' }}"
+        flex: 1
+        min-height: 0
+      children:
+        - type: if
+          props: { when: "{{ thread == null }}" }
+          children:
+            - type: stack
+              props: { gap: 8, align: center }
+              style: { padding: 0 16px 24px, text-align: center }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Good evening, Sam" }, style: { border: 0, padding: 0, font-weight: 500 } }
+                - { type: ui-text, props: { variant: muted, text: "Ask a question, paste a document or start from a suggestion." } }
+        - type: else
+          children:
+            - type: ui-conversation
+              props: { messages: "{{ chat }}", typing: "{{ waiting }}", label: Conversation }
+              style: { flex: 1 }
+              parts:
+                log: { style: { padding: "24px max(16px, calc((100% - 768px) / 2))", gap: 24 } }
+        - type: element
+          style: { width: 100%, max-width: 800, margin: 0 auto, padding: 0 16px 12px, box-sizing: border-box }
+          children:
+            - type: ui-chat-input
+              props:
+                messages: chat
+                threads: threads
+                thread: thread
+                bind: draft
+                waiting: waiting
+                endpoint: ../api/chat
+                placeholder: "How can I help you today?"
+                suggestions: [Chart this year’s sales, Show me photos of Lisbon, Write a project update, Explain a concept simply]
+              children:
+                - { type: ui-button, props: { icon: add, variant: ghost, size: icon }, attrs: { aria-label: Add files } }
+                - type: ui-dropdown-menu
+                  props: { trigger: "{{ model }}", triggerVariant: ghost, triggerSize: sm, side: top, align: start }
+                  attrs: { aria-label: Model }
+                  children:
+                    - { type: ui-menu-label, props: { text: Model } }
+                    - { type: ui-menu-item, props: { label: Fast }, on: { click: { action: set_state, key: model, value: Fast } } }
+                    - { type: ui-menu-item, props: { label: Balanced }, on: { click: { action: set_state, key: model, value: Balanced } } }
+                    - { type: ui-menu-item, props: { label: Deep }, on: { click: { action: set_state, key: model, value: Deep } } }
+            - { type: ui-text, props: { variant: muted, text: "The assistant can make mistakes. Check important information." }, style: { margin-top: 8, font-size: 12, text-align: center } }

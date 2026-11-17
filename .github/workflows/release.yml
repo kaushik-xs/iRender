@@ -92,8 +92,16 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          for crate in irender-core irender-style irender-html irender-icon-kit \
-                       irender-ui-kit irender-chart-kit irender-flow-kit irender-cli; do
+          crates="irender-core irender-style irender-html irender-icon-kit irender-ui-kit
+                  irender-chart-kit irender-flow-kit irender-markdown-kit irender-cli"
+          # A crate added to the workspace must be added to the list above too.
+          missing=$(comm -23 <(cargo metadata --no-deps --format-version 1 | jq -r '.packages[].name' | sort) \
+                             <(printf '%s\n' $crates | sort))
+          if [ -n "$missing" ]; then
+            echo "not in the publish list: $missing" >&2
+            exit 1
+          fi
+          for crate in $crates; do
             status=$(curl -s -o /dev/null -w '%{http_code}' -A "irender-release ($GITHUB_REPOSITORY)" \
               "https://crates.io/api/v1/crates/$crate/$version")
             if [ "$status" = 200 ]; then

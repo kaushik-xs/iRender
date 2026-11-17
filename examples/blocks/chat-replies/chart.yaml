@@ -1,0 +1,33 @@
+# examples/serve.py's reply to "chart …": a chart in the message, drawn by the chart kit.
+version: 1
+state: { range: year }
+root:
+  type: ui-card
+  style: { padding: 12, gap: 8 }
+  children:
+    - type: stack
+      props: { direction: row, justify: space-between, align: center, gap: 8, wrap: true }
+      children:
+        - { type: text, props: { value: "Monthly sales, $k" }, style: { font-weight: 500 } }
+        - { type: ui-toggle-group, props: { bind: range, variant: outline, size: sm, options: [{ value: half, label: 6 months }, { value: year, label: 12 months }] } }
+    - type: ui-chart
+      props:
+        type: area
+        height: 220
+        x: month
+        y: [sales]
+        smooth: true
+        limit: "{{ range == 'half' ? 6 : 12 }}"
+        data:
+          - { month: Jan, sales: 182 }
+          - { month: Feb, sales: 176 }
+          - { month: Mar, sales: 205 }
+          - { month: Apr, sales: 214 }
+          - { month: May, sales: 238 }
+          - { month: Jun, sales: 251 }
+          - { month: Jul, sales: 247 }
+          - { month: Aug, sales: 262 }
+          - { month: Sep, sales: 279 }
+          - { month: Oct, sales: 295 }
+          - { month: Nov, sales: 301 }
+          - { month: Dec, sales: 334 }

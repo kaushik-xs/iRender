@@ -9,7 +9,7 @@ examples/build.sh             # renders everything into target/site
 python3 examples/serve.py     # open http://localhost:8000
 ```
 
-The script renders every example, plus an index page linking them, into one folder. The index is itself an iRender document: `index.yaml` with `index.data.json` as its data. To list a new example, add it to `index.data.json` and to `build.sh`. Serve the folder instead of opening the files, because the search example fetches its API and browsers block that for `file://` pages. `serve.py` is a static server that also answers the chart gallery's live endpoints. `python3 -m http.server 8000 -d target/site` serves everything else.
+The script renders every example, plus an index page linking them, into one folder. The index is itself an iRender document: `index.yaml` with `index.data.json` as its data. To list a new example, add it to `index.data.json` and to `build.sh`. Serve the folder instead of opening the files, because the search example fetches its API and browsers block that for `file://` pages. `serve.py` is a static server that also answers the chart gallery's live endpoints and the UI kit gallery's chat. `python3 -m http.server 8000 -d target/site` serves everything else.
 
 The sections below render each example on its own.
 
@@ -20,7 +20,7 @@ The sections below render each example on its own.
 | [`dashboard/`](dashboard/) | server data assembled per request | `include` from a folder, nested fragments, document `fragments`, `if` on server data, `if` on state inside a table |
 | [`search/`](search/) | API calls from the browser | `mount`, `submit` into state, URLs built from state, lists rebuilt from responses, nested reactive lists, loading/empty states |
 | [`wizard.yaml`](wizard.yaml) | browser state only | multi-step `if`, conditional fields, validation expressions, two-way bound inputs, `call` to the host |
-| [`ui-kit/gallery.yaml`](ui-kit/gallery.yaml) | browser state + an API | every `irender-ui-kit` component, including the react-select-style `ui-combobox`; render with `--ui-kit`, and serve it for load-as-you-type |
+| [`ui-kit/gallery.yaml`](ui-kit/gallery.yaml) | browser state + an API | every `irender-ui-kit` component, including the react-select-style `ui-combobox` and the chat components; render with `--ui-kit`, and serve it with `serve.py` for load-as-you-type and the chat's streamed replies |
 | [`blocks/`](blocks/) | server data + browser state | whole pages in the style of shadcn/ui's blocks: a dashboard (inset `ui-sidebar`, summary cards, an area chart filtered by a toggle group, a table with selection and paging, a ⌘K command palette), sidebars that collapse to icons or slide away, login and sign-up pages, account settings, a pricing page and a theme customizer (`theme.options`); render with `--ui-kit --chart-kit --icon-kit` |
 | [`charts/gallery.yaml`](charts/gallery.yaml) | server data + browser state + an API | `irender-chart-kit`: every ECharts category, charts driven by ui-kit controls, drill-downs, cross-filtering by click, date range, legend and brush, and live polled and streamed data from `serve.py`; render with `--ui-kit --chart-kit` |
 | [`icons/gallery.yaml`](icons/gallery.yaml) | server data (the kit's pack listing) + browser state | `irender-icon-kit`: every pack and icon, sizes and stroke widths, icons in buttons, switching icons with `if` / `else`; render with `--ui-kit --icon-kit` and `--data` from `irender icons --json` |

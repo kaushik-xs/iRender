@@ -1326,3 +1326,255 @@ fn custom_colours_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A chat API: answers `POST /chat` with the reply as server-sent events, and the
+/// preflight a file:// page sends first. `/json` answers with one JSON message instead.
+fn chat_server() -> u16 {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 8192];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let cors = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: POST";
+            if request.starts_with("OPTIONS") {
+                let _ = write!(stream, "HTTP/1.1 204 No Content\r\n{cors}\r\nConnection: close\r\n\r\n");
+                continue;
+            }
+            // How many messages it was sent, so the reply shows the whole conversation arrived.
+            let sent = request.matches("\"content\"").count();
+            if request.starts_with("POST /ui") {
+                let html = serde_json::to_string(&serde_json::json!({ "html": message_ui() })).unwrap();
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\ndata: {{\"content\":\"Here\"}}\n\ndata: {html}\n\ndata: [DONE]\n\n");
+                continue;
+            }
+            if request.starts_with("POST /json") {
+                let body = format!(r#"{{"content":"JSON reply to {sent}","name":"Bot"}}"#);
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+                continue;
+            }
+            let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
+            for chunk in [r#"{"content":"Hi"}"#, r#"{"choices":[{"delta":{"content":" there"}}]}"#, &format!(r#"" ({sent})""#), "[DONE]"] {
+                let _ = write!(stream, "data: {chunk}\n\n");
+                let _ = stream.flush();
+            }
+        }
+    });
+    port
+}
+
+/// Sending appends the user's message, shows the typing indicator, and streams the
+/// reply in; suggestions hide once the conversation starts and send when clicked; a
+/// JSON endpoint's reply is one message; threads unfold.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn chat_sends_and_streams_replies_in_chrome() {
+    let port = chat_server();
+    let input = |endpoint: &str| serde_json::json!({ "type": "ui-chat-input",
+        "props": { "messages": "messages", "bind": "draft", "waiting": "waiting", "endpoint": endpoint, "suggestions": ["Suggested"] },
+        "on": { "send": { "action": "set_state", "key": "last", "value": "{{ draft }}" } } });
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "messages": [{ "id": "t", "content": "Thread", "replies": [{ "content": "Reply" }] }], "draft": "", "waiting": false, "last": null, "json": [] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-conversation", "props": { "messages": "{{ messages }}", "typing": "{{ waiting }}", "height": 200 } },
+            input(&format!("http://127.0.0.1:{port}/chat")),
+            { "type": "ui-chat-input", "props": { "messages": "json", "endpoint": format!("http://127.0.0.1:{port}/json"), "suggestions": ["Go"] } } ] } });
+    let driver = r#"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const [form, other] = document.querySelectorAll("form");
+      const box = form.querySelector("textarea"), send = form.querySelector("[type=submit]");
+      const log = document.querySelector("[role=log]");
+      const bubbles = () => [...log.querySelectorAll(":scope > div > [data-role]")].map((m) => m.dataset.role + ":" + m.querySelector("[data-bubble]").textContent).join(" | ");
+      out.push(`start ${send.disabled} suggestions=${!form.querySelector("[data-suggestions]").hidden}`);
+      log.querySelector("summary").click();
+      out.push(`thread ${log.querySelector("details").open} ${log.querySelector("details [data-bubble]").textContent}`);
+      box.value = "Hello"; box.dispatchEvent(new Event("input", { bubbles: true }));
+      out.push(`typed ${send.disabled} ${S().draft}`);
+      box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      await wait(0);
+      out.push(`sent ${S().messages.length} last=${S().last} draft=${JSON.stringify(S().draft)} box=${JSON.stringify(box.value)} waiting=${S().waiting} typing=${!!log.querySelector("[aria-label=Typing]")} stop=${send.getAttribute("aria-label")}`);
+      for (let i = 0; i < 50 && S().messages.at(-1).role !== "assistant"; i++) await wait(20);
+      await wait(100);
+      out.push(`reply ${bubbles()}`);
+      out.push(`after waiting=${S().waiting} typing=${!!log.querySelector("[aria-label=Typing]")} send=${send.getAttribute("aria-label")} suggestions=${!form.querySelector("[data-suggestions]").hidden} bottom=${log.scrollHeight - log.scrollTop - log.clientHeight < 2}`);
+      other.querySelector("[data-suggestion]").click();
+      for (let i = 0; i < 50 && S().json.length < 2; i++) await wait(20);
+      out.push(`json ${S().json.map((m) => m.role + ":" + m.content + (m.name ? "@" + m.name : "")).join(" | ")}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"#;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("chat", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start true suggestions=false",
+            "thread true Reply",
+            "typed false Hello",
+            "sent 2 last=Hello draft=\"\" box=\"\" waiting=true typing=true stop=Stop",
+            // Thread, its reply and Hello.
+            "reply assistant:Thread | user:Hello | assistant:Hi there (3)",
+            "after waiting=false typing=false send=Send suggestions=false bottom=true",
+            "json user:Go | assistant:JSON reply to 1@Bot",
+        ],
+        "\n{result}"
+    );
+}
+
+/// With `threads`, `messages` shows the current thread's: switching shows another's,
+/// and sending with no thread starts one, titled after the message, at the top.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn chat_threads_in_chrome() {
+    let port = chat_server();
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "chat": [], "thread": "a", "waiting": false, "threads": [
+            { "id": "a", "title": "First", "messages": [{ "id": 1, "role": "user", "content": "A1" }] },
+            { "id": "b", "title": "Second", "messages": [{ "id": 1, "role": "user", "content": "B1" }] }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-conversation", "props": { "messages": "{{ chat }}", "typing": "{{ waiting }}" } },
+            { "type": "ui-chat-input", "props": { "messages": "chat", "threads": "threads", "thread": "thread", "waiting": "waiting",
+                "endpoint": format!("http://127.0.0.1:{port}/chat") } } ] } });
+    let driver = r#"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const box = document.querySelector("textarea");
+      const shown = () => [...document.querySelectorAll("[role=log] [data-bubble]")].map((b) => b.textContent).join(",");
+      const titles = () => S().threads.map((t) => t.title + ":" + t.messages.length).join(" ");
+      const go = async (id) => { root.__irender.set("thread", id); await wait(0); };
+      await wait(0);
+      out.push(`start ${shown()}`);
+      await go("b");
+      out.push(`b ${shown()}`);
+      await go(null);
+      out.push(`new ${JSON.stringify(shown())}`);
+      box.value = "A very long first message that makes the title"; box.dispatchEvent(new Event("input", { bubbles: true }));
+      box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      await wait(0);
+      const created = S().thread;
+      out.push(`sent current=${created === S().threads[0].id} ${titles()} waiting=${S().waiting}`);
+      for (let i = 0; i < 50 && S().chat.length < 2; i++) await wait(20);
+      await wait(50);
+      out.push(`reply ${shown()}`);
+      await go("a");
+      out.push(`a ${shown()}`);
+      await go(created);
+      out.push(`back ${shown()}`);
+      await go("b");
+      box.value = "B2"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      for (let i = 0; i < 50 && S().chat.length < 3; i++) await wait(20);
+      await wait(50);
+      out.push(`top ${titles()}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"#;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("chat-threads", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start A1",
+            "b B1",
+            "new \"\"",
+            "sent current=true A very long first message that makes the…:1 First:1 Second:1 waiting=true",
+            "reply A very long first message that makes the title,Hi there (1)",
+            "a A1",
+            "back A very long first message that makes the title,Hi there (1)",
+            // Sending moves the thread to the top.
+            "top Second:3 A very long first message that makes the…:2 First:1",
+        ],
+        "\n{result}"
+    );
+}
+
+/// A reply's UI, as a host renders it: a counter with its own state, in a carousel.
+fn message_ui() -> String {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(
+        r#"{ "version": 1, "state": { "n": 5 }, "root": { "type": "ui-carousel", "props": { "size": 300 }, "children": [
+            { "type": "ui-button", "props": { "label": "N {{ n }}" }, "attrs": { "id": "inner" },
+              "on": { "click": { "action": "set_state", "key": "n", "value": "{{ n + 1 }}" } } },
+            { "type": "list", "props": { "items": [1, 2, 3] }, "style": { "display": "contents" },
+              "children": [{ "type": "text", "props": { "value": "Slide {{ item }}" } }] } ] } }"#,
+        Format::Json,
+    )
+    .unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    engine.render_embedded(&engine.resolve(&doc).unwrap(), &serde_json::json!({})).unwrap().embedded()
+}
+
+/// A reply's `html` is inserted into its message and started as a root of its own: its
+/// state is its own, it survives the conversation redrawing, and its behaviours run.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn message_ui_in_chrome() {
+    let port = chat_server();
+    let doc = serde_json::json!({ "version": 1, "state": { "chat": [], "n": 0 },
+        "root": { "type": "stack", "children": [
+            { "type": "text", "props": { "value": "Outer {{ n }}" }, "attrs": { "id": "outer" } },
+            { "type": "ui-conversation", "props": { "messages": "{{ chat }}" } },
+            { "type": "ui-chat-input", "props": { "messages": "chat", "endpoint": format!("http://127.0.0.1:{port}/ui") } } ] } });
+    let driver = r##"<style>* { scroll-behavior: auto !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const $ = (s) => document.querySelector(s);
+      const box = $("textarea");
+      box.value = "Show me"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      for (let i = 0; i < 50 && !$("#inner"); i++) await wait(20);
+      out.push(`reply ${S().chat.at(-1).content} html=${S().chat.at(-1).html.startsWith("<style>")} roots=${document.querySelectorAll("[data-i-root]").length}`);
+      $("#inner").click(); await wait(0);
+      out.push(`clicked ${$("#inner").textContent} | ${$("#outer").textContent} chat-n=${"n" in S() ? S().n : "-"}`);
+      root.__irender.set("chat", [...S().chat, { id: "x", role: "user", content: "again" }]); await wait(0);
+      out.push(`redrawn ${$("#inner").textContent}`);
+      const track = $("[data-track]"), next = $("[data-next]"), prev = $("[data-prev]");
+      out.push(`slides ${track.querySelectorAll("[data-slide]").length} prev=${prev.disabled} next=${next.disabled}`);
+      // Smooth scrolling doesn't advance under virtual time.
+      const scrollBy = Element.prototype.scrollBy;
+      Element.prototype.scrollBy = function (o) { scrollBy.call(this, { ...o, behavior: "instant" }); };
+      next.click(); await wait(50);
+      out.push(`next ${track.scrollLeft}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("message-ui", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "reply Here html=true roots=2",
+            // The counter's state is its own: the page's `n` is untouched.
+            "clicked N 6 | Outer 0 chat-n=0",
+            "redrawn N 6",
+            "slides 4 prev=true next=false",
+            // One slide and the gap.
+            "next 312",
+        ],
+        "\n{result}"
+    );
+}
