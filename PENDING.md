@@ -28,7 +28,6 @@ _Last updated: 2026-11-17._
   These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
   - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, sidebar, item, code block, direction (RTL), and the chat ones (attachment, bubble, message, message scroller, questionnaire, trace).
-- [ ] **Lists expanded on the server can't follow state:** `ui-radio-group` options, `ui-breadcrumb` items and `ui-pagination`. Using state in them is a render error today.
 - [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.
 - [ ] **`ui-combobox`:**
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
@@ -160,6 +159,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 
 ## Housekeeping
 
+- [ ] **Theme browser tests depend on the machine's colour scheme.** `theme_toggle_in_chrome`, `form_controls_follow_the_theme_toggle_in_chrome` and the chart kit's `charts_in_chrome` expect System to mean light, so they fail when macOS is in Dark mode (they pass with `--blink-settings=preferredColorScheme=1`). Idea: pass that flag in the tests' Chrome arguments.
 - [ ] **CI checks we skipped:**
   - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
   - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.

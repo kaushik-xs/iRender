@@ -3,7 +3,7 @@
 //! toggle (a client behaviour).
 
 use crate::{
-    ACCENT, MUTED, SUBTLE, SURFACE, TEXT, choice, context, expr_val, field, id_with, instance_id, lit, server_array,
+    ACCENT, MUTED, SUBTLE, SURFACE, TEXT, choice, context, expr_val, field, id_with, instance_id, lit, items, each_item, field_or,
     state, state_eq, state_not, synthetic,
 };
 use irender_core::{
@@ -322,7 +322,7 @@ const TOGGLE_PROPS: &[PropDef] = &[
 ];
 const TOGGLE_GROUP_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the pressed value, or null (a list of them with `multiple`)").required(),
-    PropDef::new("options", PropKind::Any, "Array of values or `{ value, label, disabled }`; fixed on the server").required(),
+    PropDef::new("options", PropKind::Any, "Array of values or `{ value, label, disabled }`; may use state").required(),
     PropDef::new("multiple", PropKind::Bool, "Let several be pressed; `bind` holds a list"),
     PropDef::new("variant", PropKind::Enum(TOGGLE_VARIANTS), "Default `default`"),
     PropDef::new("size", PropKind::Enum(TOGGLE_SIZES), "Default `default`"),
@@ -420,57 +420,52 @@ impl Component for ToggleGroup {
         let Some(key) = cx.prop_string(node, "bind") else {
             return Err(RenderError::new(node, "`ui-toggle-group` needs `bind`"));
         };
-        let options = server_array(cx, node, "options")?;
+        let options = items(cx, node, "options")?;
         let variant = &TOGGLE_VARIANT_STYLES[choice(cx, node, "variant", TOGGLE_VARIANTS)];
         let size = &TOGGLE_SIZE_STYLES[choice(cx, node, "size", TOGGLE_SIZES)];
         let disabled_all = cx.prop(node, "disabled").is_some_and(|d| expr::truthy(&d));
         let multiple = cx.prop(node, "multiple").is_some_and(|m| expr::truthy(&m));
-        let mut group = cx.element("div", node);
-        group.base_style_ref(&TOGGLE_GROUP).attr("role", "group");
-        cx.open(&group, node)?;
-        for o in &options {
-            let (value, label) = match o {
-                Json::Object(m) => {
-                    let v = m.get("value").cloned().unwrap_or(Json::Null);
-                    let l = m.get("label").filter(|l| !l.is_null()).cloned().unwrap_or_else(|| v.clone());
-                    (v, l)
-                }
-                other => (other.clone(), other.clone()),
-            };
-            let (pressed, next) = if multiple {
-                // Pressing adds the option to the list, or takes it out.
-                let call = |f| expr_val(Expr::Call(f, vec![state(&key), Expr::Lit(value.clone())]));
-                (call(Func::Includes), call(Func::Toggle))
-            } else {
-                // Pressing the pressed option clears the choice.
-                let next = expr_val(Expr::Cond(
-                    Box::new(Expr::Binary(BinOp::Eq, Box::new(state(&key)), Box::new(Expr::Lit(value.clone())))),
-                    Box::new(Expr::Lit(Json::Null)),
-                    Box::new(Expr::Lit(value.clone())),
-                ));
-                (state_eq(&key, value.clone()), next)
-            };
+        // Each option, from expressions over it (see `ui-radio-group`).
+        let value = field_or(OPTION, "value", Expr::Path(vec![OPTION.into()]));
+        let label = expr_val(field_or(OPTION, "label", value.clone()));
+        let disabled = if disabled_all { lit(true) } else { expr_val(Expr::Path(vec![OPTION.into(), "disabled".into()])) };
+        let (pressed, next) = if multiple {
+            // Pressing adds the option to the list, or takes it out.
+            let call = |f| expr_val(Expr::Call(f, vec![state(&key), value.clone()]));
+            (call(Func::Includes), call(Func::Toggle))
+        } else {
+            // Pressing the pressed option clears the choice.
+            let is = Expr::Binary(BinOp::Eq, Box::new(state(&key)), Box::new(value.clone()));
+            let next = expr_val(Expr::Cond(Box::new(is.clone()), Box::new(Expr::Lit(Json::Null)), Box::new(value.clone())));
+            (expr_val(is), next)
+        };
+        let option = |cx: &mut RenderCx<'_>| {
             let item = synthetic(
                 node,
                 "button",
                 Vec::new(),
-                vec![("type", lit("button")), ("aria-pressed", pressed)],
-                vec![("click", vec![Action::SetState { key: key.clone(), value: next }])],
+                vec![("type", lit("button")), ("aria-pressed", pressed.clone())],
+                vec![("click", vec![Action::SetState { key: key.clone(), value: next.clone() }])],
             );
             let mut el = cx.element("button", &item);
-            el.base_style_ref(&TOGGLE).base_style_ref(variant).base_style_ref(size).text(Val::Lit(json!(expr::stringify(&label))));
-            if disabled_all || o.get("disabled").is_some_and(expr::truthy) {
-                el.attr("disabled", true);
-            }
+            el.base_style_ref(&TOGGLE).base_style_ref(variant).base_style_ref(size).text(label.clone());
+            el.attr("disabled", disabled.clone());
             cx.open(&el, &item)?;
             cx.close("button");
-        }
+            Ok(())
+        };
+        let mut group = cx.element("div", node);
+        group.base_style_ref(&TOGGLE_GROUP).attr("role", "group");
+        each_item(cx, node, group, options, OPTION, "ui_index", &expr_val(value.clone()), option)?;
         cx.close("div");
         Ok(())
     }
 }
 
 pub struct ThemeToggle;
+
+/// The name of the current option while rendering a toggle group's options.
+const OPTION: &str = "ui_option";
 
 /// Applies the stored scheme; [`crate::register`] adds it to every page.
 pub(crate) const THEME_EARLY_SCRIPT: &str = include_str!("theme_early.js");

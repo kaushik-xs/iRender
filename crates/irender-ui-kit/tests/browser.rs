@@ -833,3 +833,60 @@ fn combobox_inside_dialog_and_sheet_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn lists_follow_state_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "opts": ["a", "b"], "pick": "b", "crumbs": [{ "label": "Home", "href": "/" }, { "label": "Docs" }],
+                   "page": 1, "pages": 3 },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-radio-group", "props": { "bind": "pick", "options": "{{ opts }}" }, "attrs": { "id": "radios" } },
+            { "type": "ui-toggle-group", "props": { "bind": "pick", "options": "{{ opts }}" }, "attrs": { "id": "toggles" } },
+            { "type": "ui-breadcrumb", "props": { "items": "{{ crumbs }}" } },
+            { "type": "ui-pagination", "props": { "page": "{{ page }}", "pages": "{{ pages }}", "href": "#{{ p }}" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), set = (k, v) => root.__irender.set(k, v);
+      const tick = () => new Promise((r) => setTimeout(r, 0));
+      const radios = () => [...document.querySelectorAll("#radios input")].map((i) => i.value + (i.checked ? "*" : "") + (i.disabled ? "!" : "")).join(" ");
+      const toggles = () => [...document.querySelectorAll("#toggles button")].map((b) => b.textContent + (b.getAttribute("aria-pressed") === "true" ? "*" : "")).join(" ");
+      const crumbs = () => [...document.querySelectorAll("nav[aria-label=breadcrumb] li:not([role])")]
+        .map((li) => li.querySelector(":scope > a, :scope > span")).map((e) => e.tagName === "A" ? `{${e.textContent}}` : e.textContent + (e.getAttribute("aria-current") ? "@" : "")).join(" ");
+      const pager = () => [...document.querySelectorAll("nav[aria-label=pagination] li")].map((li) => {
+        const a = li.querySelector(":scope > a, :scope > span");
+        const t = a.textContent.replace("‹ Previous", "prev").replace("Next ›", "next");
+        return a.getAttribute("aria-current") ? `[${t}]` : a.getAttribute("aria-disabled") === "true" ? `(${t})` : t;
+      }).join(" ");
+      const step = (label) => out.push(`${label} | ${radios()} | ${toggles()} | ${crumbs()} | ${pager()}`);
+      step("start");
+      set("opts", ["a", "b", { value: "c", label: "C", disabled: true }]); await tick(); step("options");
+      document.querySelector("#radios input[value=a]").click(); await tick(); step("chose a");
+      set("crumbs", [{ label: "Home", href: "/" }, { label: "Docs", href: "/docs" }, { label: "Lists" }]); await tick(); step("crumbs");
+      set("pages", 10); set("page", 5); await tick(); step("page 5 of 10");
+      document.querySelector("nav[aria-label=pagination] a[aria-label='Go to next page']").getAttribute("href") === "#6" || out.push("next href wrong");
+      set("page", 10); await tick(); step("last");
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("lists-state", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start | a b* | a b* | {Home} Docs@ | (prev) [1] 2 3 next",
+            "options | a b* c! | a b* C | {Home} Docs@ | (prev) [1] 2 3 next",
+            "chose a | a* b c! | a* b C | {Home} Docs@ | (prev) [1] 2 3 next",
+            "crumbs | a* b c! | a* b C | {Home} {Docs} Lists@ | (prev) [1] 2 3 next",
+            "page 5 of 10 | a* b c! | a* b C | {Home} {Docs} Lists@ | prev 1 … 4 [5] 6 … 10 next",
+            "last | a* b c! | a* b C | {Home} {Docs} Lists@ | prev 1 … 9 [10] (next)",
+        ],
+        "\n{result}"
+    );
+}

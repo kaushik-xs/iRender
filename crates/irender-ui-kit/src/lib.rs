@@ -40,8 +40,8 @@ use irender_core::{
     Action, Node, Part, Template, Val,
     expr::{self, BinOp, Expr, UnOp},
 };
-use irender_html::{RenderCx, RenderError, Registry};
-use serde_json::Value as Json;
+use irender_html::{ClientList, Element, RenderCx, RenderError, Registry};
+use serde_json::{Value as Json, json};
 
 /// Adds every kit component to `registry`, and the script that applies the colour
 /// scheme chosen with `ui-theme-toggle` to every page it renders.
@@ -286,4 +286,100 @@ fn join(vals: &[Val]) -> Val {
         return lit(parts.into_iter().map(|p| if let Part::Lit(s) = p { s } else { unreachable!() }).collect::<String>());
     }
     Val::Tpl(Template { parts })
+}
+
+/// The array prop `prop` as items to render: its value now, and the prop itself when
+/// it uses state, so the browser can rebuild the items as it changes.
+fn items<'n>(cx: &RenderCx<'_>, node: &'n Node, prop: &str) -> Result<(Vec<Json>, Option<&'n Val>), RenderError> {
+    let values = match cx.prop(node, prop) {
+        Some(Json::Array(items)) => items,
+        None | Some(Json::Null) => Vec::new(),
+        Some(_) => return Err(RenderError::new(node, format!("`{prop}` must evaluate to an array"))),
+    };
+    Ok((values, node.prop(prop).filter(|v| cx.is_reactive(v))))
+}
+
+/// Opens `el` and renders `render` once per item with the item and its index in
+/// scope as `item` and `index`. With `live`, the browser rebuilds the items whenever
+/// it changes, reusing those whose `key` it has seen. The caller closes `el`.
+#[allow(clippy::too_many_arguments)]
+fn each_item<'n>(
+    cx: &mut RenderCx<'_>,
+    node: &'n Node,
+    mut el: Element<'n>,
+    (values, live): (Vec<Json>, Option<&'n Val>),
+    item: &str,
+    index: &str,
+    key: &Val,
+    render: impl Fn(&mut RenderCx<'_>) -> Result<(), RenderError>,
+) -> Result<(), RenderError> {
+    if let Some(items) = live {
+        let key = cx.item_val_js(key, item, index);
+        el.list(ClientList { items, item: item.into(), index: index.into(), key: Some(key) });
+    }
+    cx.open(&el, node)?;
+    if live.is_some() {
+        cx.item_template_with(item, index, &render)?;
+    }
+    for (i, value) in values.into_iter().enumerate() {
+        cx.with_scope(vec![(item.into(), value), (index.into(), json!(i))], &render)?;
+    }
+    Ok(())
+}
+
+/// Renders `f` while `when` holds: decided on the server, or by the browser when
+/// `when` uses state (or an item of a list the browser rebuilds).
+fn branch(
+    cx: &mut RenderCx<'_>,
+    when: &Val,
+    f: impl FnOnce(&mut RenderCx<'_>) -> Result<(), RenderError>,
+) -> Result<(), RenderError> {
+    if cx.is_reactive(when) {
+        cx.conditional_with(when, f)
+    } else if expr::truthy(&cx.eval(when)) {
+        f(cx)
+    } else {
+        Ok(())
+    }
+}
+
+/// A value as an expression: a literal, a template's one expression, or the parts of
+/// a longer template joined as text.
+fn val_expr(v: &Val) -> Expr {
+    match v {
+        Val::Lit(j) => Expr::Lit(j.clone()),
+        Val::Tpl(t) => match t.parts.as_slice() {
+            [Part::Expr(e)] => e.clone(),
+            parts => parts.iter().fold(Expr::Lit(json!("")), |text, p| {
+                let p = match p {
+                    Part::Lit(s) => Expr::Lit(json!(s)),
+                    Part::Expr(e) => e.clone(),
+                };
+                bin(BinOp::Add, text, p)
+            }),
+        },
+    }
+}
+
+fn bin(op: BinOp, a: Expr, b: Expr) -> Expr {
+    Expr::Binary(op, Box::new(a), Box::new(b))
+}
+
+fn cond(c: Expr, a: Expr, b: Expr) -> Expr {
+    Expr::Cond(Box::new(c), Box::new(a), Box::new(b))
+}
+
+fn path(segments: &[&str]) -> Expr {
+    Expr::Path(segments.iter().map(|s| s.to_string()).collect())
+}
+
+fn num(n: impl Into<Json>) -> Expr {
+    Expr::Lit(n.into())
+}
+
+/// `var.field` when the item is an object that has it, otherwise `fallback`: options
+/// and items may be plain values or objects.
+fn field_or(var: &str, field: &str, fallback: Expr) -> Expr {
+    let f = path(&[var, field]);
+    cond(bin(BinOp::Ne, f.clone(), Expr::Lit(Json::Null)), f, fallback)
 }

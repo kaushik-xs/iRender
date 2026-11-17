@@ -182,14 +182,35 @@ fn unbound_radio_group_shares_a_name_and_checks_its_value() {
 }
 
 #[test]
-fn server_expanded_lists_reject_state() {
-    for (kind, props) in [
-        ("ui-radio-group", json!({ "options": "{{ opts }}" })),
-        ("ui-breadcrumb", json!({ "items": "{{ opts }}" })),
-    ] {
-        let err = render_with(json!({ "type": kind, "props": props }), json!({ "opts": [] }), json!({})).unwrap_err();
-        assert!(err.message.contains("can't use state"), "{kind}: {err}");
-    }
+fn lists_from_state_render_now_and_rebuild_in_the_browser() {
+    let page = render_with(
+        json!({ "type": "element", "children": [
+            { "type": "ui-radio-group", "props": { "bind": "pick", "options": "{{ opts }}" } },
+            { "type": "ui-toggle-group", "props": { "bind": "pick", "options": "{{ opts }}" } },
+            { "type": "ui-breadcrumb", "props": { "items": "{{ crumbs }}" } },
+            { "type": "ui-pagination", "props": { "page": "{{ page }}", "pages": 5, "href": "#{{ p }}" } } ] }),
+        json!({ "opts": ["a", { "value": "b", "label": "B", "disabled": true }], "pick": "b",
+                "crumbs": [{ "label": "Home", "href": "/" }, { "label": "Docs" }], "page": 2 }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // Each list carries its item template for the browser, and pagination a behaviour
+    // that redraws its window…
+    assert_eq!(body.matches("data-i-list=").count(), 3, "{body}");
+    assert!(body.contains(r#"data-i-x="ui-pagination""#), "{body}");
+    // …and the items for the state it starts with.
+    assert!(body.contains(r#"value="a""#) && body.contains(r#"value="b""#), "{body}");
+    assert!(body.contains(">B</span>") && body.contains(">B</button>"), "{body}");
+    assert!(body.contains(r#">Home</a>"#) && body.contains(r#"aria-current="page""#), "{body}");
+    assert!(body.contains(r##"href="#1""##) && body.contains(r##"href="#3""##), "{body}");
+    // A breadcrumb from state has to say where its items are, to find the last.
+    let err = render_with(
+        json!({ "type": "ui-breadcrumb", "props": { "items": "{{ show ? crumbs : crumbs }}" } }),
+        json!({ "show": true, "crumbs": [] }),
+        json!({}),
+    );
+    assert!(err.is_err());
 }
 
 #[test]
@@ -216,6 +237,31 @@ fn breadcrumb_and_pagination() {
     assert!(body.contains(r#"<a href="/orders?page=1&amp;q=mugs" aria-current="page">1</a>"#), "{body}");
     assert!(body.contains(r#"<a href="/orders?page=9&amp;q=mugs">9</a>"#), "{body}");
     assert!(body.contains(r#"<a href="/orders?page=2&amp;q=mugs" aria-label="Go to next page">Next ›</a>"#), "{body}");
+}
+
+/// The page numbers and gaps a pagination shows, e.g. `1 … 4 5 6 … 10`.
+fn window(page: u64, pages: u64) -> String {
+    let body = render(json!({ "type": "ui-pagination", "props": { "page": page, "pages": pages, "href": "#{{ p }}" } }));
+    let text: Vec<String> = body
+        .split('>')
+        .filter_map(|s| s.strip_suffix("</a").or(s.strip_suffix("</span")))
+        .filter(|t| !t.contains('›') && !t.contains('‹'))
+        .map(str::to_string)
+        .collect();
+    text.join(" ")
+}
+
+#[test]
+fn pagination_windows() {
+    assert_eq!(window(1, 1), "1");
+    assert_eq!(window(1, 3), "1 2 3");
+    assert_eq!(window(1, 10), "1 2 … 10");
+    assert_eq!(window(5, 10), "1 … 4 5 6 … 10");
+    assert_eq!(window(3, 10), "1 2 3 4 … 10");
+    assert_eq!(window(10, 10), "1 … 9 10");
+    assert_eq!(window(4, 7), "1 2 3 4 5 6 7");
+    // Out of range: kept within 1..pages.
+    assert_eq!(window(99, 10), "1 … 9 10");
 }
 
 #[test]

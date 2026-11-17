@@ -56,9 +56,9 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-button-group` | `orientation` (horizontal, vertical), `label` | Buttons joined into one control (`role="group"`); outline buttons look best. |
 | `ui-input`, `ui-textarea`, `ui-select` | same as `input`, `textarea`, `select` | Same binding behaviour as the built-ins, restyled. |
 | `ui-checkbox`, `ui-switch` | `label`, `bind`, `checked`, `name`, `disabled` | The switch is a checkbox with `role="switch"`. Parts: `control`, `label`. |
-| `ui-radio-group` | `options`, `bind`, `value`, `name`, `orientation`, `disabled` | Options are values or `{ value, label, disabled }`. |
-| `ui-breadcrumb` | `items` (`{ label, href }`), `separator` | The last item is the current page. |
-| `ui-pagination` | `page`, `pages`, `href`, `siblings` | `href` is evaluated per page with `p` in scope: `"/orders?page={{ p }}"`. |
+| `ui-radio-group` | `options`, `bind`, `value`, `name`, `orientation`, `disabled` | Options are values or `{ value, label, disabled }`, and may come from state. |
+| `ui-breadcrumb` | `items` (`{ label, href }`), `separator` | The last item is the current page. `items` may come from state. |
+| `ui-pagination` | `page`, `pages`, `href`, `siblings` | `href` is evaluated per page with `p` in scope: `"/orders?page={{ p }}"`. `page`, `pages` and `siblings` may come from state. |
 | `ui-slider` | `bind`, `min`, `max`, `step`, `name`, `disabled` | A range input; `bind` holds a number. |
 | `ui-accordion` + `ui-accordion-item` | accordion: `multiple`, `id`; item: `title`, `open` | Native `<details>`. One item open at a time unless `multiple`. |
 | `ui-collapsible` | `trigger`, `open` | Native `<details>`. |
@@ -80,7 +80,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
-`ui-radio-group` options, `ui-breadcrumb` items and `ui-pagination` are expanded on the server, so they can come from server data but not from `state`. Using state there is a render error, not a page that silently stops updating. For a choice list that changes in the browser, use `ui-select`, whose options can come from state.
+Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
 
 ## Theme
 

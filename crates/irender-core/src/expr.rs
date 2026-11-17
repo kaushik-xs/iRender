@@ -25,6 +25,15 @@ pub enum Expr {
     Call(Func, Vec<Expr>),
 }
 
+/// What folding an expression can work out before the browser does (see [`Expr::fold`]).
+enum Settled<'e> {
+    /// It reads nothing kept: this is its value.
+    Value(Json),
+    /// Its first operand reads nothing kept and picks this part.
+    Pick(&'e Expr),
+    Open,
+}
+
 /// The built-in functions: a closed set, each with a bounded result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Func {
@@ -244,11 +253,20 @@ impl Expr {
         }
     }
 
-    /// Replaces every path whose root is not `keep`-ed with its current value.
+    /// Replaces every path whose root is not `keep`-ed with its current value, and
+    /// works out what no longer depends on a kept root: a part that reads none
+    /// becomes its value, and a `?:`, `&&` or `||` whose first operand reads none
+    /// becomes the operand it picks.
     ///
     /// Renderers use this to bake server-side data into client-side expressions so the
-    /// browser only ever needs the reactive `state`.
+    /// browser only ever needs the reactive `state`. [`write_js`](Self::write_js)
+    /// writes the same result without building it.
     pub fn fold(&self, keep: &dyn Fn(&str) -> bool, lookup: &dyn Fn(&[String]) -> Json) -> Expr {
+        match self.settle(keep, lookup) {
+            Settled::Value(v) => return Expr::Lit(v),
+            Settled::Pick(e) => return e.fold(keep, lookup),
+            Settled::Open => {}
+        }
         match self {
             Expr::Path(p) if !keep(&p[0]) => Expr::Lit(lookup(p)),
             Expr::Path(_) | Expr::Lit(_) => self.clone(),
@@ -262,6 +280,38 @@ impl Expr {
                 Box::new(b.fold(keep, lookup)),
             ),
             Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| a.fold(keep, lookup)).collect()),
+        }
+    }
+
+    /// Whether any path in it has a `keep`-ed root.
+    fn reads(&self, keep: &dyn Fn(&str) -> bool) -> bool {
+        match self {
+            Expr::Lit(_) => false,
+            Expr::Path(p) => keep(&p[0]),
+            Expr::Unary(_, a) => a.reads(keep),
+            Expr::Binary(_, l, r) => l.reads(keep) || r.reads(keep),
+            Expr::Cond(c, a, b) => c.reads(keep) || a.reads(keep) || b.reads(keep),
+            Expr::Call(_, args) => args.iter().any(|a| a.reads(keep)),
+        }
+    }
+
+    /// What [`fold`](Self::fold) can work out at the top of this expression. Literals
+    /// and paths are left to the caller, which handles them directly.
+    fn settle<'e>(&'e self, keep: &dyn Fn(&str) -> bool, lookup: &dyn Fn(&[String]) -> Json) -> Settled<'e> {
+        if matches!(self, Expr::Lit(_) | Expr::Path(_)) {
+            return Settled::Open;
+        }
+        if !self.reads(keep) {
+            return Settled::Value(self.eval(lookup));
+        }
+        match self {
+            Expr::Cond(c, a, b) if !c.reads(keep) => Settled::Pick(if truthy(&c.eval(lookup)) { a } else { b }),
+            Expr::Binary(op @ (BinOp::And | BinOp::Or), l, r) if !l.reads(keep) => {
+                let lv = l.eval(lookup);
+                // `&&` goes on to the right only when the left holds, `||` only when it doesn't.
+                if truthy(&lv) == (*op == BinOp::And) { Settled::Pick(r) } else { Settled::Value(lv) }
+            }
+            _ => Settled::Open,
         }
     }
 
@@ -287,6 +337,11 @@ impl Expr {
         keep: &dyn Fn(&str) -> bool,
         lookup: &dyn Fn(&[String]) -> Json,
     ) -> fmt::Result {
+        match self.settle(keep, lookup) {
+            Settled::Value(v) => return write!(out, "{{\"l\":{v}}}"),
+            Settled::Pick(e) => return e.write_js(out, keep, lookup),
+            Settled::Open => {}
+        }
         match self {
             Expr::Lit(v) => write!(out, "{{\"l\":{v}}}"),
             Expr::Path(p) if !keep(&p[0]) => write!(out, "{{\"l\":{}}}", lookup(p)),
@@ -955,6 +1010,19 @@ mod tests {
     }
 
     #[test]
+    fn fold_works_out_what_reads_no_kept_root() {
+        let data = json!({ "price": 5, "opt": { "value": "b" } });
+        let fold = |src: &str| Expr::parse(src).unwrap().fold(&|r| r == "qty", &|p| lookup(&data, p)).to_js();
+        assert_eq!(fold("price * 2 + qty"), json!({ "b": "+", "x": { "l": 10 }, "y": { "p": ["qty"] } }));
+        assert_eq!(fold("opt.value != null ? opt.value : opt"), json!({ "l": "b" }));
+        assert_eq!(fold("price > 1 ? qty : 0"), json!({ "p": ["qty"] }));
+        assert_eq!(fold("price && qty"), json!({ "p": ["qty"] }));
+        assert_eq!(fold("price || qty"), json!({ "l": 5 }));
+        assert_eq!(fold("!price && qty"), json!({ "l": false }));
+        assert_eq!(fold("qty || price"), json!({ "b": "||", "x": { "p": ["qty"] }, "y": { "l": 5 } }));
+    }
+
+    #[test]
     fn write_js_matches_fold_to_js() {
         let data = json!({ "price": 5, "name": "a\"b\\c\n\u{1}", "obj": { "k": [1, null] } });
         let keep = |r: &str| r == "qty";
@@ -966,6 +1034,12 @@ mod tests {
             "{{ -qty + obj.k[1] }}",
             "\"quoted\" {{ qty['we\\ird'] }}",
             "{{ qty && 'a\\tb' || 1.5 }}",
+            "{{ price > 1 ? qty : name }}",
+            "{{ price + 1 == 6 && qty }}",
+            "{{ !price || qty }}",
+            "{{ (price * 2) + qty }}",
+            "{{ qty ? price - 1 : -price }}",
+            "{{ includes(obj.k, 1) ? qty : 0 }}",
         ] {
             let t = Template::parse(src).unwrap();
             let mut out = String::new();

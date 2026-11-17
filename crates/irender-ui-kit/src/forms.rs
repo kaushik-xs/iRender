@@ -3,12 +3,16 @@
 
 use crate::{
     ACCENT, CONTROLS, DESTRUCTIVE, MUTED, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING,
-    SECONDARY, SURFACE, TEXT, choice, describe, field, focus_attr, focus_attrs, id_with, instance_id, lit, server_array,
+    SECONDARY, SURFACE, TEXT, bin, choice, describe, each_item, field_or, focus_attr, focus_attrs, id_with, instance_id,
+    expr_val, items, lit, path,
 };
 use indexmap::IndexMap;
-use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr};
+use irender_core::{
+    ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val,
+    expr::{self, BinOp, Expr},
+};
 use irender_html::{Component, RenderCx, RenderError};
-use serde_json::Value as Json;
+use serde_json::json;
 use std::sync::LazyLock;
 
 fn focus_ring() -> StyleBlock {
@@ -432,7 +436,7 @@ impl Component for Switch {
 pub struct RadioGroup;
 
 const RADIO_GROUP_PROPS: &[PropDef] = &[
-    PropDef::new("options", PropKind::Any, "Array of values or `{ value, label, disabled }`; fixed on the server").required(),
+    PropDef::new("options", PropKind::Any, "Array of values or `{ value, label, disabled }`; may use state").required(),
     PropDef::new("bind", PropKind::StateKey, "State key holding the chosen value"),
     PropDef::new("value", PropKind::Any, "Initially chosen value, when not bound"),
     PropDef::new("name", PropKind::String, "Form field name (default: the `bind` key)"),
@@ -461,7 +465,7 @@ impl Component for RadioGroup {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let options = server_array(cx, node, "options")?;
+        let options = items(cx, node, "options")?;
         let orientation = choice(cx, node, "orientation", &["vertical", "horizontal"]);
         let chosen = node.prop("bind").is_none().then(|| cx.prop(node, "value")).flatten().map(|v| expr::stringify(&v));
         let disabled_all = cx.prop(node, "disabled").is_some_and(|d| expr::truthy(&d));
@@ -473,41 +477,43 @@ impl Component for RadioGroup {
             .cloned()
             .unwrap_or_else(|| lit(format!("ui-radio-{}", node.path.replace(|c: char| !c.is_ascii_alphanumeric(), "-"))));
 
-        let mut group = cx.element("div", node);
-        group.base_style_ref(&RADIO_GROUP[orientation]).attr("role", "radiogroup");
-        cx.open(&group, node)?;
-        for o in &options {
-            let (value, label) = match o {
-                Json::Object(_) => (field(o, "value").unwrap_or_default(), field(o, "label").or_else(|| field(o, "value"))),
-                other => (expr::stringify(other), Some(expr::stringify(other))),
-            };
-            let disabled = disabled_all || o.get("disabled").is_some_and(expr::truthy);
-            let mut props: Vec<(&str, Val)> = vec![("type", lit("radio")), ("value", lit(value.clone())), ("name", name.clone())];
+        // Each option, from expressions over it, so the same code renders the options
+        // on the server and the template the browser rebuilds them from.
+        let value = field_or(OPTION, "value", path(&[OPTION]));
+        let as_text = |e: Expr| bin(BinOp::Add, Expr::Lit(json!("")), e);
+        let label = expr_val(field_or(OPTION, "label", value.clone()));
+        let disabled = if disabled_all { lit(true) } else { expr_val(path(&[OPTION, "disabled"])) };
+        let checked = chosen.map(|c| expr_val(bin(BinOp::Eq, as_text(value.clone()), Expr::Lit(json!(c)))));
+        let value = expr_val(value);
+        let option = |cx: &mut RenderCx<'_>| {
+            let mut props: Vec<(&str, Val)> = vec![("type", lit("radio")), ("value", value.clone()), ("name", name.clone())];
             if let Some(b) = node.prop("bind") {
                 props.push(("bind", b.clone()));
             }
-            if disabled {
-                props.push(("disabled", lit(true)));
-            }
-            let mut extra = Vec::new();
-            if chosen.as_deref() == Some(value.as_str()) {
-                extra.push(("checked", lit(true)));
-            }
-
+            props.push(("disabled", disabled.clone()));
+            let extra: Vec<(&str, Val)> = checked.iter().map(|c| ("checked", c.clone())).collect();
             let mut row = irender_html::Element::new("label");
             row.base_style_ref(&CHOICE_ROW);
             cx.open(&row, node)?;
             irender_html::Input::render_styled(&control(node, props, &extra), cx, &CHECKBOX)?;
             let mut text = cx.part("span", node, "label");
-            text.text(lit(label.unwrap_or_default()));
+            text.text(label.clone());
             cx.open(&text, node)?;
             cx.close("span");
             cx.close("label");
-        }
+            Ok(())
+        };
+
+        let mut group = cx.element("div", node);
+        group.base_style_ref(&RADIO_GROUP[orientation]).attr("role", "radiogroup");
+        each_item(cx, node, group, options, OPTION, "ui_index", &value, option)?;
         cx.close("div");
         Ok(())
     }
 }
+
+/// The name of the current option while rendering a radio group's options.
+const OPTION: &str = "ui_option";
 
 // ---------------------------------------------------------------- slider
 
