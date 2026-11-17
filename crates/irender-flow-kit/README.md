@@ -236,7 +236,7 @@ The kit makes every edit itself and writes the result to `bindNodes` / `bindEdge
           - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: wf } } } }
           - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: wf } } } }
   ```
-- **Adding:** `ui-flow-item` takes a `node` (`{ type, data }`, and an `id` to keep). Dragging it onto the flow adds the node where it's dropped; clicking it, or pressing Enter or Space, adds it in the middle of the view. Its `flow` is the flow's element id. It can be left out when the item is inside the flow, or the page has one flow. New ids are the type plus a number, such as `step_3`.
+- **Adding:** `ui-flow-item` takes a `node` (`{ type, data }`, and an `id` to keep). Dragging it onto the flow adds the node where it's dropped; clicking it, or pressing Enter or Space, adds it in the middle of the view. Its `flow` is the flow's element id. It can be left out when the item is inside the flow, or the page has one flow. New ids are the type in snake_case plus a number, such as `step_3` or `service_call_1`.
 
 ### Commands
 
@@ -260,7 +260,7 @@ Commands from inside the flow, such as a panel button, a node, or a dialog in ei
 ### Copy, paste and undo
 
 - **Copy and cut:** ⌘/Ctrl + C copies the selection, with everything inside any selected container and the edges between the copied nodes. Cut copies, then deletes.
-- **Paste:** ⌘/Ctrl + V adds a copy with new ids (`type` plus a number) and selects it. It lands at the pointer when the pointer is over the flow; otherwise it lands a step down and right of the original. Copies keep their container when it still exists. The clipboard is shared by the page's flows, so you can copy between them. The copies' `data` is unchanged, so if it holds ids of its own, have the host app remap them (e.g. `on: { nodeadd: { action: call, … } }`).
+- **Paste:** ⌘/Ctrl + V adds a copy with new ids, each named after its original (`check_stock` becomes `check_stock_1`), and selects it. It lands at the pointer when the pointer is over the flow; otherwise it lands a step down and right of the original. Copies keep their container when it still exists. The clipboard is shared by the page's flows, so you can copy between them. The copies' `data` is unchanged, so if it holds ids of its own, have the host app remap them (e.g. `on: { nodeadd: { action: call, … } }`).
 - **Undo:** every edit the flow makes is one undo step: a drag, connection, deletion, resize, added node or paste. Undo (⌘/Ctrl + Z, or `flow.undo`) puts both arrays back as they were. Changes made to the state outside the flow aren't recorded. The flow keeps the last 100 steps.
 
 ## Mouse, touch and keyboard

@@ -519,7 +519,7 @@ fn containers_clipboard_history_and_search() {
             "undo 350 true 1",
             "redo 200 0",
             "undoCommand 350",
-            "pasted 2 loop_1 1 step_1",
+            "pasted 2 loop_1 1 a_1",
             "pastedEdges 1 true",
             "cut true",
             r#"search ["a"] true true true"#,

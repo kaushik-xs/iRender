@@ -63,7 +63,15 @@ These came out of the React Flow research on the builder and client-ui-next repo
 - [ ] **Undo records only the flow's own edits.** Changes made to the state outside the flow aren't recorded, and an undo puts back the arrays as the flow last saw them.
 - [ ] **No `extent: parent`.** A node inside a container can be dragged past its edges, and dropping it outside moves it out.
 - [ ] **Pasting doesn't remap ids inside `data`** (the process canvas does this for its own ids); the host app can, from a `call` on `nodeadd`.
-- [ ] **Not tried yet in the real apps:** the builder's workflow editor and ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
+- [x] **Tried on the builder's 8 saved workflows** (2026-11-17; `server/data/workspaces/**/*.workflow`, up to 30 nodes with 5 loops):
+  - Every node and edge draws, and every handle resolves to its port (`true`/`false`, the loop's `start`/`done`).
+  - Loop bodies sit inside their loops.
+  - Drags change only `position` and keep the editor's leftover keys (`measured`, `selected`, `dragging`) byte for byte.
+  - Undo restores the saved JSON exactly.
+  - Fixed on the way: the dot background packed too tight below about 0.5 zoom, and new and pasted ids didn't follow the builder's snake_case.
+- [ ] **No way to turn a number into a list in expressions.** A merge with `inputCount` ports needs a fixed list of ten with an `if` each. Idea: a `range(n)` in expressions, or a `count` prop on `list`.
+- [ ] **The builder's `if` and `switch` are diamond and hexagon shapes**; templates can only approximate them with CSS (`clip-path` would cut off ports). Idea: a `shape` on `ui-flow-node` that draws an SVG outline behind the content.
+- [ ] **Not tried yet:** the builder's ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
 
 ## Icon kit: packs not drawn yet
 

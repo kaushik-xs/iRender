@@ -675,7 +675,9 @@
     function apply(v, quiet) {
       view = v;
       pane.style.transform = `translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;
-      const gap = 20 * v.zoom;
+      // The pattern doubles its spacing when zooming out would pack it too tight.
+      let gap = 20 * v.zoom;
+      while (gap < 10) gap *= 2;
       el.style.setProperty("--flow-gap", gap + "px");
       el.style.setProperty("--flow-bg-x", (v.x % gap) + "px");
       el.style.setProperty("--flow-bg-y", (v.y % gap) + "px");
@@ -849,8 +851,9 @@
       const r = el.getBoundingClientRect();
       return { x: (e.clientX - r.left - el.clientLeft - view.x) / view.zoom, y: (e.clientY - r.top - el.clientTop - view.y) / view.zoom };
     };
-    function freshId(type, also) {
-      const base = str(type || "node").replace(/[^A-Za-z0-9_-]/g, "_") || "node";
+    // `base` in snake_case plus the first free number: `serviceCall` → `service_call_1`.
+    function freshId(base, also) {
+      base = str(base || "node").replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase().replace(/[^a-z0-9_-]/g, "_") || "node";
       const taken = new Set(rawNodes().filter(isObj).map((n) => str(n.id)));
       for (const id of also || []) taken.add(id);
       let i = 1;
@@ -1397,7 +1400,8 @@
       if (!clipboard || !writes("bindNodes", "paste nodes")) return;
       const map = new Map(), made = [];
       for (const n of clipboard.nodes) {
-        const id = freshId(n.type, made);
+        // Named after the original: `check_stock` → `check_stock_1`.
+        const id = freshId(str(n.id).replace(/_\d+$/, ""), made);
         made.push(id);
         map.set(str(n.id), id);
       }
