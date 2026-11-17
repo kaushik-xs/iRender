@@ -15,6 +15,7 @@ use std::sync::LazyLock;
 const MENU_SCRIPT: &str = include_str!("menu.js");
 
 const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link"]);
+const BUTTON_SIZES: PropKind = PropKind::Enum(&["default", "sm", "lg", "icon"]);
 
 /// A value as a style value: literal as is, template evaluated live.
 fn style_of(v: &Val) -> StyleValue {
@@ -28,7 +29,11 @@ fn style_of(v: &Val) -> StyleValue {
 fn trigger_button(node: &Node, cx: &mut RenderCx<'_>, attrs: Vec<(&str, Val)>, style: StyleBlock) -> Result<(), RenderError> {
     let Some(label) = node.prop("trigger") else { return Ok(()) };
     let variant = node.prop("triggerVariant").cloned().unwrap_or_else(|| lit("outline"));
-    let mut b = synthetic(node, "ui-button", vec![("label", label.clone()), ("variant", variant)], attrs, Vec::new());
+    let mut props = vec![("label", label.clone()), ("variant", variant)];
+    if let Some(size) = node.prop("triggerSize") {
+        props.push(("size", size.clone()));
+    }
+    let mut b = synthetic(node, "ui-button", props, attrs, Vec::new());
     if let Some(p) = node.parts.get("trigger") {
         b.attrs.extend(p.attrs.clone());
         b.class = p.class.clone();
@@ -302,6 +307,7 @@ const ALIGNS: &[&str] = &["center", "start", "end"];
 const POPOVER_PROPS: &[PropDef] = &[
     PropDef::new("trigger", PropKind::Any, "Text of the button that opens it").required(),
     PropDef::new("triggerVariant", BUTTON_VARIANTS, "The trigger button's variant (default `outline`)"),
+    PropDef::new("triggerSize", BUTTON_SIZES, "The trigger button's size (default `default`)"),
     PropDef::new("side", PropKind::Enum(POP_SIDES), "Where it opens, next to the trigger (default `bottom`)"),
     PropDef::new("align", PropKind::Enum(ALIGNS), "Alignment along that side (default `center`; menus `start`)"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
@@ -388,6 +394,111 @@ impl Component for Popover {
         cx.open(&el, node)?;
         let menu = self.menu.then(|| lit(true));
         cx.with_context("ui-popover", Some(id), |cx| cx.with_context("ui-menu", menu, |cx| cx.children(node)))?;
+        cx.close("div");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- split button
+
+/// A primary action joined to a menu of secondary ones: a `ui-button` with the node's
+/// own `on`, and a `ui-dropdown-menu` on an arrow next to it holding the children.
+pub struct SplitButton;
+
+const SPLIT_PROPS: &[PropDef] = &[
+    PropDef::new("label", PropKind::Any, "The primary action's text").required(),
+    PropDef::new("variant", BUTTON_VARIANTS, "Both buttons' variant (default `default`)"),
+    PropDef::new("size", BUTTON_SIZES, "Both buttons' size (default `default`; not `icon`)"),
+    PropDef::new("disabled", PropKind::Any, "Disable the primary action (the menu still opens)"),
+    PropDef::new("menuLabel", PropKind::Any, "The arrow's name for screen readers (default `More actions`)"),
+    PropDef::new("side", PropKind::Enum(POP_SIDES), "Where the menu opens (default `bottom`)"),
+    PropDef::new("align", PropKind::Enum(ALIGNS), "The menu's alignment (default `end`: its right edge under the arrow)"),
+    PropDef::new("id", PropKind::Any, "The menu's element id (default: derived from the document)"),
+];
+
+static SPLIT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "stretch"), ("width", "fit-content")])
+        // The buttons meet: square inner corners, one border between them, drawn as a
+        // faint line so filled buttons show where one ends.
+        .nest("& > button:first-of-type", StyleBlock::from_pairs(&[("border-start-end-radius", "0"), ("border-end-end-radius", "0")]))
+        .nest(
+            "& > button:last-of-type",
+            StyleBlock::from_pairs(&[
+                ("border-start-start-radius", "0"),
+                ("border-end-start-radius", "0"),
+                ("margin-inline-start", "-1px"),
+                ("padding", "0 10px"),
+                ("font-size", "16px"),
+                ("border-inline-start-color", "color-mix(in srgb, currentColor 25%, transparent)"),
+            ]),
+        )
+        .nest("& > button:focus-visible", StyleBlock::from_pairs(&[("position", "relative"), ("z-index", "1")]))
+});
+
+impl Component for SplitButton {
+    fn name(&self) -> &'static str {
+        "ui-split-button"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "A primary action with an arrow that opens a menu of secondary ones. Its `on.click` is the \
+                  primary action; children are the menu's `ui-menu-item`, `ui-menu-label` and `ui-menu-separator`.",
+            props: SPLIT_PROPS,
+            parts: &["primary", "trigger"],
+            children: true,
+            open_props: false,
+        }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let variant = node.prop("variant").cloned().unwrap_or_else(|| lit("default"));
+        let mut primary = synthetic(node, "ui-button", vec![("label", node.prop("label").cloned().unwrap_or_else(|| lit(""))), ("variant", variant.clone())], Vec::new(), Vec::new());
+        primary.on = node.on.clone();
+        for name in ["size", "disabled"] {
+            if let Some(v) = node.prop(name) {
+                primary.props.insert(name.into(), v.clone());
+            }
+        }
+        if let Some(p) = node.parts.get("primary") {
+            primary.attrs.extend(p.attrs.clone());
+            primary.class = p.class.clone();
+            primary.style = p.style.clone();
+        }
+
+        let label = node.prop("menuLabel").cloned().unwrap_or_else(|| lit("More actions"));
+        let mut props = vec![("trigger", lit("▾")), ("triggerVariant", variant), ("align", lit("end"))];
+        for name in ["side", "align", "id"] {
+            if let Some(v) = node.prop(name) {
+                props.retain(|(k, _)| *k != name);
+                props.push((name, v.clone()));
+            }
+        }
+        if let Some(size) = node.prop("size") {
+            props.push(("triggerSize", size.clone()));
+        }
+        let mut menu = synthetic(node, "ui-dropdown-menu", props, Vec::new(), Vec::new());
+        let mut trigger = node.parts.get("trigger").cloned().unwrap_or_default();
+        trigger.attrs.entry("aria-label".into()).or_insert(label);
+        menu.parts.insert("trigger".into(), trigger);
+        menu.children = node.children.clone();
+
+        // The wrapper takes the node's attrs, class and style; its `on` is the primary
+        // button's.
+        let outer = Node {
+            kind: node.kind.clone(),
+            path: node.path.clone(),
+            props: Default::default(),
+            attrs: node.attrs.clone(),
+            class: node.class.clone(),
+            style: node.style.clone(),
+            parts: Default::default(),
+            on: Default::default(),
+            children: Vec::new(),
+        };
+        let mut el = cx.element("div", &outer);
+        el.base_style_ref(&SPLIT).attr("role", "group");
+        cx.open(&el, &outer)?;
+        forms::Button.render(&primary, cx)?;
+        Popover::MENU.render(&menu, cx)?;
         cx.close("div");
         Ok(())
     }

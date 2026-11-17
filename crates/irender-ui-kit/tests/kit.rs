@@ -61,6 +61,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-toaster", json!({ "bind": "k" })),
         ("ui-dialog-close", json!({ "label": "L" })),
         ("ui-combobox", json!({ "options": ["a"] })),
+        ("ui-split-button", json!({ "label": "Save" })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -75,7 +76,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 52);
+    assert_eq!(kit, 53);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -433,6 +434,30 @@ fn multiple_toggle_group_presses_each_option_in_the_list() {
     // Pressed follows `includes`, and a press `toggle`s the option in the list.
     assert!(body.contains("{&quot;f&quot;:&quot;includes&quot;,&quot;a&quot;:[{&quot;p&quot;:[&quot;marks&quot;]},{&quot;l&quot;:&quot;i&quot;}]}"), "{body}");
     assert!(body.contains("{&quot;f&quot;:&quot;toggle&quot;,&quot;a&quot;:[{&quot;p&quot;:[&quot;marks&quot;]},{&quot;l&quot;:&quot;i&quot;}]}"), "{body}");
+}
+
+#[test]
+fn split_button_joins_a_primary_action_to_a_menu() {
+    let page = render_with(
+        json!({ "type": "ui-split-button",
+            "props": { "label": "Download PDF", "variant": "outline", "size": "sm", "id": "dl" },
+            "attrs": { "data-test": "split" },
+            "on": { "click": { "action": "set_state", "key": "last", "value": "pdf" } },
+            "children": [ { "type": "ui-menu-item", "props": { "label": "Download Excel" },
+                            "on": { "click": { "action": "set_state", "key": "last", "value": "xlsx" } } } ] }),
+        json!({ "last": null }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The wrapper keeps the node's attrs; the primary button gets its click.
+    assert!(body.starts_with(r#"<div data-test="split" role="group"><button type="button" data-i-on="#), "{body}");
+    assert!(body.contains(r#">Download PDF</button>"#), "{body}");
+    assert_eq!(body.matches("data-i-on=").count(), 2, "the primary action and the menu item: {body}");
+    // The arrow opens the menu and says what it is.
+    assert!(body.contains(r#"<button popovertarget="dl" aria-haspopup="menu" aria-label="More actions" type="button">▾</button>"#), "{body}");
+    assert!(body.contains(r#"popover="auto" id="dl" role="menu""#), "{body}");
+    assert!(body.contains(r#"role="menuitem""#), "{body}");
 }
 
 #[test]

@@ -291,6 +291,56 @@ root:
                 - { type: ui-button, props: { label: "+", variant: outline, size: icon } }
                 - { type: ui-button, props: { label: "−", variant: outline, size: icon } }
 
+    # ---------------------------------------------------------------- split button
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Split button } }
+        - type: ui-text
+          props: { variant: muted, text: "A primary action, with the others one click away. The arrow opens a menu: ↑ ↓ to move, Enter to choose, Esc to close." }
+        - type: stack
+          props: { direction: row, gap: 12, wrap: true, align: center }
+          children:
+            - type: ui-split-button
+              props: { label: Download PDF, variant: outline, menuLabel: More download formats }
+              on: { click: { action: set_state, key: toast, value: { title: "Downloading report.pdf", description: "Your PDF is on its way." } } }
+              children:
+                - type: ui-menu-item
+                  props: { label: Download Excel }
+                  on: { click: { action: set_state, key: toast, value: { title: "Downloading report.xlsx", description: "Your spreadsheet is on its way." } } }
+                - type: ui-menu-item
+                  props: { label: Download CSV }
+                  on: { click: { action: set_state, key: toast, value: { title: "Downloading report.csv", description: "Your CSV is on its way." } } }
+                - { type: ui-menu-separator }
+                - type: ui-menu-item
+                  props: { label: Email the report }
+                  on: { click: { action: set_state, key: toast, value: { title: "Report emailed", description: "Sent to your inbox." } } }
+            - type: ui-split-button
+              props: { label: Publish, menuLabel: More publishing options }
+              on: { click: { action: set_state, key: toast, value: { title: "Published", description: "The page is live." } } }
+              children:
+                - type: ui-menu-item
+                  props: { label: Schedule… }
+                  on: { click: { action: set_state, key: toast, value: { title: "Scheduled", description: "It goes live tomorrow at 9:00." } } }
+                - type: ui-menu-item
+                  props: { label: Publish to staging }
+                  on: { click: { action: set_state, key: toast, value: { title: "Published to staging", description: "Check it before it goes live." } } }
+                - { type: ui-menu-separator }
+                - type: ui-menu-item
+                  props: { label: Unpublish, variant: destructive }
+                  on: { click: { action: set_state, key: toast, value: { title: "Unpublished", description: "The page is offline." } } }
+            - type: ui-split-button
+              props: { label: Save draft, variant: secondary, size: sm, menuLabel: More save options }
+              on: { click: { action: set_state, key: toast, value: { title: "Draft saved", description: "" } } }
+              children:
+                - { type: ui-menu-label, props: { text: Save as } }
+                - type: ui-menu-item
+                  props: { label: Template }
+                  on: { click: { action: set_state, key: toast, value: { title: "Saved as a template", description: "" } } }
+                - type: ui-menu-item
+                  props: { label: Copy }
+                  on: { click: { action: set_state, key: toast, value: { title: "Saved a copy", description: "" } } }
+
     # ---------------------------------------------------------------- combobox
     - type: stack
       props: { gap: 8 }

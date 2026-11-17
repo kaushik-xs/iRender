@@ -890,3 +890,60 @@ fn lists_follow_state_in_chrome() {
         "\n{result}"
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn split_buttons_in_chrome() {
+    let set = |v: &str| serde_json::json!({ "click": { "action": "set_state", "key": "last", "value": v } });
+    let doc = serde_json::json!({ "version": 1, "state": { "last": null },
+        // Room on the left, so the menu can line up with the arrow instead of the window's edge.
+        "root": { "type": "stack", "style": { "padding-left": 240 }, "children": [
+            { "type": "ui-split-button", "props": { "label": "Download PDF", "variant": "outline", "id": "dl" }, "on": set("pdf"),
+              "children": [
+                { "type": "ui-menu-item", "props": { "label": "Download Excel" }, "on": set("xlsx") },
+                { "type": "ui-menu-item", "props": { "label": "Download CSV" }, "on": set("csv") } ] },
+            { "type": "ui-split-button", "props": { "label": "Publish", "id": "pub" }, "on": set("publish"),
+              "children": [ { "type": "ui-menu-item", "props": { "label": "Schedule" }, "on": set("schedule") } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]");
+      const tick = () => new Promise((r) => setTimeout(r, 0));
+      const btn = (t) => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === t);
+      const arrow = (id) => document.querySelector(`[popovertarget=${id}]:not([role])`);
+      const open = (id) => document.getElementById(id).matches(":popover-open");
+      const step = (label) => out.push(`${label} ${root.__irender.state.last} ${open("dl")} ${open("pub")}`);
+      btn("Download PDF").click(); await tick(); step("primary");
+      arrow("dl").click(); await tick(); step("arrow");
+      const r = (el) => el.getBoundingClientRect();
+      out.push("aligned " + Math.round(r(document.getElementById("dl")).right - r(arrow("dl")).right)
+        + " joined " + Math.round(r(arrow("dl")).left - r(btn("Download PDF")).right));
+      btn("Download CSV").click(); await tick(); step("item");
+      arrow("pub").click(); await tick(); step("other arrow");
+      btn("Schedule").click(); await tick(); step("other item");
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("split-button", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // The primary action runs without opening anything.
+            "primary pdf false false",
+            "arrow pdf true false",
+            // The menu's right edge sits under the arrow's; the arrow overlaps one border.
+            "aligned 0 joined -1",
+            "item csv false false",
+            "other arrow csv false true",
+            "other item schedule false false",
+        ],
+        "\n{result}"
+    );
+}
