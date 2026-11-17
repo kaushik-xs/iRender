@@ -1,6 +1,6 @@
 # irender-flow-kit
 
-Node-and-edge diagrams for [iRender](../../README.md) documents: flowcharts, workflows and ER diagrams. `ui-flow` reads nodes and edges in [React Flow](https://reactflow.dev/)'s JSON shape, so a graph React Flow saved renders as it is. Every node type is a template you write as an ordinary iRender tree, so a node can hold any component, including [irender-ui-kit](../irender-ui-kit/README.md)'s, icons and sparklines. The kit's script handles pan and zoom, automatic layout, edge routing, selection, dragging, connecting, deleting, a palette and the minimap. It is about 19 KB gzipped (unminified), needs no other library, and is added once per page that has a flow.
+Node-and-edge diagrams for [iRender](../../README.md) documents: flowcharts, workflows and ER diagrams. `ui-flow` reads nodes and edges in [React Flow](https://reactflow.dev/)'s JSON shape, so a graph React Flow saved renders as it is. Every node type is a template you write as an ordinary iRender tree, so a node can hold any component, including [irender-ui-kit](../irender-ui-kit/README.md)'s, icons and sparklines. The kit's script handles pan and zoom, automatic layout, edge routing, selection, dragging, connecting, deleting, a palette, containers, copy and paste, undo, search and the minimap. It is about 23 KB gzipped (unminified), needs no other library, and is added once per page that has a flow.
 
 ```rust
 let mut engine = irender_html::Engine::new();
@@ -65,7 +65,15 @@ How templates work:
 - **Which template a node gets:** a `ui-flow-node` draws every node whose `type` matches its own. One without a `type` (or with `type: default`) draws the rest.
 - **What a template can read:** inside a template, `node` is the node and `nodeIndex` is its position in the array. Templates can also read state and server data, like any other part of the document.
 - **Styling:** the template's `style`, `class`, `attrs` and `on` apply to the node's box. `variant: card` (the default) adds a border, background and padding; `variant: plain` leaves all of that to you.
-- **Selection styling:** a selected node has `data-selected`, and one dimmed by `highlight` has `data-dimmed`. Style them with `"&[data-selected]": { … }`.
+- **State styling:** nodes carry attributes you can style with `"&[data-selected]": { … }`:
+
+  | Attribute | When |
+  |---|---|
+  | `data-selected` | The node is selected |
+  | `data-dimmed` | `highlight` or `search` dims it |
+  | `data-match` | `search` matches it |
+  | `data-active` | It is the current match |
+  | `data-drop-target` | It is the container a dragged node would drop into |
 
 `ui-flow-port` marks where edges attach:
 
@@ -77,6 +85,28 @@ How templates work:
 | `offset` | How far along the side, e.g. `30%` or `24` (px). Leave it out and ports sharing a side of the node are spread evenly. |
 
 A port is placed on the side of its nearest positioned ancestor. For a port directly in the node, that's the node itself, and its edges start at the node's border. A port inside an element with `position: relative`, such as a table row, sits on that element instead. That's how one node can have a port per row.
+
+### Containers
+
+```yaml
+- type: ui-flow-node
+  props: { type: loop, variant: plain, container: true, resizable: true, minWidth: 260, minHeight: 140 }
+  style: { border: 1.5px dashed $color.border, border-radius: 12 }
+  children:
+    - { type: text, props: { value: "{{ node.data.label }}" } }
+    - { type: ui-flow-port, props: { type: target } }
+    - { type: ui-flow-port, props: { id: done } }
+    - type: element                     # inside, top left, facing in
+      style: { position: absolute, left: 12, top: 44, width: 0, height: 0 }
+      children: [{ type: ui-flow-port, props: { id: start, scope: children, side: right, offset: 0 } }]
+```
+
+- **Nesting:** a node whose `parentId` names a `container` sits inside it. Its `position` is relative to the container's corner, and it moves with the container. The container is drawn under the nodes inside it, and edges between those nodes are drawn above it.
+- **Size:** a container, or any `resizable` node, is exactly its JSON `width` × `height`. Other nodes use those as minimum sizes and grow with their content.
+- **Moving in and out:** while dragging (when `draggable`), the innermost container under the node's centre is marked `data-drop-target`. Dropping the node there moves it inside: it keeps its place on screen, and its `parentId` and relative `position` are written. Dragging it out of its container moves it back out. The nodes array is kept with parents before their children, as React Flow requires.
+- **Edges across containers:** with `connect.sameParent`, an edge that would cross from one container to another isn't allowed. One that a move leaves crossing is removed.
+- **`scope: children`:** a port with this connects only to nodes inside its own node, whatever `sameParent` says. This is the loop's start port.
+- **Resizing:** `resizable` adds a handle in the bottom-right corner, shown on hover and selection. Dragging it writes `width` and `height`, no smaller than `minWidth` / `minHeight`.
 
 ## Edge types
 
@@ -133,6 +163,9 @@ A template's `style` styles the path. Its children are the label, which sits at 
 | `bindEdges` | The same for edges, after a connection or a deletion. |
 | `bindDelete` | With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open. Null otherwise. |
 | `bindViewport` | State key kept in sync with `{ x, y, zoom }`. |
+| `search` | Text to find in the nodes' text and ids, ignoring case and accents. Matches get `data-match`; everything else is dimmed. The view pans to the first match. |
+| `bindMatches` | State key with the ids `search` matches. |
+| `bindHistory` | State key with how many edits can be undone and redone, `{ undo, redo }`, e.g. to disable buttons. |
 
 Every prop except `background`, `controls`, `minimap`, `height` and `title` can use state.
 
@@ -143,6 +176,7 @@ The flow fires these events, which you can handle in `on`. Each fires after its 
 - **`nodemove`:** a node was dragged.
 - **`connect`:** an edge was added.
 - **`nodeadd`:** a node was added.
+- **`noderesize`:** a node was resized.
 - **`deleterequest`:** a deletion is waiting for its dialog.
 - **`delete`:** nodes or edges were deleted.
 
@@ -183,6 +217,7 @@ The kit makes every edit itself and writes the result to `bindNodes` / `bindEdge
   | A port's `accepts` | Node types not in this list at the other end |
   | A port's `max` | More edges than this at the port |
   | A port's `connectable: false` | Any new connection at the port |
+  | A port's `scope: children` | A node outside the port's own node (see [Containers](#containers)) |
 
   A port's rules can use state.
 - **Selecting:**
@@ -216,8 +251,17 @@ A `call` whose name starts with `flow.` is a command to the flow:
 | `flow.select` | Selects `args.id`, or clears the selection when it's null |
 | `flow.center` | Pans to `args.id` |
 | `flow.relayout` | Clears dragged positions and lays the nodes out again |
+| `flow.undo`, `flow.redo` | Steps back or forward through the flow's own edits |
+| `flow.copy`, `flow.cut`, `flow.paste` | The clipboard, as with the keys |
+| `flow.next`, `flow.prev` | Steps through `search`'s matches, panning to each |
 
 Commands from inside the flow, such as a panel button, a node, or a dialog in either, reach it directly. From elsewhere, add `args.flow` with the flow's element id; without it, a command reaches the page's only flow.
+
+### Copy, paste and undo
+
+- **Copy and cut:** ⌘/Ctrl + C copies the selection, with everything inside any selected container and the edges between the copied nodes. Cut copies, then deletes.
+- **Paste:** ⌘/Ctrl + V adds a copy with new ids (`type` plus a number) and selects it. It lands at the pointer when the pointer is over the flow; otherwise it lands a step down and right of the original. Copies keep their container when it still exists. The clipboard is shared by the page's flows, so you can copy between them. The copies' `data` is unchanged, so if it holds ids of its own, have the host app remap them (e.g. `on: { nodeadd: { action: call, … } }`).
+- **Undo:** every edit the flow makes is one undo step: a drag, connection, deletion, resize, added node or paste. Undo (⌘/Ctrl + Z, or `flow.undo`) puts both arrays back as they were. Changes made to the state outside the flow aren't recorded. The flow keeps the last 100 steps.
 
 ## Mouse, touch and keyboard
 
@@ -230,6 +274,8 @@ Commands from inside the flow, such as a panel button, a node, or a dialog in ei
 | Shift + drag the background | Box selection |
 | Drag a node | Moves it, with the rest of the selection, when `draggable` is on |
 | Drag from a port | Connects, when `connectable` is on |
+| Drag a node onto a container | Moves it inside; dragging it out moves it out |
+| Drag a node's corner handle | Resizes it, when it is `resizable` |
 
 Controls inside nodes (buttons, inputs, links) work as usual and don't start a drag. Add `data-flow-nodrag` to any other element that should behave the same way.
 
@@ -241,6 +287,8 @@ The flow and its nodes are focusable:
 | Enter / Space | Selects the focused node |
 | Escape | Cancels a connection, or clears the selection |
 | Delete / Backspace | Deletes the selection, when `deletable` is on |
+| ⌘/Ctrl + Z, ⌘/Ctrl + Shift + Z (or Ctrl + Y) | Undo, redo |
+| ⌘/Ctrl + C, X, V | Copy, cut, paste |
 | ⌘/Ctrl + A | Selects all nodes |
 | `+` / `-` | Zoom |
 | Arrows | Pan, or move the selection when a node has focus and `draggable` is on (Shift for bigger steps) |

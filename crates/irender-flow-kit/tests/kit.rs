@@ -196,3 +196,24 @@ fn editing_props_ports_and_palette_items() {
     assert!(body.contains(r#"draggable="true""#) && body.contains(r#"data-i-x="ui-flow-item""#), "{body}");
     assert!(body.contains(r#""node":{"type":"task","data":{"label":{"$irender""#), "{body}");
 }
+
+#[test]
+fn containers_and_search_props() {
+    let page = render(
+        json!({ "type": "ui-flow", "props": { "nodes": nodes(), "search": "{{ q }}", "bindMatches": "hits", "bindHistory": "hist" },
+                "children": [
+                    { "type": "ui-flow-node", "props": { "type": "task", "container": true, "resizable": true, "minWidth": 200 },
+                      "children": [{ "type": "ui-flow-port", "props": { "id": "start", "scope": "children" } }] },
+                    { "type": "ui-flow-node", "children": [{ "type": "text", "props": { "value": "x" } }] } ] }),
+        json!({ "q": "", "hits": [], "hist": null }),
+    )
+    .unwrap();
+    let cfg = config(&page);
+    assert_eq!(cfg["nodeTypes"]["task"], json!({ "container": true, "resizable": true, "minWidth": 200 }));
+    assert_eq!(cfg["nodeTypes"][""], json!({}));
+    assert_eq!(cfg["bindMatches"], "hits");
+    assert_eq!(cfg["bindHistory"], "hist");
+    assert_eq!(cfg["props"]["search"]["$irender"]["r"]["p"], json!(["q"]));
+    assert_eq!(page.body.matches("data-flow-resize").count(), 1, "only the resizable template has a handle");
+    assert!(page.body.contains(r#"data-scope="children""#));
+}

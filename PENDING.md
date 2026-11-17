@@ -50,17 +50,19 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - a `ui-flow-item` palette (drag or click)
   - `flow.*` commands
 
-- [ ] **Phase 3, containers and extras:**
-  - [ ] Parent nodes can be resized.
-  - [ ] Dropping a node in or out of a container reparents it, converting between absolute and relative positions and removing edges that now cross a scope.
-  - [ ] Port rule `scope: children`, for a loop's start port.
-  - [ ] Copy, cut and paste with new ids.
-  - [ ] Search with dimming.
-  - [ ] Undo.
+- Phase 3 has shipped:
+  - containers (`container`, `resizable`, moving nodes in and out on drop, `scope: children` ports, stacking order)
+  - copy, cut and paste
+  - undo and redo
+  - search with dimming and stepping through matches
+
 - [ ] **Reconnecting an edge** by dragging its end to another port isn't supported; delete it and connect again.
 - [ ] **The palette's drag uses HTML drag and drop**, which touch screens don't support. A tap adds the node in the middle of the view instead.
 - [ ] **Edges are drawn only by the script.** Nodes have server positions, but a page without JS shows no edges. Idea: draw straight edges on the server when the positions are known.
 - [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`. With `layout: layered`, an added node's position is replaced by the layout.
+- [ ] **Undo records only the flow's own edits.** Changes made to the state outside the flow aren't recorded, and an undo puts back the arrays as the flow last saw them.
+- [ ] **No `extent: parent`.** A node inside a container can be dragged past its edges, and dropping it outside moves it out.
+- [ ] **Pasting doesn't remap ids inside `data`** (the process canvas does this for its own ids); the host app can, from a `call` on `nodeadd`.
 - [ ] **Not tried yet in the real apps:** the builder's workflow editor and ER diagram, and client-ui-next's process canvas. The yard view doesn't need the kit; a pan/zoom viewport around absolutely positioned elements would cover it.
 
 ## Icon kit: packs not drawn yet

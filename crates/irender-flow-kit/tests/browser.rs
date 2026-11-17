@@ -395,3 +395,135 @@ fn editing() {
         ],
     );
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn containers_clipboard_history_and_search() {
+    let step = json!({ "type": "ui-flow-node", "props": { "type": "step" }, "children": [
+        { "type": "text", "props": { "value": "{{ node.data.label }}" } },
+        { "type": "ui-flow-port", "props": { "type": "target" } },
+        { "type": "ui-flow-port", "props": { "type": "source" } } ] });
+    let lp = json!({ "type": "ui-flow-node", "props": { "type": "loop", "container": true, "resizable": true, "minWidth": 200 },
+        "style": { "text-align": "left" },
+        "children": [
+            { "type": "text", "props": { "value": "Loop" } },
+            { "type": "ui-flow-port", "props": { "type": "target" } },
+            { "type": "ui-flow-port", "props": { "id": "start", "scope": "children", "side": "left", "offset": 40 }, "attrs": { "id": "start" } },
+            { "type": "ui-flow-port", "props": { "id": "done" } } ] });
+    let doc = json!({ "version": 1,
+        "state": {
+            "q": "", "matches": [], "hist": null, "sel": null,
+            "nodes": [
+                { "id": "a", "type": "step", "position": { "x": 0, "y": 40 }, "data": { "label": "Alpha" } },
+                { "id": "b", "type": "step", "position": { "x": 0, "y": 300 }, "data": { "label": "Beta" } },
+                { "id": "loop", "type": "loop", "position": { "x": 300, "y": 0 }, "width": 300, "height": 200 },
+                { "id": "c1", "type": "step", "parentId": "loop", "position": { "x": 120, "y": 80 }, "data": { "label": "Inner" } } ],
+            "edges": [{ "id": "a-b", "source": "a", "target": "b" }] },
+        "root": { "type": "ui-flow", "attrs": { "id": "f" },
+            "props": { "nodes": "{{ nodes }}", "edges": "{{ edges }}", "editable": true, "fit": false, "viewport": { "x": 20, "y": 20, "zoom": 1 },
+                       "height": 600, "bindNodes": "nodes", "bindEdges": "edges", "bind": "sel", "bindHistory": "hist",
+                       "connect": { "sameParent": true }, "search": "{{ q }}", "bindMatches": "matches" },
+            "children": [step, lp] } });
+    let driver = r##"
+        const f = "f";
+        const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+        const drag = (from, [x, y], opts = {}) => {
+          const [x0, y0] = opts.at || centre(from);
+          from.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x0, clientY: y0 }));
+          for (const k of [0.3, 0.7, 1]) from.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, pointerType: "mouse", clientX: x0 + (x - x0) * k, clientY: y0 + (y - y0) * k }));
+          from.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x, clientY: y }));
+        };
+        const port = (id, type) => node(f, id).querySelector(`[data-flow-port][data-port-type="${type}"]`);
+        const key = (k, mods = {}) => flow(f).dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, metaKey: true, ...mods }));
+        const N = (id) => S().nodes.find((n) => n.id === id);
+
+        log("z", +node(f, "loop").style.zIndex < +node(f, "c1").style.zIndex, +edge(f, "a-b").style.zIndex < +node(f, "a").style.zIndex);
+        log("child", at(node(f, "c1")).join(","));
+
+        // `scope: children`: the loop's start port joins only nodes inside it.
+        drag(document.getElementById("start"), centre(port("c1", "target")));
+        log("scopeIn", S().edges.some((e) => e.source === "loop" && e.sourceHandle === "start" && e.target === "c1"));
+        drag(document.getElementById("start"), centre(port("b", "target")));
+        log("scopeOut", S().edges.some((e) => e.sourceHandle === "start" && e.target === "b"));
+        // `sameParent`: a top-level node can't reach inside.
+        drag(port("b", "source"), centre(port("c1", "target")));
+        log("sameParent", S().edges.some((e) => e.source === "b" && e.target === "c1"));
+        log("hist1", S().hist.undo, S().hist.redo);
+
+        // Into the loop: the node keeps its place on screen, and the edge to b,
+        // which now crosses out of the loop, goes.
+        const before = at(node(f, "a")), [lx, ly] = centre(node(f, "loop"));
+        drag(node(f, "a"), [lx - 40, ly + 40]);
+        const a = N("a");
+        log("into", a.parentId, S().edges.some((e) => e.id === "a-b"), at(node(f, "a"))[0] - at(node(f, "loop"))[0] === a.position.x);
+        // And out again.
+        const r = flow(f).getBoundingClientRect();
+        drag(node(f, "c1"), [r.left + 900, r.top + 450]);
+        log("out", N("c1").parentId === undefined, S().edges.some((e) => e.target === "c1"));
+        log("order", S().nodes.findIndex((n) => n.id === "loop") < S().nodes.findIndex((n) => n.id === "a"));
+
+        // Resizing writes width and height.
+        const h = node(f, "loop").querySelector("[data-flow-resize]"), [hx, hy] = centre(h);
+        drag(h, [hx + 50, hy + 30]);
+        log("resized", N("loop").width, N("loop").height);
+        drag(h, [hx - 400, hy]);
+        log("minWidth", N("loop").width);
+
+        // Undo and redo, from the keyboard and as commands.
+        const steps = S().hist.undo;
+        key("z");
+        log("undo", N("loop").width, S().hist.undo === steps - 1, S().hist.redo);
+        key("z", { shiftKey: true });
+        log("redo", N("loop").width, S().hist.redo);
+        flow(f).dispatchEvent(new CustomEvent("irender:call", { detail: { name: "flow.undo", args: {} } }));
+        log("undoCommand", N("loop").width);
+
+        // Copy the loop (with what's inside), paste: new ids, parents and edges follow.
+        drag(document.getElementById("start"), centre(port("a", "target")));
+        click(node(f, "loop"));
+        key("c");
+        const count = S().nodes.length;
+        key("v");
+        const added = S().nodes.slice(count);
+        const newLoop = added.find((n) => n.type === "loop");
+        log("pasted", added.length, newLoop?.id, added.filter((n) => n.parentId === newLoop?.id).length, S().sel);
+        const inner = S().edges.filter((e) => e.source === newLoop?.id);
+        log("pastedEdges", inner.length, inner.every((e) => added.some((n) => n.id === e.target)));
+        // Cut takes them out again.
+        key("x");
+        log("cut", S().nodes.length === count);
+
+        // Search: matches go to state, the rest is dimmed.
+        set("q", "alph");
+        await wait(50);
+        log("search", JSON.stringify(S().matches), node(f, "a").hasAttribute("data-match"), node(f, "b").hasAttribute("data-dimmed"), node(f, "a").hasAttribute("data-active"));
+        set("q", "");
+        await wait(50);
+        log("cleared", JSON.stringify(S().matches), node(f, "b").hasAttribute("data-dimmed"));
+    "##;
+    let Some(lines) = run("containers", doc, driver) else { return };
+    check(
+        &lines,
+        &[
+            "z true true",
+            "child 420,80",
+            "scopeIn true",
+            "scopeOut false",
+            "sameParent false",
+            "hist1 1 0",
+            "into loop false true",
+            "out true false",
+            "order true",
+            "resized 350 230",
+            "minWidth 200",
+            "undo 350 true 1",
+            "redo 200 0",
+            "undoCommand 350",
+            "pasted 2 loop_1 1 step_1",
+            "pastedEdges 1 true",
+            "cut true",
+            r#"search ["a"] true true true"#,
+            "cleared [] false",
+        ],
+    );
+}

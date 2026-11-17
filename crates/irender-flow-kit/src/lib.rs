@@ -99,6 +99,9 @@ const FLOW_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the selected node's id (null when none)"),
     PropDef::new("bindNodes", PropKind::StateKey, "State key that gets the nodes, with new positions, after a drag"),
     PropDef::new("bindViewport", PropKind::StateKey, "State key kept in sync with the view: `{ x, y, zoom }`"),
+    PropDef::new("search", PropKind::Any, "Text to find in the nodes: matches are marked `data-match`, everything else is dimmed"),
+    PropDef::new("bindMatches", PropKind::StateKey, "State key holding the ids of the nodes `search` matches"),
+    PropDef::new("bindHistory", PropKind::StateKey, "State key holding how many edits can be undone and redone: `{ undo, redo }`"),
     PropDef::new("bindEdges", PropKind::StateKey, "State key that gets the edges after a connection or a deletion"),
     PropDef::new("bindSelection", PropKind::StateKey, "State key holding every selected node and edge: `{ nodes: [ids], edges: [ids] }`"),
     PropDef::new("bindDelete", PropKind::StateKey, "With `confirmDelete`: what would be deleted, `{ nodes, edges }`, while the dialog is open"),
@@ -108,7 +111,7 @@ const FLOW_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "nodes", "edges", "layout", "direction", "nodeGap", "rankGap", "nodeOrigin", "edgePath", "fit", "fitPadding",
     "viewport", "center", "highlight", "selectable", "draggable", "pan", "zoom", "wheel", "minZoom", "maxZoom",
-    "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete",
+    "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete", "search",
 ];
 
 struct Flow;
@@ -149,17 +152,30 @@ impl Component for Flow {
             }
             edge_types.insert(ty.clone().unwrap_or_default(), c.into());
         }
+        let mut node_types = Map::new();
+        for (ty, t) in &templates.nodes {
+            let mut c = Map::new();
+            for name in ["container", "resizable", "minWidth", "minHeight"] {
+                if let Some(v) = cx.prop(t, name).filter(|v| !v.is_null()) {
+                    c.insert(name.into(), v);
+                }
+            }
+            node_types.insert(ty.clone().unwrap_or_default(), c.into());
+        }
         let policy = cx.policy();
         let config = json!({
             "props": props,
             "reactive": reactive,
             "edgeTypes": edge_types,
+            "nodeTypes": node_types,
             "bind": cx.prop_string(node, "bind"),
             "bindNodes": cx.prop_string(node, "bindNodes"),
             "bindViewport": cx.prop_string(node, "bindViewport"),
             "bindEdges": cx.prop_string(node, "bindEdges"),
             "bindSelection": cx.prop_string(node, "bindSelection"),
             "bindDelete": cx.prop_string(node, "bindDelete"),
+            "bindMatches": cx.prop_string(node, "bindMatches"),
+            "bindHistory": cx.prop_string(node, "bindHistory"),
             // Documents the policy doesn't trust can't load URLs through node styles.
             "safe": !(policy.allow_event_attributes && policy.allow_unsafe_urls),
         });
@@ -348,7 +364,15 @@ fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
     let host = template.unwrap_or(flow);
     cx.open(&el, host)?;
     match template {
-        Some(t) => cx.with_context("ui-flow-node", Some(Val::Lit(Json::Bool(true))), |cx| cx.children(t))?,
+        Some(t) => {
+            cx.with_context("ui-flow-node", Some(Val::Lit(Json::Bool(true))), |cx| cx.children(t))?;
+            if cx.prop(t, "resizable") == Some(Json::Bool(true)) {
+                let mut handle = Element::new("span");
+                handle.base_style_ref(&RESIZE).attr("data-flow-resize", "").attr("aria-hidden", "true");
+                cx.open(&handle, t)?;
+                cx.close("span");
+            }
+        }
         None => {
             let label = tpl("{{ node.data.label }}");
             let mut text = Element::new("span");
@@ -470,6 +494,10 @@ struct Template_(Kind);
 const NODE_TEMPLATE_PROPS: &[PropDef] = &[
     PropDef::new("type", PropKind::String, "The node type this template draws. Leave it out (or use `default`) for every type no other template declares"),
     PropDef::new("variant", PropKind::Enum(&["card", "plain"]), "`card` (default) gives the node a border, background and padding; `plain` leaves all of it to `style`"),
+    PropDef::new("container", PropKind::Bool, "Other nodes can sit inside it: dragging a node onto it makes it the node's parent, and off it, takes it out"),
+    PropDef::new("resizable", PropKind::Bool, "A handle in the bottom-right corner resizes the node; the size is saved as its `width` and `height`"),
+    PropDef::new("minWidth", PropKind::Number, "Smallest width when resizing (default 80)"),
+    PropDef::new("minHeight", PropKind::Number, "Smallest height when resizing (default 40)"),
 ];
 
 const EDGE_TEMPLATE_PROPS: &[PropDef] = &[
@@ -520,6 +548,7 @@ const PORT_PROPS: &[PropDef] = &[
     PropDef::new("offset", PropKind::Any, "Where along the side, e.g. `30%` or `24px`. Default: ports on one side share it evenly"),
     PropDef::new("accepts", PropKind::Any, "Node types allowed at the other end of a new connection, e.g. `[step, merge]`"),
     PropDef::new("max", PropKind::Any, "How many edges this port takes at most"),
+    PropDef::new("scope", PropKind::Enum(&["children"]), "`children`: connects only to nodes inside this node (a container), whatever `sameParent` says"),
     PropDef::new("connectable", PropKind::Any, "Whether new connections can start or end here (default true)"),
 ];
 
@@ -558,6 +587,7 @@ impl Component for Port {
             ("offset", "data-offset"),
             ("accepts", "data-accepts"),
             ("max", "data-max"),
+            ("scope", "data-scope"),
         ] {
             if let Some(v) = node.prop(prop) {
                 el.attr(attr, v.clone());
@@ -750,7 +780,9 @@ static NODE_BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("&[data-selectable]", pairs(&[("cursor", "pointer")]))
     .nest("&[data-draggable]", pairs(&[("cursor", "grab")]))
-    .nest("&[data-dragging]", pairs(&[("cursor", "grabbing"), ("z-index", "1")]))
+    .nest("&[data-dragging]", pairs(&[("cursor", "grabbing")]))
+    .nest("&[data-drop-target]", pairs(&[("outline", &format!("2px dashed {PRIMARY}")), ("outline-offset", "4px")]))
+    .nest("&[data-active]", pairs(&[("outline", "2px solid #f59e0b"), ("outline-offset", "3px")]))
     .nest("&[data-selected]", pairs(&[("outline", &format!("2px solid {PRIMARY}")), ("outline-offset", "2px")]))
     .nest("&:focus-visible", pairs(&[("outline", &format!("2px solid {RING}")), ("outline-offset", "2px")]))
     .nest("&[data-dimmed]", pairs(&[("opacity", "0.3")]))
@@ -817,6 +849,24 @@ static PATH: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-animated]", pairs(&[("stroke-dasharray", "5"), ("animation", "ui-flow-dash .5s linear infinite")]))
         .nest("&[data-highlighted]", pairs(&[("stroke", PRIMARY), ("stroke-width", "2")]))
         .nest("&[data-selected]", pairs(&[("stroke", PRIMARY), ("stroke-width", "2.5")]))
+});
+
+/// The corner handle of a resizable node, shown while it is hovered or selected.
+static RESIZE: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("position", "absolute"),
+        ("right", "0"),
+        ("bottom", "0"),
+        ("width", "12px"),
+        ("height", "12px"),
+        ("cursor", "nwse-resize"),
+        ("pointer-events", "auto"),
+        ("opacity", "0"),
+        ("transition", "opacity .15s"),
+        ("background", &format!("linear-gradient(135deg, transparent 50%, {MUTED} 50%, {MUTED} 60%, transparent 60%, transparent 75%, {MUTED} 75%, {MUTED} 85%, transparent 85%)")),
+    ])
+    .nest("[data-flow-node]:hover > &", pairs(&[("opacity", "1")]))
+    .nest("[data-flow-node][data-selected] > &", pairs(&[("opacity", "1")]))
 });
 
 /// The invisible, wider copy of an edge's path that takes clicks.

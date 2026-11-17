@@ -14,6 +14,8 @@
   // What a palette item carries while it is dragged.
   const MIME = "application/x-irender-flow-node";
   let flows = 0;
+  // What ⌘C / ⌘X last copied, shared by the page's flows.
+  let clipboard = null;
 
   // Resolves a behaviour's `{ "$irender": template }` values against the state
   // (and the list item it is in).
@@ -305,6 +307,9 @@
     let writing = false; // while the flow writes its selection to state
     let fitted = false, centred;
     const dragged = new Map(); // id → position set by dragging
+    const sized = new Map(); // id → { w, h } set by resizing
+    let history = [], future = [], batching = 0; // undo and redo
+    let found = null, query = "", active = 0; // `search`'s matches
     let laidOut = new Map(), layoutKey = "";
     const geo = new Map(); // id → { x, y, w, h }, absolute, in flow coordinates
     const ports = new Map(); // id → [{ id, type, side, x, y }], relative to the node
@@ -318,6 +323,17 @@
     const direction = () => (FLOW_SIDES[String(opt("direction", "LR")).toUpperCase()] ? String(opt("direction", "LR")).toUpperCase() : "LR");
     const zoomRange = () => [num(opt("minZoom"), 0.1), num(opt("maxZoom"), 2)];
 
+    // The template config of a node's type (`container`, `resizable`, …), found the
+    // way the server picks the template.
+    const typeOf = (n) => {
+      const k = str(n?.type);
+      return cfg.nodeTypes[k === "default" ? "" : k] ?? cfg.nodeTypes[""] ?? {};
+    };
+    const depth = (id) => {
+      let d = 0;
+      for (let n = byId.get(id); n && byId.has(str(n.parentId)) && d < 64; n = byId.get(str(n.parentId))) d++;
+      return d;
+    };
     const nodeEls = () => {
       const m = new Map();
       for (const n of nodeLayer.children) if (n.hasAttribute?.("data-flow-node")) m.set(n.getAttribute("data-flow-node"), n);
@@ -356,8 +372,11 @@
         props.push(name);
       };
       if (isObj(n.style)) for (const [k, v] of Object.entries(n.style)) set(k, v);
-      if (typeof n.width === "number") set("min-width", n.width);
-      if (typeof n.height === "number") set("min-height", n.height);
+      // A container or resizable node is exactly its size; others grow with content.
+      const t = typeOf(n), fixed = t.container || t.resizable, size = sized.get(str(n.id));
+      const w = size?.w ?? n.width, h = size?.h ?? n.height;
+      if (typeof w === "number") set(fixed ? "width" : "min-width", w);
+      if (typeof h === "number") set(fixed ? "height" : "min-height", h);
       styled.set(nodeEl, { classes, props });
     }
 
@@ -443,6 +462,7 @@
       dirty.clear();
       for (const id of geo.keys()) if (!byId.has(id)) { geo.delete(id); ports.delete(id); }
       layout();
+      search();
       place(els);
       if (!fitted && on("fit", true) && geo.size && el.clientWidth && el.clientHeight) fitView(false);
       else if (!fitted && !on("fit", true)) {
@@ -517,19 +537,25 @@
       }
       const selectable = on("selectable", true), draggable = can("draggable");
       flag(el, "data-connectable", connectable());
+      const activeId = found?.[active] ?? null, hits = found && new Set(found);
       for (const [id, nodeEl] of els) {
         const g = geo.get(id);
         show(nodeEl, !!g);
         if (!g) continue;
         nodeEl.style.transform = `translate(${g.x}px, ${g.y}px)`;
+        // Containers under their children; a dragged node above everything.
+        const d = depth(id) * 3 + (typeOf(byId.get(id)).container ? 0 : 2);
+        nodeEl.style.zIndex = nodeEl.hasAttribute("data-dragging") ? 1000 + d : d;
         flag(nodeEl, "data-selected", picked.nodes.has(id));
-        flag(nodeEl, "data-dimmed", focusing && !near.has(id));
+        flag(nodeEl, "data-dimmed", (focusing && !near.has(id)) || (hits && !hits.has(id)));
+        flag(nodeEl, "data-match", !!hits?.has(id));
+        flag(nodeEl, "data-active", id === activeId);
         flag(nodeEl, "data-selectable", selectable);
         flag(nodeEl, "data-draggable", draggable);
         if (selectable) nodeEl.tabIndex = 0;
         else nodeEl.removeAttribute("tabindex");
       }
-      drawEdges(sel, focusing);
+      drawEdges(sel, focusing, hits);
       drawMinimap();
     }
     // `display` rather than `hidden`, which a template's own `display` would override.
@@ -555,7 +581,7 @@
       return t === "arrow" || t === "arrowclosed" ? `url(#${uid}-${t})` : null;
     };
 
-    function drawEdges(sel, focusing) {
+    function drawEdges(sel, focusing, hits) {
       const els = edgeEls();
       const seen = new Set();
       for (const e of edges) {
@@ -595,8 +621,13 @@
         ms ? path.setAttribute("marker-start", ms) : path.removeAttribute("marker-start");
         flag(path, "data-animated", e.animated ?? tc.animated ?? false);
         const touches = focusing && (s === sel || t === sel);
+        const dim = (focusing && !touches) || (hits && !(hits.has(s) && hits.has(t)));
         flag(path, "data-highlighted", touches);
-        flag(r.svg, "data-dimmed", focusing && !touches);
+        flag(r.svg, "data-dimmed", dim);
+        // Above the deeper end's container, below its nodes.
+        const z = Math.max(depth(s), depth(t)) * 3 + 1;
+        r.svg.style.zIndex = z;
+        if (r.label) r.label.style.zIndex = z;
         if (r.svg.__style !== e.style) {
           for (const k of r.svg.__props || []) path.style.removeProperty(k);
           r.svg.__props = [];
@@ -618,7 +649,7 @@
         }
         if (r.label) {
           r.label.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
-          flag(r.label, "data-dimmed", focusing && !touches);
+          flag(r.label, "data-dimmed", dim);
         }
       }
       for (const [id, r] of els) if (!seen.has(id)) { if (r.svg) r.svg.hidden = true; if (r.label) r.label.hidden = true; }
@@ -780,13 +811,48 @@
       if (!warned.has(key)) { warned.add(key); console.warn(`ui-flow: set \`${key}\` to ${what}`); }
       return false;
     };
+    // One undo step per user action, however many writes it makes. Only edits the
+    // flow makes are recorded; undo puts back both arrays as they were.
+    function edit(fn) {
+      if (batching) return fn();
+      const before = { nodes: rawNodes(), edges: rawEdges() };
+      batching++;
+      let out;
+      try { out = fn(); } finally { batching--; }
+      if (rawNodes() !== before.nodes || rawEdges() !== before.edges) {
+        history.push(before);
+        if (history.length > 100) history.shift();
+        future = [];
+        announce();
+      }
+      return out;
+    }
+    function restore(from, to) {
+      const s = from.pop();
+      if (!s) return;
+      to.push({ nodes: rawNodes(), edges: rawEdges() });
+      dragged.clear();
+      sized.clear();
+      if (cfg.bindNodes) api.set(cfg.bindNodes, s.nodes);
+      if (cfg.bindEdges) api.set(cfg.bindEdges, s.edges);
+      choose(() => {
+        const ids = new Set(rawNodes().filter(isObj).map((n) => str(n.id))), es = new Set(rawEdges().filter(isObj).map(edgeId));
+        for (const id of [...picked.nodes]) if (!ids.has(id)) picked.nodes.delete(id);
+        for (const id of [...picked.edges]) if (!es.has(id)) picked.edges.delete(id);
+      });
+      announce();
+    }
+    const undo = () => restore(history, future);
+    const redo = () => restore(future, history);
+    const announce = () => cfg.bindHistory && api.set(cfg.bindHistory, { undo: history.length, redo: future.length });
     const toFlow = (e) => {
       const r = el.getBoundingClientRect();
       return { x: (e.clientX - r.left - el.clientLeft - view.x) / view.zoom, y: (e.clientY - r.top - el.clientTop - view.y) / view.zoom };
     };
-    function freshId(type) {
+    function freshId(type, also) {
       const base = str(type || "node").replace(/[^A-Za-z0-9_-]/g, "_") || "node";
       const taken = new Set(rawNodes().filter(isObj).map((n) => str(n.id)));
+      for (const id of also || []) taken.add(id);
       let i = 1;
       while (taken.has(`${base}_${i}`)) i++;
       return `${base}_${i}`;
@@ -799,7 +865,7 @@
       const raw = rawNodes();
       const free = t.id !== undefined && t.id !== null && !raw.some((n) => isObj(n) && str(n.id) === str(t.id));
       const node = { ...t, id: free ? t.id : freshId(t.type), position: { x: Math.round(at.x), y: Math.round(at.y) }, data: isObj(t.data) ? { ...t.data } : {} };
-      api.set(cfg.bindNodes, [...raw, node]);
+      edit(() => api.set(cfg.bindNodes, [...raw, node]));
       api.emit("nodeadd", { id: node.id });
       return node;
     }
@@ -832,7 +898,7 @@
       if (accepts) {
         try { list = accepts.startsWith("[") ? JSON.parse(accepts).map(str) : accepts.split(",").map((a) => a.trim()); } catch {}
       }
-      return { connectable: !p?.hasAttribute("data-noconnect"), accepts: list, max: max ? num(max, null) : null };
+      return { connectable: !p?.hasAttribute("data-noconnect"), accepts: list, max: max ? num(max, null) : null, scope: p?.getAttribute("data-scope") };
     };
     // Whether an edge may join `s` (a source port) to `t` (a target port), each
     // `{ node, port }`, under the flow's `connect` rules and the ports' own.
@@ -845,7 +911,11 @@
       if (s.node === t.node && !truthy(r.self)) return false;
       const sh = handleOf(s.port), th = handleOf(t.port);
       if (r.unique !== false && edges.some((e) => str(e.source) === s.node && str(e.target) === t.node && sameHandle(e.sourceHandle, sh) && sameHandle(e.targetHandle, th))) return false;
-      if (truthy(r.sameParent) && str(a.parentId ?? "") !== str(b.parentId ?? "")) return false;
+      // A `scope: children` port joins only the nodes inside its own node.
+      if (sr.scope === "children" || tr.scope === "children") {
+        if (sr.scope === "children" && str(b.parentId) !== s.node) return false;
+        if (tr.scope === "children" && str(a.parentId) !== t.node) return false;
+      } else if (truthy(r.sameParent) && str(a.parentId ?? "") !== str(b.parentId ?? "")) return false;
       const ta = str(a.type || "default"), tb = str(b.type || "default");
       if (sr.accepts && !sr.accepts.includes(tb)) return false;
       if (tr.accepts && !tr.accepts.includes(ta)) return false;
@@ -867,7 +937,7 @@
       const edge = { ...(isObj(props.newEdge) ? props.newEdge : {}), id, source: outId(s.node), target: outId(t.node) };
       if (sh !== null) edge.sourceHandle = sh;
       if (th !== null) edge.targetHandle = th;
-      api.set(cfg.bindEdges, [...rawEdges(), edge]);
+      edit(() => api.set(cfg.bindEdges, [...rawEdges(), edge]));
       api.emit("connect", { id, source: edge.source, target: edge.target });
     }
     // The port a dragged connection would join: the nearest one of the other type
@@ -895,7 +965,7 @@
     // The line drawn while connecting.
     const wire = document.createElementNS(NS, "svg");
     wire.setAttribute("aria-hidden", "true");
-    wire.style.cssText = "position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none;display:none";
+    wire.style.cssText = "position:absolute;z-index:9999;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none;display:none";
     wire.innerHTML = `<path fill="none" stroke="var(--color-primary, #18181b)" stroke-width="1.5" stroke-dasharray="5 4"/>`;
     pane.append(wire);
     let marked = null;
@@ -922,12 +992,18 @@
     function dropped(e, from) {
       if (!isObj(props.newNode) || !cfg.bindNodes) return;
       const at = toFlow(e);
-      const node = addNode(props.newNode, at);
-      if (!node) return;
-      const id = str(node.id), want = from.port.type === "source" ? "target" : "source";
-      const port = (ports.get(id) || []).find((p) => p.type === want) || { id: "", type: want, side: OPPOSITE[from.port.side], x: 0, y: 0 };
-      connect(from, { node: id, port });
-      selectNode(id);
+      // Next to the node it comes from: inside the same container.
+      const parent = byId.get(from.node)?.parentId;
+      const template = byId.has(str(parent)) ? { ...props.newNode, parentId: parent } : props.newNode;
+      const pg = byId.has(str(parent)) ? geo.get(str(parent)) : null;
+      edit(() => {
+        const node = addNode(template, pg ? { x: at.x - pg.x, y: at.y - pg.y } : at);
+        if (!node) return;
+        const id = str(node.id), want = from.port.type === "source" ? "target" : "source";
+        const port = (ports.get(id) || []).find((p) => p.type === want) || { id: "", type: want, side: OPPOSITE[from.port.side], x: 0, y: 0 };
+        connect(from, { node: id, port });
+        selectNode(id);
+      });
     }
 
     // --------------------------------------------------------------- deleting
@@ -958,9 +1034,11 @@
     function remove(d) {
       const ns = new Set(d.nodes), es = new Set(d.edges);
       pending = null;
-      if ((ns.size || es.size) && writes("bindEdges", "delete edges"))
-        api.set(cfg.bindEdges, rawEdges().filter((e) => !isObj(e) || !(es.has(edgeId(e)) || ns.has(str(e.source)) || ns.has(str(e.target)))));
-      if (ns.size && writes("bindNodes", "delete nodes")) api.set(cfg.bindNodes, rawNodes().filter((n) => !isObj(n) || !ns.has(str(n.id))));
+      edit(() => {
+        if ((ns.size || es.size) && writes("bindEdges", "delete edges"))
+          api.set(cfg.bindEdges, rawEdges().filter((e) => !isObj(e) || !(es.has(edgeId(e)) || ns.has(str(e.source)) || ns.has(str(e.target)))));
+        if (ns.size && writes("bindNodes", "delete nodes")) api.set(cfg.bindNodes, rawNodes().filter((n) => !isObj(n) || !ns.has(str(n.id))));
+      });
       if (cfg.bindDelete) api.set(cfg.bindDelete, null);
       choose(() => { ns.forEach((id) => picked.nodes.delete(id)); es.forEach((id) => picked.edges.delete(id)); });
       api.emit("delete", { nodes: d.nodes.map(outId), edges: d.edges });
@@ -985,6 +1063,12 @@
       else if (name === "flow.select") args.id === null || args.id === undefined ? clearSelection() : selectNode(str(args.id));
       else if (name === "flow.center") centreOn(str(args.id));
       else if (name === "flow.relayout") { dragged.clear(); layoutKey = ""; refresh(false); fitView(true); }
+      else if (name === "flow.undo") undo();
+      else if (name === "flow.redo") redo();
+      else if (name === "flow.copy") copy();
+      else if (name === "flow.cut") cut();
+      else if (name === "flow.paste") paste(null);
+      else if (name === "flow.next" || name === "flow.prev") step(name === "flow.next" ? 1 : -1);
       else return false;
       return true;
     }
@@ -1036,6 +1120,15 @@
       }
       if (pointers.size > 1) return;
       const base = { x: e.clientX, y: e.clientY, shift: e.shiftKey || e.metaKey || e.ctrlKey, moved: false };
+      const handle = t.closest("[data-flow-resize]");
+      if (handle && nodeLayer.contains(handle)) {
+        const nodeEl = handle.closest("[data-flow-node]"), id = nodeEl.getAttribute("data-flow-node"), g = geo.get(id);
+        if (g) {
+          e.preventDefault();
+          gesture = { ...base, kind: "resize", id, el: nodeEl, w: g.w, h: g.h };
+          return;
+        }
+      }
       const portEl = t.closest("[data-flow-port]");
       const nodeEl = t.closest("[data-flow-node]");
       const inNode = nodeEl && nodeLayer.contains(nodeEl);
@@ -1075,7 +1168,10 @@
       const under = (n) => { for (let p = byId.get(str(n.parentId)), i = 0; p && i < 64; p = byId.get(str(p.parentId)), i++) if (set.has(str(p.id))) return true; return false; };
       return ids.filter((x) => byId.has(x) && !under(byId.get(x))).map((x) => [x, { ...relative(byId.get(x)) }]);
     }
+    let hover = null; // where the pointer is, in flow coordinates, for pasting
+    el.addEventListener("pointerleave", () => (hover = null));
     el.addEventListener("pointermove", (e) => {
+      if (!e.target.closest?.("[data-flow-controls], [data-flow-minimap], [data-position]") || e.target.closest("[data-flow-pane]")) hover = toFlow(e);
       if (!pointers.has(e.pointerId)) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const g = gesture;
@@ -1102,6 +1198,22 @@
         if (!g.moved) { g.group = grab(g.id); g.el.setAttribute("data-dragging", ""); }
         start(e);
         for (const [id, from] of g.group) dragged.set(id, { x: from.x + dx / view.zoom, y: from.y + dy / view.zoom });
+        place();
+        // The container it would drop into.
+        const into = g.group.length ? landing(g.group[0][0]) : null;
+        if (g.into !== into) {
+          if (g.into) nodeEls().get(g.into)?.removeAttribute("data-drop-target");
+          if (into) nodeEls().get(into)?.setAttribute("data-drop-target", "");
+          g.into = into;
+        }
+      } else if (g.kind === "resize") {
+        start(e);
+        const t = typeOf(byId.get(g.id));
+        const w = Math.max(num(t.minWidth, 80), g.w + dx / view.zoom), h = Math.max(num(t.minHeight, 40), g.h + dy / view.zoom);
+        sized.set(g.id, { w: Math.round(w), h: Math.round(h) });
+        g.el.style.width = Math.round(w) + "px";
+        g.el.style.height = Math.round(h) + "px";
+        measure(g.el, g.id);
         place();
       } else if (g.kind === "connect") {
         start(e);
@@ -1144,7 +1256,13 @@
       } else if (g.kind === "node" && !g.moved) selectNode(g.id, g.shift);
       else if (g.kind === "node") {
         g.el.removeAttribute("data-dragging");
+        if (g.into) nodeEls().get(g.into)?.removeAttribute("data-drop-target");
         moved(g.group.map(([id]) => id));
+      } else if (g.kind === "resize" && g.moved) {
+        const size = sized.get(g.id);
+        if (size && writes("bindNodes", "resize nodes"))
+          edit(() => api.set(cfg.bindNodes, rawNodes().map((n) => (isObj(n) && str(n.id) === g.id ? { ...n, width: size.w, height: size.h } : n))));
+        api.emit("noderesize", { id: outId(g.id) });
       } else if (g.kind === "connect") {
         if (!g.moved) return selectNode(g.from.node, g.shift);
         const to = candidate(e, g.from);
@@ -1166,20 +1284,179 @@
     });
 
     // After a drag: the nodes, with the moved ones' new positions, go to `bindNodes`.
+    // After a drag: the nodes, with the moved ones' new positions, go to `bindNodes`.
+    // A node dropped onto a container moves into it, and one dragged out of its
+    // container moves out; with `connect.sameParent`, edges that now cross from
+    // one container to another are removed.
     function moved(ids) {
       const at = new Map(ids.filter((id) => dragged.has(id)).map((id) => [id, dragged.get(id)]));
       if (!at.size) return;
       if (cfg.bindNodes) {
         const [ox, oy] = origin();
+        const parents = new Map();
+        for (const id of at.keys()) {
+          const into = landing(id), now = byId.has(str(byId.get(id)?.parentId)) ? str(byId.get(id).parentId) : null;
+          if (into !== now) parents.set(id, into);
+        }
         const position = (id) => {
-          const p = at.get(id), g = geo.get(id) || { w: 0, h: 0 };
+          const g = geo.get(id) || { x: 0, y: 0, w: 0, h: 0 };
+          if (parents.has(id)) {
+            // The node stays where it is on screen: its corner, relative to the new parent.
+            const pg = parents.get(id) === null ? { x: 0, y: 0 } : geo.get(parents.get(id));
+            return { x: Math.round(g.x - pg.x + ox * g.w), y: Math.round(g.y - pg.y + oy * g.h) };
+          }
+          const p = at.get(id);
           // Laid-out positions are corners; saved positions follow `nodeOrigin`.
           const laid = laidOut.has(id);
           return { x: Math.round(p.x + (laid ? ox * g.w : 0)), y: Math.round(p.y + (laid ? oy * g.h : 0)) };
         };
-        api.set(cfg.bindNodes, rawNodes().map((n) => (isObj(n) && at.has(str(n.id)) ? { ...n, position: position(str(n.id)) } : n)));
+        let list = rawNodes().map((n) => {
+          if (!isObj(n) || !at.has(str(n.id))) return n;
+          const id = str(n.id), next = { ...n, position: position(id) };
+          if (parents.has(id)) {
+            const parent = parents.get(id);
+            if (parent === null) delete next.parentId;
+            else next.parentId = byId.get(parent)?.id ?? parent;
+            dragged.set(id, { x: next.position.x, y: next.position.y });
+          }
+          return next;
+        });
+        edit(() => {
+          if (parents.size) list = parentsFirst(list);
+          api.set(cfg.bindNodes, list);
+          if (parents.size && truthy(rules().sameParent) && cfg.bindEdges) {
+            const parentOf = new Map(list.filter(isObj).map((n) => [str(n.id), str(n.parentId ?? "")]));
+            // A `scope: children` port keeps only edges into its own node; any other
+            // edge needs both ends in the same container.
+            const scoped = (id, handle, type) =>
+              rulesOf((ports.get(id) || []).find((p) => p.type === type && sameHandle(p.id === "" ? null : p.id, handle)) || {}).scope === "children";
+            const keep = (e) => {
+              const s = str(e.source), t = str(e.target);
+              if (scoped(s, e.sourceHandle, "source")) return parentOf.get(t) === s;
+              if (scoped(t, e.targetHandle, "target")) return parentOf.get(s) === t;
+              return parentOf.get(s) === parentOf.get(t);
+            };
+            const kept = rawEdges().filter((e) => !isObj(e) || keep(e));
+            if (kept.length !== rawEdges().length) api.set(cfg.bindEdges, kept);
+          }
+        });
       }
       for (const id of at.keys()) api.emit("nodemove", { id: outId(id) });
+    }
+    // The innermost container under a node's centre, not counting the node itself
+    // or anything inside it; null for none.
+    function landing(id) {
+      const g = geo.get(id);
+      if (!g) return null;
+      const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
+      const inside = (c) => { for (let n = byId.get(c), i = 0; n && i < 64; n = byId.get(str(n.parentId)), i++) if (str(n.id) === id) return true; return false; };
+      let best = null, bestDepth = -1;
+      for (const n of nodes) {
+        const c = str(n.id);
+        if (c === id || !typeOf(n).container || inside(c)) continue;
+        const b = geo.get(c);
+        if (!b || cx < b.x || cx > b.x + b.w || cy < b.y || cy > b.y + b.h) continue;
+        const d = depth(c);
+        if (d > bestDepth) { best = c; bestDepth = d; }
+      }
+      return best;
+    }
+    // React Flow wants a parent before its children.
+    function parentsFirst(list) {
+      const byKey = new Map(list.filter(isObj).map((n) => [str(n.id), n]));
+      const out = [], done = new Set();
+      const put = (n, d = 0) => {
+        if (!isObj(n)) return out.push(n);
+        const id = str(n.id);
+        if (done.has(id)) return;
+        done.add(id);
+        const parent = byKey.get(str(n.parentId));
+        if (parent && d < 64) put(parent, d + 1);
+        out.push(n);
+      };
+      list.forEach((n) => put(n));
+      return out;
+    }
+
+    // ---------------------------------------------------------- copy and paste
+    // The selection with everything inside it, and the edges between them.
+    function copy() {
+      const ns = new Set(doomed().nodes);
+      if (!ns.size) return false;
+      const list = rawNodes().filter((n) => isObj(n) && ns.has(str(n.id)));
+      const es = rawEdges().filter((e) => isObj(e) && ns.has(str(e.source)) && ns.has(str(e.target)));
+      clipboard = { nodes: structuredClone(list), edges: structuredClone(es), pastes: 0 };
+      return true;
+    }
+    function cut() {
+      if (copy() && can("deletable")) remove(doomed());
+    }
+    // New ids for everything, at the pointer when it is over the flow, else a step
+    // down and right of the original; the pasted nodes become the selection.
+    function paste(at) {
+      if (!clipboard || !writes("bindNodes", "paste nodes")) return;
+      const map = new Map(), made = [];
+      for (const n of clipboard.nodes) {
+        const id = freshId(n.type, made);
+        made.push(id);
+        map.set(str(n.id), id);
+      }
+      clipboard.pastes++;
+      const top = (n) => !map.has(str(n.parentId));
+      const tops = clipboard.nodes.filter(top);
+      let dx = 24 * clipboard.pastes, dy = 24 * clipboard.pastes;
+      if (at && tops.every((n) => !byId.has(str(n.parentId)))) {
+        dx = at.x - Math.min(...tops.map((n) => num(n.position?.x, 0)));
+        dy = at.y - Math.min(...tops.map((n) => num(n.position?.y, 0)));
+      }
+      const nodesOut = clipboard.nodes.map((n) => {
+        const next = { ...structuredClone(n), id: map.get(str(n.id)) };
+        delete next.selected;
+        if (map.has(str(n.parentId))) next.parentId = map.get(str(n.parentId));
+        else if (!byId.has(str(n.parentId))) delete next.parentId;
+        if (top(n)) next.position = { x: Math.round(num(n.position?.x, 0) + dx), y: Math.round(num(n.position?.y, 0) + dy) };
+        return next;
+      });
+      const taken = new Set(rawEdges().filter(isObj).map(edgeId));
+      const edgesOut = clipboard.edges.map((e) => {
+        const next = { ...structuredClone(e), source: map.get(str(e.source)), target: map.get(str(e.target)) };
+        let id = `${next.source}-${next.target}`;
+        for (let i = 2; taken.has(id); i++) id = `${next.source}-${next.target}~${i}`;
+        taken.add(id);
+        next.id = id;
+        delete next.selected;
+        return next;
+      });
+      edit(() => {
+        api.set(cfg.bindNodes, [...rawNodes(), ...nodesOut]);
+        if (edgesOut.length && cfg.bindEdges) api.set(cfg.bindEdges, [...rawEdges(), ...edgesOut]);
+      });
+      choose(() => { picked.nodes.clear(); picked.edges.clear(); for (const id of made) picked.nodes.add(id); });
+      api.emit("nodeadd", { ids: nodesOut.map((n) => n.id) });
+    }
+
+    // ------------------------------------------------------------------ search
+    // `search` matches a node's text or id, ignoring case and accents. The matches
+    // go to `bindMatches`; `flow.next` / `flow.prev` step through them.
+    const fold = (v) => str(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    function search() {
+      const q = fold(opt("search", "")).trim();
+      const els = nodeEls();
+      const next = q ? nodes.map((n) => str(n.id)).filter((id) => fold(id).includes(q) || fold(els.get(id)?.textContent).includes(q)) : null;
+      const changed = q !== query;
+      if (changed) { query = q; active = 0; }
+      if (JSON.stringify(next) !== JSON.stringify(found)) {
+        found = next;
+        if (active >= (found?.length ?? 0)) active = 0;
+        if (cfg.bindMatches) api.set(cfg.bindMatches, (found || []).map(outId));
+      }
+      if (changed && found?.length) centreOn(found[active]);
+    }
+    function step(by) {
+      if (!found?.length) return;
+      active = (active + by + found.length) % found.length;
+      place();
+      centreOn(found[active]);
     }
 
     el.addEventListener("wheel", (e) => {
@@ -1221,6 +1498,16 @@
       } else if ((e.key === "Delete" || e.key === "Backspace") && can("deletable")) {
         e.preventDefault();
         requestDelete();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z" || e.key === "y")) {
+        e.preventDefault();
+        e.key === "y" || e.shiftKey ? redo() : undo();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === "c" || e.key === "x" || e.key === "v")) {
+        // Text someone has selected in a node copies as text.
+        if (e.key !== "v" && !window.getSelection()?.isCollapsed) return;
+        e.preventDefault();
+        if (e.key === "c") copy();
+        else if (e.key === "x") cut();
+        else if (cfg.bindNodes) paste(hover);
       } else if (e.key === "a" && (e.metaKey || e.ctrlKey) && on("selectable", true)) {
         e.preventDefault();
         choose(() => { for (const n of nodes) picked.nodes.add(str(n.id)); });
