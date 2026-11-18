@@ -1,6 +1,8 @@
 # Block: an orders table wired to charts, both ways.
 # - The charts above draw the rows the table shows: the table writes them to `view`
 #   (`bindView`) after its filters and search, so filtering the table redraws them.
+# - A period picker (`ui-date-picker`, a range with presets) writes the dates it covers
+#   to `periodDates` (`bindRange`), which the table filters by, so the charts follow too.
 # - Clicking a region's bar filters the table (`bind: region` on the chart, `filter`
 #   on the table), and clicking it again clears it.
 # - Cells hold charts too: a sparkline per row (`cell: sparkline`), and each row opens
@@ -15,6 +17,8 @@ version: 1
 state:
   view: []
   region: null
+  period: null
+  periodDates: null
   picked: []
   toast: null
 root:
@@ -37,13 +41,30 @@ root:
           children:
             - { type: ui-heading, props: { level: 2, text: Orders } }
             - { type: ui-text, props: { variant: muted, text: "Filter the table and the charts follow; click a region's bar to filter the table." } }
+        - type: ui-date-picker
+          props:
+            bind: period
+            bindRange: periodDates
+            mode: range
+            months: 2
+            clearable: true
+            placeholder: All of 2026
+            min: "2026-01-01"
+            max: "2026-12-31"
+            locale: en-US
+            presets:
+              - { label: Q1, from: "2026-01-01", to: "2026-03-31" }
+              - { label: Q2, from: "2026-04-01", to: "2026-06-30" }
+              - { label: Q3, from: "2026-07-01", to: "2026-09-30" }
+              - { label: First half, from: "2026-01-01", to: "2026-06-30" }
+              - yearToDate
+          style: { width: 280, margin-left: auto }
         - type: if
           props: { when: "{{ region }}" }
           children:
             - type: ui-button
               props: { label: "Region: {{ region }} ✕", variant: secondary, size: sm }
               attrs: { aria-label: "Clear the region filter ({{ region }})" }
-              style: { margin-left: auto }
               on: { click: { action: set_state, key: region, value: null } }
 
     # ---------------------------------------------------------------- charts of the view
@@ -82,7 +103,7 @@ root:
         search: Search orders…
         searchFields: [id, customer, country, product]
         sort: -date
-        filter: { region: "{{ region }}" }
+        filter: { region: "{{ region }}", date: "{{ periodDates }}" }
         bindView: view
         selectable: true
         bindSelection: picked

@@ -70,6 +70,16 @@ state:
     - { id: INV011, status: Pending, method: UPI, amount: 975, date: "2026-10-25", customer: Asha }
     - { id: INV012, status: Paid, method: Credit card, amount: 3150, date: "2026-10-28", customer: Kaushik }
   invoicePicks: []
+  due: "2026-11-24"
+  meeting: null
+  period: null
+  periodDates: null
+  month: "2026-11"
+  quarter: null
+  quarterDates: null
+  fy: null
+  shifts: []
+  birthday: null
 root:
   type: stack
   props: { gap: 40 }
@@ -897,6 +907,60 @@ root:
                             variant: "{{ inv.status == 'Paid' ? 'secondary' : inv.status == 'Unpaid' ? 'destructive' : 'outline' }}"
                     - { type: text, props: { tag: td, value: "{{ inv.method }}" } }
                     - { type: text, props: { tag: td, value: "{{ inv.amount }}" }, style: { text-align: right } }
+
+    # ---------------------------------------------------------------- date picker
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Date picker and calendar } }
+        - type: ui-text
+          props: { variant: muted, text: "Days, a time, ranges with presets, months, quarters and financial years. Keyboard: arrows move, Page Up/Down change month (Shift: year), Home/End go to the week's ends, Enter picks." }
+
+    - type: element
+      style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 20 }
+      children:
+        - type: ui-field
+          props: { label: Due date, description: "From today on; weekends are off. due = {{ due }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: due, min: today, disabledDays: [0, 6], clearable: true } }
+        - type: ui-field
+          props: { label: Meeting, description: "A day and a time, every 15 minutes. meeting = {{ meeting }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: meeting, time: true, step: 15, placeholder: Pick a day and time } }
+        - type: ui-field
+          props: { label: Reporting period, description: "periodDates = {{ periodDates }}" }
+          children:
+            - type: ui-date-picker
+              props:
+                bind: period
+                bindRange: periodDates
+                mode: range
+                months: 2
+                max: today
+                presets: [today, last7, last30, thisMonth, lastMonth, thisQuarter, yearToDate]
+        - type: ui-field
+          props: { label: Month, description: "month = {{ month }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: month, picker: month } }
+        - type: ui-field
+          props: { label: Quarter (financial year from April), description: "quarterDates = {{ quarterDates }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: quarter, bindRange: quarterDates, picker: quarter, fiscalStart: 4, presets: [thisQuarter, lastQuarter] } }
+        - type: ui-field
+          props: { label: Financial year, description: "fy = {{ fy }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: fy, picker: year, fiscalStart: 4 } }
+        - type: ui-field
+          props: { label: Date of birth, description: "Month and year menus. birthday = {{ birthday }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: birthday, dropdowns: true, max: today, placeholder: Pick your birthday } }
+
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Inline calendar: pick several weekdays" } }
+        - { type: ui-calendar, props: { bind: shifts, mode: multiple, disabledDays: [0, 6], clearable: true, label: Shifts } }
+        - { type: ui-text, props: { variant: muted, text: "shifts = {{ shifts }}" } }
 
     # ---------------------------------------------------------------- data table
     - type: stack

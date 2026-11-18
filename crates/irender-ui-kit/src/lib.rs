@@ -40,6 +40,7 @@ macro_rules! fs {
     ($n:literal) => { concat!("calc(", $n, "px * var(--font-scale, 1))") };
 }
 
+mod calendar;
 mod carousel;
 mod chat;
 mod combobox;
@@ -143,6 +144,8 @@ pub fn register(registry: &mut Registry) {
         .register(chat::TypingIndicator)
         .register(chat::ChatInput)
         .register(carousel::Carousel)
+        .register(calendar::Calendar)
+        .register(calendar::DatePicker)
         .register(data_table::DataTable)
         .register(data_table::Child::COLUMN)
         .register(data_table::Child::TOOLBAR)
@@ -293,7 +296,7 @@ fn context(cx: &RenderCx<'_>, name: &str) -> Option<Val> {
 /// The kit's and the built-ins' form controls, which a `ui-field` labels and describes.
 const CONTROLS: &[&str] = &[
     "input", "textarea", "select", "ui-input", "ui-textarea", "ui-select", "ui-checkbox", "ui-switch", "ui-slider",
-    "ui-radio-group", "ui-combobox",
+    "ui-radio-group", "ui-combobox", "ui-date-picker",
 ];
 
 /// The `attrs` that reach the element a control focuses: the inner `<input>` for kit
@@ -302,6 +305,7 @@ fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => &mut node.parts.entry("control".into()).or_default().attrs,
         "ui-combobox" => &mut node.parts.entry("input".into()).or_default().attrs,
+        "ui-date-picker" => &mut node.parts.entry("trigger".into()).or_default().attrs,
         _ => &mut node.attrs,
     }
 }
@@ -310,6 +314,7 @@ fn focus_attr<'a>(node: &'a Node, name: &str) -> Option<&'a Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => node.parts.get("control")?.attrs.get(name),
         "ui-combobox" => node.parts.get("input")?.attrs.get(name),
+        "ui-date-picker" => node.parts.get("trigger")?.attrs.get(name),
         _ => node.attrs.get(name),
     }
 }

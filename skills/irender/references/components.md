@@ -525,6 +525,57 @@ ui-carousel: Slides in a row that scrolls sideways and snaps to each one: images
   gap          any  Space between slides: number (px) or CSS length; default 12
   parts: track, previous, next
   children: yes
+ui-calendar: An inline calendar: days (with a time), months, quarters or years; one, a range or several; limits, presets, financial years and full keyboard support.
+  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`
+  value        any  Starting value, when not bound
+  picker       one of: day, month, quarter, year  What is picked: `day` (default), `month`, `quarter` or `year`
+  mode         one of: single, range, multiple  `single` (default), `range` or `multiple`
+  time         bool  A time as well as the day (single days only)
+  step         number  With `time`, minutes between times (default 1)
+  min          any  Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state
+  max          any  Latest date, as `min`
+  disabledDates any  Dates that can't be picked: `2026-12-25`, or `{ from, to }`; may use state
+  disabledDays any  Weekdays that can't be picked: 0 Sunday … 6 Saturday, e.g. `[0, 6]`
+  months       number  Months shown side by side (default 1; 2 suits ranges)
+  weekStart    number  First day of the week, 0 Sunday … 6 Saturday (default: the locale's)
+  fiscalStart  number  Month a financial year starts, 1–12 (default 1); quarters and years follow it
+  presets      any  Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`
+  dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
+  bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
+  name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
+  locale       string  Locale for names and formats (default: the browser's)
+  label        any  Accessible name
+  id           any  Element id (default: derived from the document)
+  clearable    bool  A Clear button under the calendar
+  children: no
+ui-date-picker: A button that opens a calendar in a popover: a day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years.
+  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`
+  value        any  Starting value, when not bound
+  picker       one of: day, month, quarter, year  What is picked: `day` (default), `month`, `quarter` or `year`
+  mode         one of: single, range, multiple  `single` (default), `range` or `multiple`
+  time         bool  A time as well as the day (single days only)
+  step         number  With `time`, minutes between times (default 1)
+  min          any  Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state
+  max          any  Latest date, as `min`
+  disabledDates any  Dates that can't be picked: `2026-12-25`, or `{ from, to }`; may use state
+  disabledDays any  Weekdays that can't be picked: 0 Sunday … 6 Saturday, e.g. `[0, 6]`
+  months       number  Months shown side by side (default 1; 2 suits ranges)
+  weekStart    number  First day of the week, 0 Sunday … 6 Saturday (default: the locale's)
+  fiscalStart  number  Month a financial year starts, 1–12 (default 1); quarters and years follow it
+  presets      any  Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`
+  dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
+  bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
+  name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
+  locale       string  Locale for names and formats (default: the browser's)
+  label        any  Accessible name
+  id           any  Element id (default: derived from the document)
+  placeholder  any  Shown while nothing is picked (default `Pick a date`, `Pick a range`, …)
+  clearable    bool  A button in the field that clears the value
+  closeOnSelect bool  Close once a value is complete (default true; with `time` or `multiple`, false)
+  align        one of: start, end  The popover's edge lined up with the button (default `start`)
+  disabled     any  Boolean or expression
+  parts: trigger, popover
+  children: no
 ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.
   rows         any  The rows: an array of objects, from data or state (or use `url`)
   url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array
@@ -567,7 +618,7 @@ ui-data-table-column: A column of the `ui-data-table` it is in. Children, if any
   label        any  Header text (default: the field)
   sortable     bool  Click the header to sort (default: when it has a `field` or `sortField`)
   sortField    string  Sort by this field instead, e.g. a rank behind a label (default: `field`)
-  filter       one of: text, select, range, date  A filter control in the toolbar
+  filter       one of: text, select, range, date  A filter control in the toolbar (`date`: a range calendar with presets)
   options      any  A `select` filter's choices (default: the column's distinct values)
   align        one of: left, center, right  Default: right for numbers, left otherwise
   format       one of: number, currency, percent, date, datetime  How the browser shows the value (in `locale`)

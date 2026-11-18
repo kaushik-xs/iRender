@@ -90,7 +90,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 79);
+    assert_eq!(kit, 81);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1063,4 +1063,31 @@ fn data_table_mistakes() {
     assert!(err(json!({ "type": "ui-data-table", "props": { "rows": [], "url": "/r", "columns": cols } })).contains("not both"));
     assert!(err(json!({ "type": "ui-data-table", "props": { "url": "javascript:alert(1)", "columns": cols } })).contains("http(s)"));
     assert!(err(json!({ "type": "ui-data-table", "props": { "url": "//evil.example/r", "columns": cols } })).contains("http(s)"));
+}
+
+#[test]
+fn date_picker_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-field", "props": { "label": "When" }, "children": [
+            { "type": "ui-date-picker", "props": { "bind": "when", "mode": "range", "name": "when", "clearable": true } } ] }),
+        json!({ "when": { "from": "2026-03-01", "to": "2026-03-09" } }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The field's label names the button that opens the calendar.
+    assert!(body.contains(r#"<label for="field-root-control">"#), "{body}");
+    assert!(body.contains(r#"<button id="field-root-control" type="button" data-cal-trigger popovertarget="date-picker-root-children-0-calendar" aria-haspopup="dialog">"#), "{body}");
+    assert!(body.contains(r#"role="dialog""#) && body.contains(r#"aria-label="Choose dates""#), "{body}");
+    assert!(body.contains(r#"<input type="hidden" name="when[from]" value="2026-03-01"><input type="hidden" name="when[to]" value="2026-03-09">"#), "{body}");
+    assert!(body.contains("2026-03-01 – 2026-03-09"), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-date-picker")));
+
+    let err = |props: Json| render_with(json!({ "type": "ui-calendar", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "time": true, "mode": "range" })).contains("single days"));
+    assert!(err(json!({ "time": true, "picker": "month" })).contains("single days"));
+    assert!(err(json!({ "fiscalStart": 13 })).contains("1–12"));
+    assert!(err(json!({ "weekStart": 7 })).contains("0 (Sunday)"));
+    assert!(err(json!({ "presets": ["someday"] })).contains("unknown preset"));
+    assert!(err(json!({ "presets": [{ "from": "today" }] })).contains("`{ label, from, to }`"));
 }

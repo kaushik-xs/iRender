@@ -108,7 +108,7 @@ const COLUMN_PROPS: &[PropDef] = &[
     PropDef::new("label", PropKind::Any, "Header text (default: the field)"),
     PropDef::new("sortable", PropKind::Bool, "Click the header to sort (default: when it has a `field` or `sortField`)"),
     PropDef::new("sortField", PropKind::String, "Sort by this field instead, e.g. a rank behind a label (default: `field`)"),
-    PropDef::new("filter", PropKind::Enum(FILTERS), "A filter control in the toolbar"),
+    PropDef::new("filter", PropKind::Enum(FILTERS), "A filter control in the toolbar (`date`: a range calendar with presets)"),
     PropDef::new("options", PropKind::Any, "A `select` filter's choices (default: the column's distinct values)"),
     PropDef::new("align", PropKind::Enum(&["left", "center", "right"]), "Default: right for numbers, left otherwise"),
     PropDef::new("format", PropKind::Enum(FORMATS), "How the browser shows the value (in `locale`)"),
@@ -892,6 +892,7 @@ impl Component for DataTable {
             "searchText": state_of(bind("bindSearch")),
         });
         let clickable = bind("bindRow").is_some();
+        let locale = cx.prop_string(node, "locale");
         let search_text = state_of(bind("bindSearch")).map(|v| expr::stringify(&v)).unwrap_or_default();
         cx.global_js("ui-data-table", SCRIPT);
 
@@ -930,7 +931,7 @@ impl Component for DataTable {
                 cx.open(&input, node)?;
             }
             for c in &filtered {
-                filter_control(cx, node, &id, c)?;
+                filter_control(cx, node, &id, c, locale.as_deref())?;
             }
             if !filtered.is_empty() || search.is_some() {
                 let mut reset = Element::new("button");
@@ -1357,7 +1358,7 @@ impl Component for DataTable {
 }
 
 /// A filter's button in the toolbar, and the popover it opens.
-fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column) -> Result<(), RenderError> {
+fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column, locale: Option<&str>) -> Result<(), RenderError> {
     let pop = id_with(id, &format!("-filter-{}", slug(&c.key)));
     let anchor = format!("--{}-filter-{}", expr::stringify(&cx.eval(id)), slug(&c.key));
     let mut b = Element::new("button");
@@ -1429,13 +1430,31 @@ fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column) -> R
             input(cx, "search", "contains", "Contains")?;
             cx.close("div");
         }
+        "date" => {
+            // A range calendar with presets; the behaviour turns its picks into the filter.
+            let mut cal = synthetic(
+                node,
+                "ui-calendar",
+                vec![
+                    ("mode", lit("range")),
+                    ("label", lit(format!("{} range", c.label_text))),
+                    ("presets", lit(json!(["last7", "last30", "thisMonth", "lastMonth", "thisQuarter", "thisYear"]))),
+                ],
+                vec![("data-dt-calendar", lit(true))],
+                Vec::new(),
+            );
+            if let Some(l) = locale {
+                cal.props.insert("locale".into(), lit(l.to_string()));
+            }
+            cal.style = StyleBlock::from_pairs(&[("border", "0"), ("padding", sp!(4))]);
+            cx.render(&cal)?;
+        }
         _ => {
-            let (ty, from, to) = if kind == "date" { ("date", "From", "To") } else { ("number", "Min", "Max") };
             let mut f = Element::new("div");
             f.attr("data-dt-fields", true);
             cx.open(&f, node)?;
-            input(cx, ty, "from", from)?;
-            input(cx, ty, "to", to)?;
+            input(cx, "number", "from", "Min")?;
+            input(cx, "number", "to", "Max")?;
             cx.close("div");
         }
     }

@@ -2212,3 +2212,214 @@ fn data_table_tree_and_pinned_columns_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Date pickers and the calendar: the keyboard, limits, ranges and presets, a time,
+/// months, financial quarters and years, several days, month and year menus, and the
+/// field label and form inputs.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn date_picker_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "d": "2026-03-10", "r": { "from": "2026-03-01", "to": "2026-03-02" }, "rr": null, "q": "2026-Q1", "qr": null,
+                   "t": "2026-03-10T09:00", "m": "2026-03", "y": "2026", "days": [], "dob": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-field", "props": { "label": "Due" }, "children": [
+                { "type": "ui-date-picker", "props": { "bind": "d", "min": "2026-03-05", "max": "2026-04-20", "disabledDays": [0], "weekStart": 1, "locale": "en-US", "name": "due" } } ] },
+            { "type": "ui-date-picker", "props": { "id": "range", "bind": "r", "bindRange": "rr", "mode": "range", "months": 2, "locale": "en-US",
+                "presets": [{ "label": "Q1", "from": "2026-01-01", "to": "2026-03-31" }, "last7"] } },
+            { "type": "ui-date-picker", "props": { "id": "quarter", "bind": "q", "bindRange": "qr", "picker": "quarter", "fiscalStart": 4, "locale": "en-US" } },
+            { "type": "ui-date-picker", "props": { "id": "time", "bind": "t", "time": true, "step": 30, "locale": "en-US" } },
+            { "type": "ui-date-picker", "props": { "id": "month", "bind": "m", "picker": "month", "locale": "en-US" } },
+            { "type": "ui-date-picker", "props": { "id": "year", "bind": "y", "picker": "year", "fiscalStart": 4 } },
+            { "type": "ui-calendar", "props": { "id": "cal", "bind": "days", "mode": "multiple", "value": null, "locale": "en-US" } },
+            { "type": "ui-date-picker", "props": { "id": "dob", "bind": "dob", "dropdowns": true, "locale": "en-US" } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const P = (id) => document.getElementById(id).closest("[data-i-x]");
+      const text = (p) => p.querySelector("[data-cal-text]").textContent;
+      const open = (p) => p.querySelector("[data-cal-pop]").matches(":popover-open");
+      const act = () => document.activeElement.getAttribute("data-key");
+      const key = async (k, mods = {}) => { document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods })); await wait(5); };
+      const cell = (p, k) => p.querySelector(`[data-key="${k}"]`);
+      try {
+        const due = document.querySelector("[data-cal-trigger]").closest("[data-i-x]");
+        const label = document.querySelector(`label[for="${due.querySelector("[data-cal-trigger]").id}"]`);
+        log("label", label?.textContent, text(due), due.querySelector("input[type=hidden]").value);
+        due.querySelector("[data-cal-trigger]").click(); await wait(10);
+        log("open", open(due), act(), due.querySelector("[data-cal-caption]").textContent, due.querySelector("th").textContent);
+        await key("ArrowRight"); await key("PageDown");
+        log("moved", act(), due.querySelector("[data-cal-caption]").textContent);
+        await key("Enter");
+        log("picked", S().d, open(due), document.activeElement === due.querySelector("[data-cal-trigger]"), text(due), due.querySelector("input[type=hidden]").value);
+        due.querySelector("[data-cal-trigger]").click(); await wait(10);
+        await key("Home"); log("home", act());
+        await key("End"); log("end", act(), cell(due, act()).getAttribute("aria-disabled"));
+        await key("Enter"); log("disabled day", S().d, open(due));
+        await key("PageDown");
+        log("past max", act(), cell(due, act()).getAttribute("aria-disabled"), due.querySelector("[data-cal-step='1']").disabled);
+        due.querySelector("[data-cal-step='-1']").click(); due.querySelector("[data-cal-step='-1']").click(); await wait(5);
+        log("min", due.querySelector("[data-cal-caption]").textContent, due.querySelector("[data-cal-step='-1']").disabled, cell(due, "2026-03-04").getAttribute("aria-disabled"));
+        due.querySelector("[data-cal-pop]").hidePopover();
+
+        const range = P("range");
+        range.querySelector("[data-cal-trigger]").click(); await wait(10);
+        log("range open", [...range.querySelectorAll("[data-cal-caption]")].map((c) => c.textContent).join(" / "), text(range));
+        cell(range, "2026-03-03").click(); await wait(5);
+        log("start", JSON.stringify(S().r), text(range), open(range));
+        cell(range, "2026-04-02").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await wait(5);
+        log("preview", range.querySelectorAll("[data-in-range]").length);
+        cell(range, "2026-04-02").click(); await wait(5);
+        log("range", JSON.stringify(S().r), JSON.stringify(S().rr), text(range), open(range));
+        range.querySelector("[data-cal-trigger]").click(); await wait(10);
+        range.querySelector("[data-preset='0']").click(); await wait(5);
+        log("preset", JSON.stringify(S().rr), open(range));
+        range.querySelector("[data-cal-trigger]").click(); await wait(10);
+        log("preset pressed", range.querySelector("[data-preset='0']").getAttribute("aria-pressed"));
+        range.querySelector("[data-preset='1']").click(); await wait(5);
+        log("last7", (Date.parse(S().rr.to) - Date.parse(S().rr.from)) / 864e5 + 1);
+
+        const q = P("quarter");
+        log("quarter", text(q));
+        q.querySelector("[data-cal-trigger]").click(); await wait(10);
+        log("quarters", [...q.querySelectorAll("[data-key]")].map((b) => b.textContent).join(","), q.querySelector("[data-cal-caption]").textContent, act());
+        await key("ArrowRight"); await key("Enter");
+        log("q2", S().q, JSON.stringify(S().qr), text(q));
+
+        const t = P("time");
+        log("time", text(t));
+        t.querySelector("[data-cal-trigger]").click(); await wait(10);
+        const input = t.querySelector("[data-cal-time-input]");
+        input.value = "14:30"; input.dispatchEvent(new Event("change", { bubbles: true })); await wait(5);
+        log("new time", S().t, input.step);
+        cell(t, "2026-03-12").click(); await wait(5);
+        log("new day", S().t, open(t), text(t));
+        t.querySelector("[data-cal-pop]").hidePopover();
+
+        const m = P("month");
+        m.querySelector("[data-cal-trigger]").click(); await wait(10);
+        log("months", m.querySelectorAll("[data-key]").length, act(), document.activeElement.getAttribute("aria-label"));
+        await key("ArrowDown"); await key("Enter");
+        log("june", S().m, text(m));
+
+        const y = P("year");
+        log("year", text(y));
+        y.querySelector("[data-cal-trigger]").click(); await wait(10);
+        await key("ArrowRight"); await key("Enter");
+        log("next year", S().y, text(y));
+
+        const cal = P("cal");
+        cal.querySelector("[data-cal-step='1']").click(); await wait(5);
+        // Each pick redraws the grid, so find each day again by its key.
+        const ks = [...cal.querySelectorAll("[data-key]")].filter((b) => !b.hasAttribute("data-outside")).slice(0, 3).map((b) => b.getAttribute("data-key"));
+        for (const k of ks) { cell(cal, k).click(); await wait(5); }
+        const n = S().days.length;
+        cal.querySelector(`[data-key="${S().days[0]}"]`).click(); await wait(5);
+        log("several", n, S().days.length);
+
+        const dob = P("dob");
+        dob.querySelector("[data-cal-trigger]").click(); await wait(10);
+        const yr = dob.querySelector("[data-cal-year]"), mo = dob.querySelector("[data-cal-month]");
+        yr.value = "1990"; yr.dispatchEvent(new Event("change", { bubbles: true })); await wait(5);
+        dob.querySelector("[data-cal-month]").value = "5"; dob.querySelector("[data-cal-month]").dispatchEvent(new Event("change", { bubbles: true })); await wait(5);
+        cell(dob, "1990-05-15").click(); await wait(5);
+        log("dob", S().dob, text(dob));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("date-picker", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "label Due Mar 10, 2026 2026-03-10",
+            "open true 2026-03-10 March 2026 Mo",
+            "moved 2026-04-11 April 2026",
+            "picked 2026-04-11 false true Apr 11, 2026 2026-04-11",
+            "home 2026-04-06",
+            "end 2026-04-12 true",
+            "disabled day 2026-04-11 true",
+            "past max 2026-05-12 true true",
+            "min March 2026 true true",
+            "range open March 2026 / April 2026 Mar 1, 2026 – Mar 2, 2026",
+            "start {\"from\":\"2026-03-03\",\"to\":null} Mar 3, 2026 – … true",
+            "preview 29",
+            "range {\"from\":\"2026-03-03\",\"to\":\"2026-04-02\"} {\"from\":\"2026-03-03\",\"to\":\"2026-04-02\"} Mar 3, 2026 – Apr 2, 2026 false",
+            "preset {\"from\":\"2026-01-01\",\"to\":\"2026-03-31\"} false",
+            "preset pressed true",
+            "last7 7",
+            "quarter Q1 FY2026–27",
+            "quarters Q1,Q2,Q3,Q4 FY2026–27 2026-Q1",
+            "q2 2026-Q2 {\"from\":\"2026-07-01\",\"to\":\"2026-09-30\"} Q2 FY2026–27",
+            "time Mar 10, 2026, 9:00 AM",
+            "new time 2026-03-10T14:30 1800",
+            "new day 2026-03-12T14:30 true Mar 12, 2026, 2:30 PM",
+            "months 12 2026-03 March 2026",
+            "june 2026-06 Jun 2026",
+            "year FY2026–27",
+            "next year 2027 FY2027–28",
+            "several 3 2",
+            "dob 1990-05-15 May 15, 1990",
+        ],
+        "\n{result}"
+    );
+}
+
+/// A data table's date filter is a range calendar: a finished range filters the rows.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_date_filter_in_chrome() {
+    let rows: Vec<_> = (1..=31).map(|d| serde_json::json!({ "id": d, "day": format!("2026-03-{d:02}") })).collect();
+    let doc = serde_json::json!({ "version": 1, "state": { "f": null },
+        "root": { "type": "ui-data-table", "props": { "rows": rows, "pageSize": 0, "locale": "en-US", "bindFilters": "f",
+            "columns": [{ "field": "day", "format": "date", "filter": "date" }] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const t = document.querySelector("[data-i-x=ui-data-table]");
+      const shown = () => t.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])").length;
+      try {
+        t.querySelector("[data-dt-trigger=day]").click(); await wait(10);
+        const cal = t.querySelector("[data-dt-calendar]");
+        log("calendar", !!cal, cal.querySelectorAll("[data-preset]").length);
+        // Show March 2026 the way the filter would, then pick a range in it.
+        root.__irender.set("f", { day: { from: "2026-03-01", to: "2026-03-31" } }); await wait(5);
+        log("from state", shown(), cal.querySelector("[data-cal-caption]").textContent);
+        cal.querySelector('[data-key="2026-03-05"]').click(); await wait(5);
+        log("half", shown(), JSON.stringify(S().f));
+        cal.querySelector('[data-key="2026-03-20"]').click(); await wait(5);
+        log("range", shown(), JSON.stringify(S().f), t.querySelector("[data-dt-trigger=day] [data-dt-chips]").textContent);
+        t.querySelector("[data-dt-filter=day] [data-dt-clear]").click(); await wait(5);
+        log("cleared", shown(), JSON.stringify(S().f), cal.querySelectorAll("[aria-pressed=true][data-key]").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-date", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "calendar true 6",
+            "from state 31 March 2026",
+            // Half a range doesn't filter yet.
+            "half 31 {\"day\":{\"from\":\"2026-03-01\",\"to\":\"2026-03-31\"}}",
+            "range 16 {\"day\":{\"from\":\"2026-03-05\",\"to\":\"2026-03-20\"}} Mar 5, 2026 – Mar 20, 2026",
+            "cleared 31 {} 0",
+        ],
+        "\n{result}"
+    );
+}

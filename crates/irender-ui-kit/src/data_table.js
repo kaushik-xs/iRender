@@ -477,6 +477,13 @@
         i.value = blank(v) ? "" : String(v);
       }
       if (p.matches(":popover-open")) options(p);
+      // The date filter's calendar shows the filter (unless a range is half picked).
+      const cal = p.querySelector("[data-dt-calendar]");
+      const want = JSON.stringify(isObj(c) ? { from: c.from ?? null, to: c.to ?? null } : null);
+      if (cal?.__x?.set && cal.__dt !== want) {
+        cal.__dt = want;
+        cal.__x.set(JSON.parse(want));
+      }
     }
     const search = $("[data-dt-search]");
     if (search && search !== document.activeElement) search.value = get("search") ?? "";
@@ -912,6 +919,11 @@
       local.page = 1;
       if (B.page) api.set(B.page, 1);
       else apply();
+    } else if (t.matches("[data-dt-calendar]") && el.contains(t)) {
+      // A date filter's calendar: a finished range, or nothing, filters.
+      const r = e.detail?.range;
+      if (r?.from && !r.to) return;
+      setFilter(t.closest("[data-dt-filter]").getAttribute("data-dt-filter"), r?.from ? { from: r.from, to: r.to } : null);
     } else if (t.matches("[data-dt-pick]")) {
       const pop = t.closest("[data-dt-filter]");
       const values = [...pop.querySelectorAll("[data-dt-pick]")].filter((b) => b.checked).map((b) => b.__v);

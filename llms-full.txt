@@ -689,6 +689,57 @@ ui-carousel: Slides in a row that scrolls sideways and snaps to each one: images
   gap          any  Space between slides: number (px) or CSS length; default 12
   parts: track, previous, next
   children: yes
+ui-calendar: An inline calendar: days (with a time), months, quarters or years; one, a range or several; limits, presets, financial years and full keyboard support.
+  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`
+  value        any  Starting value, when not bound
+  picker       one of: day, month, quarter, year  What is picked: `day` (default), `month`, `quarter` or `year`
+  mode         one of: single, range, multiple  `single` (default), `range` or `multiple`
+  time         bool  A time as well as the day (single days only)
+  step         number  With `time`, minutes between times (default 1)
+  min          any  Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state
+  max          any  Latest date, as `min`
+  disabledDates any  Dates that can't be picked: `2026-12-25`, or `{ from, to }`; may use state
+  disabledDays any  Weekdays that can't be picked: 0 Sunday … 6 Saturday, e.g. `[0, 6]`
+  months       number  Months shown side by side (default 1; 2 suits ranges)
+  weekStart    number  First day of the week, 0 Sunday … 6 Saturday (default: the locale's)
+  fiscalStart  number  Month a financial year starts, 1–12 (default 1); quarters and years follow it
+  presets      any  Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`
+  dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
+  bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
+  name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
+  locale       string  Locale for names and formats (default: the browser's)
+  label        any  Accessible name
+  id           any  Element id (default: derived from the document)
+  clearable    bool  A Clear button under the calendar
+  children: no
+ui-date-picker: A button that opens a calendar in a popover: a day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years.
+  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`
+  value        any  Starting value, when not bound
+  picker       one of: day, month, quarter, year  What is picked: `day` (default), `month`, `quarter` or `year`
+  mode         one of: single, range, multiple  `single` (default), `range` or `multiple`
+  time         bool  A time as well as the day (single days only)
+  step         number  With `time`, minutes between times (default 1)
+  min          any  Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state
+  max          any  Latest date, as `min`
+  disabledDates any  Dates that can't be picked: `2026-12-25`, or `{ from, to }`; may use state
+  disabledDays any  Weekdays that can't be picked: 0 Sunday … 6 Saturday, e.g. `[0, 6]`
+  months       number  Months shown side by side (default 1; 2 suits ranges)
+  weekStart    number  First day of the week, 0 Sunday … 6 Saturday (default: the locale's)
+  fiscalStart  number  Month a financial year starts, 1–12 (default 1); quarters and years follow it
+  presets      any  Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`
+  dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
+  bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
+  name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
+  locale       string  Locale for names and formats (default: the browser's)
+  label        any  Accessible name
+  id           any  Element id (default: derived from the document)
+  placeholder  any  Shown while nothing is picked (default `Pick a date`, `Pick a range`, …)
+  clearable    bool  A button in the field that clears the value
+  closeOnSelect bool  Close once a value is complete (default true; with `time` or `multiple`, false)
+  align        one of: start, end  The popover's edge lined up with the button (default `start`)
+  disabled     any  Boolean or expression
+  parts: trigger, popover
+  children: no
 ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.
   rows         any  The rows: an array of objects, from data or state (or use `url`)
   url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array
@@ -731,7 +782,7 @@ ui-data-table-column: A column of the `ui-data-table` it is in. Children, if any
   label        any  Header text (default: the field)
   sortable     bool  Click the header to sort (default: when it has a `field` or `sortField`)
   sortField    string  Sort by this field instead, e.g. a rank behind a label (default: `field`)
-  filter       one of: text, select, range, date  A filter control in the toolbar
+  filter       one of: text, select, range, date  A filter control in the toolbar (`date`: a range calendar with presets)
   options      any  A `select` filter's choices (default: the column's distinct values)
   align        one of: left, center, right  Default: right for numbers, left otherwise
   format       one of: number, currency, percent, date, datetime  How the browser shows the value (in `locale`)
@@ -1365,6 +1416,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-sidebar-layout` + `ui-sidebar` | layout: `bind`, `collapsible` (offcanvas, icon, none), `variant` (sidebar, inset, floating), `side`, `width`; sidebar: `label` | See [Sidebar](#sidebar). |
 | `ui-sidebar-header`, `ui-sidebar-content`, `ui-sidebar-footer`, `ui-sidebar-group`, `ui-sidebar-item`, `ui-sidebar-trigger` | group: `label`; item: `label`, `icon`, `href`, `active`, `badge`, `open`; trigger: `label` | The parts of a sidebar. An item with children opens a sub-menu. |
 | `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
+| `ui-date-picker`, `ui-calendar` | see [Date picker](#date-picker) | A day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years. The picker opens the calendar from a button; `ui-calendar` shows it inline. |
 | `ui-command` | `placeholder`, `label`, `empty` (default `No results found.`), `id` | A command palette: a search box over a list of actions, filtered as you type (every word must match the label or `keywords`). Up and Down move between items, skipping disabled ones; Home and End jump while the box is empty; Enter runs the active item; Escape clears the search. Focus stays in the search box. Parts: `search`, `input`, `list`, `empty`. |
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
@@ -1510,6 +1562,56 @@ Not replicated:
 - Values that are whole option objects: values are plain values, and their labels come from the options.
 - `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
 
+## Date picker
+
+`ui-date-picker` is a button that opens a calendar in a popover, in the style of shadcn/ui's date picker; `ui-calendar` is the calendar on its own, inline. They take the same props, and their behaviour (about 8 KB gzipped) is added only to pages that use them.
+
+```yaml
+- type: ui-field
+  props: { label: Reporting period }
+  children:
+    - type: ui-date-picker
+      props:
+        bind: period                     # { from: 2026-03-01, to: 2026-03-31 }
+        bindRange: periodDates           # the dates it covers, for a chart's or a table's filter
+        mode: range
+        months: 2
+        max: today
+        presets: [last7, last30, thisMonth, lastMonth, thisQuarter, yearToDate]
+- { type: ui-date-picker, props: { bind: meeting, time: true, step: 15 } }            # 2026-03-10T14:30
+- { type: ui-date-picker, props: { bind: quarter, picker: quarter, fiscalStart: 4 } }  # 2026-Q1: April to June 2026
+- { type: ui-calendar, props: { bind: shifts, mode: multiple, disabledDays: [0, 6] } }
+```
+
+| prop | |
+|---|---|
+| `bind`, `value` | The state key holding the value, or the starting value when not bound. A day is `2026-03-01` (with `time`, `2026-03-01T14:30`), a month `2026-03`, a quarter `2026-Q1`, a year `2026`; a range is `{ from, to }` and `multiple` a list. Partial ranges keep `to: null` while the end is being picked. |
+| `picker` | `day` (default), `month`, `quarter` or `year`. |
+| `mode` | `single` (default), `range` or `multiple`. |
+| `time`, `step` | A time under the calendar, for single days; `step` is the minutes between times (default 1). |
+| `min`, `max` | The earliest and latest dates: `2026-01-01`, or `today`, `today-30d`, `today+2w`, `today+1m`, `today+1y`. They may use state, and the arrows don't page past them. |
+| `disabledDates`, `disabledDays` | Dates that can't be picked (`2026-12-25`, or `{ from, to }`), and weekdays (0 Sunday … 6 Saturday). |
+| `months` | Months side by side (default 1); two suit ranges. |
+| `weekStart`, `locale` | The first day of the week (default: the locale's) and the locale for names and formats (default: the browser's). |
+| `fiscalStart` | The month a financial year starts (1–12, default 1). Quarters and years follow it: with `fiscalStart: 4`, `2026-Q1` is April to June 2026 and shows as `Q1 FY2026–27`, and the year `2026` is April 2026 to March 2027. |
+| `presets` | Shortcuts beside the calendar: `today`, `yesterday`, `tomorrow`, `last7`, `last30`, `last90`, `next7`, `next30`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `thisYear`, `lastYear`, `yearToDate`, `monthToDate`, or `{ label, from, to }` with dates or `today±N`. Quarters and years follow `fiscalStart`; the preset that matches the value shows pressed. |
+| `dropdowns` | Month and year menus in place of the caption, for dates far away such as a birthday. |
+| `bindRange` | A state key that gets the dates the value covers as `{ from, to }`: a quarter's first and last days, say. Give it to a chart's or a data table's `filter` to filter by the pick. |
+| `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date. |
+| `label` | The accessible name. In a `ui-field`, its label names the picker's button. |
+| `clearable` | A ✕ in the picker's button (a Clear link under `ui-calendar`). |
+| `placeholder`, `closeOnSelect`, `align`, `disabled` | The picker only: the text while empty (default `Pick a date`, `Pick a range`, …), closing once a value is complete (default true; not with `time` or `multiple`), which edge the popover lines up with (`start` or `end`), and turning it off. |
+
+The calendar follows the WAI-ARIA date picker pattern: a grid with one cell in the tab order.
+- Arrows move a day (or a month, quarter or year), up and down a week (or a row).
+- Page Up and Page Down change month (Shift: year), or year for the other pickers.
+- Home and End go to the start and end of the week (or row).
+- Enter or Space picks. A range takes two picks and shows the span under the pointer while the end is chosen.
+- Escape closes the picker, and focus goes back to its button.
+- A live region says what was picked.
+
+Days outside the month show muted (left out when two months show), today is marked, and the value's text in the button follows the locale. Each change fires a bubbling `change` event with `{ value, range }`.
+
 ## Data table
 
 `ui-data-table` shows an array of rows with the controls of shadcn/ui's data table: sorting, column filters, search, paging, row selection with bulk actions, expandable detail rows, a View menu that shows and hides columns, and summary rows. It also pages, loads more or scrolls infinitely, loads rows from an API in batches, keeps long tables fast by drawing only the rows in view, nests rows inside rows (loading children when they're opened) and pins columns while the rest scroll sideways. Its behaviour (about 13 KB gzipped) is added only to pages that use it. The blocks [`data-table-01`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-01.yaml) (tasks), [`data-table-02`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-02.yaml) (orders wired to charts), [`data-table-03`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-03.yaml) (inventory from plain column objects), [`data-table-04`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-04.yaml) (5,000 rows from an API: infinite scroll, Load more and server pages) and [`data-table-05`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-05.yaml) (a budget tree with pinned columns, and an org chart from flat rows) show each feature.
@@ -1560,7 +1662,7 @@ Not replicated:
 | `field` | The row field shown, sorted, filtered and searched: `amount`, or a path such as `customer.name`. Without a cell template, the cell is the value. |
 | `label`, `width`, `align` | The header, the column's width, and `left`, `center` or `right` (default: right for number formats). |
 | `sortable`, `sortField` | Whether the header sorts (default: when there's a field or `sortField`), and a field to sort by instead, such as a rank behind a label. |
-| `filter` | A filter button in the toolbar: `select` (checkboxes with counts; choices from `options` or the column's values; list-valued fields such as tags match on any value), `text` (contains), `range` (min and max) or `date` (from and to). |
+| `filter` | A filter button in the toolbar: `select` (checkboxes with counts; choices from `options` or the column's values; list-valued fields such as tags match on any value), `text` (contains), `range` (min and max) or `date` (a range calendar with presets). |
 | `format`, `currency`, `decimals` | `number`, `currency`, `percent` (0.25 is 25%), `date` or `datetime`, formatted in the browser with `Intl` in `locale`. Plain dates (`2026-03-01`) show the same day in every time zone. |
 | `cell`, `tones` | Draw the value as a `badge` (with a tone per value: default, secondary, outline, success, warning, destructive, info), a `progress` bar (0–100) or a `sparkline` of a list of numbers (needs the chart kit). |
 | `summary` | A footer cell: `sum`, `avg`, `min`, `max` or `count` of the rows that pass the filters. |

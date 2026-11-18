@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. Keyboard-driven UI kit components: the date picker next (the data table shipped 2026-11-18).
+1. Keyboard-driven UI kit components: a context menu next (the data table and the date picker shipped 2026-11-18).
 
 ## Gaps you'd hit in real use
 
@@ -29,7 +29,6 @@ _Last updated: 2026-11-18._
   - [ ] **Progress ring:** a circular `ui-progress` (`ProjectProgressRing`).
   - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
 - [ ] **Keyboard-driven components:**
-  - date picker, with date+time, min/max, month and quarter (financial year) modes, and a date range (client-ui-next's `DateTimeField`, `PeriodPicker`, `DateRangeFilterInputs`)
   - context menu
   - menubar / navigation menu
   - OTP input
@@ -47,6 +46,11 @@ _Last updated: 2026-11-18._
   - [ ] The server's starting order compares text without locale rules, so mixed-case text can reorder once the script runs.
   - [ ] Interface text (Rows per page, Select all, Clear filter, …) is English only; only `emptyText` can be changed.
   - [ ] No CSV export; a bulk action can `call` the host with the selected keys.
+- [ ] **Date picker gaps** (`ui-date-picker` and `ui-calendar` shipped 2026-11-18: days with a time, months, quarters and years on a financial year, single, range and multiple, limits, disabled days, presets, month and year menus, `bindRange`; the data table's date filter uses the calendar):
+  - [ ] No typing a date: the value is picked from the calendar only. Idea: an input that parses the locale's format, as shadcn's "date picker with input".
+  - [ ] Times go with single days only; a range has no times, and there's no time zone (values are local wall-clock times).
+  - [ ] Interface text (Pick a date, Previous month, Time, preset names) is English only; dates and month names follow `locale`.
+  - [ ] No week picker and no "multiple months" mode beyond three months side by side.
 - [ ] **`ui-command` gaps:**
   - [ ] Matching is by words, in document order. cmdk ranks fuzzy matches and puts the best first.
   - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.
