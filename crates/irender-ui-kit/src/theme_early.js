@@ -156,13 +156,15 @@
     // Backgrounds, for the mode showing.
     const suffix = theme.scheme() === "dark" ? "-dark" : "";
     for (const name of BACKGROUNDS) set("--color-" + name, palette && hex(name + suffix));
-    // A chart scheme from the two: each, lighter, darker and mixed.
+    // A chart scheme from the two: each, lighter, darker and mixed. The `custom` chart
+    // scheme uses it, and so does the default one while the palette is `custom`.
     const chart = theme.option("chart") === "custom";
     const a = primary || "var(--color-primary)";
     const b = second || "var(--color-brand-2, var(--color-primary))";
     const mix = (x, y, p) => `color-mix(in srgb, ${x} ${p}%, ${y})`;
     const scheme = [a, b, mix(a, "white", 60), mix(b, "white", 60), mix(a, "black", 70), mix(b, "black", 70), mix(a, b, 50), mix(a, "gray", 40)];
     scheme.forEach((v, i) => set(`--color-chart-${i + 1}`, chart && v));
+    scheme.forEach((v, i) => set(`--color-palette-chart-${i + 1}`, palette && (primary || second) && v));
   };
   const applyOption = (name, choice) => {
     if (!/^[a-z0-9-]+$/.test(name)) return;

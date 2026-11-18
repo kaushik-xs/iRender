@@ -194,7 +194,7 @@ theme:
 
 | option | choices | sets |
 |---|---|---|
-| `palette` | zinc (default), slate, stone, rose, blue, green, orange, violet, custom | every colour (neutrals) or the primary and ring (colours), each with its dark mode; custom: the colours from `ui-theme-colors` |
+| `palette` | zinc (default), slate, stone, rose, blue, green, orange, violet, custom | every colour (neutrals) or the primary and ring (colours), each with its dark mode; custom: the colours from `ui-theme-colors`. The colours and custom also set `palette-chart-1` … `8`, shades charts take while their own colour scheme is left at Default (see the [chart kit](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-chart-kit/README.md#theme)). |
 | `radius` | 0, 0.3, 0.5 (default), 0.75, 1.0 | `radius.sm`, `radius.md`, `radius.lg` |
 | `density` | compact, default, comfortable | `space.scale`: 0.8, 1, 1.2 |
 | `text-size` | small, default, large | `font.scale`: 0.9, 1, 1.125 |

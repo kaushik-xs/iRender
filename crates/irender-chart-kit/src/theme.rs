@@ -4,22 +4,25 @@
 use irender_core::{Document, theme::ThemeSpec};
 use serde_json::{Value as Json, json};
 
+/// The default series colours, light and dark. Each follows the palette when it has
+/// series colours of its own (`color.palette-chart-N`: irender-ui-kit's coloured palettes
+/// and custom colours set them), and is the kit's categorical hue otherwise. Picking a
+/// chart scheme sets `color.chart-N` itself, so it wins over the palette's.
+const DEFAULT_LIGHT: [&str; 8] = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
+const DEFAULT_DARK: [&str; 8] = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+
+fn following_palette(colors: [&str; 8]) -> Json {
+    let mut m = serde_json::Map::new();
+    for (i, c) in colors.iter().enumerate() {
+        m.insert(format!("chart-{}", i + 1), json!(format!("var(--color-palette-chart-{}, {c})", i + 1)));
+    }
+    Json::Object(m)
+}
+
 fn preset() -> Json {
     json!({
-        "tokens": {
-            "color": {
-                "chart-1": "#2a78d6", "chart-2": "#eb6834", "chart-3": "#1baf7a", "chart-4": "#eda100",
-                "chart-5": "#e87ba4", "chart-6": "#008300", "chart-7": "#6250d6", "chart-8": "#e34948"
-            }
-        },
-        "modes": {
-            "dark": {
-                "color": {
-                    "chart-1": "#3987e5", "chart-2": "#d95926", "chart-3": "#199e70", "chart-4": "#c98500",
-                    "chart-5": "#d55181", "chart-6": "#008300", "chart-7": "#9085e9", "chart-8": "#e66767"
-                }
-            }
-        },
+        "tokens": { "color": following_palette(DEFAULT_LIGHT) },
+        "modes": { "dark": { "color": following_palette(DEFAULT_DARK) } },
         "options": { "chart": { "label": "Chart colours", "default": "default", "choices": schemes() } }
     })
 }
@@ -40,7 +43,10 @@ fn scheme(label: &str, light: [&str; 8], dark: [&str; 8]) -> Json {
 /// categorical hues, shades of one colour to match the UI kit's palettes, and greys.
 fn schemes() -> Json {
     json!({
+        // Follows the palette: its shades for a coloured one, the kit's hues for a neutral one.
         "default": { "label": "Default" },
+        // The kit's categorical hues, whatever the palette.
+        "hues": scheme("Hues", DEFAULT_LIGHT, DEFAULT_DARK),
         "blue": scheme("Blue",
             ["#2563eb", "#60a5fa", "#1e40af", "#93c5fd", "#1d4ed8", "#3b82f6", "#1e3a8a", "#bfdbfe"],
             ["#3b82f6", "#93c5fd", "#2563eb", "#bfdbfe", "#1d4ed8", "#60a5fa", "#1e40af", "#dbeafe"]),
@@ -105,8 +111,8 @@ mod tests {
         apply_theme(&mut doc);
         let color = &doc.theme.tokens["color"];
         assert_eq!(color["chart-1"], "#e11d48");
-        assert_eq!(color["chart-2"], "#eb6834");
+        assert_eq!(color["chart-2"], "var(--color-palette-chart-2, #eb6834)");
         assert_eq!(color["primary"], "#000");
-        assert_eq!(doc.theme.modes["dark"]["color"]["chart-1"], "#3987e5");
+        assert_eq!(doc.theme.modes["dark"]["color"]["chart-1"], "var(--color-palette-chart-1, #3987e5)");
     }
 }

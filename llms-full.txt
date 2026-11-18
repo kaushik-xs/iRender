@@ -1585,7 +1585,7 @@ theme:
 
 | option | choices | sets |
 |---|---|---|
-| `palette` | zinc (default), slate, stone, rose, blue, green, orange, violet, custom | every colour (neutrals) or the primary and ring (colours), each with its dark mode; custom: the colours from `ui-theme-colors` |
+| `palette` | zinc (default), slate, stone, rose, blue, green, orange, violet, custom | every colour (neutrals) or the primary and ring (colours), each with its dark mode; custom: the colours from `ui-theme-colors`. The colours and custom also set `palette-chart-1` … `8`, shades charts take while their own colour scheme is left at Default (see the [chart kit](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-chart-kit/README.md#theme)). |
 | `radius` | 0, 0.3, 0.5 (default), 0.75, 1.0 | `radius.sm`, `radius.md`, `radius.lg` |
 | `density` | compact, default, comfortable | `space.scale`: 0.8, 1, 1.2 |
 | `text-size` | small, default, large | `font.scale`: 0.9, 1, 1.125 |
@@ -2167,7 +2167,14 @@ Values such as `color-mix()` are resolved by the browser first. A missing token 
 
 `apply_theme` adds eight series colours. Each has its own step for dark mode, and they're in an order where neighbouring colours stay distinct for colour-blind readers. The heatmap's sequential scale runs from `chart-1` down into the surface colour. When the colour scheme changes, or a theme attribute (`class`, `style`, `data-theme`) changes on `<html>` or `<body>`, every chart restyles itself, as it does when a theme option is picked.
 
-`apply_theme` also adds a `chart` theme option, the colour scheme: Default (the eight hues above), Blue, Rose, Green, Orange and Violet (shades of one colour, to match the UI kit's palettes) Mono, and Custom (eight colours built from the custom primary and second brand colour picked with irender-ui-kit's `ui-theme-colors`). Pick it with irender-ui-kit's `{ type: ui-theme-option, props: { option: chart, swatch: color.chart-1 } }`, or add schemes of your own under `theme.options.chart.choices`.
+`apply_theme` also adds a `chart` theme option, the colour scheme:
+- **Default** follows irender-ui-kit's palette: with a coloured one (Rose, Blue, Green, Orange, Violet) charts take its shades, with custom colours they take a scheme built from them, and with a neutral one (Zinc, Slate, Stone) they take the eight hues above. A palette names its series colours `color.palette-chart-1` … `8`; a theme of your own can set them too.
+- **Hues**: the eight hues above, whatever the palette.
+- **Blue, Rose, Green, Orange and Violet**: shades of one colour, as the UI kit's palettes of those names.
+- **Mono**: greys.
+- **Custom**: eight colours built from the custom primary and second brand colour picked with irender-ui-kit's `ui-theme-colors`.
+
+A scheme picked here wins over the palette's. Pick it with irender-ui-kit's `{ type: ui-theme-option, props: { option: chart, swatch: color.chart-1 } }`, or add schemes of your own under `theme.options.chart.choices`.
 
 Defaults follow common charting practice:
 - 2 px lines.
