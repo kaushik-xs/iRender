@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the gallery's sidebar following the section in view, remote data tables' facets, and more illustrations.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: remote data tables' facets, more illustrations, and the CI checks under Housekeeping.
 
 ## Gaps you'd hit in real use
 

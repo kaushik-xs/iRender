@@ -240,6 +240,11 @@ ui-input-otp: A one-time code in a row of boxes: type, paste or take it from the
   id           any  The field's element id (default: derived from the document)
   parts: input
   children: no
+ui-scroll-spy: Navigation whose in-page links (`href="#id"`) follow the reading: the link for the section in view gets `aria-current="location"` and stays in view. Children are the links, in any layout.
+  offset       any  Pixels covered at the top of the window, e.g. by a sticky header (default 0)
+  label        any  Names the navigation for screen readers (default `On this page`)
+  tag          tag  HTML tag (default `nav`)
+  children: yes
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

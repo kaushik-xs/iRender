@@ -55,6 +55,7 @@ mod menus;
 mod navigation;
 mod otp;
 mod overlay;
+mod scroll_spy;
 mod sidebar;
 mod theme;
 
@@ -102,6 +103,7 @@ pub fn register(registry: &mut Registry) {
         .register(navigation::Pagination)
         .register(forms::Slider)
         .register(otp::InputOtp)
+        .register(scroll_spy::ScrollSpy)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

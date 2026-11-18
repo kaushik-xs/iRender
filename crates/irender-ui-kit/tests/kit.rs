@@ -103,7 +103,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 92);
+    assert_eq!(kit, 93);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");

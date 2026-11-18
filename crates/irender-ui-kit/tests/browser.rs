@@ -2896,3 +2896,54 @@ fn input_otp_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The scroll spy marks the link for the section being read, and keeps it in view in a
+/// list that scrolls on its own.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn scroll_spy_in_chrome() {
+    let ids = ["one", "two", "three", "four", "five"];
+    let links: Vec<_> = ids.iter().map(|id| serde_json::json!({ "type": "element", "props": { "tag": "a" }, "attrs": { "href": format!("#{id}") },
+        "style": { "display": "block", "height": 60 }, "children": [{ "type": "text", "props": { "value": id } }] })).collect();
+    let sections: Vec<_> = ids.iter().enumerate().map(|(i, id)| serde_json::json!({ "type": "element", "props": { "tag": "section" }, "attrs": { "id": id },
+        // The last is short: it's current only once the page reaches the bottom.
+        "style": { "height": if i == 4 { 200 } else { 900 } }, "children": [{ "type": "text", "props": { "value": id } }] })).collect();
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "element", "children": [
+        { "type": "ui-scroll-spy", "props": { "offset": 20 }, "style": { "position": "fixed", "top": 0, "left": 0, "width": 120, "height": 150, "overflow-y": "auto" }, "children": links },
+        { "type": "element", "style": { "margin-left": 140 }, "children": sections } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const nav = document.querySelector("[data-i-x=ui-scroll-spy]");
+      const cur = () => [...nav.querySelectorAll("[aria-current=location]")].map((a) => a.textContent).join(",");
+      // Scroll events come with animation frames, which headless Chrome may not run.
+      const go = async (y) => { scrollTo(0, y); dispatchEvent(new Event("scroll")); await wait(80); };
+      try {
+        log("start", cur(), nav.getAttribute("aria-label"), nav.tagName);
+        await go(950); log("two", cur());
+        await go(2000); log("three", cur(), "list scrolled", nav.scrollTop > 0);
+        await go(1e6); log("bottom", cur(), "last link shown", nav.querySelector("[aria-current]").getBoundingClientRect().bottom <= nav.getBoundingClientRect().bottom);
+        await go(0); log("back", cur(), "list back", nav.scrollTop === 0);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("scroll-spy", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start one On this page NAV",
+            "two two",
+            "three three list scrolled true",
+            "bottom five last link shown true",
+            "back one list back true",
+        ],
+        "\n{result}"
+    );
+}

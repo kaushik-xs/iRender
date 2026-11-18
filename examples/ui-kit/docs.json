@@ -357,6 +357,16 @@
    ]
   },
   {
+   "id": "scroll-spy",
+   "group": "Navigation",
+   "title": "Scroll spy",
+   "summary": "Navigation that follows the reading: the in-page link for the section in view is marked (aria-current=\"location\") as the page scrolls, and kept in view in a list that scrolls on its own. The sidebar of this page is one; use it for a table of contents beside a long article.",
+   "usage": "- type: ui-scroll-spy\n  props: { label: On this page, offset: 64 }   # 64px covered by a sticky header\n  children:\n    - { type: element, props: { tag: a }, attrs: { href: \"#install\" }, children: [ { type: text, props: { value: Install } } ] }\n    - { type: element, props: { tag: a }, attrs: { href: \"#usage\" }, children: [ { type: text, props: { value: Usage } } ] }",
+   "components": [
+    "ui-scroll-spy"
+   ]
+  },
+  {
    "id": "chat",
    "group": "Chat",
    "title": "Chat",

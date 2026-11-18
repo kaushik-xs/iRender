@@ -146,9 +146,9 @@ root:
                       style: { display: contents }
                       children:
                         - { type: ui-command-item, props: { label: "{{ sec.title }}", href: "#{{ sec.id }}" } }
-        - type: element
-          props: { tag: nav }
-          attrs: { aria-label: Sections }
+        # The link for the section being read is marked as you scroll.
+        - type: ui-scroll-spy
+          props: { label: Sections }
           style: { display: flex, flex-direction: column, gap: 16, max-height: 260, overflow-y: auto, "@lg": { max-height: none, overflow: visible } }
           children:
             - type: list
@@ -2046,6 +2046,25 @@ root:
                 - { type: if, props: { when: "{{ api.sidebar.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.sidebar }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- scroll-spy
+            - type: element
+              props: { tag: section }
+              attrs: { id: scroll-spy, aria-labelledby: scroll-spy-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.scroll_spy }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "The sidebar beside this page is a ui-scroll-spy: scroll, and its link for the section you're reading lights up." }
+                - { type: if, props: { when: "{{ api.scroll_spy.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.scroll_spy }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
