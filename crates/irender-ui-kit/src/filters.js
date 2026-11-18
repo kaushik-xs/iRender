@@ -16,6 +16,12 @@
   const tabs = $$("[data-fl-tab]");
 
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  const announcer = $("[data-fl-live]");
+  const say = (text) => {
+    if (!announcer) return;
+    announcer.textContent = "";
+    setTimeout(() => (announcer.textContent = text), 30);
+  };
   const blank = (v) => v === null || v === undefined || v === "";
   const same = (a, b) => a === b || (!blank(a) && !blank(b) && String(a) === String(b));
   const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
@@ -167,6 +173,29 @@
     return d.type === "list" ? s.picked.length : 1;
   };
 
+  // ---- date presets: a range, from `today`
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const todayDate = () => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(cfg.today ?? "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+  };
+  function preset(name) {
+    const t = todayDate(), y = t.getFullYear(), mo = t.getMonth(), q = Math.floor(mo / 3) * 3;
+    const back = (n) => new Date(y, mo, t.getDate() - n);
+    const range = {
+      today: [t, t],
+      yesterday: [back(1), back(1)],
+      last7: [back(6), t],
+      last30: [back(29), t],
+      thisMonth: [new Date(y, mo, 1), new Date(y, mo + 1, 0)],
+      lastMonth: [new Date(y, mo - 1, 1), new Date(y, mo, 0)],
+      thisQuarter: [new Date(y, q, 1), new Date(y, q + 3, 0)],
+      thisYear: [new Date(y, 0, 1), new Date(y, 11, 31)],
+    }[name];
+    return range && range.map(iso);
+  }
+
   // ---- the chips and counts beside the button
   const chips = $("[data-fl-chips]"), clearAll = $("[data-fl-clear]"), total = $("[data-fl-count]");
   function drawBar() {
@@ -229,6 +258,15 @@
   // Shows the inputs the operator takes.
   function shape(i) {
     const p = pane(i), d = defs[i], op = $("[data-fl-op]", p).value;
+    const presets = $("[data-fl-presets]", p);
+    if (presets) {
+      const s0 = stateOf(i);
+      presets.hidden = !d.ops.includes("between") || !takesValue(op);
+      for (const b of $$("[data-fl-preset]", presets)) {
+        const r = preset(b.getAttribute("data-fl-preset"));
+        b.setAttribute("aria-pressed", r && s0.op === "between" && s0.a === r[0] && s0.b === r[1] ? "true" : "false");
+      }
+    }
     if (d.type === "list") {
       const values = takesList(op);
       $("[data-fl-options]", p).hidden = !values;
@@ -318,10 +356,105 @@
     ($("[data-fl-search]:not([hidden])", p) || $("[data-fl-pick]", p) || $("[data-fl-a]:not([hidden])", p) || tabs[i]).focus();
   }
 
+  // ---- saved views: `bindViews` holds [{ name, filters }]
+  const menu = $("[data-fl-views]");
+  const views = () => (cfg.bindViews && Array.isArray(api.state[cfg.bindViews]) ? api.state[cfg.bindViews] : []);
+  const sameFilters = (a, b) => JSON.stringify(a ?? {}) === JSON.stringify(b ?? {});
+  function drawViews() {
+    if (!menu) return;
+    const list = $("[data-fl-view-list]", menu), f = applied();
+    const vs = views();
+    list.replaceChildren(
+      ...vs.map((v, i) => {
+        const li = document.createElement("li");
+        li.setAttribute("data-index", i);
+        const apply = document.createElement("button");
+        apply.type = "button";
+        apply.setAttribute("data-fl-view-apply", "");
+        apply.setAttribute("aria-current", sameFilters(v.filters, f) ? "true" : "false");
+        apply.textContent = v.name;
+        const del = document.createElement("button");
+        del.type = "button";
+        del.setAttribute("data-fl-view-delete", "");
+        del.setAttribute("aria-label", `Delete the ${v.name} view`);
+        del.textContent = "✕";
+        li.append(apply, del);
+        return li;
+      }),
+    );
+    if (!vs.length) {
+      const li = document.createElement("li");
+      li.setAttribute("data-fl-view-empty", "");
+      li.textContent = "No saved views yet.";
+      list.append(li);
+    }
+  }
+  function toggleViews(open = menu.hidden) {
+    menu.hidden = !open;
+    $("[data-fl-views-open]").setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      drawViews();
+      ($("[data-fl-view-apply]", menu) || $("[data-fl-view-name]", menu)).focus();
+    }
+  }
+  function saveView() {
+    const box = $("[data-fl-view-name]", menu), name = box.value.trim();
+    if (!name) return box.focus();
+    // A view of the same name is replaced.
+    const rest = views().filter((v) => v.name !== name);
+    api.set(cfg.bindViews, [...rest, { name, filters: clone(applied()) }]);
+    box.value = "";
+    say(`Saved the ${name} view`);
+    queueMicrotask(drawViews);
+  }
+  function applyView(i) {
+    const v = views()[i];
+    if (!v) return;
+    api.set(cfg.bind, clone(v.filters ?? {}));
+    say(`${v.name} applied`);
+    toggleViews(false);
+    $("[data-fl-views-open]").focus();
+  }
+  function deleteView(i) {
+    const v = views()[i];
+    if (!v) return;
+    api.set(cfg.bindViews, views().filter((_, j) => j !== i));
+    say(`Deleted the ${v.name} view`);
+    queueMicrotask(() => {
+      drawViews();
+      ($("[data-fl-view-apply]", menu) || $("[data-fl-view-name]", menu)).focus();
+    });
+  }
+  if (menu) {
+    menu.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        toggleViews(false);
+        $("[data-fl-views-open]").focus();
+      }
+      if (e.key === "Enter" && e.target.matches("[data-fl-view-name]")) e.preventDefault(), saveView();
+    });
+    document.addEventListener("pointerdown", (e) => !menu.hidden && !e.target.closest("[data-fl-views-wrap]") && toggleViews(false));
+  }
+
   // ---- events
   el.addEventListener("click", (e) => {
     const t = e.target.closest("button");
     if (!t || !el.contains(t)) return;
+    if (t.hasAttribute("data-fl-preset")) {
+      const p = t.closest("[data-fl-pane]"), i = Number(p.getAttribute("data-fl-pane"));
+      const r = preset(t.getAttribute("data-fl-preset"));
+      $("[data-fl-op]", p).value = "between";
+      $("[data-fl-a]", p).value = r[0];
+      $("[data-fl-b]", p).value = r[1];
+      shape(i);
+      take(i);
+      return;
+    }
+    if (t.hasAttribute("data-fl-views-open")) return toggleViews();
+    if (t.hasAttribute("data-fl-view-save")) return saveView();
+    if (t.hasAttribute("data-fl-view-apply")) return applyView(Number(t.closest("li").getAttribute("data-index")));
+    if (t.hasAttribute("data-fl-view-delete")) return deleteView(Number(t.closest("li").getAttribute("data-index")));
     if (t.hasAttribute("data-fl-open")) open();
     else if (t.hasAttribute("data-fl-edit")) open(Number(t.getAttribute("data-fl-edit")));
     else if (t.hasAttribute("data-fl-remove")) {
@@ -390,6 +523,7 @@
       if (f !== lastApplied) {
         lastApplied = f;
         drawBar();
+        if (menu && !menu.hidden) drawViews();
         // Changed from outside while open (or by `live`): the panel follows.
         if (panel.open && instant) {
           draft = clone(applied());

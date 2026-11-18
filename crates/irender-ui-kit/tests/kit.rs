@@ -47,6 +47,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-password-checklist", json!({ "value": "" })),
         ("ui-kanban", json!({ "columns": [], "cards": [] })),
         ("ui-event-calendar", json!({ "events": [] })),
+        ("ui-number-input", json!({ "bind": "k" })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -114,7 +115,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 105);
+    assert_eq!(kit, 106);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1392,4 +1393,36 @@ fn event_calendar_toolbar_and_mistakes() {
     assert!(err(json!({ "events": [], "views": ["month"], "view": "week" })).contains("which `views` leaves out"));
     assert!(err(json!({ "events": [], "hours": [18, 9] })).contains("`hours` must be `[from, to]`"));
     assert!(err(json!({ "events": [], "weekStart": 3 })).contains("`weekStart` must be 0"));
+}
+
+#[test]
+fn number_input_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-field", "props": { "label": "Budget" }, "children": [
+            { "type": "ui-number-input", "props": { "bind": "amount", "currency": "inr", "stepper": true, "suffix": "per month", "decimals": 0 } } ] }),
+        json!({ "amount": 125000 }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The field's label points at the inner input; the currency's symbol goes first.
+    assert!(body.contains(r#"<label for="field-root-control">"#), "{body}");
+    assert!(body.contains(r#"<span data-num-prefix aria-hidden="true">₹</span><input id="field-root-control" type="text" inputmode="numeric" data-num-input autocomplete="off" value="125000" aria-description="in INR">"#), "{body}");
+    assert!(body.contains(r#"<span data-num-suffix>per month</span>"#), "{body}");
+    assert!(body.contains(r#"data-num-step="-1" tabindex="-1" aria-label="Decrease">−</button>"#), "{body}");
+    assert!(page.body.contains("&quot;currency&quot;:&quot;INR&quot;"), "{}", page.body);
+
+    let err = |props: Json| render_with(json!({ "type": "ui-number-input", "props": props }), json!({ "n": null }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "bind": "n", "min": 5, "max": 1 })).contains("`min` is more than `max`"));
+    assert!(err(json!({ "bind": "n", "step": 0 })).contains("`step` must be more than 0"));
+    assert!(err(json!({ "bind": "n", "currency": "rupees" })).contains("three-letter code"));
+    assert!(err(json!({ "bind": "n", "decimals": 1.5 })).contains("`decimals` must be a whole number"));
+
+    // Filters: a date filter's presets, a mistake in them, and the Views menu.
+    let filters = |filter: Json| json!({ "type": "ui-filters", "props": { "bind": "f", "bindViews": "v" }, "children": [filter] });
+    let fb = plain(&render_with(filters(json!({ "type": "ui-filter", "props": { "field": "d", "type": "date", "presets": ["last7", "thisYear"] } })), json!({ "f": {}, "v": [] }), json!({})).unwrap().body);
+    assert!(fb.contains(r#"<div data-fl-presets role="group" aria-label="d presets"><button type="button" data-fl-preset="last7">Last 7 days</button><button type="button" data-fl-preset="thisYear">This year</button></div>"#), "{fb}");
+    assert!(fb.contains(r#"data-fl-views-open aria-expanded="false""#) && fb.contains(r#"data-fl-view-name placeholder="Name these filters""#), "{fb}");
+    let e = render_with(filters(json!({ "type": "ui-filter", "props": { "field": "d", "type": "date", "presets": ["fortnight"] } })), json!({ "f": {}, "v": [] }), json!({})).unwrap_err().to_string();
+    assert!(e.contains("no date preset `fortnight`"), "{e}");
 }

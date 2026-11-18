@@ -104,6 +104,17 @@
    ]
   },
   {
+   "id": "number-input",
+   "group": "Forms",
+   "title": "Number input",
+   "nav": "Number input",
+   "summary": "A number or an amount, grouped in the locale's way as it's typed (1,25,000 in India, 125.000 in Germany) while the caret stays among the same digits. State gets a plain number. A currency puts its symbol first; Up and Down step it, as do optional − and + buttons; leaving the field clamps it to min and max.",
+   "usage": "- type: ui-field\n  props: { label: Budget }\n  children:\n    - { type: ui-number-input, props: { bind: budget, currency: INR, locale: en-IN, min: 0 } }\n- { type: ui-number-input, props: { bind: qty, min: 1, max: 99, stepper: true, suffix: pcs, label: Quantity } }",
+   "components": [
+    "ui-number-input"
+   ]
+  },
+  {
    "id": "date-picker",
    "group": "Forms",
    "title": "Date picker and calendar",
@@ -201,7 +212,7 @@
    "id": "filters",
    "group": "Data display",
    "title": "Filters",
-   "summary": "Filters for a list in a side panel: lists to pick from, numbers and amounts, dates and text, each with its operators (is any of, between, before, contains, is empty, …). The applied filters show as chips; Apply writes them to state as { field: condition }, the same object a data table's or chart's filter takes, or an API.",
+   "summary": "Filters for a list in a side panel: lists to pick from, numbers and amounts, dates and text, each with its operators (is any of, between, before, contains, is empty, …). The applied filters show as chips; Apply writes them to state as { field: condition }, the same object a data table's or chart's filter takes, or an API. Date filters have presets (Last 7 days, This month, This quarter, …), and bindViews keeps named views of the filters to come back to.",
    "usage": "- type: ui-filters\n  props: { bind: filters, rows: \"{{ orders }}\", currency: INR }\n  children:\n    - { type: ui-filter, props: { field: status, label: Status } }      # values from rows, with counts\n    - { type: ui-filter, props: { field: amount, label: Amount, type: currency } }\n    - { type: ui-filter, props: { field: date, label: Date, type: date } }\n- type: ui-data-table\n  props: { rows: \"{{ orders }}\", filter: \"{{ filters }}\" }",
    "components": [
     "ui-filters",

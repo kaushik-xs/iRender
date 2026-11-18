@@ -7,11 +7,16 @@
 #   date (between, on, before, after) and Title text (contains, is).
 # - Chips beside the button show what's applied: click one to change it, ✕ to remove it.
 #   "Unassigned" sets `assignee: { empty: true }` from a button, and the chips follow.
+# - Views keeps named sets of filters (two to start with): apply one, or save the
+#   filters now as another. Created has presets: Last 7 days, This month, …
 #
 #   cargo run -p irender-cli -- render examples/blocks/data-table-06.yaml --ui-kit --chart-kit --icon-kit -o data-table-06.html
 version: 1
 state:
   filters: { status: [Open, In progress, Blocked] }
+  views:
+    - { name: Unassigned, filters: { assignee: { empty: true } } }
+    - { name: Urgent and open, filters: { priority: [Urgent], status: { not: [Done] } } }
   tickets:
     - {"id": "TCK-120", "title": "Login page times out", "status": "In progress", "priority": "Low", "assignee": null, "team": "Web", "estimate": 1, "created": "2026-10-21"}
     - {"id": "TCK-121", "title": "Export to CSV drops dates", "status": "Open", "priority": "Medium", "assignee": "Divya", "team": "Web", "estimate": 8, "created": "2026-11-04"}
@@ -67,7 +72,7 @@ root:
               props: { label: Urgent and open, variant: outline, size: sm, icon: warning }
               on: { click: { action: set_state, key: filters, value: { priority: [Urgent], status: { not: [Done] } } } }
     - type: ui-filters
-      props: { bind: filters, rows: "{{ tickets }}", title: Filter tickets }
+      props: { bind: filters, bindViews: views, rows: "{{ tickets }}", title: Filter tickets }
       children:
         - { type: ui-filter, props: { field: status, label: Status, section: Ticket } }
         - { type: ui-filter, props: { field: priority, label: Priority, section: Ticket, options: [Urgent, High, Medium, Low] } }

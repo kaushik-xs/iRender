@@ -70,6 +70,12 @@ state:
   chatWaiting: false
   sidebar: true
   invoiceFilters: { status: [Paid, Pending] }
+  invoiceViews:
+    - { name: Unpaid, filters: { status: [Unpaid, Pending] } }
+    - { name: "Over ₹2,000", filters: { amount: { gt: 2000 } } }
+  budget: 125000
+  quantity: 2
+  rate: 1250.5
   attachments:
     - { id: r1, name: taxi-receipt.svg, size: 1169, type: image/svg+xml, url: blocks/files/taxi-receipt.svg, status: done }
     - { id: r2, name: hotel-invoice.pdf, size: 781, type: application/pdf, url: blocks/files/hotel-invoice.pdf, status: done }
@@ -897,6 +903,35 @@ root:
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
+            # ---------------------------------------------------------------- number-input
+            - type: element
+              props: { tag: section }
+              attrs: { id: number-input, aria-labelledby: number-input-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.number_input }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fill, minmax(220px, 1fr))", max-width: 760 }
+                  children:
+                    - type: ui-field
+                      props: { label: Budget, description: "{{ 'In state: ' + budget }}" }
+                      children: [ { type: ui-number-input, props: { bind: budget, currency: INR, locale: en-IN, min: 0 } } ]
+                    - type: ui-field
+                      props: { label: Quantity, description: Up and Down step it; 1 to 99. }
+                      children: [ { type: ui-number-input, props: { bind: quantity, min: 1, max: 99, stepper: true, suffix: pcs, decimals: 0 } } ]
+                    - type: ui-field
+                      props: { label: Stückpreis, description: German grouping and decimals. }
+                      children: [ { type: ui-number-input, props: { bind: rate, locale: de-DE, suffix: €, decimals: 2 } } ]
+                - { type: if, props: { when: "{{ api.number_input.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.number_input }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
             # ---------------------------------------------------------------- date-picker
             - type: element
               props: { tag: section }
@@ -1355,7 +1390,7 @@ root:
                 - type: ui-text
                   props: { variant: muted, text: "The filters write invoiceFilters, and the table takes it as its filter. Click a chip to change it, or Filters for every field." }
                 - type: ui-filters
-                  props: { bind: invoiceFilters, rows: "{{ invoices }}", currency: INR, locale: en-IN }
+                  props: { bind: invoiceFilters, bindViews: invoiceViews, rows: "{{ invoices }}", currency: INR, locale: en-IN }
                   children:
                     - { type: ui-filter, props: { field: status, label: Status, section: Invoice } }
                     - { type: ui-filter, props: { field: customer, label: Customer, section: Invoice } }

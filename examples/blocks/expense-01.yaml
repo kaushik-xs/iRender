@@ -11,6 +11,7 @@ version: 1
 state:
   toast: null
   purpose: Client visit, Mumbai
+  advance: 10000
   receipts:
     - { id: r1, name: taxi-receipt.svg, size: 1169, type: image/svg+xml, url: files/taxi-receipt.svg, status: done }
     - { id: r2, name: hotel-invoice.pdf, size: 781, type: application/pdf, url: files/hotel-invoice.pdf, status: done }
@@ -82,6 +83,20 @@ root:
                         - { type: element, props: { tag: td }, children: [ { type: text, props: { value: "{{ line.merchant }}" } } ] }
                         - { type: element, props: { tag: td }, children: [ { type: ui-badge, props: { text: "{{ line.category }}", variant: outline } } ] }
                         - { type: element, props: { tag: td }, style: { text-align: right, font-variant-numeric: tabular-nums }, children: [ { type: text, props: { value: "{{ line.amount }}" } } ] }
+        - type: ui-card
+          props: { title: Advance, description: "Cash taken before the trip is taken off what you're paid back." }
+          children:
+            - type: element
+              style: { display: grid, gap: 16px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 260px) 1fr" }, align-items: end }
+              children:
+                - type: ui-field
+                  props: { label: Cash advance }
+                  children: [ { type: ui-number-input, props: { bind: advance, currency: INR, locale: en-IN, min: 0, max: 23320, placeholder: "0" } } ]
+                - type: stack
+                  style: { gap: 2px, padding-bottom: 6px }
+                  children:
+                    - { type: text, props: { value: "{{ advance > 23320 ? 'More than the claim' : 'To be paid back: ₹' + (23320 - (advance ? advance : 0)) }}" }, style: { font-weight: 600, font-size: 15px } }
+                    - { type: text, props: { value: "Claim total ₹23,320, less the advance." }, style: { color: $color.muted, font-size: 13px } }
         - type: ui-card
           props: { title: Receipts, description: "Attach a receipt for every expense over ₹500. Click one to check it." }
           children:

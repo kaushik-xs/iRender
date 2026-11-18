@@ -3805,3 +3805,178 @@ fn event_calendar_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The number input: grouping as it's typed with the caret kept among its digits, in
+/// two locales; decimals; clamping on leaving; Up, Down and the buttons; and state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn number_input_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "amount": 125000, "qty": null, "eu": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-field", "props": { "label": "Budget" }, "children": [
+                { "type": "ui-number-input", "attrs": { "id": "amount" }, "props": { "bind": "amount", "currency": "INR", "locale": "en-IN", "min": 0, "max": 10000000 } } ] },
+            { "type": "ui-number-input", "attrs": { "id": "qty" }, "props": { "bind": "qty", "label": "Quantity", "min": 1, "max": 20, "step": 2, "decimals": 0, "stepper": true, "suffix": "pcs" } },
+            { "type": "ui-number-input", "attrs": { "id": "eu" }, "props": { "bind": "eu", "locale": "de-DE", "label": "Betrag", "suffix": "€", "decimals": 2 } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const field = (id) => document.querySelector(`#${id} input`);
+      // Types `text` as if the caret were at `caret` afterwards.
+      const type = (input, text, caret = text.length) => { input.focus(); input.value = text; input.setSelectionRange(caret, caret); input.dispatchEvent(new InputEvent("input", { bubbles: true })); };
+      const key = (input, k, shift = false) => input.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: shift, bubbles: true, cancelable: true }));
+      const blur = (input) => { input.dispatchEvent(new FocusEvent("blur")); };
+      try {
+        const a = field("amount");
+        log("start", a.value, document.querySelector("#amount [data-num-prefix]").textContent, a.getAttribute("aria-description"), document.querySelector("label[for]").getAttribute("for") === a.id, a.getAttribute("inputmode"));
+        type(a, "1250000"); log("typed", a.value, S().amount, a.selectionStart);
+        // A digit typed in the middle: the caret stays after it.
+        type(a, "12,503,000", 4); log("middle", a.value, S().amount, a.selectionStart, a.value.slice(0, a.selectionStart));
+        type(a, "1,25,0.5"); log("fraction", a.value, S().amount);
+        type(a, ""); log("empty", JSON.stringify(a.value), S().amount);
+        type(a, "99999999"); blur(a); await wait(0); log("over max", a.value, S().amount);
+        type(a, "-500"); log("negative", a.value, S().amount, a.getAttribute("aria-invalid"));
+        blur(a); await wait(0); log("min", a.value, S().amount);
+        // Steps: Up and Down, Shift for ten, the buttons, within min and max.
+        const q = field("qty");
+        log("qty", JSON.stringify(q.value), q.getAttribute("aria-label"), q.getAttribute("inputmode"), document.querySelector("#qty [data-num-step='1']").getAttribute("aria-label"));
+        key(q, "ArrowUp"); log("up", q.value, S().qty);
+        key(q, "ArrowUp"); key(q, "ArrowUp", true); log("shift up", q.value, S().qty);
+        key(q, "ArrowDown"); log("down", S().qty);
+        document.querySelector("#qty [data-num-step='-1']").click(); log("minus", S().qty);
+        type(q, "7.6"); blur(q); await wait(0); log("rounded", q.value, S().qty);
+        // German: dots group, a comma for decimals.
+        const e = field("eu");
+        type(e, "1234567,8"); log("de", e.value, S().eu);
+        blur(e); await wait(0); log("de blur", e.value, S().eu);
+        // From state.
+        root.__irender.set("amount", 4500000); await wait(0); log("state", a.value);
+        root.__irender.set("qty", null); await wait(0); log("cleared", JSON.stringify(q.value));
+      } catch (err) { log("EXCEPTION", err.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("number", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start 1,25,000 ₹ in INR true decimal",
+            // Indian grouping as it's typed; a digit typed mid-number keeps the caret after it.
+            "typed 12,50,000 1250000 9",
+            "middle 1,25,03,000 12503000 4 1,25",
+            "fraction 1,250.5 1250.5",
+            "empty \"\" ",
+            // Leaving the field clamps it; while typing it's only marked.
+            "over max 1,00,00,000 10000000",
+            "negative -500 -500 true",
+            "min 0 0",
+            "qty \"\" Quantity numeric Increase Quantity",
+            // From empty, Up starts at `min`; Shift steps ten times; `decimals: 0` rounds.
+            "up 1 1",
+            "shift up 20 20",
+            "down 18",
+            "minus 16",
+            "rounded 8 8",
+            // German: dots group, a comma for the decimals.
+            "de 1.234.567,8 1234567.8",
+            // German: dots group, a comma for the decimals.
+            "de blur 1.234.567,8 1234567.8",
+            "state 45,00,000",
+            "cleared \"\"",
+        ],
+        "\n{result}"
+    );
+}
+
+/// The filters' date presets (ranges from `today`, marked while they're set) and saved
+/// views (save the filters under a name, apply one, delete one).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn filter_presets_and_views_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "f": { "status": ["Open"] }, "views": [ { "name": "Paid", "filters": { "status": ["Paid"] } } ] },
+        "root": { "type": "ui-filters", "props": { "bind": "f", "bindViews": "views", "today": "2026-11-18", "live": true }, "children": [
+            { "type": "ui-filter", "props": { "field": "status", "options": ["Open", "Paid"] } },
+            { "type": "ui-filter", "props": { "field": "due", "type": "date" } },
+            { "type": "ui-filter", "props": { "field": "sent", "type": "date", "presets": ["today", "thisQuarter"] } },
+            { "type": "ui-filter", "props": { "field": "seen", "type": "date", "operators": ["on", "before"] } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const F = document.querySelector("[data-i-x=ui-filters]");
+      const $ = (s, from = F) => from.querySelector(s), $$ = (s, from = F) => [...from.querySelectorAll(s)];
+      const pane = (i) => $(`[data-fl-pane="${i}"]`);
+      try {
+        $("[data-fl-open]").click(); await wait(0);
+        log("presets", $$("[data-fl-preset]", pane(1)).map((b) => b.textContent).join(","));
+        log("chosen", $$("[data-fl-preset]", pane(2)).map((b) => b.textContent).join(","), "| none without between", $("[data-fl-presets]", pane(3)) === null);
+        const click = async (i, name) => { $(`[data-fl-preset="${name}"]`, pane(i)).click(); await wait(0); return JSON.stringify(S().f[i === 1 ? "due" : "sent"]); };
+        for (const name of ["today", "yesterday", "last7", "last30", "thisMonth", "lastMonth", "thisYear"]) log(name, await click(1, name));
+        log("pressed", $$("[data-fl-preset][aria-pressed=true]", pane(1)).map((b) => b.getAttribute("data-fl-preset")).join(","), $("[data-fl-op]", pane(1)).value);
+        log("quarter", await click(2, "thisQuarter"));
+        // Hidden while the operator takes no dates.
+        const op = $("[data-fl-op]", pane(1)); op.value = "empty"; op.dispatchEvent(new Event("change", { bubbles: true })); await wait(0);
+        log("empty hides", $("[data-fl-presets]", pane(1)).hidden);
+        $("[data-fl-panel]").close();
+        // Views: the menu, saving, the current one marked, applying, deleting.
+        root.__irender.set("f", { status: ["Open"] }); await wait(0);
+        $("[data-fl-views-open]").click(); await wait(0);
+        log("menu", !$("[data-fl-views]").hidden, $("[data-fl-views-open]").getAttribute("aria-expanded"), $$("[data-fl-view-apply]").map((b) => b.textContent + (b.getAttribute("aria-current") === "true" ? "*" : "")).join(","), document.activeElement.textContent);
+        const name = $("[data-fl-view-name]"); name.value = "Open ones";
+        $("[data-fl-view-save]").click(); await wait(0); await wait(0);
+        log("saved", JSON.stringify(S().views), $$("[data-fl-view-apply]").map((b) => b.textContent + (b.getAttribute("aria-current") === "true" ? "*" : "")).join(","));
+        // Same name: replaced.
+        root.__irender.set("f", { status: ["Open", "Paid"] }); await wait(0);
+        name.value = "Open ones"; name.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); await wait(0);
+        log("replaced", S().views.length, JSON.stringify(S().views.at(-1).filters));
+        $$("[data-fl-view-apply]")[0].click(); await wait(0);
+        log("applied", JSON.stringify(S().f), $("[data-fl-views]").hidden, document.activeElement.hasAttribute("data-fl-views-open"), $$("[data-fl-chip]").length);
+        $("[data-fl-views-open]").click(); await wait(0);
+        $$("[data-fl-view-delete]")[0].click(); await wait(0); await wait(0);
+        log("deleted", S().views.map((v) => v.name).join(","), $$("[data-fl-view-delete]")[0].getAttribute("aria-label"));
+        $("[data-fl-views]").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+        log("escape", $("[data-fl-views]").hidden);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("filter-views", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "presets Today,Yesterday,Last 7 days,Last 30 days,This month,Last month,This quarter,This year",
+            "chosen Today,This quarter | none without between true",
+            // Ranges from `today` (18 Nov 2026), as Between.
+            "today {\"from\":\"2026-11-18\",\"to\":\"2026-11-18\"}",
+            "yesterday {\"from\":\"2026-11-17\",\"to\":\"2026-11-17\"}",
+            "last7 {\"from\":\"2026-11-12\",\"to\":\"2026-11-18\"}",
+            "last30 {\"from\":\"2026-10-20\",\"to\":\"2026-11-18\"}",
+            "thisMonth {\"from\":\"2026-11-01\",\"to\":\"2026-11-30\"}",
+            "lastMonth {\"from\":\"2026-10-01\",\"to\":\"2026-10-31\"}",
+            "thisYear {\"from\":\"2026-01-01\",\"to\":\"2026-12-31\"}",
+            "pressed thisYear between",
+            "quarter {\"from\":\"2026-10-01\",\"to\":\"2026-12-31\"}",
+            "empty hides true",
+            // Views: the current one marked, saving, the same name replaced, applying, deleting.
+            "menu true true Paid Paid",
+            "saved [{\"name\":\"Paid\",\"filters\":{\"status\":[\"Paid\"]}},{\"name\":\"Open ones\",\"filters\":{\"status\":[\"Open\"]}}] Paid,Open ones*",
+            "replaced 2 {\"status\":[\"Open\",\"Paid\"]}",
+            "applied {\"status\":[\"Paid\"]} true true 1",
+            "deleted Open ones Delete the Open ones view",
+            "escape true",
+        ],
+        "\n{result}"
+    );
+}

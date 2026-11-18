@@ -254,6 +254,8 @@ ui-filters: Filters for a list: a button that opens a side panel of fields, each
   chips        bool  Show the applied filters as chips beside the button (default true)
   currency     string  Currency code for `currency` filters, e.g. `INR` (default `USD`)
   locale       string  Locale for numbers and dates in chips (default: the browser's)
+  bindViews    statekey  State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them
+  today        string  The date date presets count from (default: today)
   id           any  The panel's element id (default: derived from the document)
   parts: button, panel
   children: yes
@@ -266,6 +268,7 @@ ui-filter: One field of the `ui-filters` it is in: its type, label and operators
   section      string  A heading to group it under in the panel
   unit         string  Shown after a number, e.g. `kg`
   currency     string  This filter's currency, over the filters' `currency`
+  presets      any  A date filter's quick ranges: `true` (default: today, yesterday, last7, last30, thisMonth, lastMonth, thisQuarter, thisYear), `false`, or a list of those names
   children: no
 ui-tree: A tree of nodes to browse, select, check, search, add to, delete from and rearrange by dragging or with Alt and the arrow keys. Changes go to state (`bindNodes`) and fire `select`, `add`, `delete` and `move` events.
   nodes        any (required)  The nodes: `{ id, label (or name), children }`, usually from state, e.g. `{{ locations }}`
@@ -385,6 +388,25 @@ ui-event-calendar: Events in a month grid, a week of hours, or a list by day, co
   emptyText    any  The list view's text for a month with nothing in it
   label        any  Names it for screen readers (default `Calendar`)
   parts: toolbar
+  children: no
+ui-number-input: A number or an amount, grouped as it's typed (`1,25,000`), with a currency symbol, prefix or suffix, Up and Down to step it, and optional − and + buttons. State gets a plain number.
+  bind         statekey (required)  State key for the number (null when empty)
+  currency     string  An ISO currency code, e.g. `INR`: its symbol goes before the number, and its decimals apply
+  prefix       any  Text before the number, e.g. `~` (instead of a currency's symbol)
+  suffix       any  Text after the number, e.g. `kg` or `%`
+  locale       string  How the number is written, e.g. `en-IN` (default: the browser's)
+  min          number  The smallest it can be; leaving the field raises it to this
+  max          number  The largest it can be
+  step         number  How much Up, Down and the buttons change it (default 1)
+  decimals     number  Digits after the decimal point (default: the currency's, or as typed)
+  stepper      bool  − and + buttons beside it
+  placeholder  any  Shown while it's empty
+  label        any  Accessible name, when no visible label (such as a `ui-field`'s) names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong, e.g. `{{ amount > budget }}`
+  id           any  The input's id (default: derived from the document)
+  parts: input
   children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`

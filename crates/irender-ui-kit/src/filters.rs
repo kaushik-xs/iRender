@@ -41,7 +41,21 @@ const PROPS: &[PropDef] = &[
     PropDef::new("chips", PropKind::Bool, "Show the applied filters as chips beside the button (default true)"),
     PropDef::new("currency", PropKind::String, "Currency code for `currency` filters, e.g. `INR` (default `USD`)"),
     PropDef::new("locale", PropKind::String, "Locale for numbers and dates in chips (default: the browser's)"),
+    PropDef::new("bindViews", PropKind::StateKey, "State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them"),
+    PropDef::new("today", PropKind::String, "The date date presets count from (default: today)"),
     PropDef::new("id", PropKind::Any, "The panel's element id (default: derived from the document)"),
+];
+
+/// Date presets, in order: the name, its label.
+pub(crate) const PRESETS: &[(&str, &str)] = &[
+    ("today", "Today"),
+    ("yesterday", "Yesterday"),
+    ("last7", "Last 7 days"),
+    ("last30", "Last 30 days"),
+    ("thisMonth", "This month"),
+    ("lastMonth", "Last month"),
+    ("thisQuarter", "This quarter"),
+    ("thisYear", "This year"),
 ];
 
 pub struct Filter;
@@ -59,13 +73,55 @@ const FILTER_PROPS: &[PropDef] = &[
     PropDef::new("section", PropKind::String, "A heading to group it under in the panel"),
     PropDef::new("unit", PropKind::String, "Shown after a number, e.g. `kg`"),
     PropDef::new("currency", PropKind::String, "This filter's currency, over the filters' `currency`"),
+    PropDef::new(
+        "presets",
+        PropKind::Any,
+        "A date filter's quick ranges: `true` (default: today, yesterday, last7, last30, thisMonth, lastMonth, thisQuarter, thisYear), `false`, or a list of those names",
+    ),
 ];
 
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8))]));
+static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8))])
+        .nest("& [data-fl-views-wrap]", pairs(&[("position", "relative")]))
+        .nest(
+            "& [data-fl-views]",
+            pairs(&[
+                ("position", "absolute"),
+                ("z-index", "20"),
+                ("top", "calc(100% + 4px)"),
+                ("left", "0"),
+                ("display", "flex"),
+                ("flex-direction", "column"),
+                ("gap", sp!(6)),
+                ("width", "260px"),
+                ("padding", sp!(6)),
+                ("border", "1px solid var(--color-border)"),
+                ("border-radius", "var(--radius-md)"),
+                ("background", "var(--color-popover, var(--color-surface, #fff))"),
+                ("box-shadow", "0 8px 24px rgb(0 0 0 / 0.12)"),
+            ]),
+        )
+        .nest("& [data-fl-views][hidden]", pairs(&[("display", "none")]))
+        .nest("& [data-fl-view-list]", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", "1px")]))
+        .nest("& [data-fl-view-list] li", pairs(&[("display", "flex"), ("align-items", "center")]))
+        .nest(
+            "& [data-fl-view-list] button",
+            pairs(&[("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(14)), ("cursor", "pointer")]),
+        )
+        .nest("& [data-fl-view-apply]", pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("padding", sp!(6, 8)), ("text-align", "left"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest("& [data-fl-view-apply][aria-current=true]", pairs(&[("font-weight", "600")]))
+        .nest("& [data-fl-view-apply][aria-current=true]::after", pairs(&[("content", "' ✓'"), ("color", MUTED)]))
+        .nest("& [data-fl-view-delete]", pairs(&[("flex", "none"), ("padding", sp!(4, 8)), ("color", MUTED)]))
+        .nest("& [data-fl-view-list] button:hover", pairs(&[("background", ACCENT)]))
+        .nest("& [data-fl-view-list] button:focus-visible", forms::focus_ring())
+        .nest("& [data-fl-view-empty]", pairs(&[("padding", sp!(6, 8)), ("color", MUTED), ("font-size", fs!(13))]))
+        .nest("& [data-fl-view-form]", pairs(&[("display", "flex"), ("gap", sp!(6)), ("padding-top", sp!(6)), ("border-top", "1px solid var(--color-border)")]))
+        .nest("& [data-fl-view-form] input", pairs(&[("height", "32px")]))
+});
 
 /// Count badges, on the button and beside each field in the panel.
 fn badge() -> StyleBlock {
@@ -195,6 +251,23 @@ static PANE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-fl-values]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8))]))
         .nest("& [data-fl-values][hidden], & [data-fl-and][hidden], & [data-fl-b][hidden]", pairs(&[("display", "none")]))
         .nest("& [data-fl-values] input", pairs(&[("flex", "1 1 0")]))
+        .nest("& [data-fl-presets]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(6))]))
+        .nest(
+            "& [data-fl-preset]",
+            pairs(&[
+                ("padding", sp!(4, 10)),
+                ("border", "1px solid var(--color-border)"),
+                ("border-radius", "999px"),
+                ("background", "transparent"),
+                ("color", TEXT),
+                ("font", "inherit"),
+                ("font-size", fs!(13)),
+                ("cursor", "pointer"),
+            ]),
+        )
+        .nest("& [data-fl-preset]:hover", pairs(&[("background", ACCENT)]))
+        .nest("& [data-fl-preset][aria-pressed=true]", pairs(&[("border-color", "var(--color-primary)"), ("background", "color-mix(in srgb, var(--color-primary) 10%, transparent)"), ("font-weight", "500")]))
+        .nest("& [data-fl-preset]:focus-visible", forms::focus_ring())
         .nest("& [data-fl-and], & [data-fl-unit]", pairs(&[("color", MUTED), ("font-size", fs!(13)), ("white-space", "nowrap")]))
         .nest("& [data-fl-error]", pairs(&[("margin", "0"), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(13))]))
         .nest("& [data-fl-options]", pairs(&[("display", "flex"), ("flex-direction", "column")]))
@@ -240,6 +313,7 @@ struct Def {
     options: Json,
     unit: Option<String>,
     currency: Option<String>,
+    presets: Vec<(&'static str, &'static str)>,
 }
 
 fn defs(cx: &RenderCx<'_>, node: &Node) -> Result<Vec<Def>, RenderError> {
@@ -276,12 +350,29 @@ fn defs(cx: &RenderCx<'_>, node: &Node) -> Result<Vec<Def>, RenderError> {
         if kind != "list" && child.prop("options").is_some() {
             return Err(RenderError::new(child, "only `list` filters take `options`"));
         }
+        let presets = match cx.prop(child, "presets") {
+            _ if kind != "date" => Vec::new(),
+            None | Some(Json::Null) | Some(Json::Bool(true)) => PRESETS.to_vec(),
+            Some(Json::Bool(false)) => Vec::new(),
+            Some(Json::Array(names)) => names
+                .iter()
+                .map(|n| {
+                    let n = irender_core::expr::stringify(n);
+                    PRESETS.iter().find(|(p, _)| *p == n).copied().ok_or_else(|| {
+                        let all: Vec<_> = PRESETS.iter().map(|(p, _)| *p).collect();
+                        RenderError::new(child, format!("no date preset `{n}` (presets: {})", all.join(", ")))
+                    })
+                })
+                .collect::<Result<_, _>>()?,
+            Some(_) => return Err(RenderError::new(child, "`presets` must be true, false or a list of preset names")),
+        };
         out.push(Def {
             label: cx.prop_string(child, "label").unwrap_or_else(|| field.clone()),
             options: child.prop("options").map(|o| dynamic(cx, child, "options", o)).transpose()?.unwrap_or(Json::Null),
             section: cx.prop_string(child, "section"),
             unit: cx.prop_string(child, "unit"),
             currency: cx.prop_string(child, "currency"),
+            presets,
             field,
             kind,
             ops,
@@ -324,6 +415,8 @@ impl Component for Filters {
             "rows": node.prop("rows").map(|r| dynamic(cx, node, "rows", r)).transpose()?,
             "currency": cx.prop_string(node, "currency"),
             "locale": cx.prop_string(node, "locale"),
+            "bindViews": cx.prop_string(node, "bindViews"),
+            "today": cx.prop_string(node, "today"),
             "defs": defs.iter().map(|d| json!({
                 "field": d.field, "label": d.label, "type": d.kind, "options": d.options, "unit": d.unit, "currency": d.currency,
                 "ops": d.ops.iter().map(|(o, _)| *o).collect::<Vec<_>>(),
@@ -347,6 +440,9 @@ impl Component for Filters {
         cx.open(&count, node)?;
         cx.close("span");
         cx.close("button");
+        if cx.prop_string(node, "bindViews").is_some() {
+            views_menu(cx, node, &id)?;
+        }
         if chips {
             let mut list = Element::new("div");
             list.base_style_ref(&CHIPS).attr("data-fl-chips", true);
@@ -446,6 +542,13 @@ impl Component for Filters {
         cx.open(&x, node)?;
         cx.close("button");
         cx.close("dialog");
+        let mut live = Element::new("div");
+        live.attr("data-fl-live", true)
+            .attr("role", "status")
+            .attr("aria-live", "polite")
+            .base_style(pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]));
+        cx.open(&live, node)?;
+        cx.close("div");
         cx.close("div");
         Ok(())
     }
@@ -542,11 +645,68 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def) -> Resu
             cx.close("span");
         }
         cx.close("div");
+        // Presets set a range, so only where the filter offers Between.
+        if !d.presets.is_empty() && d.ops.iter().any(|(o, _)| *o == "between") {
+            let mut box_ = Element::new("div");
+            box_.attr("data-fl-presets", true).attr("role", "group").attr("aria-label", format!("{} presets", d.label));
+            cx.open(&box_, node)?;
+            for (name, label) in &d.presets {
+                let mut b = Element::new("button");
+                b.attr("type", "button").attr("data-fl-preset", *name).text(lit(*label));
+                cx.open(&b, node)?;
+                cx.close("button");
+            }
+            cx.close("div");
+        }
     }
     let mut error = Element::new("p");
     error.attr("data-fl-error", true).attr("role", "alert").attr("hidden", true);
     cx.open(&error, node)?;
     cx.close("p");
+    cx.close("div");
+    Ok(())
+}
+
+/// The Views button and its menu: saved views (the browser lists them) and a name box
+/// to save the filters as one.
+fn views_menu(cx: &mut RenderCx<'_>, node: &Node, id: &Val) -> Result<(), RenderError> {
+    let mut wrap = Element::new("div");
+    wrap.attr("data-fl-views-wrap", true);
+    cx.open(&wrap, node)?;
+    let mut b = Element::new("button");
+    forms::button_look(&mut b, "outline", "sm");
+    b.attr("type", "button")
+        .attr("data-fl-views-open", true)
+        .attr("aria-expanded", "false")
+        .attr("aria-controls", id_with(id, "-views"))
+        .attr("aria-haspopup", "true");
+    cx.open(&b, node)?;
+    let mut t = Element::new("span");
+    t.text(lit("Views"));
+    cx.open(&t, node)?;
+    cx.close("span");
+    cx.markup(r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>"#);
+    cx.close("button");
+    let mut menu = Element::new("div");
+    menu.attr("data-fl-views", true).attr("id", id_with(id, "-views")).attr("hidden", true);
+    cx.open(&menu, node)?;
+    let mut list = Element::new("ul");
+    list.attr("data-fl-view-list", true).attr("aria-label", "Saved views");
+    cx.open(&list, node)?;
+    cx.close("ul");
+    let mut form = Element::new("div");
+    form.attr("data-fl-view-form", true);
+    cx.open(&form, node)?;
+    let mut name = Element::new("input");
+    name.base_style_ref(forms::input_look()).attr("type", "text").attr("data-fl-view-name", true).attr("placeholder", "Name these filters").attr("aria-label", "View name");
+    cx.open(&name, node)?;
+    let mut save = Element::new("button");
+    forms::button_look(&mut save, "default", "sm");
+    save.attr("type", "button").attr("data-fl-view-save", true).text(lit("Save"));
+    cx.open(&save, node)?;
+    cx.close("button");
+    cx.close("div");
+    cx.close("div");
     cx.close("div");
     Ok(())
 }
