@@ -3384,7 +3384,8 @@ fn file_upload_in_chrome() {
         await until(() => S().files.every((f) => f.status !== "uploading"));
         await wait(0);
         const a = S().files[1];
-        log("uploaded", S().files.map((f) => f.id + ":" + f.status).join(", "), a.folder, a.url.endsWith("/files/s1/a.csv") || a.url.endsWith("/files/s2/a.csv"), cards(M));
+        // The server numbers them as they arrive, which can be either order: any `s` id is it.
+        log("uploaded", S().files.map((f) => f.id.replace(/^s\d+$/, "s*") + ":" + f.status).join(", "), a.folder, a.url.endsWith("/files/s1/a.csv") || a.url.endsWith("/files/s2/a.csv"), cards(M));
         // At most four: one more fits.
         pick(M, [["e.txt", "e"], ["f.txt", "f"]]);
         log("full", S().files.length, $$("[data-up-errors] li", M).map((l) => l.textContent).join(" | "));
@@ -3451,7 +3452,7 @@ fn file_upload_in_chrome() {
             "errors c.exe isn't a type that can be added. | d.csv is over the 1 KB limit.",
             "adding expenses.xlsx:undefined, a.csv:uploading, b.txt:uploading",
             // The server's answer is merged in: its ids, and the `folder` field it was sent.
-            "uploaded e1:undefined, s1:done, s2:done claims true expenses.xlsx:sheet:done, a.csv:sheet:done, b.txt:text:done",
+            "uploaded e1:undefined, s*:done, s*:done claims true expenses.xlsx:sheet:done, a.csv:sheet:done, b.txt:text:done",
             "full 4 f.txt wasn't added: at most 4 files.",
             "xlsx true expenses.xlsx 1 of 4 6 2026-11-03Taj Lands EndHotel12600",
             "csv x|y 1|two, three",
