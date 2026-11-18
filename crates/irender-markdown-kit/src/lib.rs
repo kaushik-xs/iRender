@@ -1,5 +1,5 @@
 //! Markdown for iRender documents: `ui-markdown` shows it, and `ui-markdown-editor`
-//! writes it, with a toolbar, keyboard shortcuts and a live preview.
+//! writes it, as formatted text anyone can edit or as Markdown with a live preview.
 //!
 //! ```no_run
 //! use irender_core::Format;
@@ -152,10 +152,15 @@ fn text_of(v: &Json) -> String {
 
 pub struct MarkdownEditor;
 
-const MODES: &[&str] = &["tabs", "split"];
+const MODES: &[&str] = &["rich", "tabs", "split"];
 const EDITOR_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the Markdown").required(),
-    PropDef::new("mode", PropKind::Enum(MODES), "`tabs`: Write and Preview (default); `split`: side by side"),
+    PropDef::new(
+        "mode",
+        PropKind::Enum(MODES),
+        "`rich`: edit the formatted text, with a Markdown tab (default); `tabs`: Markdown with Write and Preview tabs; \
+         `split`: Markdown and its preview side by side",
+    ),
     PropDef::new("placeholder", PropKind::Any, "Shown while it's empty"),
     PropDef::new("label", PropKind::Any, "The text area's name for screen readers (default `Markdown`)"),
     PropDef::new("rows", PropKind::Any, "Visible lines (default 10)"),
@@ -232,7 +237,10 @@ static TOOL: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "-2px")]))
     .nest("&[data-md=italic]", pairs(&[("font-style", "italic")]))
     .nest("&[data-md=strike]", pairs(&[("text-decoration", "line-through")]))
-    .nest("&[aria-selected=true]", pairs(&[("background", "var(--color-surface, #fff)"), ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.08)")]))
+    .nest(
+        "&:is([aria-selected=true], [aria-pressed=true])",
+        pairs(&[("background", "var(--color-surface, #fff)"), ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.08)")]),
+    )
     .nest(":disabled", pairs(&[("opacity", "0.5"), ("pointer-events", "none")]))
 });
 static SEP: LazyLock<StyleBlock> =
@@ -245,6 +253,43 @@ static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-mode=split] > [data-md-preview]", pairs(&[("border-left", "1px solid var(--color-border, #e4e4e7)")]))
         .nest("&[data-mode=tabs][data-view=write] > [data-md-preview]", pairs(&[("display", "none")]))
         .nest("&[data-mode=tabs][data-view=preview] > textarea", pairs(&[("display", "none")]))
+        .nest("&[data-view=rich] > textarea", pairs(&[("display", "none")]))
+        .nest("&[data-view=source] > [data-md-rich]", pairs(&[("display", "none")]))
+});
+/// The formatted text being edited: the preview's look, as a text box.
+static RICH: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("position", "relative"), ("outline", "none"), ("cursor", "text")])
+        .nest(
+            "&[data-empty]::before",
+            pairs(&[("content", "attr(data-placeholder)"), ("position", "absolute"), ("color", MUTED), ("pointer-events", "none")]),
+        )
+        .nest("& li.task > input", pairs(&[("cursor", "pointer"), ("accent-color", PRIMARY)]))
+        .nest("&[contenteditable=false]", pairs(&[("opacity", "0.6"), ("cursor", "default")]))
+});
+static LINKBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("display", "flex"),
+        ("align-items", "center"),
+        ("gap", sp!(4)),
+        ("padding", sp!(4)),
+        ("border-bottom", "1px solid var(--color-border, #e4e4e7)"),
+    ])
+    .nest("&[hidden]", pairs(&[("display", "none")]))
+    .nest(
+        "& input",
+        pairs(&[
+            ("flex", "1"),
+            ("min-width", "0"),
+            ("height", sp!(28)),
+            ("padding", "0 8px"),
+            ("border", "1px solid var(--color-border, #e4e4e7)"),
+            ("border-radius", "var(--radius-sm, 4px)"),
+            ("background", "transparent"),
+            ("color", "inherit"),
+            ("font", "inherit"),
+            ("font-size", fs!(13)),
+        ]),
+    )
 });
 static AREA: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
@@ -301,10 +346,11 @@ impl Component for MarkdownEditor {
     }
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
-            doc: "A Markdown editor: a text area with a formatting toolbar, shortcuts (⌘B, ⌘I, ⌘K, ⌘E), lists that \
-                  continue on Enter, and a live preview, as tabs or side by side. The text is in `bind`.",
+            doc: "A Markdown editor anyone can use: by default the text is edited formatted, as readers see it, with \
+                  a toolbar, shortcuts (⌘B, ⌘I, ⌘K, ⌘E) and a Markdown tab; `mode: tabs` or `split` edit the Markdown \
+                  with a live preview. The Markdown is in `bind`.",
             props: EDITOR_PROPS,
-            parts: &["toolbar", "input", "preview", "footer"],
+            parts: &["toolbar", "rich", "input", "preview", "footer"],
             children: false,
             open_props: false,
         }
@@ -313,7 +359,7 @@ impl Component for MarkdownEditor {
         let Some(key) = cx.prop_string(node, "bind") else {
             return Err(RenderError::new(node, "`ui-markdown-editor` needs `bind`"));
         };
-        let mode = cx.prop_string(node, "mode").filter(|m| MODES.contains(&m.as_str())).unwrap_or_else(|| "tabs".into());
+        let mode = cx.prop_string(node, "mode").filter(|m| MODES.contains(&m.as_str())).unwrap_or_else(|| "rich".into());
         let toolbar = cx.prop(node, "toolbar").is_none_or(|t| expr::truthy(&t));
         let max = cx.prop(node, "maxLength").map(|m| expr::to_num(&m)).filter(|m| m.is_finite() && *m > 0.0).map(|m| m as u64);
         let text = text_of(&cx.lookup(std::slice::from_ref(&key)));
@@ -324,7 +370,12 @@ impl Component for MarkdownEditor {
         root.base_style_ref(&EDITOR_ROOT).attr("data-md-editor", true).behavior("ui-markdown-editor", json!({ "key": key, "max": max }));
         cx.open(&root, node)?;
 
-        if toolbar || mode == "tabs" {
+        let views: &[(&str, &str)] = match mode.as_str() {
+            "rich" => &[("rich", "Rich text"), ("source", "Markdown")],
+            "tabs" => &[("write", "Write"), ("preview", "Preview")],
+            _ => &[],
+        };
+        if toolbar || !views.is_empty() {
             let mut bar = cx.part("div", node, "toolbar");
             bar.base_style_ref(&BAR).attr("role", "toolbar").attr("aria-label", "Formatting");
             cx.open(&bar, node)?;
@@ -352,17 +403,17 @@ impl Component for MarkdownEditor {
                     cx.close("button");
                 }
             }
-            if mode == "tabs" {
+            if !views.is_empty() {
                 let mut tabs = Element::new("div");
                 tabs.base_style_ref(&TABS).attr("role", "tablist").attr("aria-label", "View");
                 cx.open(&tabs, node)?;
-                for (view, label) in [("write", "Write"), ("preview", "Preview")] {
+                for (i, (view, label)) in views.iter().enumerate() {
                     let mut t = Element::new("button");
                     t.base_style_ref(&TOOL)
                         .attr("type", "button")
                         .attr("role", "tab")
-                        .attr("data-md-view", view)
-                        .attr("aria-selected", if view == "write" { "true" } else { "false" })
+                        .attr("data-md-view", *view)
+                        .attr("aria-selected", if i == 0 { "true" } else { "false" })
                         .text(Val::Lit(json!(label)));
                     cx.open(&t, node)?;
                     cx.close("button");
@@ -371,9 +422,26 @@ impl Component for MarkdownEditor {
             }
             cx.close("div");
         }
+        if mode == "rich" && toolbar {
+            // Where a link's address is typed, under the toolbar.
+            let mut bar = Element::new("div");
+            bar.base_style_ref(&LINKBAR).attr("data-md-linkbar", true).attr("hidden", true);
+            cx.open(&bar, node)?;
+            let mut url = Element::new("input");
+            url.attr("type", "url").attr("aria-label", "Link address").attr("placeholder", "Paste or type a link");
+            cx.open(&url, node)?;
+            for (act, label) in [("apply", "Apply"), ("remove", "Remove link"), ("cancel", "Cancel")] {
+                let mut b = Element::new("button");
+                b.base_style_ref(&TOOL).attr("type", "button").attr("data-md-link", act).text(Val::Lit(json!(label)));
+                cx.open(&b, node)?;
+                cx.close("button");
+            }
+            cx.close("div");
+        }
 
+        let first = views.first().map_or("write", |v| v.0);
         let mut body = Element::new("div");
-        body.base_style_ref(&BODY).attr("data-md-body", true).attr("data-mode", mode.as_str()).attr("data-view", "write");
+        body.base_style_ref(&BODY).attr("data-md-body", true).attr("data-mode", mode.as_str()).attr("data-view", first);
         cx.open(&body, node)?;
         let mut props: Vec<(&str, Val)> = vec![("bind", Val::Lit(json!(key)))];
         props.push(("rows", node.prop("rows").cloned().unwrap_or(Val::Lit(json!(10)))));
@@ -397,6 +465,35 @@ impl Component for MarkdownEditor {
         }
         irender_html::Textarea::render_styled(&area, cx, &AREA)?;
 
+        if mode == "rich" {
+            // The text shows formatted, as readers will see it, and is edited there.
+            let rows = cx.prop(node, "rows").map(|r| expr::to_num(&r)).filter(|r| r.is_finite() && *r > 0.0).unwrap_or(10.0);
+            let mut editor = cx.part("div", node, "rich");
+            let disabled = node.prop("disabled").is_some_and(|d| !cx.is_reactive(d) && expr::truthy(&cx.eval(d)));
+            editor
+                .base_style_ref(&PREVIEW)
+                .base_style_ref(&PROSE)
+                .base_style_ref(&RICH)
+                .base_style(pairs(&[("min-height", &format!("calc({rows} * 1.65em)"))]))
+                .attr("data-md-rich", true)
+                .attr("contenteditable", if disabled { "false" } else { "true" })
+                .attr("role", "textbox")
+                .attr("aria-multiline", "true")
+                .attr("aria-label", node.prop("label").cloned().unwrap_or(Val::Lit(json!("Text"))))
+                .attr("spellcheck", "true");
+            if let Some(p) = node.prop("placeholder") {
+                editor.attr("data-placeholder", p.clone());
+            }
+            if text.trim().is_empty() {
+                editor.attr("data-empty", true);
+            }
+            cx.open(&editor, node)?;
+            cx.markup(if text.trim().is_empty() { "<p><br></p>".into() } else { render(&text) }.as_str());
+            cx.close("div");
+            cx.close("div");
+            return self.footer(node, cx, &text, max, &mode);
+        }
+
         let mut preview = cx.part("div", node, "preview");
         preview.base_style_ref(&PREVIEW).base_style_ref(&PROSE).attr("data-md-preview", true).attr("aria-live", "polite");
         if mode == "tabs" {
@@ -413,11 +510,18 @@ impl Component for MarkdownEditor {
         }
         cx.close("div");
         cx.close("div");
+        self.footer(node, cx, &text, max, &mode)
+    }
+}
 
+impl MarkdownEditor {
+    /// The note under the editor, and the count when there's a limit; closes the editor.
+    fn footer(&self, node: &Node, cx: &mut RenderCx<'_>, text: &str, max: Option<u64>, mode: &str) -> Result<(), RenderError> {
+        let note = if mode == "rich" { "Start a line with #, - or > to format it" } else { "Markdown supported" };
         let mut foot = cx.part("div", node, "footer");
         foot.base_style_ref(&FOOT);
         cx.open(&foot, node)?;
-        cx.open(Element::new("span").text(Val::Lit(json!("Markdown supported"))), node)?;
+        cx.open(Element::new("span").text(Val::Lit(json!(note))), node)?;
         cx.close("span");
         if let Some(m) = max {
             let mut count = Element::new("span");

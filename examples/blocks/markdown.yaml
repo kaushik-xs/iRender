@@ -1,6 +1,7 @@
-# Block: writing a post in Markdown. The editor has a formatting toolbar, shortcuts
-# (⌘B, ⌘I, ⌘K, ⌘E), lists that continue on Enter and a preview tab; the card beside it
-# shows the post as readers will see it, rendered by `ui-markdown` from the same state.
+# Block: writing a post. The editor shows the text formatted, as readers will see it, with
+# a formatting toolbar, shortcuts (⌘B, ⌘I, ⌘K, ⌘E) and a Markdown tab; the post is kept as
+# Markdown in state. The card beside it shows the post with its title, rendered by
+# `ui-markdown` from the same state.
 #
 #   cargo run -p irender-cli -- render examples/blocks/markdown.yaml --ui-kit --markdown-kit --icon-kit -o markdown.html
 version: 1
@@ -50,7 +51,7 @@ root:
               props: { gap: 4 }
               children:
                 - { type: ui-heading, props: { level: 2, text: New post }, style: { border-bottom: 0, padding-bottom: 0 } }
-                - { type: ui-text, props: { variant: muted, text: Write in Markdown; the preview on the right is what readers see. } }
+                - { type: ui-text, props: { variant: muted, text: "Write it as readers will see it, or switch to Markdown."  } }
             - type: stack
               props: { direction: row, gap: 8 }
               style: { margin-left: auto }
@@ -71,7 +72,7 @@ root:
                   props: { label: Title }
                   children: [ { type: ui-input, props: { bind: title, placeholder: A title for your post } } ]
                 - type: ui-field
-                  props: { label: Post, description: "Toolbar or shortcuts: ⌘B bold, ⌘I italic, ⌘K link, ⌘E code. Enter continues a list; Tab nests it." }
+                  props: { label: Post, description: "Format with the toolbar, or ⌘B bold, ⌘I italic, ⌘K link. Tab nests a list item." }
                   children:
                     - { type: ui-markdown-editor, props: { bind: post, rows: 18, maxLength: 4000, placeholder: Start writing… } }
             - type: ui-card

@@ -42,7 +42,7 @@ fn markdown_renders_on_the_server_and_follows_state() {
 #[test]
 fn editor_structure() {
     let page = render_with(
-        json!({ "type": "ui-markdown-editor", "props": { "bind": "doc", "maxLength": 100, "placeholder": "Write…" } }),
+        json!({ "type": "ui-markdown-editor", "props": { "bind": "doc", "mode": "tabs", "maxLength": 100, "placeholder": "Write…" } }),
         json!({ "doc": "- one" }),
     )
     .unwrap();
@@ -59,6 +59,20 @@ fn editor_structure() {
     let split = plain(&render_with(json!({ "type": "ui-markdown-editor", "props": { "bind": "doc", "mode": "split", "toolbar": false } }), json!({ "doc": "" })).unwrap().body);
     assert!(!split.contains("role=\"toolbar\"") && !split.contains("data-md-view"), "no toolbar and no tabs: {split}");
     assert!(split.contains(r#"data-mode="split""#) && split.contains("Nothing to preview"), "{split}");
+
+    // By default the text is edited formatted, with its Markdown a tab away.
+    let rich = plain(&render_with(json!({ "type": "ui-markdown-editor", "props": { "bind": "doc", "placeholder": "Write…" } }), json!({ "doc": "**hi**" })).unwrap().body);
+    assert!(rich.contains(r#"data-mode="rich" data-view="rich""#), "{rich}");
+    assert!(rich.contains(r#"<button type="button" role="tab" data-md-view="rich" aria-selected="true">Rich text</button>"#), "{rich}");
+    assert!(rich.contains(r#"<button type="button" role="tab" data-md-view="source" aria-selected="false">Markdown</button>"#), "{rich}");
+    assert!(
+        rich.contains(r#"data-md-rich contenteditable="true" role="textbox" aria-multiline="true" aria-label="Text" spellcheck="true" data-placeholder="Write…"><p><strong>hi</strong></p></div>"#),
+        "{rich}"
+    );
+    assert!(rich.contains(r#"<div data-md-linkbar hidden><input type="url" aria-label="Link address""#), "{rich}");
+    assert!(!rich.contains("data-md-preview"), "{rich}");
+    let empty = plain(&render_with(json!({ "type": "ui-markdown-editor", "props": { "bind": "doc", "disabled": true } }), json!({ "doc": "" })).unwrap().body);
+    assert!(empty.contains(r#"contenteditable="false""#) && empty.contains(r#"data-empty><p><br></p></div>"#), "{empty}");
 
     // Without `bind` the document doesn't load.
     let mut engine = Engine::new();
