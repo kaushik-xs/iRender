@@ -5,7 +5,7 @@ Every icon in this kit is drawn from scratch to the rules below, so icons from d
 ## Canvas
 
 - **24 × 24 grid**, `viewBox="0 0 24 24"`, drawn at 1 unit = 1 px.
-- **Padding: 2 px on every side.** The live area is the 20 × 20 square from 2 to 22, and stroke *centrelines* stay within **3 … 21**, so the 1.4 px stroke's edges sit 0.3 px inside it. One exception: shapes that read as wide (vehicles, trays, conveyors) may run their centreline to **2 … 22** horizontally, never vertically.
+- **Padding: 2 px on every side.** The live area is the 20 × 20 square from 2 to 22, and stroke *centrelines* stay within **3 … 21**, so the 2 px stroke's edges just reach it. One exception: shapes that read as wide (vehicles, trays, conveyors) may run their centreline to **2 … 22** horizontally, never vertically.
 - **Optical centre.** Centre the icon's visual weight, not its bounding box: a triangle sits a little low, a truck sits on the baseline.
 
 ## Keylines
@@ -24,16 +24,16 @@ Smaller details are drawn to the same grid. Don't scale a big icon down to make 
 
 ## Stroke
 
-- **1.4 px stroke, outline style.** `fill="none" stroke="currentColor" stroke-width="1.4"`, set once on the root; shapes never set their own stroke or fill. Documents can't change it: the spacing below is designed around the drawing, not the line.
+- **2 px stroke, outline style.** `fill="none" stroke="currentColor" stroke-width="2"`, set once on the root; shapes never set their own stroke or fill. Documents can't change it: the spacing below is designed around the drawing, not the line.
 - **Round caps and round joins** (`stroke-linecap="round" stroke-linejoin="round"`).
-- **No fills.** A dot is a small circle (radius 0.5 or 0.7 draws a solid dot; radius 1 a ring with a pinhole that reads as a dot), or a zero-length line (a round 1.4 px dot).
-- **Even stroke weight.** No doubled strokes; an inner detail is the same 1.4 px as the outline.
+- **No fills.** A dot is a small circle (radius 1 or less draws a solid dot), or a zero-length line (a round 2 px dot).
+- **Even stroke weight.** No doubled strokes; an inner detail is the same 2 px as the outline.
 
 ## Geometry
 
 - **Coordinates on the half-pixel grid** (`x.0` or `x.5`); prefer whole numbers. Circle centres, radii and rectangle corners likewise.
 - **Corner radius:** 2 for outer rectangles of 10 px or more, 1 for smaller ones and inner panels, 0 only where a sharp corner means something (a document's folded corner, a crate's frame).
-- **Clear space:** parallel strokes' centrelines **at least 4 apart** (2.6 px of air with the 1.4 px stroke); 3 apart only when a detail cannot fit otherwise. The spacing is measured centreline to centreline so the drawings keep their proportions.
+- **Clear space:** parallel strokes' centrelines **at least 4 apart** (2 px of air with the 2 px stroke); 3 apart only when a detail cannot fit otherwise. The spacing is measured centreline to centreline so the drawings keep their proportions.
 - **Angles:** 0°, 45° and 90° first, then 30° / 60°. Curves are arcs and circles, not freehand béziers, unless the subject is organic (leaves, hands, flames).
 - **At most about 8 shapes.** If it needs more, simplify the metaphor.
 
@@ -54,8 +54,8 @@ Smaller details are drawn to the same grid. Don't scale a big icon down to make 
 
 Every icon also has a filled version, for selected states, small sizes and emphasis. It is drawn from its outline twin, not from scratch, so the two swap without the icon jumping.
 
-- **Same centrelines.** Shapes are drawn on the outline icon's centrelines and are both filled and stroked (the root sets `fill="currentColor"` and the same 1.4 px round stroke). The silhouette's outer edge therefore matches the outline icon's outer edge exactly, and every corner is softened by the stroke.
-- **Solid bodies, cut-out details.** The main closed form becomes solid. Details that were lines *inside* it become cut-outs: subpaths of the same `<path>` with `fill-rule="evenodd"`, or gaps between separate solid parts. A cut-out shrinks by 0.7 px on every side (the stroke covers its edge), so draw it 1.4 px larger than it should look; a slot drawn 4 px wide looks 2.6 px wide.
+- **Same centrelines.** Shapes are drawn on the outline icon's centrelines and are both filled and stroked (the root sets `fill="currentColor"` and the same 2 px round stroke). The silhouette's outer edge therefore matches the outline icon's outer edge exactly, and every corner is softened by the stroke.
+- **Solid bodies, cut-out details.** The main closed form becomes solid. Details that were lines *inside* it become cut-outs: subpaths of the same `<path>` with `fill-rule="evenodd"`, or gaps between separate solid parts. A cut-out shrinks by 1 px on every side (the stroke covers its edge), so draw it 2 px larger than it should look; a slot drawn 4 px wide looks 2 px wide.
 - **Clear space:** cut-outs and gaps between solid parts are drawn **at least 3.5 apart**, centreline to centreline (they look 2.1 px wide); 4 is better.
 - **Fill the whole silhouette.** The solid covers everything the outline encloses, so the filled icon has the same overall shape and doesn't shrink. Where two parts overlap, the one that carries the meaning stays whole and the other is cut back around it. Vehicles are the template (`logistics/truck`): the body runs down to the wheel centre line (`y 18.5`), each wheel becomes a solid `r 1.5` circle at `cy 18.5`, and the body gets an `r 4` arch around it (`a4 4 0 0 0-8 0`). Wheels 8 apart share a cusp between the arches. Where an `r 4` arch won't fit, use `r 1` wheels at `cy 19` with `r 3.5` arches.
 - **Lines stay lines.** Parts that are lines outside a solid body (a handle, an arrow, a modifier's tick, ring binders) stay strokes. `<polyline>` and open `<path>`s that must not fill set `fill="none"`. `<line>` never fills.
@@ -65,7 +65,7 @@ Every icon also has a filled version, for selected states, small sizes and empha
 - Files: `icons/<pack>/filled/<name>.svg`, with the root exactly:
 
   ```svg
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   ```
 
 ## Logo marks
@@ -94,7 +94,7 @@ The `brands` pack is the one exception to the drawing rules. A logo is drawn by 
 - One icon per file: `icons/<pack>/<name>.svg`, with the root exactly:
 
   ```svg
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   ```
 
 - Each pack has `icons/<pack>/_pack.txt`: its title on the first line, a one-line description on the second.

@@ -20,7 +20,7 @@
 //! either `pack:icon`, or a bare `icon` looked up in each pack in turn.
 //!
 //! Every built-in icon is drawn for this kit to one standard (`GUIDELINES.md`): a
-//! 24 px grid with 2 px padding, 1.4 px round strokes and shared keylines. Its filled
+//! 24 px grid with 2 px padding, 2 px round strokes and shared keylines. Its filled
 //! style (`variant: filled`) is drawn on the same lines, so the two swap in place. Your own
 //! packs ([`Pack::from_dir`], [`Pack::add_svg`]) can be any SVG; they are reduced
 //! to shapes on load, so a pack file can't put scripts or links into a page.
@@ -85,7 +85,7 @@ impl std::error::Error for IconError {}
 /// The two styles every built-in icon is drawn in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Variant {
-    /// 1.4 px strokes.
+    /// 2 px strokes.
     #[default]
     Outline,
     /// Solid shapes with cut-out details, on the same lines as the outline.
@@ -441,7 +441,7 @@ impl Component for UiIcon {
         el.base_style(sizing)
             .attr("xmlns", "http://www.w3.org/2000/svg")
             .attr("viewBox", icon.view_box.as_str());
-        // The stroke width is the icon's own (1.4 for the built-in packs): the
+        // The stroke width is the icon's own (2 for the built-in packs): the
         // drawings' spacing is designed for it, so documents can't change it.
         for (k, v) in &icon.attrs {
             el.attr(k, v.as_str());

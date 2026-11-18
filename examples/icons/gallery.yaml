@@ -33,7 +33,7 @@ root:
         - type: ui-text
           props:
             variant: lead
-            text: "Original icons, drawn for this kit on a 24 px grid with 1.4 px round strokes, each in an outline and a filled style. They take the colour and size of the text around them."
+            text: "Original icons, drawn for this kit on a 24 px grid with 2 px round strokes, each in an outline and a filled style. They take the colour and size of the text around them."
           style: { max-width: 680 }
         - type: list
           props: { items: "{{ packs }}", as: p }

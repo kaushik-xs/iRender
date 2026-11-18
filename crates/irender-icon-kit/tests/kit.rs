@@ -36,7 +36,7 @@ fn plain(html: &str) -> String {
 fn renders_an_inline_svg_in_the_text_colour() {
     let html = plain(&render(json!({ "name": "logistics:truck" })).unwrap());
     assert!(html.starts_with(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="#
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="#
     ), "{html}");
     assert!(html.ends_with("</svg>"));
     assert!(html.contains(r#"<circle cx="7" cy="18" r="2"/>"#));
@@ -61,7 +61,7 @@ fn label_and_size() {
         engine.render(&engine.resolve(&doc).unwrap(), &json!({})).unwrap()
     };
     let html = plain(&page.body);
-    assert!(html.contains(r#"stroke-width="1.4""#), "{html}");
+    assert!(html.contains(r#"stroke-width="2""#), "{html}");
     assert!(html.contains(r#"role="img" aria-label="Done""#) && !html.contains("aria-hidden"));
     assert!(page.css.contains("width:20px") || page.css.contains("width: 20px"), "{}", page.css);
     let default = engine_with(IconKit::new());
