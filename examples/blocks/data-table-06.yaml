@@ -39,7 +39,15 @@ state:
     - {"id": "TCK-143", "title": "SSO users can't sign out", "status": "In progress", "priority": "Urgent", "assignee": "Kaushik", "team": "Web", "estimate": 2, "created": "2026-10-15"}
 root:
   type: stack
-  style: { padding: 16, gap: 20, max-width: 1180, margin: "0 auto", "@md": { padding: 24 } }
+  style:
+    max-width: 1180px
+    margin: 0 auto
+    padding: 16px
+    gap: 20px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@md": { padding: 24px }
   children:
     - type: element
       style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12 }
