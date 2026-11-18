@@ -49,6 +49,7 @@ mod data_table;
 mod disclosure;
 mod display;
 mod feedback;
+mod filters;
 mod forms;
 mod illustration;
 mod menus;
@@ -104,6 +105,8 @@ pub fn register(registry: &mut Registry) {
         .register(forms::Slider)
         .register(otp::InputOtp)
         .register(scroll_spy::ScrollSpy)
+        .register(filters::Filters)
+        .register(filters::Filter)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

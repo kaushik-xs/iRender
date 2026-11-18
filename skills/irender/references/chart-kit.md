@@ -134,10 +134,11 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
    | `{ from, to }` | is in the range, ends included. Dates compare as dates, numbers as numbers. This is the shape `bindZoom` writes. |
    | `{ gt, gte, lt, lte }` | compares that way. |
    | `{ contains: text }` | contains the text, ignoring case and accents. |
+   | `{ empty: true }`, `{ empty: false }` | has no value (null, missing or `""`), or has one. |
    | `{ not: … }` | fails the inner condition. |
    | a row, e.g. from `bindRow` | equals that row's same field. |
 
-   Blank conditions (null, `""`, `[]`, or `{ from: null }`) keep every row. A filter bound to an empty control shows everything rather than nothing.
+   Blank conditions (null, `""`, `[]`, or `{ from: null }`) keep every row. A filter bound to an empty control shows everything rather than nothing. irender-ui-kit's `ui-filters` writes this format, so its panel can filter charts directly.
 3. **`aggregate`**: `sum`, `avg`, `min`, `max` or `count`. Groups rows by `x`, and by `series` if set, and aggregates the `y` fields. Each group also gets a `count`. With `count`, `y` defaults to it.
 4. **`sort`**: a field, `-field` for descending, `{ field, order }`, or a list of these.
 5. **`limit`**: the first N rows.

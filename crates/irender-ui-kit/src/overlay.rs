@@ -108,7 +108,7 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
         .set("max-height", "calc(100dvh - 32px)")
         .set("border-radius", "var(--radius-lg)")
 });
-static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
+pub(crate) static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     let side = |pairs: &[(&str, &str)]| {
         let mut b = dialog_base().set("--ui-bg", BG_SHEET).set("background", BG_SHEET).set("border-radius", "0").set("max-width", "none").set("max-height", "none");
         for (k, v) in pairs {
@@ -124,14 +124,14 @@ static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         side(&[("width", "100%"), ("margin", "auto 0 0"), ("border-width", "1px 0 0")]),
     ]
 });
-static DIALOG_HEADER: LazyLock<StyleBlock> =
+pub(crate) static DIALOG_HEADER: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6)), ("padding-right", sp!(24))]));
-static DIALOG_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
+pub(crate) static DIALOG_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(18)), ("font-weight", "600"), ("line-height", "1.2")])
 });
 static DIALOG_DESCRIPTION: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("color", MUTED)]));
-static DIALOG_X: LazyLock<StyleBlock> = LazyLock::new(|| {
+pub(crate) static DIALOG_X: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
         ("top", "14px"),

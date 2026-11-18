@@ -672,7 +672,7 @@ fn slug(s: &str) -> String {
 /// A prop as the behaviour needs it, as the chart kit passes them: templates that read
 /// state, at the top or anywhere inside an object or list, left as `{ "$irender": js }`
 /// for the browser, and every other template evaluated now.
-fn dynamic(cx: &RenderCx<'_>, node: &Node, name: &str, v: &Val) -> Result<Json, RenderError> {
+pub(crate) fn dynamic(cx: &RenderCx<'_>, node: &Node, name: &str, v: &Val) -> Result<Json, RenderError> {
     match v {
         Val::Tpl(_) if cx.is_reactive(v) => Ok(json!({ "$irender": cx.val_js(v) })),
         Val::Tpl(_) => Ok(cx.eval(v)),

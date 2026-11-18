@@ -60,8 +60,8 @@ window.addEventListener("load", async () => {
     log("popover", Math.round(rect(pop).top - rect(dims).bottom), rect(pop).left >= 0 && rect(pop).right <= innerWidth);
     dims.click();
 
-    $$("[role=tab]")[1].click();
-    log("tabs", $$("[role=tabpanel]").map((p) => (p.hidden ? "-" : "shown")).join(","), S().tab);
+    $$("#tabs [role=tab]")[1].click();
+    log("tabs", $$("#tabs [role=tabpanel]").map((p) => (p.hidden ? "-" : "shown")).join(","), S().tab);
 
     const items = $$("#faq details");
     items[1].querySelector("summary").click();
@@ -2929,8 +2929,15 @@ fn scroll_spy_in_chrome() {
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const nav = document.querySelector("[data-i-x=ui-scroll-spy]");
       const cur = () => [...nav.querySelectorAll("[aria-current=location]")].map((a) => a.textContent).join(",");
-      // Scroll events come with animation frames, which headless Chrome may not run.
-      const go = async (y) => { scrollTo(0, y); dispatchEvent(new Event("scroll")); await wait(80); };
+      // Scroll events come with animation frames, which headless Chrome may not run. Each
+      // step moves the mark, so wait for that (updates are throttled, and a loaded
+      // machine runs the timer late).
+      const go = async (y) => {
+        const was = cur();
+        scrollTo(0, y); dispatchEvent(new Event("scroll"));
+        for (let i = 0; i < 40 && cur() === was; i++) await wait(50);
+        await wait(20);
+      };
       try {
         log("start", cur(), nav.getAttribute("aria-label"), nav.tagName);
         await go(950); log("two", cur());
@@ -2955,6 +2962,159 @@ fn scroll_spy_in_chrome() {
             "three three list scrolled true",
             "bottom five last link shown true",
             "back one list back true",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Filters: chips for what's applied, a panel that edits a draft until Apply, each
+/// type's operators, and the `{ field: condition }` it writes filtering a table.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn filters_in_chrome() {
+    let orders = serde_json::json!([
+        { "id": "A", "status": "Paid", "amount": 3150, "date": "2026-10-28", "note": "Rush" },
+        { "id": "B", "status": "Pending", "amount": 975, "date": "2026-10-25", "note": "" },
+        { "id": "C", "status": "Paid", "amount": 6200, "date": "2026-10-22", "note": "Gift wrap" },
+        { "id": "D", "status": "Refunded", "amount": 800, "date": "2026-10-20", "note": null },
+        { "id": "E", "status": "Pending", "amount": 1500, "date": "2026-09-30", "note": "Call first" } ]);
+    let filters = |bind: &str, live: bool| serde_json::json!({ "type": "ui-filters", "attrs": { "id": bind },
+        "props": { "bind": bind, "rows": "{{ orders }}", "currency": "USD", "locale": "en-US", "live": live },
+        "children": [
+            { "type": "ui-filter", "props": { "field": "status", "label": "Status", "section": "Order" } },
+            { "type": "ui-filter", "props": { "field": "amount", "label": "Amount", "type": "currency", "section": "Order" } },
+            { "type": "ui-filter", "props": { "field": "date", "label": "Date", "type": "date", "operators": ["on", "before", "between"] } },
+            { "type": "ui-filter", "props": { "field": "note", "label": "Note", "type": "text" } } ] });
+    let doc = serde_json::json!({ "version": 1, "state": { "orders": orders, "f": { "status": ["Paid"], "amount": { "from": 1000 } }, "g": {} },
+        "root": { "type": "stack", "children": [
+            filters("f", false), filters("g", true),
+            { "type": "ui-data-table", "props": { "rows": "{{ orders }}", "filter": "{{ f }}", "rowKey": "id" },
+              "children": [{ "type": "ui-data-table-column", "props": { "field": "id", "label": "Id" } }] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const F = document.getElementById("f"), G = document.getElementById("g");
+      const $ = (s, from = F) => from.querySelector(s), $$ = (s, from = F) => [...from.querySelectorAll(s)];
+      const chips = (el = F) => $$("[data-fl-chip]", el).map((c) => c.querySelector("[data-fl-edit]").textContent).join(" | ");
+      const shown = () => [...document.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")].map((r) => r.textContent.trim()).join("");
+      const pane = (i, el = F) => $(`[data-fl-pane="${i}"]`, el);
+      const options = (i) => $$("[data-fl-option]", pane(i)).map((o) => o.textContent + (o.querySelector("input").checked ? "*" : "")).join(",");
+      const set = (input, v, type = "input") => { input.value = v; input.dispatchEvent(new Event(type, { bubbles: true })); };
+      const json = (v) => JSON.stringify(v);
+      try {
+        log("start", chips(), "| count", $("[data-fl-count]").textContent, "| rows", shown());
+        log("label", $("[data-fl-open]").getAttribute("aria-label"));
+        // Open on the Amount chip: that field is shown.
+        $$("[data-fl-edit]")[1].click(); await wait(0);
+        const panel = $("[data-fl-panel]");
+        log("open", panel.open, "pane", $$("[data-fl-pane]").findIndex((p) => !p.hidden), "op", $("[data-fl-op]", pane(1)).value, "a", $("[data-fl-a]", pane(1)).value, "b hidden", $("[data-fl-b]", pane(1)).hidden);
+        log("tabs", $$("[role=tab]").map((t) => t.textContent).join(","), "sections", $$("[data-fl-section]").map((s) => s.textContent).join(","));
+        // Arrow keys move between fields.
+        $$("[role=tab]")[1].focus();
+        $$("[role=tab]")[1].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+        log("arrow", document.activeElement.textContent, $$("[data-fl-pane]").findIndex((p) => !p.hidden));
+        log("options", options(0));
+        // Pick Pending, then cancel: nothing changes.
+        const pending = $$("[data-fl-pick]", pane(0))[1];
+        pending.click(); await wait(0);
+        log("draft badge", $("[data-fl-n]", $$("[role=tab]")[0]).textContent, "state", json(S().f.status));
+        panel.close(); await wait(0);
+        log("cancel", json(S().f));
+        // Again, and Apply.
+        $("[data-fl-open]").click(); await wait(0);
+        $$("[data-fl-pick]", pane(0))[1].click();
+        // Amount: between, backwards, is an error and can't be applied.
+        set($("[data-fl-op]", pane(1)), "between", "change");
+        set($("[data-fl-b]", pane(1)), "500");
+        log("bad", $("[data-fl-error]", pane(1)).textContent, "apply disabled", $("[data-fl-apply]").disabled);
+        set($("[data-fl-b]", pane(1)), "4000");
+        log("fixed", $("[data-fl-error]", pane(1)).hidden, "apply disabled", $("[data-fl-apply]").disabled);
+        // Date: only the operators asked for.
+        log("date ops", [...$("[data-fl-op]", pane(2)).options].map((o) => o.value).join(","));
+        set($("[data-fl-op]", pane(2)), "before", "change");
+        set($("[data-fl-a]", pane(2)), "2026-10-26");
+        // Note: is not empty takes no value.
+        set($("[data-fl-op]", pane(3)), "set", "change");
+        log("no value", $("[data-fl-values]", pane(3)).hidden);
+        $("[data-fl-apply]").click(); await wait(0);
+        log("applied", json(S().f), panel.open);
+        log("chips", chips());
+        log("rows", shown());
+        // None of: the list's other operator.
+        $("[data-fl-open]").click(); await wait(0);
+        set($("[data-fl-op]", pane(0)), "none", "change");
+        log("kept picks", options(0));
+        $("[data-fl-apply]").click(); await wait(0);
+        log("none", json(S().f.status), "|", chips().split(" | ")[0], "| rows", shown());
+        // A chip's ✕ removes that filter; Clear all, the rest.
+        $$("[data-fl-remove]")[0].click(); await wait(0);
+        log("removed", json(S().f), "focus", document.activeElement.hasAttribute("data-fl-edit"));
+        $("[data-fl-clear]").click(); await wait(0);
+        log("cleared", json(S().f), "| count hidden", $("[data-fl-count]").hidden, "| clear hidden", $("[data-fl-clear]").hidden, "| rows", shown());
+        // Set from outside: the chips follow, and an is-empty condition reads back.
+        root.__irender.set("f", { note: { empty: true }, date: { from: "2026-10-22", to: "2026-10-22" }, amount: 975 }); await wait(0);
+        log("outside", chips(), "| rows", shown());
+        root.__irender.set("f", { note: { empty: true } }); await wait(0);
+        log("empty rows", shown());
+        // A list's is-empty, set from outside, reads back with its values hidden.
+        root.__irender.set("f", { status: { empty: false } }); await wait(0);
+        $("[data-fl-open]").click(); await wait(0);
+        log("list empty", chips(), "| op", $("[data-fl-op]", pane(0)).value, "| values hidden", $("[data-fl-options]", pane(0)).hidden, "| rows", shown());
+        $("[data-fl-panel]").close();
+        // Live: each change is written at once; Done closes.
+        $("[data-fl-open]", G).click(); await wait(0);
+        $$("[data-fl-pick]", pane(0, G))[0].click(); await wait(0);
+        log("live", json(S().g), "| apply button", !!$("[data-fl-apply]", G), "| chips", chips(G));
+        set($("[data-fl-op]", pane(3, G)), "contains", "change");
+        set($("[data-fl-a]", pane(3, G)), "first");
+        log("live text", json(S().g));
+        $("[data-fl-reset]", G).click(); await wait(0);
+        log("live reset", json(S().g));
+        // Search shows only when a list is long.
+        log("search hidden", $("[data-fl-search]", pane(0, G)).hidden);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("filters", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start Status:Paid | Amount:≥ $1,000 | count 2 | rows AC",
+            "label Filters, 2 applied",
+            // Opened on its chip, Amount shows its condition.
+            "open true pane 1 op between a 1000 b hidden false",
+            "tabs Status1,Amount1,Date0,Note0 sections Order",
+            "arrow Status1 0",
+            // The field's values in the rows, with how many rows have each.
+            "options Paid2*,Pending2,Refunded1",
+            "draft badge 2 state [\"Paid\"]",
+            "cancel {\"status\":[\"Paid\"],\"amount\":{\"from\":1000}}",
+            "bad The first value can't be more than the second. apply disabled true",
+            "fixed true apply disabled false",
+            "date ops on,before,between",
+            "no value true",
+            "applied {\"status\":[\"Paid\",\"Pending\"],\"amount\":{\"from\":1000,\"to\":4000},\"date\":{\"lt\":\"2026-10-26\"},\"note\":{\"empty\":false}} false",
+            "chips Status:Paid, Pending | Amount:$1,000 – $4,000 | Date:before Oct 26, 2026 | Note:is not empty",
+            "rows E",
+            "kept picks Paid2*,Pending2*,Refunded1",
+            "none {\"not\":[\"Paid\",\"Pending\"]} | Status:not Paid, Pending | rows ",
+            "removed {\"amount\":{\"from\":1000,\"to\":4000},\"date\":{\"lt\":\"2026-10-26\"},\"note\":{\"empty\":false}} focus true",
+            "cleared {} | count hidden true | clear hidden true | rows ABCDE",
+            "outside Amount:$975 | Date:Oct 22, 2026 | Note:is empty | rows ",
+            "empty rows BD",
+            "list empty Status:is not empty | op set | values hidden true | rows ABCDE",
+            "live {\"status\":[\"Paid\"]} | apply button false | chips Status:Paid",
+            "live text {\"status\":[\"Paid\"],\"note\":{\"contains\":\"first\"}}",
+            "live reset {}",
+            "search hidden true",
         ],
         "\n{result}"
     );

@@ -50,6 +50,8 @@
     if (Array.isArray(c)) return !c.length || c.some((x) => same(v, isObj(x) ? x[field] : x));
     if (!isObj(c)) return same(v, c);
     if (Object.hasOwn(c, "not")) return blank(c.not) || !matches(v, c.not, field);
+    // `{ empty: true }`: no value; `{ empty: false }`: any value.
+    if (Object.hasOwn(c, "empty")) return blank(c.empty) || (c.empty ? blank(v) : !blank(v));
     const ops = Object.keys(c).filter((k) => Object.hasOwn(OPS, k));
     if (!ops.length) return same(v, c[field]);
     return ops.every((k) => blank(c[k]) || (!blank(v) && OPS[k](v, c[k])));

@@ -170,6 +170,17 @@
    ]
   },
   {
+   "id": "filters",
+   "group": "Data display",
+   "title": "Filters",
+   "summary": "Filters for a list in a side panel: lists to pick from, numbers and amounts, dates and text, each with its operators (is any of, between, before, contains, is empty, …). The applied filters show as chips; Apply writes them to state as { field: condition }, the same object a data table's or chart's filter takes, or an API.",
+   "usage": "- type: ui-filters\n  props: { bind: filters, rows: \"{{ orders }}\", currency: INR }\n  children:\n    - { type: ui-filter, props: { field: status, label: Status } }      # values from rows, with counts\n    - { type: ui-filter, props: { field: amount, label: Amount, type: currency } }\n    - { type: ui-filter, props: { field: date, label: Date, type: date } }\n- type: ui-data-table\n  props: { rows: \"{{ orders }}\", filter: \"{{ filters }}\" }",
+   "components": [
+    "ui-filters",
+    "ui-filter"
+   ]
+  },
+  {
    "id": "typography",
    "group": "Data display",
    "title": "Typography and separator",

@@ -15,7 +15,7 @@ use irender_html::{Component, RenderCx, RenderError};
 use serde_json::json;
 use std::sync::LazyLock;
 
-fn focus_ring() -> StyleBlock {
+pub(crate) fn focus_ring() -> StyleBlock {
     StyleBlock::from_pairs(&[
         ("outline", "none"),
         ("box-shadow", "0 0 0 3px color-mix(in srgb, var(--color-ring, var(--color-muted)) 50%, transparent)"),
@@ -101,6 +101,16 @@ pub(crate) fn button_look(el: &mut irender_html::Element<'_>, variant: &str, siz
 }
 
 /// The `ui-checkbox` control's look, for checkboxes kit components draw.
+/// A text input's look, for components that draw their own inputs.
+pub(crate) fn input_look() -> &'static StyleBlock {
+    &INPUT
+}
+
+/// A native select's look.
+pub(crate) fn select_look() -> &'static StyleBlock {
+    &SELECT
+}
+
 pub(crate) fn checkbox_look() -> &'static StyleBlock {
     &CHECKBOX
 }

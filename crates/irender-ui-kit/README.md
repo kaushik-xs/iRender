@@ -48,6 +48,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-progress` | `value` (0–100) | Updates live when `value` uses state, and is clamped to 0–100 in CSS. |
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
+| `ui-filters` + `ui-filter` | see [Filters](#filters-panel) | Filters for a list in a side panel, shown as chips, written to state for a table's or chart's `filter`. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
@@ -439,6 +440,41 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 **Events.** The table fires bubbling `rowclick` (`detail.row`) and `select` (`detail.selection`) events for `on:` actions.
 
 **How it works.** The server renders the rows, in the starting order and with the first page shown, so the table reads without JavaScript. The browser then sorts, filters and pages by moving and hiding the rendered rows rather than drawing them again, so what's inside a cell keeps its state. Virtual, remote and nested tables instead hand the runtime the rows to show, as a list keyed by `rowKey` (`api.list` in the [runtime](../irender-html/src/runtime.js)); a row that stays keeps its nodes, charts included.
+
+## Filters panel
+
+`ui-filters` filters a list from a side panel. The button opens a panel listing the fields, each with its operators. The applied filters show beside the button as chips: clicking a chip opens its field, and its ✕ removes it. Each `ui-filter` child is one field.
+
+```yaml
+- type: ui-filters
+  props: { bind: filters, rows: "{{ orders }}", currency: INR }
+  children:
+    - { type: ui-filter, props: { field: status, label: Status, section: Order } }
+    - { type: ui-filter, props: { field: customer, label: Customer, section: Order } }
+    - { type: ui-filter, props: { field: amount, label: Amount, type: currency } }
+    - { type: ui-filter, props: { field: date, label: Date, type: date, operators: [between, before, after] } }
+    - { type: ui-filter, props: { field: note, label: Note, type: text } }
+- type: ui-data-table
+  props: { rows: "{{ orders }}", filter: "{{ filters }}" }
+```
+
+| Type | Operators | Writes |
+|---|---|---|
+| `list` (default) | is any of, is none of | `[Paid, Pending]`, `{ not: [Paid] }` |
+| `number`, `currency` | equals, more than, less than, between | `500`, `{ gt: 500 }`, `{ lt: 500 }`, `{ from: 100, to: 500 }` (either end may be left out) |
+| `date` | between, on, before, after | `{ from, to }`, `{ from: d, to: d }`, `{ lt: d }`, `{ gt: d }` |
+| `text` | contains, is | `{ contains: rush }`, `"Rush"` |
+| every type | is empty, is not empty | `{ empty: true }`, `{ empty: false }` (an unassigned ticket, say) |
+
+**What it writes.** `bind` holds the applied filters as `{ field: condition }`, in the chart kit's [`filter` format](../irender-chart-kit/README.md#filters-and-grouping). Give the same key to a `ui-data-table`'s `filter`, a `ui-chart`'s `filter`, or a remote table, which sends it to its API as `filters`. Set the key yourself to apply filters from elsewhere; the chips follow.
+
+**List values.** A list filter offers its `options` (text, or `{ value, label }`, possibly from state). Without them it offers the field's values in the filters' `rows`, each with how many rows have it. A list longer than five gets a search box. Values already picked stay listed even when they're no longer among the options.
+
+**Applying.** The panel edits a draft: Apply writes it, and Cancel, Escape or a click outside drops it. A `between` whose ends are the wrong way round shows an error and can't be applied. With `live`, each change is written at once and the panel has a Done button. Clear all empties the draft, or the filters with `live`; the Clear all beside the chips removes every filter at once.
+
+**Keyboard.** The fields are tabs: Up and Down (and Home, End) move between them. Opening the panel focuses the field's first control, and closing it returns focus to the button. The button's label says how many filters are applied.
+
+**Props.** `ui-filters`: `bind` (required), `rows`, `title` (the panel's heading, default `Filters`), `label` (the button's text, default `Filters`), `live`, `chips` (default true), `currency` (default `USD`), `locale`, `id`; parts `button` and `panel`. `ui-filter`: `field` (required), `label`, `type`, `options`, `operators` (a subset of the type's, in the order to show them: `any`, `none`, `eq`, `gt`, `lt`, `between`, `on`, `before`, `after`, `contains`, `is`, `empty`, `set`), `section` (a heading to group fields under), `unit` (after a number, e.g. `kg`) and `currency`.
 
 ## Chat
 

@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: remote data tables' facets, more illustrations, and the CI checks under Housekeeping.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a tree view, file upload with previews, remote data tables' facets, and smaller pieces from the client-ui-next list.
 
 ## Gaps you'd hit in real use
 
@@ -17,7 +17,12 @@ _Last updated: 2026-11-18._
 ## UI kit: not built yet
 
 - [ ] **Gaps against client-ui-next** (`~/Documents/GitHub/client-ui-next/components`, compared 2026-11-17). Generic components it uses that no kit has yet, most used first:
-  - [ ] **Filters:** a side panel and an "add filter" dialog with list, range, date, number and currency filters (with operators), shown as removable chips above a list (`common/FilterSidePanel`, `AddFilterDialog`, `FilterChipsBar`).
+  - [x] **Filters** (2026-11-18): `ui-filters` + `ui-filter`, a side panel of list, number, currency, date and text fields with operators, shown as removable chips, writing the chart kit's `filter` format (block data-table-06). Not done yet:
+    - [ ] No "Add filter" dialog: every field is listed in the panel. Fine up to a dozen or so fields; past that, a picker of fields to add would help.
+    - [ ] Dates use the browser's date input, not the kit's calendar, and there are no relative presets (last 7 days, this quarter) or a quarter type.
+    - [ ] List values come from `options` or `rows` only, not from an API as you search, so very long lists (thousands of customers) need their values in state.
+    - [ ] Number inputs don't group digits or show the currency symbol while typing.
+    - [ ] No saved views (named sets of filters).
   - [ ] **Tree view:** select, add a child, delete one or many, and drag a node under another parent (`HierarchyTree`).
   - [ ] **Calendar views:** events in month, week, year and list views (`factory-calendar/`). More than shadcn's `calendar`.
   - [ ] **File upload and preview:** a drop zone, files in a grid or table with image, PDF and spreadsheet previews, remove, and download all as a zip (`attachments/`, `FileViewer`).

@@ -245,6 +245,28 @@ ui-scroll-spy: Navigation whose in-page links (`href="#id"`) follow the reading:
   label        any  Names the navigation for screen readers (default `On this page`)
   tag          tag  HTML tag (default `nav`)
   children: yes
+ui-filters: Filters for a list: a button that opens a side panel of fields, each with its operators, and the applied filters as chips. Writes `{ field: condition }` to `bind`, for a chart's or data table's `filter`. Children are `ui-filter`s.
+  bind         statekey (required)  State key for the applied filters, `{ field: condition }`, as `ui-chart`'s `filter`
+  rows         any  Rows the filters are for, e.g. `{{ orders }}`: list filters without `options` offer their field's values, each with a count
+  title        any  The panel's heading (default `Filters`)
+  label        any  The button's text (default `Filters`)
+  live         bool  Apply each change at once, with no Apply button
+  chips        bool  Show the applied filters as chips beside the button (default true)
+  currency     string  Currency code for `currency` filters, e.g. `INR` (default `USD`)
+  locale       string  Locale for numbers and dates in chips (default: the browser's)
+  id           any  The panel's element id (default: derived from the document)
+  parts: button, panel
+  children: yes
+ui-filter: One field of the `ui-filters` it is in: its type, label and operators. Read by `ui-filters`, never rendered on its own.
+  field        string (required)  The rows' field it filters
+  label        any  Its name in the panel and chips (default: the field)
+  type         one of: list, number, currency, date, text  `list` (default): values to pick; `number`, `currency`, `date` or `text`
+  options      any  A list filter's values: text, or `{ value, label }`. May use state. Default: the field's values in the filters' `rows`
+  operators    any  Which operators to offer, by name, e.g. `[between, before, after]` (default: all of the type's)
+  section      string  A heading to group it under in the panel
+  unit         string  Shown after a number, e.g. `kg`
+  currency     string  This filter's currency, over the filters' `currency`
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

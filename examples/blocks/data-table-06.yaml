@@ -1,0 +1,87 @@
+# Block: a ticket list filtered from a side panel. `ui-filters` writes
+# `{ field: condition }` to `filters`, and the table and the chart both take it as their
+# `filter`:
+# - Status, Priority, Assignee and Team are lists of the values in the rows, each with
+#   how many tickets have it.
+# - Estimate is a number (equals, more than, less than, between, is empty), Created a
+#   date (between, on, before, after) and Title text (contains, is).
+# - Chips beside the button show what's applied: click one to change it, ✕ to remove it.
+#   "Unassigned" sets `assignee: { empty: true }` from a button, and the chips follow.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-06.yaml --ui-kit --chart-kit --icon-kit -o data-table-06.html
+version: 1
+state:
+  filters: { status: [Open, In progress, Blocked] }
+  tickets:
+    - {"id": "TCK-120", "title": "Login page times out", "status": "In progress", "priority": "Low", "assignee": null, "team": "Web", "estimate": 1, "created": "2026-10-21"}
+    - {"id": "TCK-121", "title": "Export to CSV drops dates", "status": "Open", "priority": "Medium", "assignee": "Divya", "team": "Web", "estimate": 8, "created": "2026-11-04"}
+    - {"id": "TCK-122", "title": "Dark mode contrast on badges", "status": "Open", "priority": "Urgent", "assignee": "Ravi", "team": "Mobile", "estimate": 1, "created": "2026-10-14"}
+    - {"id": "TCK-123", "title": "Invoice PDF misses GST number", "status": "Open", "priority": "Low", "assignee": "Asha", "team": "Platform", "estimate": 1, "created": "2026-10-16"}
+    - {"id": "TCK-124", "title": "Search ignores accents", "status": "Blocked", "priority": "Urgent", "assignee": "Divya", "team": "Platform", "estimate": 5, "created": "2026-10-15"}
+    - {"id": "TCK-125", "title": "Slow dashboard on large teams", "status": "In progress", "priority": "Urgent", "assignee": "Divya", "team": "Web", "estimate": 3, "created": "2026-10-04"}
+    - {"id": "TCK-126", "title": "Webhook retries twice", "status": "In progress", "priority": "Urgent", "assignee": "Divya", "team": "Mobile", "estimate": 8, "created": "2026-10-27"}
+    - {"id": "TCK-127", "title": "Avatar upload fails on Safari", "status": "Open", "priority": "High", "assignee": "Meera", "team": "Web", "estimate": 8, "created": "2026-10-12"}
+    - {"id": "TCK-128", "title": "Reset password email delayed", "status": "Blocked", "priority": "Urgent", "assignee": "Divya", "team": "Web", "estimate": 5, "created": "2026-10-05"}
+    - {"id": "TCK-129", "title": "Filter chips overflow on mobile", "status": "Done", "priority": "Medium", "assignee": "Ravi", "team": "Platform", "estimate": 5, "created": "2026-11-04"}
+    - {"id": "TCK-130", "title": "Add Hindi translations", "status": "In review", "priority": "High", "assignee": "Kaushik", "team": "Platform", "estimate": null, "created": "2026-10-24"}
+    - {"id": "TCK-131", "title": "Timezone wrong in reports", "status": "Open", "priority": "Medium", "assignee": "Divya", "team": "Mobile", "estimate": 3, "created": "2026-10-16"}
+    - {"id": "TCK-132", "title": "Duplicate rows after import", "status": "In review", "priority": "Urgent", "assignee": "Asha", "team": "Platform", "estimate": 5, "created": "2026-10-29"}
+    - {"id": "TCK-133", "title": "API rate limit too strict", "status": "In review", "priority": "High", "assignee": "Ravi", "team": "Mobile", "estimate": 1, "created": "2026-10-11"}
+    - {"id": "TCK-134", "title": "Billing page shows old plan", "status": "Blocked", "priority": "Medium", "assignee": "Meera", "team": "Platform", "estimate": 3, "created": "2026-10-05"}
+    - {"id": "TCK-135", "title": "Keyboard trap in date picker", "status": "Done", "priority": "Low", "assignee": "Asha", "team": "Web", "estimate": 3, "created": "2026-11-08"}
+    - {"id": "TCK-136", "title": "Charts flicker on resize", "status": "Open", "priority": "Urgent", "assignee": null, "team": "Platform", "estimate": 3, "created": "2026-10-31"}
+    - {"id": "TCK-137", "title": "Bulk delete has no undo", "status": "Done", "priority": "Medium", "assignee": null, "team": "Mobile", "estimate": 13, "created": "2026-11-06"}
+    - {"id": "TCK-138", "title": "Session expires during upload", "status": "Open", "priority": "Low", "assignee": "Meera", "team": "Web", "estimate": 8, "created": "2026-10-23"}
+    - {"id": "TCK-139", "title": "Notifications sent twice", "status": "Done", "priority": "Urgent", "assignee": "Kaushik", "team": "Mobile", "estimate": 2, "created": "2026-10-08"}
+    - {"id": "TCK-140", "title": "Map pins missing for Pune", "status": "Done", "priority": "Low", "assignee": "Ravi", "team": "Web", "estimate": 2, "created": "2026-10-16"}
+    - {"id": "TCK-141", "title": "Sort by amount is wrong", "status": "Done", "priority": "Medium", "assignee": "Kaushik", "team": "Mobile", "estimate": null, "created": "2026-10-29"}
+    - {"id": "TCK-142", "title": "Empty state shows error", "status": "In review", "priority": "Low", "assignee": "Meera", "team": "Platform", "estimate": 5, "created": "2026-11-05"}
+    - {"id": "TCK-143", "title": "SSO users can't sign out", "status": "In progress", "priority": "Urgent", "assignee": "Kaushik", "team": "Web", "estimate": 2, "created": "2026-10-15"}
+root:
+  type: stack
+  style: { padding: 16, gap: 20, max-width: 1180, margin: "0 auto", "@md": { padding: 24 } }
+  children:
+    - type: element
+      style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12 }
+      children:
+        - type: stack
+          style: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Tickets } }
+            - { type: ui-text, props: { variant: muted, text: "Everything the support and product teams are working on." } }
+        - type: element
+          style: { display: flex, gap: 8 }
+          children:
+            - type: ui-button
+              props: { label: Unassigned, variant: outline, size: sm, icon: user }
+              on: { click: { action: set_state, key: filters, value: { assignee: { empty: true } } } }
+            - type: ui-button
+              props: { label: Urgent and open, variant: outline, size: sm, icon: warning }
+              on: { click: { action: set_state, key: filters, value: { priority: [Urgent], status: { not: [Done] } } } }
+    - type: ui-filters
+      props: { bind: filters, rows: "{{ tickets }}", title: Filter tickets }
+      children:
+        - { type: ui-filter, props: { field: status, label: Status, section: Ticket } }
+        - { type: ui-filter, props: { field: priority, label: Priority, section: Ticket, options: [Urgent, High, Medium, Low] } }
+        - { type: ui-filter, props: { field: title, label: Title, type: text, section: Ticket } }
+        - { type: ui-filter, props: { field: assignee, label: Assignee, section: People } }
+        - { type: ui-filter, props: { field: team, label: Team, section: People } }
+        - { type: ui-filter, props: { field: estimate, label: Estimate, type: number, unit: pts, section: Planning } }
+        - { type: ui-filter, props: { field: created, label: Created, type: date, section: Planning } }
+    - type: element
+      style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 2fr) minmax(0, 1fr)" }, align-items: start }
+      children:
+        - type: ui-data-table
+          props: { rows: "{{ tickets }}", filter: "{{ filters }}", rowKey: id, sort: -created, pageSize: 10, pageSizes: [], search: Search titles…, searchFields: [title], emptyText: No tickets match these filters., locale: en-IN }
+          children:
+            - { type: ui-data-table-column, props: { field: id, label: Ticket } }
+            - { type: ui-data-table-column, props: { field: title, label: Title } }
+            - { type: ui-data-table-column, props: { field: status, label: Status, cell: badge, tones: { Done: default, Blocked: destructive } } }
+            - { type: ui-data-table-column, props: { field: priority, label: Priority } }
+            - { type: ui-data-table-column, props: { field: assignee, label: Assignee } }
+            - { type: ui-data-table-column, props: { field: created, label: Created, format: date } }
+        - type: ui-card
+          props: { title: By status, description: The tickets that pass the filters. }
+          children:
+            - type: ui-chart
+              props: { type: donut, data: "{{ tickets }}", filter: "{{ filters }}", x: status, aggregate: count, height: 260 }

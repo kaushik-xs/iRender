@@ -379,6 +379,11 @@ fn drill_filters_and_live_data_in_chrome() {
     log("cleared", S().region, S().row, pie());
     root.__irender.set("products", ["A"]); await wait(50);
     log("products", pie());
+    // Every row has a product: `{ empty: true }` keeps none, `{ empty: false }` all.
+    root.__irender.set("products", { empty: true }); await wait(50);
+    log("empty", pie());
+    root.__irender.set("products", { empty: false }); await wait(50);
+    log("not empty", pie());
     root.__irender.set("products", []);
 
     // A date range from state zooms the time chart and filters the pie.
@@ -431,6 +436,8 @@ fn drill_filters_and_live_data_in_chrome() {
         "region Europe 1716 A=258,B=1458 single",
         "cleared   A=630,B=2630",
         "products A=630",
+        "empty ",
+        "not empty A=630,B=2630",
         // A time axis zooms in milliseconds: local midnight on 2 and 3 November.
         "range true true A=315,B=1315",
         "unzoomed null A=630,B=2630",

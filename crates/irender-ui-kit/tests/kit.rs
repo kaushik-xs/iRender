@@ -38,6 +38,7 @@ fn every_component_is_prefixed_documented_and_renders() {
     let engine = engine();
     let minimal: &[(&str, Json)] = &[
         ("ui-badge", json!({ "text": "x" })),
+        ("ui-filters", json!({ "bind": "k" })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -91,6 +92,8 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-menubar-menu" => root = json!({ "type": "ui-menubar", "children": [root] }),
             "ui-navigation-item" | "ui-navigation-link" => root = json!({ "type": "ui-navigation-menu", "children": [root] }),
             "ui-menu-sub" => root = json!({ "type": "ui-dropdown-menu", "props": { "trigger": "T" }, "children": [root] }),
+            "ui-filters" => root["children"] = json!([{ "type": "ui-filter", "props": { "field": "a" } }]),
+            "ui-filter" => root = json!({ "type": "ui-filters", "props": { "bind": "k" }, "children": [{ "type": "ui-filter", "props": { "field": "a" } }] }),
             _ => {}
         }
         if c.name().starts_with("ui-data-table-") {
@@ -103,7 +106,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 93);
+    assert_eq!(kit, 95);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1193,4 +1196,36 @@ fn input_otp_structure_and_mistakes() {
     let err = |props: Json| render_with(json!({ "type": "ui-input-otp", "props": props }), json!({}), json!({})).unwrap_err().to_string();
     assert!(err(json!({ "length": 4, "groups": [3, 3] })).contains("add up"));
     assert!(err(json!({ "length": 40 })).contains("1 to 12"));
+}
+
+#[test]
+fn filters_structure_and_mistakes() {
+    let filter = |props: Json| json!({ "type": "ui-filter", "props": props });
+    let root = json!({ "type": "ui-filters", "props": { "bind": "f", "title": "Refine" }, "children": [
+        filter(json!({ "field": "status", "label": "Status", "section": "Order" })),
+        filter(json!({ "field": "amount", "type": "currency", "operators": ["between", "gt"], "unit": "net" })) ] });
+    let body = plain(&render_with(root, json!({ "f": {} }), json!({})).unwrap().body);
+    assert!(body.contains(r#"data-fl-open aria-haspopup="dialog" aria-controls="filters-root""#), "{body}");
+    assert!(body.contains(r#"<dialog id="filters-root" closedby="any" aria-labelledby="filters-root-title" data-fl-panel>"#), "{body}");
+    assert!(body.contains(r#"<h2 id="filters-root-title">Refine</h2>"#), "{body}");
+    // Fields as tabs, the first chosen; sections as headings.
+    assert!(body.contains(r#"<div data-fl-section role="presentation">Order</div><button type="button" role="tab" id="filters-root-tab-0" aria-controls="filters-root-pane-0" aria-selected="true" tabindex="0" data-fl-tab="0"><span>Status</span>"#), "{body}");
+    assert!(body.contains(r#"id="filters-root-tab-1" aria-controls="filters-root-pane-1" aria-selected="false" tabindex="-1" data-fl-tab="1"><span>amount</span>"#), "{body}");
+    assert!(body.contains(r#"id="filters-root-pane-1" aria-labelledby="filters-root-tab-1" data-fl-pane="1" hidden>"#), "{body}");
+    // Only the operators asked for, in that order; a list gets its value template.
+    assert!(body.contains(r#"<option value="between">Between</option><option value="gt">More than</option></select>"#), "{body}");
+    assert!(body.contains(r#"<option value="any">Is any of</option><option value="none">Is none of</option>"#), "{body}");
+    assert!(body.contains("<template data-fl-choice>"), "{body}");
+    assert!(body.contains(r#"<input type="number" data-fl-a aria-label="amount value" step="any" inputmode="decimal">"#), "{body}");
+    assert!(body.contains(r#"<span data-fl-unit>net</span>"#), "{body}");
+    assert!(body.contains(r#"data-fl-apply>Apply</button>"#), "{body}");
+
+    let err = |root: Json| render_with(root, json!({ "f": {} }), json!({})).unwrap_err().to_string();
+    let filters = |children: Vec<Json>| json!({ "type": "ui-filters", "props": { "bind": "f" }, "children": children });
+    assert!(err(filters(vec![])).contains("needs `ui-filter` children"));
+    assert!(err(filters(vec![json!({ "type": "ui-button", "props": { "label": "x" } })])).contains("takes `ui-filter` children, not `ui-button`"));
+    assert!(err(filters(vec![filter(json!({ "field": "a" })), filter(json!({ "field": "a" }))])).contains("two filters for `a`"));
+    assert!(err(filters(vec![filter(json!({ "field": "d", "type": "date", "operators": ["gt"] }))])).contains("a `date` filter has no operator `gt` (it has between, on, before, after, empty, set)"));
+    assert!(err(filters(vec![filter(json!({ "field": "n", "type": "number", "options": [1] }))])).contains("only `list` filters take `options`"));
+    assert!(err(filter(json!({ "field": "a" }))).contains("must be a direct child of `ui-filters`"));
 }

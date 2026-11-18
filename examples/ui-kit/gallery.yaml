@@ -69,6 +69,7 @@ state:
   chatDraft: ""
   chatWaiting: false
   sidebar: true
+  invoiceFilters: { status: [Paid, Pending] }
   invoices:
     - { id: INV001, status: Paid, method: Credit card, amount: 2500, date: "2026-10-02", customer: Asha }
     - { id: INV002, status: Pending, method: UPI, amount: 1500, date: "2026-10-05", customer: Kaushik }
@@ -1216,6 +1217,50 @@ root:
                 - { type: if, props: { when: "{{ api.data_table.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.data_table }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- filters
+            - type: element
+              props: { tag: section }
+              attrs: { id: filters, aria-labelledby: filters-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.filters }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "The filters write invoiceFilters, and the table takes it as its filter. Click a chip to change it, or Filters for every field." }
+                - type: ui-filters
+                  props: { bind: invoiceFilters, rows: "{{ invoices }}", currency: INR, locale: en-IN }
+                  children:
+                    - { type: ui-filter, props: { field: status, label: Status, section: Invoice } }
+                    - { type: ui-filter, props: { field: customer, label: Customer, section: Invoice } }
+                    - { type: ui-filter, props: { field: method, label: Method, section: Payment } }
+                    - { type: ui-filter, props: { field: amount, label: Amount, type: currency, section: Payment } }
+                    - { type: ui-filter, props: { field: date, label: Date, type: date, section: Payment } }
+                - type: element
+                  style: { display: grid, gap: 16, grid-template-columns: "1fr", "@lg": { grid-template-columns: "3fr 2fr" }, align-items: start }
+                  children:
+                    - type: ui-data-table
+                      props: { rows: "{{ invoices }}", filter: "{{ invoiceFilters }}", rowKey: id, pageSize: 5, pageSizes: [], locale: en-IN, emptyText: No invoices match these filters. }
+                      children:
+                        - { type: ui-data-table-column, props: { field: id, label: Invoice } }
+                        - { type: ui-data-table-column, props: { field: customer, label: Customer } }
+                        - { type: ui-data-table-column, props: { field: status, label: Status, cell: badge } }
+                        - { type: ui-data-table-column, props: { field: amount, label: Amount, format: currency, currency: INR, align: right } }
+                    - type: ui-card
+                      props: { title: What it writes, description: "invoiceFilters, as the table's filter reads it. A chart's filter, or an API, takes the same object." }
+                      children:
+                        - type: element
+                          props: { tag: pre }
+                          style: { margin: 0, padding: 12, border-radius: var(--radius-md), background: "color-mix(in srgb, var(--color-text) 6%, transparent)", font-size: 13, white-space: pre-wrap, overflow-wrap: anywhere }
+                          children: [ { type: element, props: { tag: code }, children: [ { type: text, props: { value: "{{ invoiceFilters }}" } } ] } ]
+                - { type: if, props: { when: "{{ api.filters.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.filters }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
