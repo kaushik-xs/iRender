@@ -8,8 +8,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-irender-core.workspace = true
-irender-html.workspace = true
+irender-core = { workspace = true, default-features = true }
+irender-html = { workspace = true, default-features = true }
 serde_json.workspace = true
 indexmap.workspace = true
 

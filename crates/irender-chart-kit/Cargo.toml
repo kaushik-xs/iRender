@@ -15,5 +15,5 @@ irender-html = { workspace = true, default-features = false }
 serde_json.workspace = true
 
 [dev-dependencies]
-irender-html.workspace = true
+irender-html = { workspace = true, default-features = true }
 irender-ui-kit.workspace = true

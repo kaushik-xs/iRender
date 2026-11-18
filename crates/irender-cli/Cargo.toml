@@ -12,8 +12,8 @@ name = "irender"
 path = "src/main.rs"
 
 [dependencies]
-irender-core.workspace = true
-irender-html = { workspace = true, features = ["parallel"] }
+irender-core = { workspace = true, default-features = true }
+irender-html = { workspace = true, default-features = true, features = ["parallel"] }
 irender-ui-kit.workspace = true
 irender-chart-kit.workspace = true
 irender-flow-kit.workspace = true

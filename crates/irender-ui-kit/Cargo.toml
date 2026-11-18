@@ -17,4 +17,4 @@ serde_json.workspace = true
 
 [dev-dependencies]
 # The tests check CSS as the CLI does.
-irender-html.workspace = true
+irender-html = { workspace = true, default-features = true }

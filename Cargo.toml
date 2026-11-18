@@ -10,9 +10,11 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/kaushik-xs/iRender"
 
 [workspace.dependencies]
-irender-core = { path = "crates/irender-core", version = "0.5.2" }
-irender-style = { path = "crates/irender-style", version = "0.5.2" }
-irender-html = { path = "crates/irender-html", version = "0.5.2" }
+# Without their default features, so a crate can leave them off: Cargo before 1.89
+# can't turn off a default the workspace turned on. Crates that want them say so.
+irender-core = { path = "crates/irender-core", version = "0.5.2", default-features = false }
+irender-style = { path = "crates/irender-style", version = "0.5.2", default-features = false }
+irender-html = { path = "crates/irender-html", version = "0.5.2", default-features = false }
 irender-ui-kit = { path = "crates/irender-ui-kit", version = "0.5.2" }
 irender-chart-kit = { path = "crates/irender-chart-kit", version = "0.5.2" }
 irender-icon-kit = { path = "crates/irender-icon-kit", version = "0.5.2" }
