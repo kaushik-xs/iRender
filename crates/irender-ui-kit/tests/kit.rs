@@ -45,6 +45,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-progress-ring", json!({ "value": 50 })),
         ("ui-rating", json!({ "bind": "k" })),
         ("ui-password-checklist", json!({ "value": "" })),
+        ("ui-kanban", json!({ "columns": [], "cards": [] })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -112,7 +113,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 103);
+    assert_eq!(kit, 104);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1342,4 +1343,33 @@ fn status_badge_ring_rating_checklist_and_timeline() {
     assert!(err(json!({ "type": "ui-rating", "props": { "bind": "r", "max": 12 } })).contains("`max` must be a whole number from 1 to 10"));
     assert!(err(json!({ "type": "ui-rating", "props": { "bind": "r", "value": 3 } })).contains("takes `bind` (to pick one) or `value`"));
     assert!(err(json!({ "type": "ui-password-checklist", "props": { "value": "", "rules": ["long"] } })).contains("each rule is"));
+}
+
+#[test]
+fn kanban_draws_the_starting_board() {
+    let body = plain(&render_with(
+        json!({ "type": "ui-kanban", "props": {
+            "columns": [ { "id": "todo", "title": "To do", "tone": "info" }, { "id": "doing", "title": "Doing", "limit": 1 }, "done" ],
+            "cards": "{{ cards }}", "bindCards": "cards", "addable": true } }),
+        json!({ "cards": [
+            { "id": 1, "column": "todo", "title": "Write <docs>", "tags": ["Docs", { "label": "Bug", "tone": "danger" }], "priority": "Urgent", "due": "Fri", "assignee": "Asha Rao" },
+            { "id": 2, "column": "doing", "title": "Ship" }, { "id": 3, "column": "doing", "title": "Test" } ] }),
+        json!({}),
+    )
+    .unwrap()
+    .body);
+    assert!(body.contains(r#"role="region" aria-label="Board" aria-roledescription="board""#), "{body}");
+    assert!(body.contains(r#"<section data-kb-column="todo" aria-label="To do, 1 card" data-tone="info">"#), "{body}");
+    // Over its limit: marked, and the count shows it.
+    assert!(body.contains(r#"<section data-kb-column="doing" aria-label="Doing, 2 cards" data-over>"#) && body.contains("<span data-kb-count>2 / 1</span>"), "{body}");
+    // Plain names work as columns; an empty one says so.
+    assert!(body.contains(r#"<section data-kb-column="done" aria-label="done, 0 cards">"#) && body.contains("<p data-kb-empty>No cards</p>"), "{body}");
+    // A card: the one tab stop, its label, tags in tones, priority, due and initials.
+    assert!(body.contains(r#"<article data-kb-card="1" tabindex="0" aria-roledescription="card" aria-label="Write &lt;docs&gt;, Urgent priority, due Fri, assigned to Asha Rao" role="listitem" draggable="true">"#), "{body}");
+    assert!(body.contains(r#"<span data-tone="neutral">Docs</span><span data-tone="danger">Bug</span>"#), "{body}");
+    assert!(body.contains(r#"<span data-kb-priority data-tone="danger">Urgent</span><span data-kb-due>Fri</span><span data-kb-avatar title="Asha Rao">AR</span>"#), "{body}");
+    assert_eq!(body.matches("data-kb-add").count(), 3, "{body}");
+
+    let err = render_with(json!({ "type": "ui-kanban", "props": { "columns": [], "cards": [], "addable": true } }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err.contains("`addable` needs `bindCards`"), "{err}");
 }

@@ -55,6 +55,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-rating` | `bind` or `value`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
 | `ui-password-checklist` | `value` (required), `rules`, `bindValid`, `meter` (default true), `label` | A password's rules, ticked as they're met, with a strength bar. |
 | `ui-timeline` + `ui-timeline-item` | `items`, `label`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
+| `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
@@ -494,6 +495,33 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 **`ui-password-checklist`** goes under a password input: `value: "{{ password }}"`. Each rule is ticked as it's met, and a bar shows the strength (Weak, Fair, Good, Strong). `rules` are `length` (8 characters, or `{ length: 12 }`), `lower`, `upper`, `number`, `symbol`, or `{ label, pattern }` with a regular expression; the default is the five presets. `bindValid` gets true while every rule is met, for a button's `disabled: "{{ !valid }}"`. Each rule is read with "met" or "not met".
 
 **`ui-timeline`** lists activity: `ui-timeline-item` children and/or `items` from state, which redraw as they change. An entry has `who` (with an avatar, the initials, or for a name from state its first letter), `action`, `when`, `changes` (`[{ field, from, to }]`, shown as from → to with the old value struck through), a quoted `comment`, and children under it. An entry with no `who` is an event, shown with a dot in its `tone`.
+
+## Kanban board
+
+`ui-kanban` lays `cards` out in `columns` and lets you move them. The block [`kanban-01`](../../examples/blocks/kanban-01.yaml) is a sprint board built on it.
+
+```yaml
+- type: ui-kanban
+  props:
+    columns: [ { id: todo, title: To do }, { id: doing, title: In progress, limit: 3 }, { id: done, title: Done, tone: success } ]
+    cards: "{{ tasks }}"     # [{ id, column, title, description, tags, assignee, due, priority }]
+    bindCards: tasks         # moves and new cards are written back
+    bindCard: task           # the card clicked or opened with Enter
+    addable: true
+    collapsible: true
+```
+
+**Cards** show their `title`, a two-line `description`, `tags` (text, or `{ label, tone }` with the status badge's tones), and a footer with the `priority` (Urgent and Critical red, High amber, Medium blue, Low grey), the `due` date and the `assignee`'s initials or `avatar` (a name, or `{ name, initials, avatar }`). The cards' order in `cards` is their order in each column.
+
+**Columns** are `{ id, title, tone, limit }`, or plain names. A column with more cards than its `limit` shows its count in red (`4 / 3`). With `collapsible`, a button folds a column to a narrow strip; `collapsed` lists those folded to start with.
+
+**Moving.** Drag a card into a column, between cards: a line shows where it lands. From the keyboard, Alt with Up and Down moves the focused card within its column, and Alt with Left and Right moves it to the next column, keeping its place as near as it can. Each move rewrites `bindCards` (the card's `column`, and the order) and fires `move` with `{ id, from, to, index }`. Without `bindCards` nothing moves, but the event still fires, for a host that saves first.
+
+**Adding.** With `addable` (and `bindCards`), Add card under a column asks for a title: Enter adds the card at the column's end with a new id and fires `add` with `{ card }`, and Escape cancels.
+
+**Keyboard and screen readers.** The cards are one tab stop. Up and Down move between cards in a column, Left and Right to the nearest card in the next column with any, Home and End to a column's ends, and Enter or Space opens the card (`bindCard`, and an `open` event). `bindCard` follows its card as the cards change, and empties when it's removed. Each card's label gives its title, priority, due date and assignee; columns are named with their card count; moves and additions are announced.
+
+**Props.** `columns` and `cards` (required), `bindCards`, `bindCard`, `movable` (default true), `addable`, `collapsible`, `collapsed`, `addLabel`, `emptyText`, `columnWidth` (px, default 280), `label` (default `Board`); part `board`.
 
 ## Tree
 

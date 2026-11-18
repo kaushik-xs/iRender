@@ -51,6 +51,7 @@ mod display;
 mod feedback;
 mod filters;
 mod forms;
+mod kanban;
 mod illustration;
 mod menus;
 mod navigation;
@@ -119,6 +120,7 @@ pub fn register(registry: &mut Registry) {
         .register(status::TimelineItem)
         .register(rating::Rating)
         .register(rating::PasswordChecklist)
+        .register(kanban::Kanban)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

@@ -18,7 +18,7 @@ use std::sync::LazyLock;
 pub(crate) const TONES: &[&str] = &["neutral", "info", "success", "warning", "danger", "primary"];
 
 /// Each tone's colour, from the theme when it has one.
-fn tone_color(tone: &str) -> &'static str {
+pub(crate) fn tone_color(tone: &str) -> &'static str {
     match tone {
         "info" => "var(--color-info, #2563eb)",
         "success" => "var(--color-success, #16a34a)",
@@ -34,7 +34,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 }
 
 /// Rules giving `--tone` for each `[data-tone=…]`, under `scope` (`&` for the element).
-fn tone_rules(mut b: StyleBlock, scope: &str) -> StyleBlock {
+pub(crate) fn tone_rules(mut b: StyleBlock, scope: &str) -> StyleBlock {
     for t in TONES {
         b = b.nest(format!("{scope}[data-tone={t}]"), pairs(&[("--tone", tone_color(t))]));
     }

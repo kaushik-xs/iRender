@@ -1,0 +1,100 @@
+# Block: a sprint board. Cards move between To do, In progress, In review and Done by
+# dragging, or with Alt and the arrow keys; In progress has a limit of 3 and shows when
+# it's over. Click a card (or press Enter on it) to see it in the panel beside the board,
+# where its status badge follows the column it's in. Add card asks for a title.
+#
+#   cargo run -p irender-cli -- render examples/blocks/kanban-01.yaml --ui-kit --icon-kit -o kanban-01.html
+version: 1
+state:
+  task: null
+  tasks:
+    - { id: IR-101, column: todo, title: Dark mode for chart tooltips, description: "Tooltips stay light in dark mode; follow the theme's surface.", tags: [ { label: Charts, tone: info } ], assignee: Asha Rao, priority: Medium, due: 14 Nov }
+    - { id: IR-102, column: todo, title: Export the data table to CSV, tags: [ Table ], priority: Low }
+    - { id: IR-103, column: todo, title: Saved views for filters, description: "Name a set of filters and get back to it.", tags: [ { label: Filters, tone: info } ], assignee: Ravi Kumar, priority: Medium }
+    - { id: IR-104, column: doing, title: Sign-out after the payment redirect, description: "Safari 27 drops the session cookie on the 303.", tags: [ { label: Bug, tone: danger } ], assignee: Meera Iyer, priority: Urgent, due: Today }
+    - { id: IR-105, column: doing, title: Kanban board, tags: [ { label: UI kit, tone: primary } ], assignee: Kaushik Sundar, priority: High, due: 13 Nov }
+    - { id: IR-106, column: doing, title: Tree drag on touch screens, assignee: Asha Rao, priority: Low }
+    - { id: IR-107, column: review, title: File upload previews, description: "Images, PDFs, spreadsheets and text, without libraries.", tags: [ Upload ], assignee: Ravi Kumar, priority: High, due: 12 Nov }
+    - { id: IR-108, column: done, title: Scroll spy, tags: [ { label: Shipped, tone: success } ], assignee: Kaushik Sundar }
+    - { id: IR-109, column: done, title: Password checklist, tags: [ { label: Shipped, tone: success } ], assignee: Meera Iyer }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 28px 16px 64px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 32px 24px 80px }
+  children:
+    - type: stack
+      style: { max-width: 1400px, margin: 0 auto, gap: 20px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 6px }
+              children:
+                - { type: ui-breadcrumb, props: { items: [ { label: iRender, href: "#" }, { label: Sprints, href: "#" }, { label: Sprint 24 } ] } }
+                - { type: ui-heading, props: { level: 2, text: "Sprint 24: the UI kit's last gaps" } }
+                - { type: ui-text, props: { variant: muted, text: "4–15 Nov · 9 issues · drag a card, or focus one and press Alt with an arrow key" } }
+            - type: element
+              style: { display: flex, align-items: center, gap: 12px }
+              children:
+                - { type: ui-progress-ring, props: { value: 42, size: 44, label: Sprint progress } }
+                - type: stack
+                  style: { gap: 0, font-size: 13px }
+                  children:
+                    - { type: text, props: { value: 42% done }, style: { font-weight: 600 } }
+                    - { type: text, props: { value: 4 days left }, style: { color: $color.muted } }
+        - type: element
+          style: { display: grid, gap: 20px, grid-template-columns: "minmax(0, 1fr)", "@xl": { grid-template-columns: "minmax(0, 1fr) 300px" }, align-items: start }
+          children:
+            - type: ui-kanban
+              props:
+                columns:
+                  - { id: todo, title: To do, tone: info }
+                  - { id: doing, title: In progress, tone: primary, limit: 3 }
+                  - { id: review, title: In review, tone: warning }
+                  - { id: done, title: Done, tone: success }
+                cards: "{{ tasks }}"
+                bindCards: tasks
+                bindCard: task
+                addable: true
+                collapsible: true
+                columnWidth: 250
+                label: Sprint 24 board
+            - type: ui-card
+              props: { title: "{{ task ? task.title : 'No card open' }}", description: "{{ task ? task.id : 'Click a card, or press Enter on one, to see it here.' }}" }
+              style: { position: sticky, top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: if
+                  props: { when: "{{ task }}" }
+                  children:
+                    - type: element
+                      props: { tag: dl }
+                      style: { display: grid, grid-template-columns: "max-content 1fr", gap: "10px 16px", margin: 0, font-size: 14px, align-items: center }
+                      children:
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Status } } ] }
+                        - type: element
+                          props: { tag: dd }
+                          style: { margin: 0 }
+                          children:
+                            - type: ui-status-badge
+                              props:
+                                status: "{{ task.column }}"
+                                labels: { todo: To do, doing: In progress, review: In review, done: Done }
+                                tones: { todo: info, doing: primary, review: warning, done: success }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Priority } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "{{ task.priority ? task.priority : '—' }}" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Assignee } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "{{ task.assignee ? task.assignee : 'Unassigned' }}" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Due } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "{{ task.due ? task.due : '—' }}" } } ] }
+                    - type: if
+                      props: { when: "{{ task.description }}" }
+                      children:
+                        - { type: ui-separator }
+                        - { type: ui-text, props: { text: "{{ task.description }}" }, style: { font-size: 14px } }

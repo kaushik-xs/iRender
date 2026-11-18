@@ -219,6 +219,17 @@
    ]
   },
   {
+   "id": "kanban",
+   "group": "Data display",
+   "title": "Kanban board",
+   "nav": "Kanban",
+   "summary": "Columns of cards to drag between, or to move with Alt and the arrow keys: the new order goes back to state, with a move event for a host to save. Cards show tags, a priority, a due date and who has them; columns can have a limit and fold away, and Add card asks for a title.",
+   "usage": "- type: ui-kanban\n  props:\n    columns: [ { id: todo, title: To do }, { id: doing, title: Doing, limit: 3 }, { id: done, title: Done } ]\n    cards: \"{{ tasks }}\"   # [{ id, column, title, tags, assignee, priority, due }]\n    bindCards: tasks\n    addable: true",
+   "components": [
+    "ui-kanban"
+   ]
+  },
+  {
    "id": "timeline",
    "group": "Data display",
    "title": "Activity timeline",

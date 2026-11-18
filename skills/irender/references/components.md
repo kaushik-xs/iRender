@@ -353,6 +353,21 @@ ui-password-checklist: A password's rules, ticked as they're met, with a strengt
   meter        bool  A strength bar above the rules (default true)
   label        any  Names the list for screen readers (default `Password requirements`)
   children: no
+ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.
+  columns      any (required)  The columns, in order: `{ id, title, tone, limit }` (or plain names). `limit` marks a column over it
+  cards        any (required)  The cards, in order: `{ id, column, title, description, tags, assignee, due, priority }`, usually from state, e.g. `{{ tasks }}`
+  bindCards    statekey  State key the cards are in: moves and new cards are written back to it
+  bindCard     statekey  State key that gets the card clicked or opened with Enter
+  movable      bool  Drag cards, or move the focused one with Alt and the arrow keys (default true)
+  addable      bool  An Add card button under each column, which asks for a title (needs `bindCards`)
+  collapsible  bool  A button on each column to fold it away
+  collapsed    any  Columns folded to start with, by id
+  addLabel     any  The add button's text (default `Add card`)
+  emptyText    string  In a column with no cards (default `No cards`)
+  columnWidth  number  Each column's width in px (default 280)
+  label        any  Names the board for screen readers (default `Board`)
+  parts: board
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

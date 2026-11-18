@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a kanban board, the filters' calendar and presets, a calendar of events, and the rest of the smaller pieces (code editor, currency input, icon rail).
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a calendar of events, the filters' calendar and presets, the rest of the smaller pieces (code editor, currency input, icon rail), and a notification centre.
 
 ## Gaps you'd hit in real use
 
@@ -34,7 +34,10 @@ _Last updated: 2026-11-18._
     - [ ] Uploads are one request per file: no chunked or resumable uploads, and no direct-to-storage (presigned) uploads.
     - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
   - [ ] **Gantt chart** in chart-kit: a `type: gantt` shorthand with a table of rows on the left, zoom, collapsible groups and markers with a legend (`charts/GanttChart`). Today it has to be an ECharts `custom` series in `option`.
-  - [ ] **Kanban board:** columns of cards moved by drag and drop (`kanban/SimpleDragKanban`).
+  - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
+    - [ ] No custom card content (a template per card), only the built-in fields.
+    - [ ] No swimlanes (rows by assignee or epic), and columns can't be reordered.
+    - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [ ] **Dashboard grid:** tiles that can be dragged and resized (react-grid-layout).
   - [x] **Activity timeline** (2026-11-18): `ui-timeline` + `ui-timeline-item`, with avatars or initials, field changes (old → new), comments and event dots, from children or state (block ticket-01). No grouping by day, and no "show more" for long histories.
   - [ ] **Notification centre:** a bell with an unread count and an inbox (read/unread, archive), plus preferences (`notifications/`).

@@ -3572,3 +3572,121 @@ fn status_rating_password_and_timeline_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The kanban board: arrow keys between cards, Alt and the arrows to move one, dragging,
+/// opening, adding a card by name, folding a column, the limit, and state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn kanban_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "open": null, "tasks": [
+            { "id": "a", "column": "todo", "title": "Alpha", "priority": "High", "assignee": "Asha Rao", "tags": ["UI"] },
+            { "id": "b", "column": "todo", "title": "Bravo" },
+            { "id": "c", "column": "doing", "title": "Charlie", "due": "Fri" },
+            { "id": "d", "column": "done", "title": "Delta" } ] },
+        "root": { "type": "ui-kanban", "props": {
+            "columns": [ { "id": "todo", "title": "To do" }, { "id": "doing", "title": "Doing", "limit": 1 }, { "id": "done", "title": "Done", "tone": "success" } ],
+            "cards": "{{ tasks }}", "bindCards": "tasks", "bindCard": "open", "addable": true, "collapsible": true, "label": "Sprint" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const K = document.querySelector("[data-i-x=ui-kanban]");
+      const $ = (s) => K.querySelector(s), $$ = (s) => [...K.querySelectorAll(s)];
+      const card = (id) => $(`[data-kb-card="${id}"]`);
+      const board = () => $$("[data-kb-column]").map((c) => c.getAttribute("data-kb-column") + ":" + $$(`[data-kb-column="${c.getAttribute("data-kb-column")}"] [data-kb-card]`).map((x) => x.getAttribute("data-kb-card")).join("")).join(" ");
+      const tasks = () => S().tasks.map((t) => t.id + t.column[0]).join(",");
+      const key = (k, o = {}) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...o }));
+      const focused = () => document.activeElement.getAttribute("data-kb-card");
+      const events = [];
+      for (const n of ["move", "add", "open"]) K.addEventListener(n, (e) => events.push(n + " " + JSON.stringify({ ...e.detail, card: e.detail.card?.title })));
+      try {
+        log("start", board(), "|", $$("[data-kb-count]").map((c) => c.textContent).join(","), "| over", $$("[data-over]").map((c) => c.getAttribute("data-kb-column")).join(","));
+        log("aria", K.getAttribute("aria-label"), $("[data-kb-column]").getAttribute("aria-label"), "|", card("a").getAttribute("aria-label"), "| stops", $$("[data-kb-card][tabindex='0']").length);
+        // Arrow keys move focus: down, right (to the same height or the last), left.
+        card("a").focus();
+        key("ArrowDown"); log("down", focused());
+        key("ArrowRight"); log("right", focused());
+        key("ArrowRight"); log("right", focused());
+        key("ArrowLeft"); key("ArrowLeft"); log("left", focused());
+        // Enter opens.
+        key("Enter"); await wait(0);
+        log("open", S().open?.title, events.at(-1));
+        // Alt and the arrows move it: up in its column, right to the next column, down, left.
+        key("ArrowUp", { altKey: true }); await wait(0);
+        log("alt up", tasks(), board(), focused(), events.at(-1));
+        // The open card follows its moves.
+        key("ArrowRight", { altKey: true }); await wait(0);
+        log("alt right", board(), "| over", $$("[data-over]").map((c) => c.getAttribute("data-kb-column")).join(","), $("[data-kb-column=doing] [data-kb-count]").textContent, "| open in", S().open.column);
+        key("ArrowDown", { altKey: true }); await wait(0);
+        log("alt down", board(), focused());
+        key("ArrowRight", { altKey: true }); key("ArrowRight", { altKey: true }); await wait(0);
+        log("alt right twice", board(), "| edge stays", focused());
+        // Dragging Alpha above Delta, in Done.
+        const dt = new DataTransfer();
+        const target = card("d").getBoundingClientRect();
+        card("a").dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+        card("d").dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: target.top + 2 }));
+        log("drop line", !!$("[data-kb-column=done] [data-kb-drop]"), $("[data-kb-column=done]").hasAttribute("data-over-drop"));
+        card("d").dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: target.top + 2 }));
+        K.querySelector("[data-kb-board]").dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+        await wait(0);
+        log("dragged", board(), tasks(), events.at(-1), !!$("[data-kb-drop]"));
+        // Adding: a name box, Enter adds at the column's end; Escape cancels.
+        $("[data-kb-column=todo] [data-kb-add]").click(); await wait(0);
+        const box = $("[data-kb-name]");
+        log("box", document.activeElement === box, box.getAttribute("aria-label"));
+        box.value = "Echo"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); await wait(0);
+        const echo = S().tasks.find((t) => t.title === "Echo");
+        log("added", echo.column, S().tasks.indexOf(echo), focused() === echo.id, events.at(-1).startsWith('add {"card":"Echo"}'));
+        $("[data-kb-column=done] [data-kb-add]").click(); await wait(0);
+        $("[data-kb-name]").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); await wait(0);
+        log("cancel", !$("[data-kb-name]"), document.activeElement.matches("[data-kb-column=done] [data-kb-add]"));
+        // Folding a column hides its cards, and the keys skip it.
+        $("[data-kb-column=doing] [data-kb-fold]").click(); await wait(0);
+        log("folded", $("[data-kb-column=doing]").hasAttribute("data-collapsed"), $("[data-kb-column=doing] [data-kb-fold]").getAttribute("aria-expanded"));
+        // From state: the board follows.
+        root.__irender.set("tasks", S().tasks.filter((t) => t.column !== "done")); await wait(0);
+        log("state", board().replace(echo.id, "+"), $("[data-kb-column=done] [data-kb-empty]")?.textContent);
+        log("live", $("[data-kb-live]").getAttribute("aria-live"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("kanban", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start todo:ab doing:c done:d | 2,1 / 1,1 | over ",
+            "aria Sprint To do, 2 cards | Alpha, High priority, assigned to Asha Rao | stops 1",
+            // Arrow keys move focus: across columns to the same height, or the nearest card.
+            "down b",
+            "right c",
+            "right d",
+            "left a",
+            "open Alpha open {\"card\":\"Alpha\"}",
+            // Alt and the arrows move the card: not past the top, over the limit, not past the last column.
+            "alt up at,bt,cd,dd todo:ab doing:c done:d a open {\"card\":\"Alpha\"}",
+            "alt right todo:b doing:ac done:d | over doing 2 / 1 | open in doing",
+            "alt down todo:b doing:ca done:d a",
+            "alt right twice todo:b doing:c done:da | edge stays a",
+            "drop line true true",
+            // Dropped near Delta's top edge: before it.
+            "dragged todo:b doing:c done:ad bt,cd,ad,dd move {\"id\":\"a\",\"from\":\"done\",\"to\":\"done\",\"index\":0} false",
+            "box true New card in To do",
+            // Enter adds at the column's end; Escape puts focus back on the button.
+            "added todo 1 true true",
+            "cancel true true",
+            "folded true false",
+            "state todo:b+ doing:c done: No cards",
+            "live polite",
+        ],
+        "\n{result}"
+    );
+}
