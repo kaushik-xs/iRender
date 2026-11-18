@@ -1677,21 +1677,27 @@ fn message_ui_in_chrome() {
       const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const $ = (s) => document.querySelector(s);
-      const box = $("textarea");
-      box.value = "Show me"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-      for (let i = 0; i < 50 && !$("#inner"); i++) await wait(20);
-      out.push(`reply ${S().chat.at(-1).content} html=${S().chat.at(-1).html.startsWith("<style>")} roots=${document.querySelectorAll("[data-i-root]").length}`);
-      $("#inner").click(); await wait(0);
-      out.push(`clicked ${$("#inner").textContent} | ${$("#outer").textContent} chat-n=${"n" in S() ? S().n : "-"}`);
-      root.__irender.set("chat", [...S().chat, { id: "x", role: "user", content: "again" }]); await wait(0);
-      out.push(`redrawn ${$("#inner").textContent}`);
-      const track = $("[data-track]"), next = $("[data-next]"), prev = $("[data-prev]");
-      out.push(`slides ${track.querySelectorAll("[data-slide]").length} prev=${prev.disabled} next=${next.disabled}`);
-      // Smooth scrolling doesn't advance under virtual time.
-      const scrollBy = Element.prototype.scrollBy;
-      Element.prototype.scrollBy = function (o) { scrollBy.call(this, { ...o, behavior: "instant" }); };
-      next.click(); await wait(50);
-      out.push(`next ${track.scrollLeft}`);
+      // Waits for the reply in real time, as in the chat tests above: virtual time jumps
+      // ahead of the test server under load, and a message channel keeps it still.
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await tick(); };
+      try {
+        const box = $("textarea");
+        box.value = "Show me"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+        await until(() => $("#inner"));
+        out.push(`reply ${S().chat.at(-1).content} html=${S().chat.at(-1).html.startsWith("<style>")} roots=${document.querySelectorAll("[data-i-root]").length}`);
+        $("#inner").click(); await wait(0);
+        out.push(`clicked ${$("#inner").textContent} | ${$("#outer").textContent} chat-n=${"n" in S() ? S().n : "-"}`);
+        root.__irender.set("chat", [...S().chat, { id: "x", role: "user", content: "again" }]); await wait(0);
+        out.push(`redrawn ${$("#inner").textContent}`);
+        const track = $("[data-track]"), next = $("[data-next]"), prev = $("[data-prev]");
+        out.push(`slides ${track.querySelectorAll("[data-slide]").length} prev=${prev.disabled} next=${next.disabled}`);
+        // Smooth scrolling doesn't advance under virtual time.
+        const scrollBy = Element.prototype.scrollBy;
+        Element.prototype.scrollBy = function (o) { scrollBy.call(this, { ...o, behavior: "instant" }); };
+        next.click(); await wait(50);
+        out.push(`next ${track.scrollLeft}`);
+      } catch (e) { out.push(`EXCEPTION ${e.stack}`); }
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
       document.body.append(pre);
     });
@@ -1805,7 +1811,10 @@ fn message_ui_render_ways_in_chrome() {
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const ids = ["browser", "fallback", "missing", "server", "html"];
       const shown = () => ids.map((id) => id + ": " + document.querySelector(`#${id} [data-ui]`).innerHTML).join("\n");
-      for (let i = 0; i < 100 && shown().includes(": \n"); i++) await wait(20);
+      // Waits in real time for the server's answers, with a little virtual time now and
+      // then for the page's own timers: virtual time alone runs ahead of the test server.
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      for (let i = 0; i < 2e6 && shown().includes(": \n"); i++) await (i % 50 ? tick() : wait(10));
       await wait(100);
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = shown();
       document.body.append(pre);
@@ -2122,7 +2131,10 @@ fn data_table_remote_rows_in_chrome() {
     window.addEventListener("load", async () => {
       const out = []; const log = (...a) => out.push(a.join(" "));
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-      const until = async (f) => { for (let i = 0; i < 100 && !f(); i++) await wait(20); };
+      // Waits in real time for the server, with a little virtual time now and then for the
+      // table's own timers: virtual time alone runs ahead of the test server under load.
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
       const root = document.querySelector("[data-i-root]");
       const T = (id) => document.getElementById(id);
       const rows = (t) => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
