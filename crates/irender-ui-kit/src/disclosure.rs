@@ -640,10 +640,44 @@ pub struct ThemeColors;
 const THEME_COLORS_SCRIPT: &str = include_str!("theme_colors.js");
 const THEME_COLORS_PROPS: &[PropDef] = &[
     PropDef::new("option", PropKind::String, "The option whose `custom` choice the colours make (default `palette`)"),
+    PropDef::new("gradients", PropKind::Bool, "Gradient ends for the primary and second colour (default true)"),
+    PropDef::new("backgrounds", PropKind::Bool, "Background colours for the page, cards, popovers, dialogs, sheets and the sidebar, per mode (default true)"),
 ];
-/// The custom colours: the stored name, its label, and the token it starts from.
-const CUSTOM_COLORS: [(&str, &str, &str); 2] = [("primary", "Primary", "color.primary"), ("brand-2", "Second colour", "color.brand-2")];
 
+/// A custom colour's field.
+struct CustomColor {
+    /// The name it's stored under.
+    name: &'static str,
+    label: &'static str,
+    /// The tokens the field starts from, the first the theme has; none for a gradient
+    /// end, which starts empty.
+    tokens: &'static [&'static str],
+    /// The colour the kit shows for it, which the behaviour reads back in the browser.
+    probe: &'static str,
+}
+
+const fn color(name: &'static str, label: &'static str, tokens: &'static [&'static str], probe: &'static str) -> CustomColor {
+    CustomColor { name, label, tokens, probe }
+}
+
+const BRAND_COLORS: [CustomColor; 2] = [
+    color("primary", "Primary", &["color.primary"], "var(--color-primary)"),
+    color("brand-2", "Second colour", &["color.brand-2", "color.primary"], "var(--color-brand-2, var(--color-primary))"),
+];
+/// The gradient end after each brand colour: `primary-to`, `brand-2-to`.
+const GRADIENT_ENDS: [CustomColor; 2] =
+    [color("primary-to", "Primary gradient end", &[], ""), color("brand-2-to", "Second gradient end", &[], "")];
+const BACKGROUND_COLORS: [CustomColor; 6] = [
+    color("background", "Page", &["color.background", "color.surface"], crate::BG_PAGE),
+    color("card", "Cards", &["color.card", "color.surface"], crate::BG_CARD),
+    color("popover", "Popovers and menus", &["color.popover", "color.surface"], crate::BG_POPOVER),
+    color("dialog", "Dialogs", &["color.dialog", "color.surface"], crate::BG_DIALOG),
+    color("sheet", "Sheets", &["color.sheet", "color.dialog", "color.surface"], crate::BG_SHEET),
+    color("sidebar", "Sidebar", &["color.sidebar", "color.surface"], crate::sidebar::SIDEBAR_BG),
+];
+
+static COLORS_HEADING: LazyLock<StyleBlock> =
+    LazyLock::new(|| StyleBlock::from_pairs(&[("margin-top", sp!(8)), ("color", MUTED), ("font-size", fs!(13))]));
 static COLORS_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "grid"), ("grid-template-columns", "1fr auto 7.5em"), ("align-items", "center"), ("gap", sp!(8)), ("font-size", fs!(14))])
 });
@@ -687,14 +721,49 @@ fn hex6(v: &str) -> Option<String> {
     }
 }
 
+/// One custom colour: its label, a colour picker and a hex field. Until something is
+/// stored (the behaviour fills that in), the theme's colour; a gradient end starts
+/// empty, its picker on `base`'s colour.
+fn color_row(cx: &mut RenderCx<'_>, node: &Node, c: &CustomColor, base: Option<&CustomColor>, per_mode: bool) -> Result<(), RenderError> {
+    let theme_hex = |tokens: &[&str]| tokens.iter().find_map(|t| cx.theme().tokens().get(*t)).and_then(|v| hex6(v));
+    let start = theme_hex(c.tokens);
+    let pick_start = start.clone().or_else(|| base.and_then(|b| theme_hex(b.tokens))).unwrap_or_else(|| "#000000".into());
+    let mut row = Element::new("label");
+    row.base_style_ref(&COLORS_ROW).attr("data-color", c.name);
+    if !c.probe.is_empty() {
+        row.attr("data-probe", c.probe);
+    }
+    if per_mode {
+        row.attr("data-per-mode", true);
+    }
+    cx.open(&row, node)?;
+    cx.text(c.label);
+    let mut pick = Element::new("input");
+    pick.base_style_ref(&COLOR_INPUT).attr("type", "color").attr("value", pick_start.as_str()).attr("aria-label", format!("{}, picked", c.label));
+    cx.open(&pick, node)?;
+    let mut text = Element::new("input");
+    text.base_style_ref(&HEX_INPUT)
+        .attr("type", "text")
+        .attr("value", start.unwrap_or_default().as_str())
+        .attr("aria-label", format!("{}, as hex", c.label))
+        .attr("spellcheck", "false")
+        .attr("maxlength", "7")
+        .attr("placeholder", if base.is_some() { "none" } else { "#rrggbb" });
+    cx.open(&text, node)?;
+    cx.close("label");
+    Ok(())
+}
+
 impl Component for ThemeColors {
     fn name(&self) -> &'static str {
         "ui-theme-colors"
     }
     fn info(&self) -> ComponentInfo {
         info(
-            "Colour inputs for a primary and a second brand colour, typed as hex or picked. Changing one picks the \
-             option's `custom` choice; the colours are remembered with the other theme choices.",
+            "Colour inputs, typed as hex or picked: a primary and a second brand colour, each with an optional \
+             gradient end, and the backgrounds of the page, cards, popovers, dialogs, sheets and the sidebar for \
+             the mode showing. Changing one picks the option's `custom` choice; the colours are remembered with the \
+             other theme choices.",
             THEME_COLORS_PROPS,
             &[],
             false,
@@ -709,26 +778,28 @@ impl Component for ThemeColors {
         let mut el = cx.element("div", node);
         el.base_style_ref(&PANEL).behavior("ui-theme-colors", json!({ "option": option }));
         cx.open(&el, node)?;
-        for (name, label, token) in CUSTOM_COLORS {
-            // Until something is stored (the behaviour fills that in), the theme's colour.
-            let start = cx.theme().tokens().get(token).or(cx.theme().tokens().get("color.primary")).and_then(|v| hex6(v)).unwrap_or_else(|| "#000000".into());
-            let mut row = Element::new("label");
-            row.base_style_ref(&COLORS_ROW).attr("data-color", name);
-            cx.open(&row, node)?;
-            cx.text(label);
-            let mut pick = Element::new("input");
-            pick.base_style_ref(&COLOR_INPUT).attr("type", "color").attr("value", start.as_str()).attr("aria-label", format!("{label}, picked"));
-            cx.open(&pick, node)?;
-            let mut text = Element::new("input");
-            text.base_style_ref(&HEX_INPUT)
-                .attr("type", "text")
-                .attr("value", start.as_str())
-                .attr("aria-label", format!("{label}, as hex"))
-                .attr("spellcheck", "false")
-                .attr("maxlength", "7")
-                .attr("placeholder", "#rrggbb");
-            cx.open(&text, node)?;
-            cx.close("label");
+        let on = |prop: &str| cx.prop(node, prop).is_none_or(|v| expr::truthy(&v));
+        let (gradients, backgrounds) = (on("gradients"), on("backgrounds"));
+        for (i, c) in BRAND_COLORS.iter().enumerate() {
+            color_row(cx, node, c, None, false)?;
+            if gradients {
+                // A gradient end's picker opens on its colour.
+                color_row(cx, node, &GRADIENT_ENDS[i], Some(c), false)?;
+            }
+        }
+        if backgrounds {
+            let mut heading = Element::new("div");
+            heading.base_style_ref(&COLORS_HEADING);
+            cx.open(&heading, node)?;
+            cx.text("Backgrounds, ");
+            let mut mode = Element::new("span");
+            mode.attr("data-mode", true).text(lit("light mode"));
+            cx.open(&mode, node)?;
+            cx.close("span");
+            cx.close("div");
+            for c in &BACKGROUND_COLORS {
+                color_row(cx, node, c, None, true)?;
+            }
         }
         let mut reset = Element::new("button");
         reset

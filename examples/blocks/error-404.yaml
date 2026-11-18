@@ -1,0 +1,39 @@
+# Block: an error page (Error 404). The drawing is `ui-illustration` (`not-found`), coloured
+# by the theme's primary colour and its second brand colour (`color.brand-2`), so it
+# follows the palette, the custom colours and dark mode.
+#
+#   cargo run -p irender-cli -- render examples/blocks/error-404.yaml --ui-kit --icon-kit -o error-404.html
+version: 1
+state:
+  q: ""
+root:
+  type: element
+  props: { tag: main }
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    display: grid
+    place-items: center
+    padding: 40px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 16, align: center }
+      style: { max-width: 540, text-align: center }
+      children:
+        - { type: ui-illustration, props: { name: not-found, size: "min(340px, 80vw)" } }
+        - { type: ui-badge, props: { text: "Error 404", variant: secondary } }
+        - { type: ui-heading, props: { level: 1, text: "Page not found" }, style: { font-size: 32 } }
+        - { type: ui-text, props: { variant: lead, text: "Sorry, we couldn't find the page you're looking for. It may have moved, or the link may be wrong." }, style: { font-size: 16 } }
+        - type: ui-input-group
+          props: { suffix: "⏎" }
+          style: { width: 100%, max-width: 360 }
+          children: [ { type: ui-input, props: { bind: q, placeholder: Search the site… }, attrs: { aria-label: Search the site } } ]
+        - type: stack
+          props: { direction: row, gap: 8, justify: center }
+          style: { flex-wrap: wrap, margin-top: 8 }
+          children:
+            - { type: ui-button, props: { label: Go home, variant: default, href: "#" } }
+            - { type: ui-button, props: { label: Contact support, variant: outline, href: "#" } }

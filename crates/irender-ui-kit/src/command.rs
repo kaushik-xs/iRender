@@ -6,7 +6,7 @@
 //! `command.js` filters them as you type and moves the active one with the keyboard,
 //! while focus stays in the search box (the WAI-ARIA combobox pattern).
 
-use crate::{ACCENT, BORDER, MUTED, SURFACE, TEXT, context, icon, id_with, instance_id, lit, overlay};
+use crate::{BG_DIALOG, BG_POPOVER, ACCENT, BORDER, MUTED, TEXT, context, icon, id_with, instance_id, lit, overlay};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
@@ -47,7 +47,8 @@ fn palette_style(framed: bool) -> StyleBlock {
         ("flex-direction", "column"),
         ("width", "100%"),
         ("overflow", "hidden"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_POPOVER),
+        ("background", BG_POPOVER),
         ("color", TEXT),
         ("font-size", fs!(14)),
     ]);
@@ -75,7 +76,7 @@ fn palette_style(framed: bool) -> StyleBlock {
             ]),
         )
         .nest("& [data-ui-command-input]::placeholder", pairs(&[("color", MUTED)]))
-        .nest("& [role=listbox]", pairs(&[("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", sp!(4))]))
+        .nest("& [role=listbox]", pairs(&[("position", "relative"), ("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", sp!(4))]))
         .nest("& [data-ui-heading]", pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(12)), ("font-weight", "500"), ("color", MUTED)]))
         .nest(
             "& [role=option]",
@@ -124,7 +125,8 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", "0"),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_DIALOG),
+        ("background", BG_DIALOG),
         ("color", TEXT),
         ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
         ("overflow", "hidden"),

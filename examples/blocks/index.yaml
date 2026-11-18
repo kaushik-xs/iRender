@@ -27,13 +27,13 @@ root:
             # Picks every theme option and the mode; the previews below follow live.
             - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
-          props: { variant: lead, text: "Whole pages to start from: a dashboard, data tables, an AI chat, sidebars, login and sign-up, settings, pricing, a Markdown editor and a theme customizer. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, data tables, an AI chat, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group
           props:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: theme, label: Theme }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: theme, label: Theme }]
 
     - type: list
       props:
@@ -45,6 +45,13 @@ root:
           - { id: data-table-03, category: table, title: "Inventory from plain column objects: rows from state, a filter from a toggle, a sticky header and a clicked row's chart", kits: [ui-kit, chart-kit, icon-kit], height: 760 }
           - { id: data-table-04, category: table, title: "5,000 rows from an API, one tab per paging option: infinite scroll with a virtual table, Load more, and server pages", kits: [ui-kit, icon-kit], height: 820 }
           - { id: data-table-05, category: table, title: "Rows inside rows: a budget tree whose projects load when opened, with pinned columns, and an org chart from flat rows", kits: [ui-kit, icon-kit], height: 1180 }
+          - { id: empty-states, category: errors, title: "Empty states: no data, no results, out of stock, an empty cart and inbox, and more, each with its own illustration in the theme's colours", kits: [ui-kit, chart-kit], height: 1100 }
+          - { id: error-404, category: errors, title: "404: page not found, with a search box", kits: [ui-kit], height: 720 }
+          - { id: error-500, category: errors, title: "500: server error, with a reference for support", kits: [ui-kit], height: 720 }
+          - { id: error-403, category: errors, title: "403: no access, with a request for it", kits: [ui-kit], height: 720 }
+          - { id: error-503, category: errors, title: "503: down for maintenance, with progress", kits: [ui-kit], height: 720 }
+          - { id: error-offline, category: errors, title: "Offline, with changes waiting to sync", kits: [ui-kit], height: 720 }
+          - { id: error-session, category: errors, title: "Session expired: sign in again", kits: [ui-kit], height: 720 }
           - { id: chat, category: chat, title: "A full-screen AI chat: conversations in a sidebar, threaded replies, streamed answers and replies with UI: charts, a carousel, links, video", kits: [ui-kit, chart-kit, icon-kit], height: 760 }
           - { id: sidebar-07, category: sidebar, title: A sidebar that collapses to icons, kits: [ui-kit, icon-kit], height: 640 }
           - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }

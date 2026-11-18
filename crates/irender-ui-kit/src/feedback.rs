@@ -1,7 +1,7 @@
 //! The toaster: a stack of notifications, each hiding on its own timer. Setting the
 //! bound state key adds one; a client behaviour (toaster.js) does the rest.
 
-use crate::{ACCENT, DESTRUCTIVE, MUTED, SURFACE, TEXT, lit};
+use crate::{BG_POPOVER, ACCENT, DESTRUCTIVE, MUTED, TEXT, lit};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock};
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::json;
@@ -39,7 +39,8 @@ static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", sp!(16, 40, 16, 16)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_POPOVER),
+        ("background", BG_POPOVER),
         ("color", TEXT),
         ("font-size", fs!(14)),
         ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.15)"),

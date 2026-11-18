@@ -67,6 +67,13 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-command-item", json!({ "label": "L" })),
         ("ui-chat-input", json!({ "messages": "k" })),
         ("ui-data-table", json!({ "rows": [], "columns": [{ "field": "a" }] })),
+        ("ui-menu-sub", json!({ "label": "More" })),
+        ("ui-illustration", json!({ "name": "not-found" })),
+        ("ui-menu-checkbox", json!({ "label": "On", "bind": "k" })),
+        ("ui-menu-radio-group", json!({ "bind": "k", "options": ["a"] })),
+        ("ui-menubar-menu", json!({ "label": "File" })),
+        ("ui-navigation-item", json!({ "label": "Products" })),
+        ("ui-navigation-link", json!({ "label": "Docs", "href": "/docs" })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -80,6 +87,12 @@ fn every_component_is_prefixed_documented_and_renders() {
         if c.name() == "ui-command-item" {
             root = json!({ "type": "ui-command", "children": [root] });
         }
+        match c.name() {
+            "ui-menubar-menu" => root = json!({ "type": "ui-menubar", "children": [root] }),
+            "ui-navigation-item" | "ui-navigation-link" => root = json!({ "type": "ui-navigation-menu", "children": [root] }),
+            "ui-menu-sub" => root = json!({ "type": "ui-dropdown-menu", "props": { "trigger": "T" }, "children": [root] }),
+            _ => {}
+        }
         if c.name().starts_with("ui-data-table-") {
             root = json!({ "type": "ui-data-table", "props": { "rows": [], "columns": [{ "field": "a" }] }, "children": [root] });
         }
@@ -90,7 +103,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 82);
+    assert_eq!(kit, 91);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -569,11 +582,22 @@ fn custom_colours_and_the_brand_variant() {
     .unwrap();
     let body = plain(&page.body);
     // Each colour starts from the theme's, as a colour input and as hex.
-    assert!(body.contains(r##"<label data-color="primary">Primary<input type="color" value="#18181b" aria-label="Primary, picked">"##), "{body}");
+    assert!(body.contains(r##"<label data-color="primary" data-probe="var(--color-primary)">Primary<input type="color" value="#18181b" aria-label="Primary, picked">"##), "{body}");
     assert!(body.contains(r##"<input type="text" value="#18181b" aria-label="Primary, as hex" spellcheck="false" maxlength="7" placeholder="#rrggbb">"##), "{body}");
-    assert!(body.contains(r##"data-color="brand-2">Second colour"##), "{body}");
-    // The second brand colour falls back to the primary in themes without one.
-    assert!(page.css.contains("background: var(--color-brand-2, var(--color-primary));"), "{}", page.css);
+    assert!(body.contains(r##"data-color="brand-2" data-probe="var(--color-brand-2, var(--color-primary))">Second colour"##), "{body}");
+    // A gradient end starts empty, its picker on the colour it follows.
+    assert!(body.contains(r##"<label data-color="primary-to">Primary gradient end<input type="color" value="#18181b" aria-label="Primary gradient end, picked"><input type="text" value=""##), "{body}");
+    // Backgrounds, per mode, from the surface colour in themes without their own.
+    assert!(body.contains(r##"<div>Backgrounds, <span data-mode>light mode</span></div>"##), "{body}");
+    assert!(body.contains(r##"<label data-color="sheet" data-probe="var(--color-sheet, var(--color-dialog, var(--color-surface)))" data-per-mode>Sheets<input type="color" value="#ffffff""##), "{body}");
+    // The second brand colour falls back to the primary in themes without one, and
+    // brand fills take a gradient when the theme has one.
+    assert!(page.css.contains("background: var(--gradient-brand-2, var(--color-brand-2, var(--gradient-primary, var(--color-primary))));"), "{}", page.css);
+    let primary = render_with(json!({ "type": "ui-button", "props": { "label": "Go" } }), json!({}), json!({})).unwrap();
+    assert!(primary.css.contains("background: var(--gradient-primary, var(--color-primary));"), "{}", primary.css);
+    assert!(primary.css.contains("background: var(--gradient-primary-hover, var(--color-primary-hover));"), "{}", primary.css);
+    let some = plain(&render(json!({ "type": "ui-theme-colors", "props": { "gradients": false, "backgrounds": false } })));
+    assert_eq!(some.matches("<label").count(), 2, "{some}");
     // The custom choice's swatch is a rainbow.
     assert!(body.contains(r##"data-choice="custom" aria-pressed="false"><span aria-hidden="true"></span>Custom</button>"##), "{body}");
     assert!(page.css.contains("conic-gradient("));
@@ -1128,4 +1152,24 @@ fn date_picker_with_input() {
     assert!(body.contains(r#"aria-label="Choose a date""#) && body.contains("data-cal-trigger"), "{body}");
     let err = render_with(json!({ "type": "ui-date-picker", "props": { "input": true, "mode": "multiple" } }), json!({}), json!({})).unwrap_err().to_string();
     assert!(err.contains("not `multiple`"), "{err}");
+}
+
+#[test]
+fn illustrations() {
+    let page = render_with(
+        json!({ "type": "element", "children": [
+            { "type": "ui-illustration", "props": { "name": "no-data", "size": 160, "primary": "#0ea5e9", "label": "No data" } },
+            { "type": "ui-empty", "props": { "illustration": "out-of-stock", "title": "Out of stock" } } ] }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"<svg viewBox="0 0 240 180" width="240" height="180" role="img" aria-label="No data">"#), "{body}");
+    assert!(body.contains(r#"<svg viewBox="0 0 240 180" width="240" height="180" aria-hidden="true" focusable="false">"#), "{body}");
+    assert!(body.contains("data-f=\"p\""), "{body}");
+    // Colours: the theme's unless given, with the size.
+    assert!(page.css.contains("--ill-p: #0ea5e9;") && page.css.contains("width: 160px;"), "{}", page.css);
+    assert!(page.css.contains("fill: var(--ill-p, var(--color-primary));"), "{}", page.css);
+    assert!(page.css.contains("var(--ill-s, var(--color-brand-2, var(--color-chart-2, #f59e0b)))"), "{}", page.css);
 }

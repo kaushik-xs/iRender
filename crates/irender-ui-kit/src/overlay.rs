@@ -4,7 +4,7 @@
 //! its arrow keys (menu.js).
 
 use crate::{
-    ACCENT, DESTRUCTIVE, MUTED, ON_PRIMARY, PRIMARY, SURFACE, TEXT, choice, context, describe, disclosure::merge_node,
+    BG_DIALOG, BG_POPOVER, BG_SHEET, ACCENT, DESTRUCTIVE, MUTED, ON_PRIMARY, PRIMARY, TEXT, choice, context, describe, disclosure::merge_node,
     forms, id_after, id_with, instance_id, lit, synthetic,
 };
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
@@ -12,7 +12,7 @@ use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::json;
 use std::sync::LazyLock;
 
-const MENU_SCRIPT: &str = include_str!("menu.js");
+pub(crate) const MENU_SCRIPT: &str = include_str!("menu.js");
 
 const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link", "brand"]);
 const BUTTON_SIZES: PropKind = PropKind::Enum(&["default", "sm", "lg", "icon"]);
@@ -91,7 +91,8 @@ fn dialog_base() -> StyleBlock {
         ("box-sizing", "border-box"),
         ("padding", sp!(24)),
         ("border", "1px solid var(--color-border)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_DIALOG),
+        ("background", BG_DIALOG),
         ("color", TEXT),
         ("font-family", "inherit"),
         ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
@@ -109,7 +110,7 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     let side = |pairs: &[(&str, &str)]| {
-        let mut b = dialog_base().set("border-radius", "0").set("max-width", "none").set("max-height", "none");
+        let mut b = dialog_base().set("--ui-bg", BG_SHEET).set("background", BG_SHEET).set("border-radius", "0").set("max-width", "none").set("max-height", "none");
         for (k, v) in pairs {
             b = b.set(k, *v);
         }
@@ -313,7 +314,7 @@ const POPOVER_PROPS: &[PropDef] = &[
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
 ];
 
-fn popover_base() -> StyleBlock {
+pub(crate) fn popover_base() -> StyleBlock {
     StyleBlock::from_pairs(&[
         ("box-sizing", "border-box"),
         // The UA centres popovers with `inset: 0; margin: auto`; anchoring needs neither.
@@ -321,7 +322,8 @@ fn popover_base() -> StyleBlock {
         ("margin", "0"),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_POPOVER),
+        ("background", BG_POPOVER),
         ("color", TEXT),
         ("font-family", "inherit"),
         ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),
@@ -330,7 +332,7 @@ fn popover_base() -> StyleBlock {
 
 static POPOVER: LazyLock<StyleBlock> =
     LazyLock::new(|| popover_base().set("width", "288px").set("padding", sp!(16)).set("font-size", fs!(14)));
-static MENU: LazyLock<StyleBlock> = LazyLock::new(|| {
+pub(crate) static MENU: LazyLock<StyleBlock> = LazyLock::new(|| {
     popover_base()
         .set("min-width", sp!(176))
         .set("padding", sp!(4))
@@ -590,7 +592,7 @@ const MENU_ITEM_PROPS: &[PropDef] = &[
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
 ];
 
-static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
+pub(crate) static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     let base = |color: &str| {
         StyleBlock::from_pairs(&[
             ("display", "flex"),
@@ -614,7 +616,7 @@ static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     };
     [base(TEXT), base(DESTRUCTIVE)]
 });
-static SHORTCUT: LazyLock<StyleBlock> = LazyLock::new(|| {
+pub(crate) static SHORTCUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("margin-left", "auto"), ("padding-left", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)])
 });
 static MENU_SEPARATOR: LazyLock<StyleBlock> =
@@ -828,7 +830,8 @@ static CARD_POP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", sp!(16)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_POPOVER),
+        ("background", BG_POPOVER),
         ("color", TEXT),
         ("font-size", fs!(14)),
         ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),

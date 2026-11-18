@@ -21,7 +21,10 @@
     for (const i of items()) i.setAttribute("aria-selected", String(i === item));
     if (item) {
       input.setAttribute("aria-activedescendant", item.id);
-      item.scrollIntoView({ block: "nearest" });
+      // Keeps it in view inside the list, without scrolling the page to the palette.
+      const top = item.offsetTop, bottom = top + item.offsetHeight; // the list is positioned
+      if (top < list.scrollTop) list.scrollTop = top;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
     } else input.removeAttribute("aria-activedescendant");
   }
 

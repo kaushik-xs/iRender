@@ -3,8 +3,8 @@
 //! area.
 
 use crate::{
-    BORDER, BRAND_2, DESTRUCTIVE, MONO, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, SECONDARY, SPIN, SUBTLE,
-    SURFACE, TEXT, choice, lit,
+    BRAND_2_FILL, PRIMARY_FILL, BG_CARD, BORDER, DESTRUCTIVE, MONO, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, SECONDARY, SPIN, SUBTLE,
+    TEXT, choice, lit,
 };
 use irender_core::{ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
@@ -84,11 +84,11 @@ static BADGE: LazyLock<[StyleBlock; 5]> = LazyLock::new(|| {
         ])
     };
     [
-        base(PRIMARY, ON_PRIMARY, "1px solid transparent"),
+        base(PRIMARY_FILL, ON_PRIMARY, "1px solid transparent"),
         base(SECONDARY, ON_SECONDARY, "1px solid transparent"),
         base(DESTRUCTIVE, ON_DESTRUCTIVE, "1px solid transparent"),
         base("transparent", TEXT, "1px solid var(--color-border)"),
-        base(BRAND_2, ON_BRAND_2, "1px solid transparent"),
+        base(BRAND_2_FILL, ON_BRAND_2, "1px solid transparent"),
     ]
 });
 
@@ -133,7 +133,8 @@ static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", sp!(24)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_CARD),
+        ("background", BG_CARD),
         ("color", TEXT),
         ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
     ])
@@ -230,7 +231,8 @@ static ALERT: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
             ("padding", sp!(12, 16)),
             ("border", border),
             ("border-radius", "var(--radius-lg)"),
-            ("background", SURFACE),
+            ("--ui-bg", BG_CARD),
+            ("background", BG_CARD),
             ("color", color),
             ("font-size", fs!(14)),
         ])
@@ -522,7 +524,7 @@ static PROGRESS_INDICATOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("height", "100%"),
         // `--ui-value` is set per element; clamping keeps bad values in range.
         ("width", "min(100%, max(0%, var(--ui-value)))"),
-        ("background", PRIMARY),
+        ("background", PRIMARY_FILL),
         ("transition", "width .2s"),
     ])
 });
@@ -823,6 +825,8 @@ const EMPTY_PROPS: &[PropDef] = &[
     PropDef::new("title", PropKind::Any, "What is empty, e.g. `No projects yet`"),
     PropDef::new("description", PropKind::Any, "What to do about it"),
     PropDef::new("icon", PropKind::Any, "A character or emoji shown above the title"),
+    PropDef::new("illustration", PropKind::Any, "A `ui-illustration` above the title: `no-data`, `not-found`, `out-of-stock`, …"),
+    PropDef::new("illustrationSize", PropKind::Any, "The illustration's width (default 200)"),
 ];
 
 static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -874,6 +878,11 @@ impl Component for Empty {
         let mut el = cx.element("div", node);
         el.base_style_ref(&EMPTY);
         cx.open(&el, node)?;
+        if let Some(name) = node.prop("illustration") {
+            let size = node.prop("illustrationSize").cloned().unwrap_or_else(|| crate::lit(200));
+            let ill = crate::synthetic(node, "ui-illustration", vec![("name", name.clone()), ("size", size)], Vec::new(), Vec::new());
+            cx.render(&ill)?;
+        }
         if let Some(icon) = node.prop("icon") {
             let mut part = cx.part("div", node, "icon");
             part.base_style_ref(&EMPTY_ICON).attr("aria-hidden", "true").text(icon);

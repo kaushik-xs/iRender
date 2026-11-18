@@ -144,8 +144,10 @@ fn drive(name: &str, html: &str) -> Option<String> {
     std::fs::create_dir_all(&dir).unwrap();
     let file = dir.join("page.html");
     std::fs::write(&file, html).unwrap();
+    // The budget is virtual time, which runs ahead while the page is idle, so a large one
+    // costs nothing on a quiet machine and leaves room on a loaded one.
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1000,900", "--virtual-time-budget=10000", "--dump-dom"])
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1000,900", "--virtual-time-budget=30000", "--dump-dom"])
         .arg(format!("file://{}", file.display()))
         .output()
         .unwrap();
@@ -1258,6 +1260,79 @@ fn theme_options_apply_and_persist_in_chrome() {
     );
 }
 
+/// Custom backgrounds are kept per mode and set the page's, cards' and popovers'
+/// colours; a gradient end turns the brand fills into a gradient, and clearing it
+/// goes back to the plain colour.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn custom_backgrounds_and_gradients_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "stack", "children": [
+            { "type": "ui-theme-colors" },
+            { "type": "ui-card", "attrs": { "id": "card" }, "children": [{ "type": "text", "props": { "value": "Card" } }] },
+            { "type": "ui-button", "props": { "label": "Main" }, "attrs": { "id": "main" } } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const tick = () => new Promise((r) => setTimeout(r, 50));
+      const theme = window.__irenderTheme;
+      const css = (el, prop) => getComputedStyle(el)[prop];
+      const card = document.getElementById("card"), main = document.getElementById("main");
+      const row = (n) => document.querySelector(`[data-color="${n}"]`).querySelectorAll("input");
+      const type = async (n, val) => { const t = row(n)[1]; t.value = val; t.dispatchEvent(new Event("input", { bubbles: true })); await tick(); };
+      const mode = () => document.querySelector("[data-mode]").textContent;
+      theme.choose("light"); await tick();
+      // The sidebar's field starts from its colour as the browser resolves it.
+      out.push(`start ${row("card")[1].value} ${row("sidebar")[1].value} ${mode()}`);
+      await type("card", "#fef3c7");
+      await type("background", "#f4f4f5");
+      out.push(`light ${css(card, "backgroundColor")} page ${css(document.body, "backgroundColor")} ${document.documentElement.dataset.themePalette}`);
+      // What sits on the card (pinned table columns, tints) sees its colour.
+      out.push(`ui-bg ${getComputedStyle(card).getPropertyValue("--ui-bg").trim()}`);
+      theme.choose("dark"); await tick();
+      out.push(`dark ${css(card, "backgroundColor")} field ${row("card")[1].value} ${mode()}`);
+      await type("card", "#1e293b");
+      out.push(`dark card ${css(card, "backgroundColor")}`);
+      theme.choose("light"); await tick();
+      out.push(`light again ${css(card, "backgroundColor")} field ${row("card")[1].value}`);
+      const stored = JSON.parse(localStorage.getItem("irender-theme-custom"));
+      out.push(`stored ${stored.card} ${stored["card-dark"]} ${stored.background}`);
+      await type("primary-to", "#ec4899");
+      out.push(`gradient ${css(main, "backgroundImage").startsWith("linear-gradient(135deg, rgb(24, 24, 27), rgb(236, 72, 153))")} on ${css(main, "color")}`);
+      await type("primary-to", "");
+      out.push(`cleared ${css(main, "backgroundImage")} ${css(main, "backgroundColor")} ${row("primary-to")[1].value === ""}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test")
+        .replace("<head>", r#"<head><script>localStorage.clear()</script>"#)
+        .replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("custom-backgrounds", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start #ffffff #f8f8f8 light mode",
+            "light rgb(254, 243, 199) page rgb(244, 244, 245) custom",
+            "ui-bg #fef3c7",
+            // Dark mode has no card colour of its own yet: the theme's.
+            "dark rgb(9, 9, 11) field #09090b dark mode",
+            "dark card rgb(30, 41, 59)",
+            "light again rgb(254, 243, 199) field #fef3c7",
+            "stored #fef3c7 #1e293b #f4f4f5",
+            // The text is light, for the gradient from zinc to pink as a whole.
+            "gradient true on rgb(250, 250, 250)",
+            "cleared none rgb(24, 24, 27) true",
+        ],
+        "\n{result}"
+    );
+}
+
 /// Custom colours: a hex typed or picked picks the palette's `custom` choice, with
 /// readable text on it; an incomplete one is flagged and ignored; the chart scheme
 /// follows them; another palette drops them, and Reset clears them.
@@ -1282,7 +1357,8 @@ fn custom_colours_in_chrome() {
       const html = document.documentElement, v = (n) => getComputedStyle(html).getPropertyValue(n).trim();
       const bg = (id) => getComputedStyle(document.getElementById(id)).backgroundColor;
       const fg = (id) => getComputedStyle(document.getElementById(id)).color;
-      const [p, b] = [...document.querySelectorAll("[data-color]")].map((r) => r.querySelectorAll("input"));
+      const row = (n) => document.querySelector(`[data-color="${n}"]`).querySelectorAll("input");
+      const p = row("primary"), b = row("brand-2");
       const type = async (input, val) => { input.value = val; input.dispatchEvent(new Event("input", { bubbles: true })); await tick(); };
       await type(p[1], "#ff0");
       out.push(`yellow ${bg("main")} on ${fg("main")} ${html.dataset.themePalette} ${p[0].value} charts ${html.dataset.themeChart}`);
@@ -1428,6 +1504,11 @@ fn chat_sends_and_streams_replies_in_chrome() {
       const out = [];
       const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Waits for a condition, in real time: Chrome's virtual time jumps ahead while the
+      // page is idle, faster than the test server answers under load, so this yields
+      // through a message channel instead of a timer, which keeps virtual time still.
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await tick(); };
       // Runs the updates queued as microtasks, but no timer or network task, so the
       // reply can't have arrived yet.
       const settle = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
@@ -1443,12 +1524,16 @@ fn chat_sends_and_streams_replies_in_chrome() {
       box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
       await settle();
       out.push(`sent ${S().messages.length} last=${S().last} draft=${JSON.stringify(S().draft)} box=${JSON.stringify(box.value)} waiting=${S().waiting} typing=${!!log.querySelector("[aria-label=Typing]")} stop=${send.getAttribute("aria-label")}`);
-      for (let i = 0; i < 50 && S().messages.at(-1).role !== "assistant"; i++) await wait(20);
-      await wait(100);
+      // The reply is complete when the input stops waiting, which it does at the
+      // stream's end; under load that can take a while.
+      await until(() => S().messages.at(-1).role === "assistant" && !S().waiting);
+      // The send button turns back from Stop just after.
+      await until(() => send.getAttribute("aria-label") === "Send");
+      await wait(20);
       out.push(`reply ${bubbles()}`);
       out.push(`after waiting=${S().waiting} typing=${!!log.querySelector("[aria-label=Typing]")} send=${send.getAttribute("aria-label")} suggestions=${!form.querySelector("[data-suggestions]").hidden} bottom=${log.scrollHeight - log.scrollTop - log.clientHeight < 2}`);
       other.querySelector("[data-suggestion]").click();
-      for (let i = 0; i < 50 && S().json.length < 2; i++) await wait(20);
+      await until(() => S().json.length >= 2);
       out.push(`json ${S().json.map((m) => m.role + ":" + m.content + (m.name ? "@" + m.name : "")).join(" | ")}`);
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
       document.body.append(pre);
@@ -1495,6 +1580,11 @@ fn chat_threads_in_chrome() {
       const out = [];
       const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Waits for a condition, in real time: Chrome's virtual time jumps ahead while the
+      // page is idle, faster than the test server answers under load, so this yields
+      // through a message channel instead of a timer, which keeps virtual time still.
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await tick(); };
       const box = document.querySelector("textarea");
       const shown = () => [...document.querySelectorAll("[role=log] [data-bubble]")].map((b) => b.textContent).join(",");
       const titles = () => S().threads.map((t) => t.title + ":" + t.messages.length).join(" ");
@@ -1513,8 +1603,8 @@ fn chat_threads_in_chrome() {
       await settle();
       const created = S().thread;
       out.push(`sent current=${created === S().threads[0].id} ${titles()} waiting=${S().waiting}`);
-      for (let i = 0; i < 50 && S().chat.length < 2; i++) await wait(20);
-      await wait(50);
+      await until(() => S().chat.length >= 2 && !S().waiting);
+      await wait(20);
       out.push(`reply ${shown()}`);
       await go("a");
       out.push(`a ${shown()}`);
@@ -1522,8 +1612,9 @@ fn chat_threads_in_chrome() {
       out.push(`back ${shown()}`);
       await go("b");
       box.value = "B2"; box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
-      for (let i = 0; i < 50 && S().chat.length < 3; i++) await wait(20);
-      await wait(50);
+      // The thread list takes the finished reply after the conversation does.
+      await until(() => S().chat.length >= 3 && !S().waiting && S().threads[0].messages.length >= 3);
+      await wait(20);
       out.push(`top ${titles()}`);
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
       document.body.append(pre);
@@ -2619,6 +2710,125 @@ fn date_picker_typing_in_chrome() {
             "quarter 2 2026-Q3",
             "calendar 2026-06-10 true 2026-06-10",
             "picked 2026-06-11 11/06/2026 true",
+        ],
+        "\n{result}"
+    );
+}
+
+/// The menubar, submenus, checkbox and radio items, and the navigation menu.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn menubar_and_navigation_menu_in_chrome() {
+    let item = |label: &str| serde_json::json!({ "type": "ui-menu-item", "props": { "label": label },
+        "on": { "click": { "action": "set_state", "key": "ran", "value": label } } });
+    let doc = serde_json::json!({ "version": 1, "state": { "ran": "", "bar": true, "zoom": "100" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-menubar", "children": [
+                { "type": "ui-menubar-menu", "props": { "label": "File" }, "children": [
+                    item("New"), item("Open"),
+                    { "type": "ui-menu-sub", "props": { "label": "Share" }, "children": [ item("Email"), item("Link") ] },
+                    { "type": "ui-menu-separator" }, item("Quit") ] },
+                { "type": "ui-menubar-menu", "props": { "label": "Edit" }, "children": [ item("Undo"), item("Redo") ] },
+                { "type": "ui-menubar-menu", "props": { "label": "View" }, "children": [
+                    { "type": "ui-menu-checkbox", "props": { "label": "Status bar", "bind": "bar" } },
+                    { "type": "ui-menu-separator" },
+                    { "type": "ui-menu-radio-group", "props": { "bind": "zoom", "label": "Zoom", "options": [{ "value": "100", "label": "100%" }, { "value": "150", "label": "150%" }] } } ] } ] },
+            { "type": "ui-navigation-menu", "children": [
+                { "type": "ui-navigation-item", "props": { "label": "Products" }, "children": [
+                    { "type": "ui-navigation-link", "props": { "label": "Analytics", "href": "#analytics", "description": "See what's happening" } },
+                    { "type": "ui-navigation-link", "props": { "label": "Automation", "href": "#automation" } } ] },
+                { "type": "ui-navigation-link", "props": { "label": "Docs", "href": "#docs", "active": true } } ] } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const key = async (k) => { document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); await wait(10); };
+      const name = () => (document.activeElement.textContent || "").trim();
+      const bar = document.querySelector("[role=menubar]");
+      const [file, edit, view] = bar.querySelectorAll(":scope > [role=menuitem]");
+      const menu = (t) => document.getElementById(t.getAttribute("popovertarget"));
+      const isOpen = (t) => menu(t).matches(":popover-open");
+      try {
+        log("bar", bar.getAttribute("aria-label"), [file, edit, view].map((t) => t.tabIndex).join(","));
+        file.focus(); await key("ArrowRight");
+        log("right", name(), isOpen(edit), [file, edit, view].map((t) => t.tabIndex).join(","));
+        await key("ArrowDown");
+        log("down", isOpen(edit), name(), edit.getAttribute("aria-expanded"));
+        await key("ArrowRight");
+        log("menu right", isOpen(edit), isOpen(view), name(), document.activeElement.getAttribute("role"), document.activeElement.getAttribute("aria-checked"));
+        document.activeElement.click(); await wait(20);
+        log("checkbox", S().bar, isOpen(view), document.activeElement === view);
+        await key("Enter");
+        log("enter opens", isOpen(view), name());
+        await key("ArrowDown"); await key("ArrowDown");
+        log("radio", name(), document.activeElement.getAttribute("aria-checked"));
+        document.activeElement.click(); await wait(20);
+        log("picked", S().zoom);
+        view.focus(); await key("ArrowRight");
+        log("wraps", name());
+        await key("ArrowDown"); await key("ArrowDown"); await key("ArrowDown");
+        log("sub item", name(), document.activeElement.getAttribute("aria-haspopup"));
+        await key("ArrowRight");
+        const share = document.querySelector("[data-ui-sub-trigger]");
+        const subMenu = document.getElementById(share.getAttribute("aria-controls"));
+        log("sub open", subMenu.matches(":popover-open"), name(), share.getAttribute("aria-expanded"), isOpen(file));
+        await key("ArrowLeft");
+        log("sub closed", subMenu.matches(":popover-open"), name(), isOpen(file));
+        share.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await wait(10);
+        log("hover", subMenu.matches(":popover-open"), name());
+        [...subMenu.querySelectorAll("[role=menuitem]")][1].click(); await wait(20);
+        log("sub chose", S().ran, isOpen(file), subMenu.matches(":popover-open"));
+        file.click(); await wait(10);
+        edit.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await wait(10);
+        log("hover bar", isOpen(file), isOpen(edit));
+        menu(edit).hidePopover(); await wait(20);
+
+        const nav = document.querySelector("nav[aria-label=Main]");
+        const prod = nav.querySelector("[data-ui-nav-trigger]"), panel = document.getElementById(prod.getAttribute("aria-controls"));
+        log("nav", prod.getAttribute("aria-expanded"), nav.querySelector("a[aria-current=page]")?.textContent);
+        prod.click(); await wait(10);
+        log("click", panel.matches(":popover-open"), prod.getAttribute("aria-expanded"), [...panel.querySelectorAll("a")].map((a) => a.textContent).join(" / "));
+        prod.click(); await wait(10);
+        prod.focus(); await key("ArrowDown");
+        log("down", panel.matches(":popover-open"), name());
+        await key("Escape"); await wait(20);
+        log("escape", panel.matches(":popover-open"), document.activeElement === prod);
+        await key("ArrowRight");
+        log("along", name());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("menubar", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "bar Menu bar 0,-1,-1",
+            "right Edit false -1,0,-1",
+            "down true Undo true",
+            "menu right false true Status bar menuitemcheckbox true",
+            "checkbox false false true",
+            "enter opens true Status bar",
+            "radio 150% false",
+            "picked 150",
+            "wraps File",
+            "sub item Share menu",
+            "sub open true Email true true",
+            "sub closed false Share true",
+            "hover true Share",
+            "sub chose Link false false",
+            "hover bar false true",
+            "nav false Docs",
+            "click true true AnalyticsSee what's happening / Automation",
+            "down true AnalyticsSee what's happening",
+            "escape false true",
+            "along Docs",
         ],
         "\n{result}"
     );

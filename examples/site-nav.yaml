@@ -1,0 +1,83 @@
+# The bar across the top of every example page, linking them all. examples/site_nav.py
+# renders it for each page with `--embed` (so it takes the page's own theme) and puts it
+# at the top of the page's body. Its data: `root`, the way back to the site's root from
+# the page (`""` or `"../"`), `current`, the page's href, `main` and `more`, the
+# pages, from index.data.json, and `sticky`, to keep it at the top while the page
+# scrolls (on pages whose own layout allows it).
+version: 1
+root:
+  type: element
+  props: { tag: nav }
+  attrs: { aria-label: iRender examples, data-site-nav: true }
+  style:
+    box-sizing: border-box
+    display: flex
+    flex-wrap: wrap
+    align-items: center
+    gap: 2px 4px
+    min-height: 48
+    padding: 6px 16px
+    border-bottom: 1px solid $color.border
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    font-size: 14
+    line-height: 1.2
+    position: "{{ sticky ? 'sticky' : 'relative' }}"
+    top: 0
+    z-index: 60
+    "& a": { padding: 6px 10px, border-radius: 6, color: $color.muted, text-decoration: none, white-space: nowrap }
+    "& a:hover": { color: $color.text, background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }
+    "& a[aria-current=page]": { color: $color.text, font-weight: 600, background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }
+    "& a:focus-visible, & summary:focus-visible": { outline: 2px solid $color.primary, outline-offset: 1px }
+  children:
+    - type: element
+      props: { tag: a }
+      attrs: { href: "{{ root }}index.html", aria-current: "{{ current == 'index.html' ? 'page' : null }}" }
+      style: { font-weight: 700, color: $color.text, margin-right: 8, letter-spacing: -0.01em }
+      children: [ { type: text, props: { value: iRender } } ]
+    - type: list
+      props: { items: "{{ main }}", as: page }
+      style: { display: contents }
+      children:
+        - type: element
+          props: { tag: a }
+          attrs: { href: "{{ root }}{{ page.href }}", aria-current: "{{ current == page.href ? 'page' : null }}" }
+          children: [ { type: text, props: { value: "{{ page.label }}" } } ]
+    # The smaller examples, behind a native disclosure so the bar works without a script.
+    - type: element
+      props: { tag: details }
+      style:
+        position: relative
+        "& summary": { padding: 6px 10px, border-radius: 6, color: $color.muted, cursor: pointer, list-style: none, white-space: nowrap }
+        "& summary::-webkit-details-marker": { display: none }
+        "& summary:hover": { color: $color.text }
+        "&[open] > div": { display: flex }
+      children:
+        - type: element
+          props: { tag: summary }
+          children: [ { type: text, props: { value: "More ▾" } } ]
+        - type: list
+          props: { items: "{{ more }}", as: page }
+          style:
+            display: none
+            flex-direction: column
+            position: absolute
+            top: calc(100% + 6px)
+            left: 0
+            min-width: 200
+            padding: 4
+            border: 1px solid $color.border
+            border-radius: 8
+            background: $color.surface
+            box-shadow: 0 6px 18px rgb(0 0 0 / 0.12)
+          children:
+            - type: element
+              props: { tag: a }
+              attrs: { href: "{{ root }}{{ page.href }}", aria-current: "{{ current == page.href ? 'page' : null }}" }
+              children: [ { type: text, props: { value: "{{ page.label }}" } } ]
+    - type: element
+      props: { tag: a }
+      attrs: { href: "https://github.com/kaushik-xs/iRender" }
+      style: { margin-left: auto }
+      children: [ { type: text, props: { value: GitHub } } ]

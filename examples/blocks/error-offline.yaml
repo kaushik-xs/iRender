@@ -1,0 +1,36 @@
+# Block: an error page (No connection). The drawing is `ui-illustration` (`offline`), coloured
+# by the theme's primary colour and its second brand colour (`color.brand-2`), so it
+# follows the palette, the custom colours and dark mode.
+#
+#   cargo run -p irender-cli -- render examples/blocks/error-offline.yaml --ui-kit --icon-kit -o error-offline.html
+version: 1
+root:
+  type: element
+  props: { tag: main }
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    display: grid
+    place-items: center
+    padding: 40px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 16, align: center }
+      style: { max-width: 540, text-align: center }
+      children:
+        - { type: ui-illustration, props: { name: offline, size: "min(340px, 80vw)" } }
+        - { type: ui-badge, props: { text: "No connection", variant: secondary } }
+        - { type: ui-heading, props: { level: 1, text: "You're offline" }, style: { font-size: 32 } }
+        - { type: ui-text, props: { variant: lead, text: "Check your Wi-Fi or mobile data. We'll keep what you've done and send it when you're back." }, style: { font-size: 16 } }
+        - type: ui-alert
+          props: { title: 3 changes waiting, description: They'll sync when the connection is back. }
+          style: { text-align: left, max-width: 380 }
+        - type: stack
+          props: { direction: row, gap: 8, justify: center }
+          style: { flex-wrap: wrap, margin-top: 8 }
+          children:
+            - { type: ui-button, props: { label: Try again, variant: default, href: "#" } }
+            - { type: ui-button, props: { label: Work offline, variant: outline, href: "#" } }

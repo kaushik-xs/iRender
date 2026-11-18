@@ -7,7 +7,7 @@
 //! `global_js`) draws the grid and handles the mouse and keyboard, following the
 //! WAI-ARIA date picker dialog pattern.
 
-use crate::{MUTED, PRIMARY, RING, SUBTLE, SURFACE, TEXT, forms, id_with, instance_id, lit};
+use crate::{BG_CARD, BG_POPOVER, MUTED, PRIMARY, RING, SUBTLE, SURFACE, TEXT, forms, id_with, instance_id, lit};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Template, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
@@ -63,7 +63,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-const TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--color-surface))";
+const TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--ui-bg, var(--color-background, var(--color-surface))))";
 
 /// The calendar itself, inline or in the popover. Everything is styled through
 /// attributes, because the behaviour draws it.
@@ -167,7 +167,7 @@ fn calendar_style() -> StyleBlock {
         .nest("& [data-cal-grids] td > button[data-in-range]", pairs(&[("background", TINT), ("border-radius", "0")]))
         .nest(
             "& [data-cal-grids] td > button[data-range-end], & [data-cal-grids] td > button[data-range-start]",
-            pairs(&[("background", "color-mix(in srgb, var(--color-primary) 30%, var(--color-surface))")]),
+            pairs(&[("background", "color-mix(in srgb, var(--color-primary) 30%, var(--ui-bg, var(--color-background, var(--color-surface))))")]),
         )
         .nest(
             "& [data-cal-grids] td > button[aria-pressed=true]",
@@ -205,7 +205,7 @@ fn calendar_style() -> StyleBlock {
 }
 
 static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
-    calendar_style().set("display", "inline-block").set("width", "fit-content").set("position", "relative").set("padding", sp!(12)).set("border", "1px solid var(--color-border)").set("border-radius", "var(--radius-md)").set("background", SURFACE)
+    calendar_style().set("display", "inline-block").set("width", "fit-content").set("position", "relative").set("padding", sp!(12)).set("border", "1px solid var(--color-border)").set("border-radius", "var(--radius-md)").set("--ui-bg", BG_CARD).set("background", BG_CARD)
 });
 
 static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -253,7 +253,8 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("padding", sp!(12)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
-                ("background", SURFACE),
+                ("--ui-bg", BG_POPOVER),
+                ("background", BG_POPOVER),
                 ("color", TEXT),
                 ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),
                 ("position-try-fallbacks", "flip-block, flip-inline"),

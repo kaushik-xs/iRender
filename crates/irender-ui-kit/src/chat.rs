@@ -5,7 +5,7 @@
 //! sit in state and be appended to as the conversation goes on.
 
 use crate::{
-    MUTED, ON_PRIMARY, ON_SECONDARY, PRIMARY, RING, SECONDARY, SUBTLE, SURFACE, TEXT, bin, branch, cond, each_item,
+    PRIMARY_FILL, BG_CARD, MUTED, ON_PRIMARY, ON_SECONDARY, PRIMARY, RING, SECONDARY, SUBTLE, SURFACE, TEXT, bin, branch, cond, each_item,
     expr_val, field_or, items, lit, num, path, server_array, synthetic, val_expr,
 };
 use irender_core::{
@@ -107,7 +107,7 @@ static MESSAGE_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-role=user]", StyleBlock::from_pairs(&[("flex-direction", "row-reverse")]))
         .nest("&[data-role=system]", StyleBlock::from_pairs(&[("justify-content", "center")]))
         // A user's bubble, in the primary colour.
-        .nest("&[data-role=user] [data-bubble]", StyleBlock::from_pairs(&[("background", PRIMARY), ("color", ON_PRIMARY)]))
+        .nest("&[data-role=user] [data-bubble]", StyleBlock::from_pairs(&[("background", PRIMARY_FILL), ("color", ON_PRIMARY)]))
         .nest("&[data-role=user] > [data-body]", StyleBlock::from_pairs(&[("align-items", "flex-end")]))
         // A system note: small, muted and centred, without a bubble.
         .nest("&[data-role=system] > [data-body]", StyleBlock::from_pairs(&[("align-items", "center"), ("max-width", "100%")]))
@@ -573,7 +573,8 @@ static BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", sp!(8)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_CARD),
+        ("background", BG_CARD),
         ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
         ("transition", "box-shadow .15s, border-color .15s"),
     ])
@@ -619,7 +620,7 @@ static SEND: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", "0"),
         ("border", "0"),
         ("border-radius", "999px"),
-        ("background", PRIMARY),
+        ("background", PRIMARY_FILL),
         ("color", ON_PRIMARY),
         ("font-size", fs!(16)),
         ("cursor", "pointer"),

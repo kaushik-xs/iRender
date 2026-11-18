@@ -6,7 +6,7 @@
 //! once per page through `global_js`) builds the menu and handles input.
 
 use crate::{
-    BORDER, DESTRUCTIVE, MUTED, PRIMARY, RING, SPIN, SURFACE, TEXT, id_with, instance_id,
+    BG_POPOVER, BORDER, DESTRUCTIVE, MUTED, PRIMARY, RING, SPIN, TEXT, id_with, instance_id,
     lit, server_array,
 };
 use irender_core::{ComponentInfo, Expr, Node, PropDef, PropKind, StyleBlock, Val, expr};
@@ -63,7 +63,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 
 /// A light tint of the primary colour, and text in it that reads on that tint (the
 /// primary, pulled toward the text colour so a pale primary stays legible).
-const PRIMARY_TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--color-surface))";
+const PRIMARY_TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--ui-bg, var(--color-background, var(--color-surface))))";
 const PRIMARY_TEXT: &str = "color-mix(in srgb, var(--color-primary) 75%, var(--color-text))";
 
 /// Everything is styled from the root, through attribute selectors, because the
@@ -207,7 +207,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("overflow-y", "auto"),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
-                ("background", SURFACE),
+                ("--ui-bg", BG_POPOVER),
+                ("background", BG_POPOVER),
                 ("color", TEXT),
                 ("font-size", fs!(14)),
                 ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),

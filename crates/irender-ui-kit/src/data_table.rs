@@ -12,7 +12,7 @@
 //! the array changes, and the behaviour arranges them again.
 
 use crate::{
-    BORDER, MUTED, PRIMARY, RING, SUBTLE, SURFACE, TEXT, bin, cond, expr_val, forms, id_with, instance_id, lit,
+    PRIMARY_FILL, BG_POPOVER, BG_UNDER, BORDER, MUTED, PRIMARY, RING, SUBTLE, SURFACE, TEXT, bin, cond, expr_val, forms, id_with, instance_id, lit,
     server_array, synthetic,
 };
 use irender_core::{
@@ -193,7 +193,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("padding", sp!(4)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
-                ("background", SURFACE),
+                ("--ui-bg", BG_POPOVER),
+                ("background", BG_POPOVER),
                 ("color", TEXT),
                 ("font-size", fs!(14)),
                 ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),
@@ -293,7 +294,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("z-index", "1"),
                 ("height", sp!(40)),
                 ("padding", sp!(0, 8)),
-                ("background", "color-mix(in srgb, var(--color-text) 3%, var(--color-surface))"),
+                ("background", "color-mix(in srgb, var(--color-text) 3%, var(--ui-bg, var(--color-background, var(--color-surface))))"),
                 ("color", MUTED),
                 ("font-weight", "500"),
                 ("text-align", "left"),
@@ -384,7 +385,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("white-space", "nowrap"),
             ]),
         )
-        .nest("& [data-dt-badge=default]", pairs(&[("background", PRIMARY), ("color", "var(--color-on-primary)")]))
+        .nest("& [data-dt-badge=default]", pairs(&[("background", PRIMARY_FILL), ("color", "var(--color-on-primary)")]))
         .nest("& [data-dt-badge=secondary]", pairs(&[("background", SUBTLE)]))
         .nest("& [data-dt-badge=outline]", pairs(&[("border-color", BORDER)]))
         .nest(
@@ -421,8 +422,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-dt-progress] progress::-webkit-progress-bar", pairs(&[("background", "transparent")]))
-        .nest("& [data-dt-progress] progress::-webkit-progress-value", pairs(&[("background", PRIMARY), ("border-radius", "999px")]))
-        .nest("& [data-dt-progress] progress::-moz-progress-bar", pairs(&[("background", PRIMARY), ("border-radius", "999px")]))
+        .nest("& [data-dt-progress] progress::-webkit-progress-value", pairs(&[("background", PRIMARY_FILL), ("border-radius", "999px")]))
+        .nest("& [data-dt-progress] progress::-moz-progress-bar", pairs(&[("background", PRIMARY_FILL), ("border-radius", "999px")]))
         .nest("& [data-dt-progress] span", pairs(&[("min-width", "3ch"), ("color", MUTED), ("font-size", fs!(12)), ("text-align", "right")]))
         // The footer: selection count, rows per page, page and the page buttons.
         .nest(
@@ -448,12 +449,12 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-nav] button", pairs(&[("width", sp!(32)), ("padding", "0")]))
         // Pinned columns stay put while the rest scroll sideways under them; the browser
         // sets each one's offset. They need a background of their own.
-        .nest("& [data-pin]", pairs(&[("position", "sticky"), ("z-index", "1"), ("background", SURFACE)]))
-        .nest("& th[data-pin]", pairs(&[("z-index", "3"), ("background", "color-mix(in srgb, var(--color-text) 3%, var(--color-surface))")]))
+        .nest("& [data-pin]", pairs(&[("position", "sticky"), ("z-index", "1"), ("background", BG_UNDER)]))
+        .nest("& th[data-pin]", pairs(&[("z-index", "3"), ("background", "color-mix(in srgb, var(--color-text) 3%, var(--ui-bg, var(--color-background, var(--color-surface))))")]))
         .nest("& tfoot [data-pin]", pairs(&[("background", SUBTLE)]))
         .nest("& [data-dt-row]:hover > [data-pin]", pairs(&[("background", SUBTLE)]))
-        .nest("& [data-dt-row][aria-selected=true] > [data-pin]", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))")]))
-        .nest("&[data-striped] [data-dt-row][data-odd] > [data-pin]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 2.5%, var(--color-surface))")]))
+        .nest("& [data-dt-row][aria-selected=true] > [data-pin]", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 8%, var(--ui-bg, var(--color-background, var(--color-surface))))")]))
+        .nest("&[data-striped] [data-dt-row][data-odd] > [data-pin]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 2.5%, var(--ui-bg, var(--color-background, var(--color-surface))))")]))
         .nest("& [data-pin-edge=left]", pairs(&[("box-shadow", "inset -1px 0 0 var(--color-border), 6px 0 6px -6px rgb(0 0 0 / 0.25)")]))
         .nest("& [data-pin-edge=right]", pairs(&[("box-shadow", "inset 1px 0 0 var(--color-border), -6px 0 6px -6px rgb(0 0 0 / 0.25)")]))
         // Nested rows: the tree column's content steps in by depth.

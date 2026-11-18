@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. Keyboard-driven UI kit components: menubar / navigation menu and the OTP input are left (data table, date picker and context menu shipped 2026-11-18).
+1. Keyboard-driven UI kit components: only the OTP input is left (data table, date picker, context menu, menubar and navigation menu shipped 2026-11-18).
 
 ## Gaps you'd hit in real use
 
@@ -29,7 +29,6 @@ _Last updated: 2026-11-18._
   - [ ] **Progress ring:** a circular `ui-progress` (`ProjectProgressRing`).
   - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
 - [ ] **Keyboard-driven components:**
-  - menubar / navigation menu
   - OTP input
 
   These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
@@ -51,8 +50,12 @@ _Last updated: 2026-11-18._
   - [ ] Times go with single days only; a range has no times, and there's no time zone (values are local wall-clock times).
   - [ ] Interface text (Pick a date, Previous month, Time, preset names) is English only; dates and month names follow `locale`.
   - [ ] No week picker and no "multiple months" mode beyond three months side by side.
+- [ ] **Menus** (`ui-menubar`, `ui-navigation-menu`, submenus, checkbox and radio items shipped 2026-11-18):
+  - [ ] The navigation menu's panels don't share one animated viewport that morphs between items, as Radix's does; each panel opens on its own.
+  - [ ] Submenus open on hover without the "safe triangle", so moving diagonally toward a submenu over another item can close it.
+  - [ ] Checkbox and radio items close the menu when chosen; there's no option to keep it open.
 - [ ] **`ui-context-menu` gaps** (shipped 2026-11-18):
-  - [ ] No submenus, checkbox or radio items (shadcn's `ContextMenuSub`, `CheckboxItem`, `RadioItem`); the dropdown menu lacks them too.
+  - [x] Submenus, checkbox and radio items (2026-11-18), in every menu.
   - [ ] iOS Safari sends no `contextmenu` on a long press, so touch users there can't open it. Idea: open after a 500 ms press.
   - [ ] Right-clicking a data table row doesn't select it; items act on `bind`'s row, and the selection is separate.
 - [ ] **`ui-command` gaps:**
@@ -63,6 +66,10 @@ _Last updated: 2026-11-18._
   - [ ] No remembered state: a reload opens it as `state` says (shadcn keeps it in a cookie).
   - [ ] No group actions or per-item action buttons (shadcn's `SidebarGroupAction`, `SidebarMenuAction`); put a `ui-dropdown-menu` beside the item instead.
   - [ ] The phone sheet makes the page behind it `inert` but doesn't trap Tab inside the panel against the browser's own UI, and it doesn't swipe closed.
+- [ ] **`ui-illustration` gaps** (15 drawings and the error and empty-state blocks shipped 2026-11-18):
+  - [ ] More drawings people ask for: no permission to a file, upload failed, too many requests (429), not found in a list ("no matches" for a person or place), a deleted item, an empty calendar or schedule, welcome / onboarding.
+  - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
+  - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
@@ -95,6 +102,8 @@ _Last updated: 2026-11-18._
   - [ ] A document can't read the current choice from `state` (to show "Rose" in text, say); the picker and `window.__irenderTheme.option()` know it. Idea: an option to mirror choices into state keys.
   - [ ] The kit's icon sizes, 1px borders, the switch's knob and other small fixed sizes don't follow `space.scale`; everything else does.
   - [ ] A swatch shows a choice's light value, in dark mode too.
+  - [ ] Custom gradients are always 135° from the colour to its end; a theme's `gradient.*` token can be any CSS background. The built-in `button` (without the kit) ignores gradients.
+  - [ ] Custom backgrounds don't change the text colour on them, so a dark card in light mode needs a custom text colour that doesn't exist yet. Idea: derive `color.text` per background like `on-primary`.
 - [ ] **Pages rendered without the kit ignore `ui-theme-toggle`'s choice.** Every kit page applies it now, but the search, wizard, counter and product examples are rendered without `--ui-kit`, so they still follow the system.
 
 ## Flow kit next phases
@@ -224,7 +233,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 
 ## Housekeeping
 
-- [ ] **The chat browser tests are flaky under load.** `chat_threads_in_chrome` and `chat_sends_and_streams_replies_in_chrome` each failed once in a full `--ignored` run (2026-11-18) and passed alone every time. They wait on timers against a streaming test server; waiting on the DOM instead would steady them.
+- [ ] **Browser tests under heavy load.** The chat tests waited on timers, which Chrome's virtual time runs ahead of a real test server; they now wait on the page (message-channel yields, which hold virtual time) and the budget is 30 s (2026-11-18). With three full runs at once, 1 run in 9 still had a page whose driver didn't finish in time; a single run hasn't failed since.
 
 - [ ] **`{{ }}` inside a literal `set_state` value is never evaluated, and nothing warns.** `value: { description: "Hi {{ name }}" }` stores the braces as text, while `submit` `body` fields are evaluated. Found by a model writing a toast. Fix: evaluate templated leaves of literal values (as `body` does), or at least warn in `validate`. Then drop the caveat from `skills/irender/references/authoring.md`.
 - [ ] **`tools/llm-docs.sh --check` isn't in CI yet.** Until it is, the skill's references and `llms-full.txt` go stale whenever a component, icon or README changes. Run `tools/llm-docs.sh` after such changes.

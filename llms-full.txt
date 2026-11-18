@@ -302,8 +302,17 @@ ui-empty: A placeholder for a page or list with nothing in it yet. Children foll
   title        any  What is empty, e.g. `No projects yet`
   description  any  What to do about it
   icon         any  A character or emoji shown above the title
+  illustration any  A `ui-illustration` above the title: `no-data`, `not-found`, `out-of-stock`, …
+  illustrationSize any  The illustration's width (default 200)
   parts: icon, title, description
   children: yes
+ui-illustration: A drawing for an error page or an empty state (not found, server error, no data, out of stock, …), coloured by the theme's primary and secondary colours.
+  name         one of: not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done (required)  The drawing
+  size         any  Width (default 240); the height follows, at 3 : 4
+  primary      any  Its main colour, a CSS colour or token (default `color.primary`)
+  secondary    any  Its second colour (default `color.brand-2`, else `color.chart-2`)
+  label        any  Describe it for screen readers; without one it is decoration
+  children: no
 ui-scroll-area: A box that scrolls its children, with a thin scrollbar in the theme's colours. It can be focused, so the keyboard scrolls it too.
   height       any  Number (px) or CSS length
   maxHeight    any  Number (px) or CSS length: grows with its content up to this
@@ -453,8 +462,10 @@ ui-theme-panel: A labelled `ui-theme-option` for each theme option (the kits' an
   options      any  The options to show, in order, e.g. `[palette, radius]` (default: every theme option, the palette first and chart colours last)
   mode         bool  Show the light / dark mode too (default true)
   children: no
-ui-theme-colors: Colour inputs for a primary and a second brand colour, typed as hex or picked. Changing one picks the option's `custom` choice; the colours are remembered with the other theme choices.
+ui-theme-colors: Colour inputs, typed as hex or picked: a primary and a second brand colour, each with an optional gradient end, and the backgrounds of the page, cards, popovers, dialogs, sheets and the sidebar for the mode showing. Changing one picks the option's `custom` choice; the colours are remembered with the other theme choices.
   option       string  The option whose `custom` choice the colours make (default `palette`)
+  gradients    bool  Gradient ends for the primary and second colour (default true)
+  backgrounds  bool  Background colours for the page, cards, popovers, dialogs, sheets and the sidebar, per mode (default true)
   children: no
 ui-dialog: A modal window. Escape, the ✕ or a click outside closes it.
   trigger      any  Text of a button that opens it (or open it from your own button, see README)
@@ -523,6 +534,47 @@ ui-context-menu: A menu opened with a right-click (or Shift+F10, or the menu key
   id           any  The menu's element id (default: derived from the document)
   parts: menu
   children: yes
+ui-menu-sub: An item that opens a submenu beside it, on hover, Enter, Space or Right; Left or Escape closes it. Children are menu items, as in any menu.
+  label        any (required)  The item that opens the submenu
+  disabled     any  Boolean or expression
+  id           any  The submenu's element id (default: derived from the document)
+  parts: trigger, menu
+  children: yes
+ui-menu-checkbox: A menu item that turns a setting on and off (`role=menuitemcheckbox`), with a check while it's on. Choosing it flips `bind` and closes the menu.
+  label        any (required)  Item text
+  bind         statekey (required)  State key holding `true` / `false`; choosing the item flips it
+  shortcut     any  Keyboard hint shown on the right
+  disabled     any  Boolean or expression
+  parts: shortcut
+  children: no
+ui-menu-radio-group: Menu items that pick one of several values (`role=menuitemradio`), with a dot by the chosen one. Choosing one writes its value to `bind` and closes the menu.
+  bind         statekey (required)  State key holding the chosen value
+  options      any (required)  Values, or `{ value, label, shortcut, disabled }`
+  label        any  Accessible name of the group
+  children: no
+ui-menubar: A bar of menus, as at the top of an application: `ui-menubar-menu` children. Left and Right move along the bar (an open menu follows), Down opens a menu, and hovering moves between open menus.
+  label        any  Accessible name (default `Menu bar`)
+  children: yes
+ui-menubar-menu: One menu of a `ui-menubar`: its name in the bar, and menu items as children (`ui-menu-item`, `-checkbox`, `-radio-group`, `-sub`, `-label`, `-separator`).
+  label        any (required)  The menu's name in the bar, e.g. `File`
+  disabled     any  Boolean or expression
+  id           any  The menu's element id (default: derived from the document)
+  children: yes
+ui-navigation-menu: A site's navigation: `ui-navigation-link` children are links, and `ui-navigation-item` children open a panel of links (or anything) on hover or click. Down opens a panel and moves into it; Escape closes it.
+  label        any  Accessible name of the navigation (default `Main`)
+  align        one of: start, center, end  Where panels line up with their item (default `start`)
+  children: yes
+ui-navigation-item: An item of a `ui-navigation-menu` that opens a panel: its children, usually `ui-navigation-link`s with descriptions, laid out as you like.
+  label        any (required)  The item's text in the bar
+  width        any  The panel's width (default: its content's, at most the window's)
+  id           any  The panel's element id (default: derived from the document)
+  children: yes
+ui-navigation-link: A link in a `ui-navigation-menu`: in the bar, or in an item's panel, where it shows its `description` under the text.
+  label        any (required)  Link text
+  href         any (required)  Where it goes
+  description  any  A line under the text, in a panel
+  active       any  The current page (`aria-current=page`)
+  children: no
 ui-menu-item: An action in a `ui-dropdown-menu`. Choosing it runs its `on.click` and closes the menu.
   label        any (required)  Item text
   shortcut     any  Keyboard hint shown on the right, e.g. `⌘S`
@@ -1379,7 +1431,8 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-card` | `title`, `description`, `tag` | Parts: `header`, `title`, `description`. |
 | `ui-card-footer` | | A row of actions; put it last in a card. |
 | `ui-alert` | `title`, `description`, `icon`, `variant` (default, destructive) | `role="alert"`. Parts: `icon`, `title`, `description`. |
-| `ui-empty` | `title`, `description`, `icon` | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
+| `ui-illustration` | `name` (not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done), `size` (default 240), `primary`, `secondary`, `label` | An original, flat drawing for an error page or an empty state, 4 : 3. It's coloured by the theme: the primary colour, a secondary one (`color.brand-2`, else `color.chart-2`, else amber), light tints of both, and neutrals mixed from the text and background colours, so it follows a palette, the custom colours picked with `ui-theme-colors`, and dark mode. `primary` and `secondary` set its own colours (and may use state; null goes back to the theme's). Decorative unless it has a `label`. The blocks have whole error pages (404, 500, 403, 503, offline, an expired session) and a page of empty states. |
+| `ui-empty` | `title`, `description`, `icon`, `illustration`, `illustrationSize` (default 200) | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
 | `ui-separator` | `orientation`, `decorative`, `label` | With `label`, a horizontal line with text in the middle, like "Or continue with". |
 | `ui-skeleton` | `width`, `height`, `round` | Pulses gently; still for people who ask their system for reduced motion. |
@@ -1410,7 +1463,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-theme-toggle` | `labels` (`{ system, light, dark }`), `variant` (default `outline`), `size` (default `sm`) | System / Light / Dark. Light and Dark override `prefers-color-scheme` for the theme's dark mode and `@dark` styles; the choice is kept in `localStorage` (`irender-theme`) and applied before the page is shown, so a reload doesn't flash. Every page rendered with the kit applies it, with a toggle on it or not. Its behaviour is added only to pages that use it. |
 | `ui-theme-option` | `option` (required), `swatch` (a token, or a list for several dots), `label`, `variant` (default `outline`), `size` (default `sm`) | Picks a choice of a theme option for every page; see [Theme options](#theme-options). |
 | `ui-theme-panel` | `options` (default: every theme option), `mode` (default true) | A labelled `ui-theme-option` per option, palette first and chart colours last, and the mode. Put it in a `ui-popover` for a Theme button. |
-| `ui-theme-colors` | `option` (default `palette`) | Colour inputs (picked, or typed as hex) for a custom primary and second brand colour; changing one picks the `custom` choice. `ui-theme-panel` shows it under the palette. |
+| `ui-theme-colors` | `option` (default `palette`), `gradients` (default true), `backgrounds` (default true) | Colour inputs (picked, or typed as hex) for a custom primary and second brand colour, each with an optional gradient end, and the backgrounds of the page, cards, popovers, dialogs, sheets and the sidebar; changing one picks the `custom` choice. `ui-theme-panel` shows it under the palette. |
 | `ui-dialog` | `trigger`, `triggerVariant`, `title`, `description`, `id` | A modal `<dialog>`. Escape, its ✕ or a click outside closes it. |
 | `ui-alert-dialog` | same as `ui-dialog` | `role=alertdialog`; only its own buttons close it. |
 | `ui-sheet` | same, plus `side` (right, left, top, bottom) | A dialog along one edge. |
@@ -1418,6 +1471,9 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-dialog-footer` | | A right-aligned row of buttons. |
 | `ui-popover` | `trigger`, `triggerVariant`, `side` (bottom, top, right, left), `align` (center, start, end), `id` | Native popover, placed next to its trigger and flipped when there's no room. |
 | `ui-dropdown-menu` | same as `ui-popover`, plus `triggerSize` | Children: `ui-menu-item` (`label`, `shortcut`, `variant`, `href`, `disabled`; choosing it runs its `on.click` and closes the menu), `ui-menu-label`, `ui-menu-separator`. Keyboard: opening focuses the first item; Up/Down, Home/End and typing move between items; Down or Up on the button opens it; Tab closes it. |
+| `ui-menu-sub`, `ui-menu-checkbox`, `ui-menu-radio-group` | sub: `label`, `disabled`, `id`; checkbox: `label`, `bind`, `shortcut`, `disabled`; radio group: `bind`, `options` (values or `{ value, label, shortcut, disabled }`), `label` | Items for any menu (dropdown, context, menubar, and submenus themselves). A submenu opens beside its item on hover, Enter, Space or Right, and closes on Left or Escape, focus going back to its item; its children are menu items. A checkbox item (`role=menuitemcheckbox`) flips `bind` and shows a check while it's on; radio items (`role=menuitemradio`) write their value to `bind` and show a dot by the chosen one. Choosing either closes the menu. Parts (sub): `trigger`, `menu`. |
+| `ui-menubar` + `ui-menubar-menu` | menubar: `label` (default `Menu bar`); menu: `label` (required), `disabled`, `id` | A bar of menus, as at the top of an application, in the WAI-ARIA menubar pattern. The bar's buttons are one stop in the tab order: Left and Right move along them (wrapping), and an open menu follows; Down, Enter and Space open a menu on its first item, Up on its last; Home and End jump. Inside an open menu, Left and Right go to the neighbouring menus unless a submenu takes them. With a menu open, hovering another button opens that one. Closing a menu returns focus to its button. A menu's children are menu items. |
+| `ui-navigation-menu` + `ui-navigation-item`, `ui-navigation-link` | menu: `label` (default `Main`), `align` (start, center, end); item: `label`, `width`, `id`; link: `label`, `href`, `description`, `active` | A site's navigation, in the disclosure pattern rather than as a menu. Links sit in the bar; an item's button opens a panel of anything, usually links, which show their `description` under the text. The pointer opens a panel after a moment over its button and closes it a moment after leaving both; a click toggles it. Down on the button opens the panel and moves into it, Escape closes it and returns to the button, and Left and Right move along the bar. One panel is open at a time. `active` marks the current page. |
 | `ui-context-menu` | `bind`, `label` (default `Actions`), `disabled`, `id` | A menu opened with a right-click on its area, at the pointer and kept on screen, or from the keyboard with Shift+F10 or the menu key on something focused in it. `ui-menu-item`, `ui-menu-label` and `ui-menu-separator` children are the menu, with the dropdown menu's keys; any other children are the area. `bind` gets what was right-clicked: the nearest element's `data-context` (parsed as JSON when it is), or, around a `ui-data-table`, the row. Closing returns focus to where it was. `disabled` leaves the browser's own menu. It fires a bubbling `contextopen` event with `{ context }`. Part: `menu`. |
 | `ui-split-button` | `label`, `variant`, `size`, `disabled`, `menuLabel` (default `More actions`), `side`, `align` (default `end`), `id` | A primary action joined to an arrow that opens a menu of secondary ones, e.g. Download PDF with Excel and CSV in the menu. Its `on.click` is the primary action; children are the menu's items, as in `ui-dropdown-menu`, keyboard included. Parts: `primary`, `trigger`. |
 | `ui-tooltip` | `text`, `side`, `id` | Shown while its children are hovered or focused. CSS only. The first child (usually a button) gets `aria-describedby` pointing at the tip. |
@@ -1481,7 +1537,7 @@ root:
 - **Labels when collapsed:** narrowed to icons, an item shows its label beside it on hover or keyboard focus.
 - **Variants:** `sidebar` puts a border between the panel and the page, `inset` makes the main area a raised panel on the sidebar's colour, and `floating` floats the panel itself.
 - **Items:** a link with `href`, otherwise a button that runs its `on.click`. `active` marks the current page (`aria-current="page"`). Children make a sub-menu, a native `<details>` the item opens and closes; `open` starts it open.
-- **Colour:** the panel uses `color.sidebar` when the theme has it, otherwise a step off the surface colour, in light and dark.
+- **Colour:** the panel uses `color.sidebar` when the theme has it, otherwise a step off the surface colour, in light and dark. The main area takes `color.background`.
 
 The [blocks](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks) use it: a dashboard, a sidebar that collapses to icons and one with sub-menus.
 
@@ -1497,6 +1553,24 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 | `color.destructive` / `color.on-destructive` | destructive variants | `#dc2626` / white |
 | `color.ring` | focus rings | `color.muted` |
 | `color.brand-2` / `color.on-brand-2` | the `brand` variant of buttons and badges: a second brand colour | `color.primary` / `color.on-primary` |
+| `color.background` | the page: the body of a full HTML page, the sidebar layout's main area | `color.surface` |
+| `color.card` | cards, alerts, the inline calendar, the chat input | `color.surface` |
+| `color.popover` | popovers, dropdown and context menus, hover cards, toasts, the command palette, the combobox's, date picker's and data table's pop-ups | `color.surface` |
+| `color.dialog` | dialogs, alert dialogs, the command dialog | `color.surface` |
+| `color.sheet` | sheets | `color.dialog` |
+| `gradient.primary` / `gradient.primary-hover` | brand fills: default buttons and badges, progress bars, the chat's own messages and send button. Any CSS `background` value, e.g. `linear-gradient(135deg, #6366f1, #ec4899)` | `color.primary` / `color.primary-hover` |
+| `gradient.brand-2` | the `brand` variant's fill | `color.brand-2`, then `gradient.primary` |
+
+Inputs, the switch's knob and other controls stay on `color.surface`. A card, popover, dialog, sheet or sidebar sets `--ui-bg` to its background, so what's drawn inside it (pinned data table columns, tints, charts) matches what it sits on. Set the hover gradient alongside a gradient: without one, hovering shows the plain `color.primary-hover`.
+
+```yaml
+theme:
+  tokens:
+    color: { background: "#f4f4f5", card: "#ffffff" }
+    gradient: { primary: "linear-gradient(135deg, #6366f1, #ec4899)", primary-hover: "linear-gradient(135deg, #4f46e5, #db2777)" }
+  modes:
+    dark: { color: { background: "#09090b", card: "#18181b" } }
+```
 
 `apply_theme` merges a neutral, shadcn-style palette (zinc) with a dark mode under the document's theme. Tokens the document sets itself keep their values.
 
@@ -1520,7 +1594,7 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 - **Picking:** `ui-theme-option` shows one button per choice; `swatch` names a token shown as a colour dot, or a list of them: `ui-theme-panel` shows a chart scheme's first four colours. A choice is kept in `localStorage` (`irender-theme-options`) and applied before the page shows on every page rendered with the kit, like `ui-theme-toggle`'s mode. Picking the default clears it. Pages already open follow at once, other tabs and pages in iframes included, so a picker on one page restyles the rest.
 - **A Theme button:** `{ type: ui-popover, props: { trigger: Theme }, children: [ { type: ui-theme-panel } ] }` gives every option and the mode, including ones the document adds. The examples index, the blocks page and the dashboard block have one.
 - **Scales:** the kit's paddings, gaps, margins and control heights are `calc(Npx * var(--space-scale, 1))`, and its font sizes `calc(Npx * var(--font-scale, 1))`, so density and text size reach every component. Use the same tokens in your own styles to follow them: `padding: "calc(16px * var(--space-scale, 1))"`.
-- **Custom colours:** `ui-theme-colors` takes a primary and a second brand colour as hex (`#rgb` or `#rrggbb`, nothing else), typed or picked. They're kept in `localStorage` (`irender-theme-custom`) and set on `<html>` while the palette's `custom` choice is picked, with a hover shade, a ring and dark or light text on them (whichever reads better) derived from each. The chart kit's `custom` chart colours are built from the same two, and setting a colour picks them too unless a chart scheme was picked by hand; Reset puts both back. In script: `window.__irenderTheme.custom()` and `.setCustom("primary", "#1e3a8a")`.
+- **Custom colours:** `ui-theme-colors` takes a primary and a second brand colour as hex (`#rgb` or `#rrggbb`, nothing else), typed or picked. They're kept in `localStorage` (`irender-theme-custom`) and set on `<html>` while the palette's `custom` choice is picked, with a hover shade, a ring and dark or light text on them (whichever reads better) derived from each. A gradient end after each makes its fills a 135° gradient (darker on hover, text chosen for both ends); clearing it goes back to the plain colour. The backgrounds are kept per mode (`card` for light, `card-dark` for dark): the fields show and set the mode showing, and the heading says which. Clearing a field goes back to the theme's colour. The chart kit's `custom` chart colours are built from the same two, and setting a colour picks them too unless a chart scheme was picked by hand; Reset puts both back. In script: `window.__irenderTheme.custom()` and `.setCustom("primary", "#1e3a8a")`.
 - **Your own:** add choices to an option (`theme.options.palette.choices.brand`) or options of your own (`theme.options.shadow`); `ui-theme-option` picks those too. The [theme block](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/theme.yaml) does both.
 - **In script:** `window.__irenderTheme.option("palette")` and `.setOption("palette", "rose")`; changes fire `irender:theme-option`.
 
@@ -1842,7 +1916,7 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript and aren't built yet: menubar, navigation menu and OTP input. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
+Components that need focus management or keyboard navigation written in JavaScript and aren't built yet: the OTP input. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
 
 
 ---

@@ -68,7 +68,8 @@
     };
     const has = (name) => cs.getPropertyValue(name).trim() !== "";
     const text = color(has("--color-text") ? "var(--color-text)" : cs.color);
-    let surface = has("--color-surface") ? color("var(--color-surface)") : null;
+    // What the chart sits on: the card's, popover's, … (irender-ui-kit sets `--ui-bg`) or the page's.
+    let surface = has("--color-surface") ? color("var(--ui-bg, var(--color-background, var(--color-surface)))") : null;
     for (let n = el; !surface && n; n = n.parentElement) {
       const bg = rgba(getComputedStyle(n).backgroundColor);
       if (channels(bg)[3] > 0) surface = bg;

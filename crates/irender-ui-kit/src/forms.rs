@@ -2,7 +2,7 @@
 //! only change how they look. Button groups, input groups and fields arrange them.
 
 use crate::{
-    ACCENT, BRAND_2, CONTROLS, DESTRUCTIVE, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, PRIMARY_HOVER, RING,
+    BRAND_2_FILL, PRIMARY_FILL, PRIMARY_FILL_HOVER, ACCENT, CONTROLS, DESTRUCTIVE, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, PRIMARY, RING,
     SECONDARY, SURFACE, TEXT, bin, choice, describe, each_item, field_or, focus_attr, focus_attrs, id_with, instance_id,
     expr_val, items, lit, path,
 };
@@ -66,7 +66,7 @@ static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
         StyleBlock::from_pairs(rest).nest(":hover", StyleBlock::from_pairs(hover))
     };
     [
-        v(&[("background", PRIMARY), ("color", ON_PRIMARY)], &[("background", PRIMARY_HOVER)]),
+        v(&[("background", PRIMARY_FILL), ("color", ON_PRIMARY)], &[("background", PRIMARY_FILL_HOVER)]),
         v(&[("background", SECONDARY), ("color", ON_SECONDARY)], &[("filter", "brightness(0.95)")]),
         v(&[("background", DESTRUCTIVE), ("color", ON_DESTRUCTIVE)], &[("filter", "brightness(0.9)")]),
         v(
@@ -80,7 +80,7 @@ static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
             &[("text-decoration", "underline")],
         ),
         // The second brand colour (`color.brand-2`).
-        v(&[("background", BRAND_2), ("color", ON_BRAND_2)], &[("filter", "brightness(0.92)")]),
+        v(&[("background", BRAND_2_FILL), ("color", ON_BRAND_2)], &[("filter", "brightness(0.92)")]),
     ]
 });
 

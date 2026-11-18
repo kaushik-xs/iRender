@@ -31,8 +31,9 @@ enum Command {
         #[arg(long)]
         strict_css: bool,
         /// Directory that `include` nodes read fragments from (`<name>.json` / `.yaml`).
+        /// Repeatable: the first directory that has a fragment wins.
         #[arg(long, value_name = "DIR")]
-        fragments: Option<PathBuf>,
+        fragments: Vec<PathBuf>,
         /// Enable the `ui-*` components and the kit's theme (irender-ui-kit).
         #[arg(long)]
         ui_kit: bool,
@@ -64,8 +65,9 @@ enum Command {
         #[arg(long)]
         strict_css: bool,
         /// Directory that `include` nodes read fragments from (`<name>.json` / `.yaml`).
+        /// Repeatable: the first directory that has a fragment wins.
         #[arg(long, value_name = "DIR")]
-        fragments: Option<PathBuf>,
+        fragments: Vec<PathBuf>,
         /// Enable the `ui-*` components and the kit's theme (irender-ui-kit).
         #[arg(long)]
         ui_kit: bool,
@@ -119,6 +121,9 @@ enum Command {
         markdown_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
+        /// Print JSON: `{ "components": [{ "name", "doc", "props": [{ "name", "type", "values", "required", "doc" }], "parts", "children" }] }`.
+        #[arg(long)]
+        json: bool,
     },
     /// List the icon packs and their icons (irender-icon-kit).
     Icons {
@@ -211,7 +216,21 @@ impl Kits {
     }
 }
 
-fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: &Kits) -> Result<Engine, String> {
+/// Fragments from several directories, the first that has one winning.
+struct Dirs(Vec<FragmentDir>);
+
+impl Fragments for Dirs {
+    fn fragment(&self, name: &str) -> Result<Option<irender_core::NodeSpec>, String> {
+        for dir in &self.0 {
+            if let Some(f) = dir.fragment(name)? {
+                return Ok(Some(f));
+            }
+        }
+        Ok(None)
+    }
+}
+
+fn engine(untrusted: bool, strict_css: bool, fragments: Vec<PathBuf>, kits: &Kits) -> Result<Engine, String> {
     let mut engine = if untrusted { Engine::untrusted() } else { Engine::new() };
     if kits.ui {
         irender_ui_kit::register(&mut engine.registry);
@@ -229,7 +248,9 @@ fn engine(untrusted: bool, strict_css: bool, fragments: Option<PathBuf>, kits: &
         irender_icon_kit::register_with(&mut engine.registry, kits.icons.kit()?);
     }
     engine.strict_css = strict_css;
-    engine.fragments = fragments.map(|dir| Arc::new(FragmentDir(dir)) as Arc<dyn Fragments>);
+    if !fragments.is_empty() {
+        engine.fragments = Some(Arc::new(Dirs(fragments.into_iter().map(FragmentDir).collect())) as Arc<dyn Fragments>);
+    }
     Ok(engine)
 }
 
@@ -368,8 +389,32 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components { ui_kit, chart_kit, flow_kit, markdown_kit, icons } => {
-            for c in engine(false, false, None, &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, icons })?.registry.iter() {
+        Command::Components { ui_kit, chart_kit, flow_kit, markdown_kit, icons, json } => {
+            let engine = engine(false, false, Vec::new(), &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, icons })?;
+            if json {
+                let components: Vec<Json> = engine
+                    .registry
+                    .iter()
+                    .map(|c| {
+                        let info = c.info();
+                        let props: Vec<Json> = info
+                            .props
+                            .iter()
+                            .map(|p| {
+                                let (kind, values) = match p.kind {
+                                    PropKind::Enum(v) => ("enum".to_string(), Some(v)),
+                                    k => (format!("{k:?}").to_lowercase(), None),
+                                };
+                                serde_json::json!({ "name": p.name, "type": kind, "values": values, "required": p.required, "doc": p.doc })
+                            })
+                            .collect();
+                        serde_json::json!({ "name": c.name(), "doc": info.doc, "props": props, "parts": info.parts, "children": info.children })
+                    })
+                    .collect();
+                println!("{}", serde_json::json!({ "components": components }));
+                return Ok(());
+            }
+            for c in engine.registry.iter() {
                 let info = c.info();
                 println!("{}: {}", c.name(), info.doc);
                 for p in info.props {

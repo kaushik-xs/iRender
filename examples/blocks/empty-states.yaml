@@ -1,0 +1,93 @@
+# Block: empty states, each with its own `ui-illustration` in a `ui-empty`: no data, no
+# results, out of stock, an empty cart and inbox, no notifications, a failed payment,
+# coming soon and all done. The drawings take the theme's primary and second brand
+# colours; pick a palette or custom colours with the Theme button.
+#
+#   cargo run -p irender-cli -- render examples/blocks/empty-states.yaml --ui-kit --chart-kit --icon-kit -o empty-states.html
+version: 1
+root:
+  type: stack
+  props: { gap: 24 }
+  style:
+    max-width: 1200px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, align: center, gap: 12 }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Empty states } }
+            - { type: ui-text, props: { variant: muted, text: "What to show when there's nothing to show. Change the colours with Theme." } }
+        - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
+    - type: element
+      style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }
+      children:
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: no-data, illustrationSize: 180, title: "No data yet", description: "Once orders come in, you'll see them here, with charts of how they're doing." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Import orders", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: no-results, illustrationSize: 180, title: "No results for “blue widgets”", description: "Try fewer words, check the spelling, or clear the filters." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Clear filters", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: out-of-stock, illustrationSize: 180, title: "Out of stock", description: "This item is sold out for now. We'll email you as soon as it's back." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Notify me", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: empty-cart, illustrationSize: 180, title: "Your cart is empty", description: "Looks like you haven't added anything yet. Have a look at what's new." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Start shopping", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: empty-inbox, illustrationSize: 180, title: "Inbox zero", description: "No messages waiting. New ones will land here." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Compose", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: no-notifications, illustrationSize: 180, title: "No notifications", description: "You're all caught up. We'll let you know when something needs you." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Notification settings", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: payment-failed, illustrationSize: 180, title: "Payment didn't go through", description: "Your card was declined. Check the details, or try another card." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Update card", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: coming-soon, illustrationSize: 180, title: "Coming soon", description: "Reports are on their way. Join the waiting list to try them first." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Join the waiting list", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: all-done, illustrationSize: 180, title: "All done!", description: "Every task this week is finished. Enjoy the quiet." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "View completed", size: sm, variant: outline } } ]

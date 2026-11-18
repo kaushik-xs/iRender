@@ -1,0 +1,34 @@
+# Block: an error page (Error 401). The drawing is `ui-illustration` (`session-expired`), coloured
+# by the theme's primary colour and its second brand colour (`color.brand-2`), so it
+# follows the palette, the custom colours and dark mode.
+#
+#   cargo run -p irender-cli -- render examples/blocks/error-session.yaml --ui-kit --icon-kit -o error-session.html
+version: 1
+root:
+  type: element
+  props: { tag: main }
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    display: grid
+    place-items: center
+    padding: 40px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 16, align: center }
+      style: { max-width: 540, text-align: center }
+      children:
+        - { type: ui-illustration, props: { name: session-expired, size: "min(340px, 80vw)" } }
+        - { type: ui-badge, props: { text: "Error 401", variant: secondary } }
+        - { type: ui-heading, props: { level: 1, text: "Your session has expired" }, style: { font-size: 32 } }
+        - { type: ui-text, props: { variant: lead, text: "For your security, we signed you out after a while without activity. Sign in again to pick up where you left off." }, style: { font-size: 16 } }
+
+        - type: stack
+          props: { direction: row, gap: 8, justify: center }
+          style: { flex-wrap: wrap, margin-top: 8 }
+          children:
+            - { type: ui-button, props: { label: Sign in again, variant: default, href: "#" } }
+            - { type: ui-button, props: { label: Go home, variant: outline, href: "#" } }

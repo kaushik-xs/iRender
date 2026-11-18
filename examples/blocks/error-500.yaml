@@ -1,0 +1,36 @@
+# Block: an error page (Error 500). The drawing is `ui-illustration` (`server-error`), coloured
+# by the theme's primary colour and its second brand colour (`color.brand-2`), so it
+# follows the palette, the custom colours and dark mode.
+#
+#   cargo run -p irender-cli -- render examples/blocks/error-500.yaml --ui-kit --icon-kit -o error-500.html
+version: 1
+root:
+  type: element
+  props: { tag: main }
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    display: grid
+    place-items: center
+    padding: 40px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 16, align: center }
+      style: { max-width: 540, text-align: center }
+      children:
+        - { type: ui-illustration, props: { name: server-error, size: "min(340px, 80vw)" } }
+        - { type: ui-badge, props: { text: "Error 500", variant: secondary } }
+        - { type: ui-heading, props: { level: 1, text: "Something went wrong on our side" }, style: { font-size: 32 } }
+        - { type: ui-text, props: { variant: lead, text: "The server ran into a problem and couldn't finish your request. We've been told about it; try again in a few minutes." }, style: { font-size: 16 } }
+        - type: ui-text
+          props: { variant: muted, text: "If you contact support, quote this reference:" }
+        - { type: ui-kbd, props: { text: ERR-7F3A-2C91 } }
+        - type: stack
+          props: { direction: row, gap: 8, justify: center }
+          style: { flex-wrap: wrap, margin-top: 8 }
+          children:
+            - { type: ui-button, props: { label: Try again, variant: default, href: "#" } }
+            - { type: ui-button, props: { label: Status page, variant: outline, href: "#" } }

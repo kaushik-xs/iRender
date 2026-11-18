@@ -239,7 +239,7 @@ fn document_wraps_fragment() {
     let doc = page.document("A <b> title");
     assert!(doc.starts_with("<!doctype html>"));
     assert!(doc.contains("<title>A &lt;b&gt; title</title>"));
-    assert!(doc.contains("<style>body{margin:0;background:var(--color-surface)}</style>"), "no light frame in dark mode");
+    assert!(doc.contains("<style>body{margin:0;background:var(--color-background,var(--color-surface))}</style>"), "no light frame in dark mode");
     assert!(!page.fragment().contains("body{"), "a fragment leaves the host's body alone");
     assert!(doc.contains("<div data-i-root style=\"display:contents\"><span>x</span></div>"));
     assert!(!doc.contains("data-i-state"), "static pages ship no state or runtime");

@@ -4,7 +4,7 @@
 //! Collapsing is CSS on the layout's `data-state`, which follows `bind`. On a phone the
 //! panel is a sheet over the page, and ⌘B / Ctrl+B toggles it (sidebar.js).
 
-use crate::{ACCENT, MUTED, RING, SURFACE, TEXT, choice, expr_val, icon, lit, state};
+use crate::{BG_PAGE, ACCENT, MUTED, RING, SURFACE, TEXT, choice, expr_val, icon, lit, state};
 use irender_core::{
     Action, ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val,
     expr::{Expr, UnOp},
@@ -14,7 +14,7 @@ use serde_json::json;
 use std::sync::LazyLock;
 
 /// The panel's background: a step off the page's, in light and dark.
-const SIDEBAR_BG: &str = "var(--color-sidebar, color-mix(in srgb, var(--color-text) 3%, var(--color-surface)))";
+pub(crate) const SIDEBAR_BG: &str = "var(--color-sidebar, color-mix(in srgb, var(--color-text) 3%, var(--color-surface)))";
 const COLLAPSIBLE: &[&str] = &["offcanvas", "icon", "none"];
 const VARIANTS: &[&str] = &["sidebar", "inset", "floating"];
 const SIDES: &[&str] = &["left", "right"];
@@ -73,7 +73,8 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("min-height", "100svh"),
         ("width", "100%"),
-        ("background", SURFACE),
+        ("--ui-bg", BG_PAGE),
+        ("background", BG_PAGE),
         ("color", TEXT),
         ("font-family", "var(--font-body, system-ui, sans-serif)"),
     ]))
@@ -86,7 +87,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     )
 });
 static MAIN: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("position", "relative"), ("display", "flex"), ("flex-direction", "column"), ("flex", "1"), ("min-width", "0"), ("background", SURFACE)])
+    pairs(&[("position", "relative"), ("display", "flex"), ("flex-direction", "column"), ("flex", "1"), ("min-width", "0"), ("--ui-bg", BG_PAGE), ("background", BG_PAGE)])
         // Inset: the main area is a raised panel next to the sidebar.
         .nest(
             "[data-variant=inset] > &",
@@ -171,6 +172,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "var(--sidebar-width)"),
         ("height", "100svh"),
         ("overflow", "hidden"),
+        ("--ui-bg", SIDEBAR_BG),
         ("background", SIDEBAR_BG),
         ("color", TEXT),
         ("font-size", fs!(14)),

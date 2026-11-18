@@ -25,11 +25,14 @@ $irender render examples/dashboard/dashboard.yaml --data examples/dashboard/dash
 $irender render examples/search/search.json --title "Live search" -o "$out/search/index.html"
 cp -R examples/search/api "$out/search/"
 $irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.html"
-$irender render examples/ui-kit/gallery.yaml --ui-kit --chart-kit --title "UI kit gallery" -o "$out/ui-kit.html"
+# The gallery's documentation: sections from examples/ui-kit/docs.json, with each
+# component's props read from the components themselves.
+python3 examples/ui-kit/docs.py "$irender" > "$out/ui-kit.data.json"
+$irender render examples/ui-kit/gallery.yaml --data "$out/ui-kit.data.json" --ui-kit --chart-kit --title "UI kit" -o "$out/ui-kit.html"
 cp -R examples/ui-kit/api "$out/"
 # Blocks: whole pages, previewed together on blocks/index.html.
 mkdir -p "$out/blocks"
-for block in login-03 login-04 signup sidebar-03 sidebar-07 settings pricing; do
+for block in login-03 login-04 signup sidebar-03 sidebar-07 settings pricing error-404 error-500 error-403 error-503 error-offline error-session; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 $irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboard-01.data.json \
@@ -38,7 +41,7 @@ for block in data-table-01 data-table-02; do
   $irender render "examples/blocks/$block.yaml" --data "examples/blocks/$block.data.json" \
     --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
-for block in data-table-03 data-table-04 data-table-05; do
+for block in data-table-03 data-table-04 data-table-05 empty-states; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 # The chat's replies include charts, images and a video.
@@ -79,6 +82,9 @@ $irender render examples/product.json --data examples/product.data.json --title 
 $irender render examples/counter.yaml --title "Counter" -o "$out/counter.html"
 cargo run -q -p irender-html --example storefront > "$out/storefront.html"
 cargo run -q -p irender-html --example storefront -- --variant b > "$out/storefront-b.html"
+
+# Every page gets the bar that links the examples (examples/site-nav.yaml).
+python3 examples/site_nav.py "$irender" "$out"
 
 echo "Rendered $(find "$out" -name '*.html' | wc -l | tr -d ' ') pages into $out"
 echo "Serve:  python3 examples/serve.py 8000 $out   then open http://localhost:8000"

@@ -138,8 +138,17 @@ ui-empty: A placeholder for a page or list with nothing in it yet. Children foll
   title        any  What is empty, e.g. `No projects yet`
   description  any  What to do about it
   icon         any  A character or emoji shown above the title
+  illustration any  A `ui-illustration` above the title: `no-data`, `not-found`, `out-of-stock`, …
+  illustrationSize any  The illustration's width (default 200)
   parts: icon, title, description
   children: yes
+ui-illustration: A drawing for an error page or an empty state (not found, server error, no data, out of stock, …), coloured by the theme's primary and secondary colours.
+  name         one of: not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done (required)  The drawing
+  size         any  Width (default 240); the height follows, at 3 : 4
+  primary      any  Its main colour, a CSS colour or token (default `color.primary`)
+  secondary    any  Its second colour (default `color.brand-2`, else `color.chart-2`)
+  label        any  Describe it for screen readers; without one it is decoration
+  children: no
 ui-scroll-area: A box that scrolls its children, with a thin scrollbar in the theme's colours. It can be focused, so the keyboard scrolls it too.
   height       any  Number (px) or CSS length
   maxHeight    any  Number (px) or CSS length: grows with its content up to this
@@ -289,8 +298,10 @@ ui-theme-panel: A labelled `ui-theme-option` for each theme option (the kits' an
   options      any  The options to show, in order, e.g. `[palette, radius]` (default: every theme option, the palette first and chart colours last)
   mode         bool  Show the light / dark mode too (default true)
   children: no
-ui-theme-colors: Colour inputs for a primary and a second brand colour, typed as hex or picked. Changing one picks the option's `custom` choice; the colours are remembered with the other theme choices.
+ui-theme-colors: Colour inputs, typed as hex or picked: a primary and a second brand colour, each with an optional gradient end, and the backgrounds of the page, cards, popovers, dialogs, sheets and the sidebar for the mode showing. Changing one picks the option's `custom` choice; the colours are remembered with the other theme choices.
   option       string  The option whose `custom` choice the colours make (default `palette`)
+  gradients    bool  Gradient ends for the primary and second colour (default true)
+  backgrounds  bool  Background colours for the page, cards, popovers, dialogs, sheets and the sidebar, per mode (default true)
   children: no
 ui-dialog: A modal window. Escape, the ✕ or a click outside closes it.
   trigger      any  Text of a button that opens it (or open it from your own button, see README)
@@ -359,6 +370,47 @@ ui-context-menu: A menu opened with a right-click (or Shift+F10, or the menu key
   id           any  The menu's element id (default: derived from the document)
   parts: menu
   children: yes
+ui-menu-sub: An item that opens a submenu beside it, on hover, Enter, Space or Right; Left or Escape closes it. Children are menu items, as in any menu.
+  label        any (required)  The item that opens the submenu
+  disabled     any  Boolean or expression
+  id           any  The submenu's element id (default: derived from the document)
+  parts: trigger, menu
+  children: yes
+ui-menu-checkbox: A menu item that turns a setting on and off (`role=menuitemcheckbox`), with a check while it's on. Choosing it flips `bind` and closes the menu.
+  label        any (required)  Item text
+  bind         statekey (required)  State key holding `true` / `false`; choosing the item flips it
+  shortcut     any  Keyboard hint shown on the right
+  disabled     any  Boolean or expression
+  parts: shortcut
+  children: no
+ui-menu-radio-group: Menu items that pick one of several values (`role=menuitemradio`), with a dot by the chosen one. Choosing one writes its value to `bind` and closes the menu.
+  bind         statekey (required)  State key holding the chosen value
+  options      any (required)  Values, or `{ value, label, shortcut, disabled }`
+  label        any  Accessible name of the group
+  children: no
+ui-menubar: A bar of menus, as at the top of an application: `ui-menubar-menu` children. Left and Right move along the bar (an open menu follows), Down opens a menu, and hovering moves between open menus.
+  label        any  Accessible name (default `Menu bar`)
+  children: yes
+ui-menubar-menu: One menu of a `ui-menubar`: its name in the bar, and menu items as children (`ui-menu-item`, `-checkbox`, `-radio-group`, `-sub`, `-label`, `-separator`).
+  label        any (required)  The menu's name in the bar, e.g. `File`
+  disabled     any  Boolean or expression
+  id           any  The menu's element id (default: derived from the document)
+  children: yes
+ui-navigation-menu: A site's navigation: `ui-navigation-link` children are links, and `ui-navigation-item` children open a panel of links (or anything) on hover or click. Down opens a panel and moves into it; Escape closes it.
+  label        any  Accessible name of the navigation (default `Main`)
+  align        one of: start, center, end  Where panels line up with their item (default `start`)
+  children: yes
+ui-navigation-item: An item of a `ui-navigation-menu` that opens a panel: its children, usually `ui-navigation-link`s with descriptions, laid out as you like.
+  label        any (required)  The item's text in the bar
+  width        any  The panel's width (default: its content's, at most the window's)
+  id           any  The panel's element id (default: derived from the document)
+  children: yes
+ui-navigation-link: A link in a `ui-navigation-menu`: in the bar, or in an item's panel, where it shows its `description` under the text.
+  label        any (required)  Link text
+  href         any (required)  Where it goes
+  description  any  A line under the text, in a panel
+  active       any  The current page (`aria-current=page`)
+  children: no
 ui-menu-item: An action in a `ui-dropdown-menu`. Choosing it runs its `on.click` and closes the menu.
   label        any (required)  Item text
   shortcut     any  Keyboard hint shown on the right, e.g. `⌘S`

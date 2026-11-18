@@ -50,6 +50,8 @@ mod disclosure;
 mod display;
 mod feedback;
 mod forms;
+mod illustration;
+mod menus;
 mod navigation;
 mod overlay;
 mod sidebar;
@@ -86,6 +88,7 @@ pub fn register(registry: &mut Registry) {
         .register(display::Text)
         .register(display::Spinner)
         .register(display::Empty)
+        .register(illustration::Illustration)
         .register(display::ScrollArea)
         .register(forms::Label)
         .register(forms::Input)
@@ -120,6 +123,14 @@ pub fn register(registry: &mut Registry) {
         .register(overlay::Popover::MENU)
         .register(overlay::SplitButton)
         .register(overlay::ContextMenu)
+        .register(menus::MenuSub)
+        .register(menus::MenuCheckbox)
+        .register(menus::MenuRadioGroup)
+        .register(menus::Menubar)
+        .register(menus::MenubarMenu)
+        .register(menus::NavigationMenu)
+        .register(menus::NavigationItem)
+        .register(menus::NavigationLink)
         .register(overlay::MenuItem)
         .register(overlay::MenuSeparator)
         .register(overlay::MenuLabel)
@@ -160,7 +171,6 @@ pub fn register(registry: &mut Registry) {
 // Colours. Tokens the default theme has are used directly; the others fall back
 // to mixes of text and surface so they follow light and dark mode on their own.
 const PRIMARY: &str = "var(--color-primary)";
-const PRIMARY_HOVER: &str = "var(--color-primary-hover)";
 const ON_PRIMARY: &str = "var(--color-on-primary)";
 const SURFACE: &str = "var(--color-surface)";
 const TEXT: &str = "var(--color-text)";
@@ -170,9 +180,24 @@ const SECONDARY: &str = "var(--color-secondary, color-mix(in srgb, var(--color-t
 const ON_SECONDARY: &str = "var(--color-on-secondary, var(--color-text))";
 const ACCENT: &str = "var(--color-accent, color-mix(in srgb, var(--color-text) 6%, var(--color-surface)))";
 const SUBTLE: &str = "var(--color-subtle, color-mix(in srgb, var(--color-text) 6%, var(--color-surface)))";
-/// The second brand colour, for the `brand` variants; the primary when a theme has none.
-const BRAND_2: &str = "var(--color-brand-2, var(--color-primary))";
 const ON_BRAND_2: &str = "var(--color-on-brand-2, var(--color-on-primary))";
+// Fills in a brand colour (buttons, badges, progress, the chat's own messages): the
+// theme's `gradient.primary` / `gradient.brand-2` when it has one, else the colour.
+// The second brand colour is for the `brand` variants; the primary when a theme has none.
+const PRIMARY_FILL: &str = "var(--gradient-primary, var(--color-primary))";
+const PRIMARY_FILL_HOVER: &str = "var(--gradient-primary-hover, var(--color-primary-hover))";
+const BRAND_2_FILL: &str = "var(--gradient-brand-2, var(--color-brand-2, var(--gradient-primary, var(--color-primary))))";
+// Backgrounds, each the surface colour unless the theme sets its own. A card, popover,
+// dialog or sheet also sets `--ui-bg` to its background, so what's drawn inside it
+// (pinned table columns, tints) can match whatever it sits on.
+const BG_PAGE: &str = "var(--color-background, var(--color-surface))";
+const BG_CARD: &str = "var(--color-card, var(--color-surface))";
+const BG_POPOVER: &str = "var(--color-popover, var(--color-surface))";
+const BG_DIALOG: &str = "var(--color-dialog, var(--color-surface))";
+const BG_SHEET: &str = "var(--color-sheet, var(--color-dialog, var(--color-surface)))";
+/// The background an element sits on: the nearest card's, popover's, dialog's or
+/// sheet's, otherwise the page's.
+const BG_UNDER: &str = "var(--ui-bg, var(--color-background, var(--color-surface)))";
 const DESTRUCTIVE: &str = "var(--color-destructive, #dc2626)";
 const ON_DESTRUCTIVE: &str = "var(--color-on-destructive, #ffffff)";
 const RING: &str = "var(--color-ring, var(--color-muted))";
