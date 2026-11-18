@@ -66,6 +66,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-sidebar-item", json!({ "label": "Home" })),
         ("ui-command-item", json!({ "label": "L" })),
         ("ui-chat-input", json!({ "messages": "k" })),
+        ("ui-data-table", json!({ "rows": [], "columns": [{ "field": "a" }] })),
     ];
     let mut kit = 0;
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
@@ -79,6 +80,9 @@ fn every_component_is_prefixed_documented_and_renders() {
         if c.name() == "ui-command-item" {
             root = json!({ "type": "ui-command", "children": [root] });
         }
+        if c.name().starts_with("ui-data-table-") {
+            root = json!({ "type": "ui-data-table", "props": { "rows": [], "columns": [{ "field": "a" }] }, "children": [root] });
+        }
         if c.name() == "ui-sidebar-trigger" {
             root = json!({ "type": "ui-sidebar-layout", "props": { "bind": "k" }, "children": [root] });
         }
@@ -86,7 +90,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 74);
+    assert_eq!(kit, 79);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -930,4 +934,133 @@ fn carousel_structure() {
     assert!(body.contains(r#"aria-label="Previous slide" data-prev="">‹</button>"#) && body.contains(r#"aria-label="Next slide" data-next="">›</button>"#), "{body}");
     let page = render_with(json!({ "type": "ui-carousel", "props": { "size": 240 } }), json!({}), json!({})).unwrap();
     assert!(page.css.contains("--ui-slide: 240px;"), "{}", page.css);
+}
+
+#[test]
+fn data_table_renders_rows_sorted_and_paged_on_the_server() {
+    let rows = json!([
+        { "id": 1, "name": "Bolt", "qty": 30, "status": "OK" },
+        { "id": 2, "name": "Nut", "qty": 5, "status": "Low" },
+        { "id": 3, "name": "Washer", "qty": null, "status": "Out" }
+    ]);
+    let page = render_with(
+        json!({ "type": "ui-data-table", "props": { "rows": "{{ rows }}", "sort": "qty", "pageSize": 2, "selectable": true,
+            "bindSelection": "picked", "search": true, "id": "t" },
+            "children": [
+                { "type": "ui-data-table-column", "props": { "field": "name", "label": "Name", "filter": "text" } },
+                { "type": "ui-data-table-column", "props": { "field": "qty", "format": "number", "summary": "sum" } },
+                { "type": "ui-data-table-column", "props": { "field": "status", "cell": "badge", "tones": { "Low": "warning" } } },
+                { "type": "ui-data-table-column", "props": { "id": "act", "label": "" }, "children": [
+                    { "type": "ui-button", "props": { "label": "Open {{ row.name }}" } } ] }
+            ] }),
+        json!({ "picked": [2] }),
+        json!({ "rows": rows }),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // Ascending by quantity, blanks last, and only the first page shown.
+    let names: Vec<&str> = body.match_indices("Open ").map(|(i, _)| &body[i + 5..i + 5 + body[i + 5..].find('<').unwrap()]).collect();
+    assert_eq!(names, ["Nut", "Bolt", "Washer"]);
+    assert_eq!(body.matches(r#"<tr data-dt-row="#).count(), 3);
+    assert_eq!(body.matches(r#"<tr data-dt-row="2" hidden"#).count(), 1, "{body}");
+    // The selection from state is checked, the sort marked, the tone chosen on the server.
+    assert!(body.contains(r#"aria-label="Select Nut" checked"#), "{body}");
+    assert!(body.contains(r#"<th data-dt-col="qty" scope="col" data-align="right" aria-sort="ascending">"#), "{body}");
+    assert!(body.contains(r#"<span data-dt-badge="warning">Low</span>"#), "{body}");
+    assert!(body.contains("1 of 3 row(s) selected.") && body.contains("Page 1 of 2"), "{body}");
+    assert!(body.contains(r#"popovertarget="t-filter-name""#), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-data-table")));
+
+    // Rows from state: a list the browser rebuilds, with the cells as its template.
+    let page = render_with(
+        json!({ "type": "ui-data-table", "props": { "rows": "{{ rows }}", "filter": { "status": "{{ only }}" },
+            "columns": [{ "field": "name" }] } }),
+        json!({ "rows": rows, "only": null }),
+        json!({}),
+    )
+    .unwrap();
+    assert!(page.body.contains("data-i-list="), "{}", page.body);
+    assert!(page.body.contains("<template><tr"), "{}", page.body);
+    assert!(page.body.contains(r#"&quot;filter&quot;:{&quot;status&quot;:{&quot;$irender&quot;"#), "{}", page.body);
+}
+
+#[test]
+fn data_table_virtual_and_remote_structure() {
+    // A virtual table: its rows are a keyed list the behaviour fills, between spacers.
+    let rows: Vec<Json> = (0..100).map(|i| json!({ "id": i })).collect();
+    let body = render_with(
+        json!({ "type": "ui-data-table", "props": { "rows": rows, "virtual": true, "paging": "scroll", "pageSize": 50, "columns": [{ "field": "id" }] } }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap()
+    .body;
+    assert!(body.contains(r#"data-dt-pad="top""#) && body.contains(r#"data-dt-pad="bottom""#), "{body}");
+    assert!(body.contains("&quot;k&quot;"), "a keyed list: {body}");
+    assert_eq!(body.matches("<tr data-dt-row=").count(), 40, "only the first rows are rendered");
+    assert!(body.contains("Loading more…") && body.contains("Showing 50 of 100"), "{body}");
+    assert!(!body.contains("data-dt-go"), "no pager: {body}");
+
+    // A remote table starts empty and says it is loading.
+    let body = render_with(
+        json!({ "type": "ui-data-table", "props": { "url": "/api/rows", "paging": "more", "columns": [{ "field": "id" }] } }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap()
+    .body;
+    assert_eq!(body.matches("<tr data-dt-row=").count(), 0);
+    assert!(body.contains(">Load more</button>") && body.contains("Loading…"), "{body}");
+    assert!(body.contains("&quot;url&quot;:&quot;/api/rows&quot;"), "{body}");
+}
+
+#[test]
+fn data_table_tree_and_pins_structure() {
+    let body = render_with(
+        json!({ "type": "ui-data-table", "props": { "rows": [{ "id": 1, "name": "A", "children": [{ "id": 2, "name": "B" }] }],
+            "selectable": true, "columns": [{ "field": "name", "pin": "left", "format": "number" }, { "field": "id", "pin": "right" }] } }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap()
+    .body;
+    assert!(body.contains(r#"role="treegrid""#), "{body}");
+    // The first column is the tree column: the arrow, then the value in a span.
+    assert!(body.contains(r#"<td data-dt-col="name" data-align="right" data-pin="left" data-dt-tree><div data-dt-node><button type="button" data-dt-twisty"#), "{body}");
+    assert!(body.contains(r#"<span data-dt-fmt>A</span>"#), "{body}");
+    assert!(body.contains(r#"<td data-dt-col="id" data-pin="right">"#), "{body}");
+    // The checkbox column stays with the left-pinned ones.
+    assert!(body.contains(r#"<th data-dt-box data-pin="left">"#), "{body}");
+    assert!(body.contains("&quot;tree&quot;:{&quot;field&quot;:&quot;children&quot;"), "{body}");
+
+    let err = render_with(
+        json!({ "type": "ui-data-table", "props": { "rows": [], "columns": [{ "field": "a", "tree": true }, { "field": "b", "tree": true }] } }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(err.contains("only one column"), "{err}");
+}
+
+#[test]
+fn data_table_mistakes() {
+    let err = |root: Json| render_with(root, json!({}), json!({})).unwrap_err().to_string();
+    let table = |children: Json, props: Json| {
+        let mut p = json!({ "rows": [] });
+        p.as_object_mut().unwrap().extend(props.as_object().unwrap().clone());
+        json!({ "type": "ui-data-table", "props": p, "children": children })
+    };
+    assert!(err(table(json!([]), json!({}))).contains("needs columns"));
+    assert!(err(table(json!([{ "type": "ui-button" }]), json!({}))).contains("not `ui-button`"));
+    assert!(err(table(json!([{ "type": "ui-data-table-column", "props": { "filter": "select" } }]), json!({}))).contains("needs a `field`"));
+    assert!(err(table(json!([]), json!({ "columns": [{ "field": "a" }, { "field": "a" }] }))).contains("two columns"));
+    assert!(err(table(json!([]), json!({ "columns": [{ "field": "a", "cell": "sparkline" }] }))).contains("chart kit"));
+    assert!(err(table(json!([]), json!({ "columns": [{ "field": "a", "cell": "badge", "tones": { "x": "pink" } }] }))).contains("tone"));
+    assert!(err(json!({ "type": "ui-data-table-column", "props": { "field": "a" } })).contains("direct child"));
+    let cols = json!([{ "field": "a" }]);
+    assert!(err(json!({ "type": "ui-data-table", "props": { "columns": cols } })).contains("needs `rows`"));
+    assert!(err(json!({ "type": "ui-data-table", "props": { "rows": [], "url": "/r", "columns": cols } })).contains("not both"));
+    assert!(err(json!({ "type": "ui-data-table", "props": { "url": "javascript:alert(1)", "columns": cols } })).contains("http(s)"));
+    assert!(err(json!({ "type": "ui-data-table", "props": { "url": "//evil.example/r", "columns": cols } })).contains("http(s)"));
 }

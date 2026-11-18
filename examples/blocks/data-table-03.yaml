@@ -1,0 +1,141 @@
+# Block: an inventory list configured with `columns` alone: plain column objects, no
+# cell templates. Shows what the table does with rows from state:
+# - `rows` reads state, so the table follows it: "Receive delivery" swaps the stock
+#   list and the table keeps its sort, filters and selection over the new rows.
+# - `filter` takes conditions from any control: the warehouse toggle filters the rows.
+# - `bindRow` writes the clicked row (or the one Enter opens) to state, and the panel
+#   beside the table draws its stock levels with the chart kit.
+# - No paging (`pageSize: 0`): a fixed `height` scrolls the rows under a header that
+#   stays in view, and `striped` shades every other row.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-03.yaml --ui-kit --chart-kit --icon-kit -o data-table-03.html
+version: 1
+state:
+  warehouse: all
+  current: null
+  received: false
+  stock:
+    - {"sku": "SKU-1001", "name": "Steel bolts M8", "category": "Fasteners", "warehouse": "South", "onHand": 463, "reorder": 200, "cost": 113.4, "fill": 51, "status": "OK", "levels": [544, 573, 613, 410, 407, 575, 463]}
+    - {"sku": "SKU-1002", "name": "Hex nuts M8", "category": "Fasteners", "warehouse": "East", "onHand": 812, "reorder": 100, "cost": 114.22, "fill": 90, "status": "OK", "levels": [710, 890, 817, 734, 708, 937, 812]}
+    - {"sku": "SKU-1003", "name": "Washers 8 mm", "category": "Fasteners", "warehouse": "North", "onHand": 609, "reorder": 200, "cost": 34.28, "fill": 68, "status": "OK", "levels": [690, 539, 466, 729, 491, 489, 609]}
+    - {"sku": "SKU-2001", "name": "Cordless drill", "category": "Tools", "warehouse": "East", "onHand": 247, "reorder": 50, "cost": 52.98, "fill": 27, "status": "OK", "levels": [334, 264, 322, 197, 362, 216, 247]}
+    - {"sku": "SKU-2002", "name": "Impact driver", "category": "Tools", "warehouse": "South", "onHand": 4, "reorder": 50, "cost": 136.45, "fill": 0, "status": "Low", "levels": [88, 0, 62, 136, 0, 0, 4]}
+    - {"sku": "SKU-2003", "name": "Torque wrench", "category": "Tools", "warehouse": "South", "onHand": 525, "reorder": 150, "cost": 69.6, "fill": 58, "status": "OK", "levels": [390, 410, 663, 430, 580, 430, 525]}
+    - {"sku": "SKU-3001", "name": "Safety gloves", "category": "Safety", "warehouse": "South", "onHand": 17, "reorder": 50, "cost": 13.19, "fill": 2, "status": "Low", "levels": [0, 0, 0, 107, 59, 70, 17]}
+    - {"sku": "SKU-3002", "name": "Hard hat", "category": "Safety", "warehouse": "South", "onHand": 644, "reorder": 100, "cost": 136.46, "fill": 72, "status": "OK", "levels": [632, 666, 538, 653, 664, 501, 644]}
+    - {"sku": "SKU-3003", "name": "Safety goggles", "category": "Safety", "warehouse": "North", "onHand": 120, "reorder": 100, "cost": 122.79, "fill": 13, "status": "OK", "levels": [96, 21, 0, 0, 208, 219, 120]}
+    - {"sku": "SKU-4001", "name": "Cable ties", "category": "Electrical", "warehouse": "South", "onHand": 192, "reorder": 200, "cost": 75.76, "fill": 21, "status": "Low", "levels": [302, 139, 109, 256, 238, 101, 192]}
+    - {"sku": "SKU-4002", "name": "Copper wire 2.5 mm", "category": "Electrical", "warehouse": "East", "onHand": 217, "reorder": 50, "cost": 115.55, "fill": 24, "status": "OK", "levels": [205, 222, 77, 174, 162, 268, 217]}
+    - {"sku": "SKU-4003", "name": "Circuit breaker 16A", "category": "Electrical", "warehouse": "South", "onHand": 102, "reorder": 50, "cost": 69.54, "fill": 11, "status": "OK", "levels": [26, 61, 178, 84, 0, 120, 102]}
+    - {"sku": "SKU-5001", "name": "Pallet wrap", "category": "Packaging", "warehouse": "East", "onHand": 76, "reorder": 50, "cost": 81.6, "fill": 8, "status": "OK", "levels": [32, 224, 50, 0, 114, 116, 76]}
+    - {"sku": "SKU-5002", "name": "Carton 40×30×30", "category": "Packaging", "warehouse": "North", "onHand": 601, "reorder": 200, "cost": 147.21, "fill": 67, "status": "OK", "levels": [745, 520, 648, 544, 529, 610, 601]}
+    - {"sku": "SKU-5003", "name": "Packing tape", "category": "Packaging", "warehouse": "South", "onHand": 255, "reorder": 100, "cost": 8.58, "fill": 28, "status": "OK", "levels": [186, 388, 205, 303, 352, 145, 255]}
+    - {"sku": "SKU-6001", "name": "Hydraulic oil 5 L", "category": "Consumables", "warehouse": "East", "onHand": 111, "reorder": 50, "cost": 88.41, "fill": 12, "status": "OK", "levels": [223, 91, 83, 161, 92, 176, 111]}
+  delivered:
+    - {"sku": "SKU-1001", "name": "Steel bolts M8", "category": "Fasteners", "warehouse": "South", "onHand": 463, "reorder": 200, "cost": 113.4, "fill": 51, "status": "OK", "levels": [544, 573, 613, 410, 407, 575, 463]}
+    - {"sku": "SKU-1002", "name": "Hex nuts M8", "category": "Fasteners", "warehouse": "East", "onHand": 812, "reorder": 100, "cost": 114.22, "fill": 90, "status": "OK", "levels": [710, 890, 817, 734, 708, 937, 812]}
+    - {"sku": "SKU-1003", "name": "Washers 8 mm", "category": "Fasteners", "warehouse": "North", "onHand": 609, "reorder": 200, "cost": 34.28, "fill": 68, "status": "OK", "levels": [690, 539, 466, 729, 491, 489, 609]}
+    - {"sku": "SKU-2001", "name": "Cordless drill", "category": "Tools", "warehouse": "East", "onHand": 247, "reorder": 50, "cost": 52.98, "fill": 27, "status": "OK", "levels": [334, 264, 322, 197, 362, 216, 247]}
+    - {"sku": "SKU-2002", "name": "Impact driver", "category": "Tools", "warehouse": "South", "onHand": 572, "reorder": 50, "cost": 136.45, "fill": 64, "status": "OK", "levels": [88, 0, 62, 136, 0, 0, 572]}
+    - {"sku": "SKU-2003", "name": "Torque wrench", "category": "Tools", "warehouse": "South", "onHand": 525, "reorder": 150, "cost": 69.6, "fill": 58, "status": "OK", "levels": [390, 410, 663, 430, 580, 430, 525]}
+    - {"sku": "SKU-3001", "name": "Safety gloves", "category": "Safety", "warehouse": "South", "onHand": 397, "reorder": 50, "cost": 13.19, "fill": 44, "status": "OK", "levels": [0, 0, 0, 107, 59, 70, 397]}
+    - {"sku": "SKU-3002", "name": "Hard hat", "category": "Safety", "warehouse": "South", "onHand": 644, "reorder": 100, "cost": 136.46, "fill": 72, "status": "OK", "levels": [632, 666, 538, 653, 664, 501, 644]}
+    - {"sku": "SKU-3003", "name": "Safety goggles", "category": "Safety", "warehouse": "North", "onHand": 553, "reorder": 100, "cost": 122.79, "fill": 61, "status": "OK", "levels": [96, 21, 0, 0, 208, 219, 553]}
+    - {"sku": "SKU-4001", "name": "Cable ties", "category": "Electrical", "warehouse": "South", "onHand": 775, "reorder": 200, "cost": 75.76, "fill": 86, "status": "OK", "levels": [302, 139, 109, 256, 238, 101, 775]}
+    - {"sku": "SKU-4002", "name": "Copper wire 2.5 mm", "category": "Electrical", "warehouse": "East", "onHand": 217, "reorder": 50, "cost": 115.55, "fill": 24, "status": "OK", "levels": [205, 222, 77, 174, 162, 268, 217]}
+    - {"sku": "SKU-4003", "name": "Circuit breaker 16A", "category": "Electrical", "warehouse": "South", "onHand": 102, "reorder": 50, "cost": 69.54, "fill": 11, "status": "OK", "levels": [26, 61, 178, 84, 0, 120, 102]}
+    - {"sku": "SKU-5001", "name": "Pallet wrap", "category": "Packaging", "warehouse": "East", "onHand": 597, "reorder": 50, "cost": 81.6, "fill": 66, "status": "OK", "levels": [32, 224, 50, 0, 114, 116, 597]}
+    - {"sku": "SKU-5002", "name": "Carton 40×30×30", "category": "Packaging", "warehouse": "North", "onHand": 601, "reorder": 200, "cost": 147.21, "fill": 67, "status": "OK", "levels": [745, 520, 648, 544, 529, 610, 601]}
+    - {"sku": "SKU-5003", "name": "Packing tape", "category": "Packaging", "warehouse": "South", "onHand": 255, "reorder": 100, "cost": 8.58, "fill": 28, "status": "OK", "levels": [186, 388, 205, 303, 352, 145, 255]}
+    - {"sku": "SKU-6001", "name": "Hydraulic oil 5 L", "category": "Consumables", "warehouse": "East", "onHand": 111, "reorder": 50, "cost": 88.41, "fill": 12, "status": "OK", "levels": [223, 91, 83, 161, 92, 176, 111]}
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1240px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, align: end, gap: 12 }
+      style: { flex-wrap: wrap }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Inventory } }
+            - { type: ui-text, props: { variant: muted, text: Click a row to see its stock over the last weeks. } }
+        - type: ui-toggle-group
+          props:
+            bind: warehouse
+            variant: outline
+            size: sm
+            options: [{ value: all, label: All }, { value: North, label: North }, { value: South, label: South }, { value: East, label: East }]
+          style: { margin-left: auto }
+
+    - type: element
+      style: { display: grid, grid-template-columns: "minmax(0, 1fr)", gap: 20, align-items: start, "@lg": { grid-template-columns: "minmax(0, 1fr) 300px" } }
+      children:
+        - type: ui-data-table
+          props:
+            rows: "{{ stock }}"
+            rowKey: sku
+            title: Inventory
+            search: Search items…
+            filter: { warehouse: "{{ warehouse == 'all' ? null : warehouse }}" }
+            sort: onHand
+            bindRow: current
+            pageSize: 0
+            height: 420
+            striped: true
+            columns:
+              - { field: sku, label: SKU, hideable: false }
+              - { field: name, label: Item }
+              - { field: category, label: Category, filter: select }
+              - { field: warehouse, label: Warehouse, hidden: true }
+              - { field: status, label: Stock, filter: select, cell: badge, tones: { OK: success, Low: warning, Out: destructive } }
+              - { field: onHand, label: On hand, format: number, filter: range, summary: sum }
+              - { field: reorder, label: Reorder at, format: number }
+              - { field: cost, label: Unit cost, format: currency, currency: EUR, decimals: 2, summary: avg }
+              - { field: fill, label: Bin fill, cell: progress }
+              - { field: levels, label: Trend, cell: sparkline, sortable: false }
+          children:
+            - type: ui-data-table-toolbar
+              children:
+                - type: if
+                  props: { when: "{{ !received }}" }
+                  children:
+                    - type: ui-button
+                      props: { label: Receive delivery, size: sm }
+                      on:
+                        click:
+                          - { action: set_state, key: stock, value: "{{ delivered }}" }
+                          - { action: set_state, key: received, value: true }
+
+        - type: ui-card
+          props: { title: "{{ current ? current.name : 'No item selected' }}", description: "{{ current ? current.sku + ' · ' + current.warehouse + ' warehouse' : 'Click a row in the table' }}" }
+          children:
+            - type: if
+              props: { when: "{{ current }}" }
+              children:
+                - type: stack
+                  props: { gap: 12 }
+                  children:
+                    - type: stack
+                      props: { direction: row, gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 2 }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: On hand } }
+                            - { type: ui-heading, props: { level: 3, text: "{{ current.onHand }}" } }
+                        - type: stack
+                          props: { gap: 2 }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: Reorder at } }
+                            - { type: ui-heading, props: { level: 3, text: "{{ current.reorder }}" } }
+                    - type: ui-chart
+                      props: { type: bar, data: "{{ current.levels }}", height: 180, title: Stock over the last seven weeks, option: { xAxis: { data: [W1, W2, W3, W4, W5, W6, Now] } } }

@@ -27,19 +27,24 @@ root:
             # Picks every theme option and the mode; the previews below follow live.
             - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
-          props: { variant: lead, text: "Whole pages to start from: a dashboard, an AI chat, sidebars, login and sign-up, settings, pricing, a Markdown editor and a theme customizer. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, data tables, an AI chat, sidebars, login and sign-up, settings, pricing, a Markdown editor and a theme customizer. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group
           props:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: theme, label: Theme }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: theme, label: Theme }]
 
     - type: list
       props:
         as: block
         items:
           - { id: dashboard-01, category: dashboard, title: "A dashboard with sidebar, charts, data table and a ⌘K palette", kits: [ui-kit, chart-kit, icon-kit], height: 860 }
+          - { id: data-table-01, category: table, title: "Tasks: search, faceted filters, sorting, paging, a View menu and bulk actions on selected rows", kits: [ui-kit, icon-kit], height: 860 }
+          - { id: data-table-02, category: table, title: "Orders wired to charts both ways: the charts draw the filtered rows, a bar click filters the table, sparklines in cells and a chart in each row's details", kits: [ui-kit, chart-kit, icon-kit], height: 1180 }
+          - { id: data-table-03, category: table, title: "Inventory from plain column objects: rows from state, a filter from a toggle, a sticky header and a clicked row's chart", kits: [ui-kit, chart-kit, icon-kit], height: 760 }
+          - { id: data-table-04, category: table, title: "5,000 rows from an API, one tab per paging option: infinite scroll with a virtual table, Load more, and server pages", kits: [ui-kit, icon-kit], height: 820 }
+          - { id: data-table-05, category: table, title: "Rows inside rows: a budget tree whose projects load when opened, with pinned columns, and an org chart from flat rows", kits: [ui-kit, icon-kit], height: 1180 }
           - { id: chat, category: chat, title: "A full-screen AI chat: conversations in a sidebar, threaded replies, streamed answers and replies with UI: charts, a carousel, links, video", kits: [ui-kit, chart-kit, icon-kit], height: 760 }
           - { id: sidebar-07, category: sidebar, title: A sidebar that collapses to icons, kits: [ui-kit, icon-kit], height: 640 }
           - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }
@@ -47,7 +52,7 @@ root:
           - { id: login-04, category: login, title: A login page with form and image, kits: [ui-kit], height: 720 }
           - { id: signup, category: signup, title: A sign-up form that checks itself as you type, kits: [ui-kit, icon-kit], height: 860 }
           - { id: settings, category: settings, title: "Account settings: a section menu, a form per section and a danger zone", kits: [ui-kit, icon-kit], height: 900 }
-          - { id: markdown, category: editor, title: "Writing a post in Markdown: a toolbar, shortcuts and a preview beside it", kits: [ui-kit, markdown-kit], height: 900 }
+          - { id: markdown, category: editor, title: "Writing a post: edited as readers see it, saved as Markdown", kits: [ui-kit, markdown-kit], height: 900 }
           - { id: theme, category: theme, title: "A theme customizer: palette, chart colours, radius, density, text size, font", kits: [ui-kit, chart-kit, icon-kit], height: 1300 }
           - { id: pricing, category: pricing, title: "Pricing: a monthly / yearly switch, plans, a comparison table and questions", kits: [ui-kit, icon-kit], height: 1000 }
       style: { display: flex, flex-direction: column, gap: 48 }

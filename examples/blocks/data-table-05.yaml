@@ -1,0 +1,99 @@
+# Block: rows inside rows, and columns that stay put.
+# - Budget: divisions hold teams (`children` arrays), and a team's projects load from
+#   an API the first time it's opened (`children: true` with `childrenUrl`). Twelve
+#   month columns scroll sideways between the cost centre, pinned left, and the
+#   total, pinned right. Summaries add up the top rows only.
+# - Org chart: flat rows that name their manager (`parentField`), open to start with
+#   (`expanded`). A search shows the people who match with the managers above them.
+# The arrow opens a row; on a focused row, Right opens it and steps in, Left closes it
+# and steps out. examples/serve.py serves the projects (`api/budget`).
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-05.yaml --ui-kit --chart-kit --icon-kit -o data-table-05.html
+#   python3 examples/serve.py   # then open /blocks/data-table-05.html
+version: 1
+state:
+  budget:
+    - {"id": "D1", "name": "Engineering", "owner": "Grace Hopper", "m0": 67000, "m1": 65000, "m2": 94000, "m3": 62000, "m4": 84000, "m5": 97000, "m6": 84000, "m7": 103000, "m8": 81000, "m9": 72000, "m10": 95000, "m11": 57000, "total": 961000, "children": [{"id": "T11", "name": "Platform", "owner": "Grace", "m0": 15000, "m1": 26000, "m2": 25000, "m3": 12000, "m4": 19000, "m5": 27000, "m6": 23000, "m7": 28000, "m8": 26000, "m9": 10000, "m10": 27000, "m11": 8000, "total": 246000, "children": true}, {"id": "T12", "name": "Mobile", "owner": "Grace", "m0": 23000, "m1": 16000, "m2": 25000, "m3": 15000, "m4": 14000, "m5": 30000, "m6": 23000, "m7": 25000, "m8": 25000, "m9": 23000, "m10": 20000, "m11": 28000, "total": 267000, "children": true}, {"id": "T13", "name": "Data", "owner": "Grace", "m0": 12000, "m1": 15000, "m2": 28000, "m3": 12000, "m4": 24000, "m5": 20000, "m6": 8000, "m7": 29000, "m8": 10000, "m9": 13000, "m10": 26000, "m11": 9000, "total": 206000, "children": true}, {"id": "T14", "name": "Security", "owner": "Grace", "m0": 17000, "m1": 8000, "m2": 16000, "m3": 23000, "m4": 27000, "m5": 20000, "m6": 30000, "m7": 21000, "m8": 20000, "m9": 26000, "m10": 22000, "m11": 12000, "total": 242000, "children": true}]}
+    - {"id": "D2", "name": "Sales", "owner": "Alan Turing", "m0": 59000, "m1": 58000, "m2": 64000, "m3": 61000, "m4": 61000, "m5": 70000, "m6": 55000, "m7": 80000, "m8": 62000, "m9": 72000, "m10": 57000, "m11": 59000, "total": 758000, "children": [{"id": "T21", "name": "EMEA", "owner": "Alan", "m0": 19000, "m1": 11000, "m2": 9000, "m3": 12000, "m4": 23000, "m5": 14000, "m6": 16000, "m7": 29000, "m8": 21000, "m9": 28000, "m10": 17000, "m11": 21000, "total": 220000, "children": true}, {"id": "T22", "name": "Americas", "owner": "Alan", "m0": 24000, "m1": 20000, "m2": 26000, "m3": 19000, "m4": 25000, "m5": 26000, "m6": 21000, "m7": 26000, "m8": 15000, "m9": 18000, "m10": 29000, "m11": 8000, "total": 257000, "children": true}, {"id": "T23", "name": "APAC", "owner": "Alan", "m0": 16000, "m1": 27000, "m2": 29000, "m3": 30000, "m4": 13000, "m5": 30000, "m6": 18000, "m7": 25000, "m8": 26000, "m9": 26000, "m10": 11000, "m11": 30000, "total": 281000, "children": true}]}
+    - {"id": "D3", "name": "Marketing", "owner": "Katherine Johnson", "m0": 47000, "m1": 24000, "m2": 49000, "m3": 38000, "m4": 24000, "m5": 34000, "m6": 32000, "m7": 31000, "m8": 34000, "m9": 37000, "m10": 50000, "m11": 37000, "total": 437000, "children": [{"id": "T31", "name": "Brand", "owner": "Katherine", "m0": 28000, "m1": 14000, "m2": 28000, "m3": 26000, "m4": 16000, "m5": 17000, "m6": 11000, "m7": 10000, "m8": 23000, "m9": 28000, "m10": 23000, "m11": 10000, "total": 234000, "children": true}, {"id": "T32", "name": "Growth", "owner": "Katherine", "m0": 19000, "m1": 10000, "m2": 21000, "m3": 12000, "m4": 8000, "m5": 17000, "m6": 21000, "m7": 21000, "m8": 11000, "m9": 9000, "m10": 27000, "m11": 27000, "total": 203000, "children": true}]}
+    - {"id": "D4", "name": "Operations", "owner": "Margaret Hamilton", "m0": 28000, "m1": 49000, "m2": 75000, "m3": 70000, "m4": 39000, "m5": 59000, "m6": 57000, "m7": 63000, "m8": 66000, "m9": 45000, "m10": 57000, "m11": 65000, "total": 673000, "children": [{"id": "T41", "name": "Facilities", "owner": "Margaret", "m0": 9000, "m1": 20000, "m2": 30000, "m3": 26000, "m4": 18000, "m5": 25000, "m6": 16000, "m7": 24000, "m8": 15000, "m9": 9000, "m10": 17000, "m11": 8000, "total": 217000, "children": true}, {"id": "T42", "name": "Finance", "owner": "Margaret", "m0": 10000, "m1": 11000, "m2": 27000, "m3": 25000, "m4": 9000, "m5": 14000, "m6": 21000, "m7": 17000, "m8": 27000, "m9": 16000, "m10": 12000, "m11": 30000, "total": 219000, "children": true}, {"id": "T43", "name": "People", "owner": "Margaret", "m0": 9000, "m1": 18000, "m2": 18000, "m3": 19000, "m4": 12000, "m5": 20000, "m6": 20000, "m7": 22000, "m8": 24000, "m9": 20000, "m10": 28000, "m11": 27000, "total": 237000, "children": true}]}
+  org:
+    - {"id": 1, "name": "Ada Lovelace", "title": "CEO", "manager": null}
+    - {"id": 2, "name": "Grace Hopper", "title": "CTO", "manager": 1}
+    - {"id": 3, "name": "Margaret Hamilton", "title": "VP Engineering", "manager": 2}
+    - {"id": 4, "name": "Linus Torvalds", "title": "Staff engineer", "manager": 3}
+    - {"id": 5, "name": "Barbara Liskov", "title": "Engineer", "manager": 3}
+    - {"id": 6, "name": "Alan Turing", "title": "CFO", "manager": 1}
+    - {"id": 7, "name": "Katherine Johnson", "title": "Controller", "manager": 6}
+    - {"id": 8, "name": "Dorothy Vaughan", "title": "Analyst", "manager": 7}
+    - {"id": 9, "name": "Hedy Lamarr", "title": "CMO", "manager": 1}
+    - {"id": 10, "name": "Radia Perlman", "title": "Brand lead", "manager": 9}
+    - {"id": 11, "name": "Frances Allen", "title": "Growth lead", "manager": 9}
+    - {"id": 12, "name": "Annie Easley", "title": "Engineer", "manager": 3}
+root:
+  type: stack
+  props: { gap: 32 }
+  style:
+    max-width: 1240px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 12 }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Budget 2026 } }
+            - { type: ui-text, props: { variant: muted, text: "Open a division for its teams, and a team for its projects. Scroll sideways through the months." } }
+        - type: ui-data-table
+          props:
+            rows: "{{ budget }}"
+            rowKey: id
+            title: Budget by cost centre
+            childrenUrl: api/budget
+            pageSize: 0
+            sort: -total
+            locale: en-US
+            selectable: true
+          children:
+            - { type: ui-data-table-column, props: { field: name, label: Cost centre, pin: left, tree: true, width: 220, hideable: false } }
+            - { type: ui-data-table-column, props: { field: owner, label: Owner, width: 160 } }
+            - { type: ui-data-table-column, props: { field: m0, label: Jan, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m1, label: Feb, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m2, label: Mar, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m3, label: Apr, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m4, label: May, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m5, label: Jun, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m6, label: Jul, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m7, label: Aug, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m8, label: Sep, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m9, label: Oct, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m10, label: Nov, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: m11, label: Dec, format: currency, decimals: 0, summary: sum, width: 110 } }
+            - { type: ui-data-table-column, props: { field: total, label: Total, format: currency, decimals: 0, summary: sum, pin: right, hideable: false } }
+
+    - type: stack
+      props: { gap: 12 }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Organisation } }
+            - { type: ui-text, props: { variant: muted, text: Flat rows that name their manager. Search for someone to see who they report to. } }
+        - type: ui-data-table
+          props:
+            rows: "{{ org }}"
+            rowKey: id
+            title: Organisation
+            parentField: manager
+            expanded: true
+            search: Search people…
+            pageSize: 0
+            columnsMenu: false
+            columns:
+              - { field: name, label: Name, tree: true }
+              - { field: title, label: Title }

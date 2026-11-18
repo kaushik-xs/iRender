@@ -47,6 +47,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-progress` | `value` (0–100) | Updates live when `value` uses state, and is clamped to 0–100 in CSS. |
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
+| `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
 | `ui-text` | `text`, `variant` (p, lead, large, small, muted, code, blockquote), `tag` | Takes children, e.g. inline `code`. |
@@ -228,6 +229,121 @@ Not replicated:
 - Values that are whole option objects: values are plain values, and their labels come from the options.
 - `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
 
+## Data table
+
+`ui-data-table` shows an array of rows with the controls of shadcn/ui's data table: sorting, column filters, search, paging, row selection with bulk actions, expandable detail rows, a View menu that shows and hides columns, and summary rows. It also pages, loads more or scrolls infinitely, loads rows from an API in batches, keeps long tables fast by drawing only the rows in view, nests rows inside rows (loading children when they're opened) and pins columns while the rest scroll sideways. Its behaviour (about 13 KB gzipped) is added only to pages that use it. The blocks [`data-table-01`](../../examples/blocks/data-table-01.yaml) (tasks), [`data-table-02`](../../examples/blocks/data-table-02.yaml) (orders wired to charts), [`data-table-03`](../../examples/blocks/data-table-03.yaml) (inventory from plain column objects), [`data-table-04`](../../examples/blocks/data-table-04.yaml) (5,000 rows from an API: infinite scroll, Load more and server pages) and [`data-table-05`](../../examples/blocks/data-table-05.yaml) (a budget tree with pinned columns, and an org chart from flat rows) show each feature.
+
+```yaml
+- type: ui-data-table
+  props: { rows: "{{ orders }}", search: true, sort: -date, selectable: true, bindSelection: picked, pageSize: 10 }
+  children:
+    - { type: ui-data-table-column, props: { field: id, label: Order } }
+    - { type: ui-data-table-column, props: { field: date, format: date, filter: date } }
+    - { type: ui-data-table-column, props: { field: amount, format: currency, currency: EUR, filter: range, summary: sum } }
+    - type: ui-data-table-column
+      props: { field: status, filter: select, cell: badge, tones: { Paid: success, Failed: destructive } }
+    - type: ui-data-table-column
+      props: { id: actions, label: "" }
+      children:                                  # a cell template: the row is `row`
+        - { type: ui-button, props: { label: Open, size: sm }, on: { click: { action: call, name: open, args: { id: "{{ row.id }}" } } } }
+    - type: ui-data-table-bulk                   # shown while rows are selected
+      children:
+        - { type: ui-button, props: { label: Delete, size: sm, variant: destructive }, on: { click: { action: call, name: delete, args: { ids: "{{ picked }}" } } } }
+```
+
+**Children.** `ui-data-table-column` is a column; its children, if any, draw each cell with the row in scope as `row` (and its position in `rows` as `rowIndex`). `ui-data-table-toolbar` adds controls to the toolbar, before the View menu. `ui-data-table-bulk` holds actions shown while rows are selected, next to "N selected", "Select all N" and "Clear selection". `ui-data-table-detail` is drawn under a row when its arrow is opened. Tables without cell templates can list their columns as objects in `columns` instead.
+
+| table prop | |
+|---|---|
+| `rows` | Objects, from data or state. Rows from state are rebuilt when the array changes, and keep the table's sort, filters, page and selection. |
+| `url`, `params` | Rows from an API instead of `rows`; see [Paging and loading](#paging-and-loading). |
+| `paging` | `pages` (default), `more`, `scroll` or `none`; see [Paging and loading](#paging-and-loading). |
+| `virtual`, `rowHeight` | Draw only the rows in view; see [Paging and loading](#paging-and-loading). |
+| `childrenField`, `parentField`, `childrenUrl`, `expanded` | Rows inside rows; see [Nested rows](#nested-rows). |
+| `columns` | Column objects with the column props below, for columns without templates. |
+| `rowKey` | The field that identifies a row in the selection and the open details (default `id`; its position when a row has none). |
+| `selectable` | A checkbox per row and one in the header for the rows on the page. Shift-click selects a run of rows. Implied by `ui-data-table-bulk`. |
+| `search` | A search box: `true`, or its placeholder. Every word must appear in one of `searchFields` (default: the columns' fields), ignoring case and accents. |
+| `sort` | Where it starts: `field`, `-field` for descending, or a list. Clicking a header sorts ascending, then descending, then not at all; Shift-click adds the column to the sort. Blank values go last either way. |
+| `filter` | Conditions from outside the table, e.g. `{ region: "{{ region }}" }` from a chart's `bind` or a toggle. |
+| `pageSize`, `pageSizes` | Rows per page, or per batch with `more` and `scroll` (default 10; `0` shows every row), and the choices offered with `pages` (default `[10, 20, 50, 100]`; `[]` hides the menu). |
+| `columnsMenu` | The View menu (default true). |
+| `height` | Most the table grows to; past it the rows scroll under a header that stays put. |
+| `striped`, `loading`, `title`, `emptyText`, `locale` | Shade every other row; dim it while `loading` is true; the table's accessible name; the empty message (default `No results.`); the locale for formatted values. |
+| `bindSelection`, `bindSort`, `bindFilters`, `bindSearch`, `bindPage` | State keys for the selection (a list of row keys), the sort, the column filters, the search text and the page, both ways. |
+| `bindView` | A state key that gets the rows that pass the filters and search, sorted, every page. Give it to a chart's `data` to chart what the table shows. |
+| `bindRow` | A state key that gets the row last clicked, or opened with Enter. Rows then show a pointer. |
+
+| column prop | |
+|---|---|
+| `field` | The row field shown, sorted, filtered and searched: `amount`, or a path such as `customer.name`. Without a cell template, the cell is the value. |
+| `label`, `width`, `align` | The header, the column's width, and `left`, `center` or `right` (default: right for number formats). |
+| `sortable`, `sortField` | Whether the header sorts (default: when there's a field or `sortField`), and a field to sort by instead, such as a rank behind a label. |
+| `filter` | A filter button in the toolbar: `select` (checkboxes with counts; choices from `options` or the column's values; list-valued fields such as tags match on any value), `text` (contains), `range` (min and max) or `date` (from and to). |
+| `format`, `currency`, `decimals` | `number`, `currency`, `percent` (0.25 is 25%), `date` or `datetime`, formatted in the browser with `Intl` in `locale`. Plain dates (`2026-03-01`) show the same day in every time zone. |
+| `cell`, `tones` | Draw the value as a `badge` (with a tone per value: default, secondary, outline, success, warning, destructive, info), a `progress` bar (0–100) or a `sparkline` of a list of numbers (needs the chart kit). |
+| `summary` | A footer cell: `sum`, `avg`, `min`, `max` or `count` of the rows that pass the filters. |
+| `pin` | `left` or `right`: the column stays in view while the rest scroll sideways. The checkbox and arrow columns stay with the left ones, and a shadow marks where pinned columns end. |
+| `tree` | The column that shows nesting, indented with the arrow that opens a row (default: the first column, in a table with nested rows). |
+| `hideable`, `hidden` | Listed in the View menu (default true), and hidden to start with. |
+| `id` | The column's key when it has no field. |
+
+### Paging and loading
+
+`paging` picks how rows past the first `pageSize` are reached:
+
+| `paging` | |
+|---|---|
+| `pages` | The default: a pager with rows per page, and Page Up / Page Down on a focused row. |
+| `more` | A Load more button under the rows adds the next batch. |
+| `scroll` | Infinite scroll: the next batch comes as the end of the rows nears the bottom of the table (with `height`) or of the window. |
+| `none` | Every row at once. Also what `pageSize: 0` means. |
+
+With `more` and `scroll`, new filters, a search or a sort start again from the first batch, at the top, and the footer says how many rows show (`Showing 40 of 96`).
+
+**From an API.** Give `url` instead of `rows`, and the table asks for rows a batch at a time: `GET <url>?offset=40&limit=20&sort=-date,id&q=text&filters={…}`, answering `{ rows, total }` or a plain array. `sort` lists fields, `-` for descending; `filters` is the column filters and `filter` as JSON, in the [filter conditions](../irender-chart-kit/README.md#filters-and-grouping) below. `params` adds query parameters, and may use state, so a control can narrow what the server sends. The server sorts, searches and filters, and any change asks again from the first batch, after a pause while typing; answers to an older query are dropped.
+- With `pages`, each page is one request, and the total gives the page count. Without a total, the pager goes on until a short page comes back.
+- With `more` and `scroll`, batches add up. Without a total, a short batch is the last.
+- A failed request shows a Retry button.
+- A select filter's choices come from `options`, or the rows loaded so far; summaries and `bindView` cover the rows loaded so far.
+- `url` must be a path or an http(s) URL, as `ui-combobox`'s `searchUrl`.
+
+**Virtual.** With `virtual`, only the rows in view (and a few either side) are in the page, with space above and below standing in for the rest, so a table of thousands of rows scrolls smoothly. It scrolls inside `height` (default 480). Rows of different heights work: the table measures the rows it draws, starting from `rowHeight` (default 41). Arrow keys, Home and End reach rows that aren't drawn yet. It works with every `paging`, rows from `rows` or `url`, and nested rows; with `scroll` it's the usual infinite list.
+
+### Nested rows
+
+Rows can hold rows. The tree column (`tree: true`, or the first) indents each row by its depth, behind an arrow that opens it, and the table is a WAI-ARIA tree grid (`aria-level`, `aria-expanded`).
+- **Children in the row:** a `children` array (another field with `childrenField`). Rows from state that start out empty need `childrenField` or a `tree` column to say they nest.
+- **Flat rows:** `parentField: parentId` builds the tree from rows that name their parent's key. A row whose parent isn't there is a top row.
+- **Loaded when opened:** a row with `children: true` (or `hasChildren: true`) gets its children from `childrenUrl` the first time it's opened: `GET <childrenUrl>?parent=<key>&sort=…`, answering an array or `{ rows }`. The arrow dims while they load; if they don't, the row closes again and opening it retries.
+
+`expanded: true` opens every row to start with. Siblings sort among themselves under their parent. A search or filter shows the rows that match with the rows above them, opened. Summaries add up the top rows only, so nothing counts twice. Give rows a `rowKey`: it identifies them when they open, load and are selected.
+
+On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent. The other keys work as in any table.
+
+### Filters
+
+**Filters** use the chart kit's [`filter` conditions](../irender-chart-kit/README.md#filters-and-grouping): `bindFilters` holds `{ status: [Paid, Pending], amount: { from: 100 }, date: { to: "2026-03-31" } }`, and the same object filters a chart. Two differences: a list-valued field matches when any of its values does, and a plain date as `to` takes in the whole day.
+
+### Charts
+
+Charts and the table work together in three ways, all in the [`data-table-02`](../../examples/blocks/data-table-02.yaml) block:
+- In cells: `cell: sparkline`, or any `ui-chart` or `ui-sparkline` in a cell template or in `ui-data-table-detail`. Charts in hidden rows start when they're first shown.
+- From the table: `bindView` gives charts the rows the table shows, so its filters and search redraw them.
+- Into the table: a chart's `bind` (the clicked bar) in the table's `filter`.
+
+### Keyboard, events and how it works
+
+**Keyboard.** With `selectable`, `bindRow`, a detail row or nested rows, the rows are one stop in the tab order:
+- Up and Down move between rows, Home and End jump, and Page Up and Page Down change page.
+- Space selects the focused row. Enter opens it (`bindRow`) or its details, and Right and Left open and close its details (in a table with nested rows, the row itself).
+- Escape in the search box clears it.
+- The headers' sort buttons, the checkboxes and the toolbar are ordinary buttons and inputs, and `aria-sort` marks the sorted column.
+
+**Events.** The table fires bubbling `rowclick` (`detail.row`) and `select` (`detail.selection`) events for `on:` actions.
+
+**How it works.** The server renders the rows, in the starting order and with the first page shown, so the table reads without JavaScript. The browser then sorts, filters and pages by moving and hiding the rendered rows rather than drawing them again, so what's inside a cell keeps its state. Virtual, remote and nested tables instead hand the runtime the rows to show, as a list keyed by `rowKey` (`api.list` in the [runtime](../irender-html/src/runtime.js)); a row that stays keeps its nodes, charts included.
+
 ## Chat
 
 Messages are `{ id, role, content, name, avatar, initials, time, ui, html, replies }`: `role` is `assistant` (on the left; the default), `user` (on the right, in the primary colour) or `system` (a small centred note). Keep them in state and the conversation redraws as they change, keeping each message whose `id` it has seen.
@@ -313,4 +429,4 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript are out of scope: date picker, data table with sorting and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
+Components that need focus management or keyboard navigation written in JavaScript are out of scope for now: date picker and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.

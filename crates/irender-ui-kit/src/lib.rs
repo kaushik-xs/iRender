@@ -44,6 +44,7 @@ mod carousel;
 mod chat;
 mod combobox;
 mod command;
+mod data_table;
 mod disclosure;
 mod display;
 mod feedback;
@@ -142,6 +143,11 @@ pub fn register(registry: &mut Registry) {
         .register(chat::TypingIndicator)
         .register(chat::ChatInput)
         .register(carousel::Carousel)
+        .register(data_table::DataTable)
+        .register(data_table::Child::COLUMN)
+        .register(data_table::Child::TOOLBAR)
+        .register(data_table::Child::BULK)
+        .register(data_table::Child::DETAIL)
         // A Light or Dark choice made with `ui-theme-toggle` holds on every page, with a
         // toggle on it or not.
         .early_js("ui-theme", disclosure::THEME_EARLY_SCRIPT);

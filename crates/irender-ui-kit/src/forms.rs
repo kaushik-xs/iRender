@@ -92,6 +92,19 @@ static BUTTON_SIZE_STYLES: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[("height", sp!(36)), ("width", "36px"), ("padding", "0")]),
     ]
 });
+/// Gives `el` the look of a `ui-button` of `variant` and `size`, for kit components that
+/// draw their own buttons.
+pub(crate) fn button_look(el: &mut irender_html::Element<'_>, variant: &str, size: &str) {
+    let v = BUTTON_VARIANTS.iter().position(|x| *x == variant).unwrap_or(0);
+    let s = BUTTON_SIZES.iter().position(|x| *x == size).unwrap_or(0);
+    el.base_style_ref(&BUTTON).base_style_ref(&BUTTON_VARIANT_STYLES[v]).base_style_ref(&BUTTON_SIZE_STYLES[s]);
+}
+
+/// The `ui-checkbox` control's look, for checkboxes kit components draw.
+pub(crate) fn checkbox_look() -> &'static StyleBlock {
+    &CHECKBOX
+}
+
 static LINK_SIZE: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("height", "auto"), ("padding", "0")]));
 
 impl Component for Button {

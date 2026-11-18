@@ -13,6 +13,11 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                     page renders: in the browser with irender-wasm, or through api/render.
                     "photos …" gets UI rendered here (`html`, with `irender render --embed`).
   api/render        POST { ui }: a message's UI rendered to markup, under the untrusted policy
+  api/budget        JSON: the projects under a team in the budget block (`?parent=<team id>`),
+                    for ui-data-table's `childrenUrl`.
+  api/shipments     JSON: 5,000 made-up shipments for the data table blocks, a batch at a time.
+                    Takes ui-data-table's query: offset, limit, sort (`-eta,id`), q (search),
+                    filters (JSON conditions) and delay (ms); answers { rows, total }.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
 """
 
@@ -39,6 +44,80 @@ UI_REPLIES = {
     "photos": ("Here are a few of Lisbon's sights. Scroll or use the arrows for more.", "photos.yaml"),
 }
 _rendered = {}
+
+
+def make_shipments(n=5000):
+    rng = random.Random(42)
+    carriers = ["DHL", "FedEx", "UPS", "Maersk", "DB Schenker", "Kuehne+Nagel"]
+    cities = ["Rotterdam", "Hamburg", "Shanghai", "Singapore", "Los Angeles", "Dubai", "Mumbai", "Santos", "Antwerp", "Busan"]
+    out = []
+    for i in range(n):
+        origin, dest = rng.sample(cities, 2)
+        status = rng.choices(["In transit", "Delivered", "Delayed", "Customs", "Booked"], [5, 6, 1, 1, 2])[0]
+        out.append({
+            "id": f"SHP-{100000 + i}",
+            "carrier": rng.choice(carriers),
+            "origin": origin,
+            "destination": dest,
+            "mode": rng.choice(["Sea", "Air", "Road", "Rail"]),
+            "status": status,
+            "weight": round(rng.uniform(40, 24000), 1),
+            "value": round(rng.uniform(800, 250000), 2),
+            "eta": f"2026-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}",
+            "progress": 100 if status == "Delivered" else 0 if status == "Booked" else rng.randint(5, 95),
+        })
+    return out
+
+
+SHIPMENTS = make_shipments()
+
+
+def budget_projects(parent):
+    """A team's projects for the budget block: the same ones every time for a team."""
+    rng = random.Random(parent)
+    names = ["Platform", "Migration", "Launch", "Research", "Hiring", "Tooling", "Compliance", "Partnerships"]
+    rows = []
+    for i, name in enumerate(rng.sample(names, rng.randint(2, 4))):
+        months = {f"m{m}": rng.randint(2, 30) * 500 for m in range(12)}
+        rows.append({"id": f"{parent}-P{i + 1}", "name": f"{name} project", "owner": rng.choice(["Ada", "Grace", "Alan", "Katherine"]), **months, "total": sum(months.values())})
+    time.sleep(0.4)
+    return rows
+
+
+def matches(v, c):
+    """ui-data-table's (and ui-chart's) filter conditions, enough of them for the blocks."""
+    if c is None or c == "" or c == []:
+        return True
+    if isinstance(c, list):
+        return any(str(v) == str(x) for x in c)
+    if isinstance(c, dict):
+        if "contains" in c:
+            return str(c["contains"]).lower() in str(v).lower()
+        num = isinstance(v, (int, float))
+        conv = (lambda x: float(x)) if num else str
+        lo, hi = c.get("from"), c.get("to")
+        if lo not in (None, "") and conv(v) < conv(lo):
+            return False
+        if hi not in (None, "") and conv(v) > conv(hi):
+            return False
+        return True
+    return str(v) == str(c)
+
+
+def shipments(query):
+    rows = SHIPMENTS
+    q = (query.get("q") or "").strip().lower()
+    if q:
+        rows = [r for r in rows if all(any(w in str(r[f]).lower() for f in ("id", "carrier", "origin", "destination")) for w in q.split())]
+    for field, cond in json.loads(query.get("filters") or "{}").items():
+        rows = [r for r in rows if matches(r.get(field), cond)]
+    for key in reversed([k for k in (query.get("sort") or "").split(",") if k]):
+        field = key.lstrip("-")
+        rows = sorted(rows, key=lambda r: (r.get(field) is None, r.get(field)), reverse=key.startswith("-"))
+    offset = max(0, int(query.get("offset") or 0))
+    limit = min(500, max(1, int(query.get("limit") or 50)))
+    time.sleep(min(2000, int(query.get("delay") or 300)) / 1000)
+    return {"rows": rows[offset:offset + limit], "total": len(rows)}
 
 
 def render_ui(ui):
@@ -76,6 +155,17 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(metrics())
         if path.endswith("/api/live/stream"):
             return self.stream()
+        if path.endswith("/api/budget"):
+            from urllib.parse import parse_qsl
+            query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
+            return self.send_json(budget_projects(query.get("parent", "")))
+        if path.endswith("/api/shipments"):
+            from urllib.parse import parse_qsl
+            query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
+            try:
+                return self.send_json(shipments(query))
+            except (ValueError, TypeError) as e:
+                return self.send_error(400, str(e))
         return super().do_GET()
 
     def do_POST(self):

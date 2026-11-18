@@ -34,6 +34,13 @@ for block in login-03 login-04 signup sidebar-03 sidebar-07 settings pricing; do
 done
 $irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboard-01.data.json \
   --ui-kit --chart-kit --icon-kit --title "dashboard-01" -o "$out/blocks/dashboard-01.html"
+for block in data-table-01 data-table-02; do
+  $irender render "examples/blocks/$block.yaml" --data "examples/blocks/$block.data.json" \
+    --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
+done
+for block in data-table-03 data-table-04 data-table-05; do
+  $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
+done
 # The chat's replies include charts, images and a video.
 $irender render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit --title "chat" -o "$out/blocks/chat.html"
 cp -R examples/blocks/media "$out/blocks/"

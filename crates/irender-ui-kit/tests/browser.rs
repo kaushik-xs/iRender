@@ -1738,3 +1738,477 @@ fn message_ui_render_ways_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The tasks block (examples/blocks/data-table-01.yaml): sorting, search, a faceted
+/// filter, paging, selection and the bulk bar, page size, hiding a column, keyboard.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_in_chrome() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/blocks/");
+    let src = std::fs::read_to_string(format!("{dir}data-table-01.yaml")).unwrap();
+    let data: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}data-table-01.data.json")).unwrap()).unwrap();
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    // The block's icons are decoration; without the icon kit they render as text.
+    let src = src.replace("type: ui-icon, props: { name: ", "type: text, props: { value: ").replace(", size: 16 }", " }");
+    let mut doc = irender_core::parse(&src, Format::Yaml).unwrap_or_else(|d| panic!("{d}"));
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const tick = () => new Promise((r) => setTimeout(r, 0));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const t = document.querySelector("[data-i-x=ui-data-table]");
+      const q = (s) => t.querySelector(s), qa = (s) => [...t.querySelectorAll(s)];
+      const vis = () => qa("[data-dt-body] > [data-dt-row]:not([hidden])");
+      const col = (k) => vis().map((r) => r.querySelector(`[data-dt-col=${k}]`).textContent.trim());
+      const status = () => q("[data-dt-status]").textContent + " | " + q("[data-dt-page]").textContent;
+      const fire = (el, type) => el.dispatchEvent(new Event(type, { bubbles: true }));
+      try {
+        log("start", vis().length, status(), "reset", q("[data-dt-reset]").hidden ? "hidden" : "shown");
+        log("priority", [...new Set(col("priority"))].join(","));
+        q("[data-dt-sort=title]").click(); await tick();
+        const titles = vis().map((r) => r.querySelector("[data-dt-col=title] span:last-child").textContent);
+        log("title", q("th[data-dt-col=title]").getAttribute("aria-sort"), titles.every((x, i) => i === 0 || titles[i - 1].localeCompare(x) <= 0));
+        q("[data-dt-sort=title]").click(); q("[data-dt-sort=title]").click(); await tick();
+        log("title off", q("th[data-dt-col=title]").hasAttribute("aria-sort"));
+        const s = q("[data-dt-search]"); s.value = "okta"; fire(s, "input"); await tick();
+        log("search", vis().length, status(), "reset", q("[data-dt-reset]").hidden ? "hidden" : "shown");
+        s.value = ""; fire(s, "input"); await tick();
+        const trig = q("[data-dt-trigger=status]"); trig.click(); await tick();
+        const pop = q("[data-dt-filter=status]");
+        log("status filter", pop.matches(":popover-open"), [...pop.querySelectorAll("[data-dt-option]")].map((l) => l.textContent).join(" "));
+        [...pop.querySelectorAll("[data-dt-pick]")].find((b) => b.__v === "Done").click(); await tick();
+        log("done", status(), trig.querySelector("[data-dt-chips]").textContent, [...new Set(col("status"))].join(","));
+        trig.click();
+        q("[data-dt-go=next]").click(); await tick();
+        log("next", status());
+        vis()[0].querySelector("[data-dt-select]").click(); await tick();
+        log("picked", S().picked.length, "bulk", q("[data-dt-bulk]").hidden ? "hidden" : "shown", q("[data-dt-count]").textContent);
+        q("[data-dt-select-page]").click(); await tick();
+        log("page", S().picked.length, q("[data-dt-select-all]").hidden ? "" : q("[data-dt-select-all]").textContent);
+        q("[data-dt-select-all]").click(); await tick();
+        log("all", S().picked.length, status());
+        q("[data-dt-clear-selection]").click(); await tick();
+        q("[data-dt-reset]").click(); await tick();
+        log("reset", status(), S().picked.length);
+        const size = q("[data-dt-size]"); size.value = "20"; fire(size, "change"); await tick();
+        log("size", vis().length, status());
+        q("[data-dt-show=assignee]").click(); await tick();
+        log("hidden column", q("th[data-dt-col=assignee]").hidden, vis()[0].querySelector("[data-dt-col=assignee]").hidden);
+        vis()[0].focus(); vis()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); await tick();
+        log("down", document.activeElement === vis()[1], vis()[1].tabIndex);
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true })); await tick();
+        log("space", S().picked.length, vis()[1].getAttribute("aria-selected"));
+        log("formats", /^[A-Z][a-z]{2} \d{1,2}, 2026$/.test(col("due")[0]), q("[data-dt-sum]").textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let html = engine.render(&ir, &data).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start 10 0 of 64 row(s) selected. | Page 1 of 7 reset hidden",
+            // Sorted by `priorityRank`, highest first (the icon's name is its text here).
+            "priority arrow-upHigh",
+            "title ascending true",
+            "title off false",
+            "search 4 0 of 4 (of 64) row(s) selected. | Page 1 of 1 reset shown",
+            // Choices in the given order, each with its count.
+            "status filter true Backlog8 Todo23 In Progress15 Done15 Canceled3",
+            "done 0 of 15 (of 64) row(s) selected. | Page 1 of 2 Done Done",
+            "next 0 of 15 (of 64) row(s) selected. | Page 2 of 2",
+            "picked 1 bulk shown 1 selected",
+            "page 5 Select all 15",
+            "all 15 15 of 15 (of 64) row(s) selected. | Page 2 of 2",
+            "reset 0 of 64 row(s) selected. | Page 1 of 7 0",
+            "size 20 0 of 64 row(s) selected. | Page 1 of 4",
+            "hidden column true true",
+            "down true 0",
+            "space 1 true",
+            "formats true 350",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Rows from state: the runtime rebuilds them and the table arranges them again,
+/// keeping its sort; `filter` from state, `bindView` and `bindRow`.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_rows_from_state_in_chrome() {
+    let rows = |n: i64| (1..=n).map(|i| serde_json::json!({ "id": i, "name": format!("Item {i}"), "qty": (i * 37) % 11, "kind": if i % 2 == 0 { "even" } else { "odd" } })).collect::<Vec<_>>();
+    let doc = serde_json::json!({ "version": 1, "state": { "rows": rows(6), "kind": null, "view": [], "row": null },
+        "root": { "type": "ui-data-table", "props": { "rows": "{{ rows }}", "sort": "-qty", "pageSize": 4, "filter": { "kind": "{{ kind }}" },
+            "bindView": "view", "bindRow": "row", "columns": [{ "field": "name" }, { "field": "qty", "summary": "sum" }, { "field": "kind" }] } } });
+    let driver = format!(r##"<script>
+    window.addEventListener("load", async () => {{
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const tick = () => new Promise((r) => setTimeout(r, 0));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const t = document.querySelector("[data-i-x=ui-data-table]");
+      const vis = () => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")];
+      const qty = () => vis().map((r) => r.querySelector("[data-dt-col=qty]").textContent).join(",");
+      try {{
+        await tick();
+        log("start", qty(), S().view.length, t.querySelector("[data-dt-sum]").textContent);
+        root.__irender.set("kind", "even"); await tick();
+        log("even", qty(), S().view.map((r) => r.id).join(","));
+        root.__irender.set("rows", {more}); await tick();
+        log("more rows", qty(), S().view.length, t.querySelector("[data-dt-page]").textContent);
+        vis()[0].querySelector("[data-dt-col=name]").click(); await tick();
+        log("row", S().row.name);
+      }} catch (e) {{ log("EXCEPTION", e.stack); }}
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    }});
+    </script>"##, more = serde_json::Value::from(rows(12)));
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-state", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // qty is (id × 37) mod 11: 4, 8, 1, 5, 9, 2 for ids 1–6, sorted descending.
+            "start 9,8,5,4 6 29",
+            "even 8,5,2 2,4,6",
+            // Ids 8, 10 and 12 add 10, 7 and 4; the sort and the filter still hold.
+            "more rows 10,8,7,5 6 Page 1 of 2",
+            "row Item 8",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Paging options over local rows: Load more, infinite scroll with a virtual window,
+/// and a virtual table of rows from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_paging_options_in_chrome() {
+    let rows = |n: usize| (0..n).map(|i| serde_json::json!({ "id": i, "name": format!("Row {i}"), "n": i })).collect::<Vec<_>>();
+    let cols = serde_json::json!([{ "field": "name" }, { "field": "n", "format": "number" }]);
+    let doc = serde_json::json!({ "version": 1, "state": { "live": rows(500) },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-table", "props": { "id": "more", "rows": rows(45), "paging": "more", "pageSize": 10, "search": true, "columns": cols } },
+            { "type": "ui-data-table", "props": { "id": "scroll", "rows": rows(1000), "paging": "scroll", "virtual": true, "height": 300,
+                "pageSize": 100, "selectable": true, "columns": cols } },
+            { "type": "ui-data-table", "props": { "id": "state", "rows": "{{ live }}", "virtual": true, "pageSize": 0, "height": 200, "sort": "-n", "columns": cols } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]");
+      const T = (id) => document.getElementById(id);
+      const rows = (t) => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")];
+      const st = (t) => t.querySelector("[data-dt-status]").textContent;
+      const names = (t) => rows(t).map((r) => r.querySelector("[data-dt-col=name]").textContent);
+      // Scroll events come with animation frames, which headless Chrome may not run.
+      const scroll = async (t, top) => { const s = t.querySelector("[data-dt-scroll]"); s.scrollTop = top; s.dispatchEvent(new Event("scroll")); await wait(40); };
+      try {
+        await wait(50);
+        const m = T("more");
+        log("more", rows(m).length, st(m), m.querySelector("[data-dt-load]").hidden);
+        m.querySelector("[data-dt-load]").click(); await wait(10);
+        log("load", rows(m).length, st(m));
+        for (let i = 0; i < 3; i++) m.querySelector("[data-dt-load]").click();
+        await wait(10);
+        log("all", rows(m).length, st(m), m.querySelector("[data-dt-more]").hidden);
+        const s = m.querySelector("[data-dt-search]"); s.value = "Row 1"; s.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        log("search", rows(m).length, st(m));
+
+        const sc = T("scroll");
+        log("scroll", rows(sc).length < 30, st(sc), names(sc)[0]);
+        await scroll(sc, 1e6); await wait(50);
+        log("bottom", st(sc), rows(sc).length < 30);
+        await scroll(sc, 1e6); await wait(50);
+        log("again", st(sc));
+        const mid = sc.querySelector("[data-dt-scroll]");
+        await scroll(sc, mid.scrollHeight / 2);
+        const at = Number(names(sc)[0].slice(4));
+        log("middle", at > 60 && at < 200, rows(sc).length < 30);
+        rows(sc)[0].focus(); rows(sc)[0].dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true })); await wait(10);
+        log("home", document.activeElement.querySelector("[data-dt-col=name]").textContent);
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true })); await wait(10);
+        log("end", document.activeElement.querySelector("[data-dt-col=name]").textContent);
+        sc.querySelector("[data-dt-select-page]").click(); await wait(10);
+        // End reached the last loaded row, which loads the next batch: all are selected.
+        const [shown, picked] = st(sc).match(/Showing (\d+) .* (\d+) selected/).slice(1);
+        log("select loaded", shown === picked, Number(shown) >= 300);
+
+        const lv = T("state");
+        log("state", rows(lv).length < 30, names(lv)[0], lv.querySelector("[data-dt-pad=bottom] td").style.height !== "0px");
+        root.__irender.set("live", root.__irender.state.live.slice(0, 3)); await wait(20);
+        log("fewer", names(lv).join(","), lv.querySelector("[data-dt-pad=bottom] td").style.height);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-paging", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "more 10 Showing 10 of 45 false",
+            "load 20 Showing 20 of 45",
+            "all 45 Showing 45 of 45 true",
+            // A new search starts again from the first batch: "row" and "1" match
+            // rows 1, 10–19, 21, 31 and 41.
+            "search 10 Showing 10 of 14 (of 45)",
+            "scroll true Showing 100 of 1,000 · 0 selected Row 0",
+            "bottom Showing 200 of 1,000 · 0 selected true",
+            "again Showing 300 of 1,000 · 0 selected",
+            "middle true true",
+            "home Row 0",
+            "end Row 299",
+            "select loaded true true",
+            "state true Row 499 true",
+            "fewer Row 2,Row 1,Row 0 0px",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Rows from `url`: batches as the table scrolls, the query sent to the server, a
+/// new sort starting over, server pages with the total, and a failed load retried.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_remote_rows_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let target = request.split_whitespace().nth(1).unwrap_or("").to_string();
+            let query: std::collections::HashMap<String, String> = target
+                .split_once('?')
+                .map(|(_, q)| q.split('&').filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_string(), v.replace("%2C", ",").replace('+', " "))).collect())
+                .unwrap_or_default();
+            seen.lock().unwrap().push(target.split_once('?').map_or(String::new(), |(_, q)| q.to_string()));
+            let num = |k: &str, d: usize| query.get(k).and_then(|v| v.parse().ok()).unwrap_or(d);
+            let (offset, limit) = (num("offset", 0), num("limit", 1000));
+            let desc = query.get("sort").is_some_and(|s| s == "-n");
+            let (status, body) = if query.get("fail").is_some_and(|f| f == "1") {
+                ("500 Internal Server Error", "{}".to_string())
+            } else {
+                let mut all: Vec<usize> = (0..65).collect();
+                if desc {
+                    all.reverse();
+                }
+                let rows: Vec<_> = all.iter().skip(offset).take(limit).map(|i| serde_json::json!({ "id": i, "n": i })).collect();
+                ("200 OK", serde_json::json!({ "rows": rows, "total": 65 }).to_string())
+            };
+            let _ = write!(
+                stream,
+                "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    let url = format!("http://127.0.0.1:{port}/rows");
+    let cols = serde_json::json!([{ "field": "n", "label": "N" }]);
+    let doc = serde_json::json!({ "version": 1, "state": { "fail": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-table", "props": { "id": "scroll", "url": url, "paging": "scroll", "pageSize": 20, "height": 240,
+                "params": { "fail": "{{ fail }}" }, "columns": cols } },
+            { "type": "ui-data-table", "props": { "id": "pages", "url": url, "paging": "pages", "pageSize": 30, "pageSizes": [], "columns": cols } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 100 && !f(); i++) await wait(20); };
+      const root = document.querySelector("[data-i-root]");
+      const T = (id) => document.getElementById(id);
+      const rows = (t) => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
+      const st = (t) => t.querySelector("[data-dt-status]").textContent;
+      const idle = (t) => until(() => !t.hasAttribute("data-loading"));
+      const scroll = async (t) => { const s = t.querySelector("[data-dt-scroll]"); s.scrollTop = 1e6; s.dispatchEvent(new Event("scroll")); await wait(30); await idle(t); };
+      try {
+        const sc = T("scroll"), pg = T("pages");
+        await idle(sc); await idle(pg);
+        log("first", rows(sc).length, st(sc));
+        await scroll(sc); log("second", rows(sc).length, st(sc));
+        await scroll(sc); await scroll(sc);
+        log("all", rows(sc).length, st(sc), sc.querySelector("[data-dt-more]").hidden);
+        sc.querySelector("[data-dt-sort=n]").click(); await wait(30); await idle(sc);
+        sc.querySelector("[data-dt-sort=n]").click(); await wait(30); await idle(sc);
+        log("desc", rows(sc).length, rows(sc)[0].textContent, st(sc), sc.querySelector("[data-dt-scroll]").scrollTop);
+        root.__irender.set("fail", 1); await wait(300); await idle(sc);
+        log("failed", rows(sc).length, sc.querySelector("[data-dt-retry]").hidden, sc.querySelector("[data-dt-empty]").textContent);
+        root.__irender.set("fail", null); await wait(300); await idle(sc);
+        log("recovered", rows(sc).length, st(sc));
+
+        log("pages", rows(pg).length, st(pg), pg.querySelector("[data-dt-page]").textContent);
+        pg.querySelector("[data-dt-go=last]").click(); await wait(30); await idle(pg);
+        log("last", rows(pg).length, rows(pg)[0].textContent, st(pg), pg.querySelector("[data-dt-go=next]").disabled);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-remote", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "first 20 Showing 20 of 65",
+            "second 40 Showing 40 of 65",
+            "all 65 Showing 65 of 65 true",
+            // Ascending, then descending: each starts over from the first batch, at the top.
+            "desc 20 64 Showing 20 of 65 0",
+            "failed 0 false Couldn't load rows.",
+            "recovered 20 Showing 20 of 65",
+            "pages 30 Rows 1–30 of 65 Page 1 of 3",
+            "last 5 60 Rows 61–65 of 65 true",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    assert!(log.iter().any(|q| q == "offset=20&limit=20"), "{log:?}");
+    assert!(log.iter().any(|q| q.contains("sort=-n")), "{log:?}");
+}
+
+/// Nested rows (children arrays, children loaded on demand, and flat rows with a
+/// parent field) and pinned columns.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_tree_and_pinned_columns_in_chrome() {
+    use std::io::{Read, Write};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let parent = request.split("parent=").nth(1).and_then(|p| p.split(['&', ' ']).next()).unwrap_or("").to_string();
+            let rows: Vec<_> = (1..=3).map(|i| serde_json::json!({ "id": format!("{parent}.{i}"), "name": format!("Loaded {i}"), "v": i })).collect();
+            let body = serde_json::to_string(&rows).unwrap();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    let wide: Vec<_> = (0..10).map(|i| serde_json::json!({ "field": format!("m{i}"), "label": format!("Month {i}"), "width": 120 })).collect();
+    let mut columns = vec![serde_json::json!({ "field": "name", "label": "Name", "pin": "left", "width": 200 })];
+    columns.extend(wide);
+    columns.push(serde_json::json!({ "field": "v", "label": "Total", "pin": "right", "summary": "sum" }));
+    let nested = serde_json::json!([
+        { "id": "a", "name": "Alpha", "v": 10, "children": [
+            { "id": "a1", "name": "Alpha one", "v": 4 },
+            { "id": "a2", "name": "Alpha two", "v": 6, "children": [{ "id": "a2x", "name": "Deep", "v": 6 }] } ] },
+        { "id": "b", "name": "Beta", "v": 5, "children": true },
+        { "id": "c", "name": "Gamma", "v": 1 }
+    ]);
+    let flat = serde_json::json!([
+        { "id": 1, "name": "CEO" }, { "id": 2, "name": "CTO", "boss": 1 }, { "id": 3, "name": "Engineer", "boss": 2 },
+        { "id": 4, "name": "CFO", "boss": 1 }, { "id": 5, "name": "Accountant", "boss": 4 }
+    ]);
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "stack", "style": { "width": 700 }, "children": [
+            { "type": "ui-data-table", "props": { "id": "tree", "rows": nested, "selectable": true, "pageSize": 0,
+                "childrenUrl": format!("http://127.0.0.1:{port}/kids"), "columns": columns } },
+            { "type": "ui-data-table", "props": { "id": "flat", "rows": flat, "parentField": "boss", "expanded": true, "search": true, "pageSize": 0,
+                "columns": [{ "field": "name" }] } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const T = (id) => document.getElementById(id);
+      const rows = (t) => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
+      const view = (t) => rows(t).map((r) => "  ".repeat(Number(r.getAttribute("aria-level")) - 1) + r.querySelector("[data-dt-col=name]").textContent.trim() + (r.getAttribute("aria-expanded") === "true" ? "-" : r.hasAttribute("aria-expanded") ? "+" : "")).join(" | ");
+      const key = (el, k) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+      try {
+        await wait(50);
+        const t = T("tree");
+        log("roles", t.querySelector("table").getAttribute("role"));
+        log("start", view(t));
+        rows(t)[0].querySelector("[data-dt-twisty]").click(); await wait(10);
+        log("open alpha", view(t));
+        const two = rows(t).find((r) => r.textContent.includes("Alpha two"));
+        two.focus(); key(two, "ArrowRight"); await wait(10);
+        log("right", view(t), document.activeElement.textContent.includes("Alpha two"));
+        key(document.activeElement, "ArrowRight"); await wait(10);
+        log("into", document.activeElement.querySelector("[data-dt-col=name]").textContent.trim());
+        key(document.activeElement, "ArrowLeft"); await wait(10);
+        log("to parent", document.activeElement.querySelector("[data-dt-col=name]").textContent.trim());
+        t.querySelector("[data-dt-sort=name]").click(); t.querySelector("[data-dt-sort=name]").click(); await wait(10);
+        log("desc", view(t));
+        rows(t).find((r) => r.textContent.includes("Beta")).querySelector("[data-dt-twisty]").click();
+        await wait(300);
+        log("lazy", view(t));
+        log("sum", t.querySelector("[data-dt-sum]").textContent);
+        // Pinned columns: scroll sideways; Name stays at the left edge, Total at the right.
+        const sc = t.querySelector("[data-dt-scroll]");
+        const name = () => t.querySelector("[data-dt-body] [data-dt-col=name]").getBoundingClientRect();
+        const total = () => t.querySelector("[data-dt-body] [data-dt-col=v]").getBoundingClientRect();
+        const box = t.querySelector("[data-dt-body] [data-dt-box]").getBoundingClientRect();
+        const before = [name().left, total().right];
+        sc.scrollLeft = 400; await wait(30);
+        const edge = sc.getBoundingClientRect();
+        log("pinned", sc.scrollWidth > sc.clientWidth, name().left === before[0], Math.round(name().left - box.right) === 0, Math.abs(total().right - (edge.left + sc.clientWidth + 1)) <= 2,
+          t.querySelector("[data-dt-body] [data-dt-col=name]").getAttribute("data-pin-edge"), t.querySelector("[data-dt-body] [data-dt-col=v]").getAttribute("data-pin-edge"));
+        log("unpinned moved", t.querySelector("[data-dt-body] [data-dt-col=m0]").getBoundingClientRect().left < before[0]);
+
+        const f = T("flat");
+        log("flat", view(f));
+        const s = f.querySelector("[data-dt-search]"); s.value = "account"; s.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        log("search", view(f));
+        s.value = ""; s.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        rows(f)[0].querySelector("[data-dt-twisty]").click(); await wait(10);
+        log("closed", view(f));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-tree", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "roles treegrid",
+            "start Alpha+ | Beta+ | Gamma",
+            "open alpha Alpha- |   Alpha one |   Alpha two+ | Beta+ | Gamma",
+            "right Alpha- |   Alpha one |   Alpha two- |     Deep | Beta+ | Gamma true",
+            "into Deep",
+            "to parent Alpha two",
+            // Siblings sort among themselves, under their parents.
+            "desc Gamma | Beta+ | Alpha- |   Alpha two- |     Deep |   Alpha one",
+            "lazy Gamma | Beta- |   Loaded 3 |   Loaded 2 |   Loaded 1 | Alpha- |   Alpha two- |     Deep |   Alpha one",
+            // Only the top rows are added up.
+            "sum 16",
+            "pinned true true true true left right",
+            "unpinned moved true",
+            "flat CEO- |   CTO- |     Engineer |   CFO- |     Accountant",
+            // A match shows with the rows above it.
+            "search CEO- |   CFO- |     Accountant",
+            "closed CEO+",
+        ],
+        "\n{result}"
+    );
+}

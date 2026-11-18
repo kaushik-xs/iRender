@@ -1,0 +1,171 @@
+# Block: an orders table wired to charts, both ways.
+# - The charts above draw the rows the table shows: the table writes them to `view`
+#   (`bindView`) after its filters and search, so filtering the table redraws them.
+# - Clicking a region's bar filters the table (`bind: region` on the chart, `filter`
+#   on the table), and clicking it again clears it.
+# - Cells hold charts too: a sparkline per row (`cell: sparkline`), and each row opens
+#   a line chart of its weeks (`ui-data-table-detail`).
+# - Selecting rows draws them side by side, and the bulk actions hand them to the host.
+# Formats (currency, percent, dates), range and date filters and summary rows are the
+# column props; see the README's `ui-data-table` section.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-02.yaml \
+#     --data examples/blocks/data-table-02.data.json --ui-kit --chart-kit --icon-kit -o data-table-02.html
+version: 1
+state:
+  view: []
+  region: null
+  picked: []
+  toast: null
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1240px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, align: end, gap: 12 }
+      style: { flex-wrap: wrap }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Orders } }
+            - { type: ui-text, props: { variant: muted, text: "Filter the table and the charts follow; click a region's bar to filter the table." } }
+        - type: if
+          props: { when: "{{ region }}" }
+          children:
+            - type: ui-button
+              props: { label: "Region: {{ region }} ✕", variant: secondary, size: sm }
+              attrs: { aria-label: "Clear the region filter ({{ region }})" }
+              style: { margin-left: auto }
+              on: { click: { action: set_state, key: region, value: null } }
+
+    # ---------------------------------------------------------------- charts of the view
+    - type: element
+      style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }
+      children:
+        - type: ui-card
+          props: { title: Revenue by region, description: Click a bar to filter the table }
+          children:
+            - type: ui-chart
+              props:
+                type: bar
+                data: "{{ view }}"
+                x: region
+                y: amount
+                aggregate: sum
+                sort: -amount
+                bind: region
+                height: 220
+                option: { yAxis: { axisLabel: { formatter: "${value}" } } }
+        - type: ui-card
+          props: { title: Revenue by month, description: The rows that pass the filters }
+          children:
+            - { type: ui-chart, props: { type: area, data: "{{ view }}", x: month, y: amount, aggregate: sum, sort: month, smooth: true, height: 220 } }
+        - type: ui-card
+          props: { title: Orders by status }
+          children:
+            - { type: ui-chart, props: { type: donut, data: "{{ view }}", x: status, aggregate: count, height: 220 } }
+
+    # ---------------------------------------------------------------- the table
+    - type: ui-data-table
+      props:
+        rows: "{{ orders }}"
+        title: Orders
+        rowKey: id
+        search: Search orders…
+        searchFields: [id, customer, country, product]
+        sort: -date
+        filter: { region: "{{ region }}" }
+        bindView: view
+        selectable: true
+        bindSelection: picked
+        pageSize: 8
+        pageSizes: [8, 16, 32]
+        locale: en-US
+      children:
+        - { type: ui-data-table-column, props: { field: id, label: Order, hideable: false } }
+        - { type: ui-data-table-column, props: { field: date, label: Date, format: date, filter: date } }
+        - type: ui-data-table-column
+          props: { field: customer, label: Customer }
+          children:
+            - type: stack
+              props: { gap: 0 }
+              children:
+                - { type: element, props: { tag: span }, style: { font-weight: 500 }, children: [ { type: text, props: { value: "{{ row.customer }}" } } ] }
+                - { type: element, props: { tag: span }, style: { font-size: 12, color: $color.muted }, children: [ { type: text, props: { value: "{{ row.country }}" } } ] }
+        - { type: ui-data-table-column, props: { field: region, label: Region, filter: select } }
+        - { type: ui-data-table-column, props: { field: product, label: Product, filter: select } }
+        - { type: ui-data-table-column, props: { field: channel, label: Channel, filter: select, hidden: true } }
+        - { type: ui-data-table-column, props: { field: units, label: Units, format: number, summary: sum, hidden: true } }
+        - { type: ui-data-table-column, props: { field: amount, label: Amount, format: currency, currency: USD, filter: range, summary: sum } }
+        - { type: ui-data-table-column, props: { field: margin, label: Margin, format: percent, decimals: 1, summary: avg } }
+        - type: ui-data-table-column
+          props:
+            field: status
+            label: Status
+            filter: select
+            cell: badge
+            tones: { Paid: success, Pending: warning, Refunded: secondary, Failed: destructive }
+        - { type: ui-data-table-column, props: { field: fulfilled, label: Fulfilled, cell: progress } }
+        - { type: ui-data-table-column, props: { field: trend, label: 12 weeks, cell: sparkline, sortable: false } }
+
+        # Under a row when its arrow is opened (or with → on the focused row).
+        - type: ui-data-table-detail
+          children:
+            - type: element
+              style: { display: grid, grid-template-columns: "minmax(180px, 240px) 1fr", gap: 24, align-items: center }
+              children:
+                - type: stack
+                  props: { gap: 6 }
+                  children:
+                    - { type: ui-heading, props: { level: 4, text: "{{ row.id }} · {{ row.customer }}" } }
+                    - { type: ui-text, props: { variant: muted, text: "{{ row.units }} × {{ row.product }} via {{ row.channel }}, shipped to {{ row.country }}." } }
+                    - type: stack
+                      props: { direction: row, gap: 8 }
+                      children:
+                        - { type: ui-button, props: { label: Open order, size: sm }, on: { click: { action: call, name: open, args: { id: "{{ row.id }}" } } } }
+                        - { type: ui-button, props: { label: Email customer, size: sm, variant: outline }, on: { click: { action: set_state, key: toast, value: { title: "Email drafted to {{ row.customer }}" } } } }
+                - type: ui-chart
+                  props: { type: line, data: "{{ row.history }}", x: week, y: amount, smooth: true, height: 160, title: "Weekly revenue for {{ row.id }}" }
+
+        - type: ui-data-table-bulk
+          children:
+            - type: ui-button
+              props: { label: Export, size: sm, variant: outline }
+              on:
+                click:
+                  - { action: call, name: export, args: { ids: "{{ picked }}" } }
+                  - { action: set_state, key: toast, value: { title: "Exporting {{ picked.length }} orders", description: Your CSV is on its way. } }
+            - type: ui-button
+              props: { label: Refund, size: sm, variant: destructive }
+              on:
+                click:
+                  - { action: call, name: refund, args: { ids: "{{ picked }}" } }
+                  - { action: set_state, key: toast, value: { title: "Refund requested for {{ picked.length }} orders" } }
+                  - { action: set_state, key: picked, value: [] }
+
+    # ---------------------------------------------------------------- the selection, compared
+    - type: if
+      props: { when: "{{ picked.length > 0 }}" }
+      children:
+        - type: ui-card
+          props: { title: Selected orders, description: "The rows you picked that pass the filters" }
+          children:
+            - type: ui-chart
+              props:
+                type: bar
+                data: "{{ view }}"
+                filter: { id: "{{ picked }}" }
+                x: id
+                y: [{ field: amount, name: Amount }]
+                sort: -amount
+                height: 240
+
+    - { type: ui-toaster, props: { bind: toast } }

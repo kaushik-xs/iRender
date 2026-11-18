@@ -701,7 +701,8 @@ impl<'a> RenderCx<'a> {
     ///
     /// ```js
     /// (window.__irenderBehaviors ||= {})["name"] = (el, api) => {
-    ///   // api.config, api.state, api.set(key, value), api.emit(event, detail)
+    ///   // api.config, api.state, api.set(key, value), api.emit(event, detail),
+    ///   // api.list(listEl, items, offset) to supply a list's items itself
     ///   return { update(state) { /* after every state change */ } };
     /// };
     /// ```

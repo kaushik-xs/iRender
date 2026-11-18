@@ -1,0 +1,135 @@
+# Block: a task list in the style of shadcn/ui's tasks example, built on `ui-data-table`.
+# A search box and faceted filters (status, priority, label) over the rows, sorting on
+# the headers (Shift-click adds a column), a View menu that hides columns, paging, and
+# row selection with bulk actions. Rows come from data-table-01.data.json; the
+# selection is state, so the bulk actions read it and hand it to the host with `call`.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-01.yaml \
+#     --data examples/blocks/data-table-01.data.json --ui-kit --icon-kit -o data-table-01.html
+version: 1
+state:
+  picked: []
+  toast: null
+root:
+  type: stack
+  props: { gap: 24 }
+  style:
+    max-width: 1100px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Welcome back! } }
+        - { type: ui-text, props: { variant: muted, text: "Here's a list of your tasks for this quarter." } }
+
+    - type: ui-data-table
+      props:
+        rows: "{{ tasks }}"
+        title: Tasks
+        search: Filter tasks…
+        searchFields: [id, title, assignee]
+        sort: -priorityRank
+        selectable: true
+        bindSelection: picked
+        pageSize: 10
+      children:
+        - type: ui-data-table-column
+          props: { field: id, label: Task, width: 110, hideable: false }
+          children:
+            - { type: element, props: { tag: span }, style: { font-family: "ui-monospace, SFMono-Regular, Menlo, monospace", font-size: 13 }, children: [ { type: text, props: { value: "{{ row.id }}" } } ] }
+        - type: ui-data-table-column
+          props: { field: title, label: Title }
+          children:
+            - type: element
+              style: { display: flex, align-items: center, gap: 8, max-width: 420 }
+              children:
+                - { type: ui-badge, props: { text: "{{ row.label }}", variant: outline } }
+                - { type: element, props: { tag: span }, style: { overflow: hidden, text-overflow: ellipsis, white-space: nowrap, font-weight: 500 }, children: [ { type: text, props: { value: "{{ row.title }}" } } ] }
+        - type: ui-data-table-column
+          props: { field: label, label: Label, filter: select, hidden: true }
+        - type: ui-data-table-column
+          props:
+            field: status
+            label: Status
+            filter: select
+            options: [Backlog, Todo, In Progress, Done, Canceled]
+            cell: badge
+            tones: { Backlog: outline, Todo: secondary, In Progress: info, Done: success, Canceled: destructive }
+        - type: ui-data-table-column
+          props: { field: priority, label: Priority, sortField: priorityRank, filter: select, options: [High, Medium, Low] }
+          children:
+            - type: element
+              style: { display: flex, align-items: center, gap: 6 }
+              children:
+                - type: if
+                  props: { when: "{{ row.priority == 'High' }}" }
+                  children: [ { type: ui-icon, props: { name: arrow-up, size: 16 }, style: { color: $color.destructive } } ]
+                - type: else
+                  props: { when: "{{ row.priority == 'Medium' }}" }
+                  children: [ { type: ui-icon, props: { name: arrow-right, size: 16 }, style: { color: $color.muted } } ]
+                - type: else
+                  children: [ { type: ui-icon, props: { name: arrow-down, size: 16 }, style: { color: $color.muted } } ]
+                - { type: text, props: { value: "{{ row.priority }}" } }
+        - type: ui-data-table-column
+          props: { field: assignee, label: Assignee, filter: select }
+        - type: ui-data-table-column
+          props: { field: due, label: Due, format: date }
+        - type: ui-data-table-column
+          props: { field: progress, label: Progress, cell: progress, width: 160 }
+        - type: ui-data-table-column
+          props: { field: estimate, label: Points, format: number, summary: sum }
+        - type: ui-data-table-column
+          props: { id: actions, label: "", sortable: false, hideable: false, width: 48 }
+          children:
+            - type: ui-dropdown-menu
+              props: { trigger: "⋯", triggerVariant: ghost, align: end, id: "task-menu-{{ row.id }}" }
+              parts: { trigger: { attrs: { aria-label: "Actions for {{ row.id }}" }, style: { width: 32, height: 32, padding: 0 } } }
+              children:
+                - { type: ui-menu-item, props: { label: Edit }, on: { click: { action: call, name: edit, args: { id: "{{ row.id }}" } } } }
+                - { type: ui-menu-item, props: { label: Make a copy }, on: { click: { action: set_state, key: toast, value: { title: "Copied {{ row.id }}" } } } }
+                - { type: ui-menu-separator }
+                - { type: ui-menu-item, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: delete, args: { ids: ["{{ row.id }}"] } } } }
+
+        # Next to the View menu.
+        - type: ui-data-table-toolbar
+          children:
+            - type: ui-button
+              props: { label: Add task, icon: add, size: sm }
+              on: { click: { action: set_state, key: toast, value: { title: New task, description: A blank task was added to Todo. } } }
+
+        # Shown while rows are selected; `picked` holds their ids.
+        - type: ui-data-table-bulk
+          children:
+            - type: ui-button
+              props: { label: Mark done, size: sm, variant: outline }
+              on:
+                click:
+                  - { action: call, name: complete, args: { ids: "{{ picked }}" } }
+                  - { action: set_state, key: toast, value: { title: "Marked {{ picked.length }} done" } }
+                  - { action: set_state, key: picked, value: [] }
+            - type: ui-alert-dialog
+              props:
+                id: delete-tasks
+                trigger: Delete
+                triggerVariant: destructive
+                title: "Delete {{ picked.length }} tasks?"
+                description: This removes them from the board. It cannot be undone.
+              parts: { trigger: { style: { height: 32, padding: 0 12px } } }
+              children:
+                - type: ui-dialog-footer
+                  children:
+                    - { type: ui-dialog-close, props: { label: Cancel, variant: outline } }
+                    - type: ui-dialog-close
+                      props: { label: Delete, variant: destructive }
+                      on:
+                        click:
+                          - { action: call, name: delete, args: { ids: "{{ picked }}" } }
+                          - { action: set_state, key: toast, value: { title: "Deleted {{ picked.length }} tasks" } }
+                          - { action: set_state, key: picked, value: [] }
+
+    - { type: ui-toaster, props: { bind: toast } }

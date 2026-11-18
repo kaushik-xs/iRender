@@ -49,6 +49,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-progress` | `value` (0–100) | Updates live when `value` uses state, and is clamped to 0–100 in CSS. |
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
+| `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
 | `ui-text` | `text`, `variant` (p, lead, large, small, muted, code, blockquote), `tag` | Takes children, e.g. inline `code`. |
@@ -89,10 +90,11 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 
-| `ui-conversation` | `messages`, `typing`, `assistant`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
-| `ui-message` | `role` (assistant, user, system), `content`, `name`, `time`, `avatar`, `initials`, `replies`, `open` | One message bubble, with an optional thread. Children go in the bubble. |
-| `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
+| `ui-conversation` | `messages`, `typing`, `assistant`, `render`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
+| `ui-message` | `role` (assistant, user, system), `content`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
+| `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
+| `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time; a button hides at its end. Parts: `track`, `previous`, `next`. |
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
@@ -177,13 +179,13 @@ Components read the theme's colour tokens. Tokens the default theme doesn't have
 - **Picking:** `ui-theme-option` shows one button per choice; `swatch` names a token shown as a colour dot, or a list of them: `ui-theme-panel` shows a chart scheme's first four colours. A choice is kept in `localStorage` (`irender-theme-options`) and applied before the page shows on every page rendered with the kit, like `ui-theme-toggle`'s mode. Picking the default clears it. Pages already open follow at once, other tabs and pages in iframes included, so a picker on one page restyles the rest.
 - **A Theme button:** `{ type: ui-popover, props: { trigger: Theme }, children: [ { type: ui-theme-panel } ] }` gives every option and the mode, including ones the document adds. The examples index, the blocks page and the dashboard block have one.
 - **Scales:** the kit's paddings, gaps, margins and control heights are `calc(Npx * var(--space-scale, 1))`, and its font sizes `calc(Npx * var(--font-scale, 1))`, so density and text size reach every component. Use the same tokens in your own styles to follow them: `padding: "calc(16px * var(--space-scale, 1))"`.
-- **Custom colours:** `ui-theme-colors` takes a primary and a second brand colour as hex (`#rgb` or `#rrggbb`, nothing else), typed or picked. They're kept in `localStorage` (`irender-theme-custom`) and set on `<html>` while the palette's `custom` choice is picked, with a hover shade, a ring and dark or light text on them (whichever reads better) derived from each. The chart kit's `custom` chart colours are built from the same two. In script: `window.__irenderTheme.custom()` and `.setCustom("primary", "#1e3a8a")`.
+- **Custom colours:** `ui-theme-colors` takes a primary and a second brand colour as hex (`#rgb` or `#rrggbb`, nothing else), typed or picked. They're kept in `localStorage` (`irender-theme-custom`) and set on `<html>` while the palette's `custom` choice is picked, with a hover shade, a ring and dark or light text on them (whichever reads better) derived from each. The chart kit's `custom` chart colours are built from the same two, and setting a colour picks them too unless a chart scheme was picked by hand; Reset puts both back. In script: `window.__irenderTheme.custom()` and `.setCustom("primary", "#1e3a8a")`.
 - **Your own:** add choices to an option (`theme.options.palette.choices.brand`) or options of your own (`theme.options.shadow`); `ui-theme-option` picks those too. The [theme block](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/theme.yaml) does both.
 - **In script:** `window.__irenderTheme.option("palette")` and `.setOption("palette", "rose")`; changes fire `irender:theme-option`.
 
 ## Combobox
 
-`ui-combobox` is a searchable select modelled on [react-select](https://react-select.com/). Its behaviour (about 4 KB gzipped) is added only to pages that use it.
+`ui-combobox` is a searchable select modelled on [react-select](https://react-select.com/). Its behaviour (about 4 KB gzipped) is added only to pages that use it. It takes the theme's primary colour: the focus ring, the chosen values' chips, the highlighted option, the ✓ on chosen options, the spinner and "Create …" follow the palette, custom colours included.
 
 ```yaml
 - type: ui-combobox
@@ -229,9 +231,124 @@ Not replicated:
 - Values that are whole option objects: values are plain values, and their labels come from the options.
 - `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
 
+## Data table
+
+`ui-data-table` shows an array of rows with the controls of shadcn/ui's data table: sorting, column filters, search, paging, row selection with bulk actions, expandable detail rows, a View menu that shows and hides columns, and summary rows. It also pages, loads more or scrolls infinitely, loads rows from an API in batches, keeps long tables fast by drawing only the rows in view, nests rows inside rows (loading children when they're opened) and pins columns while the rest scroll sideways. Its behaviour (about 13 KB gzipped) is added only to pages that use it. The blocks [`data-table-01`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-01.yaml) (tasks), [`data-table-02`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-02.yaml) (orders wired to charts), [`data-table-03`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-03.yaml) (inventory from plain column objects), [`data-table-04`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-04.yaml) (5,000 rows from an API: infinite scroll, Load more and server pages) and [`data-table-05`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-05.yaml) (a budget tree with pinned columns, and an org chart from flat rows) show each feature.
+
+```yaml
+- type: ui-data-table
+  props: { rows: "{{ orders }}", search: true, sort: -date, selectable: true, bindSelection: picked, pageSize: 10 }
+  children:
+    - { type: ui-data-table-column, props: { field: id, label: Order } }
+    - { type: ui-data-table-column, props: { field: date, format: date, filter: date } }
+    - { type: ui-data-table-column, props: { field: amount, format: currency, currency: EUR, filter: range, summary: sum } }
+    - type: ui-data-table-column
+      props: { field: status, filter: select, cell: badge, tones: { Paid: success, Failed: destructive } }
+    - type: ui-data-table-column
+      props: { id: actions, label: "" }
+      children:                                  # a cell template: the row is `row`
+        - { type: ui-button, props: { label: Open, size: sm }, on: { click: { action: call, name: open, args: { id: "{{ row.id }}" } } } }
+    - type: ui-data-table-bulk                   # shown while rows are selected
+      children:
+        - { type: ui-button, props: { label: Delete, size: sm, variant: destructive }, on: { click: { action: call, name: delete, args: { ids: "{{ picked }}" } } } }
+```
+
+**Children.** `ui-data-table-column` is a column; its children, if any, draw each cell with the row in scope as `row` (and its position in `rows` as `rowIndex`). `ui-data-table-toolbar` adds controls to the toolbar, before the View menu. `ui-data-table-bulk` holds actions shown while rows are selected, next to "N selected", "Select all N" and "Clear selection". `ui-data-table-detail` is drawn under a row when its arrow is opened. Tables without cell templates can list their columns as objects in `columns` instead.
+
+| table prop | |
+|---|---|
+| `rows` | Objects, from data or state. Rows from state are rebuilt when the array changes, and keep the table's sort, filters, page and selection. |
+| `url`, `params` | Rows from an API instead of `rows`; see [Paging and loading](#paging-and-loading). |
+| `paging` | `pages` (default), `more`, `scroll` or `none`; see [Paging and loading](#paging-and-loading). |
+| `virtual`, `rowHeight` | Draw only the rows in view; see [Paging and loading](#paging-and-loading). |
+| `childrenField`, `parentField`, `childrenUrl`, `expanded` | Rows inside rows; see [Nested rows](#nested-rows). |
+| `columns` | Column objects with the column props below, for columns without templates. |
+| `rowKey` | The field that identifies a row in the selection and the open details (default `id`; its position when a row has none). |
+| `selectable` | A checkbox per row and one in the header for the rows on the page. Shift-click selects a run of rows. Implied by `ui-data-table-bulk`. |
+| `search` | A search box: `true`, or its placeholder. Every word must appear in one of `searchFields` (default: the columns' fields), ignoring case and accents. |
+| `sort` | Where it starts: `field`, `-field` for descending, or a list. Clicking a header sorts ascending, then descending, then not at all; Shift-click adds the column to the sort. Blank values go last either way. |
+| `filter` | Conditions from outside the table, e.g. `{ region: "{{ region }}" }` from a chart's `bind` or a toggle. |
+| `pageSize`, `pageSizes` | Rows per page, or per batch with `more` and `scroll` (default 10; `0` shows every row), and the choices offered with `pages` (default `[10, 20, 50, 100]`; `[]` hides the menu). |
+| `columnsMenu` | The View menu (default true). |
+| `height` | Most the table grows to; past it the rows scroll under a header that stays put. |
+| `striped`, `loading`, `title`, `emptyText`, `locale` | Shade every other row; dim it while `loading` is true; the table's accessible name; the empty message (default `No results.`); the locale for formatted values. |
+| `bindSelection`, `bindSort`, `bindFilters`, `bindSearch`, `bindPage` | State keys for the selection (a list of row keys), the sort, the column filters, the search text and the page, both ways. |
+| `bindView` | A state key that gets the rows that pass the filters and search, sorted, every page. Give it to a chart's `data` to chart what the table shows. |
+| `bindRow` | A state key that gets the row last clicked, or opened with Enter. Rows then show a pointer. |
+
+| column prop | |
+|---|---|
+| `field` | The row field shown, sorted, filtered and searched: `amount`, or a path such as `customer.name`. Without a cell template, the cell is the value. |
+| `label`, `width`, `align` | The header, the column's width, and `left`, `center` or `right` (default: right for number formats). |
+| `sortable`, `sortField` | Whether the header sorts (default: when there's a field or `sortField`), and a field to sort by instead, such as a rank behind a label. |
+| `filter` | A filter button in the toolbar: `select` (checkboxes with counts; choices from `options` or the column's values; list-valued fields such as tags match on any value), `text` (contains), `range` (min and max) or `date` (from and to). |
+| `format`, `currency`, `decimals` | `number`, `currency`, `percent` (0.25 is 25%), `date` or `datetime`, formatted in the browser with `Intl` in `locale`. Plain dates (`2026-03-01`) show the same day in every time zone. |
+| `cell`, `tones` | Draw the value as a `badge` (with a tone per value: default, secondary, outline, success, warning, destructive, info), a `progress` bar (0–100) or a `sparkline` of a list of numbers (needs the chart kit). |
+| `summary` | A footer cell: `sum`, `avg`, `min`, `max` or `count` of the rows that pass the filters. |
+| `pin` | `left` or `right`: the column stays in view while the rest scroll sideways. The checkbox and arrow columns stay with the left ones, and a shadow marks where pinned columns end. |
+| `tree` | The column that shows nesting, indented with the arrow that opens a row (default: the first column, in a table with nested rows). |
+| `hideable`, `hidden` | Listed in the View menu (default true), and hidden to start with. |
+| `id` | The column's key when it has no field. |
+
+### Paging and loading
+
+`paging` picks how rows past the first `pageSize` are reached:
+
+| `paging` | |
+|---|---|
+| `pages` | The default: a pager with rows per page, and Page Up / Page Down on a focused row. |
+| `more` | A Load more button under the rows adds the next batch. |
+| `scroll` | Infinite scroll: the next batch comes as the end of the rows nears the bottom of the table (with `height`) or of the window. |
+| `none` | Every row at once. Also what `pageSize: 0` means. |
+
+With `more` and `scroll`, new filters, a search or a sort start again from the first batch, at the top, and the footer says how many rows show (`Showing 40 of 96`).
+
+**From an API.** Give `url` instead of `rows`, and the table asks for rows a batch at a time: `GET <url>?offset=40&limit=20&sort=-date,id&q=text&filters={…}`, answering `{ rows, total }` or a plain array. `sort` lists fields, `-` for descending; `filters` is the column filters and `filter` as JSON, in the [filter conditions](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-chart-kit/README.md#filters-and-grouping) below. `params` adds query parameters, and may use state, so a control can narrow what the server sends. The server sorts, searches and filters, and any change asks again from the first batch, after a pause while typing; answers to an older query are dropped.
+- With `pages`, each page is one request, and the total gives the page count. Without a total, the pager goes on until a short page comes back.
+- With `more` and `scroll`, batches add up. Without a total, a short batch is the last.
+- A failed request shows a Retry button.
+- A select filter's choices come from `options`, or the rows loaded so far; summaries and `bindView` cover the rows loaded so far.
+- `url` must be a path or an http(s) URL, as `ui-combobox`'s `searchUrl`.
+
+**Virtual.** With `virtual`, only the rows in view (and a few either side) are in the page, with space above and below standing in for the rest, so a table of thousands of rows scrolls smoothly. It scrolls inside `height` (default 480). Rows of different heights work: the table measures the rows it draws, starting from `rowHeight` (default 41). Arrow keys, Home and End reach rows that aren't drawn yet. It works with every `paging`, rows from `rows` or `url`, and nested rows; with `scroll` it's the usual infinite list.
+
+### Nested rows
+
+Rows can hold rows. The tree column (`tree: true`, or the first) indents each row by its depth, behind an arrow that opens it, and the table is a WAI-ARIA tree grid (`aria-level`, `aria-expanded`).
+- **Children in the row:** a `children` array (another field with `childrenField`). Rows from state that start out empty need `childrenField` or a `tree` column to say they nest.
+- **Flat rows:** `parentField: parentId` builds the tree from rows that name their parent's key. A row whose parent isn't there is a top row.
+- **Loaded when opened:** a row with `children: true` (or `hasChildren: true`) gets its children from `childrenUrl` the first time it's opened: `GET <childrenUrl>?parent=<key>&sort=…`, answering an array or `{ rows }`. The arrow dims while they load; if they don't, the row closes again and opening it retries.
+
+`expanded: true` opens every row to start with. Siblings sort among themselves under their parent. A search or filter shows the rows that match with the rows above them, opened. Summaries add up the top rows only, so nothing counts twice. Give rows a `rowKey`: it identifies them when they open, load and are selected.
+
+On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent. The other keys work as in any table.
+
+### Filters
+
+**Filters** use the chart kit's [`filter` conditions](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-chart-kit/README.md#filters-and-grouping): `bindFilters` holds `{ status: [Paid, Pending], amount: { from: 100 }, date: { to: "2026-03-31" } }`, and the same object filters a chart. Two differences: a list-valued field matches when any of its values does, and a plain date as `to` takes in the whole day.
+
+### Charts
+
+Charts and the table work together in three ways, all in the [`data-table-02`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-02.yaml) block:
+- In cells: `cell: sparkline`, or any `ui-chart` or `ui-sparkline` in a cell template or in `ui-data-table-detail`. Charts in hidden rows start when they're first shown.
+- From the table: `bindView` gives charts the rows the table shows, so its filters and search redraw them.
+- Into the table: a chart's `bind` (the clicked bar) in the table's `filter`.
+
+### Keyboard, events and how it works
+
+**Keyboard.** With `selectable`, `bindRow`, a detail row or nested rows, the rows are one stop in the tab order:
+- Up and Down move between rows, Home and End jump, and Page Up and Page Down change page.
+- Space selects the focused row. Enter opens it (`bindRow`) or its details, and Right and Left open and close its details (in a table with nested rows, the row itself).
+- Escape in the search box clears it.
+- The headers' sort buttons, the checkboxes and the toolbar are ordinary buttons and inputs, and `aria-sort` marks the sorted column.
+
+**Events.** The table fires bubbling `rowclick` (`detail.row`) and `select` (`detail.selection`) events for `on:` actions.
+
+**How it works.** The server renders the rows, in the starting order and with the first page shown, so the table reads without JavaScript. The browser then sorts, filters and pages by moving and hiding the rendered rows rather than drawing them again, so what's inside a cell keeps its state. Virtual, remote and nested tables instead hand the runtime the rows to show, as a list keyed by `rowKey` (`api.list` in the [runtime](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-html/src/runtime.js)); a row that stays keeps its nodes, charts included.
+
 ## Chat
 
-Messages are `{ id, role, content, name, avatar, initials, time, replies }`: `role` is `assistant` (on the left; the default), `user` (on the right, in the primary colour) or `system` (a small centred note). Keep them in state and the conversation redraws as they change, keeping each message whose `id` it has seen.
+Messages are `{ id, role, content, name, avatar, initials, time, ui, html, replies }`: `role` is `assistant` (on the left; the default), `user` (on the right, in the primary colour) or `system` (a small centred note). Keep them in state and the conversation redraws as they change, keeping each message whose `id` it has seen.
 
 ```yaml
 state: { messages: [], draft: "", waiting: false }
@@ -249,7 +366,43 @@ root:
 - **Without an endpoint**, listen for `send` (an `on.send` action, or the bubbling DOM event, whose `detail` has `text` and `message`) and append the reply to the state key yourself, e.g. with `root.__irender.set`.
 - **Threads.** A message's `replies` fold away under "N replies", indented with a rule; `open` unfolds them. Replies don't nest further.
 - **Scrolling.** The conversation keeps to its latest message as messages arrive or stream in. Once you scroll up it stays put and shows a button that jumps back down; sending a message always does. It's a `role="log"`, so screen readers announce new messages.
+- **Conversations.** Give the input `threads` (a state key holding `[{ id, title, messages }]`) and `thread` (the current one's id) to keep several. `messages` then shows the current thread's, and switching `thread` shows another's. Sending with `thread` null starts a thread, titled after the message, at the top of the list; sending in one moves it there. A reply keeps streaming into its own thread if you switch away. List the threads in a sidebar with `list` over the threads key, setting `thread` on click; see the [chat block](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/chat.yaml).
 - `parts.bubble`, `parts.avatar`, `parts.meta` and so on, set on the conversation, style every message it draws from `messages`.
+
+### UI in messages
+
+A message can carry UI as well as text: its `ui` is an iRender document (`{ state, root }`, with `version` optional) or a single node. A reply can then be a chart, a form, a carousel of images, a video, link cards or tiles, with its own state, shown under the text.
+
+```yaml
+- role: assistant
+  content: "Sales by region:"
+  ui:
+    type: ui-chart
+    props: { type: bar, x: region, data: [{ region: Asia, sales: 14 }, { region: Europe, sales: 13 }] }
+```
+
+A message's UI is shown from its `html`, markup rendered by iRender, made one of three ways. Use any of them, or several together:
+
+| | where it renders | set up |
+|---|---|---|
+| **Server, ahead** | Your server renders the `ui` and sends `html` with the message. | Nothing on the page. Messages in the document are rendered by `irender render --ui-kit` (wherever they sit in state: a message is an object with a `role` and a `ui`), or by `irender_ui_kit::render_message_ui(&mut doc, …)` from Rust. A reply's comes from `irender_ui_kit::render_ui` or `irender render reply.json --embed --ui-kit`. |
+| **Browser** | The page renders a `ui` that arrived without `html`, with [irender-wasm](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-wasm/README.md). | `render: { browser: /irender/irender_wasm.wasm }` on `ui-conversation` (or `ui-message`). |
+| **Server, on request** | The page posts `{ ui }` to your render endpoint, which answers with the markup (or JSON `{ html }`). | `render: { url: /api/render }`. |
+
+The page uses the first that works: `html` when the message has it, then `browser`, then `url`; with none of them it shows a short note in the message. `browser` falls back to `url` when the module can't load (a Content-Security-Policy without `'wasm-unsafe-eval'`, say) or can't render the `ui` (a component it wasn't built with). So a typical setup renders the document's messages ahead, streams replies as `ui`, renders them in the browser, and keeps an endpoint for the rest:
+
+```yaml
+- type: ui-conversation
+  props:
+    messages: "{{ chat }}"
+    render: { browser: /irender/irender_wasm.wasm, url: /api/render }
+```
+
+A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent event `{ "ui": … }` or `{ "html": … }`, usually after the text. The markup leaves out the theme's variables, so it takes the page's theme. The message starts it as a root of its own: its state is its own, it survives the conversation redrawing, and its `call` actions reach the host like the page's. `render_ui` is the one function behind the CLI, a render endpoint and irender-wasm, so all three give the same markup.
+
+- **Trust.** Markup inserted into the page is as powerful as a script, so a message shows UI only in trusted documents (a policy that allows `<script>`). Render UI a model wrote under the untrusted policy (`Engine::untrusted()`, `--untrusted`), which keeps scripts, event attributes and `javascript:` URLs out; irender-wasm always does.
+- **Self-contained.** A message's `ui` has its own state and fragments; it can't read the page's server `data` or `include` fragments from your fragment directory.
+- `examples/serve.py` shows each way: the chat block's sample replies are rendered ahead, "photos …" is answered with `html`, and "chart …" with `ui`, which the page renders with irender-wasm when it's built and through `api/render` when it isn't.
 
 ## Overlays and ids
 
@@ -278,4 +431,4 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript are out of scope: date picker, data table with sorting, carousel and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
+Components that need focus management or keyboard navigation written in JavaScript are out of scope for now: date picker and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.

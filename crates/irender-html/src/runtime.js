@@ -128,6 +128,13 @@
           set,
           scope: () => scopeOf(el),
           emit: (name, detail) => emit(el, name, detail),
+          // Supplies the items of a list the browser rebuilds (an element inside this
+          // one), in place of its own `items`, and redraws. Before the first update it
+          // only records them.
+          list: (listEl, items, offset = 0) => {
+            listEl.__supply = { items, offset };
+            if (root.__irender) update();
+          },
         }) || {};
       }
       for (const el of within(n, "[data-i-on]")) {
@@ -195,10 +202,14 @@
     // When the array changes, items are rebuilt from it. With a `key`, an item whose
     // key survives keeps its nodes (and their focus and input values) and only gets
     // its new `item` and `index`; without one, every item is rebuilt.
+    //
+    // A behaviour can supply the items itself (`api.list`), e.g. only the rows in
+    // view; their indexes then count from its `offset`.
     function rebuild(el) {
       const cfg = json(el, "data-i-list", "__l");
       const base = scopeOf(el);
-      const items = tv(cfg.v, env(el));
+      const sup = el.__supply;
+      const items = sup ? sup.items : tv(cfg.v, env(el));
       const old = el.__recs ?? [];
       if (el.__items === items) {
         // An outer item may have changed under a kept list: refresh what it copied.
@@ -218,7 +229,8 @@
       const free = new Map();
       if (cfg.k) for (const r of old) free.has(r.key) ? free.get(r.key).push(r) : free.set(r.key, [r]);
       const all = env(el);
-      const recs = (Array.isArray(items) ? items : []).map((item, i) => {
+      const recs = (Array.isArray(items) ? items : []).map((item, n) => {
+        const i = n + (sup?.offset ?? 0);
         const vars = { [cfg.as]: item, [cfg.ix]: i };
         const key = cfg.k ? str(tv(cfg.k, { ...all, ...vars })) : null;
         const r = cfg.k ? free.get(key)?.shift() : undefined;

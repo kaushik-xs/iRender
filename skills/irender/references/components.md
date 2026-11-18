@@ -481,12 +481,13 @@ ui-command-separator: A line between groups in a command palette, hidden while s
 ui-conversation: A scrolling chat log that keeps to its latest message as messages arrive, unless you've scrolled up to read; then a button jumps back down. Children are `ui-message`s, followed by `messages`. Its `parts.bubble`, `parts.avatar` and so on style the messages drawn from `messages`.
   messages     any  Array of messages, after any children. From state, like `{{ messages }}`, it redraws as it changes
   typing       any  Show a typing indicator after the last message, e.g. `{{ waiting }}`
+  render       any  How messages' `ui` without `html` is rendered: `{ browser, url }`, as on `ui-message`
   assistant    any  The typing indicator's sender: `{ name, avatar, initials }`
   empty        any  Text shown while `messages` is empty
   label        any  Names the conversation for screen readers (default `Conversation`)
   height       any  Number (px) or CSS length
   maxHeight    any  Number (px) or CSS length: grows with the messages up to this
-  parts: log, empty, latest, avatar, body, meta, bubble, thread, replies
+  parts: log, empty, latest, avatar, body, meta, bubble, ui, thread, replies
   children: yes
 ui-message: One chat message: a bubble with the sender's avatar, name and time, and an optional thread of replies. Children go in the bubble after the text.
   role         one of: assistant, user, system  Who it's from: `assistant` (default, on the left), `user` (on the right) or `system` (centred)
@@ -495,23 +496,98 @@ ui-message: One chat message: a bubble with the sender's avatar, name and time, 
   time         any  When it was sent, as text, shown after the name
   avatar       any  Avatar image URL
   initials     any  Shown in the avatar when there's no image
+  html         any  UI after the text, rendered on a server: by `render_ui` (the CLI renders each message's `ui` into it), or `irender render --embed`. Shown only in trusted documents
+  ui           any  UI after the text as an iRender document or node, for `render` to render when there's no `html`
+  render       any  How a `ui` without `html` is rendered: `{ browser, url }`. `browser` is irender-wasm's `.wasm` file, to render it in the page; `url` is your server's render endpoint, which gets `{ ui }` and answers with the markup, used when there's no `browser` or it can't render it
   replies      any  A thread: an array of messages shown under it, folded away behind `N replies`. May use state
   open         bool  Show the thread unfolded
-  parts: avatar, body, meta, bubble, thread, replies
+  parts: avatar, body, meta, bubble, ui, thread, replies
   children: yes
 ui-typing-indicator: Three bouncing dots that say a reply is on its way. Takes the text colour.
   label        any  What's happening, for screen readers; default `Typing`
   children: no
-ui-chat-input: The box a chat message is written in. Enter sends and Shift+Enter starts a new line. Sending appends `{ id, role: user, content }` to `messages`, runs the document's `on.send` actions, and with `endpoint` asks it for the reply, streaming it into a new assistant message; while it streams, the send button stops it. Children go in the toolbar, left of the send button.
+ui-chat-input: The box a chat message is written in. Enter sends and Shift+Enter starts a new line. Sending appends `{ id, role: user, content }` to `messages`, runs the document's `on.send` actions, and with `endpoint` asks it for the reply, streaming it into a new assistant message; while it streams, the send button stops it. With `threads` and `thread` it keeps a list of conversations. Children go in the toolbar, left of the send button.
   messages     statekey (required)  State key of the messages array: sending appends the user's message, and the reply
   endpoint     any  URL to POST `{ messages }` to. The reply may be JSON (a message, or `{ content }`), plain text, or server-sent events, which stream into the reply as they arrive
   bind         statekey  State key holding the text being written
   waiting      statekey  State key set true from sending until the reply starts: give it to the conversation's `typing`
+  threads      statekey  State key of an array of threads, `{ id, title, messages }`: the messages live in them, and `messages` shows the current one's. Needs `thread`
+  thread       statekey  State key of the current thread's id; null for a new one, started by the first message
   placeholder  any  Default `Send a message…`
   label        any  Names the text box for screen readers (default `Message`)
   suggestions  any  Prompts shown while the conversation is empty; clicking one sends it
   disabled     any  Boolean or expression
   parts: suggestions, box, input, toolbar, send
+  children: yes
+ui-carousel: Slides in a row that scrolls sideways and snaps to each one: images, cards, anything. Its buttons, Left and Right on the focused track, and swiping move a slide at a time. Children are the slides.
+  label        any  Names the carousel for screen readers (default `Carousel`)
+  size         any  Each slide's width: number (px) or CSS length; default `min(280px, 85%)`
+  gap          any  Space between slides: number (px) or CSS length; default 12
+  parts: track, previous, next
+  children: yes
+ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.
+  rows         any  The rows: an array of objects, from data or state (or use `url`)
+  url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array
+  params       any  Extra query parameters for `url`; may use state, and a change reloads
+  columns      any  Columns as objects with the `ui-data-table-column` props, for tables with no cell templates
+  rowKey       string  Field that identifies a row, for selection (default `id`; else its position)
+  selectable   bool  A checkbox per row and a select-all box in the header
+  search       any  A search box above the table: `true`, or its placeholder text
+  searchFields any  Fields the search looks in (default: every column's field)
+  sort         any  Starting sort: `field`, `-field` for descending, or a list of them
+  filter       any  Filters from outside the table, e.g. a chart's `bind`: `{ field: condition }`, as `ui-chart`'s `filter`
+  paging       one of: pages, more, scroll, none  `pages` (default): a pager; `more`: a Load more button; `scroll`: the next batch as you reach the bottom; `none`
+  pageSize     number  Rows per page, or per batch with `more` and `scroll` (default 10; 0 shows every row)
+  childrenField string  Rows nest: the field holding a row's child rows (default `children`); `true` there means load them from `childrenUrl`
+  parentField  string  Rows nest: flat rows name their parent's key in this field, e.g. `parentId`
+  childrenUrl  any  Load a row's children when it's first opened: GET `<url>?parent=<key>`, answering an array or `{ rows }`
+  expanded     bool  Nested rows start open (default false)
+  virtual      bool  Keep only the rows in view in the page, for long tables; scrolls inside `height` (default 480)
+  rowHeight    number  With `virtual`, a row's height to start from before rows are measured (default 41)
+  pageSizes    any  Choices for rows per page (default `[10, 20, 50, 100]`; `[]` hides it)
+  columnsMenu  bool  A View menu that shows and hides columns (default true)
+  title        any  Accessible name of the table
+  emptyText    any  Shown when no row matches (default `No results.`)
+  locale       string  Locale for formatted numbers and dates (default: the browser's)
+  height       any  Most the table grows to before it scrolls, with the header kept in view
+  striped      bool  Shade every other row
+  loading      any  Dim the rows and mark the table busy, e.g. `{{ fetching }}`
+  bindSelection statekey  State key holding the selected rows' keys (a list)
+  bindSort     statekey  State key holding the sort: `field`, `-field`, a list of them, or null
+  bindFilters  statekey  State key holding the column filters, `{ field: condition }`: give it to a chart's `filter` to filter both
+  bindSearch   statekey  State key holding the search text
+  bindPage     statekey  State key holding the page number, from 1
+  bindView     statekey  State key that gets the rows that pass the filters and search, sorted, every page: a chart's `data`
+  bindRow      statekey  State key that gets the row last clicked (or opened with Enter)
+  id           any  Element id (default: derived from the document)
+  parts: toolbar, table, footer
+  children: yes
+ui-data-table-column: A column of the `ui-data-table` it is in. Children, if any, draw each cell, with the row as `row` and its position as `rowIndex`.
+  field        string  The row field shown, sorted and filtered, e.g. `amount` or `customer.name`
+  label        any  Header text (default: the field)
+  sortable     bool  Click the header to sort (default: when it has a `field` or `sortField`)
+  sortField    string  Sort by this field instead, e.g. a rank behind a label (default: `field`)
+  filter       one of: text, select, range, date  A filter control in the toolbar
+  options      any  A `select` filter's choices (default: the column's distinct values)
+  align        one of: left, center, right  Default: right for numbers, left otherwise
+  format       one of: number, currency, percent, date, datetime  How the browser shows the value (in `locale`)
+  currency     string  With `format: currency`, e.g. `EUR` (default `USD`)
+  decimals     number  Digits after the point for `number`, `currency` and `percent`
+  cell         one of: text, badge, progress, sparkline  Draw the value as `badge`, `progress` (0–100) or `sparkline` (needs the chart kit)
+  tones        any  With `cell: badge`, a tone per value: `{ Paid: success, Failed: destructive }`
+  summary      one of: sum, avg, min, max, count  A footer cell summing (or averaging, …) the rows that pass the filters
+  width        any  Column width
+  pin          one of: left, right  Keep the column in view while the table scrolls sideways
+  tree         bool  The column that shows nesting: indented, with the arrow that opens a row (default: the first)
+  hideable     bool  Listed in the View menu (default true)
+  hidden       bool  Starts hidden
+  id           string  The column's key when it has no field (default: its position)
+  children: yes
+ui-data-table-toolbar: Controls added to the table's toolbar, after its filters (e.g. an Add or Export button).
+  children: yes
+ui-data-table-bulk: Actions shown while rows are selected, next to the count. Read the selection from the table's `bindSelection` key.
+  children: yes
+ui-data-table-detail: A row's details, shown under it when its expander is opened; the row is in scope as `row`.
   children: yes
 ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) or a full ECharts `option`.
   type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel  Series type the shorthand builds; leave it out to use `option` alone

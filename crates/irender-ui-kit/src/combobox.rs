@@ -329,7 +329,7 @@ fn label_of(options: &[Json], value: &Json) -> String {
 
 /// Only same-site paths and http(s) URLs can be searched. `//host/…` (and `/\host`,
 /// which browsers read the same way) would quietly send keystrokes to another site.
-fn safe_search_url(url: &str) -> bool {
+pub(crate) fn safe_search_url(url: &str) -> bool {
     let lower = url.trim().to_ascii_lowercase();
     if lower.contains('\\') || lower.chars().any(char::is_control) {
         return false;

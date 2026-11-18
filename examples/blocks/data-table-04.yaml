@@ -1,0 +1,125 @@
+# Block: 5,000 shipments loaded from an API in batches, one tab per paging option.
+# - Infinite scroll: `paging: scroll` asks for the next 50 rows as you near the bottom,
+#   and `virtual` keeps only the rows in view in the page, so the table stays fast.
+# - Load more: `paging: more`, a button under the rows. Its columns are plain objects,
+#   and summaries add up the rows loaded so far.
+# - Pages: `paging: pages`, one page from the server at a time, with the total it sends.
+# Sorting, search and the filters go to the server (`url`), which answers
+# `{ rows, total }`; changing them starts over from the first batch. examples/serve.py
+# serves the API (`api/shipments`), with a short delay so loading shows.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-04.yaml --ui-kit --chart-kit --icon-kit -o data-table-04.html
+#   python3 examples/serve.py   # then open /blocks/data-table-04.html
+version: 1
+state:
+  tab: scroll
+  picked: []
+  toast: null
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1240px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Shipments } }
+        - { type: ui-text, props: { variant: muted, text: "5,000 rows from an API, a batch at a time. Sort, search and filter on the server." } }
+
+    - type: ui-tabs
+      props: { bind: tab }
+      children:
+        # ------------------------------------------------------------ infinite scroll
+        - type: ui-tab-panel
+          props: { value: scroll, label: Infinite scroll }
+          children:
+            - type: ui-data-table
+              props:
+                url: api/shipments
+                title: Shipments
+                rowKey: id
+                paging: scroll
+                pageSize: 50
+                virtual: true
+                height: 520
+                search: Search id, carrier, city…
+                sort: eta
+                selectable: true
+                bindSelection: picked
+                locale: en-US
+              children:
+                - { type: ui-data-table-column, props: { field: id, label: Shipment, hideable: false } }
+                - { type: ui-data-table-column, props: { field: carrier, label: Carrier, filter: select, options: [DHL, FedEx, UPS, Maersk, DB Schenker, Kuehne+Nagel] } }
+                - type: ui-data-table-column
+                  props: { id: route, label: Route, sortField: origin }
+                  children:
+                    - { type: text, props: { value: "{{ row.origin }} → {{ row.destination }}" } }
+                - { type: ui-data-table-column, props: { field: mode, label: Mode, filter: select, options: [Sea, Air, Road, Rail] } }
+                - type: ui-data-table-column
+                  props:
+                    field: status
+                    label: Status
+                    filter: select
+                    options: [Booked, In transit, Customs, Delayed, Delivered]
+                    cell: badge
+                    tones: { Booked: outline, In transit: info, Customs: warning, Delayed: destructive, Delivered: success }
+                - { type: ui-data-table-column, props: { field: progress, label: Progress, cell: progress } }
+                - { type: ui-data-table-column, props: { field: weight, label: Weight (kg), format: number, decimals: 1, filter: range } }
+                - { type: ui-data-table-column, props: { field: value, label: Value, format: currency, filter: range } }
+                - { type: ui-data-table-column, props: { field: eta, label: ETA, format: date, filter: date } }
+                - type: ui-data-table-bulk
+                  children:
+                    - type: ui-button
+                      props: { label: Track, size: sm, variant: outline }
+                      on:
+                        click:
+                          - { action: call, name: track, args: { ids: "{{ picked }}" } }
+                          - { action: set_state, key: toast, value: { title: "Tracking {{ picked.length }} shipments" } }
+
+        # ------------------------------------------------------------ load more
+        - type: ui-tab-panel
+          props: { value: more, label: Load more }
+          children:
+            - type: ui-data-table
+              props:
+                url: api/shipments
+                title: Shipments
+                rowKey: id
+                paging: more
+                pageSize: 20
+                search: true
+                sort: -value
+                locale: en-US
+                columns: &columns
+                  - { field: id, label: Shipment, hideable: false }
+                  - { field: carrier, label: Carrier, filter: select, options: [DHL, FedEx, UPS, Maersk, DB Schenker, Kuehne+Nagel] }
+                  - { field: origin, label: From }
+                  - { field: destination, label: To }
+                  - { field: status, label: Status, filter: select, options: [Booked, In transit, Customs, Delayed, Delivered], cell: badge, tones: { Booked: outline, In transit: info, Customs: warning, Delayed: destructive, Delivered: success } }
+                  - { field: value, label: Value, format: currency, filter: range, summary: sum }
+                  - { field: eta, label: ETA, format: date }
+
+        # ------------------------------------------------------------ pages from the server
+        - type: ui-tab-panel
+          props: { value: pages, label: Pages }
+          children:
+            - type: ui-data-table
+              props:
+                url: api/shipments
+                title: Shipments
+                rowKey: id
+                paging: pages
+                pageSize: 20
+                pageSizes: [20, 50, 100]
+                search: true
+                sort: id
+                locale: en-US
+                columns: *columns
+
+    - { type: ui-toaster, props: { bind: toast } }

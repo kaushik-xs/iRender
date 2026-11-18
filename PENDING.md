@@ -2,11 +2,11 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-17._
+_Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. Keyboard-driven UI kit components (date picker, data table).
+1. Keyboard-driven UI kit components: the date picker next (the data table shipped 2026-11-18).
 
 ## Gaps you'd hit in real use
 
@@ -30,13 +30,23 @@ _Last updated: 2026-11-17._
   - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
 - [ ] **Keyboard-driven components:**
   - date picker, with date+time, min/max, month and quarter (financial year) modes, and a date range (client-ui-next's `DateTimeField`, `PeriodPicker`, `DateRangeFilterInputs`)
-  - data table with sorting and filtering; client-ui-next's `DataTable` and `GroupedDataTable` also have search, row selection with bulk actions, server-side paging and sorting, pinned columns, grouped headers, summary rows, a show/hide columns menu and saved column views
   - context menu
   - menubar / navigation menu
   - OTP input
 
   These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
   - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
+- [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
+  - [x] Paging options (pages, Load more, infinite scroll), rows from an API in batches (`url`), virtual rows, nested rows with children loaded when opened, and pinned columns (2026-11-18; blocks data-table-04 and -05).
+  - [ ] Remote tables: select filters offer only `options` or the values loaded so far, and summaries and `bindView` cover the loaded rows only. Idea: let the API answer facets and totals too.
+  - [ ] Nested rows: selecting a parent doesn't select its children; no "expand all" control; the footer counts the rows shown, children included.
+  - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
+  - [ ] No grouped headers, row grouping (`GroupedDataTable`), resizing or reordering columns.
+  - [ ] Hidden columns and page size aren't in state or remembered; no saved column views.
+  - [ ] Formats are applied by the browser, so the server's HTML shows raw values until the script runs.
+  - [ ] The server's starting order compares text without locale rules, so mixed-case text can reorder once the script runs.
+  - [ ] Interface text (Rows per page, Select all, Clear filter, …) is English only; only `emptyText` can be changed.
+  - [ ] No CSV export; a bulk action can `call` the host with the selected keys.
 - [ ] **`ui-command` gaps:**
   - [ ] Matching is by words, in document order. cmdk ranks fuzzy matches and puts the best first.
   - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.
@@ -47,6 +57,11 @@ _Last updated: 2026-11-17._
   - [ ] The phone sheet makes the page behind it `inert` but doesn't trap Tab inside the panel against the browser's own UI, and it doesn't swipe closed.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), resizable panels, item, code block, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
+- [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
+  - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.
+  - [ ] Quoting, leaving a quote or code block, and ticking a task change the page directly, so ⌘Z doesn't undo them; the other edits go through the browser's editing and undo.
+  - [ ] `maxLength` isn't enforced while typing rich text; the count turns red past it.
+  - [ ] No "add link" on a bare pasted URL (it stays text until the link button is used); no headings other than `##` from the toolbar (`#`…`######` typed work).
 - [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
   - [ ] Message text is plain text with line breaks kept; no Markdown, code blocks or citations. Next: render `content` with irender-markdown-kit's `render` (already safe for any text), and with `markdown.js` while it streams. (A reply's `ui` can carry rich content meanwhile.)
   - [ ] A message's `html` (and `ui`) is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
