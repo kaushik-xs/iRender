@@ -123,13 +123,25 @@
    ]
   },
   {
+   "id": "rating",
+   "group": "Forms",
+   "title": "Rating and password checklist",
+   "summary": "ui-rating picks a rating with stars (a click or the arrow keys, hover to preview, click again to clear), or shows one read-only, filling part of a star for an average. ui-password-checklist goes under a password input and ticks its rules as they're met, with a strength bar; bindValid tells a button when the password is good enough.",
+   "usage": "- { type: ui-rating, props: { bind: stars, label: Rate your stay } }\n- { type: ui-rating, props: { value: \"{{ hotel.average }}\" } }   # read-only\n- { type: ui-input, props: { bind: password, type: password } }\n- { type: ui-password-checklist, props: { value: \"{{ password }}\", bindValid: strong } }",
+   "components": [
+    "ui-rating",
+    "ui-password-checklist"
+   ]
+  },
+  {
    "id": "badge",
    "group": "Data display",
-   "title": "Badge and kbd",
-   "summary": "A badge is a small status label; kbd shows a key or shortcut.",
+   "title": "Badge, status badge and kbd",
+   "summary": "A badge is a small status label; kbd shows a key or shortcut. ui-status-badge shows a status in its colour: Done, Paid and Approved green, In review and Pending amber, Blocked and Overdue red, and so on, with tones for your own.",
    "usage": "- { type: ui-badge, props: { text: New, variant: secondary } }\n- { type: ui-kbd, props: { text: ⌘K } }",
    "components": [
     "ui-badge",
+    "ui-status-badge",
     "ui-kbd"
    ]
   },
@@ -201,6 +213,17 @@
    ]
   },
   {
+   "id": "timeline",
+   "group": "Data display",
+   "title": "Activity timeline",
+   "summary": "Who did what and when: an avatar or initials, the action and time, field changes as old → new, and comments. Events without a person get a dot in a tone. Entries come from children or from state, and redraw as it changes.",
+   "usage": "- type: ui-timeline\n  props: { items: \"{{ history }}\" }   # [{ who, action, when, changes, comment, tone }]\n  children:\n    - { type: ui-timeline-item, props: { who: Asha Rao, action: changed the status, when: 2 h ago, changes: [ { field: Status, from: Open, to: Done } ] } }",
+   "components": [
+    "ui-timeline",
+    "ui-timeline-item"
+   ]
+  },
+  {
    "id": "typography",
    "group": "Data display",
    "title": "Typography and separator",
@@ -245,11 +268,12 @@
   {
    "id": "progress",
    "group": "Feedback",
-   "title": "Progress and skeleton",
-   "summary": "A progress bar for a task's completion, and skeletons that stand in for content while it loads.",
+   "title": "Progress, progress ring and skeleton",
+   "summary": "A progress bar for a task's completion, and skeletons that stand in for content while it loads. ui-progress-ring is the same as a ring, with the value in the middle.",
    "usage": "- { type: ui-progress, props: { value: \"{{ progress }}\" } }\n- { type: ui-skeleton, props: { width: 240, height: 16 } }",
    "components": [
     "ui-progress",
+    "ui-progress-ring",
     "ui-skeleton"
    ]
   },

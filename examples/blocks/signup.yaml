@@ -1,6 +1,7 @@
 # Block: a sign-up form that checks itself as you type, in the style of shadcn/ui's
 # signup blocks. Errors appear under the field once it has text, and the button
-# stays disabled until everything is filled in correctly.
+# stays disabled until everything is filled in correctly. Under the password, a
+# `ui-password-checklist` ticks its rules as they're met and shows the strength.
 #
 #   cargo run -p irender-cli -- render examples/blocks/signup.yaml --ui-kit --icon-kit -o signup.html
 version: 1
@@ -9,6 +10,7 @@ state:
   email: ""
   password: ""
   confirm: ""
+  strong: false
   terms: false
 root:
   type: element
@@ -64,26 +66,24 @@ root:
                 - type: ui-field
                   props: { label: Password }
                   children:
-                    - { type: ui-input, props: { bind: password, type: password }, attrs: { required: true, autocomplete: new-password, aria-invalid: "{{ password != '' && password.length < 8 }}" } }
+                    - { type: ui-input, props: { bind: password, type: password }, attrs: { required: true, autocomplete: new-password, aria-invalid: "{{ password != '' && !strong }}" } }
                 - type: ui-field
                   props: { label: Confirm password }
                   children:
                     - { type: ui-input, props: { bind: confirm, type: password }, attrs: { required: true, autocomplete: new-password, aria-invalid: "{{ confirm != '' && confirm != password }}" } }
-            - type: ui-text
-              props:
-                variant: small
-                text: "{{ password != '' && password.length < 8 ? 'Use at least 8 characters.' : confirm != '' && confirm != password ? 'The passwords don’t match.' : 'Must be at least 8 characters long.' }}"
-              style:
-                margin-top: -12
-                font-weight: 400
-                line-height: 1.4
-                color: "{{ (password != '' && password.length < 8) || (confirm != '' && confirm != password) ? 'var(--color-destructive, #dc2626)' : 'var(--color-muted)' }}"
+            - type: ui-password-checklist
+              props: { value: "{{ password }}", bindValid: strong }
+              style: { margin-top: -8 }
+            - type: if
+              props: { when: "{{ confirm != '' && confirm != password }}" }
+              children:
+                - { type: ui-text, props: { variant: small, text: "The passwords don’t match." }, style: { margin-top: -8, font-weight: 400, color: "var(--color-destructive, #dc2626)" } }
             - { type: ui-checkbox, props: { bind: terms, label: I agree to the Terms of Service and Privacy Policy } }
             - type: ui-button
               props:
                 label: Create Account
                 type: submit
-                disabled: "{{ !(name != '' && email.length > 4 && password.length >= 8 && confirm == password && terms) }}"
+                disabled: "{{ !(name != '' && email.length > 4 && strong && confirm == password && terms) }}"
               style: { width: 100% }
             - { type: ui-separator, props: { label: Or continue with } }
             - { type: ui-button, props: { label: Sign up with Google, icon: brands:google, variant: outline }, style: { width: 100% } }

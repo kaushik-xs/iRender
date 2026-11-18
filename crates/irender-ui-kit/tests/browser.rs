@@ -3469,3 +3469,106 @@ fn file_upload_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Status badge, progress ring, rating, password checklist and timeline, following
+/// state: tones and labels, the ring's value, picking and clearing a rating, rules
+/// ticked as a password is typed, and timeline entries added from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn status_rating_password_and_timeline_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "status": "In review", "done": 40, "stars": 2, "avg": 3.5, "pw": "", "ok": false,
+            "history": [ { "id": 1, "who": "Asha Rao", "action": "opened it", "when": "Mon" } ] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-status-badge", "attrs": { "id": "badge" }, "props": { "status": "{{ status }}", "tones": { "Shipped": "success" }, "labels": { "in_progress": "In progress" } } },
+            { "type": "ui-progress-ring", "attrs": { "id": "ring" }, "props": { "value": "{{ done }}", "label": "Progress" } },
+            { "type": "ui-rating", "attrs": { "id": "pick" }, "props": { "bind": "stars", "label": "Your rating" } },
+            { "type": "ui-rating", "attrs": { "id": "shown" }, "props": { "value": "{{ avg }}", "label": "Average" } },
+            { "type": "ui-password-checklist", "attrs": { "id": "pw" }, "props": { "value": "{{ pw }}", "bindValid": "ok", "rules": [ { "length": 10 }, "upper", "number", { "label": "No spaces", "pattern": "^\\S*$" } ] } },
+            { "type": "ui-timeline", "attrs": { "id": "tl" }, "props": { "items": "{{ history }}" }, "children": [
+                { "type": "ui-timeline-item", "props": { "action": "Created from an email", "when": "Sun", "tone": "info" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
+      const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+      try {
+        const badge = $("#badge");
+        log("badge", badge.getAttribute("data-tone"), badge.textContent);
+        for (const s of ["Shipped", "BLOCKED", "in_progress", "Something else"]) {
+          set("status", s); await wait(0);
+          log("badge", s, badge.getAttribute("data-tone"), badge.textContent);
+        }
+        const ring = $("#ring");
+        log("ring", ring.getAttribute("aria-valuenow"), ring.textContent, getComputedStyle(ring).getPropertyValue("--ui-value").trim(), ring.getAttribute("aria-label"));
+        set("done", 75); await wait(0);
+        // (The arc eases there; its length comes from this.)
+        log("ring", ring.getAttribute("aria-valuenow"), ring.textContent, getComputedStyle(ring).getPropertyValue("--ui-value").trim());
+        // Picking: a click on the fourth star, then the keyboard, then clearing.
+        const pick = $("#pick"), stars = () => $$("#pick label").map((l) => (l.hasAttribute("data-on") ? "*" : ".")).join("");
+        log("rating", stars(), pick.getAttribute("role"), $$("#pick input").map((i) => i.getAttribute("aria-label")).join(","));
+        $$("#pick input")[3].click(); await wait(0);
+        log("clicked", S().stars, stars());
+        $$("#pick input")[3].dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        $$("#pick input")[3].click(); await wait(0);
+        log("cleared", S().stars, stars());
+        set("stars", 5); await wait(0);
+        log("from state", stars(), $$("#pick input")[4].checked);
+        const shown = $("#shown");
+        log("shown", shown.getAttribute("role"), shown.getAttribute("aria-label"), getComputedStyle(shown).getPropertyValue("--ui-value").trim(), shown.textContent.trim());
+        // The checklist as a password is typed.
+        const rules = () => $$("#pw li").map((l) => (l.hasAttribute("data-met") ? "✓" : "·")).join("");
+        log("pw", rules(), $("#pw").getAttribute("data-strength"), $("#pw [data-strength-text]").textContent, S().ok, $$("#pw li")[0].textContent);
+        set("pw", "Hello world"); await wait(0);
+        log("pw", rules(), $("#pw").getAttribute("data-strength"), $("#pw [data-strength-text]").textContent, S().ok);
+        set("pw", "Helloworld42"); await wait(0);
+        log("pw", rules(), $("#pw").getAttribute("data-strength"), $("#pw [data-strength-text]").textContent, S().ok, $$("#pw li")[1].textContent);
+        // Timeline: the child first, then the entries from state; a new one arrives.
+        // The mark as shown: a dot, the initials, or (a name from state) its first letter.
+        const mark = (m) => (m.hasAttribute("data-dot") ? "•" : m.querySelector("[data-first]") ? m.textContent[0] + "…" : m.textContent);
+        const entries = () => $$("#tl > li, #tl [data-entries] > li").map((li) => mark(li.querySelector("[data-mark]")) + " " + li.querySelector("[data-line]").textContent).join(" | ");
+        log("timeline", entries(), $("#tl").getAttribute("aria-label"));
+        set("history", [...S().history, { id: 2, who: "Ravi", action: "changed the status", when: "Tue", changes: [{ field: "Status", from: "Open", to: "Done" }], comment: "Fixed in 2.4" }]); await wait(0);
+        log("timeline", entries());
+        const last = $$("#tl [data-entries] > li").at(-1);
+        log("changes", [...last.querySelectorAll("[data-changes] li span")].map((s) => s.textContent).join(" "), last.querySelector("blockquote")?.textContent, $$("#tl blockquote").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("five", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "badge warning In review",
+            // From `tones`, the built-in list (any casing), `labels`, and neutral for the rest.
+            "badge Shipped success Shipped",
+            "badge BLOCKED danger BLOCKED",
+            "badge in_progress primary In progress",
+            "badge Something else neutral Something else",
+            "ring 40 40% 40 Progress",
+            "ring 75 75% 75",
+            "rating **... radiogroup 1 star,2 stars,3 stars,4 stars,5 stars",
+            // A click picks; a click on the chosen star clears it; state moves it.
+            "clicked 4 ****.",
+            "cleared 0 .....",
+            "from state ***** true",
+            "shown img Average: 3.5 out of 5 70 3.5",
+            "pw ···· 0 Enter a password false At least 10 characters, not met",
+            // Length 10 and no spaces fail, then all four pass, and bindValid follows.
+            "pw ✓✓·· 2 Strength: Fair false",
+            "pw ✓✓✓✓ 4 Strength: Strong true An uppercase letter, met",
+            // The child entry, then those from state; a name from state shows its first letter.
+            "timeline • Created from an emailSun | A… Asha Rao opened itMon Activity",
+            "timeline • Created from an emailSun | A… Asha Rao opened itMon | R… Ravi changed the statusTue",
+            "changes Status Open → Done Fixed in 2.4 1",
+        ],
+        "\n{result}"
+    );
+}

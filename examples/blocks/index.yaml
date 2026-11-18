@@ -47,6 +47,7 @@ root:
           - { id: data-table-06, category: table, title: "Tickets filtered from a side panel: lists with counts, numbers, dates and text, each with its operators, as chips; one filter object drives the table and a chart", kits: [ui-kit, chart-kit, icon-kit], height: 900 }
           - { id: data-table-05, category: table, title: "Rows inside rows: a budget tree whose projects load when opened, with pinned columns, and an org chart from flat rows", kits: [ui-kit, icon-kit], height: 1180 }
           - { id: tree-01, category: table, title: "Company locations as a tree: search, counts, checkboxes with bulk delete, add by name, drag or Alt+arrows to reorganise, and the selected location's details", kits: [ui-kit, icon-kit], height: 820 }
+          - { id: ticket-01, category: table, title: "A support ticket: its status in colour, the SLA as a ring, the activity timeline with field changes and comments, and the customer's star rating", kits: [ui-kit, icon-kit], height: 1000 }
           - { id: expense-01, category: table, title: "An expense claim with its receipts: drop files to upload them, preview images, PDFs and spreadsheets, and download them all as a zip", kits: [ui-kit, icon-kit], height: 1000 }
           - { id: docs-01, category: docs, title: "A documentation page: pages on the left, the article, and an On this page list that follows the section you're reading", kits: [ui-kit, icon-kit], height: 860 }
           - { id: otp-verify, category: login, title: "Two-step sign-in: a six-digit code checked as it completes, with a resend link", kits: [ui-kit, icon-kit], height: 720 }
@@ -62,7 +63,7 @@ root:
           - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }
           - { id: login-03, category: login, title: A login page with a muted background color, kits: [ui-kit, icon-kit], height: 720 }
           - { id: login-04, category: login, title: A login page with form and image, kits: [ui-kit], height: 720 }
-          - { id: signup, category: signup, title: A sign-up form that checks itself as you type, kits: [ui-kit, icon-kit], height: 860 }
+          - { id: signup, category: signup, title: "A sign-up form that checks itself as you type, with a password checklist and strength bar", kits: [ui-kit, icon-kit], height: 860 }
           - { id: settings, category: settings, title: "Account settings: a section menu, a form per section and a danger zone", kits: [ui-kit, icon-kit], height: 900 }
           - { id: markdown, category: editor, title: "Writing a post: edited as readers see it, saved as Markdown, with a File / Edit / View menubar and a split Publish button", kits: [ui-kit, markdown-kit], height: 900 }
           - { id: theme, category: theme, title: "A theme customizer: palette, chart colours, radius, density, text size, font", kits: [ui-kit, chart-kit, icon-kit], height: 1300 }

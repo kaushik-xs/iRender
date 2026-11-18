@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the smaller pieces from the client-ui-next list (progress ring, rating, password checklist, status badge, activity timeline), a kanban board, and the filters' calendar and presets.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a kanban board, the filters' calendar and presets, a calendar of events, and the rest of the smaller pieces (code editor, currency input, icon rail).
 
 ## Gaps you'd hit in real use
 
@@ -36,10 +36,11 @@ _Last updated: 2026-11-18._
   - [ ] **Gantt chart** in chart-kit: a `type: gantt` shorthand with a table of rows on the left, zoom, collapsible groups and markers with a legend (`charts/GanttChart`). Today it has to be an ECharts `custom` series in `option`.
   - [ ] **Kanban board:** columns of cards moved by drag and drop (`kanban/SimpleDragKanban`).
   - [ ] **Dashboard grid:** tiles that can be dragged and resized (react-grid-layout).
-  - [ ] **Activity timeline:** a history list with who, when and field changes (old → new) (`tickets/HistoryTimelineEntry`).
+  - [x] **Activity timeline** (2026-11-18): `ui-timeline` + `ui-timeline-item`, with avatars or initials, field changes (old → new), comments and event dots, from children or state (block ticket-01). No grouping by day, and no "show more" for long histories.
   - [ ] **Notification centre:** a bell with an unread count and an inbox (read/unread, archive), plus preferences (`notifications/`).
-  - [ ] **Progress ring:** a circular `ui-progress` (`ProjectProgressRing`).
-  - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
+  - [x] **Progress ring** (2026-11-18): `ui-progress-ring`, following state without a script.
+  - [x] **Status badge, rating and password checklist** (2026-11-18): `ui-status-badge` (built-in tones for common statuses, `tones` and `labels`), `ui-rating` (pick, or show a fractional average) and `ui-password-checklist` (rules, strength, `bindValid`; in the signup block). The rating has no half-star picking.
+  - [ ] **Smaller pieces still to do:** a JSON/code editor with validation, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
 - [x] **Keyboard-driven components** (2026-11-18): data table, date picker, context menu, menubar, navigation menu, one-time-code input.
 - [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
@@ -244,7 +245,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 
 ## Housekeeping
 
-- [ ] **Browser tests under heavy load.** The chat tests waited on timers, which Chrome's virtual time runs ahead of a real test server; they now wait on the page (message-channel yields, which hold virtual time) and the budget is 30 s (2026-11-18). With three full runs at once, 1 run in 9 still had a page whose driver didn't finish in time; a single run hasn't failed since.
+- [ ] **Browser tests under heavy load.** The chat tests waited on timers, which Chrome's virtual time runs ahead of a real test server; they now wait on the page (message-channel yields, which hold virtual time) and the budget is 30 s (2026-11-18). With three full runs at once, 1 run in 9 still had a page whose driver didn't finish in time; a single run hasn't failed since. In Firefox (Playwright, real time), a full local run on a busy machine sometimes fails `data_table_tree_and_pinned_columns_in_chrome` or `menubar_and_navigation_menu_in_chrome` (focus moving before the driver reads it); both pass alone and in CI. Idea: wait for the expected focus instead of a fixed delay, as the scroll spy test now does.
 
 - [ ] **`{{ }}` inside a literal `set_state` value is never evaluated, and nothing warns.** `value: { description: "Hi {{ name }}" }` stores the braces as text, while `submit` `body` fields are evaluated. Found by a model writing a toast. Fix: evaluate templated leaves of literal values (as `body` does), or at least warn in `validate`. Then drop the caveat from `skills/irender/references/authoring.md`.
 - [x] **`tools/llm-docs.sh --check` runs in CI** (2026-11-18): a change that doesn't regenerate the skill's references and `llms-full.txt` fails the lint job. Run `tools/llm-docs.sh` after changing a component, icon or README.

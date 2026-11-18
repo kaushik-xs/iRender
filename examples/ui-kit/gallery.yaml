@@ -74,6 +74,15 @@ state:
     - { id: r1, name: taxi-receipt.svg, size: 1169, type: image/svg+xml, url: blocks/files/taxi-receipt.svg, status: done }
     - { id: r2, name: hotel-invoice.pdf, size: 781, type: application/pdf, url: blocks/files/hotel-invoice.pdf, status: done }
     - { id: r3, name: expenses.xlsx, size: 2078, url: blocks/files/expenses.xlsx, status: done }
+  stars: 4
+  newPassword: ""
+  passwordOk: false
+  history:
+    - { id: 1, who: Asha Rao, action: created the invoice, when: "2 Nov, 09:30" }
+    - { id: 2, who: Kaushik Sundar, action: edited the invoice, when: "2 Nov, 11:05", changes: [ { field: Amount, from: "₹2,000", to: "₹2,500" }, { field: Due date, from: 15 Nov, to: 30 Nov } ] }
+    - { id: 3, action: Sent to the customer by email, when: "2 Nov, 11:06", tone: info }
+    - { id: 4, who: Meera Iyer, action: left a comment, when: "3 Nov, 16:20", comment: Customer asked for the PO number on the next one. }
+    - { id: 5, action: Paid in full by card, when: "5 Nov, 10:41", tone: success }
   folder: src
   folderNode: null
   folders:
@@ -960,6 +969,39 @@ root:
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
+            # ---------------------------------------------------------------- rating
+            - type: element
+              props: { tag: section }
+              attrs: { id: rating, aria-labelledby: rating-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.rating }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: stack
+                  props: { direction: row, gap: 24, align: center, wrap: true }
+                  children:
+                    - { type: ui-rating, props: { bind: stars, label: Your rating } }
+                    - { type: ui-text, props: { variant: muted, text: "{{ stars == 0 ? 'No rating' : stars + ' of 5' }}" } }
+                    - { type: ui-separator, props: { orientation: vertical }, style: { height: 20 } }
+                    - { type: ui-rating, props: { value: 4.3, size: 16, label: Average rating } }
+                - type: stack
+                  props: { gap: 8 }
+                  style: { max-width: 360 }
+                  children:
+                    - type: ui-field
+                      props: { label: New password }
+                      children: [ { type: ui-input, props: { bind: newPassword, type: password, placeholder: Type a password }, attrs: { autocomplete: new-password } } ]
+                    - { type: ui-password-checklist, props: { value: "{{ newPassword }}", bindValid: passwordOk } }
+                    - { type: ui-button, props: { label: Set password, disabled: "{{ !passwordOk }}" } }
+                - { type: if, props: { when: "{{ api.rating.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.rating }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
             # ---------------------------------------------------------------- badge
             - type: element
               props: { tag: section }
@@ -986,6 +1028,16 @@ root:
                         - { type: ui-text, props: { variant: muted, text: "Press" } }
                         - { type: ui-kbd, props: { text: "⌘K" } }
                         - { type: ui-text, props: { variant: muted, text: "to search" } }
+                    - type: stack
+                      props: { direction: row, gap: 8, wrap: true, align: center }
+                      children:
+                        - { type: ui-status-badge, props: { status: Done } }
+                        - { type: ui-status-badge, props: { status: In progress } }
+                        - { type: ui-status-badge, props: { status: In review } }
+                        - { type: ui-status-badge, props: { status: Open } }
+                        - { type: ui-status-badge, props: { status: Overdue } }
+                        - { type: ui-status-badge, props: { status: Draft } }
+                        - { type: ui-status-badge, props: { status: Shipped, tones: { Shipped: success }, dot: false } }
 
                 - { type: if, props: { when: "{{ api.badge.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
@@ -1335,6 +1387,28 @@ root:
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
+            # ---------------------------------------------------------------- timeline
+            - type: element
+              props: { tag: section }
+              attrs: { id: timeline, aria-labelledby: timeline-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.timeline }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-card
+                  props: { title: Invoice INV002 }
+                  style: { max-width: 620 }
+                  children:
+                    - { type: ui-timeline, props: { items: "{{ history }}", label: Invoice history } }
+                - { type: if, props: { when: "{{ api.timeline.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.timeline }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
             # ---------------------------------------------------------------- typography
             - type: element
               props: { tag: section }
@@ -1558,6 +1632,12 @@ root:
                           props: { label: "+10", variant: outline, size: sm }
                           on: { click: { action: set_state, key: progress, value: "{{ progress >= 90 ? 100 : progress + 10 }}" } }
                         - { type: ui-text, props: { variant: muted, text: "{{ progress }}%" } }
+                    - type: stack
+                      props: { direction: row, gap: 16, align: center, wrap: true }
+                      children:
+                        - { type: ui-progress-ring, props: { value: "{{ progress }}", label: Progress } }
+                        - { type: ui-progress-ring, props: { value: "{{ progress }}", size: 72, tone: "{{ progress >= 100 ? 'success' : progress < 30 ? 'danger' : 'primary' }}", label: Progress } }
+                        - { type: ui-progress-ring, props: { value: "{{ progress }}", size: 28, text: "", label: Progress } }
                     - type: stack
                       props: { direction: row, gap: 12, align: center }
                       children:

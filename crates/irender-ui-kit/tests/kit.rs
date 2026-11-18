@@ -41,6 +41,10 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-filters", json!({ "bind": "k" })),
         ("ui-tree", json!({ "nodes": [] })),
         ("ui-file-upload", json!({ "bind": "k" })),
+        ("ui-status-badge", json!({ "status": "Done" })),
+        ("ui-progress-ring", json!({ "value": 50 })),
+        ("ui-rating", json!({ "bind": "k" })),
+        ("ui-password-checklist", json!({ "value": "" })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -108,7 +112,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 97);
+    assert_eq!(kit, 103);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1291,4 +1295,51 @@ fn file_upload_structure_and_mistakes() {
     let err = |props: Json| render_with(json!({ "type": "ui-file-upload", "props": props }), json!({ "files": [] }), json!({})).unwrap_err().to_string();
     assert!(err(json!({ "bind": "files", "maxSize": "lots" })).contains("`maxSize` must be bytes"));
     assert!(err(json!({ "bind": "files", "maxFiles": 0 })).contains("`maxFiles` must be a whole number"));
+}
+
+#[test]
+fn status_badge_ring_rating_checklist_and_timeline() {
+    // Status badges: built-in tones (ignoring case and spacing), `tones`, `labels`.
+    let badge = |props: Json| plain(&render(json!({ "type": "ui-status-badge", "props": props })));
+    assert!(badge(json!({ "status": "In Review" })).contains(r#"<span data-tone="warning"><span data-dot aria-hidden="true"></span><span>In Review</span></span>"#));
+    assert!(badge(json!({ "status": "PAID" })).contains(r#"data-tone="success""#));
+    assert!(badge(json!({ "status": "on-hold" })).contains(r#"data-tone="warning""#));
+    assert!(badge(json!({ "status": "Shipped", "tones": { "shipped": "info" } })).contains(r#"data-tone="info""#));
+    assert!(badge(json!({ "status": "Mystery" })).contains(r#"data-tone="neutral""#));
+    assert!(badge(json!({ "status": "in_progress", "labels": { "in_progress": "In progress" }, "dot": false })).contains(r#"<span data-tone="primary"><span>In progress</span></span>"#));
+
+    // The ring: an arc of 100 units, the value in the middle.
+    let ring = plain(&render(json!({ "type": "ui-progress-ring", "props": { "value": 62.4, "size": 40, "label": "Done", "tone": "success" } })));
+    assert!(ring.contains(r#"<div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62.4" aria-label="Done" data-tone="success">"#), "{ring}");
+    assert!(ring.contains(r#"pathLength="100""#) && ring.contains(r#"<span data-ring-text aria-hidden="true">62%</span>"#), "{ring}");
+
+    // A rating to pick: radios, the current one checked; to show: an image with its value.
+    let pick = plain(&render_with(json!({ "type": "ui-rating", "props": { "bind": "r", "max": 3, "label": "Rate it" } }), json!({ "r": 2 }), json!({})).unwrap().body);
+    assert!(pick.contains(r#"role="radiogroup" aria-label="Rate it""#), "{pick}");
+    assert!(pick.contains(r#"<label data-on><input type="radio" name="rating-root" value="2" aria-label="2 stars" checked>"#), "{pick}");
+    assert_eq!(pick.matches("<label").count(), 3, "{pick}");
+    let shown = plain(&render(json!({ "type": "ui-rating", "props": { "value": 4.25 } })));
+    assert!(shown.contains(r#"<span data-ro role="img" aria-label="Rating: 4.3 out of 5">"#) && shown.contains("<span data-score aria-hidden=\"true\">4.3</span>"), "{shown}");
+
+    // The checklist: one item per rule, presets and patterns.
+    let list = plain(&render(json!({ "type": "ui-password-checklist", "props": { "value": "", "rules": [{ "length": 12 }, "symbol", { "label": "No spaces", "pattern": "^\\S*$" }] } })));
+    assert!(list.contains("<li>At least 12 characters<span data-state>, not met</span></li><li>A symbol, like ! or #"), "{list}");
+    assert!(list.contains("<li>No spaces<span"), "{list}");
+
+    // The timeline: initials from the name, a dot for an event, changes and a comment.
+    let tl = plain(&render(json!({ "type": "ui-timeline", "children": [
+        { "type": "ui-timeline-item", "props": { "who": "Asha Rao", "action": "edited", "when": "Mon", "changes": [{ "field": "Due", "from": "1 Nov", "to": "8 Nov" }], "comment": "Pushed a week" } },
+        { "type": "ui-timeline-item", "props": { "action": "Build passed", "tone": "success" } } ] })));
+    assert!(tl.contains(r#"<ol aria-label="Activity">"#), "{tl}");
+    assert!(tl.contains(r#"<span data-mark aria-hidden="true"><span>AR</span></span>"#), "{tl}");
+    assert!(tl.contains(r#"<li><span data-field>Due</span><span data-from>1 Nov</span><span data-arrow aria-label="to">→</span><span data-to>8 Nov</span></li>"#), "{tl}");
+    assert!(tl.contains("<blockquote>Pushed a week</blockquote>"), "{tl}");
+    assert!(tl.contains(r#"<li data-tone="success"><span data-mark aria-hidden="true" data-dot>"#), "{tl}");
+
+    let err = |root: Json| render_with(root, json!({ "r": 0 }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "type": "ui-status-badge", "props": { "status": "x", "tones": { "x": "green" } } })).contains("has no tone `green`"));
+    assert!(err(json!({ "type": "ui-progress-ring", "props": { "value": 1, "size": 4 } })).contains("`size` must be from 16 to 512"));
+    assert!(err(json!({ "type": "ui-rating", "props": { "bind": "r", "max": 12 } })).contains("`max` must be a whole number from 1 to 10"));
+    assert!(err(json!({ "type": "ui-rating", "props": { "bind": "r", "value": 3 } })).contains("takes `bind` (to pick one) or `value`"));
+    assert!(err(json!({ "type": "ui-password-checklist", "props": { "value": "", "rules": ["long"] } })).contains("each rule is"));
 }

@@ -55,9 +55,11 @@ mod illustration;
 mod menus;
 mod navigation;
 mod otp;
+mod rating;
 mod overlay;
 mod scroll_spy;
 mod sidebar;
+mod status;
 mod theme;
 mod tree;
 mod upload;
@@ -111,6 +113,12 @@ pub fn register(registry: &mut Registry) {
         .register(filters::Filter)
         .register(tree::Tree)
         .register(upload::FileUpload)
+        .register(status::StatusBadge)
+        .register(status::ProgressRing)
+        .register(status::Timeline)
+        .register(status::TimelineItem)
+        .register(rating::Rating)
+        .register(rating::PasswordChecklist)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

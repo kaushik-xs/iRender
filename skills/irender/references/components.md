@@ -308,6 +308,51 @@ ui-file-upload: Files to attach: a drop zone, uploads with progress, the files a
   id           any  The file input's id, for a label (default: derived from the document)
   parts: zone, files
   children: no
+ui-status-badge: A status in its colour: common ones (Done, Paid, Open, In review, Blocked, Overdue, …) know theirs, and `tones` sets the rest.
+  status       any (required)  The status, e.g. `In review` or `{{ ticket.status }}`
+  tones        any  Status → tone (`neutral`, `info`, `success`, `warning`, `danger`, `primary`), over the built-in ones, e.g. `{ Shipped: success }`
+  labels       any  Status → text to show, e.g. `{ in_progress: In progress }` (default: the status)
+  dot          bool  A dot before the text (default true)
+  children: no
+ui-progress-ring: A circular progress with the value in the middle.
+  value        any (required)  0–100. Follows state when it uses it, e.g. `{{ project.done }}`
+  size         number  Width and height in px (default 48)
+  thickness    number  The ring's width in px (default: a tenth of the size)
+  text         any  In the middle (default: the value with `%`); empty for none
+  label        any  What it measures, for screen readers, e.g. `Project progress`
+  tone         one of: neutral, info, success, warning, danger, primary  Its colour (default `primary`)
+  children: no
+ui-timeline: Activity, newest first or as given: who did what and when, with field changes (old → new) and comments. Entries are `ui-timeline-item` children and/or `items`.
+  items        any  Entries with the `ui-timeline-item` props, after any children. From state, like `{{ history }}`, it redraws as it changes
+  label        any  Names it for screen readers (default `Activity`)
+  children: yes
+ui-timeline-item: One entry of a `ui-timeline`. Children go under its line.
+  who          any  Who did it, shown first in bold
+  action       any  What they did, after the name: `changed the status`, `commented`
+  when         any  When, as text: `2 hours ago`, `4 Nov, 10:42`
+  initials     any  In the avatar when there's no image (default: from `who`)
+  avatar       any  Avatar image URL
+  changes      any  Fields changed: `[{ field, from, to }]`, shown as from → to
+  comment      any  Text they wrote, quoted under the line
+  tone         one of: neutral, info, success, warning, danger, primary  The dot's colour, for an event rather than a person (with no `who`)
+  children: yes
+ui-rating: Stars: to pick a rating (`bind`), from the mouse or the arrow keys, or to show one (`value`), fractions included.
+  bind         statekey  State key for the rating, a number (0 or null: none)
+  value        any  A rating to show, read-only, e.g. an average `{{ product.rating }}`: fractions fill part of a star
+  max          number  How many stars (default 5)
+  size         number  Star size in px (default 20)
+  label        any  Names it for screen readers (default `Rating`)
+  clearable    bool  Clicking the chosen star again clears the rating (default true)
+  disabled     any  Boolean or expression
+  name         string  Form field name
+  children: no
+ui-password-checklist: A password's rules, ticked as they're met, with a strength bar. Put it under the password input; `bindValid` says when all are met.
+  value        any (required)  The password, e.g. `{{ password }}`
+  rules        any  The rules, in order: `length` (8 characters; `{ length: 12 }` for more), `lower`, `upper`, `number`, `symbol`, or `{ label, pattern }` with a regular expression. Default: length, lower, upper, number, symbol
+  bindValid    statekey  State key that gets true while every rule is met, e.g. for a button's `disabled`
+  meter        bool  A strength bar above the rules (default true)
+  label        any  Names the list for screen readers (default `Password requirements`)
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

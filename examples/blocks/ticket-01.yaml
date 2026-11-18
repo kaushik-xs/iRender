@@ -1,0 +1,128 @@
+# Block: a support ticket. The status is a `ui-status-badge` that changes colour with
+# state, the SLA a `ui-progress-ring`, the history a `ui-timeline` of who did what
+# (field changes as old → new, comments quoted), and once the ticket is resolved the
+# customer's rating is a `ui-rating`.
+# - Resolve sets the status, adds an entry to the timeline and asks for a rating.
+# - The rating picks with a click or the arrow keys; the average beside it is
+#   read-only and fills part of a star.
+#
+#   cargo run -p irender-cli -- render examples/blocks/ticket-01.yaml --ui-kit --icon-kit -o ticket-01.html
+version: 1
+state:
+  status: In progress
+  resolved: false
+  sla: 68
+  csat: 0
+  toast: null
+  history:
+    - { id: 1, who: Asha Rao, action: opened the ticket from the help widget, when: "3 Nov, 09:12" }
+    - { id: 2, action: Assigned to the Web team by the routing rules, when: "3 Nov, 09:12", tone: info }
+    - id: 3
+      who: Ravi Kumar
+      action: changed the status and priority
+      when: "3 Nov, 11:40"
+      changes: [ { field: Status, from: Open, to: In progress }, { field: Priority, from: Medium, to: High } ]
+    - { id: 4, action: "SLA warning: 8 hours left to resolve", when: "4 Nov, 08:00", tone: warning }
+    - id: 5
+      who: Meera Iyer
+      action: commented
+      when: "4 Nov, 10:05"
+      comment: "Reproduced on Safari 27: the session cookie isn't refreshed after the redirect, so the second request goes out signed out. Fix is in review."
+    - { id: 6, who: Meera Iyer, action: "linked pull request #4182", when: "4 Nov, 15:30" }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1080px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 8px }
+              children:
+                - { type: ui-breadcrumb, props: { items: [ { label: Support, href: "#" }, { label: Tickets, href: "#" }, { label: "TCK-2291" } ] } }
+                - { type: ui-heading, props: { level: 2, text: "Signed out after the payment redirect on Safari" } }
+                - type: element
+                  style: { display: flex, gap: 8px, align-items: center, flex-wrap: wrap }
+                  children:
+                    - { type: ui-status-badge, props: { status: "{{ status }}" } }
+                    - { type: ui-status-badge, props: { status: High, tones: { High: danger }, dot: false } }
+                    - { type: ui-text, props: { variant: muted, text: "Opened 3 Nov by Asha Rao · Web team" } }
+            - type: element
+              style: { display: flex, gap: 8px }
+              children:
+                - { type: ui-button, props: { label: Reassign, variant: outline } }
+                - type: ui-button
+                  props: { label: "{{ resolved ? 'Resolved' : 'Resolve' }}", disabled: "{{ resolved }}" }
+                  on:
+                    click:
+                      - { action: set_state, key: status, value: Resolved }
+                      - { action: set_state, key: resolved, value: true }
+                      - { action: set_state, key: toast, value: { title: Ticket resolved, description: "Asha will be asked to rate the help she got." } }
+        - type: element
+          style: { display: grid, gap: 24px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 2fr) minmax(0, 1fr)" }, align-items: start }
+          children:
+            # ---------------------------------------------------------- activity
+            - type: ui-card
+              props: { title: Activity }
+              children:
+                - type: ui-timeline
+                  props: { items: "{{ history }}", label: Ticket activity }
+                - type: if
+                  props: { when: "{{ resolved }}" }
+                  children:
+                    - type: ui-timeline
+                      props: { label: Just now }
+                      style: { margin-top: 18px }
+                      children:
+                        - type: ui-timeline-item
+                          props: { who: You, initials: ME, action: resolved the ticket, when: Just now, changes: [ { field: Status, from: In progress, to: Resolved } ] }
+            # ---------------------------------------------------------- details
+            - type: stack
+              style: { gap: 24px }
+              children:
+                - type: ui-card
+                  props: { title: Service level, description: "Time to resolve, out of 24 hours." }
+                  children:
+                    - type: element
+                      style: { display: flex, align-items: center, gap: 16px }
+                      children:
+                        - { type: ui-progress-ring, props: { value: "{{ resolved ? 100 : sla }}", size: 72, tone: "{{ resolved ? 'success' : 'warning' }}", label: Service level used } }
+                        - type: stack
+                          style: { gap: 2px, font-size: 14px }
+                          children:
+                            - { type: text, props: { value: "{{ resolved ? 'Met: resolved in time' : '7 h 40 min left' }}" }, style: { font-weight: 600 } }
+                            - { type: text, props: { value: "Due 4 Nov, 09:12" }, style: { color: $color.muted } }
+                - type: ui-card
+                  props: { title: Details }
+                  children:
+                    - type: element
+                      props: { tag: dl }
+                      style: { display: grid, grid-template-columns: "max-content 1fr", gap: "10px 20px", margin: 0, font-size: 14px, align-items: center }
+                      children:
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Status } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: ui-status-badge, props: { status: "{{ status }}" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Assignee } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: Meera Iyer } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Customer } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "Asha Rao · Pro plan" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Team rating } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: ui-rating, props: { value: 4.6, size: 16, label: Team's average rating } } ] }
+                - type: if
+                  props: { when: "{{ resolved }}" }
+                  children:
+                    - type: ui-card
+                      props: { title: How did we do?, description: "The customer's rating, as they'll see it in the follow-up email." }
+                      children:
+                        - { type: ui-rating, props: { bind: csat, size: 28, label: Rate the help you got } }
+                        - { type: ui-text, props: { variant: muted, text: "{{ csat == 0 ? 'Pick a rating.' : csat >= 4 ? 'Thanks! Glad it helped.' : 'Thanks. We’ll look at what went wrong.' }}" } }
+    - { type: ui-toaster, props: { bind: toast } }

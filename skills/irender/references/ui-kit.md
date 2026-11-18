@@ -52,6 +52,11 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
 | `ui-filters` + `ui-filter` | see [Filters](#filters-panel) | Filters for a list in a side panel, shown as chips, written to state for a table's or chart's `filter`. |
 | `ui-file-upload` | see [File upload](#file-upload) | A drop zone, uploads with progress, the files as a grid or list, previews, and Download all as a zip. |
+| `ui-status-badge` | `status` (required), `tones`, `labels`, `dot` (default true) | A status in its colour. See [Status and activity](#status-and-activity). |
+| `ui-progress-ring` | `value` (0–100, required), `size` (px, default 48), `thickness`, `text`, `label`, `tone` | A circular progress with the value in the middle; follows state without a script. |
+| `ui-rating` | `bind` or `value`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
+| `ui-password-checklist` | `value` (required), `rules`, `bindValid`, `meter` (default true), `label` | A password's rules, ticked as they're met, with a strength bar. |
+| `ui-timeline` + `ui-timeline-item` | `items`, `label`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
@@ -479,6 +484,18 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **Keyboard.** The fields are tabs: Up and Down (and Home, End) move between them. Opening the panel focuses the field's first control, and closing it returns focus to the button. The button's label says how many filters are applied.
 
 **Props.** `ui-filters`: `bind` (required), `rows`, `title` (the panel's heading, default `Filters`), `label` (the button's text, default `Filters`), `live`, `chips` (default true), `currency` (default `USD`), `locale`, `id`; parts `button` and `panel`. `ui-filter`: `field` (required), `label`, `type`, `options`, `operators` (a subset of the type's, in the order to show them: `any`, `none`, `eq`, `gt`, `lt`, `between`, `on`, `before`, `after`, `contains`, `is`, `empty`, `set`), `section` (a heading to group fields under), `unit` (after a number, e.g. `kg`) and `currency`.
+
+## Status and activity
+
+**`ui-status-badge`** shows a status in its colour. Common statuses know their tone, ignoring case, spaces, `-` and `_`: Done, Complete, Paid, Approved, Active, Resolved, Delivered and Published are `success`; Open, New, To do and Scheduled are `info`; In progress is `primary`; In review, Pending, Waiting, On hold and Partial are `warning`; Overdue, Blocked, Failed, Rejected, Cancelled, Unpaid and Error are `danger`; Draft, Closed, Archived and Inactive are `neutral`, as is anything unknown. `tones` adds or overrides (`{ Shipped: success }`), and `labels` changes the text shown (`{ in_progress: In progress }`). Tones take the theme's `color.success`, `color.warning`, `color.info` and `color.destructive` when it has them. A status from state changes colour as it changes.
+
+**`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.
+
+**`ui-rating`** picks a rating with stars, as radio buttons: a click or the arrow keys pick, hovering previews, and a click on the chosen star clears it (`clearable: false` stops that). With `value` instead of `bind`, it shows a rating read-only, like an average of 4.3, filling part of a star, with the number beside it; screen readers hear "Rating: 4.3 out of 5".
+
+**`ui-password-checklist`** goes under a password input: `value: "{{ password }}"`. Each rule is ticked as it's met, and a bar shows the strength (Weak, Fair, Good, Strong). `rules` are `length` (8 characters, or `{ length: 12 }`), `lower`, `upper`, `number`, `symbol`, or `{ label, pattern }` with a regular expression; the default is the five presets. `bindValid` gets true while every rule is met, for a button's `disabled: "{{ !valid }}"`. Each rule is read with "met" or "not met".
+
+**`ui-timeline`** lists activity: `ui-timeline-item` children and/or `items` from state, which redraw as they change. An entry has `who` (with an avatar, the initials, or for a name from state its first letter), `action`, `when`, `changes` (`[{ field, from, to }]`, shown as from → to with the old value struck through), a quoted `comment`, and children under it. An entry with no `who` is an event, shown with a dot in its `tone`.
 
 ## Tree
 

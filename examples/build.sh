@@ -49,7 +49,7 @@ for block in data-table-01 data-table-02; do
   $irender render "examples/blocks/$block.yaml" --data "examples/blocks/$block.data.json" \
     --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
-for block in data-table-03 data-table-04 data-table-05 data-table-06 tree-01 docs-01 expense-01 empty-states; do
+for block in data-table-03 data-table-04 data-table-05 data-table-06 tree-01 docs-01 expense-01 ticket-01 empty-states; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 # The chat's replies include charts, images and a video.
