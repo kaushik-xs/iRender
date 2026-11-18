@@ -56,6 +56,20 @@ state:
   chatDraft: ""
   chatWaiting: false
   sidebar: true
+  invoices:
+    - { id: INV001, status: Paid, method: Credit card, amount: 2500, date: "2026-10-02", customer: Asha }
+    - { id: INV002, status: Pending, method: UPI, amount: 1500, date: "2026-10-05", customer: Kaushik }
+    - { id: INV003, status: Unpaid, method: Bank transfer, amount: 3500, date: "2026-10-07", customer: Meera }
+    - { id: INV004, status: Paid, method: Credit card, amount: 4500, date: "2026-10-09", customer: Ravi }
+    - { id: INV005, status: Paid, method: UPI, amount: 550, date: "2026-10-11", customer: Asha }
+    - { id: INV006, status: Pending, method: Bank transfer, amount: 2000, date: "2026-10-14", customer: Divya }
+    - { id: INV007, status: Unpaid, method: Credit card, amount: 3000, date: "2026-10-15", customer: Kaushik }
+    - { id: INV008, status: Paid, method: UPI, amount: 1250, date: "2026-10-18", customer: Meera }
+    - { id: INV009, status: Refunded, method: Credit card, amount: 800, date: "2026-10-20", customer: Ravi }
+    - { id: INV010, status: Paid, method: Bank transfer, amount: 6200, date: "2026-10-22", customer: Divya }
+    - { id: INV011, status: Pending, method: UPI, amount: 975, date: "2026-10-25", customer: Asha }
+    - { id: INV012, status: Paid, method: Credit card, amount: 3150, date: "2026-10-28", customer: Kaushik }
+  invoicePicks: []
 root:
   type: stack
   props: { gap: 40 }
@@ -883,6 +897,109 @@ root:
                             variant: "{{ inv.status == 'Paid' ? 'secondary' : inv.status == 'Unpaid' ? 'destructive' : 'outline' }}"
                     - { type: text, props: { tag: td, value: "{{ inv.method }}" } }
                     - { type: text, props: { tag: td, value: "{{ inv.amount }}" }, style: { text-align: right } }
+
+    # ---------------------------------------------------------------- data table
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Data table } }
+        - type: ui-text
+          props: { variant: muted, text: "Sorting (Shift-click for more columns), filters, search, paging, selection with bulk actions, detail rows, nested rows and pinned columns. Keyboard: ↑ ↓ between rows, Space to select, Enter or → to open." }
+
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Filters, sorting, selection and bulk actions" } }
+        - type: ui-data-table
+          props:
+            rows: "{{ invoices }}"
+            title: Invoices
+            search: Search invoices…
+            sort: -date
+            selectable: true
+            bindSelection: invoicePicks
+            pageSize: 5
+            pageSizes: [5, 10]
+            locale: en-IN
+          children:
+            - { type: ui-data-table-column, props: { field: id, label: Invoice, hideable: false } }
+            - { type: ui-data-table-column, props: { field: date, label: Date, format: date, filter: date } }
+            - { type: ui-data-table-column, props: { field: customer, label: Customer, filter: select } }
+            - type: ui-data-table-column
+              props: { field: status, label: Status, filter: select, cell: badge, tones: { Paid: success, Pending: warning, Unpaid: destructive, Refunded: secondary } }
+            - { type: ui-data-table-column, props: { field: method, label: Method, filter: select, hidden: true } }
+            - { type: ui-data-table-column, props: { field: amount, label: Amount, format: currency, currency: INR, filter: range, summary: sum } }
+            - type: ui-data-table-detail
+              children:
+                - type: ui-text
+                  props: { text: "{{ row.customer }}, by {{ row.method }}. Open the invoice to see its lines and payments." }
+            - type: ui-data-table-bulk
+              children:
+                - type: ui-button
+                  props: { label: Send reminders, size: sm, variant: outline }
+                  on:
+                    click:
+                      - { action: set_state, key: toast, value: { title: "Reminders sent for {{ invoicePicks.length }} invoices" } }
+                      - { action: set_state, key: invoicePicks, value: [] }
+        - { type: ui-text, props: { variant: muted, text: "invoicePicks = {{ invoicePicks }}" } }
+
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Nested rows and pinned columns: scroll sideways, Name and Size stay put" } }
+        - type: ui-data-table
+          props:
+            title: Files
+            rowKey: path
+            pageSize: 0
+            columnsMenu: false
+            rows:
+              - path: src
+                name: src
+                kind: Folder
+                size: 48200
+                children:
+                  - { path: src/lib.rs, name: lib.rs, kind: Rust, size: 18400, owner: Asha, modified: "2026-11-12" }
+                  - path: src/components
+                    name: components
+                    kind: Folder
+                    size: 29800
+                    children:
+                      - { path: src/components/table.rs, name: table.rs, kind: Rust, size: 21000, owner: Kaushik, modified: "2026-11-18" }
+                      - { path: src/components/button.rs, name: button.rs, kind: Rust, size: 8800, owner: Meera, modified: "2026-11-02" }
+              - path: docs
+                name: docs
+                kind: Folder
+                size: 12100
+                children:
+                  - { path: docs/README.md, name: README.md, kind: Markdown, size: 9600, owner: Ravi, modified: "2026-11-15" }
+                  - { path: docs/CHANGELOG.md, name: CHANGELOG.md, kind: Markdown, size: 2500, owner: Divya, modified: "2026-10-30" }
+              - { path: Cargo.toml, name: Cargo.toml, kind: TOML, size: 1200, owner: Asha, modified: "2026-11-01" }
+            columns:
+              - { field: name, label: Name, pin: left, width: 200 }
+              - { field: kind, label: Kind, width: 140 }
+              - { field: owner, label: Owner, width: 160 }
+              - { field: modified, label: Modified, format: date, width: 180 }
+              - { field: path, label: Path, width: 280 }
+              - { field: size, label: Size, format: number, pin: right, summary: sum }
+
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-label, props: { text: "Load more (paging: more; scroll and virtual work the same way)" } }
+        - type: ui-data-table
+          props:
+            rows: "{{ invoices }}"
+            title: Invoices, a few at a time
+            paging: more
+            pageSize: 4
+            sort: id
+            columnsMenu: false
+            locale: en-IN
+            columns:
+              - { field: id, label: Invoice }
+              - { field: customer, label: Customer }
+              - { field: amount, label: Amount, format: currency, currency: INR }
 
     # ---------------------------------------------------------------- navigation
     - type: stack
