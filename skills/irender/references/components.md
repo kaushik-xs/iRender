@@ -576,12 +576,14 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
   locale       string  Locale for names and formats (default: the browser's)
   label        any  Accessible name
   id           any  Element id (default: derived from the document)
+  input        bool  A text field to type the value in (`15/03/2026`, `Mar 15`, `today`), with a button beside it for the calendar
+  bindError    statekey  With `input`, a state key that gets why the typed text isn't a value, or null: a `ui-field`'s `error`
   placeholder  any  Shown while nothing is picked (default `Pick a date`, `Pick a range`, …)
   clearable    bool  A button in the field that clears the value
   closeOnSelect bool  Close once a value is complete (default true; with `time` or `multiple`, false)
   align        one of: start, end  The popover's edge lined up with the button (default `start`)
   disabled     any  Boolean or expression
-  parts: trigger, popover
+  parts: trigger, input, popover
   children: no
 ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.
   rows         any  The rows: an array of objects, from data or state (or use `url`)

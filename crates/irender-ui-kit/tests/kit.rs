@@ -1109,3 +1109,23 @@ fn context_menu_structure() {
     assert!(body.contains(r#"role="menuitem" tabindex="-1" type="button" popovertarget="m" popovertargetaction="hide""#), "{body}");
     assert!(page.scripts.iter().any(|s| s.contains("ui-context-menu")) && page.scripts.iter().any(|s| s.contains("ui-dropdown-menu")));
 }
+
+#[test]
+fn date_picker_with_input() {
+    let body = plain(
+        &render_with(
+            json!({ "type": "ui-field", "props": { "label": "Start" }, "children": [
+                { "type": "ui-date-picker", "props": { "bind": "start", "input": true, "clearable": true } } ] }),
+            json!({ "start": "2026-03-15" }),
+            json!({}),
+        )
+        .unwrap()
+        .body,
+    );
+    // The label names the text field, which holds the value until the browser formats it.
+    assert!(body.contains(r#"<label for="field-root-control">"#), "{body}");
+    assert!(body.contains(r#"<input id="field-root-control" type="text" data-cal-input value="2026-03-15" autocomplete="off" spellcheck="false">"#), "{body}");
+    assert!(body.contains(r#"aria-label="Choose a date""#) && body.contains("data-cal-trigger"), "{body}");
+    let err = render_with(json!({ "type": "ui-date-picker", "props": { "input": true, "mode": "multiple" } }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err.contains("not `multiple`"), "{err}");
+}

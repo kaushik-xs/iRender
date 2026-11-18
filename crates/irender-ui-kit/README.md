@@ -269,6 +269,7 @@ Not replicated:
 | `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date. |
 | `label` | The accessible name. In a `ui-field`, its label names the picker's button. |
 | `clearable` | A ✕ in the picker's button (a Clear link under `ui-calendar`). |
+| `input`, `bindError` | The picker only: a text field to type the value in, with the calendar's button beside it; see [Typing a date](#typing-a-date). |
 | `placeholder`, `closeOnSelect`, `align`, `disabled` | The picker only: the text while empty (default `Pick a date`, `Pick a range`, …), closing once a value is complete (default true; not with `time` or `multiple`), which edge the popover lines up with (`start` or `end`), and turning it off. |
 
 The calendar follows the WAI-ARIA date picker pattern: a grid with one cell in the tab order.
@@ -280,6 +281,25 @@ The calendar follows the WAI-ARIA date picker pattern: a grid with one cell in t
 - A live region says what was picked.
 
 Days outside the month show muted (left out when two months show), today is marked, and the value's text in the button follows the locale. Each change fires a bubbling `change` event with `{ value, range }`.
+
+### Typing a date
+
+With `input: true`, the picker is a text field with the calendar's button beside it, as shadcn's "date picker with input". The field shows the value in the locale's numeric form (`15/03/2026` in `en-GB`, `03/15/2026` in `en-US`), and its placeholder is the pattern (`DD/MM/YYYY`). What's typed becomes the value on Enter or on leaving the field:
+
+- Day, month and year in the locale's order, with any separator: `15/3/2026`, `15.03.26`, `15 3 2026`. Two-digit years are within 20 years ahead, or else the century before. Day and month alone mean this year.
+- ISO dates (`2026-03-15`), month names in the locale or English (`15 Mar 2026`, `March 15`), and `today`, `tomorrow`, `yesterday`, `today+3d`.
+- With `time`, a time after the date: `14:30` or `2:30 pm`.
+- A range is two dates with `–`, `-`, `to` or `until` between them, in either order.
+- Months as `03/2026` or `Mar 2026`, quarters as `Q2 FY2026–27` or `q2 2026`, years as `2026` or `FY2026–27`.
+
+Text that isn't a value, or is outside `min`, `max` or the disabled days, stays as typed, marked `aria-invalid` with the reason in its `title` and a live region: "Enter a date like DD/MM/YYYY", "Pick a date on or after 5 Mar 2026". `bindError` puts the reason in state for a `ui-field`'s `error`. Escape puts back the value as it was, an empty field clears it, and Down opens the calendar. In a `ui-field`, the label names the text field. `input` takes one value or a range, not `multiple`.
+
+```yaml
+- type: ui-field
+  props: { label: Start date, error: "{{ startError }}" }
+  children:
+    - { type: ui-date-picker, props: { bind: start, bindError: startError, input: true, min: today } }
+```
 
 ## Data table
 

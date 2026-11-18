@@ -74,6 +74,9 @@
     const $ = (s) => el.querySelector(s);
     const body = $("[data-cal]"), live = $("[data-cal-live]");
     const trigger = $("[data-cal-trigger]"), pop = $("[data-cal-pop]"), clearX = $("[data-cal-x]");
+    // With `input`, a text field to type the value in, beside a button for the calendar.
+    const field = $("[data-cal-input]");
+    const home = () => (field || trigger)?.focus();
 
     // ---- parsing: ISO dates and keys, and `today`, `today-30d`, `today+1y`
     function parseDate(v) {
@@ -413,10 +416,14 @@
       sync(v);
     }
 
-    // The trigger's text, the clear button and the hidden inputs.
+    // The trigger's text (or the field's), the clear button and the hidden inputs.
     function sync(v) {
       const text = display(v);
-      if (trigger) {
+      if (field) {
+        // Not over text still being typed, or not yet a value.
+        if (!field.__dirty) field.value = typed(v);
+        el.toggleAttribute("data-empty", !text);
+      } else if (trigger) {
         const span = trigger.querySelector("[data-cal-text]");
         span.textContent = text || span.getAttribute("data-placeholder");
         el.toggleAttribute("data-empty", !text);
@@ -556,7 +563,7 @@
       try {
         pop.hidePopover();
       } catch {}
-      trigger?.focus();
+      home();
     }
     if (pop) {
       pop.addEventListener("toggle", (e) => {
@@ -568,8 +575,190 @@
     }
     clearX?.addEventListener("click", () => {
       clear();
-      trigger?.focus();
+      setError(null);
+      home();
     });
+
+    // ---- typing a value
+    // The locale's numeric date, its order of day, month and year, and a pattern for the
+    // placeholder: 15/03/2026, [day, month, year], DD/MM/YYYY.
+    const numeric = fmt("numeric", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const sample = numeric.formatToParts(D(2026, 11, 23));
+    const order = sample.map((p) => p.type).filter((t) => t === "day" || t === "month" || t === "year");
+    const pattern = sample.map((p) => ({ day: "DD", month: "MM", year: "YYYY" })[p.type] ?? p.value).join("");
+    // Month names in the locale and in English, long and short.
+    const monthNames = new Map();
+    for (const l of [loc, "en"]) {
+      for (const style of ["long", "short"]) {
+        const f = new Intl.DateTimeFormat(l, { month: style, timeZone: "UTC" });
+        for (let m = 1; m <= 12; m++) monthNames.set(f.format(D(2024, m, 1)).toLowerCase().replace(/\.$/, ""), m);
+      }
+    }
+    // Text the field shows for a value, which reads back as the same value.
+    function typed(v) {
+      const one = (k) => (kind === "day" ? numeric.format(u.start(k)) : label(k));
+      if (mode === "range") return v.from ? `${one(v.from)} – ${v.to ? one(v.to) : ""}`.trim() : "";
+      if (!v) return "";
+      return cfg.time && time ? `${one(v)} ${timeText(time)}` : one(v);
+    }
+    // A two-digit year is within 20 years ahead of this one, or else in the century before.
+    const fullYear = (y, digits) => {
+      if (digits > 2) return y;
+      const now = Y(today()), base = now - (now % 100);
+      return base + y <= now + 20 ? base + y : base - 100 + y;
+    };
+    const exists = (y, m, d) => m >= 1 && m <= 12 && d >= 1 && Dd(D(y, m, d)) === d && M(D(y, m, d)) === m;
+    // One date, month, quarter or year from text; a key, or null when it isn't one.
+    function parseOne(text) {
+      let s = text.trim().toLowerCase();
+      if (!s) return null;
+      const rel = s.match(/^(today|tomorrow|yesterday)$/);
+      if (rel) return u.key(addDays(today(), { today: 0, tomorrow: 1, yesterday: -1 }[rel[1]]));
+      if (/^today\s*[+-]/.test(s)) {
+        const d = parseDate(s);
+        return d ? u.key(d) : null;
+      }
+      if (kind === "quarter" || kind === "year") {
+        // `Q1 FY2026–27`, `2026-Q1`, `q1 2026`, `FY2026-27`, `2026`.
+        const q = s.match(/q\s*([1-4])/);
+        const y = s.replace(/q\s*[1-4]/, "").match(/(\d{4})/);
+        if (!y) return null;
+        if (kind === "year") return String(+y[1]);
+        return q ? `${+y[1]}-Q${q[1]}` : null;
+      }
+      const iso = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/);
+      const tokens = s.match(/\p{L}+|\d+/gu) ?? [];
+      const word = tokens.find((t) => /\p{L}/u.test(t) && monthNames.has(t));
+      const nums = tokens.filter((t) => /^\d+$/.test(t));
+      let y, m, d;
+      if (iso) [y, m, d] = [+iso[1], +iso[2], iso[3] ? +iso[3] : 1];
+      else if (word) {
+        m = monthNames.get(word);
+        // A four-digit number (or one over 31) is the year; the other is the day.
+        const yi = nums.findIndex((n) => n.length > 2 || +n > 31);
+        y = yi >= 0 ? fullYear(+nums[yi], nums[yi].length) : kind === "month" && nums.length === 1 ? fullYear(+nums[0], nums[0].length) : Y(today());
+        const rest = nums.filter((_, i) => i !== yi && !(kind === "month" && nums.length === 1));
+        d = kind === "month" ? 1 : rest.length ? +rest[0] : null;
+        if (kind === "day" && d === null) return null;
+      } else if (kind === "month") {
+        // `03/2026`, `2026/03`.
+        if (nums.length !== 2) return null;
+        const [a, b] = nums;
+        [y, m] = a.length > 2 ? [+a, +b] : [fullYear(+b, b.length), +a];
+        d = 1;
+      } else {
+        if (nums.length === 3 && nums[0].length > 2) [y, m, d] = nums.map(Number);
+        else if (nums.length === 3) {
+          const by = Object.fromEntries(order.map((t, i) => [t, nums[i]]));
+          [y, m, d] = [fullYear(+by.year, by.year.length), +by.month, +by.day];
+        } else if (nums.length === 2) {
+          // Day and month in the locale's order, this year.
+          const dm = order.filter((t) => t !== "year");
+          const by = Object.fromEntries(dm.map((t, i) => [t, +nums[i]]));
+          [y, m, d] = [Y(today()), by.month, by.day];
+        } else return null;
+      }
+      if (!exists(y, m, d)) return null;
+      return u.key(D(y, m, d));
+    }
+    // A time at the end of the text, as `HH:MM`, and the text without it.
+    function splitTime(text) {
+      const t = text.match(/(\d{1,2})[:.](\d{2})\s*([ap])\.?\s*m\.?\s*$|(\d{1,2})[:.](\d{2})\s*$/i);
+      if (!t) return [text, null];
+      let hh = +(t[1] ?? t[4]), mm = +(t[2] ?? t[5]);
+      const ap = t[3]?.toLowerCase();
+      if (ap === "p" && hh < 12) hh += 12;
+      if (ap === "a" && hh === 12) hh = 0;
+      if (hh > 23 || mm > 59) return [text, "bad"];
+      return [text.slice(0, t.index), `${pad(hh)}:${pad(mm)}`];
+    }
+    // What to type, in error messages: the locale's pattern for days, an example otherwise.
+    const example = () => (kind === "day" ? pattern : label(u.key(today())));
+    function check(k, lim) {
+      if (lim.min && u.end(k) < lim.min) return `Pick a date on or after ${label(u.key(lim.min))}`;
+      if (lim.max && u.start(k) > lim.max) return `Pick a date on or before ${label(u.key(lim.max))}`;
+      if (disabled(k, lim)) return `${label(k)} can't be picked`;
+      return null;
+    }
+    // The field's text as a value, or an error to show.
+    function parseField(text) {
+      const lim = limits();
+      const bad = { error: `Enter a ${kind === "day" ? "date" : kind} like ${example()}` };
+      if (mode === "range") {
+        const parts = text.split(/\s+(?:–|—|-|to|until)\s+|\s*[–—]\s*/i).filter((p) => p.trim());
+        if (parts.length !== 2) return { error: `Enter two dates, like ${example()} – ${example()}` };
+        const keys = parts.map(parseOne);
+        if (keys.some((k) => !k)) return bad;
+        const [from, to] = keys.sort((a, b) => u.start(a) - u.start(b));
+        const error = check(from, lim) || check(to, lim);
+        return error ? { error } : { value: { from, to } };
+      }
+      let rest = text, t = null;
+      if (cfg.time) {
+        [rest, t] = splitTime(text);
+        if (t === "bad") return { error: "Enter a time like 14:30" };
+      }
+      const k = parseOne(rest);
+      if (!k) return bad;
+      const error = check(k, lim);
+      return error ? { error } : { value: k, time: t };
+    }
+    let error = null;
+    function setError(msg) {
+      if (!field) return;
+      if (msg) field.setAttribute("aria-invalid", "true");
+      else field.removeAttribute("aria-invalid");
+      field.title = msg ?? "";
+      if (msg !== error) {
+        error = msg;
+        if (cfg.bindError) api.set(cfg.bindError, msg);
+        if (msg) say(msg);
+      }
+    }
+    function commit() {
+      if (!field || !field.__dirty) return;
+      const text = field.value.trim();
+      // Text that isn't a value stays as typed, to be fixed; the rest is now the value.
+      const done = () => (field.__dirty = false);
+      if (!text) {
+        done();
+        setError(null);
+        const v = read();
+        if (mode === "range" ? v.from : v) clear();
+        return;
+      }
+      const r = parseField(text);
+      if (r.error) return setError(r.error);
+      done();
+      setError(null);
+      if (r.time) time = r.time;
+      focus = mode === "range" ? r.value.from : r.value;
+      view = pageOf(focus);
+      write(r.value);
+      sync(read());
+    }
+    if (field) {
+      field.placeholder ||= mode === "range" ? `${kind === "day" ? pattern : example()} – ${kind === "day" ? pattern : example()}` : kind === "day" ? pattern + (cfg.time ? " HH:MM" : "") : example();
+      field.addEventListener("input", () => (field.__dirty = true));
+      field.addEventListener("change", commit);
+      field.addEventListener("blur", commit);
+      field.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape" && field.__dirty) {
+          // Back to the value as it was.
+          e.preventDefault();
+          field.__dirty = false;
+          setError(null);
+          sync(read());
+        } else if (e.key === "ArrowDown" && pop && !pop.matches(":popover-open")) {
+          e.preventDefault();
+          commit();
+          pop.showPopover();
+        }
+      });
+    }
 
     // Other components (the data table's date filter) set the value through this.
     const handle = {

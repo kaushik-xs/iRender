@@ -50,6 +50,8 @@ macro_rules! calendar_props {
 const CALENDAR_PROPS: &[PropDef] = calendar_props![PropDef::new("clearable", PropKind::Bool, "A Clear button under the calendar")];
 
 const PICKER_PROPS: &[PropDef] = calendar_props![
+    PropDef::new("input", PropKind::Bool, "A text field to type the value in (`15/03/2026`, `Mar 15`, `today`), with a button beside it for the calendar"),
+    PropDef::new("bindError", PropKind::StateKey, "With `input`, a state key that gets why the typed text isn't a value, or null: a `ui-field`'s `error`"),
     PropDef::new("placeholder", PropKind::Any, "Shown while nothing is picked (default `Pick a date`, `Pick a range`, …)"),
     PropDef::new("clearable", PropKind::Bool, "A button in the field that clears the value"),
     PropDef::new("closeOnSelect", PropKind::Bool, "Close once a value is complete (default true; with `time` or `multiple`, false)"),
@@ -259,6 +261,66 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
 });
 
+/// The text field and the calendar's button in one border, like `ui-input-group`.
+static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("box-sizing", "border-box"),
+        ("display", "flex"),
+        ("align-items", "center"),
+        ("width", "100%"),
+        ("height", sp!(36)),
+        ("border", "1px solid var(--color-border)"),
+        ("border-radius", "var(--radius-md)"),
+        ("background", "transparent"),
+        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+        ("transition", "border-color .15s, box-shadow .15s"),
+    ])
+    .nest(
+        "&:focus-within",
+        pairs(&[("border-color", RING), ("box-shadow", "0 0 0 3px color-mix(in srgb, var(--color-ring, var(--color-muted)) 50%, transparent)")]),
+    )
+    .nest(
+        "&:has([aria-invalid=true])",
+        pairs(&[("border-color", "var(--color-destructive, #dc2626)")]),
+    )
+    .nest(
+        "& [data-cal-input]",
+        pairs(&[
+            ("flex", "1"),
+            ("min-width", "0"),
+            ("height", "100%"),
+            ("padding", sp!(0, 12)),
+            ("border", "0"),
+            ("outline", "none"),
+            ("background", "transparent"),
+            ("color", TEXT),
+            ("font", "inherit"),
+            ("font-size", fs!(14)),
+        ]),
+    )
+    .nest("& [data-cal-input]::placeholder", pairs(&[("color", MUTED)]))
+    .nest("& [data-cal-x]", pairs(&[("position", "static"), ("transform", "none")]))
+    .nest(
+        "& [data-cal-trigger]",
+        pairs(&[
+            ("display", "inline-flex"),
+            ("align-items", "center"),
+            ("justify-content", "center"),
+            ("width", sp!(32)),
+            ("height", sp!(28)),
+            ("margin-right", sp!(3)),
+            ("padding", "0"),
+            ("border", "0"),
+            ("border-radius", "var(--radius-sm)"),
+            ("background", "transparent"),
+            ("color", MUTED),
+            ("cursor", "pointer"),
+        ]),
+    )
+    .nest("& [data-cal-trigger]:hover", pairs(&[("background", SUBTLE), ("color", TEXT)]))
+    .nest("& [data-cal-trigger]:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))")]))
+});
+
 const ICON: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>"#;
 
 /// A prop for the behaviour: templates that read state (anywhere inside) left for the
@@ -301,6 +363,9 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
         return Err(RenderError::new(node, format!("`mode` must be one of {}, got `{mode}`", MODES.join(", "))));
     }
     let time = flag("time").unwrap_or(false);
+    if picker && flag("input").unwrap_or(false) && mode == "multiple" {
+        return Err(RenderError::new(node, "`input` takes one value or a range, not `multiple`"));
+    }
     if time && (kind != "day" || mode != "single") {
         return Err(RenderError::new(node, "`time` goes with single days (`picker: day`, `mode: single`)"));
     }
@@ -354,6 +419,8 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
         "name": s("name"),
         "locale": s("locale"),
         "popover": picker,
+        "input": picker && flag("input").unwrap_or(false),
+        "bindError": s("bindError"),
     }))
 }
 
@@ -447,7 +514,7 @@ impl Component for DatePicker {
         ComponentInfo {
             doc: "A button that opens a calendar in a popover: a day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years.",
             props: PICKER_PROPS,
-            parts: &["trigger", "popover"],
+            parts: &["trigger", "input", "popover"],
             children: false,
             open_props: false,
         }
@@ -486,6 +553,56 @@ impl Component for DatePicker {
         }
         cx.open(&root, node)?;
 
+        if config["input"] == json!(true) {
+            // A text field and, beside it inside the same border, the calendar's button.
+            let mut group = Element::new("div");
+            group.base_style_ref(&INPUT_GROUP).base_style(StyleBlock::new().set("anchor-name", anchor.clone())).attr("data-cal-group", true);
+            cx.open(&group, node)?;
+            let mut input = cx.part("input", node, "input");
+            let typed = match &value {
+                Json::Object(o) if !empty => format!("{} – {}", expr::stringify(o.get("from").unwrap_or(&Json::Null)), o.get("to").map(expr::stringify).unwrap_or_default()),
+                v if !empty => expr::stringify(v),
+                _ => String::new(),
+            };
+            input
+                .attr("type", "text")
+                .attr("id", id.clone())
+                .attr("data-cal-input", true)
+                .attr("value", typed)
+                .attr("autocomplete", "off")
+                .attr("spellcheck", "false");
+            if let Some(p) = cx.prop_string(node, "placeholder") {
+                input.attr("placeholder", p);
+            }
+            if let Some(l) = node.prop("label") {
+                input.attr("aria-label", l.clone());
+            }
+            if let Some(d) = node.prop("disabled") {
+                input.attr("disabled", d.clone());
+            }
+            cx.open(&input, node)?;
+            if config["clearable"] == json!(true) {
+                let mut x = Element::new("button");
+                x.attr("type", "button").attr("data-cal-x", true).attr("aria-label", "Clear").attr("hidden", empty).text(lit("✕"));
+                cx.open(&x, node)?;
+                cx.close("button");
+            }
+            let mut b = cx.part("button", node, "trigger");
+            b.attr("type", "button")
+                .attr("data-cal-trigger", true)
+                .attr("popovertarget", pop.clone())
+                .attr("aria-haspopup", "dialog")
+                .attr("aria-label", if config["mode"] == "range" { "Choose dates" } else { "Choose a date" });
+            if let Some(d) = node.prop("disabled") {
+                b.attr("disabled", d.clone());
+            }
+            cx.open(&b, node)?;
+            cx.markup(ICON);
+            cx.close("button");
+            cx.close("div");
+            return finish(cx, node, config, &pop, &anchor, &value);
+        }
+
         let mut trigger = cx.part("button", node, "trigger");
         forms::button_look(&mut trigger, "outline", "default");
         trigger
@@ -522,25 +639,31 @@ impl Component for DatePicker {
             cx.close("button");
         }
 
-        let align = cx.prop_string(node, "align").unwrap_or_else(|| "start".into());
-        let area = if align == "end" { "bottom span-left" } else { "bottom span-right" };
-        let mut popover = cx.part("div", node, "popover");
-        popover
-            .base_style(StyleBlock::new().set("position-anchor", anchor).set("position-area", area))
-            .attr("popover", "auto")
-            .attr("id", pop)
-            .attr("role", "dialog")
-            .attr("data-cal-pop", true)
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(if config["mode"] == "range" { "Choose dates" } else { "Choose a date" })));
-        cx.open(&popover, node)?;
-        let mut body = Element::new("div");
-        body.attr("data-cal", true);
-        cx.open(&body, node)?;
-        cx.close("div");
-        cx.close("div");
-        live(cx, node)?;
-        hidden_inputs(cx, node, &value)?;
-        cx.close("div");
-        Ok(())
+        finish(cx, node, config, &pop, &anchor, &value)
     }
+}
+
+/// The popover holding the calendar, the live region and the hidden inputs, then the
+/// end of the picker's element.
+fn finish(cx: &mut RenderCx<'_>, node: &Node, config: Json, pop: &Val, anchor: &str, value: &Json) -> Result<(), RenderError> {
+    let align = cx.prop_string(node, "align").unwrap_or_else(|| "start".into());
+    let area = if align == "end" { "bottom span-left" } else { "bottom span-right" };
+    let mut popover = cx.part("div", node, "popover");
+    popover
+        .base_style(StyleBlock::new().set("position-anchor", anchor.to_string()).set("position-area", area))
+        .attr("popover", "auto")
+        .attr("id", pop.clone())
+        .attr("role", "dialog")
+        .attr("data-cal-pop", true)
+        .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(if config["mode"] == "range" { "Choose dates" } else { "Choose a date" })));
+    cx.open(&popover, node)?;
+    let mut body = Element::new("div");
+    body.attr("data-cal", true);
+    cx.open(&body, node)?;
+    cx.close("div");
+    cx.close("div");
+    live(cx, node)?;
+    hidden_inputs(cx, node, value)?;
+    cx.close("div");
+    Ok(())
 }

@@ -46,7 +46,8 @@ _Last updated: 2026-11-18._
   - [ ] Interface text (Rows per page, Select all, Clear filter, …) is English only; only `emptyText` can be changed.
   - [ ] No CSV export; a bulk action can `call` the host with the selected keys.
 - [ ] **Date picker gaps** (`ui-date-picker` and `ui-calendar` shipped 2026-11-18: days with a time, months, quarters and years on a financial year, single, range and multiple, limits, disabled days, presets, month and year menus, `bindRange`; the data table's date filter uses the calendar):
-  - [ ] No typing a date: the value is picked from the calendar only. Idea: an input that parses the locale's format, as shadcn's "date picker with input".
+  - [x] Typing a date (`input: true`, 2026-11-18): the locale's numeric order, month names, two-digit years, ranges, times, quarters and years, with errors for `ui-field`.
+  - [ ] Typing: month names are matched in the locale and in English only; error messages are English.
   - [ ] Times go with single days only; a range has no times, and there's no time zone (values are local wall-clock times).
   - [ ] Interface text (Pick a date, Previous month, Time, preset names) is English only; dates and month names follow `locale`.
   - [ ] No week picker and no "multiple months" mode beyond three months side by side.
@@ -222,6 +223,8 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - telecom: `roaming` (f), `network-outage`, `fibre-optic`
 
 ## Housekeeping
+
+- [ ] **The chat browser tests are flaky under load.** `chat_threads_in_chrome` and `chat_sends_and_streams_replies_in_chrome` each failed once in a full `--ignored` run (2026-11-18) and passed alone every time. They wait on timers against a streaming test server; waiting on the DOM instead would steady them.
 
 - [ ] **`{{ }}` inside a literal `set_state` value is never evaluated, and nothing warns.** `value: { description: "Hi {{ name }}" }` stores the braces as text, while `submit` `body` fields are evaluated. Found by a model writing a toast. Fix: evaluate templated leaves of literal values (as `body` does), or at least warn in `validate`. Then drop the caveat from `skills/irender/references/authoring.md`.
 - [ ] **`tools/llm-docs.sh --check` isn't in CI yet.** Until it is, the skill's references and `llms-full.txt` go stale whenever a component, icon or README changes. Run `tools/llm-docs.sh` after such changes.

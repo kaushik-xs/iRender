@@ -80,6 +80,9 @@ state:
   fy: null
   shifts: []
   birthday: null
+  start: null
+  startError: null
+  stay: null
   clicked: null
   lastAction: ""
 root:
@@ -952,6 +955,14 @@ root:
           props: { label: Financial year, description: "fy = {{ fy }}" }
           children:
             - { type: ui-date-picker, props: { bind: fy, picker: year, fiscalStart: 4 } }
+        - type: ui-field
+          props: { label: Start date, description: "Type it in your date format, as Mar 15 or tomorrow, or pick it. Weekdays from today. start = {{ start }}", error: "{{ startError }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: start, bindError: startError, input: true, min: today, disabledDays: [0, 6], clearable: true } }
+        - type: ui-field
+          props: { label: Stay, description: "Type a range, as Dec 1 to Dec 5, or pick it. stay = {{ stay }}" }
+          children:
+            - { type: ui-date-picker, props: { bind: stay, mode: range, months: 2, input: true } }
         - type: ui-field
           props: { label: Date of birth, description: "Month and year menus. birthday = {{ birthday }}" }
           children:

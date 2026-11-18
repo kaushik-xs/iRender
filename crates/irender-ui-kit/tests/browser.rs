@@ -2524,3 +2524,102 @@ fn context_menu_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Typing into a date picker: the locale's order, month names, two-digit years, ranges,
+/// times and quarters; errors for text that isn't a date or is outside the limits;
+/// Escape, clearing, and the calendar from the keyboard.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn date_picker_typing_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "a": "2026-03-10", "e": null, "b": null, "r": null, "t": null, "q": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-field", "props": { "label": "Due", "error": "{{ e }}" }, "children": [
+                { "type": "ui-date-picker", "props": { "bind": "a", "bindError": "e", "input": true, "locale": "en-GB", "min": "2026-03-05", "max": "2026-12-31", "disabledDays": [0] } } ] },
+            { "type": "ui-date-picker", "props": { "id": "b", "bind": "b", "input": true, "locale": "en-US" } },
+            { "type": "ui-date-picker", "props": { "id": "r", "bind": "r", "mode": "range", "input": true, "locale": "en-GB" } },
+            { "type": "ui-date-picker", "props": { "id": "t", "bind": "t", "time": true, "input": true, "locale": "en-GB" } },
+            { "type": "ui-date-picker", "props": { "id": "q", "bind": "q", "picker": "quarter", "fiscalStart": 4, "input": true, "locale": "en-GB" } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const fields = [...document.querySelectorAll("[data-cal-input]")];
+      const [fa, fb, fr, ft, fq] = fields;
+      const type = async (f, text, how = "Enter") => {
+        f.focus(); f.value = text; f.dispatchEvent(new Event("input", { bubbles: true }));
+        if (how === "Enter") f.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+        else f.blur();
+        await wait(5);
+      };
+      const err = () => `${S().e} ${fa.getAttribute("aria-invalid")}`;
+      try {
+        const label = document.querySelector(`label[for="${fa.id}"]`);
+        log("start", label?.textContent, fa.value, fa.placeholder, fb.placeholder, fr.placeholder);
+        await type(fa, "16/3/2026"); log("numbers", S().a, fa.value);
+        await type(fa, "1 Apr 2026", "blur"); log("month name", S().a, fa.value);
+        await type(fa, "20 march 26"); log("short year", S().a);
+        await type(fa, "31/02/2026"); log("not a date", S().a, err(), fa.value);
+        // Left alone while other state changes, the text waits to be fixed.
+        fa.blur(); root.__irender.set("q", null); await wait(5);
+        log("kept", fa.value);
+        fa.focus(); fa.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); await wait(5);
+        log("escape", fa.value, err());
+        await type(fa, "1/3/2026"); log("too early", S().a, err());
+        await type(fa, "2026-03-08"); log("sunday", err());
+        await type(fa, "2026-03-09"); log("iso", S().a, err());
+        await type(fa, ""); log("cleared", JSON.stringify(S().a), fa.value);
+        await type(fb, "3/15/26"); log("us", S().b, fb.value);
+        await type(fr, "5/12/2026 to 1/12/2026"); log("range", JSON.stringify(S().r), fr.value);
+        await type(fr, "1 Dec 2026 – 3 Dec 2026"); log("range names", JSON.stringify(S().r));
+        await type(fr, "1/12/2026"); log("half range", fr.getAttribute("aria-invalid"), fr.title);
+        await type(ft, "15/03/2026 2:30 pm"); log("time", S().t, ft.value);
+        await type(ft, "15/03/2026 25:00"); log("bad time", ft.title);
+        await type(fq, "Q2 FY2026-27"); log("quarter", S().q, fq.value);
+        await type(fq, "q3 2026"); log("quarter 2", S().q);
+        fa.focus(); fa.value = "2026-06-10"; fa.dispatchEvent(new Event("input", { bubbles: true }));
+        fa.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })); await wait(10);
+        const pop = fa.closest("[data-i-x]").querySelector("[data-cal-pop]");
+        log("calendar", S().a, pop.matches(":popover-open"), document.activeElement.getAttribute("data-key"));
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })); await wait(5);
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); await wait(5);
+        log("picked", S().a, fa.value, document.activeElement === fa);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("date-typing", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start Due 10/03/2026 DD/MM/YYYY MM/DD/YYYY DD/MM/YYYY – DD/MM/YYYY",
+            "numbers 2026-03-16 16/03/2026",
+            "month name 2026-04-01 01/04/2026",
+            "short year 2026-03-20",
+            "not a date 2026-03-20 Enter a date like DD/MM/YYYY true 31/02/2026",
+            "kept 31/02/2026",
+            "escape 20/03/2026 null null",
+            "too early 2026-03-20 Pick a date on or after 5 Mar 2026 true",
+            "sunday 8 Mar 2026 can't be picked true",
+            "iso 2026-03-09 null null",
+            "cleared null ",
+            "us 2026-03-15 03/15/2026",
+            "range {\"from\":\"2026-12-01\",\"to\":\"2026-12-05\"} 01/12/2026 – 05/12/2026",
+            "range names {\"from\":\"2026-12-01\",\"to\":\"2026-12-03\"}",
+            "half range true Enter two dates, like DD/MM/YYYY – DD/MM/YYYY",
+            "time 2026-03-15T14:30 15/03/2026 14:30",
+            "bad time Enter a time like 14:30",
+            "quarter 2026-Q2 Q2 FY2026–27",
+            "quarter 2 2026-Q3",
+            "calendar 2026-06-10 true 2026-06-10",
+            "picked 2026-06-11 11/06/2026 true",
+        ],
+        "\n{result}"
+    );
+}

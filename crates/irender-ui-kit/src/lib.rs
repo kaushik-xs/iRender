@@ -306,6 +306,8 @@ fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => &mut node.parts.entry("control".into()).or_default().attrs,
         "ui-combobox" => &mut node.parts.entry("input".into()).or_default().attrs,
+        // With `input`, the text field; otherwise the button that opens the calendar.
+        "ui-date-picker" if typed_date(node) => &mut node.parts.entry("input".into()).or_default().attrs,
         "ui-date-picker" => &mut node.parts.entry("trigger".into()).or_default().attrs,
         _ => &mut node.attrs,
     }
@@ -315,9 +317,15 @@ fn focus_attr<'a>(node: &'a Node, name: &str) -> Option<&'a Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => node.parts.get("control")?.attrs.get(name),
         "ui-combobox" => node.parts.get("input")?.attrs.get(name),
+        "ui-date-picker" if typed_date(node) => node.parts.get("input")?.attrs.get(name),
         "ui-date-picker" => node.parts.get("trigger")?.attrs.get(name),
         _ => node.attrs.get(name),
     }
+}
+
+/// A date picker with a text field to type in.
+fn typed_date(node: &Node) -> bool {
+    matches!(node.prop("input"), Some(Val::Lit(Json::Bool(true))))
 }
 
 /// Adds `ids` to the `aria-describedby` of the element `node` focuses, after any it has.
