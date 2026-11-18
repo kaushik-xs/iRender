@@ -48,6 +48,7 @@ mod command;
 mod data_table;
 mod disclosure;
 mod display;
+mod events;
 mod feedback;
 mod filters;
 mod forms;
@@ -121,6 +122,7 @@ pub fn register(registry: &mut Registry) {
         .register(rating::Rating)
         .register(rating::PasswordChecklist)
         .register(kanban::Kanban)
+        .register(events::EventCalendar)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

@@ -3691,3 +3691,117 @@ fn kanban_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The event calendar: a month grid with chips and `+N more`, events over several days,
+/// clicks on events and days, the keyboard, the week of hours with overlaps side by
+/// side, the list by day, the toolbar, and events from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn event_calendar_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "ev": null, "day": null, "view": null, "events": [
+            { "id": 1, "title": "Planning", "start": "2026-11-02T10:00", "end": "2026-11-02T11:30", "category": "Meetings" },
+            { "id": 2, "title": "Maintenance", "start": "2026-11-04", "end": "2026-11-06", "category": "Works" },
+            { "id": 3, "title": "Standup", "start": "2026-11-04T09:30", "end": "2026-11-04T09:45", "category": "Meetings" },
+            { "id": 4, "title": "Audit", "start": "2026-11-04T11:00", "end": "2026-11-04T13:00" },
+            { "id": 5, "title": "Drill", "start": "2026-11-04T11:30", "end": "2026-11-04T12:30", "tone": "danger" },
+            { "id": 6, "title": "Night shift", "start": "2026-11-11T22:00", "end": "2026-11-12T06:00" } ] },
+        "root": { "type": "ui-event-calendar", "props": { "events": "{{ events }}", "categories": { "Meetings": "info", "Works": "warning" },
+            "bindEvent": "ev", "bindDay": "day", "bindView": "view", "today": "2026-11-04", "date": "2026-11-04", "locale": "en-GB", "label": "Plant calendar" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      // Engines write hours their own way in en-GB ("9:30", "09:30"): without the leading zero.
+      const out = []; const log = (...a) => out.push(a.join(" ").replace(/\b0(\d:\d\d)/g, "$1"));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const C = document.querySelector("[data-i-x=ui-event-calendar]");
+      const $ = (s) => C.querySelector(s), $$ = (s) => [...C.querySelectorAll(s)];
+      const day = (d) => $(`[data-ev-day="${d}"]`);
+      const chips = (d) => [...day(d).querySelectorAll("[data-ev-event], [data-ev-more]")].map((c) => c.textContent + (c.hasAttribute("data-from-before") ? "‹" : "") + (c.hasAttribute("data-on-after") ? "›" : "")).join(", ");
+      const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+      const focused = () => document.activeElement.getAttribute("data-ev-day");
+      const events = [];
+      for (const n of ["open", "day", "navigate"]) C.addEventListener(n, (e) => events.push(n + " " + JSON.stringify({ ...e.detail, event: e.detail.event?.title })));
+      try {
+        log("month", $("[data-ev-title]").textContent, $$("[data-ev-week]").length, "weeks |", $$("[role=columnheader]").map((h) => h.textContent).join(","), "| today", $("[data-today]").getAttribute("data-ev-day"));
+        log("legend", $$("[data-ev-legend] > span").map((s) => s.textContent + ":" + s.getAttribute("data-tone")).join(","), "| region", C.getAttribute("aria-label"));
+        log("4 Nov", chips("2026-11-04"), "|", day("2026-11-04").getAttribute("aria-label"));
+        log("5 Nov", chips("2026-11-05"), "| 6 Nov", chips("2026-11-06"), "| 12 Nov", chips("2026-11-12"));
+        log("tones", [...day("2026-11-04").querySelectorAll("[data-ev-event]")].map((c) => c.getAttribute("data-tone")).join(","));
+        log("outside", day("2026-10-26").hasAttribute("data-outside"), day("2026-11-01").hasAttribute("data-outside"));
+        // A click on an event opens it; on a day, picks it.
+        day("2026-11-02").querySelector("[data-ev-event]").click(); await wait(0);
+        log("open", S().ev?.title, events.at(-1));
+        day("2026-11-10").click(); await wait(0);
+        log("pick", S().day, day("2026-11-10").hasAttribute("data-picked"), focused(), events.at(-1));
+        // The keyboard: arrows move a day or a week, Page Down a month, Enter picks.
+        key("ArrowRight"); key("ArrowDown"); log("arrows", focused());
+        key("PageDown"); await wait(0); log("next month", focused(), $("[data-ev-title]").textContent, events.at(-1));
+        key("PageUp"); key("Enter"); await wait(0); log("enter", S().day, $("[data-ev-title]").textContent);
+        // Tab reaches the focused day's events, after it.
+        day("2026-11-04").focus(); key("ArrowLeft"); key("ArrowRight");
+        log("stops", $$("[data-ev-event][tabindex='0'], [data-ev-more][tabindex='0']").length);
+        // +N more opens the day's week.
+        day("2026-11-04").querySelector("[data-ev-more]").click(); await wait(0);
+        log("more", $("[data-ev-body]").getAttribute("data-view"), $("[data-ev-title]").textContent, $("[data-ev-view=week]").getAttribute("aria-pressed"));
+        // The week: all-day row, timed events by hour, overlaps side by side.
+        const col = $('[data-ev-date-col="2026-11-04"]');
+        const box = (t) => { const c = [...col.querySelectorAll("[data-ev-event]")].find((x) => x.textContent.includes(t)); return [c.style.top, c.style.left, c.style.width].join(" "); };
+        log("allday", [...$$("[data-ev-allday-cell]")].map((c) => c.textContent || "-").join("|"));
+        log("standup", box("Standup"), "| short", [...col.querySelectorAll("[data-ev-event]")][0].hasAttribute("data-short"));
+        log("audit", box("Audit"), "| drill", box("Drill"));
+        log("hours", $$("[data-ev-labels] [data-ev-hour]").length, $("[data-ev-labels] [data-ev-hour]").textContent);
+        // The list: days with events, times or All day, the shift's second day Until.
+        $("[data-ev-view=list]").click(); await wait(0);
+        log("view", S().view);
+        log("list", $$("[data-ev-group]").map((g) => g.getAttribute("data-ev-group").slice(8) + "=" + [...g.querySelectorAll("[data-ev-event]")].map((e) => e.querySelector("time").textContent + " " + e.querySelector("[data-ev-name]").textContent).join("/")).join(" | "));
+        // The toolbar: next month (nothing there), Today, and from state.
+        $("[data-ev-next]").click(); await wait(0);
+        log("december", $("[data-ev-title]").textContent, $("[data-ev-empty]")?.textContent);
+        $("[data-ev-today]").click(); await wait(0);
+        log("today", $("[data-ev-title]").textContent);
+        root.__irender.set("events", [...S().events, { id: 7, title: "Party", start: "2026-11-28T18:00" }]); await wait(0);
+        log("added", $$("[data-ev-group]").at(-1).getAttribute("data-ev-group"), $$("[data-ev-group]").at(-1).textContent.includes("Party"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("events", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "month November 2026 6 weeks | Mon,Tue,Wed,Thu,Fri,Sat,Sun | today 2026-11-04",
+            "legend Meetings:info,Works:warning | region Plant calendar",
+            // Chips per day, `+N more` past three; ‹ › mark an event running on from or into another day.
+            "4 Nov Maintenance›, 9:30Standup, +2 more | Wednesday 4 November, 4 events",
+            "5 Nov Maintenance‹› | 6 Nov Maintenance‹ | 12 Nov Night shift‹",
+            "tones warning,info",
+            "outside true false",
+            "open Planning open {\"event\":\"Planning\"}",
+            "pick 2026-11-10 true 2026-11-10 day {\"date\":\"2026-11-10\"}",
+            // The keyboard moves from the focused day: a day, a week, a month; Enter picks.
+            "arrows 2026-11-18",
+            "next month 2026-12-18 December 2026 navigate {\"date\":\"2026-12-18\",\"view\":\"month\"}",
+            "enter 2026-11-18 November 2026",
+            "stops 3",
+            "more week 2 – 8 November 2026 true",
+            "allday -|-|Maintenance|Maintenance|Maintenance|-|-",
+            // The week: 7:00 to 20:00, so 9:30 is 2.5/13 down; overlapping events share the width.
+            "standup 19.231% calc(0% + 2px) calc(100% - 4px) | short true",
+            "audit 30.769% calc(0% + 2px) calc(50% - 4px) | drill 34.615% calc(50% + 2px) calc(50% - 4px)",
+            "hours 13 7:00",
+            "view list",
+            // The list: days with events; a timed event's second day says until when.
+            "list 02=10:00 – 11:30 Planning | 04=All day Maintenance/9:30 – 9:45 Standup/11:00 – 13:00 Audit/11:30 – 12:30 Drill | 05=All day Maintenance | 06=All day Maintenance | 11=22:00 – 6:00 Night shift | 12=Until 6:00 Night shift",
+            "december December 2026 Nothing in December.",
+            "today November 2026",
+            "added 2026-11-28 true",
+        ],
+        "\n{result}"
+    );
+}

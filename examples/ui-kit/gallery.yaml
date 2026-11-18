@@ -90,6 +90,17 @@ state:
     - { id: k4, column: doing, title: Safari sign-out bug, tags: [ { label: Bug, tone: danger } ], assignee: Meera Iyer, priority: Urgent, due: Today }
     - { id: k5, column: done, title: Scroll spy, tags: [ { label: Shipped, tone: success } ] }
   boardCard: null
+  calEvent: null
+  calDay: null
+  calEvents:
+    - { id: 1, title: Sprint planning, start: "2026-11-02T10:00", end: "2026-11-02T11:30", category: Meetings }
+    - { id: 2, title: Line 3 maintenance, start: "2026-11-04", end: "2026-11-06", category: Maintenance }
+    - { id: 3, title: Standup, start: "2026-11-04T09:30", end: "2026-11-04T09:45", category: Meetings }
+    - { id: 4, title: Supplier audit, start: "2026-11-04T11:00", end: "2026-11-04T13:00", category: Audits }
+    - { id: 5, title: Safety drill, start: "2026-11-04T11:30", end: "2026-11-04T12:30", category: Safety }
+    - { id: 6, title: Diwali, start: "2026-11-08", category: Holidays }
+    - { id: 7, title: Quarterly review, start: "2026-11-18T14:00", end: "2026-11-18T16:00", category: Meetings }
+    - { id: 8, title: Boiler inspection, start: "2026-11-24", category: Maintenance }
   folder: src
   folderNode: null
   folders:
@@ -1432,6 +1443,32 @@ root:
                 - { type: if, props: { when: "{{ api.kanban.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.kanban }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- event-calendar
+            - type: element
+              props: { tag: section }
+              attrs: { id: event-calendar, aria-labelledby: event-calendar-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.event_calendar }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-event-calendar
+                  props:
+                    events: "{{ calEvents }}"
+                    categories: { Meetings: primary, Maintenance: warning, Audits: info, Safety: danger, Holidays: success }
+                    bindEvent: calEvent
+                    bindDay: calDay
+                    date: "2026-11-04"
+                    label: Gallery calendar
+                - { type: ui-text, props: { variant: muted, text: "{{ calEvent ? 'Opened: ' + calEvent.title : calDay ? 'Picked ' + calDay : 'Click an event or a day; try Week, and the arrow keys.' }}" } }
+                - { type: if, props: { when: "{{ api.event_calendar.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.event_calendar }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

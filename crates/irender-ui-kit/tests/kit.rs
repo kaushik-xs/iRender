@@ -46,6 +46,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-rating", json!({ "bind": "k" })),
         ("ui-password-checklist", json!({ "value": "" })),
         ("ui-kanban", json!({ "columns": [], "cards": [] })),
+        ("ui-event-calendar", json!({ "events": [] })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -113,7 +114,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 104);
+    assert_eq!(kit, 105);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1372,4 +1373,23 @@ fn kanban_draws_the_starting_board() {
 
     let err = render_with(json!({ "type": "ui-kanban", "props": { "columns": [], "cards": [], "addable": true } }), json!({}), json!({})).unwrap_err().to_string();
     assert!(err.contains("`addable` needs `bindCards`"), "{err}");
+}
+
+#[test]
+fn event_calendar_toolbar_and_mistakes() {
+    let body = plain(&render(json!({ "type": "ui-event-calendar", "props": { "events": [], "views": ["week", "list"], "categories": { "A": "info" }, "label": "Shifts" } })));
+    assert!(body.contains(r#"role="region" aria-label="Shifts""#), "{body}");
+    assert!(body.contains(r#"data-ev-prev aria-label="Previous""#) && body.contains(r#"data-ev-next aria-label="Next""#) && body.contains("data-ev-today>Today</button>"), "{body}");
+    // Only the views asked for, the first pressed; the body starts in it.
+    assert!(body.contains(r#"<div data-ev-views role="group" aria-label="View"><button type="button" data-ev-view="week" aria-pressed="true">Week</button><button type="button" data-ev-view="list" aria-pressed="false">List</button></div>"#), "{body}");
+    assert!(body.contains(r#"<div data-ev-legend aria-label="Categories"></div><div data-ev-body data-view="week"></div>"#), "{body}");
+    // One view: no switch.
+    let one = plain(&render(json!({ "type": "ui-event-calendar", "props": { "events": [], "views": ["list"] } })));
+    assert!(!one.contains("data-ev-views"), "{one}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-event-calendar", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "events": [], "views": ["day"] })).contains("`views` has `day`"));
+    assert!(err(json!({ "events": [], "views": ["month"], "view": "week" })).contains("which `views` leaves out"));
+    assert!(err(json!({ "events": [], "hours": [18, 9] })).contains("`hours` must be `[from, to]`"));
+    assert!(err(json!({ "events": [], "weekStart": 3 })).contains("`weekStart` must be 0"));
 }

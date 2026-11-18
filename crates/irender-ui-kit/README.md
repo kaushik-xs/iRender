@@ -55,6 +55,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-rating` | `bind` or `value`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
 | `ui-password-checklist` | `value` (required), `rules`, `bindValid`, `meter` (default true), `label` | A password's rules, ticked as they're met, with a strength bar. |
 | `ui-timeline` + `ui-timeline-item` | `items`, `label`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
+| `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
 | `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
@@ -495,6 +496,34 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 **`ui-password-checklist`** goes under a password input: `value: "{{ password }}"`. Each rule is ticked as it's met, and a bar shows the strength (Weak, Fair, Good, Strong). `rules` are `length` (8 characters, or `{ length: 12 }`), `lower`, `upper`, `number`, `symbol`, or `{ label, pattern }` with a regular expression; the default is the five presets. `bindValid` gets true while every rule is met, for a button's `disabled: "{{ !valid }}"`. Each rule is read with "met" or "not met".
 
 **`ui-timeline`** lists activity: `ui-timeline-item` children and/or `items` from state, which redraw as they change. An entry has `who` (with an avatar, the initials, or for a name from state its first letter), `action`, `when`, `changes` (`[{ field, from, to }]`, shown as from → to with the old value struck through), a quoted `comment`, and children under it. An entry with no `who` is an event, shown with a dot in its `tone`.
+
+## Event calendar
+
+`ui-event-calendar` shows `events` in a month grid, a week of hours, or a list by day, with a toolbar to move through time and switch views. The block [`calendar-01`](../../examples/blocks/calendar-01.yaml) is a plant's schedule built on it.
+
+```yaml
+- type: ui-event-calendar
+  props:
+    events: "{{ events }}"     # [{ id, title, start, end, allDay, category, tone, description }]
+    categories: { Meetings: info, Maintenance: warning, Holidays: success }
+    bindEvent: event           # the event clicked
+    bindDay: day               # the day picked, e.g. to add an event on it
+    view: month                # or week, list
+```
+
+**Events.** `start` and `end` are dates (`2026-11-04`, an all-day event; `end` is its last day) or local times (`2026-11-04T09:30`). An event's colour is its `tone`, else its `category`'s tone in `categories` (shown as a legend), else `primary`. Tones are the status badge's: `neutral`, `info`, `success`, `warning`, `danger`, `primary`.
+
+**Month** shows each day's events as chips, all-day and longer ones first, with `+N more` past `maxPerDay` (default 3), which opens that day's week. An event over several days appears on each of them, joined at the edges.
+
+**Week** has a column per day and a row per hour (`hours`, default `[7, 20]`): timed events sit at their time and length, side by side where they overlap; all-day events and those over several days sit in a row above; today's column shows the time now.
+
+**List** gives the month's days that have events, each event with its time (or All day, or "Until 6:00" on the last day of one that started the day before), its colour and category.
+
+**Moving.** The arrows move a month or a week, Today comes back, and the switch changes view (`views` picks which, in order; `bindView` gets the change). `date` sets where it starts, `today` the day treated as today, `weekStart` Sunday (0) or Monday (1, the default), and `locale` how dates and times are written.
+
+**Keyboard and screen readers.** The days are a grid with one tab stop: the arrow keys move a day (or a week, up and down), Home and End to the week's ends, Page Up and Page Down a month, and Enter or Space picks the day (`bindDay`, and a `day` event). Tab then reaches that day's events. Each day is named with its date and how many events it has, each event with its title, time and category, and a change of month or week is announced. A click on an event fires `open` (and sets `bindEvent`); moving fires `navigate`.
+
+**Props.** `events` (required), `view`, `views`, `date`, `categories`, `bindEvent`, `bindDay`, `bindView`, `hours`, `weekStart`, `maxPerDay`, `today`, `locale`, `emptyText`, `label` (default `Calendar`); part `toolbar`.
 
 ## Kanban board
 

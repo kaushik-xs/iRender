@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a calendar of events, the filters' calendar and presets, the rest of the smaller pieces (code editor, currency input, icon rail), and a notification centre.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the filters' calendar and presets, the rest of the smaller pieces (code editor, currency input, icon rail), a notification centre, and the event calendar's year view.
 
 ## Gaps you'd hit in real use
 
@@ -27,7 +27,10 @@ _Last updated: 2026-11-18._
     - [ ] No renaming in place (F2), and no icons per node.
     - [ ] Children can't load from an API when a node opens, as the data table's nested rows can; very large trees draw every node.
     - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
-  - [ ] **Calendar views:** events in month, week, year and list views (`factory-calendar/`). More than shadcn's `calendar`.
+  - [x] **Calendar views** (2026-11-18): `ui-event-calendar`, events in month, week (hours, overlaps side by side) and list views, coloured by category, with `bindEvent`, `bindDay` and the keyboard (block calendar-01, gallery section). Not done yet:
+    - [ ] No year view (client-ui-next has one) and no single-day view.
+    - [ ] Events can't be dragged to a new time or resized; adding is up to the page (`bindDay`).
+    - [ ] No recurring events: each one is listed. No time zones: times are local to the browser.
   - [x] **File upload and preview** (2026-11-18): `ui-file-upload`, a drop zone with type, size and count checks, uploads with progress, errors and retry, a grid or list, previews of images, PDFs, CSV and .xlsx (read in the browser) and text, and Download all as a zip, without libraries (block expense-01, gallery section). Not done yet:
     - [ ] No thumbnails for PDFs or sheets (client-ui-next draws the first page); they show a type badge.
     - [ ] Word and PowerPoint files aren't previewed, only downloaded; .xls (the old format) isn't read.

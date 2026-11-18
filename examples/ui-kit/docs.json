@@ -230,6 +230,17 @@
    ]
   },
   {
+   "id": "event-calendar",
+   "group": "Data display",
+   "title": "Event calendar",
+   "nav": "Event calendar",
+   "summary": "Events in a month grid, a week of hours, or a list by day, coloured by category. Overlapping meetings sit side by side in the week; events over several days run across them. A click on an event or a day goes to state, for a details panel or adding one; the arrow keys move through the days.",
+   "usage": "- type: ui-event-calendar\n  props:\n    events: \"{{ events }}\"   # [{ id, title, start, end, category }]\n    categories: { Meetings: info, Maintenance: warning }\n    bindEvent: event\n    bindDay: day",
+   "components": [
+    "ui-event-calendar"
+   ]
+  },
+  {
    "id": "timeline",
    "group": "Data display",
    "title": "Activity timeline",

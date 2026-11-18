@@ -368,6 +368,24 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   label        any  Names the board for screen readers (default `Board`)
   parts: board
   children: no
+ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
+  events       any (required)  The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)
+  view         one of: month, week, list  The view to start in: `month` (default), `week` or `list`
+  views        any  Which views to offer, in order (default all three); one hides the switch
+  date         any  The day to show to start with (default today)
+  categories   any  Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend
+  bindEvent    statekey  State key that gets the event clicked
+  bindDay      statekey  State key that gets the day picked (`2026-11-04`), e.g. to add an event on it
+  bindView     statekey  State key that gets the view when it changes
+  hours        any  The week view's hours, `[from, to]` (default `[7, 20]`)
+  weekStart    number  0 for Sunday, 1 for Monday (default)
+  maxPerDay    number  Events shown in a month's day before `+N more` (default 3)
+  today        string  The date to treat as today (default: the real one)
+  locale       string  Locale for dates and times (default: the browser's)
+  emptyText    any  The list view's text for a month with nothing in it
+  label        any  Names it for screen readers (default `Calendar`)
+  parts: toolbar
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers
