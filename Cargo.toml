@@ -3,21 +3,21 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/kaushik-xs/iRender"
 
 [workspace.dependencies]
-irender-core = { path = "crates/irender-core", version = "0.4.0" }
-irender-style = { path = "crates/irender-style", version = "0.4.0" }
-irender-html = { path = "crates/irender-html", version = "0.4.0" }
-irender-ui-kit = { path = "crates/irender-ui-kit", version = "0.4.0" }
-irender-chart-kit = { path = "crates/irender-chart-kit", version = "0.4.0" }
-irender-icon-kit = { path = "crates/irender-icon-kit", version = "0.4.0" }
-irender-flow-kit = { path = "crates/irender-flow-kit", version = "0.4.0" }
-irender-markdown-kit = { path = "crates/irender-markdown-kit", version = "0.4.0" }
+irender-core = { path = "crates/irender-core", version = "0.5.0" }
+irender-style = { path = "crates/irender-style", version = "0.5.0" }
+irender-html = { path = "crates/irender-html", version = "0.5.0" }
+irender-ui-kit = { path = "crates/irender-ui-kit", version = "0.5.0" }
+irender-chart-kit = { path = "crates/irender-chart-kit", version = "0.5.0" }
+irender-icon-kit = { path = "crates/irender-icon-kit", version = "0.5.0" }
+irender-flow-kit = { path = "crates/irender-flow-kit", version = "0.5.0" }
+irender-markdown-kit = { path = "crates/irender-markdown-kit", version = "0.5.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 indexmap = { version = "2", features = ["serde"] }
