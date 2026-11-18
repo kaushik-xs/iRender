@@ -1,0 +1,98 @@
+# Block: an expense claim with its receipts. The claim's lines are a table; the receipts
+# are a `ui-file-upload` holding three files already sent and taking more:
+# - Drop files on the zone or click it; images, PDFs, spreadsheets and text up to 10 MB.
+#   Served with `python3 examples/serve.py`, they upload to its api/upload.
+# - Click a receipt to preview it: the image, the PDF, and the .xlsx as a table, read in
+#   the browser. Arrows go through them.
+# - Download all saves the receipts as one zip; Submit needs at least one receipt.
+#
+#   cargo run -p irender-cli -- render examples/blocks/expense-01.yaml --ui-kit --icon-kit -o expense-01.html
+version: 1
+state:
+  toast: null
+  purpose: Client visit, Mumbai
+  receipts:
+    - { id: r1, name: taxi-receipt.svg, size: 1169, type: image/svg+xml, url: files/taxi-receipt.svg, status: done }
+    - { id: r2, name: hotel-invoice.pdf, size: 781, type: application/pdf, url: files/hotel-invoice.pdf, status: done }
+    - { id: r3, name: expenses.xlsx, size: 2078, url: files/expenses.xlsx, status: done }
+  lines:
+    - { date: "3 Nov", merchant: IndiGo, category: Travel, amount: "₹8,450" }
+    - { date: "3 Nov", merchant: Taj Lands End, category: Hotel, amount: "₹12,600" }
+    - { date: "4 Nov", merchant: Uber, category: Travel, amount: "₹640" }
+    - { date: "4 Nov", merchant: Café Madras, category: Meals, amount: "₹920" }
+    - { date: "5 Nov", merchant: Uber, category: Travel, amount: "₹710" }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 960px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 6px }
+              children:
+                - { type: ui-breadcrumb, props: { items: [ { label: Expenses, href: "#" }, { label: "Claim EXP-2048" } ] } }
+                - { type: ui-heading, props: { level: 2, text: "{{ purpose }}" } }
+                - type: element
+                  style: { display: flex, gap: 8px, align-items: center, flex-wrap: wrap }
+                  children:
+                    - { type: ui-badge, props: { text: Draft, variant: secondary } }
+                    - { type: ui-text, props: { variant: muted, text: "3–5 Nov 2026 · 5 expenses · ₹23,320" } }
+            - type: element
+              style: { display: flex, gap: 8px }
+              children:
+                - type: ui-button
+                  props: { label: Save draft, variant: outline }
+                  on: { click: { action: set_state, key: toast, value: { title: Draft saved } } }
+                - type: ui-button
+                  props: { label: Submit claim, disabled: "{{ receipts.length == 0 }}" }
+                  on: { click: { action: set_state, key: toast, value: { title: Claim submitted, description: "{{ receipts.length }} receipts attached. Your manager will review it." } } }
+        - type: ui-card
+          props: { title: Expenses }
+          children:
+            - type: ui-table
+              children:
+                - type: element
+                  props: { tag: thead }
+                  children:
+                    - type: element
+                      props: { tag: tr }
+                      children:
+                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Date } } ] }
+                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Merchant } } ] }
+                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Category } } ] }
+                        - { type: element, props: { tag: th }, style: { text-align: right }, children: [ { type: text, props: { value: Amount } } ] }
+                - type: list
+                  props: { items: "{{ lines }}", as: line, tag: tbody }
+                  children:
+                    - type: element
+                      props: { tag: tr }
+                      children:
+                        - { type: element, props: { tag: td }, children: [ { type: text, props: { value: "{{ line.date }}" } } ] }
+                        - { type: element, props: { tag: td }, children: [ { type: text, props: { value: "{{ line.merchant }}" } } ] }
+                        - { type: element, props: { tag: td }, children: [ { type: ui-badge, props: { text: "{{ line.category }}", variant: outline } } ] }
+                        - { type: element, props: { tag: td }, style: { text-align: right, font-variant-numeric: tabular-nums }, children: [ { type: text, props: { value: "{{ line.amount }}" } } ] }
+        - type: ui-card
+          props: { title: Receipts, description: "Attach a receipt for every expense over ₹500. Click one to check it." }
+          children:
+            - type: ui-file-upload
+              props:
+                bind: receipts
+                url: api/upload
+                params: { claim: EXP-2048 }
+                accept: "image/*,.pdf,.csv,.xlsx,.txt"
+                maxSize: 10 MB
+                maxFiles: 12
+                hint: Images, PDFs, spreadsheets or text, up to 10 MB each
+                zipName: EXP-2048 receipts
+    - { type: ui-toaster, props: { bind: toast } }

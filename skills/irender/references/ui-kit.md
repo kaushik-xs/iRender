@@ -51,6 +51,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
 | `ui-filters` + `ui-filter` | see [Filters](#filters-panel) | Filters for a list in a side panel, shown as chips, written to state for a table's or chart's `filter`. |
+| `ui-file-upload` | see [File upload](#file-upload) | A drop zone, uploads with progress, the files as a grid or list, previews, and Download all as a zip. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
@@ -514,6 +515,38 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **Keyboard and screen readers.** The tree follows the ARIA tree pattern: one tab stop; Up, Down, Home and End move; Right opens a node or steps into it, Left closes it or steps out; `*` opens a node's siblings; Enter selects and Space checks (or selects). The row buttons are left out of the tab order, since Delete, the Add button and Alt+arrows do the same. Moves, additions and deletions are announced.
 
 **Props.** `nodes` (required), `bindNodes`, `bind`, `bindNode`, `checkable`, `bindChecked`, `addable`, `bindParent`, `addLabel` (default `Add`), `deletable`, `movable`, `search` (`true` or a placeholder), `counts` (how many nodes are under each), `expanded`, `title` (a heading that also names it), `label` (its name without a title, default `Tree`), `emptyText`, `height` (most it grows to before it scrolls); part `tree`.
+
+## File upload
+
+`ui-file-upload` takes files from a drop zone (or a click, or the keyboard), uploads them with their progress, shows them as a grid of cards or a list, previews them, and downloads them all as one zip. The block [`expense-01`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/expense-01.yaml) uses it for an expense claim's receipts.
+
+```yaml
+- type: ui-file-upload
+  props:
+    bind: receipts                 # [{ id, name, size, type, url, status, progress, error }]
+    url: /api/upload               # each file POSTed as multipart, field `file`
+    params: { claim: "{{ claim.id }}" }
+    accept: "image/*,.pdf,.xlsx,.csv"
+    maxSize: 10 MB
+    maxFiles: 20
+    hint: Images, PDFs or spreadsheets, up to 10 MB each
+```
+
+**State.** `bind` holds the files as `{ id, name, size, type, url, status, progress, error }`, so a form can send the list, and files already there (with a `url`) are shown too. `status` is `uploading`, `done`, `error`, or `local` for a file kept in the browser.
+
+**Uploading.** With `url`, each file is sent as `multipart/form-data` (the file as `file`, with the `params` fields), three at a time, showing its progress. A JSON answer is merged into the file's entry: answer `{ id, url }` and the entry takes your id and the address to show it from. A failed upload shows the server's `error` (or `message`) with a retry button. Without `url`, files stay in the browser: they can be previewed, removed and zipped, and a host can read them with the `add` event.
+
+**Checks.** Files that don't match `accept` (extensions like `.pdf`, types like `image/*`), that are over `maxSize` (bytes, or `10 MB`, `500 KB`), or that would go past `maxFiles` are left out, each with a reason under the zone. `multiple: false` keeps one file, replacing it with the next.
+
+**Preview.** A click on a file opens it in a panel: images, PDFs (in the browser's viewer), CSV and Excel `.xlsx` sheets as a table (the first sheet, first 500 rows), and text. Arrows (and Left and Right) go through the files, and Download saves the one shown. Other kinds offer the download. No libraries: `.xlsx` is unzipped with the browser's `DecompressionStream`.
+
+**Download all** saves the files as one zip (`zipName`, default `attachments`), named so that two files of the same name both arrive. Files on a server are fetched, so they must be on the same site or allow it (CORS).
+
+**Events.** `add` (`{ files }`), `uploaded` and `error` (`{ file }`), `remove` (`{ file }`: delete it on your server here) and `download` (`{ count }`), all bubbling, for `on:` actions or a host.
+
+**Keyboard and screen readers.** The zone is a label around the file input, so Tab reaches it and Enter or Space opens the picker. Each file is a button that opens its preview, with its remove (and retry) buttons after it. Additions, uploads, failures and removals are announced; after a removal, focus goes to the next file.
+
+**Props.** `bind` (required), `url`, `params`, `accept`, `multiple` (default true), `maxFiles`, `maxSize`, `view` (`grid` or `list`), `label`, `hint`, `readOnly` (the files only), `removable` (default true), `download` (default true), `zipName`, `emptyText`, `disabled`, `id`; parts `zone` and `files`.
 
 ## Chat
 

@@ -18,6 +18,9 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/shipments     JSON: 5,000 made-up shipments for the data table blocks, a batch at a time.
                     Takes ui-data-table's query: offset, limit, sort (`-eta,id`), q (search),
                     filters (JSON conditions) and delay (ms); answers { rows, total }.
+  api/upload        POST multipart (field `file`): keeps the file in memory for this run and
+                    answers { id, url } for ui-file-upload. Files over 10 MB get 413.
+  api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
 """
 
@@ -44,6 +47,9 @@ UI_REPLIES = {
     "photos": ("Here are a few of Lisbon's sights. Scroll or use the arrows for more.", "photos.yaml"),
 }
 _rendered = {}
+# Uploaded files, in memory for this run: id -> (name, type, bytes).
+UPLOADS = {}
+MAX_UPLOAD = 10 * 1024 * 1024
 
 
 def make_shipments(n=5000):
@@ -159,6 +165,8 @@ class Handler(SimpleHTTPRequestHandler):
             from urllib.parse import parse_qsl
             query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
             return self.send_json(budget_projects(query.get("parent", "")))
+        if "/api/uploads/" in path:
+            return self.uploaded(path)
         if path.endswith("/api/shipments"):
             from urllib.parse import parse_qsl
             query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
@@ -174,7 +182,43 @@ class Handler(SimpleHTTPRequestHandler):
             return self.chat()
         if path.endswith("/api/render"):
             return self.render()
+        if path.endswith("/api/upload"):
+            return self.upload(path)
         self.send_error(404)
+
+    def upload(self, path):
+        from email.parser import BytesParser
+        from email.policy import HTTP
+        from urllib.parse import quote
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_UPLOAD + 64 * 1024:
+            self.rfile.read(length)
+            body = json.dumps({"error": "Files can be up to 10 MB here"}).encode()
+            self.send_response(413)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            return self.wfile.write(body)
+        raw = self.rfile.read(length)
+        message = BytesParser(policy=HTTP).parsebytes(b"Content-Type: " + self.headers["Content-Type"].encode() + b"\r\n\r\n" + raw)
+        part = next((p for p in message.iter_parts() if p.get_param("name", header="content-disposition") == "file"), None)
+        if part is None:
+            return self.send_error(400, "no file field")
+        name = os.path.basename(part.get_filename() or "file")
+        file_id = f"u{len(UPLOADS) + 1}{random.randrange(16**4):04x}"
+        UPLOADS[file_id] = (name, part.get_content_type(), part.get_payload(decode=True) or b"")
+        self.send_json({"id": file_id, "url": path.replace("/api/upload", f"/api/uploads/{file_id}/{quote(name)}")})
+
+    def uploaded(self, path):
+        file_id = path.split("/api/uploads/", 1)[1].split("/", 1)[0]
+        if file_id not in UPLOADS:
+            return self.send_error(404)
+        name, kind, data = UPLOADS[file_id]
+        self.send_response(200)
+        self.send_header("Content-Type", kind)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def render(self):
         try:

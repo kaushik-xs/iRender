@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: file upload with previews, the filters' calendar and presets, remote data tables' facets, and smaller pieces from the client-ui-next list.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the smaller pieces from the client-ui-next list (progress ring, rating, password checklist, status badge, activity timeline), a kanban board, and the filters' calendar and presets.
 
 ## Gaps you'd hit in real use
 
@@ -28,7 +28,11 @@ _Last updated: 2026-11-18._
     - [ ] Children can't load from an API when a node opens, as the data table's nested rows can; very large trees draw every node.
     - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [ ] **Calendar views:** events in month, week, year and list views (`factory-calendar/`). More than shadcn's `calendar`.
-  - [ ] **File upload and preview:** a drop zone, files in a grid or table with image, PDF and spreadsheet previews, remove, and download all as a zip (`attachments/`, `FileViewer`).
+  - [x] **File upload and preview** (2026-11-18): `ui-file-upload`, a drop zone with type, size and count checks, uploads with progress, errors and retry, a grid or list, previews of images, PDFs, CSV and .xlsx (read in the browser) and text, and Download all as a zip, without libraries (block expense-01, gallery section). Not done yet:
+    - [ ] No thumbnails for PDFs or sheets (client-ui-next draws the first page); they show a type badge.
+    - [ ] Word and PowerPoint files aren't previewed, only downloaded; .xls (the old format) isn't read.
+    - [ ] Uploads are one request per file: no chunked or resumable uploads, and no direct-to-storage (presigned) uploads.
+    - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
   - [ ] **Gantt chart** in chart-kit: a `type: gantt` shorthand with a table of rows on the left, zoom, collapsible groups and markers with a legend (`charts/GanttChart`). Today it has to be an ECharts `custom` series in `option`.
   - [ ] **Kanban board:** columns of cards moved by drag and drop (`kanban/SimpleDragKanban`).
   - [ ] **Dashboard grid:** tiles that can be dragged and resized (react-grid-layout).

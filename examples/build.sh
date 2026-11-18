@@ -49,12 +49,14 @@ for block in data-table-01 data-table-02; do
   $irender render "examples/blocks/$block.yaml" --data "examples/blocks/$block.data.json" \
     --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
-for block in data-table-03 data-table-04 data-table-05 data-table-06 tree-01 docs-01 empty-states; do
+for block in data-table-03 data-table-04 data-table-05 data-table-06 tree-01 docs-01 expense-01 empty-states; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 # The chat's replies include charts, images and a video.
 $irender render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit --markdown-kit --title "chat" -o "$out/blocks/chat.html"
 cp -R examples/blocks/media "$out/blocks/"
+# Sample receipts for the expense claim and the gallery's file upload.
+cp -R examples/blocks/files "$out/blocks/"
 # The browser renderer for chat replies sent as `ui` JSON, when the WebAssembly target is
 # installed (`rustup target add wasm32-unknown-unknown`). Without it the chat block asks
 # serve.py's render endpoint instead.

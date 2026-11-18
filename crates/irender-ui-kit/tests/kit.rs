@@ -40,6 +40,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-badge", json!({ "text": "x" })),
         ("ui-filters", json!({ "bind": "k" })),
         ("ui-tree", json!({ "nodes": [] })),
+        ("ui-file-upload", json!({ "bind": "k" })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -107,7 +108,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 96);
+    assert_eq!(kit, 97);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1265,4 +1266,29 @@ fn tree_draws_the_starting_nodes() {
     assert!(empty.contains(r#"<ul role="tree" aria-label="Tree" hidden></ul><p data-tree-empty>No locations</p>"#), "{empty}");
     let err = render_with(json!({ "type": "ui-tree", "props": { "nodes": "{{ n }}" } }), json!({ "n": 3 }), json!({})).unwrap_err().to_string();
     assert!(err.contains("`nodes` must be a list"), "{err}");
+}
+
+#[test]
+fn file_upload_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-file-upload", "props": { "bind": "files", "accept": "image/*,.pdf", "maxSize": "2 MB", "hint": "Up to 2 MB", "view": "list" } }),
+        json!({ "files": [] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A label around the input, so the zone opens the picker; the hint describes it.
+    assert!(body.contains(r#"<label data-up-zone><input type="file" id="upload-root" data-up-input multiple accept="image/*,.pdf" aria-describedby="upload-root-hint">"#), "{body}");
+    assert!(body.contains(r#"<span data-up-hint id="upload-root-hint">Up to 2 MB</span>"#), "{body}");
+    assert!(body.contains(r#"<ul data-up-files data-view="list" aria-label="Files"></ul>"#), "{body}");
+    assert!(body.contains(r#"<dialog data-up-preview closedby="any" aria-labelledby="upload-root-title">"#), "{body}");
+    assert!(page.body.contains(r#"&quot;maxSize&quot;:2097152.0"#), "{}", page.body);
+
+    // Read-only: no zone, and an empty note.
+    let shown = plain(&render_with(json!({ "type": "ui-file-upload", "props": { "bind": "files", "readOnly": true, "multiple": false } }), json!({ "files": [] }), json!({})).unwrap().body);
+    assert!(!shown.contains("data-up-zone") && shown.contains("<p data-up-empty>No files yet.</p>"), "{shown}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-file-upload", "props": props }), json!({ "files": [] }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "bind": "files", "maxSize": "lots" })).contains("`maxSize` must be bytes"));
+    assert!(err(json!({ "bind": "files", "maxFiles": 0 })).contains("`maxFiles` must be a whole number"));
 }

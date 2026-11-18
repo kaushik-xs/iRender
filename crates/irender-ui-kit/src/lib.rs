@@ -60,6 +60,7 @@ mod scroll_spy;
 mod sidebar;
 mod theme;
 mod tree;
+mod upload;
 
 pub use chat::{render_message_ui, render_ui, ui_document};
 pub use theme::{apply_theme, theme};
@@ -109,6 +110,7 @@ pub fn register(registry: &mut Registry) {
         .register(filters::Filters)
         .register(filters::Filter)
         .register(tree::Tree)
+        .register(upload::FileUpload)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

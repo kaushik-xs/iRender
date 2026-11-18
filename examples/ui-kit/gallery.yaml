@@ -70,6 +70,10 @@ state:
   chatWaiting: false
   sidebar: true
   invoiceFilters: { status: [Paid, Pending] }
+  attachments:
+    - { id: r1, name: taxi-receipt.svg, size: 1169, type: image/svg+xml, url: blocks/files/taxi-receipt.svg, status: done }
+    - { id: r2, name: hotel-invoice.pdf, size: 781, type: application/pdf, url: blocks/files/hotel-invoice.pdf, status: done }
+    - { id: r3, name: expenses.xlsx, size: 2078, url: blocks/files/expenses.xlsx, status: done }
   folder: src
   folderNode: null
   folders:
@@ -929,6 +933,30 @@ root:
                 - { type: if, props: { when: "{{ api.date_picker.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.date_picker }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- file-upload
+            - type: element
+              props: { tag: section }
+              attrs: { id: file-upload, aria-labelledby: file-upload-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.file_upload }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Three files are already attached: click one to preview it (the spreadsheet is read in the browser). Drop or pick more: with python3 examples/serve.py they upload to its api/upload; Download all saves them as one zip." }
+                - type: ui-file-upload
+                  props: { bind: attachments, url: api/upload, accept: "image/*,.pdf,.csv,.xlsx,.txt", maxSize: 5 MB, maxFiles: 8, hint: "Images, PDFs, spreadsheets or text, up to 5 MB each", zipName: receipts }
+                - { type: ui-heading, props: { level: 4, text: "As a list, read-only" }, style: { margin-top: 8 } }
+                - type: ui-file-upload
+                  props: { bind: attachments, view: list, readOnly: true, zipName: receipts }
+                - { type: if, props: { when: "{{ api.file_upload.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.file_upload }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

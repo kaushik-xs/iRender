@@ -3302,3 +3302,170 @@ fn tree_in_chrome() {
         "\n{result}"
     );
 }
+
+/// An upload API: `POST /upload` answers `{ id, url, folder }` (the `folder` field it was
+/// sent), `POST /fail` answers 500 with `{ error }`, and `GET /files/…` serves the
+/// examples' spreadsheet.
+fn upload_server() -> u16 {
+    use std::io::Write;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let xlsx = std::fs::read(concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/blocks/files/expenses.xlsx")).unwrap();
+    std::thread::spawn(move || {
+        let mut n = 0;
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let request = read_request(&mut stream);
+            let cors = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: POST, GET";
+            let json = |stream: &mut std::net::TcpStream, status: &str, body: String| {
+                let _ = write!(stream, "HTTP/1.1 {status}\r\n{cors}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            };
+            if request.starts_with("OPTIONS") {
+                let _ = write!(stream, "HTTP/1.1 204 No Content\r\n{cors}\r\nConnection: close\r\n\r\n");
+            } else if request.starts_with("GET /files/") {
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", xlsx.len());
+                let _ = stream.write_all(&xlsx);
+            } else if request.starts_with("POST /upload") {
+                n += 1;
+                let name = request.split("filename=\"").nth(1).and_then(|s| s.split('"').next()).unwrap_or("file").to_string();
+                let folder = request.split("name=\"folder\"\r\n\r\n").nth(1).and_then(|s| s.split("\r\n").next()).unwrap_or("").to_string();
+                json(&mut stream, "200 OK", serde_json::json!({ "id": format!("s{n}"), "url": format!("http://127.0.0.1:{port}/files/s{n}/{name}"), "folder": folder }).to_string());
+            } else if request.starts_with("POST /fail") {
+                json(&mut stream, "500 Internal Server Error", r#"{"error":"Disk full"}"#.into());
+            } else {
+                let _ = write!(stream, "HTTP/1.1 404 Not Found\r\n{cors}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            }
+        }
+    });
+    port
+}
+
+/// File upload: checks against accept, size and count; uploads with the server's answer
+/// merged in; errors and retry; removing; the preview of CSV, text and .xlsx; files kept
+/// in the browser without a `url`; and Download all as a zip.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn file_upload_in_chrome() {
+    let port = upload_server();
+    let at = |p: &str| format!("http://127.0.0.1:{port}{p}");
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "files": [{ "id": "e1", "name": "expenses.xlsx", "size": 2078, "url": at("/files/e1/expenses.xlsx") }], "bad": [], "kept": [], "folder": "claims" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-file-upload", "attrs": { "id": "main" }, "props": { "bind": "files", "url": at("/upload"), "params": { "folder": "{{ folder }}" },
+                "accept": ".csv,.txt,.xlsx,image/*", "maxSize": "1 KB", "maxFiles": 4, "hint": "CSV or text, up to 1 KB", "zipName": "claim" } },
+            { "type": "ui-file-upload", "attrs": { "id": "bad" }, "props": { "bind": "bad", "url": at("/fail"), "view": "list" } },
+            { "type": "ui-file-upload", "attrs": { "id": "kept" }, "props": { "bind": "kept", "multiple": false } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const U = (id) => document.getElementById(id);
+      const $ = (s, from) => from.querySelector(s), $$ = (s, from) => [...from.querySelectorAll(s)];
+      const pick = (el, files) => {
+        const dt = new DataTransfer();
+        files.forEach(([name, text, type]) => dt.items.add(new File([text], name, { type: type ?? "" })));
+        const input = $("[data-up-input]", el);
+        input.files = dt.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      const cards = (el) => $$("[data-up-file]", el).map((c) => c.querySelector("[data-up-name]").textContent + ":" + c.getAttribute("data-kind") + ":" + c.getAttribute("data-status")).join(", ");
+      const events = [];
+      for (const name of ["add", "uploaded", "error", "remove", "download"]) document.addEventListener(name, (e) => e.target.closest?.("[data-i-x=ui-file-upload]") && events.push(name));
+      try {
+        const M = U("main");
+        log("start", cards(M), "|", $("[data-up-total]", M).textContent, "| zone", $("[data-up-input]", M).getAttribute("accept"), $("[data-up-input]", M).getAttribute("aria-describedby") !== null);
+        // Two fine, one of a type not accepted, one too big.
+        pick(M, [["a.csv", "x,y\n1,\"two, three\"\n", "text/csv"], ["b.txt", "hello"], ["c.exe", "MZ"], ["d.csv", "z".repeat(2000)]]);
+        log("errors", $$("[data-up-errors] li", M).map((l) => l.textContent).join(" | "));
+        log("adding", S().files.map((f) => f.name + ":" + f.status).join(", "));
+        await until(() => S().files.every((f) => f.status !== "uploading"));
+        await wait(0);
+        const a = S().files[1];
+        log("uploaded", S().files.map((f) => f.id + ":" + f.status).join(", "), a.folder, a.url.endsWith("/files/s1/a.csv") || a.url.endsWith("/files/s2/a.csv"), cards(M));
+        // At most four: one more fits.
+        pick(M, [["e.txt", "e"], ["f.txt", "f"]]);
+        log("full", S().files.length, $$("[data-up-errors] li", M).map((l) => l.textContent).join(" | "));
+        await until(() => S().files.every((f) => f.status !== "uploading"));
+        // Preview: the .xlsx from the server, then the CSV with its quoted comma.
+        $("[data-up-file] [data-up-open]", M).click();
+        const D = $("[data-up-preview]", M);
+        await until(() => $("[data-up-body] table", D));
+        log("xlsx", D.open, $("[data-up-title]", D).textContent, $("[data-up-count]", D).textContent, $$("[data-up-body] tr", D).length, $$("[data-up-body] tr", D)[2].textContent);
+        $("[data-up-next]", D).click();
+        await until(() => $("[data-up-title]", D).textContent === "a.csv" && $("[data-up-body] table", D));
+        log("csv", $$("[data-up-body] th", D).map((t) => t.textContent).join("|"), $$("[data-up-body] td", D).map((t) => t.textContent).join("|"));
+        D.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+        await until(() => $("[data-up-body] pre", D));
+        log("text", $("[data-up-title]", D).textContent, $("[data-up-body] pre", D).textContent, $("[data-up-save]", D).getAttribute("download"));
+        D.close();
+        await until(() => document.activeElement.closest?.("[data-up-file]"));
+        log("closed", document.activeElement.closest("[data-up-file]")?.querySelector("[data-up-name]").textContent);
+        // Remove: from state, with focus on the next file.
+        $$("[data-up-remove]", M)[2].click(); await wait(0);
+        log("removed", S().files.map((f) => f.name).join(","), events.at(-1), document.activeElement.closest("[data-up-file]")?.querySelector("[data-up-name]").textContent);
+        // Download all: a zip of the files, named twice-over-safe.
+        const clicks = [];
+        HTMLAnchorElement.prototype.click = function () { clicks.push([this.download, this.href]); };
+        $("[data-up-zip]", M).click();
+        await until(() => clicks.length);
+        const bytes = new Uint8Array(await (await fetch(clicks[0][1])).arrayBuffer());
+        const text = new TextDecoder().decode(bytes);
+        log("zip", clicks[0][0], String.fromCharCode(bytes[0], bytes[1]), ["expenses.xlsx", "a.csv", "e.txt"].map((n) => text.split(n).length - 1).join(","), events.at(-1));
+        // A server error: shown on the file, with a retry.
+        const B = U("bad");
+        pick(B, [["g.txt", "g"]]);
+        await until(() => S().bad[0]?.status === "error");
+        await wait(0);
+        log("error", S().bad[0].error, $("[data-up-error]", B).textContent, !!$("[data-up-retry]", B), $("[data-up-files]", B).getAttribute("data-view"));
+        $("[data-up-retry]", B).click();
+        await until(() => S().bad[0]?.status === "error" && events.filter((e) => e === "error").length === 2);
+        log("retried", events.filter((e) => e === "error").length);
+        // No url: kept in the browser, one at a time, still previewable.
+        const K = U("kept");
+        pick(K, [["h.txt", "first"], ["i.txt", "second"]]);
+        await wait(0);
+        log("kept", S().kept.map((f) => f.name + ":" + f.status).join(","), $("[data-up-input]", K).multiple);
+        pick(K, [["j.txt", "third"]]);
+        await wait(0);
+        $("[data-up-open]", K).click();
+        await until(() => $("[data-up-body] pre", K));
+        log("replaced", S().kept.map((f) => f.name).join(","), $("[data-up-body] pre", K).textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("upload", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start expenses.xlsx:sheet:done | 1 file, 2 KB | zone .csv,.txt,.xlsx,image/* true",
+            // Not an accepted type, and over `maxSize`: refused, with the reason.
+            "errors c.exe isn't a type that can be added. | d.csv is over the 1 KB limit.",
+            "adding expenses.xlsx:undefined, a.csv:uploading, b.txt:uploading",
+            // The server's answer is merged in: its ids, and the `folder` field it was sent.
+            "uploaded e1:undefined, s1:done, s2:done claims true expenses.xlsx:sheet:done, a.csv:sheet:done, b.txt:text:done",
+            "full 4 f.txt wasn't added: at most 4 files.",
+            "xlsx true expenses.xlsx 1 of 4 6 2026-11-03Taj Lands EndHotel12600",
+            "csv x|y 1|two, three",
+            "text b.txt hello b.txt",
+            "closed b.txt",
+            "removed expenses.xlsx,a.csv,e.txt remove e.txt",
+            // Each name twice: its local header and the central directory.
+            "zip claim.zip PK 2,2,2 download",
+            "error Disk full Disk full true list",
+            "retried 2",
+            // No `url`: kept in the browser; `multiple: false` keeps one.
+            "kept h.txt:local false",
+            "replaced j.txt third",
+        ],
+        "\n{result}"
+    );
+}

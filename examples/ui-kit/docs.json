@@ -113,6 +113,16 @@
    ]
   },
   {
+   "id": "file-upload",
+   "group": "Forms",
+   "title": "File upload",
+   "summary": "Files from a drop zone, uploaded with their progress, shown as a grid or a list, previewed (images, PDFs, CSV and Excel sheets, text) and downloaded together as a zip. The files are kept in state, so a form can send them; type, size and count limits are checked as they're added.",
+   "usage": "- type: ui-file-upload\n  props:\n    bind: receipts          # [{ id, name, size, url, status, progress }]\n    url: /api/upload        # multipart, field `file`; answer { id, url }\n    accept: \"image/*,.pdf,.xlsx\"\n    maxSize: 10 MB\n    hint: Images, PDFs or spreadsheets, up to 10 MB",
+   "components": [
+    "ui-file-upload"
+   ]
+  },
+  {
    "id": "badge",
    "group": "Data display",
    "title": "Badge and kbd",

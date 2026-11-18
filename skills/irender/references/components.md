@@ -288,6 +288,26 @@ ui-tree: A tree of nodes to browse, select, check, search, add to, delete from a
   height       any  Most it grows to before it scrolls: a number (px) or CSS length
   parts: tree
   children: no
+ui-file-upload: Files to attach: a drop zone, uploads with progress, the files as a grid or a list, a preview of images, PDFs, spreadsheets and text, and Download all as a zip. The files are kept in state under `bind`.
+  bind         statekey (required)  State key for the files: `[{ id, name, size, type, url, status, progress, error }]`. Files already there (with a `url`) are shown too
+  url          any  Where to upload: each file is POSTed as `multipart/form-data` (field `file`), and a JSON answer is merged into its entry, e.g. `{ id, url }`. Without it, files stay in the browser
+  params       any  More form fields sent with each file, e.g. `{ folder: "{{ claim.id }}" }`
+  accept       string  Types allowed, as the file input's `accept`: `image/*,.pdf,.xlsx`
+  multiple     bool  More than one file (default true)
+  maxFiles     number  Most files in all
+  maxSize      any  Largest file: bytes, or text like `10 MB` or `500 KB`
+  view         one of: grid, list  `grid` of cards (default) or `list` of rows
+  label        any  The drop zone's text (default `Drop files here or click to browse`)
+  hint         any  Smaller text under it, e.g. the types and size allowed
+  readOnly     bool  Show the files only: no drop zone and no removing
+  removable    bool  A remove button on each file (default true)
+  download     bool  A Download all button that saves the files as one zip (default true)
+  zipName      string  The zip's name, without `.zip` (default `attachments`)
+  emptyText    any  Shown under a read-only list with no files (default `No files yet.`)
+  disabled     any  Boolean or expression
+  id           any  The file input's id, for a label (default: derived from the document)
+  parts: zone, files
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers
