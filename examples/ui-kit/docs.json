@@ -45,6 +45,7 @@
    "id": "toggle",
    "group": "Actions",
    "title": "Toggle, toggle group and slider",
+   "nav": "Toggles and slider",
    "summary": "A toggle is a button that stays pressed. A toggle group presses one option (or several with multiple). A slider picks a number in a range. All three keep their value in state through bind.",
    "usage": "- { type: ui-toggle, props: { bind: bold, label: Bold } }\n- { type: ui-toggle-group, props: { bind: align, options: [left, center, right] } }\n- { type: ui-slider, props: { bind: volume, min: 0, max: 100, step: 5 } }",
    "components": [
@@ -73,6 +74,7 @@
    "id": "field",
    "group": "Forms",
    "title": "Field, input group and button group",
+   "nav": "Field and groups",
    "summary": "A field lays out a label, a control, help text and an error, and wires them together for screen readers. An input group puts text or buttons inside a field's border. A button group joins buttons into one control.",
    "usage": "- type: ui-field\n  props: { label: Username, description: 3 to 20 letters, error: \"{{ username.length < 3 ? 'Too short' : '' }}\" }\n  children: [ { type: ui-input, props: { bind: username } } ]\n- type: ui-input-group\n  props: { prefix: \"https://\", suffix: .com }\n  children: [ { type: ui-input, props: { bind: site } } ]",
    "components": [
@@ -105,6 +107,7 @@
    "id": "date-picker",
    "group": "Forms",
    "title": "Date picker and calendar",
+   "nav": "Date picker",
    "summary": "Pick a day (with a time), a month, a quarter or a year; one, a range or several. Limits, disabled days, presets, financial years and typing the date are props. bindRange gives the exact dates picked, ready for a chart's or a table's filter.",
    "usage": "- type: ui-date-picker\n  props: { bind: period, bindRange: periodDates, mode: range, months: 2, presets: [last7, thisMonth, yearToDate] }\n- { type: ui-date-picker, props: { bind: due, input: true, min: today, bindError: dueError } }\n- { type: ui-calendar, props: { bind: days, mode: multiple, disabledDays: [0, 6] } }",
    "components": [
@@ -126,6 +129,7 @@
    "id": "rating",
    "group": "Forms",
    "title": "Rating and password checklist",
+   "nav": "Rating and password",
    "summary": "ui-rating picks a rating with stars (a click or the arrow keys, hover to preview, click again to clear), or shows one read-only, filling part of a star for an average. ui-password-checklist goes under a password input and ticks its rules as they're met, with a strength bar; bindValid tells a button when the password is good enough.",
    "usage": "- { type: ui-rating, props: { bind: stars, label: Rate your stay } }\n- { type: ui-rating, props: { value: \"{{ hotel.average }}\" } }   # read-only\n- { type: ui-input, props: { bind: password, type: password } }\n- { type: ui-password-checklist, props: { value: \"{{ password }}\", bindValid: strong } }",
    "components": [
@@ -137,6 +141,7 @@
    "id": "badge",
    "group": "Data display",
    "title": "Badge, status badge and kbd",
+   "nav": "Badges",
    "summary": "A badge is a small status label; kbd shows a key or shortcut. ui-status-badge shows a status in its colour: Done, Paid and Approved green, In review and Pending amber, Blocked and Overdue red, and so on, with tones for your own.",
    "usage": "- { type: ui-badge, props: { text: New, variant: secondary } }\n- { type: ui-kbd, props: { text: ⌘K } }",
    "components": [
@@ -160,6 +165,7 @@
    "id": "avatar",
    "group": "Data display",
    "title": "Avatar and aspect ratio",
+   "nav": "Avatar",
    "summary": "An avatar shows a picture, or initials when there's none. An aspect ratio keeps its children at a fixed shape as the width changes.",
    "usage": "- { type: ui-avatar, props: { src: /me.jpg, alt: Kaushik, fallback: KS } }\n- type: ui-aspect-ratio\n  props: { ratio: \"16 / 9\" }\n  children: [ { type: element, props: { tag: img }, attrs: { src: /cover.jpg, alt: \"\" } } ]",
    "components": [
@@ -216,6 +222,7 @@
    "id": "timeline",
    "group": "Data display",
    "title": "Activity timeline",
+   "nav": "Timeline",
    "summary": "Who did what and when: an avatar or initials, the action and time, field changes as old → new, and comments. Events without a person get a dot in a tone. Entries come from children or from state, and redraw as it changes.",
    "usage": "- type: ui-timeline\n  props: { items: \"{{ history }}\" }   # [{ who, action, when, changes, comment, tone }]\n  children:\n    - { type: ui-timeline-item, props: { who: Asha Rao, action: changed the status, when: 2 h ago, changes: [ { field: Status, from: Open, to: Done } ] } }",
    "components": [
@@ -227,6 +234,7 @@
    "id": "typography",
    "group": "Data display",
    "title": "Typography and separator",
+   "nav": "Typography",
    "summary": "Headings in four levels, text in variants from lead to code and blockquote, and a separator line, plain or with a label in the middle.",
    "usage": "- { type: ui-heading, props: { level: 2, text: Settings } }\n- { type: ui-text, props: { variant: muted, text: Manage your account. } }\n- { type: ui-separator, props: { label: Or continue with } }",
    "components": [
@@ -259,6 +267,7 @@
    "id": "illustration",
    "group": "Feedback",
    "title": "Illustrations, error pages and empty states",
+   "nav": "Illustrations",
    "summary": "Drawings for error pages and empty states: not found, server error, forbidden, maintenance, offline, no data, no results, out of stock, an empty cart or inbox, no notifications, an expired session, a failed payment, coming soon and all done. They're coloured by the theme's primary colour and its second brand colour, with neutrals mixed from the text and background, so they follow the palette, custom colours and dark mode. Give ui-empty an illustration for an empty state; the blocks have whole error pages.",
    "usage": "- { type: ui-illustration, props: { name: not-found, size: 320 } }\n- { type: ui-illustration, props: { name: out-of-stock, primary: \"#0ea5e9\", secondary: \"#f43f5e\" } }\n- type: ui-empty\n  props: { illustration: no-data, title: No data yet, description: Orders show up here. }\n  children: [ { type: ui-button, props: { label: Import orders } } ]",
    "components": [
@@ -269,6 +278,7 @@
    "id": "progress",
    "group": "Feedback",
    "title": "Progress, progress ring and skeleton",
+   "nav": "Progress",
    "summary": "A progress bar for a task's completion, and skeletons that stand in for content while it loads. ui-progress-ring is the same as a ring, with the value in the middle.",
    "usage": "- { type: ui-progress, props: { value: \"{{ progress }}\" } }\n- { type: ui-skeleton, props: { width: 240, height: 16 } }",
    "components": [
@@ -281,6 +291,7 @@
    "id": "spinner",
    "group": "Feedback",
    "title": "Spinner, empty state and scroll area",
+   "nav": "Spinner and scroll area",
    "summary": "A spinner says something is loading. An empty state fills a page or list with nothing in it yet. A scroll area scrolls its children with a thin, themed scrollbar.",
    "usage": "- { type: ui-spinner, props: { label: Loading orders } }\n- { type: ui-empty, props: { title: No projects yet, description: Create your first one. } }\n- { type: ui-scroll-area, props: { height: 200 }, children: [ … ] }",
    "components": [
@@ -293,6 +304,7 @@
    "id": "dialog",
    "group": "Overlays",
    "title": "Dialog, alert dialog and sheet",
+   "nav": "Dialog and sheet",
    "summary": "A modal dialog opened by its trigger; an alert dialog that only its own buttons close; and a sheet that slides in from an edge. A dialog close button closes the one it's in, and runs its own actions too.",
    "usage": "- type: ui-dialog\n  props: { trigger: Edit profile, title: Edit profile, description: Make changes here. }\n  children:\n    - { type: ui-input, props: { bind: name } }\n    - type: ui-dialog-footer\n      children: [ { type: ui-dialog-close, props: { label: Save } } ]",
    "components": [
@@ -307,6 +319,7 @@
    "id": "popover",
    "group": "Overlays",
    "title": "Popover, dropdown menu, tooltip and hover card",
+   "nav": "Popovers and menus",
    "summary": "Floating content next to its trigger: a popover for anything, a dropdown menu of actions with the menu keyboard, a tooltip on hover or focus, and a hover card for a preview.",
    "usage": "- type: ui-dropdown-menu\n  props: { trigger: My account }\n  children:\n    - { type: ui-menu-label, props: { text: Signed in as Ada } }\n    - { type: ui-menu-item, props: { label: Profile, shortcut: ⇧⌘P } }\n    - { type: ui-menu-separator }\n    - { type: ui-menu-item, props: { label: Log out, variant: destructive } }\n- { type: ui-tooltip, props: { text: Add to library }, children: [ { type: ui-button, props: { label: + } } ] }",
    "components": [
@@ -347,6 +360,7 @@
    "id": "tabs",
    "group": "Navigation",
    "title": "Tabs, accordion and collapsible",
+   "nav": "Tabs and accordion",
    "summary": "Tabs switch between panels, with the open one in state. An accordion opens one section at a time (or several with multiple), and a collapsible shows and hides one, both on native details.",
    "usage": "- type: ui-tabs\n  props: { bind: tab }\n  children:\n    - { type: ui-tab-panel, props: { value: account, label: Account }, children: [ … ] }\n    - { type: ui-tab-panel, props: { value: password, label: Password }, children: [ … ] }",
    "components": [
@@ -361,6 +375,7 @@
    "id": "menubar",
    "group": "Navigation",
    "title": "Menubar and submenus",
+   "nav": "Menubar",
    "summary": "A bar of menus, as at the top of an application. Left and Right move along the bar, and an open menu follows; Down opens a menu; hovering moves between open menus. Any menu can hold submenus, checkbox items and radio items.",
    "usage": "- type: ui-menubar\n  children:\n    - type: ui-menubar-menu\n      props: { label: File }\n      children:\n        - { type: ui-menu-item, props: { label: New tab, shortcut: ⌘T } }\n        - type: ui-menu-sub\n          props: { label: Share }\n          children: [ { type: ui-menu-item, props: { label: Email link } } ]\n    - type: ui-menubar-menu\n      props: { label: View }\n      children:\n        - { type: ui-menu-checkbox, props: { label: Show status bar, bind: statusBar } }\n        - { type: ui-menu-radio-group, props: { bind: zoom, options: [100%, 125%, 150%] } }",
    "components": [
@@ -387,6 +402,7 @@
    "id": "breadcrumb",
    "group": "Navigation",
    "title": "Breadcrumb and pagination",
+   "nav": "Breadcrumb and pages",
    "summary": "A breadcrumb shows where a page sits, the last item being the current page. Pagination links pages, with the page and page count from data or state.",
    "usage": "- { type: ui-breadcrumb, props: { items: [{ label: Home, href: / }, { label: Settings }] } }\n- { type: ui-pagination, props: { page: \"{{ page }}\", pages: 12, href: \"?page={{ p }}\" } }",
    "components": [

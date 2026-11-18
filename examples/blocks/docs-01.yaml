@@ -130,5 +130,6 @@ root:
                 - type: element
                   props: { tag: a }
                   attrs: { href: "#{{ link.id }}" }
-                  style: { padding: 4px 8px, border-radius: $radius.sm, color: $color.muted, text-decoration: none }
+                  # The page's style outranks the scroll spy's, so the current link is styled here.
+                  style: { padding: 4px 8px, border-radius: $radius.sm, color: $color.muted, text-decoration: none, ":hover": { color: $color.text }, "&[aria-current=location]": { color: $color.text, font-weight: 600, background: "color-mix(in srgb, var(--color-text) 7%, transparent)" } }
                   children: [ { type: text, props: { value: "{{ link.label }}" } } ]

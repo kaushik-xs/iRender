@@ -175,32 +175,43 @@ root:
         # The link for the section being read is marked as you scroll.
         - type: ui-scroll-spy
           props: { label: Sections }
-          style: { display: flex, flex-direction: column, gap: 16, max-height: 260, overflow-y: auto, "@lg": { max-height: none, overflow: visible } }
+          style: { display: flex, flex-direction: column, gap: 22, max-height: 260, overflow-y: auto, "@lg": { max-height: none, overflow: visible } }
           children:
             - type: list
               props: { items: "{{ groups }}", as: g }
               style: { display: contents }
               children:
                 - type: element
-                  style: { display: flex, flex-direction: column, gap: 2 }
+                  style: { display: flex, flex-direction: column, gap: 1 }
                   children:
-                    - { type: text, props: { value: "{{ g.title }}" }, style: { padding: 0 8px 4px, color: $color.muted, font-size: 12, font-weight: 600 } }
+                    - { type: text, props: { value: "{{ g.title }}" }, style: { padding: 0 8px 6px, color: $color.text, font-size: 11, font-weight: 600, letter-spacing: 0.06em, text-transform: uppercase, opacity: 0.55 } }
                     - type: list
                       props: { items: "{{ g.sections }}", as: sec }
                       style: { display: contents }
                       children:
+                        # One line each, muted until hovered or current (the scroll spy
+                        # marks the current one); the full title is in its tooltip.
                         - type: element
                           props: { tag: a }
-                          attrs: { href: "#{{ sec.id }}" }
+                          attrs: { href: "#{{ sec.id }}", title: "{{ sec.title }}" }
                           style:
-                            padding: 6px 8px
+                            display: block
+                            padding: 4px 8px
                             border-radius: $radius.sm
-                            color: $color.text
-                            font-size: 14
+                            color: $color.muted
+                            font-size: 13.5
+                            line-height: 1.5
+                            white-space: nowrap
+                            overflow: hidden
+                            text-overflow: ellipsis
                             text-decoration: none
-                            ":hover": { background: "color-mix(in srgb, var(--color-text) 6%, transparent)" }
+                            transition: color .15s, background .15s
+                            ":hover": { color: $color.text, background: "color-mix(in srgb, var(--color-text) 5%, transparent)" }
                             ":focus-visible": { outline: 2px solid $color.primary }
-                          children: [ { type: text, props: { value: "{{ sec.title }}" } } ]
+                            # The page's style outranks the scroll spy's, so the current
+                            # link is styled here.
+                            "&[aria-current=location]": { color: $color.text, font-weight: 600, background: "color-mix(in srgb, var(--color-text) 7%, transparent)" }
+                          children: [ { type: text, props: { value: "{{ sec.nav }}" } } ]
 
     # ---------------------------------------------------------------- the content
     - type: element

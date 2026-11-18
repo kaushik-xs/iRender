@@ -46,7 +46,8 @@ def main():
         api[key] = cs
         if not groups or groups[-1]["title"] != s["group"]:
             groups.append({"title": s["group"], "sections": []})
-        groups[-1]["sections"].append({"id": s["id"], "title": s["title"]})
+        # `nav`: a shorter name for the sidebar, where long titles wrap.
+        groups[-1]["sections"].append({"id": s["id"], "title": s["title"], "nav": s.get("nav", s["title"])})
     missing = sorted(n for n in components if n.startswith("ui-") and n not in covered)
     if missing:
         print(f"docs.py: not in any section of docs.json: {', '.join(missing)}", file=sys.stderr)
