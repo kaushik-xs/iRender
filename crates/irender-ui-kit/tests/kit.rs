@@ -48,6 +48,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-kanban", json!({ "columns": [], "cards": [] })),
         ("ui-event-calendar", json!({ "events": [] })),
         ("ui-number-input", json!({ "bind": "k" })),
+        ("ui-notifications", json!({ "items": [] })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -115,7 +116,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 106);
+    assert_eq!(kit, 107);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1425,4 +1426,21 @@ fn number_input_structure_and_mistakes() {
     assert!(fb.contains(r#"data-fl-views-open aria-expanded="false""#) && fb.contains(r#"data-fl-view-name placeholder="Name these filters""#), "{fb}");
     let e = render_with(filters(json!({ "type": "ui-filter", "props": { "field": "d", "type": "date", "presets": ["fortnight"] } })), json!({ "f": {}, "v": [] }), json!({})).unwrap_err().to_string();
     assert!(e.contains("no date preset `fortnight`"), "{e}");
+}
+
+#[test]
+fn notifications_bell_and_panel() {
+    let body = plain(&render(json!({ "type": "ui-notifications", "props": { "items": [
+        { "id": 1, "title": "A" }, { "id": 2, "title": "B", "read": true }, { "id": 3, "title": "C", "archived": true } ], "label": "Alerts" } })));
+    // The bell counts what's unread and not archived; it opens the panel as a popover.
+    assert!(body.contains(r#"<button type="button" data-nt-bell popovertarget="notifications-root" aria-haspopup="dialog" aria-label="Alerts, 1 unread">"#), "{body}");
+    assert!(body.contains(r#"<span data-nt-count aria-hidden="true">1</span>"#), "{body}");
+    assert!(body.contains(r#"popover="auto""#) && body.contains(r#"role="dialog" aria-labelledby="notifications-root-title""#), "{body}");
+    assert!(body.contains(r#"<button type="button" data-nt-tab="unread" aria-pressed="true">Unread (1)</button><button type="button" data-nt-tab="all" aria-pressed="false">All</button>"#), "{body}");
+    // Inline: no bell, a region; nothing unread disables Mark all as read.
+    let inline = plain(&render(json!({ "type": "ui-notifications", "props": { "items": [], "inline": true, "tab": "all" } })));
+    assert!(!inline.contains("data-nt-bell") && inline.contains(r#"role="region""#) && !inline.contains("popover="), "{inline}");
+    assert!(inline.contains(r#"data-nt-mark-all disabled>Mark all as read</button>"#), "{inline}");
+    let err = render_with(json!({ "type": "ui-notifications", "props": { "items": [], "tab": "new" } }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err.contains("`tab` must be `unread` or `all`"), "{err}");
 }

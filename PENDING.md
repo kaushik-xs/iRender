@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a notification centre, the rest of the smaller pieces (code editor, icon rail), the event calendar's year view, and the filter panel using the kit's calendar and number input.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the filter panel using the kit's calendar and number input, the rest of the smaller pieces (code editor, icon rail), and the event calendar's year view.
 
 ## Gaps you'd hit in real use
 
@@ -43,7 +43,9 @@ _Last updated: 2026-11-18._
     - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [ ] **Dashboard grid:** tiles that can be dragged and resized (react-grid-layout).
   - [x] **Activity timeline** (2026-11-18): `ui-timeline` + `ui-timeline-item`, with avatars or initials, field changes (old → new), comments and event dots, from children or state (block ticket-01). No grouping by day, and no "show more" for long histories.
-  - [ ] **Notification centre:** a bell with an unread count and an inbox (read/unread, archive), plus preferences (`notifications/`).
+  - [x] **Notification centre** (2026-11-18): `ui-notifications`, a bell with an unread count and a panel (or `inline`) with Unread and All, read toggles, archive and Mark all as read, from state (dashboard-01 header, gallery section). Not done yet:
+    - [ ] No notification preferences (which kinds, by email or in the app), and no grouping by day.
+    - [ ] Nothing arrives by itself: new notifications need the page's state to change (a `ui-live-data` feed, or the host).
   - [x] **Progress ring** (2026-11-18): `ui-progress-ring`, following state without a script.
   - [x] **Status badge, rating and password checklist** (2026-11-18): `ui-status-badge` (built-in tones for common statuses, `tones` and `labels`), `ui-rating` (pick, or show a fractional average) and `ui-password-checklist` (rules, strength, `bindValid`; in the signup block). The rating has no half-star picking.
   - [x] **Number and currency input** (2026-11-18): `ui-number-input`, grouped as typed in the locale's way, with a currency symbol, prefix or suffix, steps and clamping.
@@ -252,7 +254,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 
 ## Housekeeping
 
-- [ ] **Browser tests under heavy load.** The chat tests waited on timers, which Chrome's virtual time runs ahead of a real test server; they now wait on the page (message-channel yields, which hold virtual time) and the budget is 30 s (2026-11-18). With three full runs at once, 1 run in 9 still had a page whose driver didn't finish in time; a single run hasn't failed since. In Firefox (Playwright, real time), a full local run on a busy machine sometimes fails `data_table_tree_and_pinned_columns_in_chrome` or `menubar_and_navigation_menu_in_chrome` (focus moving before the driver reads it); both pass alone and in CI. Idea: wait for the expected focus instead of a fixed delay, as the scroll spy test now does.
+- [ ] **Browser tests under heavy load.** The chat tests waited on timers, which Chrome's virtual time runs ahead of a real test server; they now wait on the page (message-channel yields, which hold virtual time) and the budget is 30 s (2026-11-18). With three full runs at once, 1 run in 9 still had a page whose driver didn't finish in time; a single run hasn't failed since. In Firefox (Playwright, real time), a full local run on a busy machine sometimes fails `data_table_tree_and_pinned_columns_in_chrome`, `menubar_and_navigation_menu_in_chrome` (focus moving before the driver reads it) or `stored_theme_applies_on_pages_without_a_toggle_in_chrome`; both pass alone and in CI. Idea: wait for the expected focus instead of a fixed delay, as the scroll spy test now does.
 
 - [ ] **`{{ }}` inside a literal `set_state` value is never evaluated, and nothing warns.** `value: { description: "Hi {{ name }}" }` stores the braces as text, while `submit` `body` fields are evaluated. Found by a model writing a toast. Fix: evaluate templated leaves of literal values (as `body` does), or at least warn in `validate`. Then drop the caveat from `skills/irender/references/authoring.md`.
 - [x] **`tools/llm-docs.sh --check` runs in CI** (2026-11-18): a change that doesn't regenerate the skill's references and `llms-full.txt` fails the lint job. Run `tools/llm-docs.sh` after changing a component, icon or README.

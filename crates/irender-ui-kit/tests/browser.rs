@@ -3980,3 +3980,92 @@ fn filter_presets_and_views_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Notifications: the bell's count, the panel with Unread and All, the arrow keys,
+/// marking read and unread, archiving, Mark all as read, opening one, and state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn notifications_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "open": null, "notes": [
+            { "id": 1, "title": "Comment", "body": "Looks good", "who": "Meera Iyer", "when": "5 min ago" },
+            { "id": 2, "title": "Build failed", "tone": "danger", "when": "1 h ago" },
+            { "id": 3, "title": "Paid", "read": true, "tone": "success" },
+            { "id": 4, "title": "Old", "archived": true } ] },
+        "root": { "type": "ui-notifications", "props": { "items": "{{ notes }}", "bindItems": "notes", "bindItem": "open", "allHref": "/all" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const N = document.querySelector("[data-i-x=ui-notifications]");
+      const $ = (s) => N.querySelector(s), $$ = (s) => [...N.querySelectorAll(s)];
+      const rows = () => $$("[data-nt-item]").map((li) => li.querySelector("[data-nt-title]").textContent + (li.hasAttribute("data-unread") ? "*" : "")).join(",");
+      const row = (t) => $$("[data-nt-item]").find((li) => li.querySelector("[data-nt-title]").textContent === t);
+      const focused = () => document.activeElement.closest?.("[data-nt-item]")?.querySelector("[data-nt-title]").textContent ?? document.activeElement.textContent;
+      const events = [];
+      for (const n of ["open", "read", "archive"]) N.addEventListener(n, (e) => events.push(n + " " + JSON.stringify(e.detail.items?.map((x) => x.title) ?? e.detail.item?.title) + (e.detail.read === undefined ? "" : " " + e.detail.read)));
+      try {
+        const bell = $("[data-nt-bell]");
+        log("bell", bell.getAttribute("aria-label"), $("[data-nt-count]").textContent, bell.getAttribute("aria-haspopup"));
+        bell.click(); await wait(0);
+        const panel = $("[data-nt-panel]");
+        log("open", panel.matches(":popover-open"), rows(), "| focus", focused(), "| tabs", $$("[data-nt-tab]").map((t) => t.textContent + (t.getAttribute("aria-pressed") === "true" ? "*" : "")).join(","));
+        log("labels", row("Comment").querySelector("[data-nt-open]").getAttribute("aria-label"), "|", row("Comment").querySelector("[data-nt-mark]").textContent, row("Build failed").querySelector("[data-nt-mark]").hasAttribute("data-dot"));
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+        log("down", focused());
+        // All shows the read one too, never the archived.
+        $('[data-nt-tab="all"]').click(); await wait(0);
+        log("all", rows());
+        // Mark one read: the count and the tab follow.
+        row("Comment").querySelector("[data-nt-toggle]").click(); await wait(0);
+        log("read", rows(), $("[data-nt-count]").textContent, bell.getAttribute("aria-label"), events.at(-1));
+        row("Comment").querySelector("[data-nt-toggle]").click(); await wait(0);
+        log("unread", rows(), $("[data-nt-count]").textContent, row("Comment").querySelector("[data-nt-toggle]").getAttribute("aria-label"));
+        // Archive: gone from both tabs, focus to the next.
+        row("Build failed").querySelector("[data-nt-archive]").click(); await wait(0);
+        log("archived", rows(), JSON.stringify(S().notes.find((n) => n.id === 2).archived), events.at(-1), "| focus", focused());
+        // Mark all as read; Unread then says caught up.
+        $("[data-nt-mark-all]").click(); await wait(0);
+        log("all read", $("[data-nt-count]").hidden, $("[data-nt-mark-all]").disabled, events.at(-1));
+        $('[data-nt-tab="unread"]').click(); await wait(0);
+        log("caught up", rows() || "-", $("[data-nt-empty]").textContent, $("[data-nt-tab]").textContent);
+        // A new one from state; opening it marks it read and closes the panel.
+        root.__irender.set("notes", [{ id: 9, title: "New", body: "Hi", who: { name: "Asha Rao", initials: "AR" } }, ...S().notes]); await wait(0);
+        log("new", rows(), $("[data-nt-count]").textContent, row("New").querySelector("[data-nt-mark]").textContent);
+        row("New").querySelector("[data-nt-open]").click(); await wait(0);
+        log("opened", S().open?.title, S().open?.read, S().notes[0].read, panel.matches(":popover-open"), events.at(-1));
+        log("foot", $("[data-nt-foot] a").getAttribute("href"), $("[data-nt-live]").getAttribute("aria-live"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("notifications", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "bell Notifications, 2 unread 2 dialog",
+            // Opening the panel: Unread, focus on the first notification.
+            "open true Comment*,Build failed* | focus Comment | tabs Unread (2)*,All",
+            "labels Unread. Comment. Looks good. 5 min ago | MI true",
+            "down Build failed",
+            // All adds the read ones, never the archived.
+            "all Comment*,Build failed*,Paid",
+            // The read toggle, both ways; the count and the bell's label follow.
+            "read Comment,Build failed*,Paid 1 Notifications, 1 unread read [\"Comment\"] true",
+            "unread Comment*,Build failed*,Paid 2 Mark Comment as read",
+            // Archived: gone from both tabs; focus moves to the next.
+            "archived Comment*,Paid true archive \"Build failed\" | focus Paid",
+            "all read true true read [\"Comment\"] true",
+            "caught up - You're all caught up. Unread",
+            "new New* 1 AR",
+            "opened New true true false open \"New\"",
+            "foot /all polite",
+        ],
+        "\n{result}"
+    );
+}

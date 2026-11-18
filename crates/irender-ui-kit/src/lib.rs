@@ -56,6 +56,7 @@ mod kanban;
 mod illustration;
 mod menus;
 mod navigation;
+mod notifications;
 mod number;
 mod otp;
 mod rating;
@@ -125,6 +126,7 @@ pub fn register(registry: &mut Registry) {
         .register(kanban::Kanban)
         .register(events::EventCalendar)
         .register(number::NumberInput)
+        .register(notifications::Notifications)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

@@ -297,6 +297,17 @@
    ]
   },
   {
+   "id": "notifications",
+   "group": "Feedback",
+   "title": "Notifications",
+   "nav": "Notifications",
+   "summary": "A bell with an unread count that opens a panel: Unread and All, a dot to mark one read or unread, archive, and Mark all as read. Notifications come from state and changes go back to it; a click opens one, marks it read, and closes the panel. inline puts the panel in a page.",
+   "usage": "- type: ui-notifications\n  props:\n    items: \"{{ notifications }}\"   # [{ id, title, body, who, when, read, tone }]\n    bindItems: notifications\n    bindItem: opened\n    allHref: /notifications",
+   "components": [
+    "ui-notifications"
+   ]
+  },
+  {
    "id": "illustration",
    "group": "Feedback",
    "title": "Illustrations, error pages and empty states",

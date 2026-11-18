@@ -1,6 +1,7 @@
 # Block: a dashboard with an inset sidebar, summary cards, an interactive area chart and
 # a data table, in the style of shadcn/ui's dashboard-01, plus a command palette (⌘K, or
-# Search in the sidebar) for its pages and actions. Data comes from
+# Search in the sidebar) for its pages and actions, and a bell of notifications in the
+# header. Data comes from
 # dashboard-01.data.json; the chart's range, the table's tabs, row selection and
 # paging are state, so they work in the browser without a server round trip.
 #
@@ -14,6 +15,12 @@ state:
   page: 1
   selected: []
   toast: null
+  notification: null
+  notifications:
+    - { id: 1, title: Proposal approved, body: "The Q4 proposal was signed off by finance.", who: Toby Belhome, when: 10 min ago }
+    - { id: 2, title: Deadline tomorrow, body: "Technical approach is due at 5 pm.", when: 2 h ago, tone: warning }
+    - { id: 3, title: New comment on Cover page, body: "Can we use the new logo here?", who: Jamik Tashpulatov, when: 4 h ago }
+    - { id: 4, title: Export finished, body: Your CSV is ready to download., when: Yesterday, tone: success, read: true }
 root:
   type: ui-sidebar-layout
   props: { bind: sidebar, variant: inset }
@@ -81,6 +88,7 @@ root:
         - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin: 0 8px 0 0 } }
         - { type: element, props: { tag: h1 }, style: { margin: 0, font-size: 16, font-weight: 500 }, children: [ { type: text, props: { value: Documents } } ] }
         - { type: ui-popover, props: { trigger: Theme, triggerVariant: ghost, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
+        - { type: ui-notifications, props: { items: "{{ notifications }}", bindItems: notifications, bindItem: notification } }
         - { type: ui-button, props: { label: GitHub, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender" } }
 
     - type: element

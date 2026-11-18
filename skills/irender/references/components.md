@@ -408,6 +408,20 @@ ui-number-input: A number or an amount, grouped as it's typed (`1,25,000`), with
   id           any  The input's id (default: derived from the document)
   parts: input
   children: no
+ui-notifications: A bell with an unread count that opens a panel of notifications, with Unread and All, mark read or unread, archive and Mark all as read. Changes go to `bindItems`; a click opens one into `bindItem`.
+  items        any (required)  The notifications, newest first: `{ id, title, body, who, when, read, archived, tone }`, with `who` a name or `{ name, initials, avatar }`
+  bindItems    statekey  State key the items are in: read and archived are written back to it
+  bindItem     statekey  State key that gets the notification clicked
+  inline       bool  The panel in the page, with no bell (for a notifications page)
+  tab          any  The tab to start in: `unread` (default) or `all`
+  title        any  The panel's heading (default `Notifications`)
+  label        any  Names the bell for screen readers (default `Notifications`)
+  emptyText    any  With nothing at all (default `No notifications.`)
+  caughtUp     any  In Unread with nothing unread (default `You're all caught up.`)
+  allHref      any  A link under the list to every notification, e.g. `/notifications`
+  closeOnOpen  bool  Close the panel when a notification is clicked (default true)
+  parts: bell, panel
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers
