@@ -50,6 +50,24 @@ jobs:
           cargo check -p irender-style --no-default-features
           cargo check -p irender-html --no-default-features
 
+      # The skill's references and llms-full.txt are generated from the components and
+      # READMEs; this fails when a change didn't regenerate them.
+      - name: LLM docs are up to date
+        run: tools/llm-docs.sh --check
+
+  # The oldest Rust the crates say they build with (`rust-version` in Cargo.toml).
+  # Clippy's `incompatible_msrv` already flags newer library APIs; this catches newer
+  # language features too.
+  msrv:
+    name: Build on Rust 1.88
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.88
+      - uses: Swatinem/rust-cache@v2
+      - name: Check every crate and test
+        run: cargo check --workspace --all-targets --all-features --locked
+
   browser:
     name: Browser tests (Chrome)
     runs-on: ubuntu-latest

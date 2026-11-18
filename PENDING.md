@@ -235,7 +235,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
 - [ ] **Browser tests under heavy load.** The chat tests waited on timers, which Chrome's virtual time runs ahead of a real test server; they now wait on the page (message-channel yields, which hold virtual time) and the budget is 30 s (2026-11-18). With three full runs at once, 1 run in 9 still had a page whose driver didn't finish in time; a single run hasn't failed since.
 
 - [ ] **`{{ }}` inside a literal `set_state` value is never evaluated, and nothing warns.** `value: { description: "Hi {{ name }}" }` stores the braces as text, while `submit` `body` fields are evaluated. Found by a model writing a toast. Fix: evaluate templated leaves of literal values (as `body` does), or at least warn in `validate`. Then drop the caveat from `skills/irender/references/authoring.md`.
-- [ ] **`tools/llm-docs.sh --check` isn't in CI yet.** Until it is, the skill's references and `llms-full.txt` go stale whenever a component, icon or README changes. Run `tools/llm-docs.sh` after such changes.
+- [x] **`tools/llm-docs.sh --check` runs in CI** (2026-11-18): a change that doesn't regenerate the skill's references and `llms-full.txt` fails the lint job. Run `tools/llm-docs.sh` after changing a component, icon or README.
 - [ ] **MCP server (`irender mcp`), deferred.** Agents with a shell already get everything from the skill and the CLI, so an MCP server only pays off for chat clients without a shell (Claude Desktop, claude.ai, IDE chat) and for apps whose own agent generates UI at runtime. If built, it would be a stdio subcommand of the CLI with these tools:
   - `validate`, with kits and `untrusted`
   - `component`, for one component's props, so the 40 KB listing stays out of context
@@ -244,7 +244,6 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - `schema`
 
   It would also offer `authoring.md` as a resource.
-- [ ] **CI checks we skipped:**
-  - Rust 1.88 (the `rust-version` in `Cargo.toml`): skipped because 1.88 couldn't be installed locally to confirm it passes.
-  - `cargo fmt --check`: skipped because the code isn't formatted with default rustfmt. Add a `rustfmt.toml` matching the existing style first.
-- [ ] **`examples/build.sh` doesn't delete pages from earlier builds.** It accepts any output folder, so it shouldn't blindly delete one. Clear only `target/site`, or only files it knows it wrote.
+- [x] **CI builds on Rust 1.88**, the `rust-version` in `Cargo.toml` (2026-11-18). No dependency needs newer, and clippy's `incompatible_msrv` passes, but 1.88 itself couldn't be installed locally, so the job's first run is its first test.
+- [ ] **`cargo fmt --check` isn't in CI.** The code is formatted by hand and no `rustfmt.toml` matches it: the closest (`max_width = 160`, `use_small_heuristics = "Max"`, `reorder_imports = false`) still rewrites about 2,900 lines in 56 files. Adding it means one reformatting commit, best made when no other work is in flight.
+- [x] **`examples/build.sh` clears pages from earlier builds** (2026-11-18), but only in a folder it built itself (marked with `.irender-site`); any other folder is left as it is.

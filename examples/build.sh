@@ -13,7 +13,15 @@
 set -eu
 cd "$(dirname "$0")/.."
 out=${1:-target/site}
+# Start from an empty folder, so pages from earlier builds don't linger, but only one
+# this script built (it leaves `.irender-site` in it): never a folder it didn't make.
+if [ -f "$out/.irender-site" ]; then
+  rm -rf "${out:?}"
+elif [ -d "$out" ] && [ -n "$(ls -A "$out")" ]; then
+  echo "note: $out wasn't built by this script, so pages already in it are kept" >&2
+fi
 mkdir -p "$out/search"
+touch "$out/.irender-site"
 
 cargo build -q -p irender-cli
 # Where cargo put it, which `CARGO_TARGET_DIR` can change.
