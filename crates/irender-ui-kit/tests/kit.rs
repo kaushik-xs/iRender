@@ -90,7 +90,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 81);
+    assert_eq!(kit, 82);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1090,4 +1090,22 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "weekStart": 7 })).contains("0 (Sunday)"));
     assert!(err(json!({ "presets": ["someday"] })).contains("unknown preset"));
     assert!(err(json!({ "presets": [{ "from": "today" }] })).contains("`{ label, from, to }`"));
+}
+
+#[test]
+fn context_menu_structure() {
+    let page = render_with(
+        json!({ "type": "ui-context-menu", "props": { "bind": "ctx", "id": "m" }, "children": [
+            { "type": "element", "props": { "tag": "p" }, "children": [{ "type": "text", "props": { "value": "Area" } }] },
+            { "type": "ui-menu-item", "props": { "label": "Open" } },
+            { "type": "ui-menu-separator" } ] }),
+        json!({ "ctx": null }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The area first, then the menu holding the menu's children, closing itself on a choice.
+    assert!(body.contains(r#"<p><span>Area</span></p><div popover="auto" id="m" role="menu" aria-label="Actions""#), "{body}");
+    assert!(body.contains(r#"role="menuitem" tabindex="-1" type="button" popovertarget="m" popovertargetaction="hide""#), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-context-menu")) && page.scripts.iter().any(|s| s.contains("ui-dropdown-menu")));
 }

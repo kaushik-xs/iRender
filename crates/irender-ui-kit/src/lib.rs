@@ -119,6 +119,7 @@ pub fn register(registry: &mut Registry) {
         .register(overlay::Popover::POPOVER)
         .register(overlay::Popover::MENU)
         .register(overlay::SplitButton)
+        .register(overlay::ContextMenu)
         .register(overlay::MenuItem)
         .register(overlay::MenuSeparator)
         .register(overlay::MenuLabel)

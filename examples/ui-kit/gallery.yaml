@@ -80,6 +80,8 @@ state:
   fy: null
   shifts: []
   birthday: null
+  clicked: null
+  lastAction: ""
 root:
   type: stack
   props: { gap: 40 }
@@ -961,6 +963,50 @@ root:
         - { type: ui-label, props: { text: "Inline calendar: pick several weekdays" } }
         - { type: ui-calendar, props: { bind: shifts, mode: multiple, disabledDays: [0, 6], clearable: true, label: Shifts } }
         - { type: ui-text, props: { variant: muted, text: "shifts = {{ shifts }}" } }
+
+    # ---------------------------------------------------------------- context menu
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Context menu } }
+        - type: ui-text
+          props: { variant: muted, text: "Right-click the area (or Shift+F10 on something focused in it). Up and Down move, Enter chooses, Escape closes." }
+        - type: element
+          style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }
+          children:
+            - type: ui-context-menu
+              children:
+                - type: element
+                  attrs: { tabindex: 0 }
+                  style: { display: grid, place-items: center, height: 150, border: 1px dashed $color.border, border-radius: 8, color: $color.muted, font-size: 14 }
+                  children: [ { type: text, props: { value: Right-click here } } ]
+                - { type: ui-menu-item, props: { label: Back, shortcut: "⌘[" }, on: { click: { action: set_state, key: lastAction, value: Back } } }
+                - { type: ui-menu-item, props: { label: Forward, shortcut: "⌘]", disabled: true } }
+                - { type: ui-menu-item, props: { label: Reload, shortcut: "⌘R" }, on: { click: { action: set_state, key: lastAction, value: Reload } } }
+                - { type: ui-menu-separator }
+                - { type: ui-menu-label, props: { text: People } }
+                - { type: ui-menu-item, props: { label: Pedro Duarte }, on: { click: { action: set_state, key: lastAction, value: Pedro } } }
+                - { type: ui-menu-item, props: { label: Colm Tuite }, on: { click: { action: set_state, key: lastAction, value: Colm } } }
+            # Each file says what it is with `data-context`; `clicked` gets it.
+            - type: ui-context-menu
+              props: { bind: clicked, label: File actions }
+              children:
+                - type: list
+                  props:
+                    as: file
+                    items: [Report.pdf, Budget.xlsx, Notes.md, Logo.svg]
+                  style: { display: flex, flex-direction: column, gap: 4, margin: 0, padding: 8, border: 1px solid $color.border, border-radius: 8 }
+                  children:
+                    - type: element
+                      attrs: { tabindex: 0, data-context: "{{ file }}" }
+                      style: { padding: 6px 10px, border-radius: 6, font-size: 14, ":hover": { background: $color.subtle }, ":focus-visible": { outline: 2px solid $color.ring } }
+                      children: [ { type: text, props: { value: "{{ file }}" } } ]
+                - { type: ui-menu-label, props: { text: "{{ clicked || 'Files' }}" } }
+                - { type: ui-menu-item, props: { label: "Open {{ clicked }}", disabled: "{{ !clicked }}" }, on: { click: { action: set_state, key: lastAction, value: "Open {{ clicked }}" } } }
+                - { type: ui-menu-item, props: { label: Rename…, disabled: "{{ !clicked }}" }, on: { click: { action: set_state, key: lastAction, value: "Rename {{ clicked }}" } } }
+                - { type: ui-menu-separator }
+                - { type: ui-menu-item, props: { label: Delete, variant: destructive, disabled: "{{ !clicked }}" }, on: { click: { action: set_state, key: lastAction, value: "Delete {{ clicked }}" } } }
+        - { type: ui-text, props: { variant: muted, text: "Last action: {{ lastAction }}" } }
 
     # ---------------------------------------------------------------- data table
     - type: stack

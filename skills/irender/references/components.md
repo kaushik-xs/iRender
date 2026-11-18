@@ -352,6 +352,13 @@ ui-split-button: A primary action with an arrow that opens a menu of secondary o
   id           any  The menu's element id (default: derived from the document)
   parts: primary, trigger
   children: yes
+ui-context-menu: A menu opened with a right-click (or Shift+F10, or the menu key) on its area, at the pointer. `ui-menu-item`, `ui-menu-label` and `ui-menu-separator` children are the menu; any other children are the area.
+  bind         statekey  State key that gets what was right-clicked: the nearest `data-context` value (JSON or text), or a data table's row
+  label        any  The menu's accessible name (default `Actions`)
+  disabled     any  Leave the browser's own menu in place, e.g. `{{ !editing }}`
+  id           any  The menu's element id (default: derived from the document)
+  parts: menu
+  children: yes
 ui-menu-item: An action in a `ui-dropdown-menu`. Choosing it runs its `on.click` and closes the menu.
   label        any (required)  Item text
   shortcut     any  Keyboard hint shown on the right, e.g. `⌘S`

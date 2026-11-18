@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. Keyboard-driven UI kit components: a context menu next (the data table and the date picker shipped 2026-11-18).
+1. Keyboard-driven UI kit components: menubar / navigation menu and the OTP input are left (data table, date picker and context menu shipped 2026-11-18).
 
 ## Gaps you'd hit in real use
 
@@ -29,7 +29,6 @@ _Last updated: 2026-11-18._
   - [ ] **Progress ring:** a circular `ui-progress` (`ProjectProgressRing`).
   - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
 - [ ] **Keyboard-driven components:**
-  - context menu
   - menubar / navigation menu
   - OTP input
 
@@ -51,6 +50,10 @@ _Last updated: 2026-11-18._
   - [ ] Times go with single days only; a range has no times, and there's no time zone (values are local wall-clock times).
   - [ ] Interface text (Pick a date, Previous month, Time, preset names) is English only; dates and month names follow `locale`.
   - [ ] No week picker and no "multiple months" mode beyond three months side by side.
+- [ ] **`ui-context-menu` gaps** (shipped 2026-11-18):
+  - [ ] No submenus, checkbox or radio items (shadcn's `ContextMenuSub`, `CheckboxItem`, `RadioItem`); the dropdown menu lacks them too.
+  - [ ] iOS Safari sends no `contextmenu` on a long press, so touch users there can't open it. Idea: open after a 500 ms press.
+  - [ ] Right-clicking a data table row doesn't select it; items act on `bind`'s row, and the selection is separate.
 - [ ] **`ui-command` gaps:**
   - [ ] Matching is by words, in document order. cmdk ranks fuzzy matches and puts the best first.
   - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.

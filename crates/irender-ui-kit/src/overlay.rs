@@ -399,6 +399,80 @@ impl Component for Popover {
     }
 }
 
+// ---------------------------------------------------------------- context menu
+
+/// A menu opened on its area with a right-click, Shift+F10 or the menu key, at the
+/// pointer. Its `ui-menu-*` children are the menu; the rest is the area. The menu is a
+/// `ui-dropdown-menu`'s, keyboard included.
+pub struct ContextMenu;
+
+const CONTEXT_SCRIPT: &str = include_str!("context_menu.js");
+
+const CONTEXT_PROPS: &[PropDef] = &[
+    PropDef::new(
+        "bind",
+        PropKind::StateKey,
+        "State key that gets what was right-clicked: the nearest `data-context` value (JSON or text), or a data table's row",
+    ),
+    PropDef::new("label", PropKind::Any, "The menu's accessible name (default `Actions`)"),
+    PropDef::new("disabled", PropKind::Any, "Leave the browser's own menu in place, e.g. `{{ !editing }}`"),
+    PropDef::new("id", PropKind::Any, "The menu's element id (default: derived from the document)"),
+];
+
+/// The children that make up the menu rather than the area.
+const MENU_PARTS: &[&str] = &["ui-menu-item", "ui-menu-label", "ui-menu-separator"];
+
+impl Component for ContextMenu {
+    fn name(&self) -> &'static str {
+        "ui-context-menu"
+    }
+
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "A menu opened with a right-click (or Shift+F10, or the menu key) on its area, at the pointer. \
+                  `ui-menu-item`, `ui-menu-label` and `ui-menu-separator` children are the menu; any other children are the area.",
+            props: CONTEXT_PROPS,
+            parts: &["menu"],
+            children: true,
+            open_props: false,
+        }
+    }
+
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let id = instance_id(cx, node, "context-menu");
+        cx.global_js("ui-context-menu", CONTEXT_SCRIPT);
+        cx.global_js("ui-dropdown-menu", MENU_SCRIPT);
+        let mut root = cx.element("div", node);
+        root.behavior("ui-context-menu", json!({ "bind": cx.prop_string(node, "bind") }));
+        if let Some(d) = node.prop("disabled") {
+            root.attr("data-disabled", d.clone());
+        }
+        cx.open(&root, node)?;
+        for child in node.children.iter().filter(|c| !MENU_PARTS.contains(&c.kind.as_str())) {
+            cx.render(child)?;
+        }
+        let mut menu = cx.part("div", node, "menu");
+        menu.base_style_ref(&MENU)
+            .attr("popover", "auto")
+            .attr("id", id.clone())
+            .attr("role", "menu")
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Actions")))
+            .behavior("ui-dropdown-menu", json!({}));
+        cx.open(&menu, node)?;
+        cx.with_context("ui-popover", Some(id), |cx| {
+            cx.with_context("ui-menu", Some(lit(true)), |cx| {
+                for child in node.children.iter().filter(|c| MENU_PARTS.contains(&c.kind.as_str())) {
+                    cx.render(child)?;
+                }
+                Ok(())
+            })
+        })?;
+        cx.close("div");
+        cx.close("div");
+        Ok(())
+    }
+}
+
 // ---------------------------------------------------------------- split button
 
 /// A primary action joined to a menu of secondary ones: a `ui-button` with the node's

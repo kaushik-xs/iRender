@@ -393,6 +393,8 @@
     let n = 0;
     for (const [i, nodes] of g) {
       const tr = rowEl(nodes), on = showing.has(i);
+      // A context menu around the table gets the row that was right-clicked.
+      tr.__irenderContext = data[i];
       tr.hidden = !on;
       const d = detailEl(nodes);
       const key = keyOf(rowKey(data[i], i));

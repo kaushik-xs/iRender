@@ -2423,3 +2423,104 @@ fn data_table_date_filter_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Context menus: opening at the pointer (kept on screen) and from the keyboard, what was
+/// right-clicked (a `data-context`, a data table's row), the menu's keys, focus going
+/// back, and turning it off.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn context_menu_in_chrome() {
+    let item = |label: &str, extra: serde_json::Value| {
+        let mut props = serde_json::json!({ "label": label });
+        props.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        serde_json::json!({ "type": "ui-menu-item", "props": props,
+            "on": { "click": { "action": "set_state", "key": "ran", "value": format!("{label} {{{{ ctx }}}}") } } })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "ctx": null, "ran": "", "row": null, "off": false },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-context-menu", "props": { "bind": "ctx", "disabled": "{{ off }}" }, "children": [
+                { "type": "element", "attrs": { "id": "area", "tabindex": 0 }, "style": { "height": 120 }, "children": [
+                    { "type": "element", "attrs": { "id": "file", "tabindex": 0, "data-context": "{\"name\":\"a.txt\"}" }, "children": [ { "type": "text", "props": { "value": "a.txt" } } ] } ] },
+                item("Open", serde_json::json!({})),
+                item("Locked", serde_json::json!({ "disabled": true })),
+                { "type": "ui-menu-separator" },
+                item("Delete", serde_json::json!({ "variant": "destructive" })) ] },
+            { "type": "ui-context-menu", "props": { "bind": "row" }, "children": [
+                { "type": "ui-data-table", "props": { "rows": [{ "id": 1, "name": "One" }, { "id": 2, "name": "Two" }], "pageSize": 0, "columns": [{ "field": "name" }] } },
+                { "type": "ui-menu-label", "props": { "text": "{{ row.name }}" } },
+                { "type": "ui-menu-item", "props": { "label": "Rename {{ row.name }}" } } ] } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const [one, two] = document.querySelectorAll("[data-i-x=ui-context-menu]");
+      const menu = (m) => m.querySelector(":scope > [role=menu]");
+      const isOpen = (m) => menu(m).matches(":popover-open");
+      const right = (el, x, y) => el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+      const key = (k, mods = {}) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods }));
+      const name = () => document.activeElement.textContent;
+      try {
+        const area = document.getElementById("area");
+        area.focus();
+        const prevented = !right(area, 40, 30); await wait(10);
+        const r = menu(one).getBoundingClientRect();
+        log("open", prevented, isOpen(one), Math.round(r.left), Math.round(r.top), JSON.stringify(S().ctx), menu(one).getAttribute("role"), name());
+        key("ArrowDown"); await wait(5); log("down", name());
+        key("ArrowDown"); await wait(5); log("skips disabled", name());
+        document.activeElement.click(); await wait(20);
+        log("chose", S().ran, isOpen(one), document.activeElement === area);
+
+        right(document.getElementById("file"), 40, 30); await wait(10);
+        log("context", JSON.stringify(S().ctx));
+        menu(one).querySelector("[role=menuitem]").click(); await wait(20);
+        log("ran", S().ran);
+
+        // Near the window's corner it opens up and to the left, staying on screen.
+        right(area, innerWidth - 5, innerHeight - 5); await wait(10);
+        const c = menu(one).getBoundingClientRect();
+        log("on screen", c.right <= innerWidth, c.bottom <= innerHeight);
+        menu(one).hidePopover(); await wait(20);
+
+        document.getElementById("file").focus();
+        key("F10", { shiftKey: true }); await wait(10);
+        log("shift+f10", isOpen(one), JSON.stringify(S().ctx), name());
+        menu(one).hidePopover(); await wait(20);
+        log("focus back", document.activeElement.id);
+
+        root.__irender.set("off", true); await wait(5);
+        log("disabled", right(area, 40, 30), isOpen(one));
+        root.__irender.set("off", false);
+
+        const rowEl = two.querySelectorAll("[data-dt-row]")[1];
+        right(rowEl.querySelector("td"), 50, 50); await wait(10);
+        log("row", JSON.stringify(S().row), menu(two).querySelector("[role=menuitem]").textContent, menu(two).firstElementChild.textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("context-menu", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "open true true 40 30 null menu Open",
+            "down Delete",
+            "skips disabled Open",
+            "chose Open  false true",
+            "context {\"name\":\"a.txt\"}",
+            "ran Open {\"name\":\"a.txt\"}",
+            "on screen true true",
+            "shift+f10 true {\"name\":\"a.txt\"} Open",
+            "focus back file",
+            // The browser's own menu: the event isn't cancelled.
+            "disabled true false",
+            "row {\"id\":2,\"name\":\"Two\"} Rename Two Two",
+        ],
+        "\n{result}"
+    );
+}

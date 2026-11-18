@@ -77,6 +77,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-dialog-footer` | | A right-aligned row of buttons. |
 | `ui-popover` | `trigger`, `triggerVariant`, `side` (bottom, top, right, left), `align` (center, start, end), `id` | Native popover, placed next to its trigger and flipped when there's no room. |
 | `ui-dropdown-menu` | same as `ui-popover`, plus `triggerSize` | Children: `ui-menu-item` (`label`, `shortcut`, `variant`, `href`, `disabled`; choosing it runs its `on.click` and closes the menu), `ui-menu-label`, `ui-menu-separator`. Keyboard: opening focuses the first item; Up/Down, Home/End and typing move between items; Down or Up on the button opens it; Tab closes it. |
+| `ui-context-menu` | `bind`, `label` (default `Actions`), `disabled`, `id` | A menu opened with a right-click on its area, at the pointer and kept on screen, or from the keyboard with Shift+F10 or the menu key on something focused in it. `ui-menu-item`, `ui-menu-label` and `ui-menu-separator` children are the menu, with the dropdown menu's keys; any other children are the area. `bind` gets what was right-clicked: the nearest element's `data-context` (parsed as JSON when it is), or, around a `ui-data-table`, the row. Closing returns focus to where it was. `disabled` leaves the browser's own menu. It fires a bubbling `contextopen` event with `{ context }`. Part: `menu`. |
 | `ui-split-button` | `label`, `variant`, `size`, `disabled`, `menuLabel` (default `More actions`), `side`, `align` (default `end`), `id` | A primary action joined to an arrow that opens a menu of secondary ones, e.g. Download PDF with Excel and CSV in the menu. Its `on.click` is the primary action; children are the menu's items, as in `ui-dropdown-menu`, keyboard included. Parts: `primary`, `trigger`. |
 | `ui-tooltip` | `text`, `side`, `id` | Shown while its children are hovered or focused. CSS only. The first child (usually a button) gets `aria-describedby` pointing at the tip. |
 | `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
@@ -480,4 +481,4 @@ The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the 
 
 ## Not included
 
-Components that need focus management or keyboard navigation written in JavaScript are out of scope for now: date picker and context menu. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
+Components that need focus management or keyboard navigation written in JavaScript and aren't built yet: menubar, navigation menu and OTP input. `ui-combobox` and `ui-dropdown-menu` have their own small behaviours.
