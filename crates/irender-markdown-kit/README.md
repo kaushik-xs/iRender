@@ -23,6 +23,8 @@ cargo run -p irender-cli -- render examples/blocks/markdown.yaml --ui-kit --mark
 
 The server renders the Markdown into the page, so it shows without a script. When `text` uses state, the kit adds its renderer (about 5 KB gzipped; the editor adds 9 KB more) and the text re-renders when the state changes.
 
+In irender-ui-kit's chat, messages use `ui-markdown` for their content whenever this kit is registered (see its [Chat](../irender-ui-kit/README.md#chat) section). Inside a list the browser rebuilds, such as a conversation's messages, `text` may use the list's item.
+
 | Prop | |
 |---|---|
 | `text` | The Markdown (required). |

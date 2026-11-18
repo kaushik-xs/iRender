@@ -62,8 +62,10 @@ fn length(node: &Node, prop: &str, now: usize, live: Option<&Val>) -> Result<Exp
 fn item_message(node: &Node, var: &str, replies: bool) -> Node {
     let mut props: Vec<(&str, Val)> = FIELDS.iter().map(|f| (*f, expr_val(path(&[var, f])))).collect();
     props[0].1 = expr_val(field_or(var, "role", Expr::Lit(json!("assistant"))));
-    if let Some(r) = node.prop("render") {
-        props.push(("render", r.clone()));
+    for name in ["render", "markdown"] {
+        if let Some(v) = node.prop(name) {
+            props.push((name, v.clone()));
+        }
     }
     if replies {
         props.push(("replies", expr_val(path(&[var, "replies"]))));
@@ -79,7 +81,8 @@ pub struct Message;
 
 const MESSAGE_PROPS: &[PropDef] = &[
     PropDef::new("role", PropKind::Enum(ROLES), "Who it's from: `assistant` (default, on the left), `user` (on the right) or `system` (centred)"),
-    PropDef::new("content", PropKind::Any, "The text; line breaks are kept"),
+    PropDef::new("content", PropKind::Any, "The text, as Markdown with `markdown` (headings, lists, code, tables, links); otherwise plain, line breaks kept"),
+    PropDef::new("markdown", PropKind::Bool, "Show `content` as Markdown (default: when irender-markdown-kit is registered)"),
     PropDef::new("name", PropKind::Any, "Sender's name, shown above the bubble"),
     PropDef::new("time", PropKind::Any, "When it was sent, as text, shown after the name"),
     PropDef::new("avatar", PropKind::Any, "Avatar image URL"),
@@ -169,6 +172,10 @@ static BUBBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     // A reply that hasn't started yet has no bubble.
     .nest("&:empty", StyleBlock::from_pairs(&[("display", "none")]))
+    .nest("&:has(> [data-markdown]:only-child:empty)", StyleBlock::from_pairs(&[("display", "none")]))
+    // Markdown takes the bubble's colours: links and code stay readable on the user's.
+    .nest("& [data-markdown] a", StyleBlock::from_pairs(&[("color", "inherit")]))
+    .nest("& [data-markdown] :is(code, pre)", StyleBlock::from_pairs(&[("background", "color-mix(in srgb, currentColor 10%, transparent)")]))
     .nest("& > *", StyleBlock::from_pairs(&[("white-space", "normal")]))
 });
 static THREAD: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -255,10 +262,26 @@ impl Component for Message {
         })?;
         let mut bubble = cx.part("div", node, "bubble");
         bubble.base_style_ref(&BUBBLE).attr("data-bubble", lit(""));
-        if let Some(c) = node.prop("content") {
+        // Markdown when asked, or by default when the Markdown kit can draw it. It's
+        // redrawn in the browser as the content changes, so a streamed reply formats as
+        // it comes in.
+        let markdown = match cx.prop(node, "markdown") {
+            Some(Json::Null) | None => cx.has_component("ui-markdown"),
+            Some(v) => irender_core::expr::truthy(&v),
+        };
+        if markdown && !cx.has_component("ui-markdown") {
+            return Err(RenderError::new(node, "`markdown` needs irender-markdown-kit"));
+        }
+        let content = node.prop("content");
+        if let (Some(c), false) = (content, markdown) {
             bubble.text(c);
         }
         cx.open(&bubble, node)?;
+        if let (Some(c), true) = (content, markdown) {
+            let mut md = synthetic(node, "ui-markdown", vec![("text", c.clone())], Vec::new(), Vec::new());
+            md.style = irender_core::StyleBlock::from_pairs(&[("color", "inherit"), ("font-size", "inherit"), ("line-height", "inherit")]);
+            cx.render(&md)?;
+        }
         cx.children(node)?;
         cx.close("div");
         // Markup can do anything a script can, so a document that may not add scripts
@@ -380,6 +403,7 @@ const CONVERSATION_PROPS: &[PropDef] = &[
     PropDef::new("messages", PropKind::Any, "Array of messages, after any children. From state, like `{{ messages }}`, it redraws as it changes"),
     PropDef::new("typing", PropKind::Any, "Show a typing indicator after the last message, e.g. `{{ waiting }}`"),
     PropDef::new("render", PropKind::Any, "How messages' `ui` without `html` is rendered: `{ browser, url }`, as on `ui-message`"),
+    PropDef::new("markdown", PropKind::Bool, "Show messages as Markdown, as on `ui-message` (default: when irender-markdown-kit is registered)"),
     PropDef::new("assistant", PropKind::Any, "The typing indicator's sender: `{ name, avatar, initials }`"),
     PropDef::new("empty", PropKind::Any, "Text shown while `messages` is empty"),
     PropDef::new("label", PropKind::Any, "Names the conversation for screen readers (default `Conversation`)"),

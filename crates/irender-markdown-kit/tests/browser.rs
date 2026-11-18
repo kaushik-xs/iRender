@@ -278,3 +278,57 @@ fn rich_text_editor_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Chat messages show their content as Markdown when the kit is registered: rendered on
+/// the server, and redrawn as a reply streams into state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn chat_messages_as_markdown_in_chrome() {
+    let Some(chrome) = chrome() else { return };
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "chat": [{ "id": 1, "role": "user", "content": "See [the docs](https://example.com)" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-message", "props": { "role": "assistant", "content": "**Bold** and `code`\n\n- one\n- two" } },
+            { "type": "ui-message", "props": { "role": "assistant", "content": "*plain* stays", "markdown": false } },
+            { "type": "ui-conversation", "props": { "messages": "{{ chat }}" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const bubbles = () => [...document.querySelectorAll("[data-bubble]")];
+      const shown = (b) => getComputedStyle(b).display !== "none";
+      try {
+        const [first, plain] = bubbles();
+        log("server", first.querySelector("[data-markdown]").innerHTML.replace(/\n/g, ""));
+        log("plain", plain.querySelector("[data-markdown]") === null, plain.textContent);
+        const log1 = document.querySelector("[role=log]");
+        const user = log1.querySelector("[data-bubble]");
+        log("user link", user.querySelector("a")?.getAttribute("href"), getComputedStyle(user.querySelector("a")).color === getComputedStyle(user).color);
+        // A reply streams in: empty, then a chunk at a time.
+        root.__irender.set("chat", [...S().chat, { id: 2, role: "assistant", content: "" }]); await wait(10);
+        const reply = () => log1.querySelectorAll("[data-bubble]")[1];
+        log("empty reply hidden", !shown(reply()));
+        for (const chunk of ["Here is ", "**the plan**:\n\n", "1. Draft\n", "2. Ship"]) {
+          const list = S().chat;
+          root.__irender.set("chat", [...list.slice(0, -1), { ...list.at(-1), content: list.at(-1).content + chunk }]);
+          await wait(10);
+        }
+        log("streamed", shown(reply()), reply().querySelector("[data-markdown]").innerHTML.replace(/\n/g, ""));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "server <p><strong>Bold</strong> and <code>code</code></p><ul><li>one</li><li>two</li></ul>",
+            "plain true *plain* stays",
+            "user link https://example.com true",
+            "empty reply hidden true",
+            "streamed true <p>Here is <strong>the plan</strong>:</p><ol><li>Draft</li><li>Ship</li></ol>",
+        ],
+        "\n{result}"
+    );
+}

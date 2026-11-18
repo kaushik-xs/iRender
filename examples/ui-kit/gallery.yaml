@@ -62,7 +62,7 @@ state:
       name: Assistant
       initials: AI
       time: "9:41"
-      content: "Revenue grew 12% on Q2, led by the Asia region.\nCosts were flat, so margins improved by two points."
+      content: "Revenue grew **12%** on Q2, led by the Asia region.\n\n- Costs were flat\n- Margins improved by **two points**\n\nSee `q3-report.pdf` for the details."
       replies:
         - { id: 31, role: user, name: Asha, initials: AS, content: "Does that include the one-off licence deal?" }
         - { id: 32, role: assistant, name: Assistant, initials: AI, content: "No, that's booked in Q4." }

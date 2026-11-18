@@ -28,7 +28,7 @@ $irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.ht
 # The gallery's documentation: sections from examples/ui-kit/docs.json, with each
 # component's props read from the components themselves.
 python3 examples/ui-kit/docs.py "$irender" > "$out/ui-kit.data.json"
-$irender render examples/ui-kit/gallery.yaml --data "$out/ui-kit.data.json" --ui-kit --chart-kit --title "UI kit" -o "$out/ui-kit.html"
+$irender render examples/ui-kit/gallery.yaml --data "$out/ui-kit.data.json" --ui-kit --chart-kit --markdown-kit --title "UI kit" -o "$out/ui-kit.html"
 cp -R examples/ui-kit/api "$out/"
 # Blocks: whole pages, previewed together on blocks/index.html.
 mkdir -p "$out/blocks"
@@ -45,7 +45,7 @@ for block in data-table-03 data-table-04 data-table-05 empty-states; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 # The chat's replies include charts, images and a video.
-$irender render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit --title "chat" -o "$out/blocks/chat.html"
+$irender render examples/blocks/chat.yaml --ui-kit --chart-kit --icon-kit --markdown-kit --title "chat" -o "$out/blocks/chat.html"
 cp -R examples/blocks/media "$out/blocks/"
 # The browser renderer for chat replies sent as `ui` JSON, when the WebAssembly target is
 # installed (`rustup target add wasm32-unknown-unknown`). Without it the chat block asks

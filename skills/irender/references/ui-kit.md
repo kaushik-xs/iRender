@@ -97,8 +97,8 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 
-| `ui-conversation` | `messages`, `typing`, `assistant`, `render`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
-| `ui-message` | `role` (assistant, user, system), `content`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
+| `ui-conversation` | `messages`, `typing`, `assistant`, `render`, `markdown`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
+| `ui-message` | `role` (assistant, user, system), `content`, `markdown`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
 | `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 | `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time; a button hides at its end. Parts: `track`, `previous`, `next`. |
@@ -442,6 +442,8 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **How it works.** The server renders the rows, in the starting order and with the first page shown, so the table reads without JavaScript. The browser then sorts, filters and pages by moving and hiding the rendered rows rather than drawing them again, so what's inside a cell keeps its state. Virtual, remote and nested tables instead hand the runtime the rows to show, as a list keyed by `rowKey` (`api.list` in the [runtime](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-html/src/runtime.js)); a row that stays keeps its nodes, charts included.
 
 ## Chat
+
+**Markdown.** With [irender-markdown-kit](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-markdown-kit/README.md) registered, a message's `content` is shown as Markdown (headings, lists, code, tables, links), rendered on the server and again in the browser as it changes, so a streamed reply formats as it comes in. It's as safe as `ui-markdown`: HTML in the text shows as text and only safe links are kept. Links and code take the bubble's colours. `markdown: false` on a message or conversation keeps the text plain; without the kit, text is always plain, with its line breaks.
 
 Messages are `{ id, role, content, name, avatar, initials, time, ui, html, replies }`: `role` is `assistant` (on the left; the default), `user` (on the right, in the primary colour) or `system` (a small centred note). Keep them in state and the conversation redraws as they change, keeping each message whose `id` it has seen.
 

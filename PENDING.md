@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: Markdown in chat messages, the gallery's sidebar following the section in view, and remote data tables' facets.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the gallery's sidebar following the section in view, remote data tables' facets, and more illustrations.
 
 ## Gaps you'd hit in real use
 
@@ -75,7 +75,9 @@ _Last updated: 2026-11-18._
   - [ ] `maxLength` isn't enforced while typing rich text; the count turns red past it.
   - [ ] No "add link" on a bare pasted URL (it stays text until the link button is used); no headings other than `##` from the toolbar (`#`…`######` typed work).
 - [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
-  - [ ] Message text is plain text with line breaks kept; no Markdown, code blocks or citations. Next: render `content` with irender-markdown-kit's `render` (already safe for any text), and with `markdown.js` while it streams. (A reply's `ui` can carry rich content meanwhile.)
+  - [x] Messages show their content as Markdown when irender-markdown-kit is registered, rendered on the server and again as a reply streams (2026-11-18).
+  - [ ] No citations or footnotes, and no syntax highlighting in code blocks.
+  - [ ] A streamed reply re-renders its whole Markdown on each chunk; unfinished syntax (an open code fence or `**`) shows as text until it closes.
   - [ ] A message's `html` (and `ui`) is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
 - [ ] **irender-wasm:**
   - [ ] Not built or run as WebAssembly yet: this machine's Rust (Homebrew) has no `wasm32-unknown-unknown` target. Its render function and exports are tested natively, and the page's loader against a hand-made module with the same exports; build it once rustup is installed, measure its size, and run the chat block with it.

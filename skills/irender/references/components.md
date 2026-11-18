@@ -554,6 +554,7 @@ ui-conversation: A scrolling chat log that keeps to its latest message as messag
   messages     any  Array of messages, after any children. From state, like `{{ messages }}`, it redraws as it changes
   typing       any  Show a typing indicator after the last message, e.g. `{{ waiting }}`
   render       any  How messages' `ui` without `html` is rendered: `{ browser, url }`, as on `ui-message`
+  markdown     bool  Show messages as Markdown, as on `ui-message` (default: when irender-markdown-kit is registered)
   assistant    any  The typing indicator's sender: `{ name, avatar, initials }`
   empty        any  Text shown while `messages` is empty
   label        any  Names the conversation for screen readers (default `Conversation`)
@@ -563,7 +564,8 @@ ui-conversation: A scrolling chat log that keeps to its latest message as messag
   children: yes
 ui-message: One chat message: a bubble with the sender's avatar, name and time, and an optional thread of replies. Children go in the bubble after the text.
   role         one of: assistant, user, system  Who it's from: `assistant` (default, on the left), `user` (on the right) or `system` (centred)
-  content      any  The text; line breaks are kept
+  content      any  The text, as Markdown with `markdown` (headings, lists, code, tables, links); otherwise plain, line breaks kept
+  markdown     bool  Show `content` as Markdown (default: when irender-markdown-kit is registered)
   name         any  Sender's name, shown above the bubble
   time         any  When it was sent, as text, shown after the name
   avatar       any  Avatar image URL

@@ -205,10 +205,14 @@ class Handler(SimpleHTTPRequestHandler):
             except (OSError, subprocess.CalledProcessError) as e:
                 reply += f" (The UI didn't render: {e}. Build the CLI or set IRENDER.)"
         else:
+            # Markdown, which the chat shows formatted as it streams in.
             reply = (
-                f"You said “{said}”. This is a canned reply from examples/serve.py, streamed a word at a "
-                f"time as server-sent events, like a model's would be. Ask for a chart or photos to get "
-                f"a reply with UI. The conversation so far has {len(messages)} messages."
+                f"You said **“{said}”**. This is a canned reply from `examples/serve.py`, streamed a word "
+                f"at a time as server-sent events, like a model's would be.\n\n"
+                f"Things to try:\n\n"
+                f"- Ask for a **chart** to get a reply with a chart in it\n"
+                f"- Ask for **photos** to get a carousel\n\n"
+                f"The conversation so far has {len(messages)} messages."
             )
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
