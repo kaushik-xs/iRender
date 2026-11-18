@@ -92,6 +92,16 @@
    ]
   },
   {
+   "id": "input-otp",
+   "group": "Forms",
+   "title": "One-time code",
+   "summary": "A code in a row of boxes, for two-step sign-in or confirming an email. Typing, pasting and the phone's suggestion of a code from a message all work, as one field for the keyboard and screen readers. The pattern keeps out what doesn't belong, and a complete event fires when the last box fills.",
+   "usage": "- type: ui-field\n  props: { label: Verification code, error: \"{{ codeError }}\" }\n  children:\n    - type: ui-input-otp\n      props: { bind: code, length: 6, groups: [3, 3] }\n      on: { complete: { action: submit, endpoint: /api/verify, method: POST, body: { code: \"{{ code }}\" }, into: result } }",
+   "components": [
+    "ui-input-otp"
+   ]
+  },
+  {
    "id": "date-picker",
    "group": "Forms",
    "title": "Date picker and calendar",

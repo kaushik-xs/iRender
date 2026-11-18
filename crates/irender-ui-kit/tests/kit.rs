@@ -103,7 +103,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 91);
+    assert_eq!(kit, 92);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1172,4 +1172,25 @@ fn illustrations() {
     assert!(page.css.contains("--ill-p: #0ea5e9;") && page.css.contains("width: 160px;"), "{}", page.css);
     assert!(page.css.contains("fill: var(--ill-p, var(--color-primary));"), "{}", page.css);
     assert!(page.css.contains("var(--ill-s, var(--color-brand-2, var(--color-chart-2, #f59e0b)))"), "{}", page.css);
+}
+
+#[test]
+fn input_otp_structure_and_mistakes() {
+    let body = plain(
+        &render_with(
+            json!({ "type": "ui-field", "props": { "label": "Code" }, "children": [
+                { "type": "ui-input-otp", "props": { "bind": "code", "length": 4, "groups": [2, 2] } } ] }),
+            json!({ "code": "12" }),
+            json!({}),
+        )
+        .unwrap()
+        .body,
+    );
+    assert!(body.contains(r#"<label for="field-root-control">"#), "{body}");
+    assert!(body.contains(r#"<input id="field-root-control" type="text" data-otp-input value="12" maxlength="4" autocomplete="one-time-code" inputmode="numeric" autocapitalize="characters" spellcheck="false" pattern="[0-9]{4}">"#), "{body}");
+    assert!(body.contains(r#"<div data-otp-slot>1</div><div data-otp-slot>2</div></div><div data-otp-sep aria-hidden="true"></div>"#), "{body}");
+    assert_eq!(body.matches("data-otp-slot data-empty").count(), 2, "{body}");
+    let err = |props: Json| render_with(json!({ "type": "ui-input-otp", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "length": 4, "groups": [3, 3] })).contains("add up"));
+    assert!(err(json!({ "length": 40 })).contains("1 to 12"));
 }

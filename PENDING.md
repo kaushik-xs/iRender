@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. Keyboard-driven UI kit components: only the OTP input is left (data table, date picker, context menu, menubar and navigation menu shipped 2026-11-18).
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: Markdown in chat messages, the gallery's sidebar following the section in view, and remote data tables' facets.
 
 ## Gaps you'd hit in real use
 
@@ -28,11 +28,8 @@ _Last updated: 2026-11-18._
   - [ ] **Notification centre:** a bell with an unread count and an inbox (read/unread, archive), plus preferences (`notifications/`).
   - [ ] **Progress ring:** a circular `ui-progress` (`ProjectProgressRing`).
   - [ ] **Smaller pieces:** a status badge that maps a status to a colour, a JSON/code editor with validation, a rating input, a password-requirements checklist, a grouped number/currency input, and a sidebar icon rail that opens a second panel.
-- [ ] **Keyboard-driven components:**
-  - OTP input
-
-  These need hand-written keyboard and focus handling, which client behaviours (`global_js`) now make possible.
-  - The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
+- [x] **Keyboard-driven components** (2026-11-18): data table, date picker, context menu, menubar, navigation menu, one-time-code input.
+- [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
   - [x] Paging options (pages, Load more, infinite scroll), rows from an API in batches (`url`), virtual rows, nested rows with children loaded when opened, and pinned columns (2026-11-18; blocks data-table-04 and -05).
   - [ ] Remote tables: select filters offer only `options` or the values loaded so far, and summaries and `bindView` cover the loaded rows only. Idea: let the API answer facets and totals too.

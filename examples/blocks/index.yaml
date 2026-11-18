@@ -45,6 +45,7 @@ root:
           - { id: data-table-03, category: table, title: "Inventory from plain column objects: rows from state, a filter from a toggle, a sticky header and a clicked row's chart", kits: [ui-kit, chart-kit, icon-kit], height: 760 }
           - { id: data-table-04, category: table, title: "5,000 rows from an API, one tab per paging option: infinite scroll with a virtual table, Load more, and server pages", kits: [ui-kit, icon-kit], height: 820 }
           - { id: data-table-05, category: table, title: "Rows inside rows: a budget tree whose projects load when opened, with pinned columns, and an org chart from flat rows", kits: [ui-kit, icon-kit], height: 1180 }
+          - { id: otp-verify, category: login, title: "Two-step sign-in: a six-digit code checked as it completes, with a resend link", kits: [ui-kit, icon-kit], height: 720 }
           - { id: empty-states, category: errors, title: "Empty states: no data, no results, out of stock, an empty cart and inbox, and more, each with its own illustration in the theme's colours", kits: [ui-kit, chart-kit], height: 1100 }
           - { id: error-404, category: errors, title: "404: page not found, with a search box", kits: [ui-kit], height: 720 }
           - { id: error-500, category: errors, title: "500: server error, with a reference for support", kits: [ui-kit], height: 720 }

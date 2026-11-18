@@ -1,0 +1,64 @@
+# Block: two-step sign-in. A six-digit code in `ui-input-otp`, checked as soon as the
+# last box fills (`complete`), with an error for a wrong code, and a resend link that
+# counts down. Here the right code is 123456; a real page would `submit` it.
+#
+#   cargo run -p irender-cli -- render examples/blocks/otp-verify.yaml --ui-kit --icon-kit -o otp-verify.html
+version: 1
+state:
+  code: ""
+  tried: ""
+  resent: false
+root:
+  type: element
+  props: { tag: main }
+  style: { min-height: 100svh, box-sizing: border-box, display: grid, place-items: center, padding: 32px 16px, font-family: $font.body, color: $color.text, background: $color.subtle }
+  children:
+    - type: ui-card
+      style: { width: 100%, max-width: 400 }
+      children:
+        - type: stack
+          props: { gap: 20, align: center }
+          style: { text-align: center }
+          children:
+            - type: if
+              props: { when: "{{ tried == '123456' }}" }
+              children:
+                - { type: ui-illustration, props: { name: all-done, size: 160 } }
+                - { type: ui-heading, props: { level: 2, text: You're in } }
+                - { type: ui-text, props: { variant: muted, text: Your sign-in is confirmed. Taking you to your dashboard… } }
+                - { type: ui-button, props: { label: Continue, href: "#" }, style: { width: 100% } }
+            - type: else
+              children:
+                - { type: ui-illustration, props: { name: empty-inbox, size: 160 } }
+                - { type: ui-heading, props: { level: 2, text: Check your email } }
+                - type: ui-text
+                  props: { variant: muted, text: "We sent a 6-digit code to ada@example.com. It expires in 10 minutes." }
+                - type: ui-field
+                  props:
+                    label: Verification code
+                    error: "{{ tried != '' && tried != '123456' && code.length == 6 ? 'That code is wrong. Check the email and try again.' : '' }}"
+                  style: { align-items: center }
+                  children:
+                    - type: ui-input-otp
+                      props: { bind: code, groups: [3, 3], invalid: "{{ tried != '' && tried != '123456' && code.length == 6 }}" }
+                      on: { complete: { action: set_state, key: tried, value: "{{ code }}" } }
+                - type: ui-button
+                  props: { label: Verify, disabled: "{{ code.length < 6 }}" }
+                  style: { width: 100% }
+                  on: { click: { action: set_state, key: tried, value: "{{ code }}" } }
+                - type: if
+                  props: { when: "{{ !resent }}" }
+                  children:
+                    - type: ui-text
+                      props: { variant: muted, text: "Didn't get it? " }
+                      children:
+                        - type: ui-button
+                          props: { label: Resend the code, variant: link }
+                          on:
+                            click:
+                              - { action: set_state, key: resent, value: true }
+                              - { action: wait, ms: 30000 }
+                              - { action: set_state, key: resent, value: false }
+                - type: else
+                  children:
+                    - { type: ui-text, props: { variant: muted, text: "A new code is on its way. You can ask again in 30 seconds." } }

@@ -227,6 +227,19 @@ ui-slider: Pick a number by dragging.
   name         string  Form field name
   disabled     any  Boolean or expression
   children: no
+ui-input-otp: A one-time code in a row of boxes: type, paste or take it from the phone's suggestion; fires `complete` when full.
+  bind         statekey  State key holding the code, as text
+  length       number  How many characters (default 6)
+  pattern      one of: digits, letters, alphanumeric  What may be typed: `digits` (default), `letters` or `alphanumeric`; letters are kept in capitals
+  groups       any  Boxes per group, with a dash between groups, e.g. `[3, 3]` (default: one group)
+  mask         bool  Show dots rather than the characters, as for a PIN
+  label        any  Accessible name, when no visible label (such as a `ui-field`'s) names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong, e.g. `{{ codeError != null }}`
+  id           any  The field's element id (default: derived from the document)
+  parts: input
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

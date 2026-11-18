@@ -11,6 +11,10 @@ version: 1
 state:
   name: ""
   illColours: theme
+  otp: ""
+  otpDone: ""
+  pin: ""
+  invite: ""
   statusBar: true
   bookmarks: false
   zoom: "100%"
@@ -797,6 +801,44 @@ root:
                 - { type: if, props: { when: "{{ api.combobox.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.combobox }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- input-otp
+            - type: element
+              props: { tag: section }
+              attrs: { id: input-otp, aria-labelledby: input-otp-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.input_otp }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 24 }
+                  children:
+                    - type: ui-field
+                      props: { label: Verification code, description: "Type it, or paste 123-456. otp = {{ otp }}", error: "{{ otpDone && otpDone != '123456' ? 'That code is wrong; try 123456' : '' }}" }
+                      children:
+                        - type: ui-input-otp
+                          props: { bind: otp, groups: [3, 3], invalid: "{{ otpDone != '' && otpDone != '123456' }}" }
+                          on: { complete: { action: set_state, key: otpDone, value: "{{ otp }}" } }
+                    - type: ui-field
+                      props: { label: PIN, description: "Four digits, shown as dots. pin = {{ pin }}" }
+                      children:
+                        - { type: ui-input-otp, props: { bind: pin, length: 4, mask: true } }
+                    - type: ui-field
+                      props: { label: Invite code, description: "Letters and digits, in capitals. invite = {{ invite }}" }
+                      children:
+                        - { type: ui-input-otp, props: { bind: invite, length: 8, pattern: alphanumeric, groups: [4, 4] } }
+                - type: if
+                  props: { when: "{{ otpDone == '123456' }}" }
+                  children:
+                    - { type: ui-alert, props: { title: Verified, description: "The code was right; `complete` fired with it." } }
+                - { type: if, props: { when: "{{ api.input_otp.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.input_otp }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

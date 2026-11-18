@@ -2833,3 +2833,66 @@ fn menubar_and_navigation_menu_in_chrome() {
         "\n{result}"
     );
 }
+
+/// One-time codes: what the pattern keeps out, pasting, the boxes, the `complete` event,
+/// clearing from state, and the field label.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn input_otp_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "code": "", "pin": "", "ref": "", "done": "" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-field", "props": { "label": "Code" }, "children": [
+                { "type": "ui-input-otp", "props": { "bind": "code", "groups": [3, 3] },
+                  "on": { "complete": { "action": "set_state", "key": "done", "value": "{{ code }}" } } } ] },
+            { "type": "ui-input-otp", "props": { "id": "pin", "bind": "pin", "length": 4, "mask": true } },
+            { "type": "ui-input-otp", "props": { "id": "ref", "bind": "ref", "length": 5, "pattern": "alphanumeric" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const [code, pin, ref] = document.querySelectorAll("[data-otp-input]");
+      const boxes = (i) => [...i.parentElement.querySelectorAll("[data-otp-slot]")].map((s) => s.querySelector("[data-otp-dot]") ? "•" : s.textContent || "_").join("");
+      const active = (i) => [...i.parentElement.querySelectorAll("[data-otp-slot]")].findIndex((s) => s.hasAttribute("data-active"));
+      const type = async (i, v) => { i.focus(); i.value = v; i.setSelectionRange(v.length, v.length); i.dispatchEvent(new Event("input", { bubbles: true })); await wait(20); };
+      try {
+        log("label", document.querySelector(`label[for="${code.id}"]`)?.textContent, code.getAttribute("autocomplete"), code.inputMode, code.maxLength);
+        log("groups", code.parentElement.querySelectorAll("[data-otp-group]").length, code.parentElement.querySelectorAll("[data-otp-sep]").length);
+        await type(code, "12a3");
+        log("typed", S().code, boxes(code), active(code), JSON.stringify(S().done));
+        await type(code, "98-76-54");
+        log("pasted", S().code, boxes(code), S().done);
+        await type(code, "98765");
+        log("backspace", S().code, boxes(code), active(code));
+        root.__irender.set("code", ""); await wait(20);
+        log("cleared", JSON.stringify(code.value), boxes(code));
+        await type(pin, "4821");
+        log("pin", S().pin, boxes(pin), pin.type);
+        await type(ref, "ab-12c9");
+        log("ref", S().ref, boxes(ref));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("otp", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "label Code one-time-code numeric 6",
+            "groups 2 1",
+            "typed 123 123___ 3 \"\"",
+            // Pasted with dashes: the digits are kept, and the full code completes.
+            "pasted 987654 987654 987654",
+            "backspace 98765 98765_ 5",
+            "cleared \"\" ______",
+            "pin 4821 •••• password",
+            "ref AB12C AB12C",
+        ],
+        "\n{result}"
+    );
+}
