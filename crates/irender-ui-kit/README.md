@@ -49,6 +49,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-aspect-ratio` | `ratio` (`1.5` or `"16 / 9"`) | Its children fill it. |
 | `ui-table` | `caption` | Children are the table's rows and sections, so `list` with `tag: tbody` works. Part: `table`. |
 | `ui-filters` + `ui-filter` | see [Filters](#filters-panel) | Filters for a list in a side panel, shown as chips, written to state for a table's or chart's `filter`. |
+| `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
@@ -475,6 +476,42 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 **Keyboard.** The fields are tabs: Up and Down (and Home, End) move between them. Opening the panel focuses the field's first control, and closing it returns focus to the button. The button's label says how many filters are applied.
 
 **Props.** `ui-filters`: `bind` (required), `rows`, `title` (the panel's heading, default `Filters`), `label` (the button's text, default `Filters`), `live`, `chips` (default true), `currency` (default `USD`), `locale`, `id`; parts `button` and `panel`. `ui-filter`: `field` (required), `label`, `type`, `options`, `operators` (a subset of the type's, in the order to show them: `any`, `none`, `eq`, `gt`, `lt`, `between`, `on`, `before`, `after`, `contains`, `is`, `empty`, `set`), `section` (a heading to group fields under), `unit` (after a number, e.g. `kg`) and `currency`.
+
+## Tree
+
+`ui-tree` shows nodes `{ id, label, children }` (`name` works as the label too) as a tree to browse, select, check, search, add to, delete from and rearrange. The block [`tree-01`](../../examples/blocks/tree-01.yaml) has all of it.
+
+```yaml
+- type: ui-tree
+  props:
+    nodes: "{{ places }}"
+    bindNodes: places        # moves, adds and deletions are written back here
+    bind: picked             # the selected node's id
+    bindNode: place          # the selected node, for a details panel
+    checkable: true
+    bindChecked: checked
+    addable: true
+    deletable: true
+    movable: true
+    search: Search locations…
+    counts: true
+```
+
+**Selecting and opening.** A click or Enter selects a node (`bind`, `bindNode`, and a `select` event). The arrow beside it, a double-click, or Right and Left open and close it. `expanded` sets what's open to start with: `true` for everything, a number of levels, or a list of ids. The selected node's parents always start open.
+
+**Checking.** With `checkable`, a checkbox per node: checking a node checks everything under it, and a parent shows a dash while only some of it is checked. `bindChecked` holds the checked ids.
+
+**Adding.** With `addable`, an Add button above the tree and a + on each row. With `bindNodes`, they put a name box where the node will go: Enter adds it with a new id and moves focus to it, and Escape or an empty name cancels. Either way they write the parent's id (null for the top) to `bindParent` and fire `add` with `{ parent, node }`. Without `bindNodes`, nothing is added: handle the `add` event yourself.
+
+**Deleting.** With `deletable`, a bin on each row and Delete on the keyboard; with `checkable` too, a bar above the tree deletes the checked nodes. A node goes with everything under it. Deleting fires `delete` with the top ids, and with `bindNodes` removes them from state, along with the selection and checks.
+
+**Moving.** With `movable`, drag a node onto another to put it inside, or near its top or bottom edge to put it before or after. From the keyboard, Alt with Up and Down moves the focused node among its siblings, Alt+Right puts it inside the node above, and Alt+Left moves it out to after its parent. A node can't go inside itself. Moving fires `move` with `{ id, parent, index }` and, with `bindNodes`, writes the new tree. Dragging is off while searching.
+
+**Search.** `search` adds a box above the tree that shows the matches with the nodes above them and marks the match, ignoring case and accents. Down moves from the box into the tree, and Escape clears it.
+
+**Keyboard and screen readers.** The tree follows the ARIA tree pattern: one tab stop; Up, Down, Home and End move; Right opens a node or steps into it, Left closes it or steps out; `*` opens a node's siblings; Enter selects and Space checks (or selects). The row buttons are left out of the tab order, since Delete, the Add button and Alt+arrows do the same. Moves, additions and deletions are announced.
+
+**Props.** `nodes` (required), `bindNodes`, `bind`, `bindNode`, `checkable`, `bindChecked`, `addable`, `bindParent`, `addLabel` (default `Add`), `deletable`, `movable`, `search` (`true` or a placeholder), `counts` (how many nodes are under each), `expanded`, `title` (a heading that also names it), `label` (its name without a title, default `Tree`), `emptyText`, `height` (most it grows to before it scrolls); part `tree`.
 
 ## Chat
 

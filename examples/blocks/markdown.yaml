@@ -1,7 +1,9 @@
 # Block: writing a post. The editor shows the text formatted, as readers will see it, with
 # a formatting toolbar, shortcuts (⌘B, ⌘I, ⌘K, ⌘E) and a Markdown tab; the post is kept as
 # Markdown in state. The card beside it shows the post with its title, rendered by
-# `ui-markdown` from the same state.
+# `ui-markdown` from the same state. A menubar (File, Edit, View, with a submenu, a
+# checkbox and a radio group) shows or hides the preview and lays it out, and Publish is
+# a split button with more ways to publish.
 #
 #   cargo run -p irender-cli -- render examples/blocks/markdown.yaml --ui-kit --markdown-kit --icon-kit -o markdown.html
 version: 1
@@ -30,6 +32,8 @@ state:
         palette: { choices: { brand: { tokens: { color: { primary: "#0d9488" } } } } }
     ```
   toast: null
+  preview: true
+  layout: side
 root:
   type: element
   style:
@@ -44,6 +48,33 @@ root:
       props: { gap: 24 }
       style: { max-width: 1200, margin: 0 auto }
       children:
+        - type: ui-menubar
+          props: { label: Post menu }
+          children:
+            - type: ui-menubar-menu
+              props: { label: File }
+              children:
+                - { type: ui-menu-item, props: { label: New post, shortcut: ⌘N }, on: { click: [ { action: set_state, key: title, value: "" }, { action: set_state, key: post, value: "" } ] } }
+                - { type: ui-menu-item, props: { label: Save draft, shortcut: ⌘S }, on: { click: { action: set_state, key: toast, value: { title: Draft saved } } } }
+                - { type: ui-menu-separator }
+                - type: ui-menu-sub
+                  props: { label: Export }
+                  children:
+                    - { type: ui-menu-item, props: { label: Markdown (.md) }, on: { click: { action: set_state, key: toast, value: { title: "Exported “{{ title }}.md”" } } } }
+                    - { type: ui-menu-item, props: { label: HTML (.html) }, on: { click: { action: set_state, key: toast, value: { title: "Exported “{{ title }}.html”" } } } }
+                    - { type: ui-menu-item, props: { label: PDF }, on: { click: { action: set_state, key: toast, value: { title: "Exported “{{ title }}.pdf”" } } } }
+            - type: ui-menubar-menu
+              props: { label: Edit }
+              children:
+                - { type: ui-menu-item, props: { label: Clear the post }, on: { click: { action: set_state, key: post, value: "" } } }
+                - { type: ui-menu-item, props: { label: Reset the title }, on: { click: { action: set_state, key: title, value: Untitled post } } }
+            - type: ui-menubar-menu
+              props: { label: View }
+              children:
+                - { type: ui-menu-checkbox, props: { label: Show preview, bind: preview } }
+                - { type: ui-menu-separator }
+                - { type: ui-menu-label, props: { text: Preview } }
+                - { type: ui-menu-radio-group, props: { bind: layout, label: Preview layout, options: [ { value: side, label: Beside the editor }, { value: below, label: Below the editor } ] } }
         - type: stack
           props: { direction: row, align: center, gap: 12, wrap: true }
           children:
@@ -59,11 +90,14 @@ root:
                 - type: ui-button
                   props: { label: Save draft, variant: outline }
                   on: { click: { action: set_state, key: toast, value: { title: Draft saved } } }
-                - type: ui-button
-                  props: { label: Publish, disabled: "{{ title == '' || post.length > 4000 }}" }
+                - type: ui-split-button
+                  props: { label: Publish, menuLabel: More ways to publish, disabled: "{{ title == '' || post.length > 4000 }}" }
                   on: { click: { action: set_state, key: toast, value: { title: Published, description: "“{{ title }}” is live." } } }
+                  children:
+                    - { type: ui-menu-item, props: { label: Publish and email subscribers }, on: { click: { action: set_state, key: toast, value: { title: Published and sent, description: "“{{ title }}” is live, and on its way to subscribers." } } } }
+                    - { type: ui-menu-item, props: { label: "Schedule for tomorrow, 9 am" }, on: { click: { action: set_state, key: toast, value: { title: Scheduled, description: "“{{ title }}” goes live tomorrow at 9 am." } } } }
         - type: element
-          style: { display: grid, gap: 24, grid-template-columns: "repeat(auto-fit, minmax(340px, 1fr))", align-items: start }
+          style: { display: grid, gap: 24, grid-template-columns: "{{ preview && layout == 'side' ? 'repeat(auto-fit, minmax(340px, 1fr))' : 'minmax(0, 1fr)' }}", align-items: start }
           children:
             - type: stack
               props: { gap: 16 }
@@ -76,7 +110,7 @@ root:
                   children:
                     - { type: ui-markdown-editor, props: { bind: post, rows: 18, maxLength: 4000, placeholder: Start writing… } }
             - type: ui-card
-              style: { position: sticky, top: 24 }
+              style: { position: sticky, top: 24, display: "{{ preview ? 'flex' : 'none' }}" }
               children:
                 - type: stack
                   props: { gap: 4 }

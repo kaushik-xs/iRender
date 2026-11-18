@@ -70,6 +70,18 @@ state:
   chatWaiting: false
   sidebar: true
   invoiceFilters: { status: [Paid, Pending] }
+  folder: src
+  folderNode: null
+  folders:
+    - id: src
+      label: src
+      children:
+        - { id: components, label: components, children: [ { id: button, label: button.rs }, { id: card, label: card.rs }, { id: tree, label: tree.rs } ] }
+        - { id: lib, label: lib.rs }
+        - { id: main, label: main.rs }
+    - { id: tests, label: tests, children: [ { id: kit, label: kit.rs }, { id: browser, label: browser.rs } ] }
+    - { id: cargo, label: Cargo.toml }
+    - { id: readme, label: README.md }
   invoices:
     - { id: INV001, status: Paid, method: Credit card, amount: 2500, date: "2026-10-02", customer: Asha }
     - { id: INV002, status: Pending, method: UPI, amount: 1500, date: "2026-10-05", customer: Kaushik }
@@ -1261,6 +1273,37 @@ root:
                 - { type: if, props: { when: "{{ api.filters.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.filters }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- tree
+            - type: element
+              props: { tag: section }
+              attrs: { id: tree, aria-labelledby: tree-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.tree }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "A project's files. Click to select, double-click or use the arrows to open folders, drag a file into another folder (or Alt and the arrow keys), and use + and the bin on a row's end." }
+                - type: element
+                  style: { display: grid, gap: 16, grid-template-columns: "1fr", "@md": { grid-template-columns: "minmax(0, 3fr) minmax(0, 2fr)" }, align-items: start }
+                  children:
+                    - type: ui-card
+                      children:
+                        - type: ui-tree
+                          props: { nodes: "{{ folders }}", bindNodes: folders, bind: folder, bindNode: folderNode, addable: true, addLabel: New file, deletable: true, movable: true, search: Find a file…, counts: true, label: Project files, expanded: 1 }
+                    - type: ui-card
+                      props: { title: Selected, description: "bind and bindNode, from state." }
+                      children:
+                        - { type: text, props: { value: "{{ folderNode ? folderNode.label : 'Nothing selected' }}" }, style: { font-weight: 600 } }
+                        - { type: text, props: { value: "{{ folderNode && folderNode.children ? folderNode.children.length + ' items inside' : 'A file' }}" }, style: { display: block, color: $color.muted, font-size: 13 } }
+                - { type: if, props: { when: "{{ api.tree.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.tree }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

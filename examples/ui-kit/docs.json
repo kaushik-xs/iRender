@@ -181,6 +181,16 @@
    ]
   },
   {
+   "id": "tree",
+   "group": "Data display",
+   "title": "Tree",
+   "summary": "A hierarchy to browse, select, check, search, add to, delete from and rearrange: drag a node onto another, or move it with Alt and the arrow keys. It follows the ARIA tree pattern for the keyboard and screen readers. With bindNodes the tree edits its own nodes in state; every change also fires an event for a host to save.",
+   "usage": "- type: ui-tree\n  props:\n    nodes: \"{{ places }}\"        # { id, label, children }\n    bindNodes: places           # moves, adds and deletions are written back\n    bind: picked                # the selected id; bindNode: the node itself\n    checkable: true\n    bindChecked: checked\n    addable: true\n    deletable: true\n    movable: true\n    search: true\n    counts: true",
+   "components": [
+    "ui-tree"
+   ]
+  },
+  {
    "id": "typography",
    "group": "Data display",
    "title": "Typography and separator",

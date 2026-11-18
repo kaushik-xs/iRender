@@ -3119,3 +3119,186 @@ fn filters_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The tree: the ARIA tree keyboard, selecting, checking, searching, adding, deleting,
+/// and moving with Alt and the arrows or by dragging, written back to `bindNodes`.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn tree_in_chrome() {
+    let places = serde_json::json!([
+        { "id": "in", "label": "India", "children": [
+            { "id": "mh", "label": "Maharashtra", "children": [ { "id": "mumbai", "label": "Mumbai" }, { "id": "pune", "label": "Pune" } ] },
+            { "id": "ka", "label": "Karnataka", "children": [ { "id": "blr", "label": "Bengaluru" } ] } ] },
+        { "id": "de", "name": "Germany", "children": [ { "id": "berlin", "label": "Berlin" }, { "id": "munich", "label": "München" } ] },
+        { "id": "jp", "label": "Japan" } ]);
+    let doc = serde_json::json!({ "version": 1, "state": { "places": places, "picked": "pune", "place": null, "checked": [], "parent": "x" },
+        "root": { "type": "ui-tree", "props": { "nodes": "{{ places }}", "bindNodes": "places", "bind": "picked", "bindNode": "place", "checkable": true,
+            "bindChecked": "checked", "addable": true, "bindParent": "parent", "deletable": true, "movable": true, "search": true,
+            "counts": true, "title": "Locations" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const T = document.querySelector("[data-i-x=ui-tree]");
+      const $ = (s) => T.querySelector(s), $$ = (s) => [...T.querySelectorAll(s)];
+      const li = (id) => $(`[data-tree-id="${id}"]`);
+      // The visible tree as text: indented labels, [open/closed], *selected, checks.
+      const shape = () => $$("[role=treeitem]").filter((x) => !x.closest("[hidden]")).map((x) =>
+        "  ".repeat(x.getAttribute("aria-level") - 1) + x.querySelector("[data-tree-label]").textContent
+        + ({ true: "-", false: "+" }[x.getAttribute("aria-expanded")] ?? "")
+        + (x.getAttribute("aria-selected") === "true" ? "*" : "")
+        + ({ true: " [x]", mixed: " [-]", false: "" }[x.getAttribute("aria-checked")])).join("|");
+      const tree = (nodes = S().places) => nodes.map((n) => n.id + (n.children?.length ? `(${tree(n.children)})` : "")).join(",");
+      const key = (k, o = {}) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...o }));
+      const focused = () => document.activeElement.getAttribute("data-tree-id");
+      const events = [];
+      for (const name of ["select", "add", "delete", "move"]) T.addEventListener(name, (e) => events.push(name + " " + JSON.stringify({ ...e.detail, node: e.detail.node?.label })));
+      try {
+        // Pune is selected, so its parents start open; one tab stop, on it.
+        log("start", shape());
+        log("node", S().place?.label);
+        log("stop", $$("[tabindex='0']").map((x) => x.getAttribute("data-tree-id")).join(","), "counts", li("in").querySelector("[data-tree-count]").textContent);
+        log("aria", $("[role=tree]").getAttribute("aria-label"), li("mh").getAttribute("aria-level"), li("mh").getAttribute("aria-posinset") + "/" + li("mh").getAttribute("aria-setsize"));
+        // Keyboard: up to Mumbai, left to its parent, left closes it, down, right opens.
+        li("pune").focus();
+        key("ArrowUp"); log("up", focused());
+        key("ArrowLeft"); log("left", focused());
+        key("ArrowLeft"); await wait(0); log("closed", shape());
+        key("ArrowDown"); key("ArrowRight"); await wait(0); log("opened", focused(), shape().split("|").slice(3).join("|"));
+        key("ArrowRight"); log("into", focused());
+        key("End"); log("end", focused()); key("Home"); log("home", focused());
+        // Enter selects; the selection is in state.
+        key("ArrowDown"); key("Enter"); await wait(0);
+        log("select", S().picked, focused(), events.at(-1), S().place.label);
+        // Space checks a node and everything under it; the parent shows some.
+        li("mh").focus(); key(" "); await wait(0);
+        log("check", JSON.stringify(S().checked), li("in").getAttribute("aria-checked"), $("[data-tree-checked]").textContent);
+        li("blr").focus(); key(" "); await wait(0);
+        log("all", JSON.stringify(S().checked), li("in").getAttribute("aria-checked"));
+        key(" "); await wait(0);
+        log("uncheck", JSON.stringify(S().checked), li("in").getAttribute("aria-checked"), li("ka").getAttribute("aria-checked"));
+        // Search: matches and their parents, the match marked; Escape clears.
+        const box = $("[data-tree-search]");
+        box.value = "chen"; box.dispatchEvent(new Event("input", { bubbles: true })); await wait(0);
+        log("search", shape(), li("munich").querySelector("mark").textContent);
+        box.value = "zzz"; box.dispatchEvent(new Event("input", { bubbles: true })); await wait(0);
+        log("none", $("[data-tree-empty]").hidden, $("[data-tree-empty]").textContent);
+        box.focus(); box.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); await wait(0);
+        log("cleared", box.value === "", $$("[role=treeitem]").length);
+        // Add: a name box where the node will go; Enter adds it, Escape cancels.
+        $("[data-tree-add-root]").click(); await wait(0);
+        const name = () => $("[data-tree-name]");
+        log("add top", JSON.stringify(S().parent), document.activeElement === name(), name().getAttribute("aria-label"));
+        name().value = "Spain"; name().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); await wait(0);
+        const spain = S().places.at(-1);
+        log("added", S().places.length, spain.label, typeof spain.id, focused() === spain.id, events.at(-1));
+        li("de").querySelector("[data-tree-add]").click(); await wait(0);
+        log("add under", S().parent, li("de").getAttribute("aria-expanded"), name().closest("ul").parentElement.getAttribute("data-tree-id"), name().getAttribute("aria-label"));
+        name().value = "Hamburg"; name().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); await wait(0);
+        log("cancel", !name(), tree().replace(spain.id, "new"), focused());
+        // Spain goes again, so the moves below start from the same tree.
+        root.__irender.set("places", S().places.slice(0, -1)); await wait(0);
+        // Move with Alt: Japan up above Germany, then into India's last place? Right: into Germany.
+        li("jp").focus(); key("ArrowUp", { altKey: true }); await wait(0);
+        log("alt up", tree(), focused(), events.at(-1));
+        key("ArrowRight", { altKey: true }); await wait(0);
+        log("alt right", tree(), events.at(-1));
+        key("ArrowLeft", { altKey: true }); await wait(0);
+        log("alt left", tree(), events.at(-1));
+        key("ArrowDown", { altKey: true }); await wait(0);
+        log("alt down", tree());
+        // Dragging Berlin onto Karnataka's middle puts it inside, at the end.
+        const drag = (from, to, where) => {
+          const dt = new DataTransfer();
+          const row = to.querySelector("[data-tree-row]").getBoundingClientRect();
+          const y = row.top + row.height * where;
+          from.querySelector("[data-tree-row]").dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+          to.querySelector("[data-tree-label]").dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+          const shown = to.getAttribute("data-drop");
+          to.querySelector("[data-tree-label]").dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: y }));
+          from.querySelector("[data-tree-row]")?.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+          return shown;
+        };
+        log("drag inside", drag(li("berlin"), li("ka"), 0.5)); await wait(0);
+        log("dragged", tree(), events.at(-1));
+        log("drag before", drag(li("munich"), li("in"), 0.1)); await wait(0);
+        log("dragged", tree());
+        // Not into itself or below itself.
+        const before = tree();
+        drag(li("in"), li("mumbai"), 0.5); await wait(0);
+        log("own child", tree() === before);
+        // Delete: a node's button, then the Delete key on the focused node.
+        li("jp").querySelector("[data-tree-delete]").click(); await wait(0);
+        log("deleted", tree(), events.at(-1), "focus", focused());
+        li("blr").focus(); key("Delete"); await wait(0);
+        log("delete key", tree(), focused());
+        // The checked (Maharashtra and under it, from before), with the bulk bar: the
+        // selected node goes too.
+        $("[data-tree-delete-checked]").click(); await wait(0);
+        log("selection", JSON.stringify(S().picked));
+        log("bulk", tree(), JSON.stringify(S().checked), $("[data-tree-bulk]").hidden, events.at(-1));
+        // From state: the tree follows.
+        root.__irender.set("places", []); await wait(0);
+        log("empty", $("[role=tree]").hidden, $("[data-tree-empty]").hidden, $("[data-tree-empty]").textContent);
+        log("live", $("[data-tree-live]").getAttribute("role"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("tree", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Pune is selected, so its parents start open.
+            "start India-|  Maharashtra-|    Mumbai|    Pune*|  Karnataka+|Germany+|Japan",
+            "node Pune",
+            "stop pune counts 5",
+            "aria Locations 2 1/2",
+            "up mumbai",
+            "left mh",
+            "closed India-|  Maharashtra+|  Karnataka+|Germany+|Japan",
+            "opened ka     Bengaluru|Germany+|Japan",
+            "into blr",
+            "end jp",
+            "home in",
+            "select mh mh select {\"id\":\"mh\",\"node\":\"Maharashtra\"} Maharashtra",
+            // Checking a node checks the nodes under it; its parent shows some.
+            "check [\"mh\",\"mumbai\",\"pune\"] mixed 3 selected",
+            "all [\"mh\",\"mumbai\",\"pune\",\"blr\",\"ka\",\"in\"] true",
+            "uncheck [\"mh\",\"mumbai\",\"pune\"] mixed false",
+            "search Germany-|  München chen",
+            "none false No matches.",
+            "cleared true 10",
+            // Add: a name box where the node will go; Enter adds it, Escape cancels.
+            "add top null true New item's name",
+            "added 4 Spain string true add {\"parent\":null,\"node\":\"Spain\"}",
+            "add under de true de New item under Germany",
+            "cancel true in(mh(mumbai,pune),ka(blr)),de(berlin,munich),jp,new de",
+            // Alt and the arrows: up, into the node above, out after the parent, down.
+            "alt up in(mh(mumbai,pune),ka(blr)),jp,de(berlin,munich) jp move {\"id\":\"jp\",\"parent\":null,\"index\":1}",
+            "alt right in(mh(mumbai,pune),ka(blr),jp),de(berlin,munich) move {\"id\":\"jp\",\"parent\":\"in\",\"index\":2}",
+            "alt left in(mh(mumbai,pune),ka(blr)),jp,de(berlin,munich) move {\"id\":\"jp\",\"parent\":null,\"index\":1}",
+            "alt down in(mh(mumbai,pune),ka(blr)),de(berlin,munich),jp",
+            // Dragging onto the middle of a node puts it inside, near the top edge before it.
+            "drag inside inside",
+            "dragged in(mh(mumbai,pune),ka(blr,berlin)),de(munich),jp move {\"id\":\"berlin\",\"parent\":\"ka\",\"index\":1}",
+            "drag before before",
+            "dragged munich,in(mh(mumbai,pune),ka(blr,berlin)),de,jp",
+            "own child true",
+            // Focus goes to the next node shown, or the one before.
+            "deleted munich,in(mh(mumbai,pune),ka(blr,berlin)),de delete {\"ids\":[\"jp\"]} focus de",
+            "delete key munich,in(mh(mumbai,pune),ka(berlin)),de berlin",
+            "selection null",
+            "bulk munich,in(ka(berlin)),de [] true delete {\"ids\":[\"mh\"]}",
+            "empty true false Nothing here yet.",
+            "live status",
+        ],
+        "\n{result}"
+    );
+}

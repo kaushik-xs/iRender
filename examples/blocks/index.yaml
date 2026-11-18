@@ -27,13 +27,13 @@ root:
             # Picks every theme option and the mode; the previews below follow live.
             - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
-          props: { variant: lead, text: "Whole pages to start from: a dashboard, data tables, an AI chat, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, data tables, a tree, an AI chat, a docs page, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group
           props:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: theme, label: Theme }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
 
     - type: list
       props:
@@ -46,6 +46,8 @@ root:
           - { id: data-table-04, category: table, title: "5,000 rows from an API, one tab per paging option: infinite scroll with a virtual table, Load more, and server pages", kits: [ui-kit, icon-kit], height: 820 }
           - { id: data-table-06, category: table, title: "Tickets filtered from a side panel: lists with counts, numbers, dates and text, each with its operators, as chips; one filter object drives the table and a chart", kits: [ui-kit, chart-kit, icon-kit], height: 900 }
           - { id: data-table-05, category: table, title: "Rows inside rows: a budget tree whose projects load when opened, with pinned columns, and an org chart from flat rows", kits: [ui-kit, icon-kit], height: 1180 }
+          - { id: tree-01, category: table, title: "Company locations as a tree: search, counts, checkboxes with bulk delete, add by name, drag or Alt+arrows to reorganise, and the selected location's details", kits: [ui-kit, icon-kit], height: 820 }
+          - { id: docs-01, category: docs, title: "A documentation page: pages on the left, the article, and an On this page list that follows the section you're reading", kits: [ui-kit, icon-kit], height: 860 }
           - { id: otp-verify, category: login, title: "Two-step sign-in: a six-digit code checked as it completes, with a resend link", kits: [ui-kit, icon-kit], height: 720 }
           - { id: empty-states, category: errors, title: "Empty states: no data, no results, out of stock, an empty cart and inbox, and more, each with its own illustration in the theme's colours", kits: [ui-kit, chart-kit], height: 1100 }
           - { id: error-404, category: errors, title: "404: page not found, with a search box", kits: [ui-kit], height: 720 }
@@ -61,9 +63,9 @@ root:
           - { id: login-04, category: login, title: A login page with form and image, kits: [ui-kit], height: 720 }
           - { id: signup, category: signup, title: A sign-up form that checks itself as you type, kits: [ui-kit, icon-kit], height: 860 }
           - { id: settings, category: settings, title: "Account settings: a section menu, a form per section and a danger zone", kits: [ui-kit, icon-kit], height: 900 }
-          - { id: markdown, category: editor, title: "Writing a post: edited as readers see it, saved as Markdown", kits: [ui-kit, markdown-kit], height: 900 }
+          - { id: markdown, category: editor, title: "Writing a post: edited as readers see it, saved as Markdown, with a File / Edit / View menubar and a split Publish button", kits: [ui-kit, markdown-kit], height: 900 }
           - { id: theme, category: theme, title: "A theme customizer: palette, chart colours, radius, density, text size, font", kits: [ui-kit, chart-kit, icon-kit], height: 1300 }
-          - { id: pricing, category: pricing, title: "Pricing: a monthly / yearly switch, plans, a comparison table and questions", kits: [ui-kit, icon-kit], height: 1000 }
+          - { id: pricing, category: pricing, title: "Pricing: a site header with a navigation menu, a monthly / yearly switch, plans, a comparison table and questions", kits: [ui-kit, icon-kit], height: 1000 }
       style: { display: flex, flex-direction: column, gap: 48 }
       children:
         - type: if

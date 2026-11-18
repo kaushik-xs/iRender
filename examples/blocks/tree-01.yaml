@@ -1,0 +1,121 @@
+# Block: company locations as a tree, with the selected one's details beside it. The
+# tree holds its own nodes (`bindNodes: places`), so everything works without a host:
+# - Search finds a location and shows the ones above it; counts show what's under each.
+# - Add (at the top, or the + on a location) asks for a name and adds it with a new id.
+# - Drag a location onto another to move it there, or near an edge to put it before or
+#   after; with the keyboard, Alt and the arrow keys.
+# - Check locations to delete several at once; the bin on a row deletes one.
+# - `bindNode` writes the selected location to `place`, which the details card reads.
+#
+#   cargo run -p irender-cli -- render examples/blocks/tree-01.yaml --ui-kit --icon-kit -o tree-01.html
+version: 1
+state:
+  picked: pune
+  place: null
+  checked: []
+  places:
+    - id: in
+      label: India
+      kind: Country
+      staff: 412
+      children:
+        - id: mh
+          label: Maharashtra
+          kind: Region
+          staff: 268
+          children:
+            - { id: mumbai, label: Mumbai office, kind: Office, staff: 84, address: "Bandra Kurla Complex, Mumbai 400051", status: Open }
+            - id: pune
+              label: Pune
+              kind: City
+              staff: 184
+              children:
+                - { id: hinjewadi, label: Hinjewadi plant, kind: Plant, staff: 152, address: "Phase 2, Hinjewadi, Pune 411057", status: Open }
+                - { id: chakan, label: Chakan warehouse, kind: Warehouse, staff: 32, address: "MIDC Chakan, Pune 410501", status: Under review }
+        - id: ka
+          label: Karnataka
+          kind: Region
+          staff: 144
+          children:
+            - { id: blr, label: Bengaluru office, kind: Office, staff: 120, address: "Outer Ring Road, Bengaluru 560103", status: Open }
+            - { id: mys, label: Mysuru depot, kind: Warehouse, staff: 24, address: "Hebbal Industrial Area, Mysuru 570016", status: Closed }
+    - id: de
+      label: Germany
+      kind: Country
+      staff: 96
+      children:
+        - { id: berlin, label: Berlin office, kind: Office, staff: 58, address: "Friedrichstraße 68, 10117 Berlin", status: Open }
+        - { id: munich, label: München lab, kind: Lab, staff: 38, address: "Leopoldstraße 4, 80802 München", status: Open }
+    - { id: sg, label: Singapore office, kind: Office, staff: 22, address: "1 Raffles Place, Singapore 048616", status: Open }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 64px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 80px }
+  children:
+    - type: stack
+      style: { max-width: 1080px, margin: 0 auto, gap: 24px }
+      children:
+        - type: stack
+          style: { gap: 4px }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Locations } }
+            - { type: ui-text, props: { variant: muted, text: "Offices, plants and warehouses, by country and region. Drag to reorganise; select one to see its details." } }
+        - type: element
+          style: { display: grid, gap: 24px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 5fr) minmax(0, 4fr)" }, align-items: start }
+          children:
+            - type: ui-card
+              children:
+                - type: ui-tree
+                  props:
+                    nodes: "{{ places }}"
+                    bindNodes: places
+                    bind: picked
+                    bindNode: place
+                    checkable: true
+                    bindChecked: checked
+                    addable: true
+                    addLabel: Add location
+                    deletable: true
+                    movable: true
+                    counts: true
+                    search: Search locations…
+                    label: Locations
+                    expanded: 1
+                    height: 460
+                    emptyText: No locations yet. Add the first one.
+            - type: ui-card
+              props: { title: "{{ place ? place.label : 'No location selected' }}", description: "{{ place ? place.kind : 'Pick a location in the tree to see its details.' }}" }
+              children:
+                - type: if
+                  props: { when: "{{ place }}" }
+                  children:
+                    - type: element
+                      props: { tag: dl }
+                      style: { display: grid, grid-template-columns: "max-content 1fr", gap: "10px 24px", margin: 0, font-size: 14px }
+                      children:
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Staff } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0, font-variant-numeric: tabular-nums }, children: [ { type: text, props: { value: "{{ place.staff ? place.staff : '—' }}" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Address } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "{{ place.address ? place.address : '—' }}" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Status } } ] }
+                        - type: element
+                          props: { tag: dd }
+                          style: { margin: 0 }
+                          children:
+                            - type: if
+                              props: { when: "{{ place.status }}" }
+                              children: [ { type: ui-badge, props: { text: "{{ place.status }}", variant: "{{ place.status == 'Open' ? 'default' : place.status == 'Closed' ? 'destructive' : 'secondary' }}" } } ]
+                            - { type: else, children: [ { type: text, props: { value: "—" } } ] }
+                        - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: Sites under it } } ] }
+                        - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "{{ place.children ? place.children.length : 0 }}" } } ] }
+                - type: if
+                  props: { when: "{{ checked.length > 0 }}" }
+                  children:
+                    - { type: ui-separator }
+                    - { type: ui-text, props: { variant: muted, text: "{{ checked.length }} checked. Delete them from the bar above the tree." } }

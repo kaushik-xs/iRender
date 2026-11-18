@@ -39,6 +39,7 @@ fn every_component_is_prefixed_documented_and_renders() {
     let minimal: &[(&str, Json)] = &[
         ("ui-badge", json!({ "text": "x" })),
         ("ui-filters", json!({ "bind": "k" })),
+        ("ui-tree", json!({ "nodes": [] })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -106,7 +107,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 95);
+    assert_eq!(kit, 96);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1228,4 +1229,40 @@ fn filters_structure_and_mistakes() {
     assert!(err(filters(vec![filter(json!({ "field": "d", "type": "date", "operators": ["gt"] }))])).contains("a `date` filter has no operator `gt` (it has between, on, before, after, empty, set)"));
     assert!(err(filters(vec![filter(json!({ "field": "n", "type": "number", "options": [1] }))])).contains("only `list` filters take `options`"));
     assert!(err(filter(json!({ "field": "a" }))).contains("must be a direct child of `ui-filters`"));
+}
+
+#[test]
+fn tree_draws_the_starting_nodes() {
+    let nodes = json!([
+        { "id": "a", "label": "Alpha", "children": [ { "id": "b", "name": "Beta <b>", "children": [ { "id": "c", "label": "Gamma" } ] } ] },
+        { "id": 2, "label": "Two" } ]);
+    let page = render_with(
+        json!({ "type": "ui-tree", "props": { "nodes": "{{ nodes }}", "bind": "sel", "checkable": true, "bindChecked": "on", "counts": true, "deletable": true, "movable": true } }),
+        json!({ "nodes": nodes, "sel": "c", "on": ["c"] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The selected node's parents start open, and it's the one tab stop. Everything
+    // under Alpha is checked, so it shows checked.
+    assert!(body.contains(r#"<li role="treeitem" data-tree-id="a" aria-level="1" aria-setsize="2" aria-posinset="1" aria-selected="false" tabindex="-1" aria-expanded="true" aria-checked="true">"#), "{body}");
+    assert!(body.contains(r#"data-tree-id="2" aria-level="1" aria-setsize="2" aria-posinset="2" aria-selected="false" tabindex="-1" aria-checked="false">"#), "{body}");
+    assert!(body.contains(r#"data-tree-id="c" aria-level="3" aria-setsize="1" aria-posinset="1" aria-selected="true" tabindex="0" aria-checked="true">"#), "{body}");
+    // `name` works as the label, and text is escaped.
+    assert!(body.contains("<span data-tree-label>Beta &lt;b&gt;</span>"), "{body}");
+    assert!(body.contains(r#"<span data-tree-count aria-hidden="true">2</span>"#), "{body}");
+    assert!(body.contains(r#"aria-label="Delete Two""#), "{body}");
+    assert!(body.contains(r#"data-tree-row draggable="true""#), "{body}");
+    assert!(body.contains(r#"<ul role="tree" aria-label="Tree">"#), "{body}");
+    // With `checkable` and `deletable`, a bar for the checked nodes.
+    assert!(body.contains("<span data-tree-checked>1 selected</span>"), "{body}");
+
+    let closed = plain(&render(json!({ "type": "ui-tree", "props": { "nodes": [{ "id": "x", "label": "X", "children": [{ "id": "y", "label": "Y" }] }], "expanded": 0 } })));
+    assert!(closed.contains(r#"aria-expanded="false""#) && closed.contains(r#"<ul role="group" hidden>"#), "{closed}");
+    let all = plain(&render(json!({ "type": "ui-tree", "props": { "nodes": [{ "id": "x", "label": "X", "children": [{ "id": "y", "label": "Y" }] }], "expanded": true } })));
+    assert!(all.contains(r#"aria-expanded="true""#), "{all}");
+    let empty = plain(&render(json!({ "type": "ui-tree", "props": { "nodes": [], "emptyText": "No locations" } })));
+    assert!(empty.contains(r#"<ul role="tree" aria-label="Tree" hidden></ul><p data-tree-empty>No locations</p>"#), "{empty}");
+    let err = render_with(json!({ "type": "ui-tree", "props": { "nodes": "{{ n }}" } }), json!({ "n": 3 }), json!({})).unwrap_err().to_string();
+    assert!(err.contains("`nodes` must be a list"), "{err}");
 }

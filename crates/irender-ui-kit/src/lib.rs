@@ -59,6 +59,7 @@ mod overlay;
 mod scroll_spy;
 mod sidebar;
 mod theme;
+mod tree;
 
 pub use chat::{render_message_ui, render_ui, ui_document};
 pub use theme::{apply_theme, theme};
@@ -107,6 +108,7 @@ pub fn register(registry: &mut Registry) {
         .register(scroll_spy::ScrollSpy)
         .register(filters::Filters)
         .register(filters::Filter)
+        .register(tree::Tree)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

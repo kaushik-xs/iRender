@@ -267,6 +267,27 @@ ui-filter: One field of the `ui-filters` it is in: its type, label and operators
   unit         string  Shown after a number, e.g. `kg`
   currency     string  This filter's currency, over the filters' `currency`
   children: no
+ui-tree: A tree of nodes to browse, select, check, search, add to, delete from and rearrange by dragging or with Alt and the arrow keys. Changes go to state (`bindNodes`) and fire `select`, `add`, `delete` and `move` events.
+  nodes        any (required)  The nodes: `{ id, label (or name), children }`, usually from state, e.g. `{{ locations }}`
+  bindNodes    statekey  State key the nodes are in: moves and deletions are written back to it
+  bind         statekey  State key for the selected node's id
+  bindNode     statekey  State key for the selected node itself, to show its fields beside the tree
+  checkable    bool  A checkbox per node; checking a node checks the nodes under it
+  bindChecked  statekey  State key for the checked nodes' ids
+  addable      bool  An Add button, and one on each node. With `bindNodes` they ask for a name and add the node; either way they write the parent's id (null for the top) to `bindParent` and fire `add`
+  bindParent   statekey  State key that gets the parent's id when Add is pressed
+  deletable    bool  A delete button on each node, Delete on the keyboard, and Delete for the checked nodes
+  movable      bool  Drag nodes to a new place, or move the focused one with Alt and the arrow keys
+  search       any  A search box above the tree: `true`, or its placeholder. Shows matches with the nodes above them
+  counts       bool  Show how many nodes are under each node
+  expanded     any  Open to start with: `true` for every node, a number of levels, or a list of ids (default: the selected node's parents)
+  title        any  A heading above the tree, which also names it for screen readers
+  label        any  Names the tree for screen readers when there's no `title` (default `Tree`)
+  addLabel     any  The Add button's text (default `Add`)
+  emptyText    any  Shown when there are no nodes (default `Nothing here yet.`)
+  height       any  Most it grows to before it scrolls: a number (px) or CSS length
+  parts: tree
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

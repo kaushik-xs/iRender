@@ -1,0 +1,134 @@
+# Block: a documentation page. Pages on the left, the article in the middle, and "On this
+# page" on the right: a `ui-scroll-spy`, whose link for the section being read is marked
+# as you scroll. Both side columns stay in view; on a phone they fold away.
+#
+#   cargo run -p irender-cli -- render examples/blocks/docs-01.yaml --ui-kit --icon-kit -o docs-01.html
+version: 1
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: element
+      style:
+        display: grid
+        grid-template-columns: "minmax(0, 1fr)"
+        gap: 40px
+        max-width: 1200px
+        margin: 0 auto
+        padding: 32px 20px 96px
+        "@md": { grid-template-columns: "200px minmax(0, 1fr)" }
+        "@xl": { grid-template-columns: "200px minmax(0, 1fr) 200px" }
+      children:
+        # ------------------------------------------------------------ pages
+        - type: element
+          props: { tag: nav }
+          attrs: { aria-label: Documentation }
+          style: { display: none, "@md": { display: flex }, flex-direction: column, gap: 20, position: sticky, top: "calc(var(--site-nav, 0px) + 24px)", align-self: start, font-size: 14 }
+          children:
+            - type: list
+              props:
+                as: group
+                items:
+                  - { title: Getting started, pages: [ { label: Introduction }, { label: Installation, current: true }, { label: Your first page } ] }
+                  - { title: Guides, pages: [ { label: State and actions }, { label: Themes }, { label: Charts }, { label: Deploying } ] }
+                  - { title: Reference, pages: [ { label: Components }, { label: Expressions }, { label: CLI } ] }
+              style: { display: contents }
+              children:
+                - type: stack
+                  style: { gap: 4 }
+                  children:
+                    - { type: text, props: { value: "{{ group.title }}" }, style: { font-weight: 600, padding: 4px 8px } }
+                    - type: list
+                      props: { items: "{{ group.pages }}", as: page }
+                      style: { display: contents }
+                      children:
+                        - type: element
+                          props: { tag: a }
+                          attrs: { href: "#", aria-current: "{{ page.current ? 'page' : null }}" }
+                          style: { padding: 6px 8px, border-radius: $radius.md, color: "{{ page.current ? 'var(--color-text)' : 'var(--color-muted)' }}", background: "{{ page.current ? 'color-mix(in srgb, var(--color-text) 6%, transparent)' : 'transparent' }}", font-weight: "{{ page.current ? 600 : 400 }}", text-decoration: none }
+                          children: [ { type: text, props: { value: "{{ page.label }}" } } ]
+        # ------------------------------------------------------------ article
+        - type: element
+          props: { tag: article }
+          style: { display: flex, flex-direction: column, gap: 16, min-width: 0, line-height: 1.7, font-size: 15 }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: Docs, href: "#" }, { label: Getting started, href: "#" }, { label: Installation } ] } }
+            - { type: ui-heading, props: { level: 1, text: Installation } }
+            - { type: ui-text, props: { variant: lead, text: "Install the CLI, render your first page, and set it up to rebuild as you edit. It takes about five minutes." } }
+            - type: list
+              props:
+                as: s
+                items:
+                  - id: requirements
+                    title: Requirements
+                    body: "You need Rust 1.88 or newer, which brings cargo. Nothing else: pages render to plain HTML with their CSS and a small script, so they run in any recent browser and from any static host."
+                    code: "rustc --version   # 1.88 or newer"
+                  - id: install
+                    title: Install the CLI
+                    body: "Install from crates.io. The binary is called irender, and comes with the UI kit, chart kit, Markdown kit, flow kit and icon kit; turn each on with its flag."
+                    code: "cargo install irender-cli\nirender --version"
+                  - id: first-page
+                    title: Render your first page
+                    body: "A page is a YAML or JSON document with a root node. Save this as hello.yaml, then render it. Open the HTML file it writes in your browser."
+                    code: "version: 1\nstate: { name: \"\" }\nroot:\n  type: ui-card\n  props: { title: \"Hello, {{ name || 'world' }}\" }\n  children:\n    - { type: ui-input, props: { bind: name, placeholder: Your name } }\n\nirender render hello.yaml --ui-kit -o hello.html"
+                  - id: watch
+                    title: Rebuild as you edit
+                    body: "Render on every save with any file watcher. Rendering takes milliseconds, so the page is ready by the time you switch windows. Validate first to catch a typo with a clear message and the path to it."
+                    code: "irender validate hello.yaml --ui-kit\nwatchexec -e yaml -- irender render hello.yaml --ui-kit -o hello.html"
+                  - id: themes
+                    title: Pick a theme
+                    body: "The UI kit's theme has palettes, a corner radius, a density and fonts, each with a dark mode. Readers can change them from a Theme button, and their choice is remembered. Set the defaults in the document's theme."
+                    code: "theme:\n  options:\n    palette: { default: blue }\n    radius: { default: \"0.75\" }"
+                  - id: next
+                    title: Next steps
+                    body: "Add state and actions to make the page interactive, put charts in it with the chart kit, or start from a block: a dashboard, a data table, a chat, settings, pricing and more, each one document to copy."
+                    code: null
+              style: { display: contents }
+              children:
+                - type: element
+                  props: { tag: section }
+                  attrs: { id: "{{ s.id }}", aria-labelledby: "{{ s.id }}-title" }
+                  style: { display: flex, flex-direction: column, gap: 12, padding-top: 16, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+                  children:
+                    - { type: ui-heading, props: { level: 2, text: "{{ s.title }}" }, attrs: { id: "{{ s.id }}-title" } }
+                    - { type: text, props: { value: "{{ s.body }}" }, style: { display: block } }
+                    - type: if
+                      props: { when: "{{ s.code }}" }
+                      children:
+                        - type: element
+                          props: { tag: pre }
+                          style: { margin: 0, padding: 16, border-radius: $radius.md, background: "color-mix(in srgb, var(--color-text) 5%, transparent)", border: 1px solid $color.border, overflow-x: auto, font-size: 13, line-height: 1.6 }
+                          children: [ { type: element, props: { tag: code }, children: [ { type: text, props: { value: "{{ s.code }}" } } ] } ]
+            - type: element
+              style: { display: flex, justify-content: space-between, gap: 12, margin-top: 32, padding-top: 24, border-top: 1px solid $color.border }
+              children:
+                - { type: ui-button, props: { label: "← Introduction", variant: outline, href: "#" } }
+                - { type: ui-button, props: { label: "Your first page →", variant: outline, href: "#" } }
+        # ------------------------------------------------------------ on this page
+        - type: ui-scroll-spy
+          props: { label: On this page }
+          style: { display: none, "@xl": { display: flex }, flex-direction: column, gap: 2, position: sticky, top: "calc(var(--site-nav, 0px) + 24px)", align-self: start, font-size: 13 }
+          children:
+            - { type: text, props: { value: On this page }, style: { font-weight: 600, padding: 4px 8px } }
+            - type: list
+              props:
+                as: link
+                items:
+                  - { id: requirements, label: Requirements }
+                  - { id: install, label: Install the CLI }
+                  - { id: first-page, label: Render your first page }
+                  - { id: watch, label: Rebuild as you edit }
+                  - { id: themes, label: Pick a theme }
+                  - { id: next, label: Next steps }
+              style: { display: contents }
+              children:
+                - type: element
+                  props: { tag: a }
+                  attrs: { href: "#{{ link.id }}" }
+                  style: { padding: 4px 8px, border-radius: $radius.sm, color: $color.muted, text-decoration: none }
+                  children: [ { type: text, props: { value: "{{ link.label }}" } } ]

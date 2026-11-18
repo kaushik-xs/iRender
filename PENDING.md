@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a tree view, file upload with previews, remote data tables' facets, and smaller pieces from the client-ui-next list.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: file upload with previews, the filters' calendar and presets, remote data tables' facets, and smaller pieces from the client-ui-next list.
 
 ## Gaps you'd hit in real use
 
@@ -23,7 +23,10 @@ _Last updated: 2026-11-18._
     - [ ] List values come from `options` or `rows` only, not from an API as you search, so very long lists (thousands of customers) need their values in state.
     - [ ] Number inputs don't group digits or show the currency symbol while typing.
     - [ ] No saved views (named sets of filters).
-  - [ ] **Tree view:** select, add a child, delete one or many, and drag a node under another parent (`HierarchyTree`).
+  - [x] **Tree view** (2026-11-18): `ui-tree` selects, checks (with partial parents), searches, adds by name, deletes one or the checked, and moves nodes by dragging or Alt and the arrow keys, writing to `bindNodes` and firing events (block tree-01, gallery section). Not done yet:
+    - [ ] No renaming in place (F2), and no icons per node.
+    - [ ] Children can't load from an API when a node opens, as the data table's nested rows can; very large trees draw every node.
+    - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [ ] **Calendar views:** events in month, week, year and list views (`factory-calendar/`). More than shadcn's `calendar`.
   - [ ] **File upload and preview:** a drop zone, files in a grid or table with image, PDF and spreadsheet previews, remove, and download all as a zip (`attachments/`, `FileViewer`).
   - [ ] **Gantt chart** in chart-kit: a `type: gantt` shorthand with a table of rows on the left, zoom, collapsible groups and markers with a legend (`charts/GanttChart`). Today it has to be an ECharts `custom` series in `option`.
