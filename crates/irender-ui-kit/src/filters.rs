@@ -11,7 +11,7 @@
 use crate::data_table::dynamic;
 use crate::overlay::{DIALOG_TITLE, DIALOG_X, SHEETS};
 use crate::{ACCENT, MUTED, PRIMARY_FILL, SECONDARY, TEXT, forms, id_with, instance_id, lit};
-use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val};
+use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
@@ -250,7 +250,15 @@ static PANE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& h3", pairs(&[("margin", "0"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest("& [data-fl-values]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8))]))
         .nest("& [data-fl-values][hidden], & [data-fl-and][hidden], & [data-fl-b][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-fl-values] input", pairs(&[("flex", "1 1 0")]))
+        .nest("& [data-fl-values] [data-fl-field]", pairs(&[("position", "relative"), ("flex", "1 1 0"), ("display", "flex"), ("min-width", "0")]))
+        .nest("& [data-fl-values] [data-fl-field][hidden]", pairs(&[("display", "none")]))
+        .nest("& [data-fl-values] input", pairs(&[("flex", "1 1 0"), ("min-width", "0")]))
+        .nest("& [data-fl-num]", pairs(&[("text-align", "right"), ("font-variant-numeric", "tabular-nums")]))
+        .nest("& [data-fl-prefix]", pairs(&[("position", "absolute"), ("left", sp!(10)), ("top", "50%"), ("transform", "translateY(-50%)"), ("color", MUTED), ("font-size", fs!(14)), ("pointer-events", "none")]))
+        .nest("& [data-fl-prefix] + input", pairs(&[("padding-left", sp!(26))]))
+        // With the calendar there, the date fields only keep its values.
+        .nest("& [data-fl-dates]", pairs(&[("display", "none")]))
+        .nest("& [data-fl-cal][hidden]", pairs(&[("display", "none")]))
         .nest("& [data-fl-presets]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(6))]))
         .nest(
             "& [data-fl-preset]",
@@ -505,7 +513,7 @@ impl Component for Filters {
         cx.close("div");
 
         for (i, d) in defs.iter().enumerate() {
-            pane(cx, node, &id, i, d)?;
+            pane(cx, node, &id, i, d, cx.prop_string(node, "currency").as_deref(), cx.prop_string(node, "locale").as_deref())?;
         }
         cx.close("div");
 
@@ -556,7 +564,7 @@ impl Component for Filters {
 
 /// A field's controls: its operator, then its values (a list to pick from, or one or
 /// two inputs). The behaviour fills the list and shows what the operator needs.
-fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def) -> Result<(), RenderError> {
+fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currency: Option<&str>, locale: Option<&str>) -> Result<(), RenderError> {
     let mut p = Element::new("div");
     p.base_style_ref(&PANE)
         .attr("role", "tabpanel")
@@ -616,14 +624,20 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def) -> Resu
         cx.close("label");
         cx.close("template");
     } else {
+        // Numbers are text fields the behaviour groups as they're typed; dates keep their
+        // values in date fields the calendar below fills.
+        let numeric = matches!(d.kind.as_str(), "number" | "currency");
         let ty = match d.kind.as_str() {
-            "number" | "currency" => "number",
             "date" => "date",
             _ => "text",
         };
         let mut values = Element::new("div");
         values.attr("data-fl-values", true);
+        if d.kind == "date" {
+            values.attr("data-fl-dates", true);
+        }
         cx.open(&values, node)?;
+        let symbol = (d.kind == "currency").then(|| crate::number::symbol(&d.currency.clone().or(currency.map(str::to_string)).unwrap_or_else(|| "USD".into()).to_uppercase()));
         for (which, label) in [("a", "value"), ("b", "upper value")] {
             if which == "b" {
                 let mut and = Element::new("span");
@@ -631,12 +645,22 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def) -> Resu
                 cx.open(&and, node)?;
                 cx.close("span");
             }
+            let mut field = Element::new("span");
+            field.attr("data-fl-field", true).attr(&format!("data-fl-field-{which}"), true);
+            cx.open(&field, node)?;
+            if let Some(sym) = &symbol {
+                let mut s = Element::new("span");
+                s.attr("data-fl-prefix", true).attr("aria-hidden", "true").text(lit(sym.clone()));
+                cx.open(&s, node)?;
+                cx.close("span");
+            }
             let mut input = Element::new("input");
             input.base_style_ref(forms::input_look()).attr("type", ty).attr(&format!("data-fl-{which}"), true).attr("aria-label", format!("{} {label}", d.label));
-            if ty == "number" {
-                input.attr("step", "any").attr("inputmode", "decimal");
+            if numeric {
+                input.attr("inputmode", "decimal").attr("data-fl-num", true).attr("autocomplete", "off");
             }
             cx.open(&input, node)?;
+            cx.close("span");
         }
         if let Some(u) = &d.unit {
             let mut unit = Element::new("span");
@@ -645,6 +669,26 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def) -> Resu
             cx.close("span");
         }
         cx.close("div");
+        if d.kind == "date" {
+            // The kit's calendar: a range for Between, one day for the others.
+            let base = expr::stringify(&cx.eval(id));
+            for (mode, ops) in [("range", "between"), ("single", "on,before,after")] {
+                if !ops.split(',').any(|o| d.ops.iter().any(|(x, _)| *x == o)) {
+                    continue;
+                }
+                let mut props = vec![
+                    ("mode", lit(mode)),
+                    ("id", lit(format!("{base}-cal-{i}-{mode}"))),
+                    ("label", lit(format!("{} {}", d.label, if mode == "range" { "range" } else { "date" }))),
+                ];
+                if let Some(l) = locale {
+                    props.push(("locale", lit(l.to_string())));
+                }
+                let mut cal = crate::synthetic(node, "ui-calendar", props, vec![("data-fl-cal", lit(mode))], Vec::new());
+                cal.style = StyleBlock::from_pairs(&[("align-self", "flex-start")]);
+                cx.render(&cal)?;
+            }
+        }
         // Presets set a range, so only where the filter offers Between.
         if !d.presets.is_empty() && d.ops.iter().any(|(o, _)| *o == "between") {
             let mut box_ = Element::new("div");

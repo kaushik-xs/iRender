@@ -3090,7 +3090,7 @@ fn filters_in_chrome() {
             "start Status:Paid | Amount:≥ $1,000 | count 2 | rows AC",
             "label Filters, 2 applied",
             // Opened on its chip, Amount shows its condition.
-            "open true pane 1 op between a 1000 b hidden false",
+            "open true pane 1 op between a 1,000 b hidden false",
             "tabs Status1,Amount1,Date0,Note0 sections Order",
             "arrow Status1 0",
             // The field's values in the rows, with how many rows have each.
@@ -4065,6 +4065,81 @@ fn notifications_in_chrome() {
             "new New* 1 AR",
             "opened New true true false open \"New\"",
             "foot /all polite",
+        ],
+        "\n{result}"
+    );
+}
+
+/// The filter panel's date fields use the kit's calendar (a range for Between, one day
+/// for the rest), and its amounts are grouped as they're typed.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn filter_calendar_and_amounts_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "f": {} },
+        "root": { "type": "ui-filters", "props": { "bind": "f", "today": "2026-11-18", "currency": "INR", "locale": "en-IN" }, "children": [
+            { "type": "ui-filter", "props": { "field": "due", "label": "Due", "type": "date" } },
+            { "type": "ui-filter", "props": { "field": "amount", "label": "Amount", "type": "currency" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const F = document.querySelector("[data-i-x=ui-filters]");
+      const $ = (s, from = F) => from.querySelector(s), $$ = (s, from = F) => [...from.querySelectorAll(s)];
+      const pane = (i) => $(`[data-fl-pane="${i}"]`);
+      const cal = (m) => $(`[data-fl-cal="${m}"]`, pane(0));
+      const shown = (e) => e && !e.hidden && getComputedStyle(e).display !== "none";
+      try {
+        $("[data-fl-open]").click(); await wait(0);
+        log("between", shown(cal("range")), shown(cal("single")), shown($("[data-fl-dates]", pane(0))), cal("range").getAttribute("aria-label"));
+        // A preset fills the calendar too.
+        $('[data-fl-preset="thisMonth"]', pane(0)).click(); await wait(0);
+        log("preset", cal("range").querySelector("[data-range-start]")?.getAttribute("data-key"), cal("range").querySelector("[data-range-end]")?.getAttribute("data-key"));
+        // Two days picked on the calendar make the range.
+        cal("range").querySelector('[data-key="2026-11-05"]').click(); await wait(0);
+        log("half", $("[data-fl-a]", pane(0)).value, "(unchanged until the end is picked)");
+        cal("range").querySelector('[data-key="2026-11-12"]').click(); await wait(0);
+        log("range", $("[data-fl-a]", pane(0)).value, $("[data-fl-b]", pane(0)).value, $('[data-fl-preset="thisMonth"]', pane(0)).getAttribute("aria-pressed"));
+        // Before: the one-day calendar.
+        const op = $("[data-fl-op]", pane(0)); op.value = "before"; op.dispatchEvent(new Event("change", { bubbles: true })); await wait(0);
+        log("before", shown(cal("range")), shown(cal("single")));
+        cal("single").querySelector('[data-key="2026-11-20"]').click(); await wait(0);
+        log("day", $("[data-fl-a]", pane(0)).value);
+        // Amounts: the rupee sign, Indian grouping as typed, a plain number in the filter.
+        $$("[role=tab]")[1].click(); await wait(0);
+        const a = $("[data-fl-a]", pane(1));
+        log("amount", $("[data-fl-prefix]", pane(1)).textContent, a.getAttribute("inputmode"));
+        const opA = $("[data-fl-op]", pane(1)); opA.value = "gt"; opA.dispatchEvent(new Event("change", { bubbles: true }));
+        a.focus(); a.value = "125000"; a.setSelectionRange(6, 6); a.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        log("typed", a.value, a.selectionStart);
+        $("[data-fl-apply]").click(); await wait(0);
+        log("applied", JSON.stringify(S().f), $$("[data-fl-chip]").map((c) => c.textContent.replace("✕", "")).join(" | "));
+        // Opened again: the amount shows grouped, the calendar shows the day.
+        $("[data-fl-open]").click(); await wait(0);
+        log("again", $("[data-fl-a]", pane(1)).value, cal("single").querySelector("[aria-selected=true] button")?.getAttribute("data-key") ?? cal("single").querySelector('[data-key="2026-11-20"]')?.closest("td").getAttribute("aria-selected"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("filter-calendar", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "between true false false Due range",
+            "preset 2026-11-01 2026-11-30",
+            "half 2026-11-01 (unchanged until the end is picked)",
+            "range 2026-11-05 2026-11-12 false",
+            "before false true",
+            "day 2026-11-20",
+            "amount ₹ decimal",
+            "typed 1,25,000 8",
+            "applied {\"due\":{\"lt\":\"2026-11-20\"},\"amount\":{\"gt\":125000}} Due:before 20 Nov 2026 | Amount:&gt; ₹1,25,000",
+            "again 1,25,000 2026-11-20",
         ],
         "\n{result}"
     );

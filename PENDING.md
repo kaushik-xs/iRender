@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the filter panel using the kit's calendar and number input, the rest of the smaller pieces (code editor, icon rail), and the event calendar's year view.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the rest of the smaller pieces (code editor, icon rail), the event calendar's year and day views, and steadier Firefox tests.
 
 ## Gaps you'd hit in real use
 
@@ -20,9 +20,8 @@ _Last updated: 2026-11-18._
   - [x] **Filters** (2026-11-18): `ui-filters` + `ui-filter`, a side panel of list, number, currency, date and text fields with operators, shown as removable chips, writing the chart kit's `filter` format (block data-table-06). Not done yet:
     - [ ] No "Add filter" dialog: every field is listed in the panel. Fine up to a dozen or so fields; past that, a picker of fields to add would help.
     - [x] Date presets (today, last 7 days, this month, this quarter, …) and saved views (`bindViews`) (2026-11-18).
-    - [ ] Dates use the browser's date input, not the kit's calendar, and there's no quarter type.
+    - [x] Dates pick on the kit's calendar, and amounts are grouped as typed with the currency's symbol (2026-11-18). No quarter type yet.
     - [ ] List values come from `options` or `rows` only, not from an API as you search, so very long lists (thousands of customers) need their values in state.
-    - [ ] The panel's number inputs don't group digits or show the currency symbol while typing (`ui-number-input` does; the panel doesn't use it yet).
   - [x] **Tree view** (2026-11-18): `ui-tree` selects, checks (with partial parents), searches, adds by name, deletes one or the checked, and moves nodes by dragging or Alt and the arrow keys, writing to `bindNodes` and firing events (block tree-01, gallery section). Not done yet:
     - [ ] No renaming in place (F2), and no icons per node.
     - [ ] Children can't load from an API when a node opens, as the data table's nested rows can; very large trees draw every node.

@@ -102,7 +102,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
 
 /// The symbol for the common currencies, so the server's page shows it before the
 /// script runs (the browser writes the rest with its own data).
-fn symbol(code: &str) -> String {
+pub(crate) fn symbol(code: &str) -> String {
     match code {
         "INR" => "₹",
         "USD" => "$",

@@ -49,6 +49,23 @@
 
   // ---- formatting, for chips
   const locale = cfg.locale || undefined;
+  // Numbers in the panel are grouped as they're typed, in the locale's way.
+  const sepParts = new Intl.NumberFormat(locale).formatToParts(12345.6);
+  const groupSep = sepParts.find((x) => x.type === "group")?.value ?? ",";
+  const decSep = sepParts.find((x) => x.type === "decimal")?.value ?? ".";
+  const toNumberText = (text) => {
+    let t = String(text ?? "").split(groupSep).join("").replace(/[\s\u00a0\u202f]/g, "");
+    if (decSep !== ".") t = t.replace(decSep, ".");
+    t = t.replace(/[^\d.-]/g, "");
+    return t;
+  };
+  const grouped = (raw) => {
+    const t = toNumberText(raw);
+    if (!t || t === "-") return t;
+    const neg = t.startsWith("-"), [whole, frac] = t.replace(/-/g, "").split(".");
+    const w = whole ? new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(BigInt(whole)) : "0";
+    return (neg ? "-" : "") + w + (frac !== undefined ? decSep + frac : "");
+  };
   const number = (d, n) => {
     const x = Number(n);
     if (!Number.isFinite(x)) return String(n);
@@ -241,7 +258,11 @@
   const stateOf = (i) => {
     const p = pane(i), d = defs[i];
     if (d.type === "list") return { op: $("[data-fl-op]", p).value, picked: $$("[data-fl-pick]:checked", p).map((c) => c.__value), a: "", b: "" };
-    return { op: $("[data-fl-op]", p).value, a: $("[data-fl-a]", p).value, b: $("[data-fl-b]", p).value };
+    const val = (sel) => {
+      const input = $(sel, p);
+      return input.hasAttribute("data-fl-num") ? toNumberText(input.value) : input.value;
+    };
+    return { op: $("[data-fl-op]", p).value, a: val("[data-fl-a]"), b: val("[data-fl-b]") };
   };
 
   // Shows field `i`'s draft condition in its pane.
@@ -250,10 +271,20 @@
     $("[data-fl-op]", p).value = d.ops.includes(s.op) ? s.op : d.ops[0];
     if (d.type === "list") drawOptions(i, s.picked);
     else {
-      $("[data-fl-a]", p).value = s.a ?? "";
-      $("[data-fl-b]", p).value = s.b ?? "";
+      for (const [sel, v] of [["[data-fl-a]", s.a], ["[data-fl-b]", s.b]]) {
+        const input = $(sel, p);
+        input.value = input.hasAttribute("data-fl-num") ? grouped(v ?? "") : v ?? "";
+      }
+      syncCalendars(i);
     }
     shape(i);
+  }
+  // The pane's calendars show its dates: the range, or the one day.
+  function syncCalendars(i) {
+    const p = pane(i), a = $("[data-fl-a]", p).value, b = $("[data-fl-b]", p).value;
+    const range = $('[data-fl-cal="range"]', p), single = $('[data-fl-cal="single"]', p);
+    range?.__x?.set?.(a || b ? { from: a || null, to: b || null } : null);
+    single?.__x?.set?.(a || null);
   }
   // Shows the inputs the operator takes.
   function shape(i) {
@@ -274,6 +305,11 @@
     } else {
       $("[data-fl-values]", p).hidden = !takesValue(op);
       $("[data-fl-b]", p).hidden = $("[data-fl-and]", p).hidden = op !== "between";
+      const fieldB = $("[data-fl-field-b]", p);
+      if (fieldB) fieldB.hidden = op !== "between";
+      const range = $('[data-fl-cal="range"]', p), single = $('[data-fl-cal="single"]', p);
+      if (range) range.hidden = op !== "between";
+      if (single) single.hidden = !["on", "before", "after"].includes(op);
       $("[data-fl-a]", p).setAttribute("aria-label", `${d.label} ${op === "between" ? "from" : "value"}`);
       $("[data-fl-b]", p).setAttribute("aria-label", `${d.label} to`);
     }
@@ -447,6 +483,7 @@
       $("[data-fl-op]", p).value = "between";
       $("[data-fl-a]", p).value = r[0];
       $("[data-fl-b]", p).value = r[1];
+      syncCalendars(i);
       shape(i);
       take(i);
       return;
@@ -483,6 +520,23 @@
     const p = e.target.closest("[data-fl-pane]");
     if (!p) return;
     const i = Number(p.getAttribute("data-fl-pane"));
+    // A calendar's pick: a whole range (or one day) fills the dates.
+    const cal = e.target.closest?.("[data-fl-cal]");
+    if (cal) {
+      if (!e.detail) return;
+      if (cal.getAttribute("data-fl-cal") === "range") {
+        const r = e.detail.range ?? e.detail.value;
+        if (r?.from && !r.to) return;
+        $("[data-fl-a]", p).value = r?.from ?? "";
+        $("[data-fl-b]", p).value = r?.to ?? "";
+      } else {
+        const v = e.detail.value;
+        $("[data-fl-a]", p).value = typeof v === "string" ? v.slice(0, 10) : "";
+      }
+      shape(i);
+      take(i);
+      return;
+    }
     if (e.target.matches("[data-fl-op]")) {
       // Picks stay when switching between is any of and is none of.
       if (defs[i].type === "list") drawOptions(i, stateOf(i).picked);
@@ -496,6 +550,15 @@
     const i = Number(p.getAttribute("data-fl-pane"));
     if (e.target.matches("[data-fl-search]")) drawOptions(i, stateOf(i).picked);
     else if (e.target.matches("[data-fl-a], [data-fl-b]")) {
+      // Grouped as typed, the caret kept after the same digits.
+      const t = e.target;
+      if (t.hasAttribute("data-fl-num")) {
+        const at = t.selectionStart ?? t.value.length, digits = (t.value.slice(0, at).match(/\d/g) ?? []).length;
+        t.value = grouped(t.value);
+        let pos = 0, seen = 0;
+        while (pos < t.value.length && seen < digits) if (/\d/.test(t.value[pos++])) seen++;
+        t.setSelectionRange(pos, pos);
+      }
       shape(i);
       take(i);
     }

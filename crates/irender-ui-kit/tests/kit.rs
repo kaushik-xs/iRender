@@ -1226,7 +1226,8 @@ fn filters_structure_and_mistakes() {
     assert!(body.contains(r#"<option value="between">Between</option><option value="gt">More than</option></select>"#), "{body}");
     assert!(body.contains(r#"<option value="any">Is any of</option><option value="none">Is none of</option>"#), "{body}");
     assert!(body.contains("<template data-fl-choice>"), "{body}");
-    assert!(body.contains(r#"<input type="number" data-fl-a aria-label="amount value" step="any" inputmode="decimal">"#), "{body}");
+    // Amounts are text fields grouped as typed, with the currency's symbol before them.
+    assert!(body.contains(r#"<span data-fl-field data-fl-field-a><span data-fl-prefix aria-hidden="true">$</span><input type="text" data-fl-a aria-label="amount value" inputmode="decimal" data-fl-num autocomplete="off">"#), "{body}");
     assert!(body.contains(r#"<span data-fl-unit>net</span>"#), "{body}");
     assert!(body.contains(r#"data-fl-apply>Apply</button>"#), "{body}");
 

@@ -485,7 +485,9 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Keyboard.** The fields are tabs: Up and Down (and Home, End) move between them. Opening the panel focuses the field's first control, and closing it returns focus to the button. The button's label says how many filters are applied.
 
-**Date presets.** A date filter offers quick ranges under its inputs: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, This quarter and This year, counted from `today` (default: the real one). A preset sets Between with its dates and shows as pressed while they're the ones set. `presets: false` hides them, and a list (`[last7, thisMonth]`) picks some. They show only where the filter offers Between.
+**Dates and amounts.** A date filter picks on the kit's calendar: a range for Between, one day for On, Before and After. Amounts (`number` and `currency`) are grouped in the `locale`'s way as they're typed (`1,25,000`), with the currency's symbol before them, and the filter gets a plain number.
+
+**Date presets.** A date filter offers quick ranges under its calendar: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, This quarter and This year, counted from `today` (default: the real one). A preset sets Between with its dates and shows as pressed while they're the ones set. `presets: false` hides them, and a list (`[last7, thisMonth]`) picks some. They show only where the filter offers Between.
 
 **Saved views.** With `bindViews`, a Views menu beside the button lists the views in that key (`[{ name, filters }]`), the one matching the filters now marked: a click applies one, ✕ deletes it, and the name box saves the filters as a view (a view of the same name is replaced). Escape or a click outside closes the menu. Keep the key in state your server saves, or in a host's storage, so views last.
 
