@@ -5899,3 +5899,77 @@ fn data_table_nested_selection_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The command palette ranks what matches: a label that starts with what's typed, then
+/// one with a word that does, then one with it inside, then one with its letters in
+/// order; groups by their best item; keywords count less; the matched letters marked.
+/// `rank: false` keeps the items' order.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn command_palette_ranking_in_chrome() {
+    let item = |label: &str, keywords: Option<&str>| match keywords {
+        Some(k) => serde_json::json!({ "type": "ui-command-item", "props": { "label": label, "keywords": k } }),
+        None => serde_json::json!({ "type": "ui-command-item", "props": { "label": label } }),
+    };
+    let items = || vec![
+        serde_json::json!({ "type": "ui-command-group", "props": { "heading": "Account" }, "children": [
+            item("Reset password", None), item("System status", None), item("Set up billing", None), item("Settings", Some("preferences config")) ] }),
+        serde_json::json!({ "type": "ui-command-group", "props": { "heading": "Help" }, "children": [ item("Keyboard shortcuts", None), item("Status page", None) ] }),
+    ];
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "stack", "children": [
+        { "type": "ui-command", "props": { "id": "ranked" }, "children": items() },
+        { "type": "ui-command", "props": { "id": "plain", "rank": false }, "children": items() } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Items as they appear, top to bottom, the active one marked *.
+      const view = (p) => [...p.querySelectorAll("[role=option]")].filter((i) => i.getClientRects().length)
+        .sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top)
+        .map((i) => i.querySelector("[data-ui-label]").textContent + (i.getAttribute("aria-selected") === "true" ? "*" : "")).join(", ");
+      const type = async (p, text) => { const i = p.querySelector("input"); i.value = text; i.dispatchEvent(new Event("input", { bubbles: true })); await wait(0); };
+      const R = document.getElementById("ranked"), P = document.getElementById("plain");
+      try {
+        for (const q of ["set", "stg", "config", "status", "sta"]) {
+          await type(R, q);
+          log(q, "→", view(R));
+        }
+        await type(R, "set");
+        const h = CSS.highlights?.get("ui-command-match");
+        log("marked", h ? [...h].map((r) => r.startContainer.textContent.slice(r.startOffset, r.endOffset)).join("") : "no highlight API");
+        // Down moves in the order shown.
+        R.querySelector("input").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })); await wait(0);
+        log("down", view(R));
+        await type(R, "");
+        log("cleared", view(R));
+        await type(P, "set");
+        log("rank false", view(P));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("command-ranking", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Starts with it, shorter first; then a word inside; then the letters in order.
+            "set → Settings*, Set up billing, Reset password, System status",
+            "stg → Settings*, Set up billing, Status page",
+            // Its keywords.
+            "config → Settings*",
+            // Help's best item beats Account's, so Help comes first.
+            "status → Status page*, System status",
+            "sta → Status page*, System status, Reset password",
+            "marked setSetSetSet",
+            "down Settings, Set up billing*, Reset password, System status",
+            "cleared Reset password*, System status, Set up billing, Settings, Keyboard shortcuts, Status page",
+            "rank false Reset password*, System status, Set up billing, Settings",
+        ],
+        "\n{result}"
+    );
+}

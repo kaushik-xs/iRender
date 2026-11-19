@@ -795,6 +795,7 @@ ui-command: A search box over a list of actions, filtered as you type; Up and Do
   label        any  The search box's accessible name (default: the placeholder)
   empty        any  Shown when nothing matches (default `No results found.`)
   id           any  Element id (default: derived from the document)
+  rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
   parts: search, input, list, empty
   children: yes
 ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut`, or a button with `commandfor` its id. Running an item closes it.
@@ -802,6 +803,7 @@ ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut
   label        any  The search box's accessible name (default: the placeholder)
   empty        any  Shown when nothing matches (default `No results found.`)
   id           any  Element id (default: derived from the document)
+  rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
   trigger      any  Text of a button that opens it
   triggerVariant one of: default, secondary, destructive, outline, ghost, link, brand  The trigger button's variant (default `outline`)
   shortcut     string  Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)

@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: fuzzy ranking in the command palette, or the submenu safe triangle.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: the submenu safe triangle, or announcing part-picked nested rows.
 
 ## Gaps you'd hit in real use
 
@@ -91,7 +91,7 @@ _Last updated: 2026-11-19._
   - [ ] iOS Safari sends no `contextmenu` on a long press, so touch users there can't open it. Idea: open after a 500 ms press.
   - [ ] Right-clicking a data table row doesn't select it; items act on `bind`'s row, and the selection is separate.
 - [ ] **`ui-command` gaps:**
-  - [ ] Matching is by words, in document order. cmdk ranks fuzzy matches and puts the best first.
+  - [x] Ranked, fuzzy matching (2026-11-20): best match first in each group and of the groups, letters in order, keywords, matched letters marked; `rank: false` for document order.
   - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.
   - [ ] No way to read the search text from state, e.g. to fetch items for it. Idea: a `bind` for the query.
 - [ ] **`ui-sidebar` gaps:**

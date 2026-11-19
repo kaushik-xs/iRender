@@ -21,11 +21,12 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-const SEARCH_PROPS: [PropDef; 4] = [
+const SEARCH_PROPS: [PropDef; 5] = [
     PropDef::new("placeholder", PropKind::Any, "The search box's placeholder (default `Type a command or search…`)"),
     PropDef::new("label", PropKind::Any, "The search box's accessible name (default: the placeholder)"),
     PropDef::new("empty", PropKind::Any, "Shown when nothing matches (default `No results found.`)"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
+    PropDef::new("rank", PropKind::Bool, "Put the best matches first, in each group and of the groups (default true); false keeps the items' order"),
 ];
 const COMMAND_PROPS: &[PropDef] = &SEARCH_PROPS;
 const DIALOG_PROPS: &[PropDef] = &[
@@ -33,11 +34,16 @@ const DIALOG_PROPS: &[PropDef] = &[
     SEARCH_PROPS[1],
     SEARCH_PROPS[2],
     SEARCH_PROPS[3],
+    SEARCH_PROPS[4],
     PropDef::new("trigger", PropKind::Any, "Text of a button that opens it"),
     PropDef::new("triggerVariant", PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link", "brand"]), "The trigger button's variant (default `outline`)"),
     PropDef::new("shortcut", PropKind::String, "Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)"),
     PropDef::new("title", PropKind::Any, "Its accessible name (default `Command palette`)"),
 ];
+
+/// The letters that matched what was typed, marked by the behaviour with the CSS Custom
+/// Highlight API (the label's text stays as the runtime wrote it).
+const MATCH_CSS: &str = "::highlight(ui-command-match) {\n  background-color: color-mix(in srgb, var(--color-primary) 16%, transparent);\n  color: inherit;\n}";
 
 /// Styled from the root, like the combobox: the behaviour shows and hides the parts.
 fn palette_style(framed: bool) -> StyleBlock {
@@ -110,6 +116,9 @@ fn palette_style(framed: bool) -> StyleBlock {
             "& [data-ui-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
         )
+        // Columns, so the behaviour can put the best matches first with `order`.
+        .nest("& :is([role=listbox], [role=group], :has(> [role=option]))", pairs(&[("display", "flex"), ("flex-direction", "column")]))
+        .nest("& [data-ui-heading]", pairs(&[("order", "-1")]))
         // Last, so it beats the `display` of items and the rest at the same specificity.
         .nest("& [hidden]", pairs(&[("display", "none")]))
 }
@@ -138,7 +147,9 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
 /// `el`, which runs the behaviour. The caller closes `el` (a `div`).
 fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, shortcut: Option<String>, dialog: bool) -> Result<(), RenderError> {
     cx.global_js("ui-command", SCRIPT);
-    el.attr("data-ui-command", true).behavior("ui-command", json!({ "shortcut": shortcut }));
+    let rank = cx.prop(node, "rank").is_none_or(|v| irender_core::expr::truthy(&v));
+    el.attr("data-ui-command", true).behavior("ui-command", json!({ "shortcut": shortcut, "rank": rank }));
+    cx.global_css("ui-command-match", MATCH_CSS);
     cx.open(&el, node)?;
 
     let placeholder = node.prop("placeholder").cloned().unwrap_or_else(|| lit(cx.label("Type a command or search…")));

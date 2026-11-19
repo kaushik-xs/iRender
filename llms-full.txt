@@ -961,6 +961,7 @@ ui-command: A search box over a list of actions, filtered as you type; Up and Do
   label        any  The search box's accessible name (default: the placeholder)
   empty        any  Shown when nothing matches (default `No results found.`)
   id           any  Element id (default: derived from the document)
+  rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
   parts: search, input, list, empty
   children: yes
 ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut`, or a button with `commandfor` its id. Running an item closes it.
@@ -968,6 +969,7 @@ ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut
   label        any  The search box's accessible name (default: the placeholder)
   empty        any  Shown when nothing matches (default `No results found.`)
   id           any  Element id (default: derived from the document)
+  rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
   trigger      any  Text of a button that opens it
   triggerVariant one of: default, secondary, destructive, outline, ghost, link, brand  The trigger button's variant (default `outline`)
   shortcut     string  Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)
@@ -1838,7 +1840,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-input-otp` | `bind`, `length` (default 6, at most 12), `pattern` (digits, letters, alphanumeric), `groups` (e.g. `[3, 3]`), `mask`, `label` (when no visible label names it), `name`, `disabled`, `invalid`, `id` | A one-time code in a row of boxes, after shadcn/ui's InputOTP. One real text field lies over the boxes, so typing, pasting, and the phone's suggestion of a code from a message (`autocomplete="one-time-code"`) all work, it's one stop in the tab order, and screen readers read it as one field; the boxes draw its characters and the caret. What the `pattern` doesn't allow is dropped (a pasted `123-456` gives `123456`), letters are kept in capitals, and `mask` shows dots. `groups` puts a dash between groups. Filling the last box fires a bubbling `complete` event (`detail.value`) for `on: { complete: … }`; clearing `bind` from state empties it. In a `ui-field`, the label names it. Part: `input`. |
 | `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
 | `ui-date-picker`, `ui-calendar` | see [Date picker](#date-picker) | A day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years. The picker opens the calendar from a button; `ui-calendar` shows it inline. |
-| `ui-command` | `placeholder`, `label`, `empty` (default `No results found.`), `id` | A command palette: a search box over a list of actions, filtered as you type (every word must match the label or `keywords`). Up and Down move between items, skipping disabled ones; Home and End jump while the box is empty; Enter runs the active item; Escape clears the search. Focus stays in the search box. Parts: `search`, `input`, `list`, `empty`. |
+| `ui-command` | `placeholder`, `label`, `empty` (default `No results found.`), `id`, `rank` (default true) | A command palette: a search box over a list of actions, filtered as you type: every word must match the label, at its start, at a word's start, inside it or as its letters in order (`stg` finds Settings), or the `keywords`. The best matches come first, in each group and of the groups (a label starting with what's typed, then a word starting with it, then inside, then letters in order; keywords count less, shorter labels win ties), and the matched letters are marked (with the CSS Custom Highlight API, where the browser has it). `rank: false` keeps the items' order. Up and Down move between items, skipping disabled ones; Home and End jump while the box is empty; Enter runs the active item; Escape clears the search. Focus stays in the search box. Parts: `search`, `input`, `list`, `empty`. |
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 

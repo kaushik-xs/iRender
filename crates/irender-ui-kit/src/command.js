@@ -14,7 +14,12 @@
   // Case- and accent-insensitive text for matching.
   const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const items = () => [...list.querySelectorAll("[role=option]")];
-  const usable = () => items().filter((i) => !i.hidden && !i.disabled);
+  // In the order shown: ranked items are moved with CSS `order`, not in the DOM.
+  const usable = () => {
+    const can = items().filter((i) => !i.hidden && !i.disabled);
+    return ranked ? can.sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top) : can;
+  };
+  let ranked = false;
   let active = null;
   let ids = 0;
 
@@ -30,22 +35,97 @@
     } else input.removeAttribute("aria-activedescendant");
   }
 
-  // Shows the items whose label or keywords hold every word typed, the groups with
-  // any of them, and separators only while nothing is typed.
+  // How well `word` matches `text` (both folded): at the start, at a word's start, inside
+  // it, or its letters in order; with the positions that matched. Null: no match.
+  function score(word, text) {
+    const span = (from) => Array.from(word, (_, n) => from + n);
+    if (text.startsWith(word)) return { s: 900, at: span(0) };
+    const starts = [...text.matchAll(/(?:^|[^\p{L}\p{N}])(?=[\p{L}\p{N}])/gu)].map((m) => m.index + m[0].length);
+    const w = starts.find((n) => text.startsWith(word, n));
+    if (w !== undefined) return { s: 700, at: span(w) };
+    const inside = text.indexOf(word);
+    if (inside >= 0) return { s: 500, at: span(inside) };
+    // Letters in order, each at the next word's start where it can be.
+    const at = [];
+    let from = 0;
+    for (const ch of word) {
+      const k = starts.find((n) => n >= from && text[n] === ch) ?? text.indexOf(ch, from);
+      if (k < 0) return null;
+      at.push(k);
+      from = k + 1;
+    }
+    let s = 300;
+    for (let n = 1; n < at.length; n++) s -= Math.min(40, (at[n] - at[n - 1] - 1) * 4);
+    return { s: Math.max(10, s), at };
+  }
+  // An item's match for the words typed: every word in its label (marked), or else its
+  // keywords (scoring less); a label that is what was typed scores most.
+  function match(item, words, typed) {
+    const label = fold(item.querySelector("[data-ui-label]")?.textContent ?? ""), keys = fold(item.dataset.uiKeywords ?? "");
+    let s = label === typed ? 2000 : 0;
+    const at = [];
+    for (const w of words) {
+      const l = score(w, label), k = l ? null : score(w, keys);
+      if (!l && !k) return null;
+      s += l ? l.s : k.s - 200;
+      if (l) at.push(...l.at);
+    }
+    // Shorter labels first, among equals.
+    return { s: s - label.length / 100, at };
+  }
+  // The matched letters, marked without changing the label (where the browser can).
+  const marks = (window.__irenderCommandMarks ||= new Map());
+  function mark(found) {
+    if (!window.CSS?.highlights || typeof Highlight !== "function") return;
+    const ranges = [];
+    for (const [item, at] of found) {
+      const label = item.querySelector("[data-ui-label]");
+      const node = label && document.createTreeWalker(label, NodeFilter.SHOW_TEXT).nextNode();
+      if (!node) continue;
+      for (const n of at) {
+        if (n >= node.length) continue;
+        const r = new Range();
+        r.setStart(node, n);
+        r.setEnd(node, n + 1);
+        ranges.push(r);
+      }
+    }
+    marks.set(el, ranges);
+    CSS.highlights.set("ui-command-match", new Highlight(...[...marks.values()].flat()));
+  }
+
+  // Shows the items whose label or keywords match every word typed, best first (with
+  // `rank`), the groups with any of them, and separators only while nothing is typed.
   function filter() {
-    const words = fold(input.value).split(/\s+/).filter(Boolean);
+    const typed = fold(input.value).trim(), words = typed.split(/\s+/).filter(Boolean);
+    ranked = api.config.rank !== false && words.length > 0;
     let shown = 0;
+    const found = [], scores = new Map();
     for (const i of items()) {
       if (!i.id) i.id = `${list.id}-${ids++}`;
-      const text = fold(`${i.querySelector("[data-ui-label]")?.textContent ?? ""} ${i.dataset.uiKeywords ?? ""}`);
-      i.hidden = !words.every((w) => text.includes(w));
-      if (!i.hidden) shown++;
+      const m = words.length ? match(i, words, typed) : { s: 0, at: [] };
+      i.hidden = !m;
+      if (!m) continue;
+      shown++;
+      scores.set(i, m.s);
+      if (m.at.length) found.push([i, m.at]);
     }
+    // Best first among their siblings, and groups by their best.
+    const value = (c) => (c.matches("[role=option]") ? scores.get(c) ?? -1
+      : c.matches("[role=group]") ? Math.max(-1, ...[...c.querySelectorAll("[role=option]:not([hidden])")].map((i) => scores.get(i) ?? 0))
+      : null);
+    for (const p of new Set([list, ...items().map((i) => i.parentElement)])) {
+      const sorted = [...p.children].filter((c) => value(c) !== null).map((c, n) => [c, n]).sort(([a, n], [b, m]) => value(b) - value(a) || n - m);
+      sorted.forEach(([c], n) => (c.style.order = ranked ? String(n + 1) : ""));
+    }
+    mark(found);
     for (const g of list.querySelectorAll("[role=group]")) g.hidden = !g.querySelector("[role=option]:not([hidden])");
     for (const s of list.querySelectorAll("[role=separator]")) s.hidden = words.length > 0;
     empty.hidden = shown > 0;
+    // Typing again starts from the best match.
     const can = usable();
-    setActive(can.includes(active) ? active : (can[0] ?? null));
+    setActive(can.includes(active) && !ranked ? active : (can[0] ?? null));
+    if (ranked) list.scrollTop = 0;
     return shown;
   }
 
