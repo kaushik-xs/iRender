@@ -5,8 +5,8 @@ each example links to the others. examples/build.sh runs it last:
     python3 examples/site_nav.py path/to/irender target/site
 
 The bar is rendered with `--embed` for each page, with the way back to the site's root
-and the page's own href, and goes right after `<body>`. Blocks show in frames on the
-blocks page, where the bar takes itself out.
+and the page's own href, and goes right after `<body>`. The blocks don't get it: each is
+a whole page of its own, shown in a frame on the blocks page.
 """
 
 import json
@@ -30,8 +30,6 @@ MAIN = {
 # from `--site-nav` (sticky sidebars sit below it).
 STICKY = {"ui-kit.html"}
 STICKY_HEIGHT = "<style>:root { --site-nav: 48px; }</style>"
-# Removes the bar inside a frame, where the page around it already has one.
-UNFRAMED = "<script>if (self !== top) document.currentScript.previousElementSibling.remove();</script>"
 
 
 def main():
@@ -47,24 +45,27 @@ def main():
         if f.endswith(".html")
     )
     for page in pages:
-        depth = page.count("/")
-        data = {"root": "../" * depth, "current": page, "main": main_pages, "more": more, "sticky": page in STICKY}
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
-            json.dump(data, tmp)
-        try:
-            nav = subprocess.run(
-                [irender, "render", os.path.join(HERE, "site-nav.yaml"), "--data", tmp.name, "--embed"],
-                capture_output=True, text=True, check=True,
-            ).stdout
-        finally:
-            os.unlink(tmp.name)
+        if page.startswith("blocks/") and page != "blocks/index.html":
+            continue
         path = os.path.join(site, page)
         with open(path) as f:
             html = f.read()
         if "data-site-nav" in html:
             continue  # already has it
-        framed = page.startswith("blocks/") and page != "blocks/index.html"
-        insert = nav + (UNFRAMED if framed else "") + (STICKY_HEIGHT if page in STICKY else "")
+        depth = page.count("/")
+        # The Theme button needs the UI kit's theme script, which an embed leaves out.
+        theme = "irender-theme-options" in html
+        data = {"root": "../" * depth, "current": page, "main": main_pages, "more": more, "sticky": page in STICKY, "theme": theme}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+            json.dump(data, tmp)
+        try:
+            nav = subprocess.run(
+                [irender, "render", os.path.join(HERE, "site-nav.yaml"), "--data", tmp.name, "--ui-kit", "--chart-kit", "--embed"],
+                capture_output=True, text=True, check=True,
+            ).stdout
+        finally:
+            os.unlink(tmp.name)
+        insert = nav + (STICKY_HEIGHT if page in STICKY else "")
         html, n = re.subn(r"(<body[^>]*>)", lambda m: m.group(1) + insert, html, count=1)
         if n:
             with open(path, "w") as f:

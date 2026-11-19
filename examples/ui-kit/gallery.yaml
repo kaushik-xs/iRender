@@ -261,13 +261,12 @@ root:
             - type: stack
               props: { gap: 8 }
               children:
-                # The Theme button picks a palette, radius, density, text size, font, chart
-                # colours and the mode; the choices are shared with every example page.
+                # The Theme button in the bar at the top picks a palette, radius, density,
+                # text size, font, chart colours and the mode, for every example page.
                 - type: stack
                   props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
                   children:
                     - { type: ui-heading, props: { level: 1, text: irender-ui-kit } }
-                    - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
                 - type: ui-text
                   props: { variant: lead, text: "Ready-made components for iRender documents, in the style of shadcn/ui. Each section says what a component is for, shows how to write it, lets you try it, and lists its props." }
 

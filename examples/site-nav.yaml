@@ -2,8 +2,10 @@
 # renders it for each page with `--embed` (so it takes the page's own theme) and puts it
 # at the top of the page's body. Its data: `root`, the way back to the site's root from
 # the page (`""` or `"../"`), `current`, the page's href, `main` and `more`, the
-# pages, from index.data.json, and `sticky`, to keep it at the top while the page
-# scrolls (on pages whose own layout allows it).
+# pages, from index.data.json, `theme`, for the Theme button (pages with the UI kit's
+# theme), and `sticky`, to keep it at the top while the page
+# scrolls (on pages whose own layout allows it). It's rendered with the UI and chart
+# kits, for the Theme button.
 version: 1
 root:
   type: element
@@ -76,8 +78,20 @@ root:
               props: { tag: a }
               attrs: { href: "{{ root }}{{ page.href }}", aria-current: "{{ current == page.href ? 'page' : null }}" }
               children: [ { type: text, props: { value: "{{ page.label }}" } } ]
+    # The theme for every page: palette, radius, density, text size, font, chart colours
+    # and the mode. The choices go on <html> and into localStorage, so each page (and
+    # the blocks in frames) follows them. Only on pages built with the UI kit's theme.
+    - type: if
+      props: { when: "{{ theme }}" }
+      children:
+        - type: ui-popover
+          props: { trigger: Theme, triggerVariant: ghost, align: end }
+          # Taller than most screens: it scrolls inside, below the bar.
+          style: { width: 340, max-height: "calc(100dvh - 64px)", overflow-y: auto, overscroll-behavior: contain }
+          parts: { trigger: { style: { margin-left: auto, color: $color.muted, font-weight: 400 } } }
+          children: [ { type: ui-theme-panel } ]
     - type: element
       props: { tag: a }
       attrs: { href: "https://github.com/kaushik-xs/iRender" }
-      style: { margin-left: auto }
+      style: { margin-left: "{{ theme ? 0 : 'auto' }}" }
       children: [ { type: text, props: { value: GitHub } } ]

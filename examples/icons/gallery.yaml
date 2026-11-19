@@ -28,7 +28,6 @@ root:
           props: { direction: row, justify: space-between, align: center }
           children:
             - { type: ui-badge, props: { text: irender-icon-kit, variant: outline } }
-            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
         - { type: ui-heading, props: { level: 1, text: Icon gallery } }
         - type: ui-text
           props:

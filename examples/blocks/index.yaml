@@ -20,12 +20,9 @@ root:
     - type: stack
       props: { gap: 12 }
       children:
-        - type: stack
-          props: { direction: row, align: center, gap: 12 }
-          children:
-            - { type: ui-heading, props: { level: 1, text: Blocks } }
-            # Picks every theme option and the mode; the previews below follow live.
-            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
+        # The Theme button in the bar at the top picks every theme option and the mode;
+        # the previews below follow live.
+        - { type: ui-heading, props: { level: 1, text: Blocks } }
         - type: ui-text
           props: { variant: lead, text: "Whole pages to start from: a dashboard, a report builder, an incident room, a sales pipeline, data tables, a tree, a kanban board, a calendar, an AI chat, a docs page, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group

@@ -39,7 +39,6 @@ root:
                 - { type: ui-icon, props: { name: "it:database", size: 28 } }
                 - { type: ui-heading, props: { level: 1, text: "{{ er.package.name }}" } }
                 - { type: ui-badge, props: { text: "v{{ er.package.version }}", variant: outline } }
-            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
         - { type: ui-text, props: { variant: lead, text: "{{ er.package.description }}" } }
 
     - type: ui-card

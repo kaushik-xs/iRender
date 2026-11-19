@@ -97,7 +97,6 @@ root:
           props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
           children:
             - { type: ui-heading, props: { level: 1, text: irender-flow-kit } }
-            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
           props:
             variant: lead

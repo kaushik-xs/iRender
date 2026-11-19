@@ -17,13 +17,9 @@ root:
     - type: stack
       props: { gap: 12 }
       children:
-        # The Theme button picks a palette, radius, density, text size, font and mode;
-        # every example page follows the choices.
-        - type: stack
-          props: { direction: row, justify: space-between, align: center }
-          children:
-            - { type: ui-badge, props: { text: iRender, variant: outline } }
-            - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, children: [ { type: ui-theme-panel } ] }
+        # The Theme button in the bar at the top picks a palette, radius, density, text
+        # size, font and mode; every example page follows the choices.
+        - { type: ui-badge, props: { text: iRender, variant: outline }, style: { align-self: start } }
         - { type: ui-heading, props: { level: 1, text: Examples } }
         - type: ui-text
           props: { variant: lead, text: "Every page here was rendered from a JSON or YAML document. Open one, then read its source." }
