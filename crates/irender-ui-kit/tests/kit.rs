@@ -879,7 +879,8 @@ fn examples_index_renders_with_a_jump_to_combobox() {
     let page = engine.render(&ir, &data).unwrap();
     let examples = data["examples"].as_array().unwrap();
     assert_eq!(page.body.matches("<article").count(), examples.len());
-    assert!(page.body.contains("data-i-x=\"ui-theme-toggle\""), "the index has a theme toggle");
+    // The theme is picked in the bar across the top (site-nav.yaml), not on the page.
+    assert!(!page.body.contains("data-i-x=\"ui-theme-toggle\""), "the index leaves the theme to the bar");
     // The combobox lists every example by title, with its page as the value.
     let combobox = page.body.find("data-i-x=\"ui-combobox\"").unwrap();
     let options = &config(&page.body[combobox..])["options"];
@@ -887,6 +888,27 @@ fn examples_index_renders_with_a_jump_to_combobox() {
     assert_eq!(options[0]["value"], examples[0]["href"]);
     assert_eq!(options[0]["label"], examples[0]["title"]);
     assert_eq!(options[0]["description"], examples[0]["summary"]);
+}
+
+/// The bar across the example pages: a Theme panel next to GitHub on pages with the
+/// UI kit's theme, and none on the others.
+#[test]
+fn examples_bar_has_the_theme_where_pages_can_use_it() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
+    let src = std::fs::read_to_string(format!("{dir}/site-nav.yaml")).unwrap();
+    let engine = engine();
+    let mut doc = irender_core::parse(&src, Format::Yaml).unwrap_or_else(|d| panic!("{d}"));
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    assert!(ir.warnings.is_empty(), "{}", ir.warnings);
+    let bar = |theme: bool| {
+        let data = json!({ "root": "", "current": "index.html", "main": [{ "href": "ui-kit.html", "label": "UI kit" }], "more": [], "sticky": false, "theme": theme });
+        engine.render(&ir, &data).unwrap().body
+    };
+    let with = bar(true);
+    let panel = with.find("data-i-x=\"ui-theme-toggle\"").expect("a theme panel");
+    assert!(panel < with.find("https://github.com/kaushik-xs/iRender").unwrap(), "the Theme button comes before GitHub");
+    assert!(!bar(false).contains("data-i-x=\"ui-theme-toggle\""), "no theme panel without the theme");
 }
 
 #[test]
