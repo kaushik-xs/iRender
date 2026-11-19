@@ -43,6 +43,7 @@ macro_rules! fs {
 mod calendar;
 mod carousel;
 mod chat;
+mod code;
 mod combobox;
 mod command;
 mod data_table;
@@ -133,6 +134,8 @@ pub fn register(registry: &mut Registry) {
         .register(rail::RailPanel)
         .register(resizable::Resizable)
         .register(resizable::ResizablePanel)
+        .register(code::CodeBlock)
+        .register(code::JsonEditor)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)
@@ -355,7 +358,7 @@ fn context(cx: &RenderCx<'_>, name: &str) -> Option<Val> {
 /// The kit's and the built-ins' form controls, which a `ui-field` labels and describes.
 const CONTROLS: &[&str] = &[
     "input", "textarea", "select", "ui-input", "ui-textarea", "ui-select", "ui-checkbox", "ui-switch", "ui-slider",
-    "ui-radio-group", "ui-combobox", "ui-date-picker", "ui-input-otp", "ui-number-input",
+    "ui-radio-group", "ui-combobox", "ui-date-picker", "ui-input-otp", "ui-number-input", "ui-json-editor",
 ];
 
 /// The `attrs` that reach the element a control focuses: the inner `<input>` for kit
@@ -364,6 +367,7 @@ fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => &mut node.parts.entry("control".into()).or_default().attrs,
         "ui-combobox" | "ui-input-otp" | "ui-number-input" => &mut node.parts.entry("input".into()).or_default().attrs,
+        "ui-json-editor" => &mut node.parts.entry("textarea".into()).or_default().attrs,
         // With `input`, the text field; otherwise the button that opens the calendar.
         "ui-date-picker" if typed_date(node) => &mut node.parts.entry("input".into()).or_default().attrs,
         "ui-date-picker" => &mut node.parts.entry("trigger".into()).or_default().attrs,
@@ -375,6 +379,7 @@ fn focus_attr<'a>(node: &'a Node, name: &str) -> Option<&'a Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => node.parts.get("control")?.attrs.get(name),
         "ui-combobox" | "ui-input-otp" | "ui-number-input" => node.parts.get("input")?.attrs.get(name),
+        "ui-json-editor" => node.parts.get("textarea")?.attrs.get(name),
         "ui-date-picker" if typed_date(node) => node.parts.get("input")?.attrs.get(name),
         "ui-date-picker" => node.parts.get("trigger")?.attrs.get(name),
         _ => node.attrs.get(name),

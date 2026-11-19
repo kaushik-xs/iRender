@@ -4428,3 +4428,143 @@ fn resizable_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Code: the highlighter's tokens, line numbers and marked lines, copying, code from
+/// state; the JSON editor's checks and messages, the value to state while valid, the
+/// keys, Format, `type`, and changes to state from outside.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn code_block_and_json_editor_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "cfg": { "a": 1, "list": [true, null] }, "ok": null, "src": "let x = 1;" },
+        "root": { "type": "element", "children": [
+            { "type": "ui-code-block", "attrs": { "id": "rs" }, "props": { "language": "rust", "title": "main.rs", "lineNumbers": true, "highlight": [1, "3-4"],
+                "code": "// hi\nfn main() {\n    let s = \"x\";\n    println!(\"{}\", 42);\n}\n" } },
+            { "type": "ui-code-block", "attrs": { "id": "st" }, "props": { "language": "json", "code": "{{ cfg }}", "copy": false } },
+            { "type": "ui-code-block", "attrs": { "id": "js" }, "props": { "language": "js", "code": "{{ src }}" } },
+            { "type": "ui-json-editor", "attrs": { "id": "ed" }, "props": { "bind": "cfg", "bindValid": "ok", "type": "object", "label": "Config" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const C = window.__irenderCode;
+      const toks = (sel) => [...document.querySelectorAll(`${sel} [data-t]`)].map((t) => t.dataset.t + ":" + t.textContent).join(" ");
+      try {
+        // ---- the highlighter
+        log("rust", toks("#rs"));
+        log("lines", [...document.querySelectorAll("#rs [data-ln]")].map((l, i) => (l.hasAttribute("data-hl") ? "*" : "") + (i + 1)).join(","), document.querySelector("#rs").hasAttribute("data-numbered"), document.querySelector("#rs pre").getAttribute("aria-label"));
+        log("json", C.lines('{"k": [1.5e3, "v", true, null]} // c', "json").join("|"));
+        log("multi", C.lines("a /* one\ntwo */ b", "js").join("|"));
+        log("yaml", C.lines("name: x # note\n- id: 3\n  on: yes", "yaml").join("|"));
+        log("sql", C.lines("SELECT id FROM t WHERE n > 2 -- x", "sql").join("|"));
+        log("html", C.lines('<a href="/x">hi</a>', "html").join("|"));
+        log("plain", C.lines("<b>&", "nope").join("|"));
+        // ---- code from state
+        log("state", document.querySelector("#st code").textContent.replace(/\s+/g, " "), document.querySelector("#st [data-code-copy]"));
+        root.__irender.set("src", "const y = f(2);"); await wait(0);
+        log("follows", toks("#js"));
+        // ---- copying
+        let copied = null;
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { copied = t; } } });
+        const btn = document.querySelector("#rs [data-code-copy]");
+        btn.click(); await wait(0); await wait(0);
+        log("copy", JSON.stringify(copied), btn.getAttribute("aria-label"), btn.hasAttribute("data-copied"), document.querySelector("#rs [data-code-live]").textContent);
+
+        // ---- the JSON reader's messages
+        for (const t of ['{"a": 1,}', "{a: 1}", "{'a': 1}", '{"a" 1}', '[1 2]', '{"a": "x', '{"a": 01}', '"\\q"', "", "  ", '{"a": tru}', '[1]]']) {
+          const e = C.check(t); log("check", JSON.stringify(t), e ? `${e.line}:${e.column} ${e.message}` : "ok");
+        }
+        log("check", JSON.stringify('{\n  "a": [\n    1,\n  ]\n}'), (({ line, column, message }) => `${line}:${column} ${message}`)(C.check('{\n  "a": [\n    1,\n  ]\n}')));
+
+        // ---- the editor
+        const E = document.querySelector("[data-i-x=ui-json-editor]"), ta = E.querySelector("textarea");
+        const err = () => E.querySelector("[data-je-error]").textContent || "-";
+        const bad = () => [...E.querySelectorAll("[data-je-gutter] [data-err]")].map((s) => s.textContent).join(",") || "-";
+        const now = () => `${JSON.stringify(S().cfg)} ok=${S().ok} invalid=${E.hasAttribute("data-invalid")} aria=${ta.getAttribute("aria-invalid")} err=${err()} line=${bad()}`;
+        const type = (text) => { ta.value = text; ta.dispatchEvent(new Event("input", { bubbles: true })); };
+        log("editor", ta.getAttribute("aria-label"), JSON.stringify(ta.value), E.querySelectorAll("[data-je-gutter] span").length, E.querySelector("[data-je-status]").textContent, S().ok);
+        log("ids", ta.getAttribute("aria-describedby").split(" ").every((id) => document.getElementById(id)));
+        type('{"a": 2}'); await wait(0); log("valid", now());
+        type('{"a": 2,\n "b": }'); await wait(0); log("typing", now());
+        await wait(700); log("paused", now());
+        type('{"a": 3}'); await wait(0); log("fixed", now());
+        type("[1, 2]"); ta.dispatchEvent(new Event("blur")); await wait(0); log("type", now());
+        // Format, from a valid text and from an invalid one.
+        type('{"b":[1,{"c":null}],"a":"x"}'); await wait(0);
+        E.querySelector("[data-je-format]").click(); await wait(0);
+        log("format", JSON.stringify(ta.value), S().ok, E.querySelectorAll("[data-je-gutter] span").length);
+        type('{\n  "a": 1\n  "b": 2\n}'); E.querySelector("[data-je-format]").click(); await wait(0);
+        log("format bad", now(), ta.selectionStart, document.activeElement === ta);
+        // The keys: Tab indents, Shift+Tab takes it back, Enter keeps the indent and opens brackets.
+        ta.focus(); type("{}"); ta.setSelectionRange(1, 1);
+        const key = (k, shift) => ta.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: !!shift, bubbles: true, cancelable: true }));
+        key("Enter"); log("enter", JSON.stringify(ta.value), ta.selectionStart);
+        key("Tab"); log("tab", JSON.stringify(ta.value));
+        key("Tab", true); log("shift-tab", JSON.stringify(ta.value), ta.selectionStart);
+        const before = ta.value; key("Escape"); const leave = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }); ta.dispatchEvent(leave);
+        log("escape, tab", leave.defaultPrevented, ta.value === before);
+        // State changed from outside: shown formatted.
+        root.__irender.set("cfg", { z: [1] }); await wait(0);
+        log("outside", JSON.stringify(ta.value), now(), toks("#st"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("code", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "rust c:// hi k:fn f:main k:let s:\"x\" f:println! s:\"{}\" n:42",
+            "lines *1,2,*3,*4,5 true main.rs",
+            // The highlighter, a language at a time; a token over lines is closed and reopened.
+            "json {&lt;span data-t=\"p\"&gt;\"k\"&lt;/span&gt;: [&lt;span data-t=\"n\"&gt;1.5e3&lt;/span&gt;, &lt;span data-t=\"s\"&gt;\"v\"&lt;/span&gt;, &lt;span data-t=\"l\"&gt;true&lt;/span&gt;, &lt;span data-t=\"l\"&gt;null&lt;/span&gt;]} &lt;span data-t=\"c\"&gt;// c&lt;/span&gt;",
+            "multi a &lt;span data-t=\"c\"&gt;/* one&lt;/span&gt;|&lt;span data-t=\"c\"&gt;two */&lt;/span&gt; b",
+            "yaml &lt;span data-t=\"p\"&gt;name&lt;/span&gt;: x &lt;span data-t=\"c\"&gt;# note&lt;/span&gt;|- &lt;span data-t=\"p\"&gt;id&lt;/span&gt;: &lt;span data-t=\"n\"&gt;3&lt;/span&gt;|  &lt;span data-t=\"p\"&gt;on&lt;/span&gt;: &lt;span data-t=\"l\"&gt;yes&lt;/span&gt;",
+            "sql &lt;span data-t=\"k\"&gt;SELECT&lt;/span&gt; id &lt;span data-t=\"k\"&gt;FROM&lt;/span&gt; t &lt;span data-t=\"k\"&gt;WHERE&lt;/span&gt; n &gt; &lt;span data-t=\"n\"&gt;2&lt;/span&gt; &lt;span data-t=\"c\"&gt;-- x&lt;/span&gt;",
+            "html &lt;span data-t=\"t\"&gt;&lt;a&lt;/span&gt; &lt;span data-t=\"a\"&gt;href&lt;/span&gt;=&lt;span data-t=\"s\"&gt;\"/x\"&lt;/span&gt;&lt;span data-t=\"t\"&gt;&gt;&lt;/span&gt;hi&lt;span data-t=\"t\"&gt;&lt;/a&lt;/span&gt;&lt;span data-t=\"t\"&gt;&gt;&lt;/span&gt;",
+            "plain &lt;b&gt;&amp;",
+            // Code from state, shown as JSON, and following it.
+            "state { \"a\": 1, \"list\": [ true, null ]} ",
+            "follows k:const f:f n:2",
+            "copy \"// hi\\nfn main() {\\n    let s = \\\"x\\\";\\n    println!(\\\"{}\\\", 42);\\n}\" Copied true Copied to the clipboard",
+            // The JSON reader: where and why, the same in every browser.
+            "check \"{\\\"a\\\": 1,}\" 1:8 Trailing comma before '}'",
+            "check \"{a: 1}\" 1:2 Keys need double quotes",
+            "check \"{'a': 1}\" 1:2 Keys take double quotes",
+            "check \"{\\\"a\\\" 1}\" 1:6 Expected ':' after the key, found '1'",
+            "check \"[1 2]\" 1:4 Expected ',' or ']', found '2'",
+            "check \"{\\\"a\\\": \\\"x\" 1:7 Unterminated string",
+            "check \"{\\\"a\\\": 01}\" 1:8 Invalid number",
+            "check \"\\\"\\\\q\\\"\" 1:2 Bad escape \\q",
+            "check \"\" 1:1 Enter a JSON value",
+            "check \"  \" 1:3 Enter a JSON value",
+            "check \"{\\\"a\\\": tru}\" 1:7 Unknown value 'tru': text takes double quotes",
+            "check \"[1]]\" 1:4 Unexpected ']' after the value",
+            "check \"{\\n  \\\"a\\\": [\\n    1,\\n  ]\\n}\" 3:6 Trailing comma before ']'",
+            // The editor: errors wait for a pause in the typing (or a blur); fixes show at once.
+            "editor Config \"{\\n  \\\"a\\\": 1,\\n  \\\"list\\\": [\\n    true,\\n    null\\n  ]\\n}\" 7 Valid JSON true",
+            "ids true",
+            "valid {\"a\":2} ok=true invalid=false aria=false err=- line=-",
+            "typing {\"a\":2} ok=false invalid=false aria=false err=- line=-",
+            "paused {\"a\":2} ok=false invalid=true aria=true err=Line 2, column 7: Unexpected '}' line=2",
+            "fixed {\"a\":3} ok=true invalid=false aria=false err=- line=-",
+            "type {\"a\":3} ok=false invalid=true aria=true err=Line 1, column 1: Expected an object, found an array line=1",
+            // Format; on invalid text it shows the error and puts the caret there.
+            "format \"{\\n  \\\"b\\\": [\\n    1,\\n    {\\n      \\\"c\\\": null\\n    }\\n  ],\\n  \\\"a\\\": \\\"x\\\"\\n}\" true 9",
+            "format bad {\"b\":[1,{\"c\":null}],\"a\":\"x\"} ok=false invalid=true aria=true err=Line 3, column 3: Expected ',' or '}', found '\"' line=3 13 true",
+            // Enter keeps the indent and opens a bracket; Tab and Shift+Tab; Escape lets Tab leave.
+            "enter \"{\\n  \\n}\" 4",
+            "tab \"{\\n    \\n}\"",
+            "shift-tab \"{\\n  \\n}\" 4",
+            "escape, tab false true",
+            // State changed from outside: shown formatted.
+            "outside \"{\\n  \\\"z\\\": [\\n    1\\n  ]\\n}\" {\"z\":[1]} ok=true invalid=false aria=false err=- line=- p:\"z\" n:1",
+        ],
+        "\n{result}"
+    );
+}

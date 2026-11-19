@@ -450,6 +450,28 @@ ui-resizable-panel: One panel of a `ui-resizable`: its children, at its size. Re
   collapsible  bool  Can fold to nothing: dragged under half its `min`, or Enter on its handle
   label        any  Its name, read with the handle before it
   children: yes
+ui-code-block: Code, highlighted, with line numbers, marked lines and a copy button. `code` can come from state: an object shows as JSON.
+  code         any (required)  The code. Anything not a string (an object from state, say) shows as JSON
+  language     string  json, yaml, js (ts), rust, python, bash, html, css, sql or text (the default)
+  title        any  A file name or caption in the bar above
+  lineNumbers  bool  Numbers the lines
+  highlight    any  Lines to mark: numbers and ranges, e.g. `[2, "5-7"]`
+  copy         bool  A copy button (default true)
+  wrap         bool  Wraps long lines instead of scrolling
+  maxHeight    any  Scrolls past this height
+  label        any  Names the code for screen readers (default: the title, or `Code`)
+  parts: head, pre, copy
+  children: no
+ui-json-editor: A JSON editor: highlighted, with line numbers, a check as you type that marks the line in error, and Format. The value goes to `bind` while the text is valid.
+  bind         statekey (required)  State key for the value: written while the text is valid JSON, shown formatted when it changes from outside
+  bindValid    statekey  State key set to whether the text is valid
+  type         string  What the value must be: `object`, `array` or `any` (the default)
+  rows         number  Lines tall (default 10)
+  indent       number  Spaces per indent for Tab and Format (default 2)
+  label        any  Names the editor (default `JSON`); a `ui-field` around it names it too
+  format       bool  A Format button (default true)
+  parts: bar, textarea, error
+  children: no
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

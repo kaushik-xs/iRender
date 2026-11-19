@@ -101,6 +101,8 @@ state:
   railSection: messages
   railOpen: true
   panes: [25, 75]
+  hookPayload: { event: order.paid, retries: 3, notify: [ops, finance] }
+  hookOk: true
   notes:
     - { id: 1, title: Meera commented on INV002, body: "Customer asked for the PO number on the next one.", who: Meera Iyer, when: 5 min ago }
     - { id: 2, title: Payment failed for INV007, body: "Card declined. We'll retry tomorrow.", when: 1 h ago, tone: danger }
@@ -941,6 +943,34 @@ root:
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
+            # ---------------------------------------------------------------- json-editor
+            - type: element
+              props: { tag: section }
+              attrs: { id: json-editor, aria-labelledby: json-editor-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.json_editor }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(300px, 1fr))", max-width: 900, align-items: start }
+                  children:
+                    - type: ui-field
+                      props: { label: Webhook payload, description: "Try a trailing comma, or a key without quotes. Tab indents; Format tidies it up." }
+                      children: [ { type: ui-json-editor, props: { bind: hookPayload, bindValid: hookOk, type: object, rows: 8 } } ]
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - { type: ui-label, props: { text: "{{ hookOk ? 'In state' : 'In state (the last valid value)' }}" } }
+                        - { type: ui-code-block, props: { code: "{{ hookPayload }}", language: json, copy: false } }
+                - { type: if, props: { when: "{{ api.json_editor.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.json_editor }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
             # ---------------------------------------------------------------- date-picker
             - type: element
               props: { tag: section }
@@ -1535,6 +1565,40 @@ root:
                 - { type: if, props: { when: "{{ api.timeline.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.timeline }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- code-block
+            - type: element
+              props: { tag: section }
+              attrs: { id: code-block, aria-labelledby: code-block-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.code_block }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: flex, flex-direction: column, gap: 16, max-width: 760 }
+                  children:
+                    - type: ui-code-block
+                      props:
+                        title: hello.yaml
+                        language: yaml
+                        lineNumbers: true
+                        highlight: ["4-5"]
+                        code: "version: 1\nstate: { name: \"\" }\nroot:\n  type: ui-card\n  props: { title: Welcome }\n  children:\n    - { type: ui-input, props: { bind: name } }"
+                    - { type: ui-code-block, props: { language: bash, code: "cargo install irender-cli\nirender render hello.yaml --ui-kit -o hello.html  # writes the page" } }
+                    - type: ui-code-block
+                      props:
+                        title: chart.js
+                        language: js
+                        maxHeight: 160
+                        code: "// Totals by month, from the rows.\nexport function totals(rows) {\n  const out = new Map();\n  for (const r of rows) {\n    const k = r.date.slice(0, 7);\n    out.set(k, (out.get(k) ?? 0) + r.amount);\n  }\n  return [...out].map(([month, total]) => ({ month, total }));\n}"
+                - { type: if, props: { when: "{{ api.code_block.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.code_block }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

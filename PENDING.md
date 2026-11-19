@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a JSON editor, quarter filters, and dragging events in the calendar.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: quarter filters, and dragging events in the calendar.
 
 ## Gaps you'd hit in real use
 
@@ -50,7 +50,7 @@ _Last updated: 2026-11-18._
   - [x] **Number and currency input** (2026-11-18): `ui-number-input`, grouped as typed in the locale's way, with a currency symbol, prefix or suffix, steps and clamping.
   - [x] **Sidebar icon rail** (2026-11-19): `ui-rail-layout` + `ui-rail-panel`, a rail of icons each opening its own panel, with the section and the panel's open state in state (block workspace-01, gallery section). No drag to resize the panel, and the rail can't be on the right.
   - [x] **Resizable panels** (2026-11-19): `ui-resizable` + `ui-resizable-panel`, dragging and the keys, limits, collapsible panels, sizes in state (block mail-01, gallery section). Sizes are percentages only (no fixed px panel), and the rail layout's panel doesn't use it yet.
-  - [ ] **Smaller pieces still to do:** a JSON/code editor with validation.
+  - [x] **Code block and JSON editor** (2026-11-19): `ui-code-block` (highlighting for ten languages, line numbers, marked lines, copy) and `ui-json-editor` (checks as you type with line, column and reason, Format, value to state while valid). In docs-01 and the settings block's Webhooks. Not done: a general code editor (other languages, a schema to check JSON against, folding), and the highlighter is a tokenizer, so nested languages (JS in HTML) stay plain.
 - [x] **Keyboard-driven components** (2026-11-18): data table, date picker, context menu, menubar, navigation menu, one-time-code input.
 - [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
@@ -91,7 +91,7 @@ _Last updated: 2026-11-18._
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
-- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), item, code block, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
+- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), item, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.
   - [ ] Quoting, leaving a quote or code block, and ticking a task change the page directly, so ⌘Z doesn't undo them; the other edits go through the browser's editing and undo.

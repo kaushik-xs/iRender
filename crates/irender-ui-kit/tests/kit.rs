@@ -50,6 +50,8 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-number-input", json!({ "bind": "k" })),
         ("ui-notifications", json!({ "items": [] })),
         ("ui-rail-layout", json!({ "bind": "k", "items": [] })),
+        ("ui-code-block", json!({ "code": "" })),
+        ("ui-json-editor", json!({ "bind": "k" })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -120,7 +122,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 111);
+    assert_eq!(kit, 113);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1501,4 +1503,45 @@ fn resizable_sizes_and_mistakes() {
     assert!(err(group(json!({}), vec![panel(json!({ "min": 50, "max": 20 })), panel(json!({}))])).contains("`min` no more than `max`"));
     assert!(err(group(json!({}), vec![panel(json!({ "size": 0 })), panel(json!({ "size": 0 }))])).contains("add up to nothing"));
     assert!(err(panel(json!({}))).contains("must be a direct child of `ui-resizable`"));
+}
+
+#[test]
+fn code_block_and_json_editor_markup_and_mistakes() {
+    // The server draws plain lines: they read without the script.
+    let page = render_with(json!({ "type": "ui-code-block", "props": { "code": "a < b\n\nc\n", "language": "js", "title": "x.js", "lineNumbers": true, "highlight": ["2-3"] } }), json!({}), json!({})).unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"<figure data-numbered"#), "{body}");
+    assert!(body.contains(r#"<figcaption data-code-head><span data-code-title>x.js</span><span data-code-lang>js</span><button type="button" data-code-copy aria-label="Copy code" title="Copy">"#), "{body}");
+    assert!(body.contains(r#"<pre tabindex="0" aria-label="x.js"><code data-code-body><span data-ln>a &lt; b</span><span data-ln data-hl></span><span data-ln data-hl>c</span></code></pre><span data-code-live aria-live="polite"></span></figure>"#), "{body}");
+    // An object shows as JSON; with no title or language, no bar, and the button alone.
+    let body = plain(&render_with(json!({ "type": "ui-code-block", "props": { "code": "{{ v }}" } }), json!({ "v": { "a": [1] } }), json!({})).unwrap().body);
+    assert!(body.contains(r#"<figure data-i-x="ui-code-block""#) && body.contains(r#"<button type="button" data-code-copy"#) && !body.contains("figcaption"), "{body}");
+    assert!(body.contains(r#"<span data-ln>{</span><span data-ln>  &quot;a&quot;: [</span><span data-ln>    1</span><span data-ln>  ]</span><span data-ln>}</span>"#) || body.contains(r#"<span data-ln>  "a": [</span>"#), "{body}");
+
+    // The editor: state's value, formatted with the indent asked for.
+    let body = plain(&render_with(json!({ "type": "ui-json-editor", "props": { "bind": "v", "indent": 4 } }), json!({ "v": { "a": [1] } }), json!({})).unwrap().body);
+    assert!(body.contains("{\n    &quot;a&quot;: [\n        1\n    ]\n}</textarea>") || body.contains("{\n    \"a\": [\n        1\n    ]\n}</textarea>"), "{body}");
+    assert!(body.contains(r#"aria-describedby="json-root-error json-root-hint" aria-invalid="false" aria-label="JSON""#), "{body}");
+    assert!(body.contains(r#"<div data-je-gutter><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>"#), "{body}");
+    assert!(body.contains(r#"<p data-je-error id="json-root-error" aria-live="polite"></p>"#), "{body}");
+    // In a field, the field names it.
+    let body = plain(&render_with(json!({ "type": "ui-field", "props": { "label": "Payload" }, "children": [ { "type": "ui-json-editor", "props": { "bind": "v" } } ] }), json!({ "v": null }), json!({})).unwrap().body);
+    assert!(body.contains(r#"<label for="field-root-control">Payload</label>"#) && body.contains(r#"<textarea id="field-root-control""#) && !body.contains(r#"aria-label="JSON""#), "{body}");
+
+    let err = |root: Json| render_with(root, json!({ "v": null }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "type": "ui-code-block", "props": { "code": "x", "language": "cobol" } })).contains("`cobol` isn't one the highlighter knows"));
+    assert!(err(json!({ "type": "ui-code-block", "props": { "code": "x", "highlight": ["4-2"] } })).contains("isn't a line number or a range"));
+    assert!(err(json!({ "type": "ui-json-editor", "props": { "bind": "v", "type": "string" } })).contains("`object`, `array` or `any`"));
+    assert!(err(json!({ "type": "ui-json-editor", "props": { "bind": "v", "rows": 1 } })).contains("`rows` must be from 2 to 200"));
+}
+
+#[test]
+fn button_variant_from_state() {
+    // A variant that reads state carries every look, picked by `data-variant`.
+    let page = render_with(json!({ "type": "ui-button", "props": { "label": "A", "variant": "{{ on ? 'secondary' : 'ghost' }}" } }), json!({ "on": true }), json!({})).unwrap();
+    assert!(plain(&page.body).contains(r#"data-variant="secondary""#), "{}", page.body);
+    assert!(page.css.contains("[data-variant=ghost]") && page.css.contains("[data-variant=secondary]"), "{}", page.css);
+    // A fixed one doesn't.
+    let page = render_with(json!({ "type": "ui-button", "props": { "label": "A", "variant": "ghost" } }), json!({}), json!({})).unwrap();
+    assert!(!page.body.contains("data-variant") && !page.css.contains("[data-variant="), "{}", page.body);
 }

@@ -115,6 +115,17 @@
    ]
   },
   {
+   "id": "json-editor",
+   "group": "Forms",
+   "title": "JSON editor",
+   "nav": "JSON editor",
+   "summary": "A JSON text area for payloads and advanced settings: highlighted, with line numbers, checked as you type with the line and a plain reason for any error, and Format. The value reaches state only while the text is valid.",
+   "usage": "- type: ui-field\n  props: { label: Payload }\n  children:\n    - { type: ui-json-editor, props: { bind: payload, bindValid: payloadOk, type: object } }",
+   "components": [
+    "ui-json-editor"
+   ]
+  },
+  {
    "id": "date-picker",
    "group": "Forms",
    "title": "Date picker and calendar",
@@ -261,6 +272,17 @@
    "components": [
     "ui-timeline",
     "ui-timeline-item"
+   ]
+  },
+  {
+   "id": "code-block",
+   "group": "Data display",
+   "title": "Code block",
+   "nav": "Code block",
+   "summary": "Code, highlighted, with line numbers, marked lines and a copy button. The code can come from state: an object shows as JSON.",
+   "usage": "- type: ui-code-block\n  props: { language: yaml, title: hello.yaml, lineNumbers: true, highlight: [\"3-4\"], code: \"...\" }",
+   "components": [
+    "ui-code-block"
    ]
   },
   {

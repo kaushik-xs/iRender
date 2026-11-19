@@ -84,6 +84,11 @@ static BUTTON_VARIANT_STYLES: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
     ]
 });
 
+/// Every variant, picked by `data-variant`: for a `variant` that follows state.
+static BUTTON_ANY_VARIANT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    BUTTON_VARIANTS.iter().zip(BUTTON_VARIANT_STYLES.iter()).fold(StyleBlock::new(), |b, (name, look)| b.nest(format!("&[data-variant={name}]"), look.clone()))
+});
+
 static BUTTON_SIZE_STYLES: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     [
         StyleBlock::from_pairs(&[("height", sp!(36)), ("padding", sp!(0, 16))]),
@@ -139,7 +144,16 @@ impl Component for Button {
         let href = node.prop("href");
         let tag = if href.is_some() { "a" } else { "button" };
         let mut el = cx.element(tag, node);
-        el.base_style_ref(&BUTTON).base_style_ref(&BUTTON_VARIANT_STYLES[variant]).base_style_ref(size);
+        el.base_style_ref(&BUTTON).base_style_ref(size);
+        match node.prop("variant") {
+            // Following state: every look, and the attribute that picks one.
+            Some(v) if cx.is_reactive(v) => {
+                el.base_style_ref(&BUTTON_ANY_VARIANT).attr("data-variant", v.clone());
+            }
+            _ => {
+                el.base_style_ref(&BUTTON_VARIANT_STYLES[variant]);
+            }
+        }
         match href {
             Some(h) => {
                 el.attr("href", h.clone());

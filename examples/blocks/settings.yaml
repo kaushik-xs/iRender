@@ -1,6 +1,7 @@
 # Block: account settings with a section menu and a form per section, in the style of
 # shadcn/ui's settings forms. Sections switch in the browser; saving shows a toast,
-# and deleting the account asks first.
+# and deleting the account asks first. Webhooks has a JSON editor for the request's
+# payload, checked as you type, beside the request it sends.
 #
 #   cargo run -p irender-cli -- render examples/blocks/settings.yaml --ui-kit --icon-kit -o settings.html
 version: 1
@@ -20,6 +21,9 @@ state:
   mobile: false
   shown: [recents, home]
   confirmDelete: ""
+  hookUrl: https://example.com/hooks/orders
+  payload: { event: "{{event}}", order: "{{order.id}}", total: "{{order.total}}", currency: INR, test: false }
+  payloadOk: true
 root:
   type: element
   style:
@@ -58,6 +62,7 @@ root:
                       - { id: appearance, label: Appearance, icon: eye }
                       - { id: notifications, label: Notifications, icon: bell }
                       - { id: display, label: Display, icon: grid }
+                      - { id: webhooks, label: Webhooks, icon: link }
                   style: { display: contents }
                   children:
                     - type: ui-button
@@ -274,5 +279,39 @@ root:
                           props: { label: Update display, disabled: "{{ shown.length == 0 }}" }
                           style: { align-self: flex-start }
                           on: { click: { action: set_state, key: toast, value: { title: Display updated } } }
+
+                # ---------------------------------------------------- webhooks
+                - type: if
+                  props: { when: "{{ section == 'webhooks' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 24 }
+                      children:
+                        - type: stack
+                          props: { gap: 4 }
+                          children:
+                            - { type: ui-heading, props: { level: 4, text: Webhooks } }
+                            - { type: ui-text, props: { variant: muted, text: "Send a request to your server when an order is placed. Placeholders in braces are filled in for each order." } }
+                        - { type: ui-separator }
+                        - type: ui-field
+                          props: { label: Endpoint URL, for: hook-url }
+                          children: [ { type: ui-input, props: { bind: hookUrl, type: url }, attrs: { id: hook-url } } ]
+                        - type: ui-field
+                          props: { label: Payload, description: "A JSON object. Tab indents; Format tidies it up.", error: "{{ payloadOk ? '' : 'Fix the JSON before saving.' }}" }
+                          children: [ { type: ui-json-editor, props: { bind: payload, bindValid: payloadOk, type: object, rows: 9 } } ]
+                        - type: stack
+                          props: { gap: 8 }
+                          children:
+                            - { type: ui-label, props: { text: The request } }
+                            - type: ui-code-block
+                              props:
+                                language: bash
+                                title: curl
+                                code: "curl -X POST {{ hookUrl }} \\\n  -H 'Content-Type: application/json' \\\n  -d '{{ payload }}'"
+                                wrap: true
+                        - type: ui-button
+                          props: { label: Save webhook, disabled: "{{ !payloadOk }}" }
+                          style: { align-self: flex-start }
+                          on: { click: { action: set_state, key: toast, value: { title: Webhook saved } } }
 
     - { type: ui-toaster, props: { bind: toast } }
