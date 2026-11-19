@@ -236,3 +236,24 @@ fn live_sources_must_pass_the_policy() {
     let page = render_on(&untrusted, ok, json!({}), json!({})).unwrap();
     assert_eq!(configs(&page)[0]["props"]["live"]["url"], "/api/live");
 }
+
+#[test]
+fn a_gantt_starts_as_tall_as_its_rows_and_grows_in_the_browser() {
+    let rows = json!([{ "name": "a", "start": "2026-01-05", "end": "2026-01-09" }, { "name": "b", "start": "2026-01-12" }]);
+    let tall = |props: Json| {
+        let page = render_with(json!({ "type": "ui-chart", "props": props }), json!({}), json!({})).unwrap();
+        let rule = page.css.split("height:").nth(1).map(|h| h[..h.find(';').unwrap_or(h.len())].trim().trim_end_matches('}').to_string());
+        (rule, configs(&page).remove(0)["autoHeight"].clone())
+    };
+    // A heading band, two rows of 34px, and the foot.
+    assert_eq!(tall(json!({ "type": "gantt", "data": rows })), (Some("124px".into()), json!(true)));
+    // Room for the legend or zoom buttons, the lines' names and the slider.
+    assert_eq!(
+        tall(json!({ "type": "gantt", "data": rows, "series": "team", "markers": ["2026-01-07"], "zoom": "slider" })),
+        (Some("206px".into()), json!(true))
+    );
+    // Rows from the starting state count too; a set height stays.
+    let page = render_with(json!({ "type": "ui-chart", "props": { "type": "gantt", "data": "{{ rows }}" } }), json!({ "rows": rows }), json!({})).unwrap();
+    assert!(page.css.contains("height: 124px"), "{}", page.css);
+    assert_eq!(tall(json!({ "type": "gantt", "data": rows, "height": 200 })), (Some("200px".into()), json!(false)));
+}

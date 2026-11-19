@@ -101,6 +101,7 @@ fn sample(t: &str) -> Json {
         "treemap" | "sunburst" => json!({ "data": [{ "name": "a", "value": 3 }, { "name": "b", "children": [{ "name": "c", "value": 2 }] }] }),
         "sankey" | "graph" | "chord" => json!({ "links": [{ "source": "a", "target": "b", "value": 2 }, { "source": "b", "target": "c", "value": 1 }] }),
         "themeRiver" => json!({ "data": [{ "w": "2026-01-05", "a": 1, "b": 2 }, { "w": "2026-01-12", "a": 3, "b": 1 }] }),
+        "gantt" => json!({ "data": [{ "name": "a", "start": "2026-01-05", "end": "2026-01-09" }, { "name": "b", "start": "2026-01-12" }] }),
         _ => json!({ "data": rows }),
     }
 }
@@ -141,6 +142,7 @@ fn charts_in_chrome() {
         match t {
             "area" => "line",
             "donut" => "pie",
+            "gantt" => "custom",
             t => t,
         }
     }
@@ -210,6 +212,97 @@ fn charts_in_chrome() {
         "loading true",
         "hidden false true",
         "shown true true 1,2",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
+/// A gantt: the table's rows and labels, bars by series, arrows, groups that close,
+/// the height that follows the rows, a click on a bar, zoom buttons and lines down.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1,
+        "state": { "row": null, "toggles": 0, "tasks": [
+            { "id": "p", "name": "Plan", "owner": "Asha" },
+            { "id": "a", "group": "p", "name": "Brief", "team": "Product", "owner": "Asha", "start": "2026-03-02", "end": "2026-03-06", "progress": 100 },
+            { "id": "b", "group": "p", "name": "Interviews", "team": "Design", "start": "2026-03-04", "end": "2026-03-13", "progress": 50 },
+            { "id": "m", "group": "p", "name": "Signed off", "start": "2026-03-16", "milestone": true, "after": ["a", "b"] },
+            { "id": "c", "name": "Build <b>it</b>", "team": "Engineering", "start": "2026-03-16", "end": "2026-03-27", "after": "m" },
+            { "id": "q", "name": "Later", "collapsed": true },
+            { "id": "d", "group": "q", "name": "Hidden", "team": "Product", "start": "2026-03-30", "end": "2026-04-03", "after": "c" } ] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-chart", "attrs": { "id": "g" },
+              "props": { "type": "gantt", "data": "{{ tasks }}", "series": "team", "zoom": true, "bindRow": "row",
+                         "columns": ["name", { "field": "owner", "name": "Owner", "width": 80 }],
+                         "markers": [{ "at": "2026-03-20", "name": "Freeze" }] },
+              "on": { "toggle": { "action": "set_state", "key": "toggles", "value": "{{ toggles + 1 }}" } } } ] } });
+    let body = r##"
+    await ready(["g"]);
+    const o = () => opt("g"), rows = () => o().yAxis[0].data.length;
+    const fmt = (i) => o().yAxis[0].axisLabel.formatter(String(i));
+    log("rows", rows(), el("g").style.height);
+    log("labels", fmt(0), fmt(1), fmt(5));
+    const bars = o().series.filter((s) => s.type === "custom" && s.encode?.x?.length === 2 && s.id !== "links");
+    log("series", bars.map((s) => s.name + ":" + s.data.length).join(" "));
+    log("legend", o().legend[0].data.join(","));
+    log("links", o().series.find((s) => s.id === "links").data.length);
+    log("marks", o().series.find((s) => s.id === "rows").markLine.data.map((m) => m.name).join(","));
+    const tip = o().tooltip[0].formatter({ data: bars.find((s) => s.name === "Engineering").data[0] });
+    log("tip", tip);
+    const brief = bars.find((s) => s.name === "Product").data[0].value;
+    log("brief", brief[0], new Date(brief[1]).getDate(), new Date(brief[2]).getDate(), brief[3], brief[4]);
+    const plan = o().series.find((s) => s.name === "Groups").data[0].value;
+    log("plan", plan[0], new Date(plan[1]).getDate(), new Date(plan[2]).getDate(), plan[3].toFixed(2), plan[4]);
+
+    // Real clicks on the canvas.
+    const g = chart("g"), canvas = el("g").querySelector("canvas");
+    const click = async (x, y) => {
+      const r = canvas.getBoundingClientRect(), at = { bubbles: true, clientX: r.left + x, clientY: r.top + y };
+      for (const type of ["mousemove", "mousedown", "mouseup", "click"]) canvas.dispatchEvent(new MouseEvent(type, at));
+      await wait(50);
+    };
+    const rowY = (i) => g.convertToPixel({ yAxisIndex: 0 }, String(i));
+
+    // Closing the first group by its name: its tasks go, and the arrow from them
+    // starts at the group.
+    await click(20, rowY(0));
+    log("closed", rows(), fmt(0), S().toggles, el("g").style.height);
+    log("links closed", JSON.stringify(o().series.find((s) => s.id === "links").data.map((l) => [l[0], l[2]])));
+
+    // A click on Build's bar picks its row.
+    const c = o().series.find((s) => s.name === "Engineering").data[0].value;
+    await click(g.convertToPixel({ xAxisIndex: 0 }, (c[1] + c[2]) / 2), rowY(c[0]));
+    log("picked", S().row && S().row.id);
+
+    // The zoom buttons halve and double the window, and show it all.
+    const zoom = () => { const z = o().dataZoom[0]; return Math.round(z.end - z.start); };
+    const w = el("g").clientWidth;
+    for (const [id, right] of [["zoom-in", 42], ["zoom-in", 42], ["zoom-out", 72], ["zoom-all", 12]]) {
+      await click(w - right - 13, 15);
+      log(id, zoom());
+    }
+"##;
+    let Some(lines) = run("gantt", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        "rows 6 306px",
+        "labels {t01|▾ Plan}{c0|Asha} {t10|Brief}{c0|Asha} {t01|▸ Later}{c0|}",
+        "series Product:1 Design:1 :1 Engineering:1 Groups:2",
+        "legend Product,Design,Engineering",
+        "links 4",
+        "marks Freeze",
+        "tip <b>Build &lt;b&gt;it&lt;/b&gt;</b><br/>Mar 16, 2026 – Mar 27, 2026 · 12 days<br/>Engineering",
+        "brief 1 2 7 1 0",
+        "plan 0 2 16 0.67 1",
+        "closed 3 {t01|▸ Plan}{c0|Asha} 1 204px",
+        "links closed [[0,1],[1,2]]",
+        "picked c",
+        "zoom-in 50",
+        "zoom-in 25",
+        "zoom-out 50",
+        "zoom-all 100",
     ];
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }

@@ -64,7 +64,8 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `option` | An [ECharts option](https://echarts.apache.org/en/option.html), merged over the shorthand's. Arrays of objects (`series`, `xAxis`, …) merge by position, like ECharts' own merge. Data arrays are replaced. |
 | `stack`, `smooth`, `horizontal`, `labels` | Shorthand switches. |
 | `legend`, `tooltip` | On or off. Default: a legend with two or more series, and a tooltip always. |
-| `height` | Number (px) or CSS length. Default 320. The width is the container's. |
+| `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows. The width is the container's. |
+| `columns`, `markers`, `today` | For a gantt; see [Gantt](#gantt). |
 | `loading` | Shows the loading mask, e.g. `{{ fetching }}`. |
 | `bind`, `bindRow`, `bindZoom`, `bindLegend`, `bindBrush`, `bindDrill` | State keys for what people do with the chart; see [Interactions as state](#interactions-as-state). |
 | `maps` | GeoJSON maps to register before drawing: `{ world: /geo/world.json }`. The URLs are checked against the policy. |
@@ -91,6 +92,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `sankey`, `graph`, `chord` | nodes (optional; a `category` field colours graph nodes) plus `links` | |
 | `themeRiver` | rows | date / one stream per field |
 | `parallel` | rows: one line each | / one axis per field; text fields become category axes |
+| `gantt` | rows: one task each | fixed fields; see [Gantt](#gantt) |
 
 Everything else goes in `option`: maps and `lines`, `custom` series, calendars, the `matrix` coordinate system, polar charts, `dataset` with transforms, `dataZoom`, `visualMap`, `markLine`, `graphic`, and 3D with echarts-gl. The gallery shows a calendar, polar bars and a sorted dataset written that way.
 
@@ -173,6 +175,45 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 - **Into the server:** react to `on: { change: … }` with a `submit` that fetches details `into` state.
 - **To another page:** `navigate` from `on.change`.
 - **Within a hierarchy:** `treemap` and `sunburst` zoom into a node when it's clicked.
+
+## Gantt
+
+`type: gantt` draws a plan: a table of tasks on the left and their bars on a timeline, dates along the top.
+
+```yaml
+- type: ui-chart
+  props:
+    type: gantt
+    data: "{{ tasks }}"
+    series: team                                   # colours, with a legend
+    columns: [name, { field: owner, name: Owner, width: 120 }]
+    markers: [{ at: "2026-12-21", name: Beta freeze }]
+    zoom: true
+    bindRow: task
+```
+
+Each row is a task with these fields. Any other field can be a column.
+
+| field | |
+|---|---|
+| `id` | What `group` and `after` refer to. Default: `name`. |
+| `name` | The task's name, in the first column. |
+| `start`, `end` | Dates (`2026-11-02`), timestamps or epoch milliseconds. A plain date as the `end` means the whole of that day. |
+| `group` | The `id` of the row this one sits under. A row with rows under it is a group: its bar spans them, its progress is theirs weighted by length, and clicking its name (or its bar) closes and opens it. `collapsed: true` on a group starts it closed. |
+| `progress` | 0 to 100. The part done is drawn solid, the rest faded. |
+| `after` | The `id` (or a list) of the tasks this one waits for. Each gets an arrow from its end to this task's start; an arrow to a hidden task goes to its closed group. |
+| `milestone` | `true`, or a `start` with no `end`: a diamond. |
+| `color` | This bar's colour, over the series colour. |
+
+- **`columns`**: the table's columns, each a field or `{ field, name, width, align }`. The first holds the names, indented under their groups. Default `[name]`. On a narrow chart the table takes at most half the width: the last columns go first, then the names get narrower.
+- **`series`**: a field to colour the bars by, with a legend that hides a series' bars.
+- **`markers`**: dated lines down the timeline, `[{ at, name, color }]`, named under it.
+- **`today`**: a line at today's date when it falls on the timeline. Default true.
+- **`zoom`**: `true` adds −, + and "show all" buttons. ⌘/Ctrl with the wheel zooms, dragging pans, and Shift with the wheel pans. `slider` or `both` adds a slider. `bindZoom` works as for other charts.
+- **Clicks:** `bind` and `bindRow` get the clicked task, and a group opening or closing fires `toggle` with `{ id, open, row }`.
+- **Height:** without `height`, the chart is as tall as its rows, and it grows and shrinks as groups open and close.
+
+The table is drawn on the canvas with the bars, so it can't be focused or read by a screen reader row by row. The chart's description says what it shows, and a `ui-data-table` of the same rows covers keyboard use.
 
 ## Interactions as state
 
@@ -285,6 +326,6 @@ Data values in tooltips are escaped by ECharts itself. Functions can only be one
 
 ```sh
 cargo test -p irender-chart-kit                                   # rendering and config
-cargo test -p irender-chart-kit --test browser -- --ignored       # in Chrome: every type, drill, filters, zoom, legend, brush, live data, theme, lifecycle
+cargo test -p irender-chart-kit --test browser -- --ignored       # in Chrome: every type, drill, filters, zoom, legend, brush, live data, theme, lifecycle, gantt
 ECHARTS=path/to/echarts.min.js cargo test -p irender-chart-kit --test browser -- --ignored   # offline
 ```

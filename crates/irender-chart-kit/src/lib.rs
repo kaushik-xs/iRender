@@ -96,7 +96,7 @@ pub fn register_with(registry: &mut Registry, kit: ChartKit) {
 pub const TYPES: &[&str] = &[
     "line", "area", "bar", "scatter", "effectScatter", "pictorialBar", "candlestick", "boxplot", "pie", "donut",
     "funnel", "radar", "heatmap", "gauge", "tree", "treemap", "sunburst", "sankey", "graph", "chord", "themeRiver",
-    "parallel",
+    "parallel", "gantt",
 ];
 
 const CHART_PROPS: &[PropDef] = &[
@@ -129,6 +129,13 @@ const CHART_PROPS: &[PropDef] = &[
         PropKind::Any,
         "Live data: `{ url, every, mode: append, window, key, params, paused, stream, pick, into, status }`",
     ),
+    PropDef::new(
+        "columns",
+        PropKind::Any,
+        "Gantt: the table's columns, a field or `{ field, name, width, align }`; the first holds the tree of names (default `[name]`)",
+    ),
+    PropDef::new("markers", PropKind::Any, "Gantt: dated lines down the timeline, `[{ at, name, color }]`"),
+    PropDef::new("today", PropKind::Bool, "Gantt: a line at today's date when it's on the timeline (default true)"),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
     PropDef::new("horizontal", PropKind::Bool, "Bars along the x axis"),
@@ -164,6 +171,7 @@ const SPARKLINE_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "legend", "tooltip", "loading",
+    "columns", "markers", "today",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.
@@ -244,13 +252,14 @@ impl Component for Chart {
             "maps": maps,
             "group": cx.prop_string(node, "group"),
             "title": cx.prop_string(node, "title"),
+            "autoHeight": !self.sparkline && node.prop("height").is_none(),
         });
         for key in BINDINGS {
             config[key] = cx.prop_string(node, key).into();
         }
         cx.global_js("ui-chart", SCRIPT);
 
-        let (height, width) = if self.sparkline { (40, "100%") } else { (320, "100%") };
+        let (height, width) = if self.sparkline { (40, "100%") } else { (gantt_height(node, cx).unwrap_or(320), "100%") };
         // A chart's geometry runs left to right on any page; its text still reads its own way.
         let mut sizing = StyleBlock::from_pairs(&[("position", "relative"), ("min-width", "0"), ("direction", "ltr")]);
         for (property, default) in [("width", Val::Lit(width.into())), ("height", Val::Lit(height.into()))] {
@@ -268,6 +277,24 @@ impl Component for Chart {
         cx.close("div");
         Ok(())
     }
+}
+
+/// The height a gantt starts at, before the script fits it to the rows it shows: a
+/// heading band, a row per task in `data` (from the document or the starting
+/// state), and room for a legend or zoom buttons. Matches `GANTT` in chart.js.
+fn gantt_height(node: &Node, cx: &RenderCx<'_>) -> Option<usize> {
+    let lit = |name| match node.prop(name) {
+        Some(Val::Lit(v)) => Some(v),
+        _ => None,
+    };
+    if lit("type")?.as_str()? != "gantt" {
+        return None;
+    }
+    let rows = cx.prop(node, "data")?.as_array()?.len().max(1);
+    let band = if node.prop("series").is_some() || node.prop("zoom").is_some() { 30 } else { 0 };
+    let slider = if lit("zoom").and_then(Json::as_str).is_some_and(|z| z == "slider" || z == "both") { 36 } else { 0 };
+    let foot = if node.prop("markers").is_some() { 28 } else { 12 };
+    Some(band + 44 + rows * 34 + foot + slider)
 }
 
 /// `ui-live-data`: keeps a state key filled from a polled URL, a server-sent event

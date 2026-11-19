@@ -663,6 +663,11 @@ root: …
 `chart.js`
 
 ```yaml
+"Task": "Task"
+"{count} days": { one: "{count} day", other: "{count} days" }
+"{percent}% done": "{percent}% done"
+"Groups": "Groups"
+"Today": "Today"
 "All": "All"
 "This is a chart about “{title}”": "This is a chart about “{title}”"
 "This is a chart": "This is a chart"

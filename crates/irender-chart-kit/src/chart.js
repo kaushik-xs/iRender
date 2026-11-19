@@ -291,6 +291,306 @@
     return { ...out, rows, x, y };
   }
 
+  // ---------------------------------------------------------------- gantt
+  // Rows are tasks: `{ id, name, start, end, group, progress, after, milestone, color }`.
+  // A row whose `id` is another's `group` is a group: its bar spans its tasks, and
+  // its line in the table opens and closes. The table on the left is drawn as the
+  // category axis' labels, one `columns` entry per column.
+  const GANTT = { row: 34, head: 44, band: 30, foot: 12, marks: 28, slider: 36, indent: 16 };
+  const DAY = 864e5;
+  const dateOnly = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  // Epoch ms; a plain day is local midnight, as ECharts reads it.
+  const ms = (v) => {
+    if (blank(v)) return NaN;
+    if (typeof v === "number") return v;
+    if (dateOnly(v)) {
+      const [y, m, d] = v.split("-").map(Number);
+      return new Date(y, m - 1, d).getTime();
+    }
+    return Date.parse(v);
+  };
+  const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  let meter;
+  // `text` cut with an ellipsis to fit `px` in `font`.
+  const fit = (text, px, font) => {
+    meter ||= document.createElement("canvas").getContext("2d");
+    meter.font = font;
+    const s = String(text ?? "");
+    if (meter.measureText(s).width <= px) return s;
+    let lo = 0, hi = s.length;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (meter.measureText(s.slice(0, mid) + "…").width <= px) lo = mid;
+      else hi = mid - 1;
+    }
+    return s.slice(0, lo) + "…";
+  };
+
+  // The rows a gantt shows, in order, with their depth and span. `collapsed` holds
+  // the ids of closed groups; a group's own `collapsed: true` closes it the first time
+  // it's seen.
+  function ganttRows(rows, collapsed, seen) {
+    const key = (r) => String(at(r, "id") ?? at(r, "name"));
+    const byId = new Map(rows.map((r) => [key(r), r]));
+    const kids = new Map(), tops = [];
+    for (const r of rows) {
+      const g = at(r, "group");
+      if (!blank(g) && byId.has(String(g)) && String(g) !== key(r)) {
+        if (!kids.has(String(g))) kids.set(String(g), []);
+        kids.get(String(g)).push(r);
+      } else tops.push(r);
+    }
+    // A row's span and progress: its own, or for a group what its tasks add up to.
+    const spans = new Map();
+    const span = (r, trail) => {
+      const k = key(r);
+      if (spans.has(k)) return spans.get(k);
+      if (trail.has(k)) return { a: NaN, b: NaN, done: null };
+      trail.add(k);
+      let a = ms(at(r, "start")), b = ms(at(r, "end"));
+      const milestone = !!at(r, "milestone") || (!Number.isNaN(a) && blank(at(r, "end")));
+      // A plain day as the end means the whole of that day.
+      if (dateOnly(at(r, "end"))) b += DAY;
+      if (milestone) b = a;
+      let done = isNum(at(r, "progress")) ? Math.max(0, Math.min(100, Number(at(r, "progress")))) / 100 : null;
+      const children = kids.get(k) || [];
+      if (children.length) {
+        let weight = 0, sum = 0;
+        for (const c of children) {
+          const s = span(c, trail);
+          if (Number.isNaN(a) || s.a < a) a = Number.isNaN(s.a) ? a : s.a;
+          if (Number.isNaN(b) || s.b > b) b = Number.isNaN(s.b) ? b : s.b;
+          const w = Math.max(s.b - s.a, DAY / 24);
+          if (s.done !== null && Number.isFinite(w)) (weight += w), (sum += s.done * w);
+        }
+        if (done === null && weight) done = sum / weight;
+      }
+      const out = { a, b, done, milestone: milestone && !children.length };
+      spans.set(k, out);
+      return out;
+    };
+    const shown = [], all = [], seenNow = new Set();
+    const walk = (list, depth, open) => {
+      for (const r of list) {
+        const k = key(r);
+        if (seenNow.has(k)) continue;
+        seenNow.add(k);
+        const group = kids.has(k);
+        if (group && !seen.has(k)) {
+          seen.add(k);
+          if (at(r, "collapsed")) collapsed.add(k);
+        }
+        const item = { row: r, key: k, depth, group, open: group && !collapsed.has(k), ...span(r, new Set()) };
+        all.push(item);
+        if (open) item.index = shown.push(item) - 1;
+        if (group) walk(kids.get(k), depth + 1, open && item.open);
+      }
+    };
+    walk(tops, 0, true);
+    // Hidden rows stand in for by their nearest shown group, for arrows.
+    const parent = new Map();
+    for (const [g, cs] of kids) for (const c of cs) parent.set(key(c), g);
+    const byKey = new Map(all.map((i) => [i.key, i]));
+    const showing = (k) => {
+      let i = byKey.get(k);
+      while (i && i.index === undefined) i = byKey.get(parent.get(i.key));
+      return i;
+    };
+    return { shown, all, showing };
+  }
+
+  function gantt(p, t, d, o, rows) {
+    const font = `12px ${t.font}`;
+    const g = ganttRows(rows, d.collapsed || new Set(), d.seen || new Set());
+    const { shown } = g;
+    d.gantt = g;
+    const lang = document.documentElement.lang || undefined;
+    const day = new Intl.DateTimeFormat(lang, { dateStyle: "medium" });
+    const stamp = new Intl.DateTimeFormat(lang, { dateStyle: "medium", timeStyle: "short" });
+    const when = (v) => (blank(v) ? "" : dateOnly(v) ? day.format(ms(v)) : Number.isNaN(ms(v)) ? String(v) : stamp.format(ms(v)));
+
+    // The table: the first column is the tree of names.
+    const all = (Array.isArray(p.columns) && p.columns.length ? p.columns : ["name"]).map((c, i) => {
+      const c0 = isObj(c) ? c : { field: c };
+      const name = c0.name ?? (c0.field === "name" ? L("Task") : String(c0.field));
+      return { field: c0.field, name, width: Number(c0.width) || (i ? 96 : 200), align: c0.align ?? "left" };
+    });
+    // On a narrow chart the table takes at most half: the last columns go first,
+    // then the names get narrower.
+    const width = d.width || 960, budget = Math.max(120, width * 0.5 - 16);
+    const cols = [all[0]];
+    for (const c of all.slice(1)) if (cols.reduce((n, x) => n + x.width, 0) + c.width <= budget) cols.push(c);
+    cols[0] = { ...all[0], width: Math.max(96, Math.min(all[0].width, budget - cols.slice(1).reduce((n, x) => n + x.width, 0))) };
+    const tableWidth = cols.reduce((n, c) => n + c.width, 0) + 8;
+    const cell = (v) => (blank(v) ? "" : looksLikeDate(v) ? when(v) : isNum(v) && typeof v === "number" ? v.toLocaleString(lang) : String(v));
+    const depths = Math.max(0, ...shown.map((i) => i.depth));
+    const rich = {};
+    for (let n = 0; n <= depths; n++) {
+      for (const bold of [0, 1]) rich[`t${n}${bold}`] = { width: cols[0].width - 8 - n * GANTT.indent, padding: [0, 0, 0, n * GANTT.indent], fontWeight: bold ? 600 : 400, color: t.text, fontSize: 12 };
+    }
+    cols.slice(1).forEach((c, i) => (rich[`c${i}`] = { width: c.width - 8, padding: [0, 8, 0, 0], align: c.align, color: t.muted, fontSize: 12 }));
+    const label = (v) => {
+      const item = shown[Number(v)];
+      if (!item) return "";
+      const n = item.depth;
+      const mark = item.group ? (item.open ? "▾ " : "▸ ") : "";
+      const name = fit(mark + (at(item.row, cols[0].field) ?? at(item.row, "name") ?? item.key), cols[0].width - 12 - n * GANTT.indent, `${item.group ? 600 : 400} ${font}`);
+      const rest = cols.slice(1).map((c, i) => `{c${i}|${fit(cell(at(item.row, c.field)), c.width - 16, font).replace(/[{}|]/g, "")}}`);
+      return [`{t${n}${item.group ? 1 : 0}|${name.replace(/[{}|]/g, "")}}`, ...rest].join("");
+    };
+
+    // Series: one per `series` value (with a legend), groups and milestones apart.
+    const split = blank(p.series) ? null : p.series;
+    // From every row, so closing a group keeps each team's colour.
+    const names = split ? uniq(g.all.filter((i) => !i.group).map((i) => String(at(i.row, split) ?? ""))) : [""];
+    const days = (i) => Math.max(1, Math.round((i.b - i.a) / DAY));
+    const tip = (i) => {
+      const r = i.row;
+      const lines = [`<b>${escapeHtml(at(r, cols[0].field) ?? at(r, "name") ?? i.key)}</b>`];
+      if (i.milestone) lines.push(escapeHtml(when(at(r, "start"))));
+      else if (!Number.isNaN(i.a)) {
+        const a = blank(at(r, "start")) ? when(new Date(i.a).toISOString()) : when(at(r, "start"));
+        const b = blank(at(r, "end")) ? when(new Date(dateOnly(at(r, "start")) ? i.b - DAY : i.b).toISOString()) : when(at(r, "end"));
+        lines.push(`${escapeHtml(a)} – ${escapeHtml(b)} · ${escapeHtml(L(["{count} day", "{count} days"], { count: days(i) }))}`);
+      }
+      if (i.done !== null) lines.push(escapeHtml(L("{percent}% done", { percent: Math.round(i.done * 100) })));
+      if (split && !i.group && !blank(at(r, split))) lines.push(escapeHtml(at(r, split)));
+      return lines.join("<br/>");
+    };
+    const item = (i) => ({
+      name: String(at(i.row, "name") ?? i.key),
+      value: [i.index, i.a, i.b, i.done === null ? -1 : i.done, i.group ? 1 : i.milestone ? 2 : 0],
+      tip: tip(i),
+      // A milestone outside every `series` is the text's colour.
+      ...(!blank(at(i.row, "color")) ? { itemStyle: { color: String(at(i.row, "color")) } } : i.milestone && split && blank(at(i.row, split)) ? { itemStyle: { color: t.text } } : {}),
+    });
+    const drawn = shown.filter((i) => !Number.isNaN(i.a) && !Number.isNaN(i.b));
+
+    const bar = (params, api) => {
+      const at0 = api.coord([api.value(1), api.value(0)]), at1 = api.coord([api.value(2), api.value(0)]);
+      const h = api.size([0, 1])[1];
+      const kind = api.value(4), done = api.value(3);
+      const color = api.visual("color");
+      const y = at0[1];
+      if (kind === 2) {
+        const s = Math.min(h * 0.32, 9);
+        return { type: "polygon", shape: { points: [[at0[0], y - s], [at0[0] + s, y], [at0[0], y + s], [at0[0] - s, y]] }, style: { fill: color, stroke: t.surface, lineWidth: 1 } };
+      }
+      const w = Math.max(at1[0] - at0[0], 2);
+      if (kind === 1) {
+        // A group: a thin bar with a notch down at either end.
+        const bh = Math.max(4, h * 0.2), top = y - bh / 2, tip = Math.min(6, w / 2);
+        const children = [{ type: "polygon", shape: { points: [[at0[0], top], [at0[0] + w, top], [at0[0] + w, top + bh + tip], [at0[0] + w - tip, top + bh], [at0[0] + tip, top + bh], [at0[0], top + bh + tip]] }, style: { fill: color } }];
+        return { type: "group", children };
+      }
+      const bh = Math.max(10, h * 0.56), top = y - bh / 2;
+      const r = Math.min(4, bh / 2, w / 2);
+      if (done < 0) return { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: color } };
+      return {
+        type: "group",
+        children: [
+          { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: fade(rgba(color), 0.35) } },
+          { type: "rect", shape: { x: at0[0], y: top, width: w * done, height: bh, r }, style: { fill: color } },
+        ],
+      };
+    };
+    const custom = (name, items, extra) => ({ type: "custom", name, renderItem: bar, encode: { x: [1, 2], y: 0 }, data: items, clip: true, z: 3, ...extra });
+    const tasks = drawn.filter((i) => !i.group);
+    const groupSeries = drawn.filter((i) => i.group);
+    for (const name of names) {
+      const mine = split ? tasks.filter((i) => String(at(i.row, split) ?? "") === name) : tasks;
+      o.series.push(custom(name, mine.map(item)));
+      d.rowsBy.push(mine.map((i) => i.row));
+    }
+    if (groupSeries.length) {
+      o.series.push(custom(L("Groups"), groupSeries.map(item), { itemStyle: { color: t.muted } }));
+      d.rowsBy.push(groupSeries.map((i) => i.row));
+    }
+
+    // Arrows from each task in `after` to the task that waits on it.
+    const links = [];
+    for (const i of g.all) {
+      const after = at(i.row, "after");
+      for (const k of blank(after) ? [] : Array.isArray(after) ? after : String(after).split(",")) {
+        const from = g.showing(String(k).trim()), to = g.showing(i.key);
+        if (from && to && from !== to && !Number.isNaN(from.b) && !Number.isNaN(to.a)) links.push([from.index, from.b, to.index, to.a]);
+      }
+    }
+    if (links.length) {
+      o.series.push({
+        type: "custom", id: "links", silent: true, clip: true, z: 2, tooltip: { show: false }, encode: { x: [1, 3], y: [0, 2] }, data: uniq(links.map((l) => JSON.stringify(l))).map((l) => JSON.parse(l)),
+        renderItem: (params, api) => {
+          const [x1, y1] = api.coord([api.value(1), api.value(0)]), [x2, y2] = api.coord([api.value(3), api.value(2)]);
+          const h = api.size([0, 1])[1], gap = 8;
+          const ym = y1 + (y2 >= y1 ? h / 2 : -h / 2);
+          const points = x2 - gap >= x1 + gap ? [[x1, y1], [x2 - gap, y1], [x2 - gap, y2], [x2 - 5, y2]] : [[x1, y1], [x1 + gap, y1], [x1 + gap, ym], [x2 - gap, ym], [x2 - gap, y2], [x2 - 5, y2]];
+          const stroke = t.muted;
+          return {
+            type: "group",
+            children: [
+              { type: "polyline", shape: { points }, style: { stroke, fill: "none", lineWidth: 1 } },
+              { type: "polygon", shape: { points: [[x2, y2], [x2 - 6, y2 - 4], [x2 - 6, y2 + 4]] }, style: { fill: stroke } },
+            ],
+          };
+        },
+      });
+      d.rowsBy.push([]);
+    }
+
+    // The ruled lines of the table and the chart, and the lines down: today and `markers`.
+    const head = (split || p.zoom ? GANTT.band : 0) + GANTT.head;
+    const marks = [];
+    const lo = Math.min(...drawn.map((i) => i.a)), hi = Math.max(...drawn.map((i) => i.b));
+    const now = Date.now();
+    if (p.today !== false && drawn.length && now >= lo && now <= hi)
+      marks.push({ xAxis: now, name: L("Today"), lineStyle: { color: t.palette[7] ?? t.text, type: "solid", width: 1.5 }, label: { color: t.palette[7] ?? t.text } });
+    for (const m of Array.isArray(p.markers) ? p.markers : []) {
+      const x = ms(isObj(m) ? m.at : m);
+      if (Number.isNaN(x)) continue;
+      const color = isObj(m) && !blank(m.color) ? String(m.color) : t.muted;
+      marks.push({ xAxis: x, name: isObj(m) ? String(m.name ?? "") : "", lineStyle: { color, type: "dashed", width: 1 }, label: { color } });
+    }
+    o.series.unshift({
+      type: "custom", id: "rows", silent: true, z: 1, tooltip: { show: false }, encode: { y: 0 }, data: shown.map((i) => [i.index]),
+      renderItem: (params, api) => {
+        const box = params.coordSys, h = box.height / Math.max(1, shown.length), i = api.value(0);
+        const line = (yy) => ({ type: "line", shape: { x1: 0, y1: yy, x2: api.getWidth(), y2: yy }, style: { stroke: t.border, lineWidth: 1 } });
+        const y = (n) => Math.round(box.y + n * h) + 0.5;
+        return { type: "group", children: i === 0 ? [line(y(0)), line(y(1))] : [line(y(i + 1))] };
+      },
+      ...(marks.length ? { markLine: { silent: true, symbol: "none", animation: false, label: { show: true, position: "end", distance: 6, formatter: "{b}", fontSize: 11 }, data: marks } } : {}),
+    });
+    d.rowsBy.unshift(shown.map((i) => i.row));
+
+    const pad = Number.isFinite(hi - lo) ? Math.max(DAY / 2, (hi - lo) * 0.02) : 0;
+    o.xAxis = {
+      type: "time", position: "top", min: Number.isFinite(lo) ? lo - pad : undefined, max: Number.isFinite(hi) ? hi + pad : undefined,
+      axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: t.muted, hideOverlap: true, fontSize: 11, formatter: { year: "{yyyy}", month: "{MMM}", day: "{d} {MMM}", hour: "{HH}:{mm}", minute: "{HH}:{mm}" } },
+      splitLine: { show: true, lineStyle: { color: fade(t.border, 0.6) } },
+    };
+    o.yAxis = {
+      type: "category", inverse: true, data: shown.map((i) => String(i.index)), triggerEvent: true,
+      axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
+      axisLabel: { interval: 0, hideOverlap: false, align: "left", margin: tableWidth, formatter: label, rich },
+    };
+    const slider = p.zoom === "slider" || p.zoom === "both";
+    // Room under the rows for the lines' names, and the slider.
+    o.grid = { left: tableWidth + 8, right: 16, top: head, bottom: (marks.length ? GANTT.marks : GANTT.foot) + (slider ? GANTT.slider : 0) };
+    // The column headings, over the table.
+    let x = 8;
+    o.graphic = cols.map((c, i) => {
+      const left = c.align === "right" && i ? x + c.width - 16 : x;
+      x += c.width;
+      return { type: "text", id: `head${i}`, x: left, y: head - 14, silent: true, style: { text: fit(c.name, c.width - 16, `600 ${font}`), fill: t.muted, font: `600 ${font}`, verticalAlign: "middle", align: c.align === "right" && i ? "right" : "left" } };
+    });
+    if (p.tooltip !== false)
+      o.tooltip = { trigger: "item", confine: true, formatter: (e) => e.data?.tip ?? "" };
+    else o.tooltip = { show: false };
+    if (split) o.legend = { show: p.legend !== false, top: 4, left: 8, type: "scroll", icon: "roundRect", itemWidth: 12, itemHeight: 12, data: names.filter((n) => n !== ""), width: width - (p.zoom ? 136 : 16) };
+    else o.legend = { show: false };
+    d.height = head + Math.max(1, shown.length) * GANTT.row + o.grid.bottom;
+  }
+
   // An ECharts option from the shorthand props and the rows `prepare` gave (`d`),
   // with `x` naming the category (or name) field and `y` the value field(s). The
   // rows behind each series' data go in `d.rowsBy`, so clicks can find them.
@@ -539,6 +839,8 @@
         }];
       }
       tooltip("item");
+    } else if (type === "gantt") {
+      gantt(p, t, d, o, rows);
     } else if (type === "themeRiver") {
       o.singleAxis = {
         type: rows.length && looksLikeDate(at(rows[0], x)) ? "time" : "value", top: 40, bottom: 32, left: 24, right: 24,
@@ -572,7 +874,7 @@
       // Going down or up a level morphs the old marks into the new ones.
       if (d.levels) s.universalTransition = { enabled: true, divideShape: "clone" };
     }
-    if (o.series.length) {
+    if (o.series.length && type !== "gantt") {
       const show = p.legend ?? legend;
       o.legend = { show, top: 0, type: "scroll", icon: "roundRect", itemWidth: 12, itemHeight: 12 };
       if (show && o.grid) o.grid.top = 40;
@@ -861,6 +1163,7 @@
       const d = prepare(p, path());
       d.rowsBy = [];
       d.selectable = !!(cfg.bind || cfg.bindRow);
+      Object.assign(d, { collapsed, seen, width: el.clientWidth });
       let o = build(p, theme, cfg.sparkline, d);
       rowsBy = d.rowsBy;
       level = d;
@@ -868,9 +1171,16 @@
 
       // Zoom along the category (or time) axis: `zoom` shows the controls, and
       // `bindZoom` alone allows zooming from state.
-      zoomAxis = o.xAxis ? (o.yAxis?.type === "category" && o.xAxis.type !== "category" ? "y" : "x") : null;
+      zoomAxis = o.xAxis ? (o.yAxis?.type === "category" && o.xAxis.type !== "category" && p.type !== "gantt" ? "y" : "x") : null;
       const z = p.zoom === true ? "both" : p.zoom;
-      if (zoomAxis && !cfg.sparkline && (z || cfg.bindZoom)) {
+      if (p.type === "gantt" && (z || cfg.bindZoom)) {
+        // Time zooms with ⌘/Ctrl and the wheel or the buttons, and pans by dragging,
+        // so the wheel still scrolls the page.
+        const along = { xAxisIndex: 0, filterMode: "none" };
+        o.dataZoom = [{ type: "inside", ...along, zoomOnMouseWheel: "ctrl", moveOnMouseWheel: "shift", moveOnMouseMove: !!z }];
+        if (p.zoom === "slider" || p.zoom === "both") o.dataZoom.push({ type: "slider", ...along, height: 20, bottom: 8 });
+        if (z) o.graphic = [...(o.graphic || []), ...zoomButtons()];
+      } else if (zoomAxis && !cfg.sparkline && (z || cfg.bindZoom)) {
         const along = { [`${zoomAxis}AxisIndex`]: 0, filterMode: "filter" };
         const dz = [];
         if (z === "inside" || z === "both") dz.push({ type: "inside", ...along });
@@ -913,14 +1223,46 @@
       return o;
     }
 
+    // A gantt's closed groups, and the groups it has seen (so a row's own
+    // `collapsed` applies once).
+    const collapsed = new Set(), seen = new Set();
+    // Zoom in (factor < 1) or out about the middle of the window; 0 shows everything.
+    function zoomBy(factor) {
+      const dz = chart.getOption().dataZoom?.[0];
+      if (!dz) return;
+      let a = 0, b = 100;
+      if (factor) {
+        const mid = (dz.start + dz.end) / 2, half = Math.min(50, Math.max(0.5, ((dz.end - dz.start) / 2) * factor));
+        a = Math.max(0, mid - half);
+        b = Math.min(100, a + half * 2);
+        a = Math.max(0, b - half * 2);
+      }
+      chart.dispatchAction({ type: "dataZoom", start: a, end: b });
+    }
+    function zoomButtons() {
+      const button = (id, text, right, factor) => ({
+        type: "group", id, right, top: 4, cursor: "pointer", onclick: () => zoomBy(factor),
+        children: [
+          { type: "rect", shape: { width: 26, height: 22, r: 6 }, style: { fill: theme.surface, stroke: theme.border, lineWidth: 1 } },
+          { type: "text", x: 13, y: 11, style: { text, fill: theme.text, font: `14px ${theme.font}`, align: "center", verticalAlign: "middle" } },
+        ],
+      });
+      return [button("zoom-out", "−", 72, 2), button("zoom-in", "+", 42, 0.5), button("zoom-all", "⤢", 12, 0)];
+    }
+
     function draw() {
       drawn = shapeOf();
       const o = option();
+      // A gantt without a set height grows to fit its rows.
+      const tall = cfg.autoHeight && level.height ? `${level.height}px` : null;
+      const grow = tall && el.style.height !== tall;
+      if (grow) el.style.height = tall;
       // A new type or a different set of components starts over; otherwise the
       // series are replaced by id and the rest merged, so values animate.
       const next = JSON.stringify([o.series?.map((s) => s?.type), Object.keys(o).sort(), level.depth]);
       const fresh = next !== layout;
       chart.setOption(o, fresh ? { notMerge: true } : { replaceMerge: ["series"] });
+      if (grow) chart.resize();
       layout = next;
       // A fresh chart has forgotten its zoom, legend, selection and brush tool.
       if (fresh) for (const k of ["zoom", "legend", "select"]) delete last[k];
@@ -935,6 +1277,16 @@
     // ---- events → state
     const rowAt = (si, di) => rowsBy[si]?.[di] ?? chart.getOption().series?.[si]?.data?.[di] ?? null;
     function onClick(e) {
+      // A gantt group's line in the table, or its bar, opens and closes it.
+      const shown = level.gantt?.shown;
+      const item = !shown ? null : e.componentType === "yAxis" ? shown[Number(e.value)] : e.componentType === "series" ? shown[e.value?.[0]] : null;
+      if (item?.group && (e.componentType === "yAxis" || e.value?.[4] === 1)) {
+        if (collapsed.has(item.key)) collapsed.delete(item.key);
+        else collapsed.add(item.key);
+        draw();
+        api.emit("toggle", { id: item.key, open: !collapsed.has(item.key), row: item.row });
+        if (e.componentType === "yAxis") return;
+      }
       if (e.componentType !== "series") return;
       const row = rowAt(e.seriesIndex, e.dataIndex);
       const name = !blank(e.name) ? e.name : isObj(row) && !blank(at(row, xField)) ? at(row, xField) : e.value;
@@ -1121,8 +1473,10 @@
     function watch() {
       ro = new ResizeObserver(() => {
         if (!el.isConnected || !el.clientWidth || !el.clientHeight) return;
-        if (chart) chart.resize();
-        else start();
+        if (!chart) return start();
+        chart.resize();
+        // A gantt's table fits the width it has.
+        if (level.gantt && level.width !== el.clientWidth) draw();
       });
       ro.observe(el);
       live.add(self);

@@ -2,11 +2,11 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-18._
+_Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: quarter filters, named column views in the data table, and grouping for remote tables.
+1. The Gantt chart is in (2026-11-19). Next candidates: a dashboard grid of tiles to drag and resize; named column views, grouping for remote tables and quarter filters in the data table; one pointer-based drag for touch screens (kanban, tree, flow palette).
 
 ## Gaps you'd hit in real use
 
@@ -35,7 +35,11 @@ _Last updated: 2026-11-18._
     - [ ] Word and PowerPoint files aren't previewed, only downloaded; .xls (the old format) isn't read.
     - [ ] Uploads are one request per file: no chunked or resumable uploads, and no direct-to-storage (presigned) uploads.
     - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
-  - [ ] **Gantt chart** in chart-kit: a `type: gantt` shorthand with a table of rows on the left, zoom, collapsible groups and markers with a legend (`charts/GanttChart`). Today it has to be an ECharts `custom` series in `option`.
+  - [x] **Gantt chart** (2026-11-19): `ui-chart` `type: gantt`, a table of tasks beside their bars, groups that fold, progress, `after` arrows, milestones, `markers` and today, colours by `series` with a legend, zoom buttons, and a height that follows the rows (block gantt-01, charts gallery). Not done yet:
+    - [ ] The table is drawn on the canvas, so its rows can't be focused or read one by one; opening a group needs a pointer.
+    - [ ] No editing: bars can't be dragged to move or stretch them, and arrows can't be drawn.
+    - [ ] No scrolling inside the chart: a long plan is as tall as its rows. No critical path, baselines or working days (weekends count).
+    - [ ] Dates on the axis are ECharts' English month names, whatever the document's `lang`.
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
     - [ ] No custom card content (a template per card), only the built-in fields.
     - [ ] No swimlanes (rows by assignee or epic), and columns can't be reordered.
@@ -94,7 +98,7 @@ _Last updated: 2026-11-18._
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
-- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, item, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
+- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** item, and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.
   - [ ] Quoting, leaving a quote or code block, and ticking a task change the page directly, so ⌘Z doesn't undo them; the other edits go through the browser's editing and undo.

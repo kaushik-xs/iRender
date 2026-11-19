@@ -973,7 +973,7 @@ ui-data-table-bulk: Actions shown while rows are selected, next to the count. Re
 ui-data-table-detail: A row's details, shown under it when its expander is opened; the row is in scope as `row`.
   children: yes
 ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) or a full ECharts `option`.
-  type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel  Series type the shorthand builds; leave it out to use `option` alone
+  type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel, gantt  Series type the shorthand builds; leave it out to use `option` alone
   data         any  Rows (objects or arrays), numbers, or a tree / node list, depending on `type`
   x            any  Field (or column) for categories, names or the x value; default the first
   y            any  Field(s) for values: a field, or a list of fields or `{ field, name, …series options }`; default every other numeric field
@@ -990,6 +990,9 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   zoom         any  Zoom controls along the category or time axis: `inside`, `slider` or `both` (`true`)
   brush        any  Drag to select: `rect` (`true`), `polygon`, `lineX` or `lineY`
   live         any  Live data: `{ url, every, mode: append, window, key, params, paused, stream, pick, into, status }`
+  columns      any  Gantt: the table's columns, a field or `{ field, name, width, align }`; the first holds the tree of names (default `[name]`)
+  markers      any  Gantt: dated lines down the timeline, `[{ at, name, color }]`
+  today        bool  Gantt: a line at today's date when it's on the timeline (default true)
   stack        bool  Stack the series
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis

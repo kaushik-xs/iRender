@@ -469,6 +469,31 @@ root:
               children:
                 - { type: ui-chart, props: { type: chord, links: "{{ trade }}" } }
 
+    # ---------------------------------------------------------------- plans
+    - type: stack
+      props: { gap: 16 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Plans } }
+        - type: ui-card
+          props: { title: Gantt, description: "Tasks with `start`, `end` and `progress`; a row named in `group` folds open and closed, `after` draws the arrows, and `series` colours by team. ⌘/Ctrl and the wheel zoom, or the buttons." }
+          children:
+            - type: ui-chart
+              props:
+                type: gantt
+                series: team
+                zoom: true
+                columns: [ name, { field: owner, name: Owner, width: 110 } ]
+                markers: [ { at: "2026-06-26", name: Code freeze } ]
+                data:
+                  - { id: design, name: Design }
+                  - { id: wire, group: design, name: Wireframes, team: Design, owner: Meera, start: "2026-06-01", end: "2026-06-05", progress: 100 }
+                  - { id: ui, group: design, name: Visual design, team: Design, owner: Meera, start: "2026-06-08", end: "2026-06-17", progress: 60, after: wire }
+                  - { id: dev, name: Development }
+                  - { id: api, group: dev, name: API, team: Engineering, owner: Ravi, start: "2026-06-08", end: "2026-06-24", progress: 40, after: wire }
+                  - { id: app, group: dev, name: App, team: Engineering, owner: Asha, start: "2026-06-15", end: "2026-07-03", progress: 15, after: [ui, api] }
+                  - { id: qa, name: Testing, team: QA, owner: Kiran, start: "2026-06-29", end: "2026-07-08", after: app }
+                  - { id: go, name: Release, start: "2026-07-10", milestone: true, after: qa }
+
     # ---------------------------------------------------------------- the rest
     - type: stack
       props: { gap: 16 }
