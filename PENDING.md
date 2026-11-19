@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: the rest of the smaller pieces (code editor, icon rail), quarter filters, and dragging events in the calendar.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: a JSON editor, quarter filters, and dragging events in the calendar.
 
 ## Gaps you'd hit in real use
 
@@ -48,7 +48,8 @@ _Last updated: 2026-11-18._
   - [x] **Progress ring** (2026-11-18): `ui-progress-ring`, following state without a script.
   - [x] **Status badge, rating and password checklist** (2026-11-18): `ui-status-badge` (built-in tones for common statuses, `tones` and `labels`), `ui-rating` (pick, or show a fractional average) and `ui-password-checklist` (rules, strength, `bindValid`; in the signup block). The rating has no half-star picking.
   - [x] **Number and currency input** (2026-11-18): `ui-number-input`, grouped as typed in the locale's way, with a currency symbol, prefix or suffix, steps and clamping.
-  - [ ] **Smaller pieces still to do:** a JSON/code editor with validation, and a sidebar icon rail that opens a second panel.
+  - [x] **Sidebar icon rail** (2026-11-19): `ui-rail-layout` + `ui-rail-panel`, a rail of icons each opening its own panel, with the section and the panel's open state in state (block workspace-01, gallery section). No drag to resize the panel, and the rail can't be on the right.
+  - [ ] **Smaller pieces still to do:** a JSON/code editor with validation.
 - [x] **Keyboard-driven components** (2026-11-18): data table, date picker, context menu, menubar, navigation menu, one-time-code input.
 - [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):

@@ -472,6 +472,18 @@
    ]
   },
   {
+   "id": "rail-layout",
+   "group": "Navigation",
+   "title": "Rail layout",
+   "nav": "Rail layout",
+   "summary": "An app shell with a rail of icons down the left, each opening its own panel beside it, and the page's main content after: the layout of chat, mail and project apps. The section shown and whether its panel is open are state; a click on the open section folds its panel.",
+   "usage": "- type: ui-rail-layout\n  props:\n    bind: section\n    bindOpen: panelOpen\n    items: [ { id: inbox, label: Inbox, icon: core:bell, badge: 4 }, { id: settings, label: Settings, icon: core:settings, bottom: true } ]\n  children:\n    - { type: ui-rail-panel, props: { for: inbox }, children: [ ... ] }\n    - { type: element, children: [ ... ] }   # the main content",
+   "components": [
+    "ui-rail-layout",
+    "ui-rail-panel"
+   ]
+  },
+  {
    "id": "scroll-spy",
    "group": "Navigation",
    "title": "Scroll spy",

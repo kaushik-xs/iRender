@@ -422,6 +422,19 @@ ui-notifications: A bell with an unread count that opens a panel of notification
   closeOnOpen  bool  Close the panel when a notification is clicked (default true)
   parts: bell, panel
   children: no
+ui-rail-layout: An app shell: a rail of icons, each opening its own panel beside it (`ui-rail-panel` children), and the main content after. The section shown is in `bind`, the panel's open state in `bindOpen`.
+  items        any (required)  The rail's sections: `{ id, label, icon, badge, bottom, href }`. `icon` is an icon kit name or a character; `bottom` puts it at the foot; `href` makes it a link
+  bind         statekey (required)  State key for the section shown (an item's `id`)
+  bindOpen     statekey  State key for whether the panel is open (true or false): a click on the open section folds it
+  label        any  Names the rail for screen readers (default `Sections`)
+  panelWidth   number  The panel's width in px (default 260)
+  height       any  The shell's height (default `100svh`)
+  parts: rail, panels, main
+  children: yes
+ui-rail-panel: The panel a `ui-rail-layout` item opens: its children, under a heading. Read by the layout, never rendered on its own.
+  for          string (required)  The `id` of the rail item it belongs to
+  title        any  A heading at its top
+  children: yes
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

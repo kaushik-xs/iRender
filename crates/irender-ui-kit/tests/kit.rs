@@ -49,6 +49,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-event-calendar", json!({ "events": [] })),
         ("ui-number-input", json!({ "bind": "k" })),
         ("ui-notifications", json!({ "items": [] })),
+        ("ui-rail-layout", json!({ "bind": "k", "items": [] })),
         ("ui-kbd", json!({ "text": "K" })),
         ("ui-progress", json!({ "value": 10 })),
         ("ui-aspect-ratio", json!({ "ratio": 2 })),
@@ -104,6 +105,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-menu-sub" => root = json!({ "type": "ui-dropdown-menu", "props": { "trigger": "T" }, "children": [root] }),
             "ui-filters" => root["children"] = json!([{ "type": "ui-filter", "props": { "field": "a" } }]),
             "ui-filter" => root = json!({ "type": "ui-filters", "props": { "bind": "k" }, "children": [{ "type": "ui-filter", "props": { "field": "a" } }] }),
+            "ui-rail-panel" => root = json!({ "type": "ui-rail-layout", "props": { "bind": "k", "items": [{ "id": "a", "label": "A" }] }, "children": [{ "type": "ui-rail-panel", "props": { "for": "a" } }] }),
             _ => {}
         }
         if c.name().starts_with("ui-data-table-") {
@@ -116,7 +118,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 107);
+    assert_eq!(kit, 109);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1444,4 +1446,28 @@ fn notifications_bell_and_panel() {
     assert!(inline.contains(r#"data-nt-mark-all disabled>Mark all as read</button>"#), "{inline}");
     let err = render_with(json!({ "type": "ui-notifications", "props": { "items": [], "tab": "new" } }), json!({}), json!({})).unwrap_err().to_string();
     assert!(err.contains("`tab` must be `unread` or `all`"), "{err}");
+}
+
+#[test]
+fn rail_layout_structure_and_mistakes() {
+    let root = |children: Json| json!({ "type": "ui-rail-layout", "props": { "bind": "s", "bindOpen": "o", "items": [
+        { "id": "a", "label": "Alpha", "icon": "★", "badge": 2 }, { "id": "b", "label": "Beta" }, { "id": "c", "label": "Gear", "bottom": true } ] }, "children": children });
+    let body = plain(&render_with(root(json!([ { "type": "ui-rail-panel", "props": { "for": "a" }, "children": [ { "type": "text", "props": { "value": "panel A" } } ] }, { "type": "text", "props": { "value": "main" } } ])), json!({ "s": "b", "o": true }), json!({})).unwrap().body);
+    // Beta is shown and has no panel: the layout starts closed.
+    assert!(body.contains(r#"data-closed"#), "{body}");
+    assert!(body.contains(r#"<nav data-rail aria-label="Sections"><div role="tablist" aria-orientation="vertical" data-rail-tabs>"#), "{body}");
+    // Tabs whose selection follows state (the expressions ride in `data-i-b`).
+    assert!(body.contains(r#"<button data-rail-item="a" data-tip="Alpha" aria-label="Alpha" type="button" role="tab" id="rail-root-tab-a" aria-selected="false" tabindex="-1" aria-controls="rail-root-panel-a" data-i-b="#), "{body}");
+    assert!(body.contains(r#"<span aria-hidden="true">★</span><span data-rail-badge>2</span></button>"#), "{body}");
+    assert!(body.contains(r#"id="rail-root-tab-b" aria-selected="true" tabindex="0""#) && body.contains(r#"<span aria-hidden="true">B</span>"#), "{body}");
+    assert!(body.contains(r#"<div data-rail-foot><button data-rail-item="c""#), "{body}");
+    assert!(body.contains(r#"<section id="rail-root-panel-a" role="tabpanel" aria-labelledby="rail-root-tab-a" data-rail-panel="a" hidden"#), "{body}");
+    assert!(body.contains(r#"<div data-rail-head><h2>Alpha</h2><button type="button" data-rail-fold aria-label="Hide Alpha""#), "{body}");
+    assert!(body.contains("<main data-rail-main><span>main</span></main>"), "{body}");
+
+    let err = |root: Json| render_with(root, json!({ "s": "a", "o": true }), json!({})).unwrap_err().to_string();
+    assert!(err(root(json!([ { "type": "ui-rail-panel", "props": { "for": "z" } } ]))).contains("is for `z`, which isn't a rail item"));
+    assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "items": [ { "id": "a", "label": "A" }, { "id": "a", "label": "B" } ] } })).contains("two rail items have the id `a`"));
+    assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "items": [ { "id": "a" } ] } })).contains("needs a `label`"));
+    assert!(err(json!({ "type": "ui-rail-panel", "props": { "for": "a" } })).contains("must be a direct child of `ui-rail-layout`"));
 }

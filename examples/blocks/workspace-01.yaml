@@ -1,0 +1,84 @@
+# Block: a team's workspace in a `ui-rail-layout`. The rail's icons open their own
+# panels: Inbox (the notifications, in the page), Projects (a tree of projects to pick
+# from), Calendar (the week, as a list), and Settings at the foot. The main content is
+# the sprint board. A click on the open icon folds its panel; Up and Down move along
+# the rail.
+#
+#   cargo run -p irender-cli -- render examples/blocks/workspace-01.yaml --ui-kit --icon-kit -o workspace-01.html
+version: 1
+state:
+  section: inbox
+  panel: true
+  project: web
+  projectNode: null
+  notes:
+    - { id: 1, title: Meera moved IR-104 to In review, body: "Sign-out after the payment redirect", who: Meera Iyer, when: 5 min ago }
+    - { id: 2, title: Build failed on main, body: "Browser tests (firefox): 1 failed", when: 1 h ago, tone: danger }
+    - { id: 3, title: Ravi assigned you IR-107, body: File upload previews, who: Ravi Kumar, when: 3 h ago }
+    - { id: 4, title: Sprint 24 started, when: Monday, tone: success, read: true }
+  projects:
+    - { id: web, label: Web, children: [ { id: web-ui, label: UI kit }, { id: web-docs, label: Docs site } ] }
+    - { id: mobile, label: Mobile app, children: [ { id: ios, label: iOS }, { id: android, label: Android } ] }
+    - { id: data, label: Data platform }
+  week:
+    - { id: 1, title: Sprint planning, start: "2026-11-16T10:00", end: "2026-11-16T11:00", category: Meetings }
+    - { id: 2, title: Design review, start: "2026-11-18T14:00", end: "2026-11-18T15:00", category: Meetings }
+    - { id: 3, title: Release 0.5.7, start: "2026-11-19", category: Releases }
+    - { id: 4, title: Retro, start: "2026-11-20T16:00", end: "2026-11-20T17:00", category: Meetings }
+  tasks:
+    - { id: IR-101, column: todo, title: Dark mode for chart tooltips, tags: [ { label: Charts, tone: info } ], assignee: Asha Rao, priority: Medium }
+    - { id: IR-103, column: todo, title: Saved views for filters, assignee: Ravi Kumar, priority: Medium }
+    - { id: IR-104, column: review, title: Sign-out after the payment redirect, tags: [ { label: Bug, tone: danger } ], assignee: Meera Iyer, priority: Urgent, due: Today }
+    - { id: IR-105, column: doing, title: Rail layout, tags: [ { label: UI kit, tone: primary } ], assignee: Kaushik Sundar, priority: High }
+    - { id: IR-107, column: doing, title: File upload previews, assignee: Ravi Kumar, priority: High }
+    - { id: IR-108, column: done, title: Scroll spy, tags: [ { label: Shipped, tone: success } ] }
+root:
+  type: ui-rail-layout
+  props:
+    bind: section
+    bindOpen: panel
+    label: Workspace
+    panelWidth: 300
+    items:
+      - { id: inbox, label: Inbox, icon: core:bell, badge: 3 }
+      - { id: projects, label: Projects, icon: core:kanban }
+      - { id: calendar, label: Calendar, icon: core:calendar }
+      - { id: settings, label: Settings, icon: core:settings, bottom: true }
+  style: { font-family: $font.body, color: $color.text }
+  children:
+    - type: ui-rail-panel
+      props: { for: inbox, title: Inbox }
+      children:
+        - { type: ui-notifications, props: { items: "{{ notes }}", bindItems: notes, inline: true }, style: { display: block }, parts: { panel: { style: { border: 0 } } } }
+    - type: ui-rail-panel
+      props: { for: projects }
+      children:
+        - { type: ui-tree, props: { nodes: "{{ projects }}", bind: project, bindNode: projectNode, label: Projects, expanded: true } }
+    - type: ui-rail-panel
+      props: { for: calendar, title: This week }
+      children:
+        - { type: ui-event-calendar, props: { events: "{{ week }}", view: list, views: [list], date: "2026-11-18", today: "2026-11-19", categories: { Meetings: primary, Releases: success }, label: This week } }
+    - type: ui-rail-panel
+      props: { for: settings }
+      children:
+        - { type: ui-switch, props: { bind: panel, label: Keep this panel open } }
+        - { type: ui-text, props: { variant: muted, text: "Settings would go here." } }
+    - type: element
+      style: { padding: 24px, display: flex, flex-direction: column, gap: 16px }
+      children:
+        - type: element
+          style: { display: flex, align-items: end, justify-content: space-between, gap: 12px, flex-wrap: wrap }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Sprint 24" } }
+                - { type: ui-text, props: { variant: muted, text: "{{ projectNode ? 'Project: ' + projectNode.label : 'All projects' }} · 16–27 Nov" } }
+            - { type: ui-progress-ring, props: { value: 42, size: 40, label: Sprint progress } }
+        - type: ui-kanban
+          props:
+            columns: [ { id: todo, title: To do, tone: info }, { id: doing, title: In progress, tone: primary, limit: 3 }, { id: review, title: In review, tone: warning }, { id: done, title: Done, tone: success } ]
+            cards: "{{ tasks }}"
+            bindCards: tasks
+            columnWidth: 240
+            label: Sprint board

@@ -59,6 +59,7 @@ mod navigation;
 mod notifications;
 mod number;
 mod otp;
+mod rail;
 mod rating;
 mod overlay;
 mod scroll_spy;
@@ -127,6 +128,8 @@ pub fn register(registry: &mut Registry) {
         .register(events::EventCalendar)
         .register(number::NumberInput)
         .register(notifications::Notifications)
+        .register(rail::RailLayout)
+        .register(rail::RailPanel)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

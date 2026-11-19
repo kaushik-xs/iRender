@@ -98,6 +98,8 @@ state:
   boardCard: null
   calEvent: null
   noteOpen: null
+  railSection: messages
+  railOpen: true
   notes:
     - { id: 1, title: Meera commented on INV002, body: "Customer asked for the PO number on the next one.", who: Meera Iyer, when: 5 min ago }
     - { id: 2, title: Payment failed for INV007, body: "Card declined. We'll retry tomorrow.", when: 1 h ago, tone: danger }
@@ -2395,6 +2397,59 @@ root:
                 - { type: if, props: { when: "{{ api.sidebar.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.sidebar }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- rail-layout
+            - type: element
+              props: { tag: section }
+              attrs: { id: rail-layout, aria-labelledby: rail-layout-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.rail_layout }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Click an icon to open its panel, the same one again to fold it, or use Up and Down on the rail." }
+                - type: element
+                  style: { border: 1px solid $color.border, border-radius: $radius.lg, overflow: hidden }
+                  children:
+                    - type: ui-rail-layout
+                      props:
+                        bind: railSection
+                        bindOpen: railOpen
+                        height: 380
+                        panelWidth: 220
+                        label: Gallery app
+                        items:
+                          - { id: messages, label: Messages, icon: "✉", badge: 3 }
+                          - { id: files, label: Files, icon: "▤" }
+                          - { id: people, label: People, icon: "☺" }
+                          - { id: settings, label: Settings, icon: "⚙", bottom: true }
+                      children:
+                        - type: ui-rail-panel
+                          props: { for: messages }
+                          children:
+                            - { type: ui-input, props: { placeholder: Search messages } }
+                            - { type: ui-text, props: { text: "Asha: the PO number" } }
+                            - { type: ui-text, props: { text: "Ravi: Q3 report draft" } }
+                            - { type: ui-text, props: { text: "Meera: Safari fix is in" } }
+                        - type: ui-rail-panel
+                          props: { for: files, title: Recent files }
+                          children: [ { type: ui-text, props: { variant: muted, text: "Q3-report.pdf, roadmap.xlsx, logo.svg" } } ]
+                        - type: ui-rail-panel
+                          props: { for: people }
+                          children: [ { type: ui-text, props: { variant: muted, text: "Asha Rao, Kaushik Sundar, Meera Iyer, Ravi Kumar" } } ]
+                        - type: element
+                          style: { padding: 24 }
+                          children:
+                            - { type: ui-heading, props: { level: 3, text: "{{ railSection }}" } }
+                            - { type: ui-text, props: { variant: muted, text: "{{ railOpen ? 'The panel is open.' : 'The panel is folded: click the open icon again.' }}" } }
+                - { type: if, props: { when: "{{ api.rail_layout.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.rail_layout }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

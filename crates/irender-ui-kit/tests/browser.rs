@@ -4260,3 +4260,85 @@ fn event_calendar_year_and_day_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The rail layout: sections as a vertical tab list, each with its panel; a click on
+/// the section shown folds the panel; the fold button; the arrow keys; and state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn rail_layout_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "section": "inbox", "open": true },
+        "root": { "type": "ui-rail-layout", "props": { "bind": "section", "bindOpen": "open", "height": 400, "items": [
+                { "id": "inbox", "label": "Inbox", "icon": "✉", "badge": 4 },
+                { "id": "projects", "label": "Projects" },
+                { "id": "reports", "label": "Reports" },
+                { "id": "help", "label": "Help", "href": "#help" },
+                { "id": "settings", "label": "Settings", "icon": "⚙", "bottom": true } ] },
+            "children": [
+                { "type": "ui-rail-panel", "props": { "for": "inbox", "title": "Mail" }, "children": [ { "type": "text", "props": { "value": "Inbox panel" } } ] },
+                { "type": "ui-rail-panel", "props": { "for": "projects" }, "children": [ { "type": "text", "props": { "value": "Projects panel" } } ] },
+                { "type": "element", "attrs": { "id": "main" }, "children": [ { "type": "text", "props": { "value": "Main {{ section }}" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const L = document.querySelector("[data-i-x=ui-rail-layout]");
+      const $ = (s) => L.querySelector(s), $$ = (s) => [...L.querySelectorAll(s)];
+      const tab = (id) => $(`[data-rail-item="${id}"]`);
+      const shown = () => $$("[data-rail-panel]").filter((p) => !p.hidden).map((p) => p.getAttribute("data-rail-panel")).join(",") || "-";
+      const state = () => `${S().section}/${S().open} panel ${shown()} closed ${L.hasAttribute("data-closed")}`;
+      const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+      try {
+        log("rail", $("[data-rail]").getAttribute("aria-label"), $("[role=tablist]").getAttribute("aria-orientation"), $$("[role=tab]").map((t) => t.getAttribute("aria-label") + (t.getAttribute("aria-selected") === "true" ? "*" : "")).join(","));
+        log("tab", tab("inbox").getAttribute("aria-controls") === $('[data-rail-panel="inbox"]').id, tab("inbox").textContent, tab("projects").textContent, tab("help").tagName, tab("help").getAttribute("href"), $('[data-rail-foot] [data-rail-item]').getAttribute("data-rail-item"));
+        log("start", state(), $('[data-rail-panel="inbox"] h2').textContent, $('[data-rail-panel="projects"] h2').textContent, $("#main").textContent);
+        tab("projects").click(); await wait(0);
+        log("projects", state(), $("#main").textContent, tab("projects").getAttribute("aria-selected"), tab("projects").tabIndex);
+        tab("projects").click(); await wait(0);
+        log("fold", state());
+        tab("projects").click(); await wait(0);
+        log("unfold", state());
+        $('[data-rail-panel="projects"] [data-rail-fold]').click(); await wait(0);
+        log("button", state(), document.activeElement === tab("projects"));
+        // A section without a panel: shown, no panel.
+        tab("reports").click(); await wait(0);
+        log("reports", state());
+        // The keys move between sections; Enter shows one.
+        tab("reports").focus(); key("ArrowUp"); log("up", document.activeElement.getAttribute("data-rail-item"), $$("[role=tab][tabindex='0']").length);
+        key("End"); log("end", document.activeElement.getAttribute("data-rail-item"));
+        key("ArrowDown"); log("wrap", document.activeElement.getAttribute("data-rail-item"));
+        // From state.
+        root.__irender.set("section", "inbox"); root.__irender.set("open", true); await wait(0);
+        log("state", state(), tab("inbox").getAttribute("aria-selected"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("rail", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "rail Sections vertical Inbox*,Projects,Reports,Settings",
+            "tab true ✉4 P A #help settings",
+            "start inbox/true panel inbox closed false Mail Projects Main inbox",
+            "projects projects/true panel projects closed false Main projects true 0",
+            // A click on the section shown folds its panel, and opens it again; so does the fold button.
+            "fold projects/false panel projects closed true",
+            "unfold projects/true panel projects closed false",
+            "button projects/false panel projects closed true true",
+            // A section with no panel: the panel's place closes.
+            "reports reports/true panel - closed true",
+            // One tab stop; the arrows move it, End and wrapping.
+            "up projects 1",
+            "end settings",
+            "wrap inbox",
+            "state inbox/true panel inbox closed false true",
+        ],
+        "\n{result}"
+    );
+}
