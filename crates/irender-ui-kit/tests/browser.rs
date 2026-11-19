@@ -4182,3 +4182,81 @@ fn filter_calendar_and_amounts_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The event calendar's year (twelve small months, busy days marked; a day opens in the
+/// day view, a month's name in the month view) and day views.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn event_calendar_year_and_day_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "day": null, "events": [
+            { "id": 1, "title": "Audit", "start": "2026-03-10", "category": "Audits" },
+            { "id": 2, "title": "Standup", "start": "2026-11-04T09:30", "end": "2026-11-04T09:45" },
+            { "id": 3, "title": "Review", "start": "2026-11-04T14:00", "end": "2026-11-04T16:00", "tone": "warning" },
+            { "id": 4, "title": "Shutdown", "start": "2026-12-24", "end": "2026-12-26", "tone": "danger" } ] },
+        "root": { "type": "ui-event-calendar", "props": { "events": "{{ events }}", "categories": { "Audits": "info" }, "bindDay": "day",
+            "view": "year", "date": "2026-11-04", "today": "2026-11-18", "locale": "en-GB", "hours": [8, 18] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" ").replace(/\b0(\d:\d\d)/g, "$1"));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const C = document.querySelector("[data-i-x=ui-event-calendar]");
+      const $ = (s) => C.querySelector(s), $$ = (s) => [...C.querySelectorAll(s)];
+      const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+      try {
+        log("views", $$("[data-ev-view]").map((b) => b.textContent + (b.getAttribute("aria-pressed") === "true" ? "*" : "")).join(","));
+        log("year", $("[data-ev-title]").textContent, $$("[data-ev-mini]").length, "months |", $$("[data-ev-month-open]").slice(0, 3).map((b) => b.textContent).join(","));
+        log("busy", $$("[data-ev-mini] [data-busy]").map((d) => d.getAttribute("data-ev-day").slice(5) + ":" + d.getAttribute("data-tone")).join(","));
+        log("labels", $('[data-ev-day="2026-11-04"]').getAttribute("aria-label"), "|", $('[data-ev-day="2026-11-18"]').hasAttribute("data-today"));
+        // The arrow keys move across months.
+        $('[data-ev-day="2026-11-04"]').focus(); key("ArrowDown"); key("ArrowDown"); key("ArrowDown"); key("ArrowDown");
+        log("keys", document.activeElement.getAttribute("data-ev-day"));
+        // Enter opens the day in the day view.
+        $('[data-ev-day="2026-11-04"]').focus(); key("Enter"); await wait(0);
+        log("enter", S().day, $("[data-ev-body]").getAttribute("data-view"), $("[data-ev-title]").textContent, $('[data-ev-view="day"]').getAttribute("aria-pressed"));
+        // The day view: one column, timed events by hour.
+        const col = $('[data-ev-date-col="2026-11-04"]');
+        log("day", $$("[data-ev-col]").length, "column |", [...col.querySelectorAll("[data-ev-event]")].map((c) => c.textContent + " @" + c.style.top).join(" | "), "|", $$("[data-ev-labels] [data-ev-hour]").length, "hours");
+        // Next and previous move a day.
+        $("[data-ev-next]").click(); await wait(0);
+        log("next", $("[data-ev-title]").textContent, $$("[data-ev-col] [data-ev-event]").length);
+        $("[data-ev-prev]").click(); $("[data-ev-prev]").click(); await wait(0);
+        log("prev", $("[data-ev-title]").textContent);
+        // Back to the year, a month's name opens it.
+        $('[data-ev-view="year"]').click(); await wait(0);
+        $$("[data-ev-month-open]")[11].click(); await wait(0);
+        log("month", $("[data-ev-body]").getAttribute("data-view"), $("[data-ev-title]").textContent, [...$('[data-ev-day="2026-12-25"]').querySelectorAll("[data-ev-event]")].map((c) => c.textContent).join(","));
+        // Next in the year view moves a year.
+        $('[data-ev-view="year"]').click(); $("[data-ev-next]").click(); await wait(0);
+        log("next year", $("[data-ev-title]").textContent, $$("[data-ev-mini] [data-busy]").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("events-year", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "views Day,Week,Month,Year*,List",
+            "year 2026 12 months | January,February,March",
+            // Busy days in their tone; the arrows move across months.
+            "busy 03-10:info,11-04:primary,12-24:danger,12-25:danger,12-26:danger",
+            "labels Wednesday 4 November, 2 events | true",
+            "keys 2026-12-02",
+            // Enter opens the day: one column, 8:00 to 18:00, so 9:30 is 15% down.
+            "enter 2026-11-04 day Wednesday, 4 November 2026 true",
+            "day 1 column | 9:30Standup @15% | 14:00Review @60% | 10 hours",
+            "next Thursday, 5 November 2026 0",
+            "prev Tuesday, 3 November 2026",
+            // A month's name opens it; Next in the year moves a year.
+            "month month December 2026 Shutdown",
+            "next year 2027 0",
+        ],
+        "\n{result}"
+    );
+}

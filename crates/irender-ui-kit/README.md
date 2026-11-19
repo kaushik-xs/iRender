@@ -507,7 +507,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 ## Event calendar
 
-`ui-event-calendar` shows `events` in a month grid, a week of hours, or a list by day, with a toolbar to move through time and switch views. The block [`calendar-01`](../../examples/blocks/calendar-01.yaml) is a plant's schedule built on it.
+`ui-event-calendar` shows `events` in a month grid, a week or a day of hours, a year of small months, or a list by day, with a toolbar to move through time and switch views. The block [`calendar-01`](../../examples/blocks/calendar-01.yaml) is a plant's schedule built on it.
 
 ```yaml
 - type: ui-event-calendar
@@ -516,7 +516,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
     categories: { Meetings: info, Maintenance: warning, Holidays: success }
     bindEvent: event           # the event clicked
     bindDay: day               # the day picked, e.g. to add an event on it
-    view: month                # or week, list
+    view: month                # or day, week, year, list
 ```
 
 **Events.** `start` and `end` are dates (`2026-11-04`, an all-day event; `end` is its last day) or local times (`2026-11-04T09:30`). An event's colour is its `tone`, else its `category`'s tone in `categories` (shown as a legend), else `primary`. Tones are the status badge's: `neutral`, `info`, `success`, `warning`, `danger`, `primary`.
@@ -525,9 +525,13 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Week** has a column per day and a row per hour (`hours`, default `[7, 20]`): timed events sit at their time and length, side by side where they overlap; all-day events and those over several days sit in a row above; today's column shows the time now.
 
+**Day** is the week's layout for one day: its hours, its all-day events above, the time now if it's today.
+
+**Year** shows twelve small months, the days with events tinted in the first one's colour with a dot. A click or Enter on a day picks it and opens it in the day view; a month's name opens the month.
+
 **List** gives the month's days that have events, each event with its time (or All day, or "Until 6:00" on the last day of one that started the day before), its colour and category.
 
-**Moving.** The arrows move a month or a week, Today comes back, and the switch changes view (`views` picks which, in order; `bindView` gets the change). `date` sets where it starts, `today` the day treated as today, `weekStart` Sunday (0) or Monday (1, the default), and `locale` how dates and times are written.
+**Moving.** The arrows move a day, a week, a month or a year, as the view shows; Today comes back, and the switch changes view (`views` picks which, in order, from day, week, month, year and list, all five by default; `bindView` gets the change). It starts in `view`, or Month when it's offered. `date` sets where it starts, `today` the day treated as today, `weekStart` Sunday (0) or Monday (1, the default), and `locale` how dates and times are written.
 
 **Keyboard and screen readers.** The days are a grid with one tab stop: the arrow keys move a day (or a week, up and down), Home and End to the week's ends, Page Up and Page Down a month, and Enter or Space picks the day (`bindDay`, and a `day` event). Tab then reaches that day's events. Each day is named with its date and how many events it has, each event with its title, time and category, and a change of month or week is announced. A click on an event fires `open` (and sets `bindEvent`); moving fires `navigate`.
 

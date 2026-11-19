@@ -1391,7 +1391,7 @@ fn event_calendar_toolbar_and_mistakes() {
     assert!(!one.contains("data-ev-views"), "{one}");
 
     let err = |props: Json| render_with(json!({ "type": "ui-event-calendar", "props": props }), json!({}), json!({})).unwrap_err().to_string();
-    assert!(err(json!({ "events": [], "views": ["day"] })).contains("`views` has `day`"));
+    assert!(err(json!({ "events": [], "views": ["decade"] })).contains("`views` has `decade`"));
     assert!(err(json!({ "events": [], "views": ["month"], "view": "week" })).contains("which `views` leaves out"));
     assert!(err(json!({ "events": [], "hours": [18, 9] })).contains("`hours` must be `[from, to]`"));
     assert!(err(json!({ "events": [], "weekStart": 3 })).contains("`weekStart` must be 0"));

@@ -373,8 +373,8 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   children: no
 ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
   events       any (required)  The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)
-  view         one of: month, week, list  The view to start in: `month` (default), `week` or `list`
-  views        any  Which views to offer, in order (default all three); one hides the switch
+  view         one of: day, week, month, year, list  The view to start in: `day`, `week`, `month` (default), `year` or `list`
+  views        any  Which views to offer, in order (default all five: day, week, month, year, list); one hides the switch
   date         any  The day to show to start with (default today)
   categories   any  Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend
   bindEvent    statekey  State key that gets the event clicked

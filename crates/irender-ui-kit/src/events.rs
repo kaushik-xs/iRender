@@ -12,7 +12,7 @@ use std::sync::LazyLock;
 
 const SCRIPT: &str = include_str!("events.js");
 
-pub(crate) const VIEWS: &[&str] = &["month", "week", "list"];
+pub(crate) const VIEWS: &[&str] = &["day", "week", "month", "year", "list"];
 
 pub struct EventCalendar;
 
@@ -23,8 +23,8 @@ const PROPS: &[PropDef] = &[
         "The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)",
     )
     .required(),
-    PropDef::new("view", PropKind::Enum(VIEWS), "The view to start in: `month` (default), `week` or `list`"),
-    PropDef::new("views", PropKind::Any, "Which views to offer, in order (default all three); one hides the switch"),
+    PropDef::new("view", PropKind::Enum(VIEWS), "The view to start in: `day`, `week`, `month` (default), `year` or `list`"),
+    PropDef::new("views", PropKind::Any, "Which views to offer, in order (default all five: day, week, month, year, list); one hides the switch"),
     PropDef::new("date", PropKind::Any, "The day to show to start with (default today)"),
     PropDef::new("categories", PropKind::Any, "Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend"),
     PropDef::new("bindEvent", PropKind::StateKey, "State key that gets the event clicked"),
@@ -113,7 +113,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-weekview]", pairs(&[("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)"), ("overflow", "hidden")]))
         .nest(
             "& :is([data-ev-week-head], [data-ev-allday], [data-ev-hours])",
-            pairs(&[("display", "grid"), ("grid-template-columns", "56px repeat(7, minmax(0, 1fr))")]),
+            pairs(&[("display", "grid"), ("grid-template-columns", "56px repeat(var(--days, 7), minmax(0, 1fr))")]),
         )
         .nest(
             "& [data-ev-week-head] > button",
@@ -143,6 +143,37 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-timed][data-short]", pairs(&[("flex-direction", "row"), ("align-items", "center"), ("gap", "4px"), ("padding-top", "0"), ("padding-bottom", "0"), ("white-space", "nowrap")]))
         .nest("& [data-ev-now]", pairs(&[("position", "absolute"), ("left", "0"), ("right", "0"), ("height", "2px"), ("background", "var(--color-destructive, #dc2626)"), ("z-index", "2")]))
         .nest("& [data-ev-now]::before", pairs(&[("content", "''"), ("position", "absolute"), ("left", "-4px"), ("top", "-3px"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--color-destructive, #dc2626)")]))
+        // Year: twelve small months.
+        .nest("& [data-ev-year]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(auto-fill, minmax(196px, 1fr))"), ("gap", sp!(20, 24))]))
+        .nest("& [data-ev-mini]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(4))]))
+        .nest(
+            "& [data-ev-month-open]",
+            pairs(&[("align-self", "flex-start"), ("padding", sp!(2, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(14)), ("font-weight", "600"), ("cursor", "pointer")]),
+        )
+        .nest("& [data-ev-month-open]:hover", pairs(&[("background", ACCENT)]))
+        .nest("& [data-ev-month-open]:focus-visible", forms::focus_ring())
+        .nest("& [data-ev-mini] [role=row]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(7, 1fr)")]))
+        .nest("& [data-ev-mini-head] span", pairs(&[("color", MUTED), ("font-size", fs!(11)), ("text-align", "center"), ("padding", "2px 0")]))
+        .nest(
+            "& [data-ev-mini] [data-ev-day]",
+            pairs(&[
+                ("--tone", PRIMARY),
+                ("position", "relative"),
+                ("display", "grid"),
+                ("place-items", "center"),
+                ("height", "26px"),
+                ("border-radius", "999px"),
+                ("font-size", fs!(12)),
+                ("font-variant-numeric", "tabular-nums"),
+                ("cursor", "pointer"),
+                ("outline", "none"),
+            ]),
+        )
+        .nest("& [data-ev-mini] [data-ev-day]:hover", pairs(&[("background", ACCENT)]))
+        .nest("& [data-ev-mini] [data-ev-day]:focus-visible", pairs(&[("box-shadow", "inset 0 0 0 2px var(--color-ring, var(--color-primary))")]))
+        .nest("& [data-ev-mini] [data-busy]", pairs(&[("background", "color-mix(in srgb, var(--tone) 16%, transparent)"), ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"), ("font-weight", "600")]))
+        .nest("& [data-ev-mini] [data-busy]::after", pairs(&[("content", "''"), ("position", "absolute"), ("bottom", "2px"), ("width", "4px"), ("height", "4px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
+        .nest("& [data-ev-mini] [data-today]", pairs(&[("background", PRIMARY), ("color", "var(--color-on-primary, #fff)")]))
         // List: days with their events.
         .nest("& [data-ev-list]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)"), ("overflow", "hidden")]))
         .nest("& [data-ev-group]", pairs(&[("display", "grid"), ("grid-template-columns", "140px minmax(0, 1fr)"), ("border-top", "1px solid var(--color-border)")]))
@@ -171,7 +202,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-ev-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
         );
-    tone_rules(tone_rules(b, "& [data-ev-event]"), "& [data-ev-legend] > span")
+    tone_rules(tone_rules(tone_rules(b, "& [data-ev-event]"), "& [data-ev-legend] > span"), "& [data-ev-mini] [data-ev-day]")
 });
 
 const CHEVRON_LEFT: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#;
@@ -199,13 +230,14 @@ impl Component for EventCalendar {
             Some(Json::Array(vs)) if !vs.is_empty() => {
                 let vs: Vec<String> = vs.iter().map(expr::stringify).collect();
                 if let Some(bad) = vs.iter().find(|v| !VIEWS.contains(&v.as_str())) {
-                    return Err(RenderError::new(node, format!("`views` has `{bad}`; the views are month, week and list")));
+                    return Err(RenderError::new(node, format!("`views` has `{bad}`; the views are day, week, month, year and list")));
                 }
                 vs
             }
-            Some(_) => return Err(RenderError::new(node, "`views` must be a list: month, week, list")),
+            Some(_) => return Err(RenderError::new(node, "`views` must be a list: day, week, month, year, list")),
         };
-        let view = cx.prop_string(node, "view").unwrap_or_else(|| views[0].clone());
+        // Month to start with when it's offered, else the first.
+        let view = cx.prop_string(node, "view").unwrap_or_else(|| if views.iter().any(|v| v == "month") { "month".into() } else { views[0].clone() });
         if !views.contains(&view) {
             return Err(RenderError::new(node, format!("`view` is `{view}`, which `views` leaves out")));
         }
@@ -233,6 +265,7 @@ impl Component for EventCalendar {
             "events": dynamic(cx, node, "events", node.prop("events").expect("required"))?,
             "categories": categories,
             "view": view,
+            "views": views,
             "date": node.prop("date").map(|d| dynamic(cx, node, "date", d)).transpose()?,
             "bindEvent": cx.prop_string(node, "bindEvent"),
             "bindDay": cx.prop_string(node, "bindDay"),

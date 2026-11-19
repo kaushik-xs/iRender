@@ -81,6 +81,8 @@
   };
 
   function title() {
+    if (view === "day") return fmt({ weekday: "long", day: "numeric", month: "long", year: "numeric" }).format(cursor);
+    if (view === "year") return String(cursor.getFullYear());
     if (view === "week") {
       // As the locale writes a range: "2–8 November 2026", "November 2 – 8, 2026".
       const a = startOfWeek(cursor), b = addDays(a, 6);
@@ -130,10 +132,10 @@
     return grid;
   }
 
-  function week(list) {
-    const start = startOfWeek(cursor), days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  // The week's days, or (the day view) just the one: hours down, days across.
+  function week(list, days = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i))) {
     const hours = Math.max(1, hourTo - hourFrom);
-    const wrap = make("div", { "data-ev-weekview": "", style: `--hours: ${hours}` });
+    const wrap = make("div", { "data-ev-weekview": "", style: `--hours: ${hours}; --days: ${days.length}` });
     const head = make("div", { "data-ev-week-head": "" });
     head.append(make("div", { "aria-hidden": "true" }));
     for (const d of days) {
@@ -204,6 +206,48 @@
     return `${time(e.startAt)}${e.endAt > e.startAt ? ` – ${time(e.endAt)}` : ""}`;
   }
 
+  // The year: twelve small months, the days with events marked in their colour.
+  function year(list) {
+    const y = cursor.getFullYear();
+    const wrap = make("div", { "data-ev-year": "" });
+    const busy = new Map();
+    for (const e of list) for (let d = e.first; d <= e.last; d = addDays(d, 1)) if (d.getFullYear() === y) busy.set(iso(d), [...(busy.get(iso(d)) ?? []), e]);
+    for (let m = 0; m < 12; m++) {
+      const first = new Date(y, m, 1), start = startOfWeek(first), days = new Date(y, m + 1, 0).getDate();
+      const box = make("section", { "data-ev-mini": "" });
+      box.append(make("button", { type: "button", "data-ev-month-open": `${y}-${pad(m + 1)}`, "aria-label": `Open ${fmt({ month: "long", year: "numeric" }).format(first)}` }, fmt({ month: "long" }).format(first)));
+      const grid = make("div", { role: "grid", "aria-label": fmt({ month: "long", year: "numeric" }).format(first) });
+      const head = make("div", { role: "row", "data-ev-mini-head": "" });
+      for (let i = 0; i < 7; i++) head.append(make("span", { role: "columnheader", "aria-label": fmt({ weekday: "long" }).format(addDays(start, i)) }, fmt({ weekday: "narrow" }).format(addDays(start, i))));
+      grid.append(head);
+      const weeks = Math.ceil(((first - start) / 864e5 + days) / 7);
+      for (let w = 0; w < weeks; w++) {
+        const row = make("div", { role: "row" });
+        for (let i = 0; i < 7; i++) {
+          const d = addDays(start, w * 7 + i), here = busy.get(iso(d)) ?? [];
+          if (d.getMonth() !== m) {
+            row.append(make("span", { role: "gridcell", "aria-hidden": "true" }));
+            continue;
+          }
+          const cell = make("span", {
+            role: "gridcell",
+            "data-ev-day": iso(d),
+            tabindex: sameDay(d, cursor) ? 0 : -1,
+            "data-today": sameDay(d, today()),
+            "data-busy": here.length > 0,
+            "data-tone": here[0]?.tone ?? null,
+            "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${here.length} ${here.length === 1 ? "event" : "events"}` : ""}`,
+          }, String(d.getDate()));
+          row.append(cell);
+        }
+        grid.append(row);
+      }
+      box.append(grid);
+      wrap.append(box);
+    }
+    return wrap;
+  }
+
   function agenda(list) {
     // The month around the cursor, day by day, only days with events.
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1), last = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
@@ -241,7 +285,7 @@
     $("[data-ev-title]").textContent = title();
     for (const b of $$("[data-ev-view]")) b.setAttribute("aria-pressed", b.getAttribute("data-ev-view") === view ? "true" : "false");
     body.setAttribute("data-view", view);
-    body.replaceChildren(view === "week" ? week(list) : view === "list" ? agenda(list) : month(list));
+    body.replaceChildren(view === "week" ? week(list) : view === "day" ? week(list, [cursor]) : view === "year" ? year(list) : view === "list" ? agenda(list) : month(list));
     // The focused day's events join the tab order after it.
     for (const c of $$(`[data-ev-day="${iso(cursor)}"] [data-ev-event], [data-ev-day="${iso(cursor)}"] [data-ev-more]`)) c.tabIndex = 0;
     if (focus) $(`[data-ev-day="${iso(cursor)}"]`)?.focus();
@@ -257,16 +301,24 @@
   }
 
   // ---- moving
+  function switchTo(next, focus) {
+    view = next;
+    if (cfg.bindView) api.set(cfg.bindView, view);
+    draw(focus);
+    say(`${next[0].toUpperCase() + next.slice(1)} view, ${title()}`);
+  }
+  // What's on screen, to tell whether a move changed it.
+  const page = () => (view === "week" ? iso(startOfWeek(cursor)) : view === "day" ? iso(cursor) : view === "year" ? String(cursor.getFullYear()) : `${cursor.getFullYear()}-${cursor.getMonth()}`);
   function go(to, focus = false) {
-    const before = view === "week" ? iso(startOfWeek(cursor)) : `${cursor.getFullYear()}-${cursor.getMonth()}`;
+    const before = page();
     cursor = day(to);
-    const after = view === "week" ? iso(startOfWeek(cursor)) : `${cursor.getFullYear()}-${cursor.getMonth()}`;
+    const after = page();
     draw(focus);
     if (before !== after) say(title());
     api.emit("navigate", { date: iso(cursor), view });
   }
   function step(n) {
-    go(view === "week" ? addDays(cursor, 7 * n) : addMonths(cursor, n));
+    go(view === "week" ? addDays(cursor, 7 * n) : view === "day" ? addDays(cursor, n) : view === "year" ? addMonths(cursor, 12 * n) : addMonths(cursor, n));
   }
   function pick(d) {
     cursor = day(d);
@@ -288,14 +340,14 @@
     if (t.closest("[data-ev-next]")) return step(1);
     if (t.closest("[data-ev-today]")) return go(today(), false);
     const v = t.closest("[data-ev-view]");
-    if (v) {
-      view = v.getAttribute("data-ev-view");
-      if (cfg.bindView) api.set(cfg.bindView, view);
-      draw(false);
-      return say(`${v.textContent} view, ${title()}`);
-    }
+    if (v) return switchTo(v.getAttribute("data-ev-view"), false);
     const ev = t.closest("[data-ev-event]");
     if (ev) return open(ev.getAttribute("data-ev-event"));
+    const monthOpen = t.closest("[data-ev-month-open]");
+    if (monthOpen) {
+      cursor = parse(monthOpen.getAttribute("data-ev-month-open") + "-01");
+      return switchTo("month", true);
+    }
     const more = t.closest("[data-ev-more]");
     if (more) {
       cursor = parse(more.getAttribute("data-ev-more"));
@@ -303,19 +355,28 @@
       return draw(true);
     }
     const d = t.closest("[data-ev-day]");
-    if (d && body.contains(d)) pick(parse(d.getAttribute("data-ev-day")));
+    if (d && body.contains(d)) {
+      pick(parse(d.getAttribute("data-ev-day")));
+      // In the year, a day opens on its own.
+      if (view === "year" && cfg.views.includes("day")) switchTo("day", true);
+    }
   });
   body.addEventListener("keydown", (e) => {
     const d = e.target.closest?.("[data-ev-day]");
     if (!d || e.target !== d) return;
     // From the day that has focus (a click or Tab may have moved it).
     cursor = parse(d.getAttribute("data-ev-day"));
-    const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: view === "week" ? 0 : -7, ArrowDown: view === "week" ? 0 : 7 };
+    const across = view === "week" || view === "day";
+    const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: across ? 0 : -7, ArrowDown: across ? 0 : 7 };
     if (e.key in moves && moves[e.key]) return e.preventDefault(), go(addDays(cursor, moves[e.key]), true);
     if (e.key === "Home") return e.preventDefault(), go(startOfWeek(cursor), true);
     if (e.key === "End") return e.preventDefault(), go(addDays(startOfWeek(cursor), 6), true);
     if (e.key === "PageUp" || e.key === "PageDown") return e.preventDefault(), go(view === "week" ? addDays(cursor, e.key === "PageUp" ? -7 : 7) : addMonths(cursor, e.key === "PageUp" ? -1 : 1), true);
-    if (e.key === "Enter" || e.key === " ") return e.preventDefault(), pick(cursor);
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      pick(cursor);
+      if (view === "year" && cfg.views.includes("day")) switchTo("day", true);
+    }
   });
 
   let last = null;
