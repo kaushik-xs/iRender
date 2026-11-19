@@ -1,7 +1,8 @@
 # Block: a task list in the style of shadcn/ui's tasks example, built on `ui-data-table`.
 # A search box and faceted filters (status, priority, label) over the rows, sorting on
 # the headers (Shift-click adds a column), a View menu that hides columns, paging, and
-# row selection with bulk actions, and a right-click menu on each row. Rows come from data-table-01.data.json; the
+# row selection with bulk actions, and a right-click menu on each row. The Views menu has
+# two ready-made views, and saves your own: sort, filter or hide columns, then Save as new view. Rows come from data-table-01.data.json; the
 # selection is state, so the bulk actions read it and hand it to the host with `call`.
 #
 #   cargo run -p irender-cli -- render examples/blocks/data-table-01.yaml \
@@ -9,6 +10,8 @@
 version: 1
 state:
   picked: []
+  views: []
+  view: null
   task: null
   toast: null
 root:
@@ -42,6 +45,11 @@ root:
             selectable: true
             bindSelection: picked
             pageSize: 10
+            bindViews: views
+            bindCurrentView: view
+            views:
+              - { id: open, name: Open work, filters: { status: [Todo, In Progress] }, sort: -priorityRank }
+              - { id: urgent, name: High priority, filters: { priority: [High] }, sort: status, columns: { hidden: [label, assignee] } }
           children:
             - type: ui-data-table-column
               props: { field: id, label: Task, width: 110, hideable: false }

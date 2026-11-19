@@ -2544,7 +2544,7 @@ fn data_table_date_filter_in_chrome() {
     assert_eq!(
         result.lines().collect::<Vec<_>>(),
         [
-            "calendar true 6",
+            "calendar true 7",
             "from state 31 March 2026",
             // Half a range doesn't filter yet.
             "half 31 {\"day\":{\"from\":\"2026-03-01\",\"to\":\"2026-03-31\"}}",
@@ -5256,6 +5256,297 @@ fn dashboard_grid_in_chrome() {
             "rtl 0",
             // One step with the key and two by dragging, both leftward.
             r#"rtl moved {"id":"r1","x":3,"y":0,"w":4,"h":1} 240"#,
+        ],
+        "\n{result}"
+    );
+}
+
+/// Saved views: a ready-made one the table opens with, the "(edited)" mark and undo,
+/// saving a new view (with a hidden column and a sort), saving changes, renaming,
+/// switching between views and the starting table, and deleting.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_saved_views_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "views": null, "cur": null, "rows": [
+            { "id": 1, "name": "Ada", "status": "Paid", "net": 100 },
+            { "id": 2, "name": "Bo", "status": "Due", "net": 50 },
+            { "id": 3, "name": "Cy", "status": "Paid", "net": 25 },
+            { "id": 4, "name": "Di", "status": "Due", "net": 10 } ] },
+        "root": { "type": "ui-data-table", "props": { "rows": "{{ rows }}", "bindViews": "views", "bindCurrentView": "cur", "defaultView": "paid", "pageSize": 0, "search": true,
+                "views": [ { "id": "paid", "name": "Paid", "filters": { "status": ["Paid"] }, "sort": "-net" } ] },
+            "children": [
+                { "type": "ui-data-table-column", "props": { "field": "name", "label": "Name" } },
+                { "type": "ui-data-table-column", "props": { "field": "status", "label": "Status", "filter": "select" } },
+                { "type": "ui-data-table-column", "props": { "field": "net", "label": "Net" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const T = document.querySelector("[data-i-x=ui-data-table]");
+      const $ = (s) => T.querySelector(s);
+      const rows = () => [...T.querySelectorAll("[data-dt-body] > tr:not([hidden])")].map((tr) => tr.cells[0].textContent.trim()).join(",");
+      const head = () => [...T.querySelectorAll("thead th[data-dt-col]:not([hidden])")].map((t) => t.textContent.trim()).join(",");
+      const label = () => $("[data-dt-views-label]").textContent;
+      const menu = () => [...T.querySelectorAll("[data-dt-views] [data-dt-view]")].map((r) => {
+        const b = r.querySelector("[data-dt-view-pick]");
+        return b.textContent + (b.getAttribute("aria-current") === "true" ? "*" : "") + (r.querySelector("[data-dt-view-delete]") ? "(own)" : "");
+      }).join(" | ") + " :: " + [...T.querySelectorAll("[data-dt-view-actions] button")].map((b) => b.textContent).join(" | ");
+      const open = async () => { if (!$("[data-dt-views]").matches(":popover-open")) $("[data-dt-views-button]").click(); await wait(0); };
+      const type = async (text) => {
+        const box = $("[data-dt-view-name]");
+        box.value = text;
+        box.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+        await wait(0);
+      };
+      try {
+        await wait(0);
+        log("opens with", label(), rows(), S().cur);
+        await open();
+        log("menu", menu());
+        // A change marks the view; Undo puts it back.
+        $('[data-dt-sort="name"]').click(); await wait(0);
+        log("sorted", label(), rows());
+        await open(); log("edited menu", menu());
+        $("[data-dt-view-revert]").click(); await wait(0);
+        log("undone", label(), rows());
+        // A new view: hide Net, sort by name, save it.
+        const net = $('[data-dt-show="net"]'); net.checked = false; net.dispatchEvent(new Event("change", { bubbles: true }));
+        $('[data-dt-sort="name"]').click(); await wait(0);
+        await open(); $("[data-dt-view-new]").click(); await wait(0);
+        log("name box", document.activeElement === $("[data-dt-view-name]"), $("[data-dt-view-name]").getAttribute("aria-label"));
+        await type("Paid by name");
+        log("saved", label(), S().cur, JSON.stringify(S().views));
+        log("own menu", menu());
+        // Changes to an own view can be saved.
+        $('[data-dt-sort="name"]').click(); await wait(0);
+        log("own edited", label());
+        await open(); $("[data-dt-view-save]").click(); await wait(0);
+        log("saved changes", label(), S().views[0].sort);
+        // Renamed.
+        $('[data-dt-view-rename="view-1"]').click(); await wait(0);
+        await type("Paid, Z to A");
+        log("renamed", label(), S().views[0].name);
+        // The starting table, then back to the view.
+        $('[data-dt-view-pick=""]').click(); await wait(0);
+        log("default", label(), rows(), head(), S().cur, $("[data-dt-views]").matches(":popover-open"));
+        await open(); $('[data-dt-view-pick="view-1"]').click(); await wait(0);
+        log("back", label(), rows(), head());
+        // Deleted: the view goes, and the table is no view's.
+        await open(); $('[data-dt-view-delete="view-1"]').click(); await wait(0);
+        log("deleted", JSON.stringify(S().views), S().cur, label(), menu());
+        // From state: picking a view by id.
+        root.__irender.set("cur", "paid"); await wait(0);
+        log("state", label(), rows());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("saved-views", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // `defaultView`: the paid rows, most first.
+            "opens with Paid Ada,Cy paid",
+            "menu Default view | Paid* :: Save as new view…",
+            // A change marks the view; a ready-made one can't be saved over.
+            "sorted Paid (edited) Ada,Cy",
+            "edited menu Default view | Paid* :: Undo changes | Save as new view…",
+            "undone Paid Ada,Cy",
+            "name box true New view name",
+            // The new view keeps the filter, the sort and the hidden column.
+            "saved Paid by name view-1 [{\"id\":\"view-1\",\"name\":\"Paid by name\",\"sort\":\"name\",\"filters\":{\"status\":[\"Paid\"]},\"search\":\"\",\"groupBy\":null,\"pageSize\":0,\"columns\":{\"order\":[\"name\",\"status\",\"net\"],\"widths\":{},\"hidden\":[\"net\"]}}]",
+            "own menu Default view | Paid | Paid by name*(own) :: Save as new view…",
+            "own edited Paid by name (edited)",
+            "saved changes Paid by name -name",
+            "renamed Paid, Z to A Paid, Z to A",
+            // The starting table: every row and column, and no view.
+            "default Views Ada,Bo,Cy,Di Name,Status,Net  false",
+            "back Paid, Z to A Cy,Ada Name,Status",
+            "deleted []  Views Default view* | Paid :: Save as new view…",
+            // An id written to `bindCurrentView` shows that view.
+            "state Paid Ada,Cy",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Rows from an API, grouped: a row per group from the API with its count and
+/// subtotal, a group's rows loaded when it's opened, open groups loading again when the
+/// search changes, and Group by None going back to plain rows.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_remote_groups_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        let orders = [("Ada", "North", 100), ("Bo", "South", 50), ("Cy", "North", 25), ("Di", "East", 10), ("Ed", "South", 5)];
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let target = request.split_whitespace().nth(1).unwrap_or("").to_string();
+            let query: std::collections::HashMap<String, String> = target
+                .split_once('?')
+                .map(|(_, q)| q.split('&').filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_string(), v.replace('+', " "))).collect())
+                .unwrap_or_default();
+            seen.lock().unwrap().push(target.split_once('?').map_or(String::new(), |(_, q)| q.to_string()));
+            let q = query.get("q").map(|s| s.to_lowercase()).unwrap_or_default();
+            let rows: Vec<_> = orders.iter().filter(|o| o.0.to_lowercase().contains(&q)).collect();
+            let body = if let Some(g) = query.get("group") {
+                serde_json::json!({ "rows": rows.iter().filter(|o| o.1 == g).map(|o| serde_json::json!({ "id": o.0, "name": o.0, "region": o.1, "net": o.2 })).collect::<Vec<_>>() })
+            } else if query.get("groupBy").is_some_and(|g| g == "region") {
+                let mut regions: Vec<&str> = rows.iter().map(|o| o.1).collect();
+                regions.sort();
+                regions.dedup();
+                let groups: Vec<_> = regions.iter().map(|r| {
+                    let mine: Vec<_> = rows.iter().filter(|o| o.1 == *r).collect();
+                    serde_json::json!({ "region": r, "count": mine.len(), "net": mine.iter().map(|o| o.2).sum::<i32>() })
+                }).collect();
+                serde_json::json!({ "rows": groups, "total": groups.len() })
+            } else {
+                serde_json::json!({ "rows": rows.iter().map(|o| serde_json::json!({ "id": o.0, "name": o.0, "region": o.1, "net": o.2 })).collect::<Vec<_>>(), "total": rows.len() })
+            };
+            let body = body.to_string();
+            let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+        }
+    });
+    let url = format!("http://127.0.0.1:{port}/orders");
+    let doc = serde_json::json!({ "version": 1, "state": { "g": "region", "seen": null },
+        "root": { "type": "ui-data-table", "props": { "url": url, "paging": "none", "bindGroupBy": "g", "selectable": true, "search": true, "bindView": "seen",
+            "columns": [ { "field": "name", "label": "Name" }, { "field": "region", "label": "Region", "groupable": true }, { "field": "net", "label": "Net", "summary": "sum" } ] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 100 && !f(); i++) await wait(20); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const T = document.querySelector("[data-i-x=ui-data-table]");
+      const lines = () => [...T.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")].map((tr) =>
+        (tr.hasAttribute("data-dt-group-row") ? "[" + [...tr.querySelectorAll("[data-dt-group-label], [data-dt-group-count]")].map((x) => x.textContent).join(" ") + " " + tr.cells[tr.cells.length - 1].textContent.trim() + (tr.getAttribute("aria-expanded") === "true" ? " open" : "") + "]"
+          : tr.querySelector("[data-dt-tree]").textContent.trim() + ":" + tr.cells[tr.cells.length - 1].textContent.trim())).join(" ");
+      const row = (text) => [...T.querySelectorAll("[data-dt-body] > [data-dt-row]")].find((tr) => tr.querySelector("[data-dt-group-label]")?.textContent === text);
+      try {
+        await until(() => T.querySelectorAll("[data-dt-group-row]").length === 3);
+        log("groups", lines(), "| sum", T.querySelector("[data-dt-sum]").textContent);
+        log("count label", T.querySelector("[data-dt-group-count]").getAttribute("aria-label"), getComputedStyle(row("North").querySelector("[data-dt-select]")).visibility);
+        row("North").click();
+        await until(() => lines().includes("Ada"));
+        log("opened", lines());
+        log("view", JSON.stringify(S().seen.map((r) => r.name ?? "group")));
+        // Select all leaves the group rows out.
+        T.querySelector("[data-dt-select-page]").click(); await wait(0);
+        log("selection", T.querySelectorAll("[data-dt-body] [aria-selected=true]").length);
+        T.querySelector("[data-dt-select-page]").click();
+        // A new search: the groups come again, and the open one loads its rows again.
+        const box = T.querySelector("[data-dt-search]");
+        box.value = "d"; box.dispatchEvent(new Event("input", { bubbles: true }));
+        await until(() => lines().includes("Ada") && !lines().includes("Cy"));
+        log("searched", lines());
+        // Enter on a group row closes it.
+        row("North").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); await wait(0);
+        log("closed", lines());
+        // Group by None: plain rows.
+        root.__irender.set("g", null);
+        await until(() => !T.querySelector("[data-dt-group-row]:not([hidden])") && lines().includes("Di"));
+        log("plain", lines());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("remote-groups", &html) else { return };
+    let asked = log.lock().unwrap().join("\n");
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // A row per group, from the API; the footer adds up the groups' subtotals.
+            "groups [East 1 10] [North 2 125] [South 2 55] | sum 190",
+            "count label 1 row hidden",
+            "opened [East 1 10] [North 2 125 open] Ada:100 Cy:25 [South 2 55]",
+            // Charts and select-all get the rows, not the groups.
+            r#"view ["Ada","Cy"]"#,
+            "selection 2",
+            "searched [East 1 10] [North 1 100 open] Ada:100 [South 1 5]",
+            "closed [East 1 10] [North 1 100] [South 1 5]",
+            "plain Ada:100 Di:10 Ed:5",
+        ],
+        "\n{result}\n---\n{asked}"
+    );
+    assert_eq!(asked, "groupBy=region\ngroupBy=region&group=North\nq=d&groupBy=region\nq=d&groupBy=region&group=North\nq=d");
+}
+
+/// Quarter presets on a financial year starting in April: the filters panel's (named by
+/// the script, ranges from `today`) and a data table date filter's calendar.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn quarter_presets_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "f": {} },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-filters", "props": { "bind": "f", "today": "2026-11-18", "fiscalStart": 4, "live": true }, "children": [
+                { "type": "ui-filter", "props": { "field": "due", "type": "date", "presets": ["thisQuarter", "lastQuarter", "thisYear", "lastYear", "yearToDate", "quarters"] } } ] },
+            { "type": "ui-data-table", "props": { "rows": [ { "id": 1, "d": "2026-02-10" }, { "id": 2, "d": "2026-05-01" }, { "id": 3, "d": "2026-10-02" } ], "pageSize": 0 },
+              "children": [ { "type": "ui-data-table-column", "props": { "field": "d", "label": "Day", "filter": "date", "fiscalStart": 4, "presets": ["quarters", "lastYear"] } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const F = document.querySelector("[data-i-x=ui-filters]"), T = document.querySelector("[data-i-x=ui-data-table]");
+      try {
+        const buttons = [...F.querySelectorAll("[data-fl-preset]")];
+        log("panel", buttons.map((b) => b.textContent).join(","));
+        const ranges = [];
+        for (const b of buttons) {
+          b.click(); await wait(0);
+          log(b.textContent, S().f.due.from + ".." + S().f.due.to, b.getAttribute("aria-pressed"));
+        }
+        // The table's calendar: its presets, then a quarter as the filter.
+        const cal = T.querySelector("[data-dt-calendar]");
+        log("table", [...cal.querySelectorAll("[data-preset]")].map((b) => b.textContent).join(","));
+        cal.querySelector("[data-preset='3']").click(); await wait(10);
+        log("filtered", [...T.querySelectorAll("[data-dt-body] > tr:not([hidden])")].map((tr) => tr.cells[0].textContent.trim()).join(","));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("quarters", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // 18 Nov 2026 is in the third quarter of the year that started on 1 April 2026.
+            "panel This quarter,Last quarter,This year,Last year,Year to date,Q3 FY2026–27,Q2 FY2026–27,Q1 FY2026–27,Q4 FY2025–26",
+            "This quarter 2026-10-01..2026-12-31 true",
+            "Last quarter 2026-07-01..2026-09-30 true",
+            "This year 2026-04-01..2027-03-31 true",
+            "Last year 2025-04-01..2026-03-31 true",
+            "Year to date 2026-04-01..2026-11-18 true",
+            "Q3 FY2026–27 2026-10-01..2026-12-31 true",
+            "Q2 FY2026–27 2026-07-01..2026-09-30 true",
+            "Q1 FY2026–27 2026-04-01..2026-06-30 true",
+            "Q4 FY2025–26 2026-01-01..2026-03-31 true",
+            // The table's Q4 FY2025–26 is January to March 2026.
+            "table Q3 FY2026–27,Q2 FY2026–27,Q1 FY2026–27,Q4 FY2025–26,Last year",
+            "filtered 2026-02-10",
         ],
         "\n{result}"
     );

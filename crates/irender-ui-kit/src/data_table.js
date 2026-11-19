@@ -28,6 +28,7 @@
   const looksLikeDate = (v) => typeof v === "string" && /^\d{4}-\d{2}/.test(v) && !isNaN(Date.parse(v));
   const dateOnly = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
   const at = (r, f) => String(f).split(".").reduce((x, k) => (x !== null && typeof x === "object" ? x[k] : undefined), r);
+  const fieldValue = at; // for where `at` is a position
   const fold = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   const keyOf = (v) => JSON.stringify(v ?? null);
   const num = (n) => Number(n).toLocaleString(cfg.locale || undefined);
@@ -85,7 +86,11 @@
     const r = resolve(cfg.rows);
     return Array.isArray(r) ? r : [];
   };
+  // Group rows from the API (grouped rows from `url`), keyed by their group's value.
+  const groupRowSet = new WeakSet();
+  const isGroupRow = (r) => isObj(r) && groupRowSet.has(r);
   const rowKey = (r, i) => {
+    if (isGroupRow(r)) return "\u0000group:" + keyOf(r.__value);
     const k = isObj(r) ? at(r, cfg.rowKey) : undefined;
     return blank(k) ? i : k;
   };
@@ -219,7 +224,7 @@
   }
   // Children still to load: the row says it has some (`children: true`, or
   // `hasChildren: true`) and `childrenUrl` will give them.
-  const lazy = (r, i) => tree.url != null && isObj(r) && !kids.has(keyOf(rowKey(r, i))) && (at(r, tree.field) === true || r.hasChildren === true);
+  const lazy = (r, i) => isObj(r) && !kids.has(keyOf(rowKey(r, i))) && (isGroupRow(r) || (tree.url != null && (at(r, tree.field) === true || r.hasChildren === true)));
   function flatTree(base, q) {
     const sig = [base, q, treeVersion];
     if (treeCache && treeCache.sig.every((x, n) => x === sig[n])) return treeCache;
@@ -283,11 +288,20 @@
     kidsLoading.add(k);
     kidsFailed.delete(k);
     try {
-      const u = text(resolve(tree.url));
+      let u, p;
+      if (isGroupRow(r)) {
+        // A group's rows: the table's query, for that group.
+        const q = remoteQuery();
+        u = q.url;
+        p = queryParams(q);
+        p.set("group", typeof r.__value === "object" ? JSON.stringify(r.__value) : text(r.__value));
+      } else {
+        u = text(resolve(tree.url));
+        p = new URLSearchParams({ parent: text(rowKey(r, i)) });
+        const sort = sortValue(sortList(get("sort")));
+        if (sort) p.set("sort", Array.isArray(sort) ? sort.join(",") : sort);
+      }
       if (!okUrl(u)) throw new Error("url");
-      const p = new URLSearchParams({ parent: text(rowKey(r, i)) });
-      const sort = sortValue(sortList(get("sort")));
-      if (sort) p.set("sort", Array.isArray(sort) ? sort.join(",") : sort);
       const res = await fetch(u + (u.includes("?") ? "&" : "?") + p, { headers: { accept: "application/json" } });
       if (!res.ok) throw new Error(String(res.status));
       const answer = await res.json();
@@ -475,6 +489,7 @@
         const c = byKey.get(x.closest("[data-dt-col]").getAttribute("data-dt-col"));
         x.textContent = fmt(c, at(data[i], c.field));
       }
+      if (cfg.groupRemote) drawGroupRow(tr, data[i]);
       if (tree && meta[i]) {
         const m = meta[i];
         tr.setAttribute("aria-level", String(m.depth + 1));
@@ -639,10 +654,11 @@
       const sig = filtered.join(",");
       if (lastView?.data !== data || lastView.sig !== sig) {
         lastView = { data, sig };
-        const out = filtered.map((i) => data[i]);
+        const out = filtered.map((i) => data[i]).filter((r) => !isGroupRow(r));
         queueMicrotask(() => api.set(B.view, out));
       }
     }
+    drawViewsButton();
   }
 
   // ---- more rows: revealed here, or loaded from `url`
@@ -694,7 +710,18 @@
       filters: Object.keys(fs).length ? JSON.stringify(fs) : null,
       params: resolve(cfg.params),
       size,
+      groupBy: cfg.groupRemote ? groupField() : null,
     };
+  }
+  // A query's parameters, without the batch: sort, search, filters, grouping and `params`.
+  function queryParams(q) {
+    const p = new URLSearchParams();
+    if (q.sort) p.set("sort", q.sort);
+    if (q.q) p.set("q", q.q);
+    if (q.filters) p.set("filters", q.filters);
+    if (q.groupBy) p.set("groupBy", q.groupBy);
+    if (isObj(q.params)) for (const [k, v] of Object.entries(q.params)) if (!blank(v)) p.set(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    return p;
   }
   function sync() {
     const key = JSON.stringify(remoteQuery());
@@ -702,6 +729,12 @@
       const first = R.key === null;
       Object.assign(R, { key, rows: [], total: null, done: false, error: false, page: 0, loading: true });
       R.seq++;
+      // A group's rows depend on the query: they load again when it's opened.
+      if (cfg.groupRemote) {
+        kids.clear();
+        kidsFailed.clear();
+        treeVersion++;
+      }
       clearTimeout(timer);
       // Typing waits for a pause; the first load goes at once.
       timer = setTimeout(() => fetchBatch(), first ? 0 : 250);
@@ -714,22 +747,25 @@
     const offset = mode === "pages" ? (at - 1) * size : R.rows.length;
     const id = ++R.seq;
     Object.assign(R, { loading: true, error: false });
-    const p = new URLSearchParams();
+    const p = queryParams(q);
     if (mode !== "none") {
       p.set("offset", String(offset));
       p.set("limit", String(size));
     }
-    if (q.sort) p.set("sort", q.sort);
-    if (q.q) p.set("q", q.q);
-    if (q.filters) p.set("filters", q.filters);
-    if (isObj(q.params)) for (const [k, v] of Object.entries(q.params)) if (!blank(v)) p.set(k, typeof v === "object" ? JSON.stringify(v) : String(v));
     try {
       if (!okUrl(q.url)) throw new Error("url");
       const res = await fetch(q.url + (q.url.includes("?") ? "&" : "?") + p, { headers: { accept: "application/json" } });
       if (!res.ok) throw new Error(String(res.status));
       const answer = await res.json();
       if (id !== R.seq) return;
-      const batch = Array.isArray(answer) ? answer : Array.isArray(answer?.rows) ? answer.rows : [];
+      let batch = Array.isArray(answer) ? answer : Array.isArray(answer?.rows) ? answer.rows : [];
+      // Grouped, the API answers a row per group: its value in the field, a `count`,
+      // and any subtotals in their columns' fields.
+      if (q.groupBy) batch = batch.filter(isObj).map((g) => {
+        const r = { ...g, __value: fieldValue(g, q.groupBy) ?? g.value ?? null };
+        groupRowSet.add(r);
+        return r;
+      });
       const total = Number.isFinite(answer?.total) ? answer.total : null;
       Object.assign(R, {
         rows: mode === "pages" || mode === "none" ? batch : R.rows.concat(batch),
@@ -737,6 +773,11 @@
         total,
         done: mode === "none" || (total != null ? offset + batch.length >= total : batch.length < size),
         loading: false,
+      });
+      // Groups that were open before the query changed load their rows again.
+      if (q.groupBy) R.rows.forEach((r, n) => {
+        const k = keyOf(rowKey(r, n));
+        if (isGroupRow(r) && isOpen(k) && !kids.has(k) && !kidsLoading.has(k)) loadChildren(r, n, k);
       });
     } catch {
       if (id !== R.seq) return;
@@ -893,6 +934,35 @@
     return { i, row: data[i], key: rowKey(data[i], i) };
   };
 
+
+  // A group row from the API: marked, with its value and count at the start of the
+  // tree column, and nothing to select or open.
+  function drawGroupRow(tr, r) {
+    const g = isGroupRow(r);
+    tr.toggleAttribute("data-dt-group-row", g);
+    const node = tr.querySelector(":scope > [data-dt-tree] [data-dt-node]");
+    let label = node?.querySelector(":scope > [data-dt-group-label]");
+    if (!g) return label?.remove();
+    if (!label && node) {
+      label = document.createElement("span");
+      label.setAttribute("data-dt-group-label", "");
+      node.querySelector("[data-dt-twisty]").after(label);
+    }
+    if (label) {
+      const value = blank(r.__value) ? L("(none)") : fmt(byKey.get(groupKeyOf()) ?? {}, r.__value);
+      label.textContent = value;
+      const n = Number(r.count);
+      let count = label.nextElementSibling?.hasAttribute("data-dt-group-count") ? label.nextElementSibling : null;
+      if (Number.isFinite(n)) {
+        count ||= label.after(Object.assign(document.createElement("span"), { textContent: "" })) || label.nextElementSibling;
+        count.setAttribute("data-dt-group-count", "");
+        count.textContent = num(n);
+        count.setAttribute("aria-label", L(["{n} row", "{n} rows"], { n }));
+      } else count?.remove();
+    }
+  }
+  // The key of the column the rows are grouped by, if one shows that field.
+  const groupKeyOf = () => cols.find((c) => c.field === groupField())?.key;
 
   // ---- grouped rows: a header row per group, with its count and subtotals
   const folded = new Set();
@@ -1149,7 +1219,7 @@
   // ---- CSV of the rows that pass the filters, in the order and columns shown
   function exportCsv() {
     const shownCols = colOrder.map((k) => byKey.get(k)).filter((c) => c && c.field && !hidden.has(c.key));
-    const seq = groupList ? groupList.flatMap((x) => x.rows) : filtered;
+    const seq = (groupList ? groupList.flatMap((x) => x.rows) : filtered).filter((i) => !isGroupRow(data[i]));
     const cell = (v) => {
       let s = blank(v) ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
       // A text that starts like a formula is kept as text (a spreadsheet would run it).
@@ -1170,6 +1240,228 @@
     sayCols(L(["Exported {n} row", "Exported {n} rows"], { n: seq.length }));
   }
 
+  // ---- saved views: a name for the table's sort, filters, search, columns, grouping
+  // and page size. Ready-made ones come from `views`; people's own go to `bindViews`.
+  const viewsPop = $("[data-dt-views]");
+  const presets = (Array.isArray(cfg.views) ? cfg.views : []).filter(isObj).map((v) => ({ ...v, id: String(v.id), preset: true }));
+  const ownViews = () => {
+    const v = B.views ? api.state[B.views] : local.views;
+    return (Array.isArray(v) ? v : []).filter((x) => isObj(x) && !blank(x.id)).map((x) => ({ ...x, id: String(x.id) }));
+  };
+  const allViews = () => [...presets, ...ownViews()];
+  const currentViewId = () => {
+    const v = B.currentView ? api.state[B.currentView] : local.currentView;
+    return blank(v) ? null : String(v);
+  };
+  const viewById = (id) => (id === null ? null : allViews().find((v) => v.id === id) ?? null);
+  // The table as it starts, which a view's missing parts fall back to.
+  const START = {
+    sort: cfg.sort ?? null, filters: {}, search: "", groupBy: resolve(cfg.groupBy) ?? null, pageSize: cfg.pageSize,
+    columns: { order: cols.map((c) => c.key), widths: {}, hidden: cols.filter((c) => c.hidden).map((c) => c.key) },
+  };
+  const sorted = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => (a < b ? -1 : 1)));
+  // A view in one shape, so two can be compared: blank filters left out, keys in order.
+  function full(v) {
+    const c = { ...START.columns, ...(isObj(v.columns) ? v.columns : {}) };
+    const known = new Set(cols.map((x) => x.key));
+    return {
+      sort: sortValue(sortList(v.sort === undefined ? START.sort : v.sort)),
+      filters: sorted(Object.fromEntries(Object.entries(isObj(v.filters) ? v.filters : {}).filter(([, x]) => active(x)))),
+      search: String(v.search ?? "").trim(),
+      groupBy: blank(v.groupBy === undefined ? START.groupBy : v.groupBy) ? null : String(v.groupBy === undefined ? START.groupBy : v.groupBy),
+      pageSize: Number(v.pageSize) > 0 ? Number(v.pageSize) : START.pageSize,
+      columns: {
+        order: [...new Set([...(Array.isArray(c.order) ? c.order.map(String) : []), ...cols.map((x) => x.key)])].filter((k) => known.has(k)),
+        widths: sorted(Object.fromEntries(Object.entries(isObj(c.widths) ? c.widths : {}).filter(([k, w]) => known.has(k) && Number(w) > 0).map(([k, w]) => [k, Math.round(Number(w))]))),
+        hidden: (Array.isArray(c.hidden) ? c.hidden.map(String) : []).filter((k) => known.has(k)).sort(),
+      },
+    };
+  }
+  const now = () => full({ sort: get("sort"), filters: filters(), search: get("search"), groupBy: groupField(), pageSize: size, columns: { order: colOrder, widths, hidden: [...hidden] } });
+  const edited = (v) => !!v && JSON.stringify(full(v)) !== JSON.stringify(now());
+  // The view last shown, to tell a view picked from outside.
+  let shownView = null;
+  // Shows `v` (null: the table as it starts) and makes it the current view.
+  function showView(v) {
+    shownView = v ? v.id : null;
+    const f = full(v ?? {});
+    const set = (name, value) => {
+      local[name] = value;
+      if (B[name]) api.set(B[name], value);
+    };
+    set("sort", f.sort);
+    set("filters", f.filters);
+    set("search", f.search);
+    set("page", 1);
+    set("groupBy", f.groupBy);
+    folded.clear();
+    size = f.pageSize;
+    loaded = size;
+    set("columns", f.columns);
+    layoutSig = null;
+    set("currentView", v ? v.id : null);
+    apply();
+    api.emit("view", { id: v ? v.id : null, view: v ?? null });
+  }
+  function writeViews(list) {
+    local.views = list;
+    if (B.views) api.set(B.views, list);
+    api.emit("views", { views: list });
+  }
+  const snapshot = () => {
+    const f = now();
+    return { sort: f.sort, filters: f.filters, search: f.search, groupBy: f.groupBy, pageSize: f.pageSize, columns: f.columns };
+  };
+  function saveNewView(name) {
+    const taken = new Set(allViews().map((v) => v.id));
+    let n = 1;
+    while (taken.has(`view-${n}`)) n++;
+    const v = { id: `view-${n}`, name, ...snapshot() };
+    writeViews([...ownViews(), v]);
+    local.currentView = shownView = v.id;
+    if (B.currentView) api.set(B.currentView, v.id);
+    drawViews();
+    say(L("Saved view {name}", { name }));
+  }
+  const say = (t) => {
+    const live = $("[data-dt-footer] [data-dt-live]");
+    if (live) live.textContent = t;
+  };
+
+  // The button names the view shown, marked when it has been changed since.
+  function drawViewsButton() {
+    const label = drawViewsButton.ready && $("[data-dt-views-label]");
+    if (!label) return;
+    // A view picked from outside, by its id in `bindCurrentView`, is shown.
+    const id = currentViewId();
+    if (id !== shownView) {
+      shownView = id;
+      if (viewById(id)) return queueMicrotask(() => showView(viewById(id)));
+    }
+    const v = viewById(id);
+    const text = v ? String(v.name ?? v.id) : L("Views"), changed = !!v && edited(v);
+    // An open menu follows too, unless a name is being typed in it.
+    if (naming === null && viewsPop.matches(":popover-open") && viewsPop.__sig !== menuSig(changed)) drawViews();
+    if (label.__sig === text + changed) return;
+    label.__sig = text + changed;
+    label.textContent = text;
+    if (changed) label.append(" ", Object.assign(document.createElement("span"), { textContent: L("(edited)") }));
+    label.lastElementChild?.setAttribute("data-dt-views-edited", "");
+  }
+  // The menu: the table as it starts, then each view, then what can be done with them.
+  let naming = null; // null, "new", or the id being renamed
+  const menuSig = (changed) => JSON.stringify([currentViewId(), changed, allViews()]);
+  function drawViews() {
+    if (!viewsPop) return;
+    const cur = currentViewId(), v = viewById(cur);
+    viewsPop.__sig = menuSig(!!v && edited(v));
+    const make = (tag, attrs, text) => {
+      const n = document.createElement(tag);
+      for (const [k, x] of Object.entries(attrs)) if (x !== null && x !== undefined && x !== false) n.setAttribute(k, x === true ? "" : x);
+      if (text !== undefined) n.textContent = text;
+      return n;
+    };
+    const TICK = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7"/></svg>';
+    const PEN = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.5 2.5l3 3-8 8H2.5v-3z"/></svg>';
+    const BIN = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 9h6l.5-9"/></svg>';
+    const nameBox = (value, label) => {
+      const i = make("input", { type: "text", "data-dt-view-name": true, "aria-label": label, placeholder: L("View name") });
+      i.value = value;
+      return i;
+    };
+    const items = [make("div", { "data-dt-pop-title": true }, L("Views"))];
+    for (const x of [null, ...allViews()]) {
+      const id = x ? x.id : "";
+      if (x && naming === x.id) {
+        items.push(nameBox(String(x.name ?? x.id), L("Rename {name}", { name: String(x.name ?? x.id) })));
+        continue;
+      }
+      const row = make("div", { "data-dt-view": id });
+      const name = x ? String(x.name ?? x.id) : L("Default view");
+      const pick = make("button", { type: "button", "data-dt-view-pick": id, "aria-current": (x ? x.id : null) === cur ? "true" : null });
+      const tick = make("span", { "data-dt-tick": true });
+      if ((x ? x.id : null) === cur) tick.innerHTML = TICK;
+      pick.append(tick, make("span", {}, name));
+      row.append(pick);
+      if (x && !x.preset) {
+        const r = make("button", { type: "button", "data-dt-view-rename": id, "aria-label": L("Rename {name}", { name }), title: L("Rename") });
+        r.innerHTML = PEN;
+        const d = make("button", { type: "button", "data-dt-view-delete": id, "aria-label": L("Delete {name}", { name }), title: L("Delete") });
+        d.innerHTML = BIN;
+        row.append(r, d);
+      }
+      items.push(row);
+    }
+    const actions = make("div", { "data-dt-view-actions": true });
+    if (v && edited(v)) {
+      if (!v.preset) actions.append(make("button", { type: "button", "data-dt-view-save": true }, L("Save changes to {name}", { name: String(v.name ?? v.id) })));
+      actions.append(make("button", { type: "button", "data-dt-view-revert": true }, L("Undo changes")));
+    }
+    if (naming === "new") actions.append(nameBox("", L("New view name")));
+    else actions.append(make("button", { type: "button", "data-dt-view-new": true }, L("Save as new view…")));
+    items.push(actions);
+    viewsPop.replaceChildren(...items);
+    viewsPop.querySelector("[data-dt-view-name]")?.focus();
+  }
+  viewsPop?.addEventListener("toggle", (e) => {
+    if (e.newState === "open") drawViews();
+    else naming = null;
+  });
+  viewsPop?.addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t) return;
+    e.stopPropagation();
+    if (t.matches("[data-dt-view-pick]")) {
+      const id = t.getAttribute("data-dt-view-pick");
+      showView(id ? viewById(id) : null);
+      viewsPop.hidePopover?.();
+      return $("[data-dt-views-button]")?.focus();
+    }
+    if (t.matches("[data-dt-view-new]")) naming = "new";
+    else if (t.matches("[data-dt-view-rename]")) naming = t.getAttribute("data-dt-view-rename");
+    else if (t.matches("[data-dt-view-delete]")) {
+      const id = t.getAttribute("data-dt-view-delete"), gone = viewById(id);
+      writeViews(ownViews().filter((v) => v.id !== id));
+      if (currentViewId() === id) {
+        local.currentView = shownView = null;
+        if (B.currentView) api.set(B.currentView, null);
+      }
+      say(L("Deleted view {name}", { name: String(gone?.name ?? id) }));
+    } else if (t.matches("[data-dt-view-save]")) {
+      const id = currentViewId();
+      writeViews(ownViews().map((v) => (v.id === id ? { ...v, ...snapshot() } : v)));
+      say(L("Saved view {name}", { name: String(viewById(id)?.name ?? id) }));
+    } else if (t.matches("[data-dt-view-revert]")) showView(viewById(currentViewId()));
+    drawViews();
+    drawViewsButton();
+  });
+  viewsPop?.addEventListener("keydown", (e) => {
+    const box = e.target.closest?.("[data-dt-view-name]");
+    if (!box) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      naming = null;
+      drawViews();
+      return viewsPop.querySelector("[data-dt-view-new]")?.focus();
+    }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const name = box.value.trim();
+    if (!name) return;
+    if (naming === "new") saveNewView(name);
+    else writeViews(ownViews().map((v) => (v.id === naming ? { ...v, name } : v)));
+    naming = null;
+    drawViews();
+    drawViewsButton();
+  });
+  drawViewsButton.ready = true;
+  // Without a current view in state (which the first `apply` shows), `defaultView`.
+  if (viewsPop && currentViewId() === null && !blank(cfg.defaultView)) {
+    const first = viewById(String(cfg.defaultView));
+    if (first) queueMicrotask(() => showView(first));
+  }
+
   // ---- changes people make
   const setFilter = (key, c) => {
     const next = { ...filters() };
@@ -1188,6 +1480,8 @@
   }
   function clickRow(tr) {
     const { row } = rowOf(tr);
+    // A group row opens and closes its group.
+    if (isGroupRow(row)) return toggleNode(indexOf(tr));
     if (B.row) api.set(B.row, row);
     api.emit("rowclick", { row });
   }
@@ -1237,7 +1531,7 @@
     } else if (t.matches("[data-dt-clear]")) {
       setFilter(t.closest("[data-dt-filter]").getAttribute("data-dt-filter"), null);
     } else if (t.matches("[data-dt-select-all]")) {
-      toggleRows(filtered.map((i) => rowKey(data[i], i)), true);
+      toggleRows(filtered.filter((i) => !isGroupRow(data[i])).map((i) => rowKey(data[i], i)), true);
     } else if (t.matches("[data-dt-clear-selection]")) {
       put("selection", []);
       api.emit("select", { selection: [] });
@@ -1267,7 +1561,7 @@
       } else toggleRows([key], t.checked);
       lastClicked = tr;
     } else if (t.matches("[data-dt-select-page]")) {
-      toggleRows(shown.map((i) => rowKey(data[i], i)), t.checked);
+      toggleRows(shown.filter((i) => !isGroupRow(data[i])).map((i) => rowKey(data[i], i)), t.checked);
     } else if (t.matches("[data-dt-show]")) {
       t.checked ? hidden.delete(t.getAttribute("data-dt-show")) : hidden.add(t.getAttribute("data-dt-show"));
       if (B.columns || local.columns || cfg.reorderable || cfg.resizable) saveColumns();
@@ -1385,10 +1679,11 @@
       case " ":
         if (!cfg.selectable) return;
         e.preventDefault();
+        if (isGroupRow(rowOf(t).row)) return;
         return toggleRows([rowOf(t).key], !selection().some((k) => keyOf(k) === keyOf(rowOf(t).key)));
       case "Enter":
         e.preventDefault();
-        if (B.row) return clickRow(t);
+        if (B.row || isGroupRow(rowOf(t).row)) return clickRow(t);
         if (cfg.detail) return toggleDetail(t);
         return;
       case "ArrowRight":

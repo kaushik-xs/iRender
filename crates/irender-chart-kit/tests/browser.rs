@@ -242,9 +242,15 @@ fn gantt_in_chrome() {
     let body = r##"
     await ready(["g"]);
     const o = () => opt("g"), rows = () => o().yAxis[0].data.length;
-    const fmt = (i) => o().yAxis[0].axisLabel.formatter(String(i));
+    // The table: HTML over the chart, a row per task.
+    const T = () => el("g").querySelector("[data-gantt-table]"), trs = () => [...T().querySelectorAll("[role=row][data-key]")];
+    const fmt = (i) => { const r = trs()[i]; return `${r.getAttribute("aria-level")}${r.hasAttribute("aria-expanded") ? (r.getAttribute("aria-expanded") === "true" ? "+" : "-") : ""}|${[...r.children].map((c) => c.textContent).join("|")}`; };
     log("rows", rows(), el("g").style.height);
     log("labels", fmt(0), fmt(1), fmt(5));
+    log("table", T().getAttribute("role"), [...T().querySelectorAll("[role=columnheader]")].map((c) => c.textContent).join(","), trs()[1].getAttribute("aria-label"));
+    // Each row sits on its bars' row.
+    const g0 = el("g").getBoundingClientRect(), mid = (r) => Math.round(r.getBoundingClientRect().top + r.getBoundingClientRect().height / 2 - g0.top);
+    log("aligned", trs().every((r, i) => Math.abs(mid(r) - Math.round(chart("g").convertToPixel({ yAxisIndex: 0 }, String(i)))) <= 1));
     const bars = o().series.filter((s) => s.type === "custom" && s.encode?.x?.length === 2 && s.id !== "links");
     log("series", bars.map((s) => s.name + ":" + s.data.length).join(" "));
     log("legend", o().legend[0].data.join(","));
@@ -268,7 +274,7 @@ fn gantt_in_chrome() {
 
     // Closing the first group by its name: its tasks go, and the arrow from them
     // starts at the group.
-    await click(20, rowY(0));
+    trs()[0].click(); await wait(50);
     log("closed", rows(), fmt(0), S().toggles, el("g").style.height);
     log("links closed", JSON.stringify(o().series.find((s) => s.id === "links").data.map((l) => [l[0], l[2]])));
 
@@ -276,6 +282,17 @@ fn gantt_in_chrome() {
     const c = o().series.find((s) => s.name === "Engineering").data[0].value;
     await click(g.convertToPixel({ xAxisIndex: 0 }, (c[1] + c[2]) / 2), rowY(c[0]));
     log("picked", S().row && S().row.id);
+
+    // The keys: Down, Right into Build's group… there's none, so a picked task; Left to
+    // the group above; Right opens the closed one; Enter picks.
+    const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+    trs()[0].focus();
+    key("ArrowDown"); log("down", document.activeElement.getAttribute("data-key"), document.activeElement.tabIndex);
+    key("Enter"); await wait(20); log("enter picks", S().row && S().row.id, document.activeElement.getAttribute("aria-selected"));
+    key("ArrowUp"); key("ArrowRight"); await wait(50); log("right opens", rows(), document.activeElement.getAttribute("data-key"), document.activeElement.getAttribute("aria-expanded"));
+    key("ArrowDown"); key("ArrowLeft"); log("left to group", document.activeElement.getAttribute("data-key"));
+    key("Enter"); await wait(50); log("enter folds", rows(), document.activeElement.getAttribute("aria-expanded"));
+    key("End"); log("end", document.activeElement.getAttribute("data-key"));
 
     // The zoom buttons halve and double the window, and show it all.
     const zoom = () => { const z = o().dataZoom[0]; return Math.round(z.end - z.start); };
@@ -288,7 +305,10 @@ fn gantt_in_chrome() {
     let Some(lines) = run("gantt", &engine, doc, &driver(body)) else { return };
     let expected = [
         "rows 6 306px",
-        "labels {t01|▾ Plan}{c0|Asha} {t10|Brief}{c0|Asha} {t01|▸ Later}{c0|}",
+        // Rows in the table: level, open (+) or closed (-), and the cells.
+        "labels 1+|▾ Plan|Asha 2|Brief|Asha 1-|▸ Later|",
+        "table treegrid Task,Owner Brief, Mar 2, 2026 – Mar 6, 2026 · 5 days, 100% done, Product",
+        "aligned true",
         "series Product:1 Design:1 :1 Engineering:1 Groups:2",
         "legend Product,Design,Engineering",
         "links 4",
@@ -296,9 +316,17 @@ fn gantt_in_chrome() {
         "tip <b>Build &lt;b&gt;it&lt;/b&gt;</b><br/>Mar 16, 2026 – Mar 27, 2026 · 12 days<br/>Engineering",
         "brief 1 2 7 1 0",
         "plan 0 2 16 0.67 1",
-        "closed 3 {t01|▸ Plan}{c0|Asha} 1 204px",
+        "closed 3 1-|▸ Plan|Asha 1 204px",
         "links closed [[0,1],[1,2]]",
         "picked c",
+        "down c 0",
+        // The task was picked by a click on its bar: Enter picks it again, which clears it.
+        "enter picks  false",
+        // Right opens the closed group; Left goes back to it; Enter folds it.
+        "right opens 6 p true",
+        "left to group p",
+        "enter folds 3 false",
+        "end q",
         "zoom-in 50",
         "zoom-in 25",
         "zoom-out 50",

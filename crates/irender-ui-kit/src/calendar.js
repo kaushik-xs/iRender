@@ -222,8 +222,16 @@
         lastYear: span(U.year.start(String(+y(t) - 1)), U.year.end(String(+y(t) - 1))),
         yearToDate: span(U.year.start(y(t)), t), monthToDate: span(U.month.start(U.month.key(t)), t),
       }[p];
+      // `quarterN`: the quarter N before today's, named by its (financial) year.
+      const back = /^quarter(\d)$/.exec(p);
+      if (back) {
+        const k = U.quarter.step(q(t), -Number(back[1])), [year, n] = k.split("-Q");
+        return { label: quarterName(year, n), ...span(U.quarter.start(k), U.quarter.end(k)) };
+      }
       return { label: NAMES[p] && L(NAMES[p]), ...r };
     }
+    // "Q2 2026", or on a financial year "Q2 FY2026–27", as the calendar names quarters.
+    const quarterName = (year, n) => L("Q{n} {year}", { n, year: fyName(+year) });
     function applyPreset(p) {
       const { from, to } = preset(p);
       if (!from) return;

@@ -18,6 +18,8 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/shipments     JSON: 5,000 made-up shipments for the data table blocks, a batch at a time.
                     Takes ui-data-table's query: offset, limit, sort (`-eta,id`), q (search),
                     filters (JSON conditions) and delay (ms); answers { rows, total }.
+                    With groupBy=<field>, answers a row per group ({ <field>, count, value });
+                    with group=<value> too, that group's rows (the first 50).
   api/upload        POST multipart (field `file`): keeps the file in memory for this run and
                     answers { id, url } for ui-file-upload. Files over 10 MB get 413.
   api/uploads/<id>/<name>  GET: an uploaded file back.
@@ -123,6 +125,17 @@ def shipments(query):
     offset = max(0, int(query.get("offset") or 0))
     limit = min(500, max(1, int(query.get("limit") or 50)))
     time.sleep(min(2000, int(query.get("delay") or 300)) / 1000)
+    group_by = query.get("groupBy")
+    if group_by and "group" in query:
+        return {"rows": [r for r in rows if str(r.get(group_by)) == query["group"]][:50]}
+    if group_by:
+        groups = {}
+        for r in rows:
+            g = groups.setdefault(r.get(group_by), {group_by: r.get(group_by), "count": 0, "value": 0})
+            g["count"] += 1
+            g["value"] = round(g["value"] + r["value"], 2)
+        ordered = sorted(groups.values(), key=lambda g: str(g[group_by]))
+        return {"rows": ordered[offset:offset + limit], "total": len(ordered)}
     return {"rows": rows[offset:offset + limit], "total": len(rows)}
 
 

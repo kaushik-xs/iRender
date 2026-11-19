@@ -1580,10 +1580,14 @@ fn data_table_bands_resizers_export_and_group_by() {
     let body = plain(&render_with(table(json!({ "export": "ledger" })), json!({}), json!({})).unwrap().body);
     assert!(body.contains("ledger.csv"), "{body}");
 
+    // Rows from an API group on the server: the groups come as nested rows.
     let mut remote = table(json!({ "url": "/api/rows", "groupBy": "a" }));
     remote["props"].as_object_mut().unwrap().remove("rows");
+    let body = plain(&render_with(remote.clone(), json!({}), json!({})).unwrap().body);
+    assert!(body.contains("data-dt-tree") && body.contains("&quot;groupRemote&quot;:true"), "{body}");
+    remote["props"]["virtual"] = json!(true);
     let err = render_with(remote, json!({}), json!({})).unwrap_err().to_string();
-    assert!(err.contains("grouping rows needs the rows in the page"), "{err}");
+    assert!(err.contains("grouping rows doesn't work with `virtual` or nested rows"), "{err}");
 }
 
 #[test]
@@ -1662,4 +1666,26 @@ fn dashboard_grid_places_tiles_and_mistakes() {
     assert!(err(grid(json!({}), vec![tile(json!({ "id": "a" })), tile(json!({ "id": "a" }))])).contains("two tiles have the id `a`"));
     assert!(err(grid(json!({ "columns": 0 }), vec![tile(json!({}))])).contains("`columns` must be from 1 to 48"));
     assert!(err(tile(json!({}))).contains("must be a direct child of `ui-dashboard-grid`"));
+}
+
+#[test]
+fn data_table_views_menu_and_mistakes() {
+    let table = |props: Json| {
+        let mut p = json!({ "rows": [{ "id": 1, "name": "a" }] });
+        p.as_object_mut().unwrap().extend(props.as_object().unwrap().clone());
+        json!({ "type": "ui-data-table", "props": p, "children": [ { "type": "ui-data-table-column", "props": { "field": "name" } } ] })
+    };
+    // Ready-made views get ids, and the button names the view shown.
+    let page = render_with(table(json!({ "views": [{ "name": "All" }, { "id": "mine", "name": "Mine" }], "bindCurrentView": "v" })), json!({ "v": "mine" }), json!({})).unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains("data-dt-views-button") && body.contains(r#"<span data-dt-views-label>Mine</span>"#), "{body}");
+    assert!(body.contains(r#"data-dt-views role="dialog" aria-label="Views""#), "{body}");
+    assert!(body.contains(r#"&quot;id&quot;:&quot;preset-1&quot;"#) || body.contains(r#""id":"preset-1""#), "{body}");
+    // `bindViews` alone shows the menu; nothing shows it without either.
+    let body = plain(&render_with(table(json!({ "bindViews": "saved" })), json!({ "saved": [] }), json!({})).unwrap().body);
+    assert!(body.contains("<span data-dt-views-label>Views</span>"), "{body}");
+    assert!(!plain(&render(table(json!({})))).contains("data-dt-views"));
+    let err = |root: Json| render_with(root, json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(table(json!({ "views": "nope" }))).contains("`views` must be a list"));
+    assert!(err(table(json!({ "views": [1] }))).contains("each of `views` must be an object"));
 }

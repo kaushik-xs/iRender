@@ -106,6 +106,14 @@ const PROPS: &[PropDef] = &[
         "State key that gets the rows that pass the filters and search, sorted, every page: a chart's `data`",
     ),
     PropDef::new("bindRow", PropKind::StateKey, "State key that gets the row last clicked (or opened with Enter)"),
+    PropDef::new(
+        "views",
+        PropKind::Any,
+        "Ready-made views in a Views menu: `[{ id, name, sort, filters, search, columns, groupBy, pageSize }]`; they can't be changed or deleted",
+    ),
+    PropDef::new("bindViews", PropKind::StateKey, "State key for the views people save from the Views menu (the same shape as `views`)"),
+    PropDef::new("bindCurrentView", PropKind::StateKey, "State key holding the id of the view shown (or null); the table opens with it"),
+    PropDef::new("defaultView", PropKind::String, "The view the table opens with when `bindCurrentView` has none"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
 ];
 
@@ -116,6 +124,12 @@ const COLUMN_PROPS: &[PropDef] = &[
     PropDef::new("sortField", PropKind::String, "Sort by this field instead, e.g. a rank behind a label (default: `field`)"),
     PropDef::new("filter", PropKind::Enum(FILTERS), "A filter control in the toolbar (`date`: a range calendar with presets)"),
     PropDef::new("options", PropKind::Any, "A `select` filter's choices (default: the column's distinct values)"),
+    PropDef::new(
+        "presets",
+        PropKind::Any,
+        "A `date` filter's shortcuts, as `ui-calendar`'s: names such as `lastQuarter`, `yearToDate` or `quarters` (the last four), or `{ label, from, to }`",
+    ),
+    PropDef::new("fiscalStart", PropKind::Number, "A `date` filter's financial year: the month it starts, 1–12; quarters and years follow it"),
     PropDef::new("align", PropKind::Enum(&["left", "center", "right"]), "Default: right for numbers, left otherwise"),
     PropDef::new("format", PropKind::Enum(FORMATS), "How the browser shows the value (in `locale`)"),
     PropDef::new("currency", PropKind::String, "With `format: currency`, e.g. `EUR` (default `USD`)"),
@@ -252,6 +266,31 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-pop] [data-dt-clear]:hover", pairs(&[("background", SUBTLE)]))
         .nest("& [data-dt-pop-title]", pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(12)), ("font-weight", "600"), ("color", MUTED)]))
         .nest("& [data-dt-none]", pairs(&[("padding", sp!(8)), ("color", MUTED), ("text-align", "center")]))
+        // The Views menu: a row per view, its name to pick it, and rename and delete.
+        .nest("& [data-dt-views]", pairs(&[("min-width", sp!(240))]))
+        .nest("& [data-dt-view]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(2)), ("border-radius", "var(--radius-sm)")]))
+        .nest("& [data-dt-view]:hover", pairs(&[("background", SUBTLE)]))
+        .nest(
+            "& :is([data-dt-view] button, [data-dt-view-actions] button)",
+            pairs(&[("border", "0"), ("background", "none"), ("color", "inherit"), ("font", "inherit"), ("cursor", "pointer"), ("border-radius", "var(--radius-sm)")]),
+        )
+        .nest(
+            "& [data-dt-view-pick]",
+            pairs(&[("flex", "1"), ("min-width", "0"), ("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(6, 8)), ("text-align", "start"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]),
+        )
+        .nest("& [data-dt-view-pick] [data-dt-tick]", pairs(&[("flex", "none"), ("width", "14px"), ("display", "grid")]))
+        .nest("& [data-dt-view-pick][aria-current=true]", pairs(&[("font-weight", "600")]))
+        .nest("& :is([data-dt-view-rename], [data-dt-view-delete])", pairs(&[("flex", "none"), ("display", "grid"), ("place-items", "center"), ("width", "28px"), ("height", "28px"), ("color", MUTED)]))
+        .nest("& :is([data-dt-view-rename], [data-dt-view-delete]):hover", pairs(&[("color", TEXT), ("background", BG_POPOVER)]))
+        .nest("& [data-dt-view] :focus-visible, & [data-dt-view-actions] :focus-visible", forms::focus_ring())
+        .nest(
+            "& [data-dt-view-actions]",
+            pairs(&[("display", "flex"), ("flex-direction", "column"), ("margin-top", sp!(2)), ("padding-top", sp!(2)), ("border-top", "1px solid var(--color-border)")]),
+        )
+        .nest("& [data-dt-view-actions] button", pairs(&[("padding", sp!(6, 8)), ("text-align", "start")]))
+        .nest("& [data-dt-view-actions] button:hover", pairs(&[("background", SUBTLE)]))
+        .nest("& [data-dt-view-name]", pairs(&[("margin", sp!(4)), ("min-width", "0")]))
+        .nest("& [data-dt-views-edited]", pairs(&[("color", MUTED), ("font-weight", "400")]))
         // Bulk actions, shown while rows are selected.
         .nest(
             "& [data-dt-bulk]",
@@ -339,6 +378,10 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&:dir(rtl) th[data-dt-drop=before]", pairs(&[("box-shadow", "inset -3px 0 var(--color-primary)")]))
         .nest("&:dir(rtl) th[data-dt-drop=after]", pairs(&[("box-shadow", "inset 3px 0 var(--color-primary)")]))
         // Group rows: the value, a count, subtotals; a click folds the group.
+        // Group rows from the API: shaded like a group's header, with nothing to select.
+        .nest("& [data-dt-group-row] > td", pairs(&[("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
+        .nest("& [data-dt-group-row] :is([data-dt-select], [data-dt-expand])", pairs(&[("visibility", "hidden")]))
+        .nest("& [data-dt-group-row]", pairs(&[("cursor", "pointer")]))
         .nest("& [data-dt-group] > td", pairs(&[("padding", sp!(6, 8)), ("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
         .nest(
             "& [data-dt-fold]",
@@ -553,6 +596,7 @@ const SORT_ARROW: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill
 const SORT_BOTH: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>"#;
 const PLUS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
 const DOWNLOAD: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
+const VIEWS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3.5h11M2.5 8h11M2.5 12.5h6"/><path d="m11 11 1.5 1.5L15 10"/></svg>"#;
 const COLUMNS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12M5 2.5v11"/></svg>"#;
 // Labels (looked up where they're used): "Go to first page", "Go to previous page", "Go to next page", "Go to last page"
 const PAGE_BUTTONS: &[(&str, &str, &str)] = &[
@@ -575,6 +619,9 @@ struct Column<'n> {
     sortable: bool,
     filter: Option<String>,
     options: Option<Json>,
+    /// A date filter's calendar: its presets and the month its financial year starts.
+    presets: Option<Json>,
+    fiscal_start: Option<Json>,
     align: Option<&'static str>,
     format: Option<String>,
     currency: Option<String>,
@@ -651,6 +698,8 @@ fn column<'n>(
         label,
         filter,
         options: get("options").filter(|v| !v.is_null()),
+        presets: get("presets").filter(|v| !v.is_null()),
+        fiscal_start: get("fiscalStart").filter(|v| !v.is_null()),
         align,
         format,
         currency: string("currency"),
@@ -854,9 +903,14 @@ impl Component for DataTable {
         };
         // Nested rows: asked for, or rows that start out with `children`. The tree column
         // is the one marked `tree`, else the first.
-        let nested = columns.iter().any(|c| c.tree)
+        let own_nesting = columns.iter().any(|c| c.tree)
             || ["childrenField", "parentField", "childrenUrl"].iter().any(|p| node.prop(p).is_some())
             || rows.iter().any(|r| matches!(r.get("children"), Some(Json::Array(_) | Json::Bool(true))));
+        let grouped = node.prop("groupBy").is_some() || cx.prop_string(node, "bindGroupBy").is_some() || columns.iter().any(|c| c.groupable);
+        // Rows from `url` grouped: the API answers a row per group, and a group's rows load
+        // when it's opened, as nested rows do.
+        let group_remote = grouped && url.is_some() && !own_nesting;
+        let nested = own_nesting || group_remote;
         if nested && !columns.iter().any(|c| c.tree) {
             columns[0].tree = true;
         }
@@ -912,9 +966,8 @@ impl Component for DataTable {
         };
 
         let children_url = node.prop("childrenUrl").map(|u| dynamic(cx, node, "childrenUrl", u)).transpose()?;
-        let grouped = node.prop("groupBy").is_some() || bind("bindGroupBy").is_some() || columns.iter().any(|c| c.groupable);
-        if grouped && listed {
-            return Err(RenderError::new(node, "grouping rows needs the rows in the page: it doesn't work with `url`, `virtual` or nested rows"));
+        if grouped && listed && !(group_remote && !virtual_) {
+            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual` or nested rows"));
         }
         let resizable = flag(cx, "resizable", false);
         let reorderable = flag(cx, "reorderable", false);
@@ -926,6 +979,32 @@ impl Component for DataTable {
         };
         let id = instance_id(cx, node, "data-table");
         let search = cx.prop(node, "search").filter(expr::truthy);
+        // Saved views: the ready-made ones, each with an id.
+        let views: Vec<Json> = match cx.prop(node, "views") {
+            None | Some(Json::Null) => Vec::new(),
+            Some(Json::Array(a)) => a
+                .into_iter()
+                .enumerate()
+                .map(|(i, v)| match v {
+                    Json::Object(mut o) => {
+                        let id = o.get("id").filter(|x| !x.is_null()).map(expr::stringify).unwrap_or_else(|| format!("preset-{}", i + 1));
+                        let name = o.get("name").map(expr::stringify).unwrap_or_else(|| id.clone());
+                        o.insert("id".into(), json!(id));
+                        o.insert("name".into(), json!(name));
+                        Ok(Json::Object(o))
+                    }
+                    _ => Err(RenderError::new(node, "each of `views` must be an object: `{ id, name, sort, filters, … }`")),
+                })
+                .collect::<Result<_, _>>()?,
+            Some(_) => return Err(RenderError::new(node, "`views` must be a list of views")),
+        };
+        let has_views = !views.is_empty() || bind("bindViews").is_some();
+        // The Views button names the view shown, when it's a ready-made one.
+        let view_name = state_of(bind("bindCurrentView"))
+            .map(|v| expr::stringify(&v))
+            .or_else(|| cx.prop_string(node, "defaultView"))
+            .and_then(|c| views.iter().find(|v| v["id"] == json!(c)).map(|v| expr::stringify(&v["name"])))
+            .unwrap_or_else(|| cx.label("Views"));
         let search_fields = cx.prop(node, "searchFields").filter(|v| !v.is_null());
         let config = json!({
             "rows": dynamic(cx, node, "rows", rows_val)?,
@@ -942,6 +1021,7 @@ impl Component for DataTable {
                 "url": children_url,
                 "all": flag(cx, "expanded", false),
             })),
+            "groupRemote": group_remote,
             "columns": columns.iter().map(|c| json!({
                 "key": c.key, "field": c.field, "sortField": c.sort_field, "label": c.label_text, "sortable": c.sortable, "filter": c.filter,
                 "options": c.options, "format": c.format, "currency": c.currency, "decimals": c.decimals,
@@ -963,7 +1043,10 @@ impl Component for DataTable {
                 "selection": bind("bindSelection"), "sort": bind("bindSort"), "filters": bind("bindFilters"),
                 "search": bind("bindSearch"), "page": bind("bindPage"), "view": bind("bindView"), "row": bind("bindRow"),
                 "groupBy": bind("bindGroupBy"), "columns": bind("bindColumns"),
+                "views": bind("bindViews"), "currentView": bind("bindCurrentView"),
             },
+            "views": views,
+            "defaultView": cx.prop_string(node, "defaultView"),
             "filters": state_of(bind("bindFilters")),
             "searchText": state_of(bind("bindSearch")),
         });
@@ -989,10 +1072,31 @@ impl Component for DataTable {
         let filtered: Vec<&Column> = columns.iter().filter(|c| c.filter.is_some()).collect();
         let groupable: Vec<&Column> = columns.iter().filter(|c| c.groupable && c.field.is_some()).collect();
         let menu = (flag(cx, "columnsMenu", true) && columns.iter().any(|c| c.hideable)) || !groupable.is_empty();
-        if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() || export.is_some() {
+        if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() || export.is_some() || has_views {
             let mut bar = cx.part("div", node, "toolbar");
             bar.attr("data-dt-toolbar", true);
             cx.open(&bar, node)?;
+            if has_views {
+                // The Views menu: its list is drawn by the script, from `views` and `bindViews`.
+                let pop = id_with(&id, "-views");
+                let mut b = Element::new("button");
+                forms::button_look(&mut b, "outline", "sm");
+                b.attr("type", "button").attr("popovertarget", pop.clone()).attr("aria-haspopup", "dialog").attr("data-dt-views-button", true);
+                let anchor = format!("--{}-views", expr::stringify(&cx.eval(&id)));
+                b.base_style(StyleBlock::new().set("anchor-name", anchor.clone()));
+                cx.open(&b, node)?;
+                cx.markup(VIEWS);
+                let mut l = Element::new("span");
+                l.attr("data-dt-views-label", true).text(lit(view_name.clone()));
+                cx.open(&l, node)?;
+                cx.close("span");
+                cx.close("button");
+                let mut p = Element::new("div");
+                p.attr("popover", "auto").attr("id", pop).attr("data-dt-pop", true).attr("data-dt-views", true).attr("role", "dialog").attr("aria-label", cx.label("Views"));
+                p.base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor), "bottom span-right"));
+                cx.open(&p, node)?;
+                cx.close("div");
+            }
             if let Some(s) = &search {
                 let placeholder = match s {
                     Json::String(p) => p.clone(),
@@ -1594,11 +1698,14 @@ fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column, loca
                 vec![
                     ("mode", lit("range")),
                     ("label", lit(format!("{} range", c.label_text))),
-                    ("presets", lit(json!(["last7", "last30", "thisMonth", "lastMonth", "thisQuarter", "thisYear"]))),
+                    ("presets", lit(c.presets.clone().unwrap_or_else(|| json!(["last7", "last30", "thisMonth", "lastMonth", "thisQuarter", "lastQuarter", "thisYear"])))),
                 ],
                 vec![("data-dt-calendar", lit(true))],
                 Vec::new(),
             );
+            if let Some(f) = &c.fiscal_start {
+                cal.props.insert("fiscalStart".into(), lit(f.clone()));
+            }
             if let Some(l) = locale {
                 cal.props.insert("locale".into(), lit(l.to_string()));
             }

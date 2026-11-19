@@ -256,6 +256,7 @@ ui-filters: Filters for a list: a button that opens a side panel of fields, each
   locale       string  Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)
   bindViews    statekey  State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them
   today        string  The date date presets count from (default: today)
+  fiscalStart  number  The month a financial year starts, 1–12 (default 1): the quarter and year presets follow it
   id           any  The panel's element id (default: derived from the document)
   parts: button, panel
   children: yes
@@ -963,6 +964,10 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   bindPage     statekey  State key holding the page number, from 1
   bindView     statekey  State key that gets the rows that pass the filters and search, sorted, every page: a chart's `data`
   bindRow      statekey  State key that gets the row last clicked (or opened with Enter)
+  views        any  Ready-made views in a Views menu: `[{ id, name, sort, filters, search, columns, groupBy, pageSize }]`; they can't be changed or deleted
+  bindViews    statekey  State key for the views people save from the Views menu (the same shape as `views`)
+  bindCurrentView statekey  State key holding the id of the view shown (or null); the table opens with it
+  defaultView  string  The view the table opens with when `bindCurrentView` has none
   id           any  Element id (default: derived from the document)
   parts: toolbar, table, footer
   children: yes
@@ -973,6 +978,8 @@ ui-data-table-column: A column of the `ui-data-table` it is in. Children, if any
   sortField    string  Sort by this field instead, e.g. a rank behind a label (default: `field`)
   filter       one of: text, select, range, date  A filter control in the toolbar (`date`: a range calendar with presets)
   options      any  A `select` filter's choices (default: the column's distinct values)
+  presets      any  A `date` filter's shortcuts, as `ui-calendar`'s: names such as `lastQuarter`, `yearToDate` or `quarters` (the last four), or `{ label, from, to }`
+  fiscalStart  number  A `date` filter's financial year: the month it starts, 1–12; quarters and years follow it
   align        one of: left, center, right  Default: right for numbers, left otherwise
   format       one of: number, currency, percent, date, datetime  How the browser shows the value (in `locale`)
   currency     string  With `format: currency`, e.g. `EUR` (default `USD`)

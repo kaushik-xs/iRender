@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart, the dashboard grid and touch dragging (kanban, tree, flow palette) are in (2026-11-19). Next candidates: named column views, grouping for remote tables and quarter filters in the data table; keyboard access to the Gantt chart's table.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: dragging Gantt bars to move and stretch them, or a separate layout per screen width for the dashboard grid.
 
 ## Gaps you'd hit in real use
 
@@ -36,7 +36,7 @@ _Last updated: 2026-11-19._
     - [ ] Uploads are one request per file: no chunked or resumable uploads, and no direct-to-storage (presigned) uploads.
     - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
   - [x] **Gantt chart** (2026-11-19): `ui-chart` `type: gantt`, a table of tasks beside their bars, groups that fold, progress, `after` arrows, milestones, `markers` and today, colours by `series` with a legend, zoom buttons, and a height that follows the rows (block gantt-01, charts gallery). Not done yet:
-    - [ ] The table is drawn on the canvas, so its rows can't be focused or read one by one; opening a group needs a pointer.
+    - [x] The table is an HTML tree grid over the chart (2026-11-20): rows read out and moved through with the keys, groups opened with Right, Left and Enter, tasks picked with Enter.
     - [ ] No editing: bars can't be dragged to move or stretch them, and arrows can't be drawn.
     - [ ] No scrolling inside the chart: a long plan is as tall as its rows. No critical path, baselines or working days (weekends count).
     - [ ] Dates on the axis are ECharts' English month names, whatever the document's `lang`.
@@ -67,8 +67,10 @@ _Last updated: 2026-11-19._
   - [ ] Remote tables: select filters offer only `options` or the values loaded so far, and summaries and `bindView` cover the loaded rows only. Idea: let the API answer facets and totals too.
   - [ ] Nested rows: selecting a parent doesn't select its children; no "expand all" control; the footer counts the rows shown, children included.
   - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
-  - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with remote, virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.
-  - [x] Column order, widths and hidden columns are state with `bindColumns` (2026-11-19). Page size isn't, and there are no named column views (as `ui-filters` has for filters).
+  - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.
+  - [x] Grouping rows from an API (2026-11-20): `groupBy` with `url` asks the API for a row per group (count and subtotals) and loads a group's rows when it's opened. A group's rows come in one request, without paging or Load more.
+  - [x] Column order, widths and hidden columns are state with `bindColumns` (2026-11-19).
+  - [x] Saved views (2026-11-20): a Views menu with ready-made `views` and people's own in `bindViews` (sort, filters, search, columns, grouping, page size), "(edited)" with Undo and Save changes, rename and delete (block data-table-01). Not done yet: no default chosen from the menu (only `defaultView`), no sharing a view by link, and views aren't ordered by dragging.
   - [ ] Formats are applied by the browser, so the server's HTML shows raw values until the script runs.
   - [ ] The server's starting order compares text without locale rules, so mixed-case text can reorder once the script runs.
   - [x] Interface text follows the document's `labels` (2026-11-19).
@@ -79,6 +81,7 @@ _Last updated: 2026-11-19._
   - [ ] Times go with single days only; a range has no times, and there's no time zone (values are local wall-clock times).
   - [x] Interface text follows the document's `labels`; dates and month names follow `locale` (2026-11-19).
   - [ ] No week picker and no "multiple months" mode beyond three months side by side.
+  - [x] Quarter presets (2026-11-20): `quarters` (the last four, named by their financial year), `lastQuarter`, `lastYear` and `yearToDate` in the calendar, the filters panel (with its own `fiscalStart`) and the data table's date filter (with the column's `presets` and `fiscalStart`).
 - [ ] **Menus** (`ui-menubar`, `ui-navigation-menu`, submenus, checkbox and radio items shipped 2026-11-18):
   - [ ] The navigation menu's panels don't share one animated viewport that morphs between items, as Radix's does; each panel opens on its own.
   - [ ] Submenus open on hover without the "safe triangle", so moving diagonally toward a submenu over another item can close it.

@@ -213,7 +213,7 @@ Each row is a task with these fields. Any other field can be a column.
 - **Clicks:** `bind` and `bindRow` get the clicked task, and a group opening or closing fires `toggle` with `{ id, open, row }`.
 - **Height:** without `height`, the chart is as tall as its rows, and it grows and shrinks as groups open and close.
 
-The table is drawn on the canvas with the bars, so it can't be focused or read by a screen reader row by row. The chart's description says what it shows, and a `ui-data-table` of the same rows covers keyboard use.
+**Keyboard and screen readers.** The table is HTML laid over the chart: a `treegrid` named by `title`, with a row per task that a screen reader reads as its name, dates, length, progress and series. Tab reaches it; Up and Down move between rows (Home and End to the ends), Right opens a group or steps into it, Left closes it or goes to the group above, and Enter or Space opens a group or picks a task as a click on its bar does (`bind`, `bindRow`). The focused task shows its tooltip, and the picked one is marked, following `bindRow`.
 
 ## Interactions as state
 

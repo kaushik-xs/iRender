@@ -310,22 +310,6 @@
     return Date.parse(v);
   };
   const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-  let meter;
-  // `text` cut with an ellipsis to fit `px` in `font`.
-  const fit = (text, px, font) => {
-    meter ||= document.createElement("canvas").getContext("2d");
-    meter.font = font;
-    const s = String(text ?? "");
-    if (meter.measureText(s).width <= px) return s;
-    let lo = 0, hi = s.length;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (meter.measureText(s.slice(0, mid) + "…").width <= px) lo = mid;
-      else hi = mid - 1;
-    }
-    return s.slice(0, lo) + "…";
-  };
-
   // The rows a gantt shows, in order, with their depth and span. `collapsed` holds
   // the ids of closed groups; a group's own `collapsed: true` closes it the first time
   // it's seen.
@@ -400,7 +384,6 @@
   }
 
   function gantt(p, t, d, o, rows) {
-    const font = `12px ${t.font}`;
     const g = ganttRows(rows, d.collapsed || new Set(), d.seen || new Set());
     const { shown } = g;
     d.gantt = g;
@@ -423,40 +406,26 @@
     cols[0] = { ...all[0], width: Math.max(96, Math.min(all[0].width, budget - cols.slice(1).reduce((n, x) => n + x.width, 0))) };
     const tableWidth = cols.reduce((n, c) => n + c.width, 0) + 8;
     const cell = (v) => (blank(v) ? "" : looksLikeDate(v) ? when(v) : isNum(v) && typeof v === "number" ? v.toLocaleString(lang) : String(v));
-    const depths = Math.max(0, ...shown.map((i) => i.depth));
-    const rich = {};
-    for (let n = 0; n <= depths; n++) {
-      for (const bold of [0, 1]) rich[`t${n}${bold}`] = { width: cols[0].width - 8 - n * GANTT.indent, padding: [0, 0, 0, n * GANTT.indent], fontWeight: bold ? 600 : 400, color: t.text, fontSize: 12 };
-    }
-    cols.slice(1).forEach((c, i) => (rich[`c${i}`] = { width: c.width - 8, padding: [0, 8, 0, 0], align: c.align, color: t.muted, fontSize: 12 }));
-    const label = (v) => {
-      const item = shown[Number(v)];
-      if (!item) return "";
-      const n = item.depth;
-      const mark = item.group ? (item.open ? "▾ " : "▸ ") : "";
-      const name = fit(mark + (at(item.row, cols[0].field) ?? at(item.row, "name") ?? item.key), cols[0].width - 12 - n * GANTT.indent, `${item.group ? 600 : 400} ${font}`);
-      const rest = cols.slice(1).map((c, i) => `{c${i}|${fit(cell(at(item.row, c.field)), c.width - 16, font).replace(/[{}|]/g, "")}}`);
-      return [`{t${n}${item.group ? 1 : 0}|${name.replace(/[{}|]/g, "")}}`, ...rest].join("");
-    };
-
     // Series: one per `series` value (with a legend), groups and milestones apart.
     const split = blank(p.series) ? null : p.series;
     // From every row, so closing a group keeps each team's colour.
     const names = split ? uniq(g.all.filter((i) => !i.group).map((i) => String(at(i.row, split) ?? ""))) : [""];
     const days = (i) => Math.max(1, Math.round((i.b - i.a) / DAY));
-    const tip = (i) => {
-      const r = i.row;
-      const lines = [`<b>${escapeHtml(at(r, cols[0].field) ?? at(r, "name") ?? i.key)}</b>`];
-      if (i.milestone) lines.push(escapeHtml(when(at(r, "start"))));
+    const nameOf = (i) => String(at(i.row, cols[0].field) ?? at(i.row, "name") ?? i.key);
+    // What a task is, line by line: its name, dates and length, progress and series.
+    const about = (i) => {
+      const r = i.row, lines = [nameOf(i)];
+      if (i.milestone) lines.push(when(at(r, "start")));
       else if (!Number.isNaN(i.a)) {
         const a = blank(at(r, "start")) ? when(new Date(i.a).toISOString()) : when(at(r, "start"));
         const b = blank(at(r, "end")) ? when(new Date(dateOnly(at(r, "start")) ? i.b - DAY : i.b).toISOString()) : when(at(r, "end"));
-        lines.push(`${escapeHtml(a)} – ${escapeHtml(b)} · ${escapeHtml(L(["{count} day", "{count} days"], { count: days(i) }))}`);
+        lines.push(`${a} – ${b} · ${L(["{count} day", "{count} days"], { count: days(i) })}`);
       }
-      if (i.done !== null) lines.push(escapeHtml(L("{percent}% done", { percent: Math.round(i.done * 100) })));
-      if (split && !i.group && !blank(at(r, split))) lines.push(escapeHtml(at(r, split)));
-      return lines.join("<br/>");
+      if (i.done !== null) lines.push(L("{percent}% done", { percent: Math.round(i.done * 100) }));
+      if (split && !i.group && !blank(at(r, split))) lines.push(String(at(r, split)));
+      return lines;
     };
+    const tip = (i) => about(i).map((l, n) => (n ? escapeHtml(l) : `<b>${escapeHtml(l)}</b>`)).join("<br/>");
     const item = (i) => ({
       name: String(at(i.row, "name") ?? i.key),
       value: [i.index, i.a, i.b, i.done === null ? -1 : i.done, i.group ? 1 : i.milestone ? 2 : 0],
@@ -571,24 +540,24 @@
     o.yAxis = {
       type: "category", inverse: true, data: shown.map((i) => String(i.index)), triggerEvent: true,
       axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: false },
-      axisLabel: { interval: 0, hideOverlap: false, align: "left", margin: tableWidth, formatter: label, rich },
+      // The table beside the bars is HTML, laid over this space by the behaviour.
+      axisLabel: { show: false },
     };
     const slider = p.zoom === "slider" || p.zoom === "both";
     // Room under the rows for the lines' names, and the slider.
     o.grid = { left: tableWidth + 8, right: 16, top: head, bottom: (marks.length ? GANTT.marks : GANTT.foot) + (slider ? GANTT.slider : 0) };
-    // The column headings, over the table.
-    let x = 8;
-    o.graphic = cols.map((c, i) => {
-      const left = c.align === "right" && i ? x + c.width - 16 : x;
-      x += c.width;
-      return { type: "text", id: `head${i}`, x: left, y: head - 14, silent: true, style: { text: fit(c.name, c.width - 16, `600 ${font}`), fill: t.muted, font: `600 ${font}`, verticalAlign: "middle", align: c.align === "right" && i ? "right" : "left" } };
-    });
     if (p.tooltip !== false)
       o.tooltip = { trigger: "item", confine: true, formatter: (e) => e.data?.tip ?? "" };
     else o.tooltip = { show: false };
     if (split) o.legend = { show: p.legend !== false, top: 4, left: 8, type: "scroll", icon: "roundRect", itemWidth: 12, itemHeight: 12, data: names.filter((n) => n !== ""), width: width - (p.zoom ? 136 : 16) };
     else o.legend = { show: false };
     d.height = head + Math.max(1, shown.length) * GANTT.row + o.grid.bottom;
+    // For the table: its columns, where its rows go, and each row's cells and description.
+    Object.assign(g, {
+      cols, head, bottom: o.grid.bottom, tableWidth,
+      cells: (i) => cols.map((c, n) => (n ? cell(at(i.row, c.field)) : nameOf(i))),
+      about: (i) => about(i).join(", "),
+    });
   }
 
   // An ECharts option from the shorthand props and the rows `prepare` gave (`d`),
@@ -1093,6 +1062,23 @@
     }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   };
 
+  // The tables over gantts: rows placed by the script, a ring on the focused one.
+  let tableCss = false;
+  const styleTables = () => {
+    if (tableCss) return;
+    tableCss = true;
+    const css = document.createElement("style");
+    css.textContent = [
+      "[data-gantt-table] [role=row] { position: absolute; left: 0; right: 0; display: flex; align-items: center; box-sizing: border-box; outline: none; cursor: default; border-radius: 4px; }",
+      "[data-gantt-table] [role=row][data-group] { cursor: pointer; font-weight: 600; }",
+      "[data-gantt-table] [role=row][data-key]:hover { background: color-mix(in srgb, currentColor 5%, transparent); }",
+      "[data-gantt-table] [role=row][aria-selected=true] { background: color-mix(in srgb, currentColor 9%, transparent); }",
+      "[data-gantt-table] [role=row]:focus-visible { box-shadow: inset 0 0 0 2px var(--color-ring, currentColor); }",
+      "[data-gantt-table] :is([role=gridcell], [role=columnheader]) { flex: none; box-sizing: border-box; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    ].join("\n");
+    document.head.append(css);
+  };
+
   // ---------------------------------------------------------------- the chart
   (window.__irenderBehaviors ||= {})["ui-chart"] = (el, api) => {
     const cfg = api.config;
@@ -1264,6 +1250,7 @@
       chart.setOption(o, fresh ? { notMerge: true } : { replaceMerge: ["series"] });
       if (grow) chart.resize();
       layout = next;
+      ganttTable();
       // A fresh chart has forgotten its zoom, legend, selection and brush tool.
       if (fresh) for (const k of ["zoom", "legend", "select"]) delete last[k];
       syncState();
@@ -1276,17 +1263,17 @@
 
     // ---- events → state
     const rowAt = (si, di) => rowsBy[si]?.[di] ?? chart.getOption().series?.[si]?.data?.[di] ?? null;
+    // Opens or closes a gantt group.
+    function toggleGroup(item) {
+      if (collapsed.has(item.key)) collapsed.delete(item.key);
+      else collapsed.add(item.key);
+      draw();
+      api.emit("toggle", { id: item.key, open: !collapsed.has(item.key), row: item.row });
+    }
     function onClick(e) {
-      // A gantt group's line in the table, or its bar, opens and closes it.
-      const shown = level.gantt?.shown;
-      const item = !shown ? null : e.componentType === "yAxis" ? shown[Number(e.value)] : e.componentType === "series" ? shown[e.value?.[0]] : null;
-      if (item?.group && (e.componentType === "yAxis" || e.value?.[4] === 1)) {
-        if (collapsed.has(item.key)) collapsed.delete(item.key);
-        else collapsed.add(item.key);
-        draw();
-        api.emit("toggle", { id: item.key, open: !collapsed.has(item.key), row: item.row });
-        if (e.componentType === "yAxis") return;
-      }
+      // A gantt group's bar opens and closes it.
+      const item = e.componentType === "series" ? level.gantt?.shown[e.value?.[0]] : null;
+      if (item?.group && e.value?.[4] === 1) toggleGroup(item);
       if (e.componentType !== "series") return;
       const row = rowAt(e.seriesIndex, e.dataIndex);
       const name = !blank(e.name) ? e.name : isObj(row) && !blank(at(row, xField)) ? at(row, xField) : e.value;
@@ -1453,6 +1440,143 @@
       init();
     }
 
+    // ---- a gantt's table: HTML laid over the space left of the bars, a row per task, so
+    // it can be read and used from the keyboard. Up and Down move between rows, Right
+    // and Left open and close a group (or step into and out of it), and Enter or Space
+    // opens a group or picks a task, as a click does. A focused task shows its tooltip.
+    let table = null, focusKey = null, pickedKey = null;
+    // The picked task follows `bindRow`, so a click on a bar marks its row too.
+    function syncPicked() {
+      const g = level.gantt;
+      if (!g || !cfg.bindRow) return;
+      const v = JSON.stringify(api.state[cfg.bindRow] ?? null);
+      pickedKey = g.shown.find((i) => JSON.stringify(i.row) === v)?.key ?? null;
+      for (const r of table?.querySelectorAll("[role=row][data-key]") ?? []) r.setAttribute("aria-selected", String(r.getAttribute("data-key") === pickedKey));
+    }
+    function ganttTable() {
+      const g = level.gantt;
+      if (!g) {
+        table?.remove();
+        table = null;
+        return;
+      }
+      styleTables();
+      if (!table) {
+        table = document.createElement("div");
+        table.setAttribute("role", "treegrid");
+        table.setAttribute("data-gantt-table", "");
+        table.addEventListener("click", onTableClick);
+        table.addEventListener("keydown", onTableKey);
+        table.addEventListener("focusin", (e) => showTip(e.target.closest?.("[role=row][data-key]")));
+        table.addEventListener("focusout", () => chart?.dispatchAction({ type: "hideTip" }));
+        el.append(table);
+      }
+      table.setAttribute("aria-label", cfg.title ? String(cfg.title) : L("Tasks"));
+      const n = Math.max(1, g.shown.length), h = (el.clientHeight - g.head - g.bottom) / n;
+      Object.assign(table.style, { position: "absolute", left: "0", top: "0", width: `${g.tableWidth}px`, height: "0", font: `12px ${theme.font}`, color: theme.text });
+      const had = table.contains(document.activeElement) ? document.activeElement.getAttribute("data-key") : null;
+      const make = (role, attrs, style) => {
+        const x = document.createElement("div");
+        x.setAttribute("role", role);
+        for (const [k, v] of Object.entries(attrs)) if (v !== null && v !== undefined) x.setAttribute(k, v);
+        Object.assign(x.style, style);
+        return x;
+      };
+      const cellsOf = (texts, head, depth, mark) =>
+        g.cols.map((c, k) => {
+          const x = make(head ? "columnheader" : "gridcell", {}, { width: `${c.width}px`, textAlign: c.align === "right" && k ? "right" : "left", color: k || head ? theme.muted : "" });
+          if (!k && !head) {
+            x.style.paddingInlineStart = `${8 + depth * GANTT.indent}px`;
+            if (mark) {
+              const m = document.createElement("span");
+              m.setAttribute("aria-hidden", "true");
+              m.textContent = mark;
+              x.append(m);
+            }
+          }
+          x.append(texts[k] ?? "");
+          return x;
+        });
+      const header = make("row", { "data-head": "" }, { top: `${g.head - 30}px`, height: "28px", fontWeight: "600", borderBottom: "0" });
+      header.append(...cellsOf(g.cols.map((c) => c.name), true));
+      if (!g.shown.some((i) => i.key === focusKey)) focusKey = g.shown[0]?.key ?? null;
+      const rows = g.shown.map((i, k) => {
+        const r = make("row", {
+          "data-key": i.key, "aria-level": String(i.depth + 1), "aria-expanded": i.group ? String(i.open) : null,
+          "aria-selected": String(i.key === pickedKey), "aria-label": g.about(i), tabindex: i.key === focusKey ? "0" : "-1",
+          "data-group": i.group ? "" : null,
+        }, { top: `${g.head + k * h}px`, height: `${h}px` });
+        r.append(...cellsOf(g.cells(i), false, i.depth, i.group ? (i.open ? "▾ " : "▸ ") : ""));
+        return r;
+      });
+      table.replaceChildren(header, ...rows);
+      syncPicked();
+      if (had) table.querySelector(`[data-key="${CSS.escape(had)}"]`)?.focus();
+    }
+    const itemOf = (row) => level.gantt?.shown.find((i) => i.key === row?.getAttribute("data-key"));
+    // A task picked from the table, as a click on its bar picks it.
+    function pick(item) {
+      const again = pickedKey === item.key;
+      pickedKey = again ? null : item.key;
+      for (const r of table.querySelectorAll("[role=row][data-key]")) r.setAttribute("aria-selected", String(r.getAttribute("data-key") === pickedKey));
+      const name = at(item.row, "name") ?? item.key;
+      if (cfg.bind) api.set(cfg.bind, again ? null : name);
+      if (cfg.bindRow) api.set(cfg.bindRow, again ? null : item.row);
+      api.emit("change", { name, row: item.row });
+    }
+    function onTableClick(e) {
+      const row = e.target.closest("[role=row][data-key]"), item = itemOf(row);
+      if (!item) return;
+      focusKey = item.key;
+      if (item.group) toggleGroup(item);
+      else pick(item);
+    }
+    function onTableKey(e) {
+      const rows = [...table.querySelectorAll("[role=row][data-key]")], row = e.target.closest("[role=row][data-key]");
+      const k = rows.indexOf(row), item = itemOf(row);
+      if (!item) return;
+      const go = (to) => {
+        const r = rows[Math.max(0, Math.min(rows.length - 1, to))];
+        if (!r) return;
+        e.preventDefault();
+        focusKey = r.getAttribute("data-key");
+        for (const x of rows) x.tabIndex = x === r ? 0 : -1;
+        r.focus();
+      };
+      switch (e.key) {
+        case "ArrowDown": return go(k + 1);
+        case "ArrowUp": return go(k - 1);
+        case "Home": return go(0);
+        case "End": return go(rows.length - 1);
+        case "ArrowRight":
+          e.preventDefault();
+          if (item.group && !item.open) return toggleGroup(item);
+          if (item.group) return go(k + 1);
+          return;
+        case "ArrowLeft": {
+          e.preventDefault();
+          if (item.group && item.open) return toggleGroup(item);
+          // To the group it's in.
+          for (let j = k - 1; j >= 0; j--) if (Number(rows[j].getAttribute("aria-level")) === item.depth) return go(j);
+          return;
+        }
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          return item.group ? toggleGroup(item) : pick(item);
+      }
+    }
+    // The focused task's tooltip, from its bar.
+    function showTip(row) {
+      const item = itemOf(row);
+      if (!item || !chart) return;
+      const series = chart.getOption().series || [];
+      for (let si = 0; si < series.length; si++) {
+        const di = (series[si].data || []).findIndex((x) => isObj(x) && Array.isArray(x.value) && x.value[0] === item.index && x.tip);
+        if (di >= 0) return chart.dispatchAction({ type: "showTip", seriesIndex: si, dataIndex: di });
+      }
+    }
+
     // Taken out of the page (an `if`, a rebuilt list): let go of everything.
     const self = {
       el,
@@ -1475,8 +1599,9 @@
         if (!el.isConnected || !el.clientWidth || !el.clientHeight) return;
         if (!chart) return start();
         chart.resize();
-        // A gantt's table fits the width it has.
+        // A gantt's table fits the width it has, and its rows the height.
         if (level.gantt && level.width !== el.clientWidth) draw();
+        else if (level.gantt) ganttTable();
       });
       ro.observe(el);
       live.add(self);
@@ -1497,6 +1622,7 @@
         if (!chart) return;
         if (shapeOf() !== drawn) draw();
         else syncState();
+        syncPicked();
         showLoading();
       },
       get chart() {

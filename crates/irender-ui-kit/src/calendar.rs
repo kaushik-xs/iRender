@@ -347,7 +347,7 @@ fn dynamic(cx: &RenderCx<'_>, node: &Node, name: &str, v: &Val) -> Result<Json, 
 /// The names `presets` may use.
 pub(crate) const PRESETS: &[&str] = &[
     "today", "yesterday", "tomorrow", "last7", "last30", "last90", "next7", "next30", "thisWeek", "lastWeek", "thisMonth",
-    "lastMonth", "nextMonth", "thisQuarter", "lastQuarter", "thisYear", "lastYear", "yearToDate", "monthToDate",
+    "lastMonth", "nextMonth", "thisQuarter", "lastQuarter", "thisYear", "lastYear", "yearToDate", "monthToDate", "quarters",
 ];
 
 /// What both components pass the behaviour, after checking the props.
@@ -392,7 +392,8 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
                     _ => return Err(RenderError::new(node, "each preset is a name or `{ label, from, to }`")),
                 }
             }
-            Json::Array(list)
+            // `quarters`: the quarter today is in and the three before it, each its own.
+            Json::Array(list.into_iter().flat_map(|p| if p == json!("quarters") { (0..4).map(|n| json!(format!("quarter{n}"))).collect() } else { vec![p] }).collect())
         }
         Some(_) => return Err(RenderError::new(node, "`presets` must be a list")),
     };

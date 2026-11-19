@@ -44,6 +44,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("locale", PropKind::String, "Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)"),
     PropDef::new("bindViews", PropKind::StateKey, "State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them"),
     PropDef::new("today", PropKind::String, "The date date presets count from (default: today)"),
+    PropDef::new("fiscalStart", PropKind::Number, "The month a financial year starts, 1–12 (default 1): the quarter and year presets follow it"),
     PropDef::new("id", PropKind::Any, "The panel's element id (default: derived from the document)"),
 ];
 
@@ -59,6 +60,10 @@ pub(crate) const PRESETS: &[(&str, &str)] = &[
     ("thisQuarter", "This quarter"),
     ("thisYear", "This year"),
 ];
+/// Presets a filter can ask for beyond the default ones. `quarters` is the quarter
+/// today is in and the three before it, named by the script ("Q2 2026").
+// Labels: "Last quarter", "Last year", "Year to date"
+const MORE_PRESETS: &[(&str, &str)] = &[("lastQuarter", "Last quarter"), ("lastYear", "Last year"), ("yearToDate", "Year to date"), ("quarters", "")];
 
 pub struct Filter;
 
@@ -368,8 +373,8 @@ fn defs(cx: &RenderCx<'_>, node: &Node) -> Result<Vec<Def>, RenderError> {
                 .iter()
                 .map(|n| {
                     let n = irender_core::expr::stringify(n);
-                    PRESETS.iter().find(|(p, _)| *p == n).copied().ok_or_else(|| {
-                        let all: Vec<_> = PRESETS.iter().map(|(p, _)| *p).collect();
+                    PRESETS.iter().chain(MORE_PRESETS).find(|(p, _)| *p == n).copied().ok_or_else(|| {
+                        let all: Vec<_> = PRESETS.iter().chain(MORE_PRESETS).map(|(p, _)| *p).collect();
                         RenderError::new(child, format!("no date preset `{n}` (presets: {})", all.join(", ")))
                     })
                 })
@@ -419,6 +424,10 @@ impl Component for Filters {
         let id = instance_id(cx, node, "filters");
 
         cx.global_js("ui-filters", SCRIPT);
+        let fiscal = cx.prop(node, "fiscalStart").filter(|v| !v.is_null()).map_or(1.0, |v| irender_core::expr::to_num(&v));
+        if !(1.0..=12.0).contains(&fiscal) || fiscal.fract() != 0.0 {
+            return Err(RenderError::new(node, "`fiscalStart` must be a month, 1–12"));
+        }
         let config = json!({
             "bind": key,
             "live": live,
@@ -427,6 +436,7 @@ impl Component for Filters {
             "locale": crate::locale(cx, node),
             "bindViews": cx.prop_string(node, "bindViews"),
             "today": cx.prop_string(node, "today"),
+            "fiscalStart": fiscal,
             "defs": defs.iter().map(|d| json!({
                 "field": d.field, "label": d.label, "type": d.kind, "options": d.options, "unit": d.unit, "currency": d.currency,
                 "ops": d.ops.iter().map(|(o, _)| *o).collect::<Vec<_>>(),
@@ -698,10 +708,15 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
             box_.attr("data-fl-presets", true).attr("role", "group").attr("aria-label", cx.label_with("{name} presets", &[("name", &d.label)]));
             cx.open(&box_, node)?;
             for (name, label) in &d.presets {
-                let mut b = Element::new("button");
-                b.attr("type", "button").attr("data-fl-preset", *name).text(lit(cx.label(label)));
-                cx.open(&b, node)?;
-                cx.close("button");
+                // The four quarters are named by the script, which knows today.
+                let names: Vec<(String, String)> =
+                    if *name == "quarters" { (0..4).map(|n| (format!("quarter{n}"), String::new())).collect() } else { vec![(name.to_string(), cx.label(label))] };
+                for (name, label) in names {
+                    let mut b = Element::new("button");
+                    b.attr("type", "button").attr("data-fl-preset", name).text(lit(label));
+                    cx.open(&b, node)?;
+                    cx.close("button");
+                }
             }
             cx.close("div");
         }

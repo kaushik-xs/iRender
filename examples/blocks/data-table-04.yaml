@@ -4,6 +4,8 @@
 # - Load more: `paging: more`, a button under the rows. Its columns are plain objects,
 #   and summaries add up the rows loaded so far.
 # - Pages: `paging: pages`, one page from the server at a time, with the total it sends.
+# - Grouped: Group by (in View) asks the server for a row per carrier, mode or status,
+#   with its count and total value; opening a group loads its shipments.
 # Sorting, search and the filters go to the server (`url`), which answers
 # `{ rows, total }`; changing them starts over from the first batch. examples/serve.py
 # serves the API (`api/shipments`), with a short delay so loading shows.
@@ -13,6 +15,7 @@
 version: 1
 state:
   tab: scroll
+  shipmentGroup: carrier
   picked: []
   toast: null
 root:
@@ -121,5 +124,29 @@ root:
                 sort: id
                 locale: en-US
                 columns: *columns
+
+        # ------------------------------------------------------------ grouped on the server
+        - type: ui-tab-panel
+          props: { value: grouped, label: Grouped }
+          children:
+            - type: ui-data-table
+              props:
+                url: api/shipments
+                title: Shipments by group
+                rowKey: id
+                paging: pages
+                pageSize: 20
+                pageSizes: []
+                search: true
+                sort: id
+                bindGroupBy: shipmentGroup
+                locale: en-US
+                columns:
+                  - { field: id, label: Shipment, hideable: false }
+                  - { field: carrier, label: Carrier, groupable: true }
+                  - { field: mode, label: Mode, groupable: true }
+                  - { field: status, label: Status, groupable: true, cell: badge, tones: { Booked: outline, In transit: info, Customs: warning, Delayed: destructive, Delivered: success } }
+                  - { field: value, label: Value, format: currency, summary: sum }
+                  - { field: eta, label: ETA, format: date }
 
     - { type: ui-toaster, props: { bind: toast } }

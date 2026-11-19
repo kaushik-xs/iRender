@@ -199,20 +199,39 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(cfg.today ?? "");
     return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
   };
+  // Quarters and years follow the financial year, which starts in month `fiscalStart`.
+  const fs = (cfg.fiscalStart || 1) - 1;
+  // The (financial) year `t` is in, by the calendar year it starts in, and its quarter, 0–3.
+  const fyOf = (t) => (t.getMonth() >= fs ? t.getFullYear() : t.getFullYear() - 1);
+  const quarterOf = (t) => Math.floor(((t.getMonth() - fs + 12) % 12) / 3);
+  // A quarter `n` steps from today's, as [first day, last day].
+  const quarterSpan = (t, n) => {
+    const m = fs + (quarterOf(t) + n) * 3;
+    return [new Date(fyOf(t), m, 1), new Date(fyOf(t), m + 3, 0)];
+  };
   function preset(name) {
-    const t = todayDate(), y = t.getFullYear(), mo = t.getMonth(), q = Math.floor(mo / 3) * 3;
+    const t = todayDate(), y = t.getFullYear(), mo = t.getMonth(), fy = fyOf(t);
     const back = (n) => new Date(y, mo, t.getDate() - n);
-    const range = {
+    const ago = /^quarter(\d)$/.exec(name);
+    const range = ago ? quarterSpan(t, -Number(ago[1])) : {
       today: [t, t],
       yesterday: [back(1), back(1)],
       last7: [back(6), t],
       last30: [back(29), t],
       thisMonth: [new Date(y, mo, 1), new Date(y, mo + 1, 0)],
       lastMonth: [new Date(y, mo - 1, 1), new Date(y, mo, 0)],
-      thisQuarter: [new Date(y, q, 1), new Date(y, q + 3, 0)],
-      thisYear: [new Date(y, 0, 1), new Date(y, 11, 31)],
+      thisQuarter: quarterSpan(t, 0),
+      lastQuarter: quarterSpan(t, -1),
+      thisYear: [new Date(fy, fs, 1), new Date(fy + 1, fs, 0)],
+      lastYear: [new Date(fy - 1, fs, 1), new Date(fy, fs, 0)],
+      yearToDate: [new Date(fy, fs, 1), t],
     }[name];
     return range && range.map(iso);
+  }
+  // "Q2 2026", or on a financial year "Q2 FY2026–27", as the calendar names quarters.
+  for (const b of $$("[data-fl-preset^=quarter]")) {
+    const n = Number(b.getAttribute("data-fl-preset").slice(7)), [from] = quarterSpan(todayDate(), -n), y = fyOf(from);
+    b.textContent = L("Q{n} {year}", { n: String(quarterOf(from) + 1), year: fs ? `FY${y}–${String(y + 1).slice(-2)}` : String(y) });
   }
 
   // ---- the chips and counts beside the button

@@ -308,7 +308,7 @@ Not replicated:
 | `months` | Months side by side (default 1); two suit ranges. |
 | `weekStart`, `locale` | The first day of the week (default: the locale's) and the locale for names and formats (default: the document's `lang`, else the browser's). |
 | `fiscalStart` | The month a financial year starts (1–12, default 1). Quarters and years follow it: with `fiscalStart: 4`, `2026-Q1` is April to June 2026 and shows as `Q1 FY2026–27`, and the year `2026` is April 2026 to March 2027. |
-| `presets` | Shortcuts beside the calendar: `today`, `yesterday`, `tomorrow`, `last7`, `last30`, `last90`, `next7`, `next30`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `thisYear`, `lastYear`, `yearToDate`, `monthToDate`, or `{ label, from, to }` with dates or `today±N`. Quarters and years follow `fiscalStart`; the preset that matches the value shows pressed. |
+| `presets` | Shortcuts beside the calendar: `today`, `yesterday`, `tomorrow`, `last7`, `last30`, `last90`, `next7`, `next30`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `thisYear`, `lastYear`, `yearToDate`, `monthToDate`, `quarters` (the quarter today is in and the three before it, each its own button: `Q3 2026`, or `Q3 FY2026–27` on a financial year), or `{ label, from, to }` with dates or `today±N`. Quarters and years follow `fiscalStart`; the preset that matches the value shows pressed. |
 | `dropdowns` | Month and year menus in place of the caption, for dates far away such as a birthday. |
 | `bindRange` | A state key that gets the dates the value covers as `{ from, to }`: a quarter's first and last days, say. Give it to a chart's or a data table's `filter` to filter by the pick. |
 | `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date. |
@@ -399,7 +399,7 @@ Text that isn't a value, or is outside `min`, `max` or the disabled days, stays 
 | `field` | The row field shown, sorted, filtered and searched: `amount`, or a path such as `customer.name`. Without a cell template, the cell is the value. |
 | `label`, `width`, `align` | The header, the column's width, and `left`, `center` or `right` (default: right for number formats). |
 | `sortable`, `sortField` | Whether the header sorts (default: when there's a field or `sortField`), and a field to sort by instead, such as a rank behind a label. |
-| `filter` | A filter button in the toolbar: `select` (checkboxes with counts; choices from `options` or the column's values; list-valued fields such as tags match on any value), `text` (contains), `range` (min and max) or `date` (a range calendar with presets). |
+| `filter` | A filter button in the toolbar: `select` (checkboxes with counts; choices from `options` or the column's values; list-valued fields such as tags match on any value), `text` (contains), `range` (min and max) or `date` (a range calendar with presets: the column's `presets`, as `ui-calendar`'s, default last 7 and 30 days, this and last month, this and last quarter and this year; `fiscalStart` sets the financial year they follow). |
 | `format`, `currency`, `decimals` | `number`, `currency`, `percent` (0.25 is 25%), `date` or `datetime`, formatted in the browser with `Intl` in `locale`. Plain dates (`2026-03-01`) show the same day in every time zone. |
 | `cell`, `tones` | Draw the value as a `badge` (with a tone per value: default, secondary, outline, success, warning, destructive, info), a `progress` bar (0–100) or a `sparkline` of a list of numbers (needs the chart kit). |
 | `summary` | A footer cell: `sum`, `avg`, `min`, `max` or `count` of the rows that pass the filters. |
@@ -448,13 +448,35 @@ On a focused row, Right opens it, then steps to its first child; Left closes it,
 
 The [`data-table-07`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-07.yaml) block uses all of these.
 
-**Grouped rows.** `groupBy: region` (a field; it may read state) puts the rows under a header row per value, in the value's order (descending when the table is sorted by that field descending; rows without a value last, as "(none)"). The header shows the value, how many rows it has, and a subtotal under each column with a `summary`; its button folds and unfolds the group. Within a group the rows keep the table's sort. Columns with `groupable: true` are offered in the View menu's Group by (with None), which writes `bindGroupBy`. Paging counts the header rows as lines. Grouping needs the rows in the page: not `url`, `virtual` or nested rows.
+**Grouped rows.** `groupBy: region` (a field; it may read state) puts the rows under a header row per value, in the value's order (descending when the table is sorted by that field descending; rows without a value last, as "(none)"). The header shows the value, how many rows it has, and a subtotal under each column with a `summary`; its button folds and unfolds the group. Within a group the rows keep the table's sort. Columns with `groupable: true` are offered in the View menu's Group by (with None), which writes `bindGroupBy`. Paging counts the header rows as lines. Grouping doesn't work with `virtual` or nested rows.
+
+**Grouped rows from an API.** With `url`, grouping asks the API for the groups: `GET <url>?groupBy=region&…` (with the sort, search, filters and `params`, and `offset` and `limit` when paging) answers a row per group, `{ region: North, count: 12, net: 1250 }`: the value in the field, a `count`, and subtotals in the columns' own fields. Each shows as a row with its value and count, and opening it (a click, Enter, or Right) loads its rows from `<url>?groupBy=region&group=North&…`, the same query for that group, answering `{ rows }` or a list. Groups start closed; open ones load their rows again when the query changes. Group rows aren't selected, written to `bindView` or exported, and the footer's summaries add up their subtotals. A group's rows come in one request, without paging.
 
 **Grouped headers.** A column's `group` puts a header over it and the columns next to it with the same `group` (a `colgroup`), in a row above the column headers; it follows columns as they move and hide.
 
 **Resizing and moving columns.** With `resizable`, each header's right edge is a separator: drag it, or focus it and use Left and Right (16 px, Shift for 4); a double click puts the column back to its own width. A column's `resizable: false` opts out. With `reorderable`, drag a header onto another to move the column before or after it (a press that doesn't move still sorts), or press Alt with Left or Right on its header; pinned columns stay put. `bindColumns` keeps the layout as `{ order, widths, hidden }`, and setting it lays the columns out that way (hidden columns from the View menu are in it too). A move is announced, and fires `columns`.
 
 **Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. A remote table exports the rows it has loaded.
+
+### Saved views
+
+A view is a name for how the table is set up: its sort, filters, search, columns (order, widths and the hidden ones), grouping and rows per page. With `views` or `bindViews`, a Views menu starts the toolbar. The [`data-table-01`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-01.yaml) block has two ready-made views and saves your own.
+
+```yaml
+- type: ui-data-table
+  props:
+    rows: "{{ tasks }}"
+    bindViews: myViews           # the views people save: [{ id, name, sort, filters, search, columns, groupBy, pageSize }]
+    bindCurrentView: view        # the id of the view shown
+    defaultView: open            # opened with when `view` is empty
+    views:                       # ready-made, can't be changed or deleted
+      - { id: open, name: Open work, filters: { status: [Todo, In Progress] }, sort: -priority }
+      - { id: lean, name: Lean, columns: { hidden: [label, assignee] } }
+```
+
+- **The menu** lists Default view (the table as its props set it up), the ready-made views and the saved ones, with the one shown ticked. Picking one shows it from the first page. A saved view has Rename and Delete buttons; renaming and Save as new view… ask for the name in the menu (Enter saves, Escape cancels).
+- **Changes.** Once the table is changed from the view shown, the button reads `Open work (edited)`, and the menu offers Undo changes and, for a saved view, Save changes. A view leaves out what it doesn't set: the parts it lacks are the table's own.
+- **State.** `bindViews` gets the saved views after each change, and `bindCurrentView` the id of the one shown (null for the default), so a page can keep both, per person, anywhere. Writing an id to `bindCurrentView` shows that view, and the table opens with it. Changes not saved to a view aren't kept by the view; bind `bindSort`, `bindFilters` and the rest too to keep them. Events: `view` with `{ id, view }`, and `views` with `{ views }`.
 
 ### Filters
 
@@ -514,11 +536,11 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **Dates and amounts.** A date filter picks on the kit's calendar: a range for Between, one day for On, Before and After. Amounts (`number` and `currency`) are grouped in the `locale`'s way as they're typed (`1,25,000`), with the currency's symbol before them, and the filter gets a plain number.
 
-**Date presets.** A date filter offers quick ranges under its calendar: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, This quarter and This year, counted from `today` (default: the real one). A preset sets Between with its dates and shows as pressed while they're the ones set. `presets: false` hides them, and a list (`[last7, thisMonth]`) picks some. They show only where the filter offers Between.
+**Date presets.** A date filter offers quick ranges under its calendar: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, This quarter and This year, counted from `today` (default: the real one). A preset sets Between with its dates and shows as pressed while they're the ones set. `presets: false` hides them, and a list (`[last7, thisMonth]`) picks some, from those and `lastQuarter`, `lastYear`, `yearToDate` and `quarters` (the quarter today is in and the three before it, named `Q3 2026`). The quarter and year presets follow the panel's `fiscalStart`: with `fiscalStart: 4`, This year is April to March and the quarters read `Q3 FY2026–27`. They show only where the filter offers Between.
 
 **Saved views.** With `bindViews`, a Views menu beside the button lists the views in that key (`[{ name, filters }]`), the one matching the filters now marked: a click applies one, ✕ deletes it, and the name box saves the filters as a view (a view of the same name is replaced). Escape or a click outside closes the menu. Keep the key in state your server saves, or in a host's storage, so views last.
 
-**Props.** `ui-filters`: `bind` (required), `rows`, `title` (the panel's heading, default `Filters`), `label` (the button's text, default `Filters`), `live`, `chips` (default true), `currency` (default `USD`), `locale`, `bindViews`, `today`, `id`; parts `button` and `panel`. `ui-filter`: `field` (required), `label`, `type`, `options`, `operators` (a subset of the type's, in the order to show them: `any`, `none`, `eq`, `gt`, `lt`, `between`, `on`, `before`, `after`, `contains`, `is`, `empty`, `set`), `section` (a heading to group fields under), `unit` (after a number, e.g. `kg`), `currency` and `presets` (a date filter's quick ranges).
+**Props.** `ui-filters`: `bind` (required), `rows`, `title` (the panel's heading, default `Filters`), `label` (the button's text, default `Filters`), `live`, `chips` (default true), `currency` (default `USD`), `locale`, `bindViews`, `today`, `fiscalStart` (the month a financial year starts, 1–12), `id`; parts `button` and `panel`. `ui-filter`: `field` (required), `label`, `type`, `options`, `operators` (a subset of the type's, in the order to show them: `any`, `none`, `eq`, `gt`, `lt`, `between`, `on`, `before`, `after`, `contains`, `is`, `empty`, `set`), `section` (a heading to group fields under), `unit` (after a number, e.g. `kg`), `currency` and `presets` (a date filter's quick ranges).
 
 ## Status and activity
 

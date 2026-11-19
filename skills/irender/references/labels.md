@@ -48,6 +48,7 @@ root: …
 "Enter a quarter like {example}": "Enter a quarter like {example}"
 "Enter a year like {example}": "Enter a year like {example}"
 "{n} selected": "{n} selected"
+"Q{n} {year}": "Q{n} {year}"
 "Presets": "Presets"
 "Month": "Month"
 "Year": "Year"
@@ -204,6 +205,20 @@ root: …
 "(none)": "(none)"
 "{name} moved to column {n} of {count}": "{name} moved to column {n} of {count}"
 "Exported {n} rows": { one: "Exported {n} row", other: "Exported {n} rows" }
+"Saved view {name}": "Saved view {name}"
+"Views": "Views"
+"(edited)": "(edited)"
+"View name": "View name"
+"Rename {name}": "Rename {name}"
+"Default view": "Default view"
+"Rename": "Rename"
+"Delete {name}": "Delete {name}"
+"Delete": "Delete"
+"Save changes to {name}": "Save changes to {name}"
+"Undo changes": "Undo changes"
+"New view name": "New view name"
+"Save as new view…": "Save as new view…"
+"Deleted view {name}": "Deleted view {name}"
 ```
 
 `data_table.rs`
@@ -218,6 +233,7 @@ root: …
 "Contains": "Contains"
 "Min": "Min"
 "Max": "Max"
+"Views": "Views"
 "Search…": "Search…"
 "Reset": "Reset"
 "Download the rows that pass the filters as CSV": "Download the rows that pass the filters as CSV"
@@ -318,6 +334,7 @@ root: …
 "before {value}": "before {value}"
 "from {value}": "from {value}"
 "until {value}": "until {value}"
+"Q{n} {year}": "Q{n} {year}"
 "{name}, {n} applied": "{name}, {n} applied"
 "Remove the {name} filter": "Remove the {name} filter"
 "No matches": "No matches"
@@ -353,6 +370,9 @@ root: …
 "Last month": "Last month"
 "This quarter": "This quarter"
 "This year": "This year"
+"Last quarter": "Last quarter"
+"Last year": "Last year"
+"Year to date": "Year to date"
 "{name} value": "{name} value"
 "{name} upper value": "{name} upper value"
 "Filters": "Filters"
@@ -687,6 +707,7 @@ root: …
 "This is a chart about “{title}”": "This is a chart about “{title}”"
 "This is a chart": "This is a chart"
 "Chart unavailable": "Chart unavailable"
+"Tasks": "Tasks"
 ```
 
 ## Flow kit
