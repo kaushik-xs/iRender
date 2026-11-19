@@ -175,7 +175,8 @@ static BUBBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&:has(> [data-markdown]:only-child:empty)", StyleBlock::from_pairs(&[("display", "none")]))
     // Markdown takes the bubble's colours: links and code stay readable on the user's.
     .nest("& [data-markdown] a", StyleBlock::from_pairs(&[("color", "inherit")]))
-    .nest("& [data-markdown] :is(code, pre)", StyleBlock::from_pairs(&[("background", "color-mix(in srgb, currentColor 10%, transparent)")]))
+    // Inline code and code blocks, not the code inside a block too (that would double it).
+    .nest("& [data-markdown] :is(:not(pre) > code, pre)", StyleBlock::from_pairs(&[("background", "color-mix(in srgb, currentColor 10%, transparent)")]))
     .nest("& > *", StyleBlock::from_pairs(&[("white-space", "normal")]))
 });
 static THREAD: LazyLock<StyleBlock> = LazyLock::new(|| {

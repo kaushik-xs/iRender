@@ -80,6 +80,10 @@ CommonMark's common parts, plus GitHub's tables, task lists, strikethrough and b
 - `[links](url "title")`, `![images](url)`, `<https://autolinks>`, and bare `https://` links;
 - bulleted, numbered (`1.` or `1)`, with any start number), nested and task lists;
 - block quotes, fenced code blocks (with a `language-*` class), rules and tables with alignment;
+  in the browser, a fence in json, yaml, js (ts), rust, python, bash, html, css or sql is
+  highlighted, and every fence gets a copy button (in `ui-markdown`, chat messages and the
+  editor's preview; the highlighter is irender-html's `CODE_JS`, shared with the UI kit's
+  `ui-code-block`). Its colours follow `--code-string`, `--code-keyword` and the like;
 - backslash escapes.
 
 Not included: setext headings (underlined with `===`), indented code blocks, reference links, footnotes and HTML.

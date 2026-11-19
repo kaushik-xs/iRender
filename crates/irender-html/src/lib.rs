@@ -37,6 +37,37 @@ const _: () = {
     thread_safe::<Page>();
 };
 
+/// Code for kits that show it, as `window.__irenderCode`: a highlighter for json, yaml,
+/// js, rust, python, bash, html, css and sql, copying to the clipboard, a JSON check that
+/// says where and why, and `enhance(el)`, which highlights the code fences of rendered
+/// Markdown and gives each a copy button. Include it with
+/// `cx.global_js(CODE_JS_KEY, CODE_JS)`, so a page has it once whichever kit asks.
+pub const CODE_JS: &str = include_str!("code.js");
+/// The key [`CODE_JS`] goes in a page under.
+pub const CODE_JS_KEY: &str = "irender-code";
+
+/// The highlighter's token colours, nested in `block`: hues mixed toward the text colour,
+/// so they hold up on a dark theme too. Each can be set with `--code-<kind>`
+/// (`--code-string`, `--code-keyword`, …).
+pub fn code_token_styles(block: irender_core::StyleBlock) -> irender_core::StyleBlock {
+    let tone = |name: &str, hue: &str| format!("var(--code-{name}, color-mix(in srgb, {hue} 78%, var(--color-text, currentColor)))");
+    [
+        ("c", "var(--code-comment, var(--color-muted, #71717a))".to_string()),
+        ("s", tone("string", "#16a34a")),
+        ("n", tone("number", "#c2410c")),
+        ("l", tone("literal", "#c2410c")),
+        ("k", tone("keyword", "#9333ea")),
+        ("p", tone("key", "#0369a1")),
+        ("t", tone("tag", "#be123c")),
+        ("a", tone("attribute", "#b45309")),
+        ("f", tone("function", "#2563eb")),
+        ("v", tone("variable", "#be123c")),
+    ]
+    .into_iter()
+    .fold(block, |b, (t, c)| b.nest(format!("& [data-t={t}]"), irender_core::StyleBlock::new().set("color", c)))
+    .nest("& [data-t=c]", irender_core::StyleBlock::from_pairs(&[("font-style", "italic")]))
+}
+
 /// The browser runtime. Included once per page when the document is interactive.
 pub const RUNTIME_JS: &str = include_str!("runtime.js");
 

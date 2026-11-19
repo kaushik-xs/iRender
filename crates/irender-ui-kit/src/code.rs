@@ -51,29 +51,8 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 const FONT: &str = "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace)";
 const CODE_BG: &str = "var(--color-code, color-mix(in srgb, var(--color-text) 4%, var(--color-surface, #fff)))";
 
-/// The token colours, for both components: hues mixed toward the text colour, so they
-/// hold up on a dark theme too. Each can be set with `--code-<kind>`.
-fn tokens(b: StyleBlock) -> StyleBlock {
-    let tone = |name: &str, hue: &str| format!("var(--code-{name}, color-mix(in srgb, {hue} 78%, var(--color-text)))");
-    [
-        ("c", "var(--code-comment, var(--color-muted))".to_string()),
-        ("s", tone("string", "#16a34a")),
-        ("n", tone("number", "#c2410c")),
-        ("l", tone("literal", "#c2410c")),
-        ("k", tone("keyword", "#9333ea")),
-        ("p", tone("key", "#0369a1")),
-        ("t", tone("tag", "#be123c")),
-        ("a", tone("attribute", "#b45309")),
-        ("f", tone("function", "#2563eb")),
-        ("v", tone("variable", "#be123c")),
-    ]
-    .into_iter()
-    .fold(b, |b, (t, c)| b.nest(format!("& [data-t={t}]"), StyleBlock::new().set("color", c)))
-    .nest("& [data-t=c]", pairs(&[("font-style", "italic")]))
-}
-
 static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
-    tokens(pairs(&[
+    irender_html::code_token_styles(pairs(&[
         ("position", "relative"),
         ("display", "flex"),
         ("flex-direction", "column"),
@@ -155,7 +134,7 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
-    tokens(pairs(&[("display", "flex"), ("flex-direction", "column"), ("min-width", "0"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-md)"), ("background", SURFACE), ("color", TEXT), ("overflow", "hidden")]))
+    irender_html::code_token_styles(pairs(&[("display", "flex"), ("flex-direction", "column"), ("min-width", "0"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-md)"), ("background", SURFACE), ("color", TEXT), ("overflow", "hidden")]))
         .nest("&:focus-within", pairs(&[("border-color", "var(--color-ring, var(--color-muted))"), ("box-shadow", "0 0 0 3px color-mix(in srgb, var(--color-ring, var(--color-muted)) 25%, transparent)")]))
         .nest("&[data-invalid]", pairs(&[("border-color", "var(--color-destructive, #dc2626)")]))
         .nest(
@@ -273,6 +252,7 @@ impl Component for CodeBlock {
         let title = node.prop("title").filter(|t| cx.is_reactive(t) || cx.prop_string(node, "title").is_some_and(|s| !s.is_empty())).cloned();
         let code = dynamic(cx, node, "code", raw)?;
 
+        cx.global_js(irender_html::CODE_JS_KEY, irender_html::CODE_JS);
         cx.global_js("ui-code", SCRIPT);
         let mut root = cx.element("figure", node);
         root.base_style_ref(&BLOCK).behavior(
@@ -406,6 +386,7 @@ impl Component for JsonEditor {
         };
         let id = instance_id(cx, node, "json");
 
+        cx.global_js(irender_html::CODE_JS_KEY, irender_html::CODE_JS);
         cx.global_js("ui-code", SCRIPT);
         let mut root = cx.element("div", node);
         root.base_style_ref(&EDITOR)

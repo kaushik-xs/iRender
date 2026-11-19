@@ -80,3 +80,17 @@ fn editor_structure() {
     let err = engine.load(r#"{ "version": 1, "root": { "type": "ui-markdown-editor" } }"#, Format::Json).unwrap_err();
     assert!(err.to_string().contains("missing required prop `bind`"), "{err}");
 }
+
+#[test]
+fn code_fences_bring_the_highlighter() {
+    // Fixed Markdown with a fence: the behaviour (with no text to follow) and the code script.
+    let page = render_with(json!({ "type": "ui-markdown", "props": { "text": "```rust\nfn main() {}\n```" } }), json!({})).unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"data-i-x="ui-markdown" data-i-xc="{&quot;text&quot;:null}""#), "{body}");
+    assert!(body.contains(r#"<pre><code class="language-rust">fn main() {}</code></pre>"#), "drawn plain on the server: {body}");
+    assert!(page.scripts.iter().any(|s| s.contains("__irenderCode")), "the highlighter comes along");
+    assert!(!page.scripts.iter().any(|s| s.contains("window.__irenderMarkdown = ")), "the renderer doesn't: nothing to re-render");
+    // From state: both, since a fence may come later.
+    let page = render_with(json!({ "type": "ui-markdown", "props": { "text": "{{ note }}" } }), json!({ "note": "_it_" })).unwrap();
+    assert!(page.scripts.iter().any(|s| s.contains("__irenderCode")) && page.scripts.iter().any(|s| s.contains("window.__irenderMarkdown = ")));
+}

@@ -99,7 +99,8 @@ _Last updated: 2026-11-18._
   - [ ] No "add link" on a bare pasted URL (it stays text until the link button is used); no headings other than `##` from the toolbar (`#`…`######` typed work).
 - [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
   - [x] Messages show their content as Markdown when irender-markdown-kit is registered, rendered on the server and again as a reply streams (2026-11-18).
-  - [ ] No citations or footnotes, and no syntax highlighting in code blocks.
+  - [x] Code blocks are highlighted, with a copy button, in messages and everywhere else `ui-markdown` shows Markdown, and in the editor's preview (2026-11-19). Not in the rich text editor itself, where the code stays plain while you edit it; and a streamed reply's fence is highlighted again on each chunk.
+  - [ ] No citations or footnotes.
   - [ ] A streamed reply re-renders its whole Markdown on each chunk; unfinished syntax (an open code fence or `**`) shows as text until it closes.
   - [ ] A message's `html` (and `ui`) is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
 - [ ] **irender-wasm:**

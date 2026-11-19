@@ -572,7 +572,10 @@
 
     const draw = () => {
       const text = area.value;
-      if (preview) preview.innerHTML = text.trim() === "" ? '<p style="color: var(--color-muted, #71717a)">Nothing to preview</p>' : md.render(text);
+      if (preview) {
+        preview.innerHTML = text.trim() === "" ? '<p style="color: var(--color-muted, #71717a)">Nothing to preview</p>' : md.render(text);
+        window.__irenderCode?.enhance(preview);
+      }
       if (rich) {
         if (text !== written) fill();
         rich.contentEditable = area.disabled ? "false" : "true";

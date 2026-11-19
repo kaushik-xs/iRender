@@ -67,7 +67,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 
 /// How rendered Markdown looks, on the element that holds it.
 static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("color", TEXT), ("font-size", fs!(14)), ("line-height", "1.65"), ("overflow-wrap", "anywhere")])
+    irender_html::code_token_styles(pairs(&[("color", TEXT), ("font-size", fs!(14)), ("line-height", "1.65"), ("overflow-wrap", "anywhere")]))
         .nest("& > :first-child", pairs(&[("margin-top", "0")]))
         .nest("& > :last-child", pairs(&[("margin-bottom", "0")]))
         .nest("& :is(p, ul, ol, blockquote, pre, table)", pairs(&[("margin", "0.75em 0")]))
@@ -95,7 +95,41 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& pre",
             pairs(&[("padding", sp!(12)), ("overflow-x", "auto"), ("border-radius", "var(--radius-md, 8px)"), ("background", SUBTLE)]),
         )
-        .nest("& pre code", pairs(&[("padding", "0"), ("background", "none"), ("font-size", "0.85em")]))
+        .nest("& pre code", pairs(&[("padding", "0"), ("background", "none"), ("font-size", "0.85em"), ("overflow-wrap", "normal")]))
+        // A code fence, once highlighted: a box with a copy button in its corner, shown on
+        // hover and focus (always, where there's no hover).
+        .nest("& [data-fence]", pairs(&[("position", "relative"), ("margin", "0.75em 0")]))
+        .nest("& [data-fence] > pre", pairs(&[("margin", "0")]))
+        .nest(
+            "& [data-fence-copy]",
+            pairs(&[
+                ("position", "absolute"),
+                ("top", "6px"),
+                ("right", "6px"),
+                ("display", "grid"),
+                ("place-items", "center"),
+                ("width", "26px"),
+                ("height", "26px"),
+                ("padding", "0"),
+                ("border", "1px solid var(--color-border, #e4e4e7)"),
+                ("border-radius", "var(--radius-sm, 4px)"),
+                ("background", "var(--color-surface, #fff)"),
+                ("color", MUTED),
+                ("cursor", "pointer"),
+                ("opacity", "0"),
+                ("transition", "opacity .15s"),
+            ]),
+        )
+        .nest("& [data-fence]:hover [data-fence-copy], & [data-fence-copy]:focus-visible, & [data-fence-copy][data-copied]", pairs(&[("opacity", "1")]))
+        .nest("@media (hover: none)", pairs(&[]).nest("& [data-fence-copy]", pairs(&[("opacity", "1")])))
+        .nest("& [data-fence-copy]:hover", pairs(&[("color", TEXT)]))
+        .nest("& [data-fence-copy]:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted, #71717a))"), ("outline-offset", "1px")]))
+        .nest("& [data-fence-copy] [data-done], & [data-fence-copy][data-copied] [data-idle]", pairs(&[("display", "none")]))
+        .nest("& [data-fence-copy][data-copied] [data-done]", pairs(&[("display", "block"), ("color", "var(--color-success, #16a34a)")]))
+        .nest(
+            "& [data-fence-live]",
+            pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
+        )
         .nest("& blockquote", pairs(&[("padding-left", "1em"), ("border-left", "3px solid var(--color-border, #e4e4e7)"), ("color", MUTED)]))
         .nest("& hr", pairs(&[("margin", "1.5em 0"), ("border", "0"), ("border-top", "1px solid var(--color-border, #e4e4e7)")]))
         .nest("& img", pairs(&[("max-width", "100%"), ("border-radius", "var(--radius-md, 8px)")]))
@@ -130,15 +164,20 @@ impl Component for Markdown {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let tag = cx.prop_string(node, "tag").unwrap_or_else(|| "div".into());
         let text = node.prop("text").cloned().unwrap_or(Val::Lit(Json::Null));
+        let html = render(&text_of(&cx.eval(&text)));
         let mut el = cx.element(&tag, node);
         el.base_style_ref(&PROSE).attr("data-markdown", true);
         if cx.is_reactive(&text) {
             cx.global_js("ui-markdown-renderer", RENDERER);
+        }
+        // From state, or with code fences to highlight: the behaviour, and the highlighter.
+        if cx.is_reactive(&text) || html.contains("<pre><code") {
+            cx.global_js(irender_html::CODE_JS_KEY, irender_html::CODE_JS);
             cx.global_js("ui-markdown", VIEW);
-            el.behavior("ui-markdown", json!({ "text": cx.val_js(&text) }));
+            el.behavior("ui-markdown", json!({ "text": cx.is_reactive(&text).then(|| cx.val_js(&text)) }));
         }
         cx.open(&el, node)?;
-        cx.markup(&render(&text_of(&cx.eval(&text))));
+        cx.markup(&html);
         cx.close(&tag);
         Ok(())
     }
@@ -364,6 +403,7 @@ impl Component for MarkdownEditor {
         let max = cx.prop(node, "maxLength").map(|m| expr::to_num(&m)).filter(|m| m.is_finite() && *m > 0.0).map(|m| m as u64);
         let text = text_of(&cx.lookup(std::slice::from_ref(&key)));
         cx.global_js("ui-markdown-renderer", RENDERER);
+        cx.global_js(irender_html::CODE_JS_KEY, irender_html::CODE_JS);
         cx.global_js("ui-markdown-editor", EDITOR);
 
         let mut root = cx.element("div", node);

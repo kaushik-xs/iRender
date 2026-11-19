@@ -6,7 +6,8 @@
 # The input keeps every conversation's messages in `threads` and shows the current one's
 # in `chat`. A message's `ui` is an iRender document or node, rendered with the page into
 # its `html`: the replies here show tiles and a chart, a choice with its own state, a
-# carousel, link cards and a video. A reply that arrives as `ui` JSON (ask for a chart)
+# carousel, link cards and a video; code in a reply is highlighted, with a copy button
+# (the SQL thread). A reply that arrives as `ui` JSON (ask for a chart)
 # is rendered in the page by irender-wasm, or by ../api/render when the module is missing. Share, Rename, Delete and "Use this" are `call`
 # actions for the host app: `share`, `rename` and `delete` with the thread's id, and
 # `use-subject` with the subject.
@@ -109,7 +110,7 @@ state:
       title: Why is this SQL query slow?
       messages:
         - { id: 1, role: user, content: "SELECT * FROM orders WHERE lower(email) = 'a@b.com' takes 4 seconds. Why?" }
-        - { id: 2, role: assistant, content: "lower(email) stops the database from using the index on email, so it scans every row. Either store emails lower-cased and compare directly, or add an index on lower(email)." }
+        - { id: 2, role: assistant, content: "`lower(email)` stops the database from using the index on `email`, so it scans every row. Either store emails lower-cased and compare directly, or index the expression itself:\n\n```sql\nCREATE INDEX orders_email_lower ON orders (lower(email));\n\n-- the same query now uses it\nSELECT * FROM orders WHERE lower(email) = 'a@b.com';\n```\n\nRun `EXPLAIN` on the query before and after: the plan should change from a sequential scan to an index scan." }
     - id: trip
       title: Three days in Lisbon
       messages:

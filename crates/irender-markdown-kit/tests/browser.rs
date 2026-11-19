@@ -332,3 +332,68 @@ fn chat_messages_as_markdown_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Code fences: highlighted, with a copy button, in fixed Markdown, Markdown from state,
+/// the editor's preview and a chat message.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn code_fences_in_chrome() {
+    let Some(chrome) = chrome() else { return };
+    let doc = serde_json::json!({ "version": 1, "state": { "note": "none yet", "doc": "" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-markdown", "attrs": { "id": "fixed" }, "props": { "text": "Run:\n\n```bash\nirender --version  # prints it\n```\n\n```\nplain <b>\n```" } },
+            { "type": "ui-markdown", "attrs": { "id": "live" }, "props": { "text": "{{ note }}" } },
+            { "type": "ui-markdown-editor", "props": { "bind": "doc", "mode": "split" } },
+            { "type": "ui-message", "attrs": { "id": "msg" }, "props": { "role": "assistant", "content": "Try:\n\n```sql\nSELECT 1;\n```" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]");
+      const toks = (el) => [...el.querySelectorAll("[data-t]")].map((t) => t.dataset.t + ":" + t.textContent).join(" ");
+      const fences = (el) => [...el.querySelectorAll("[data-fence]")].map((f) => `[${f.dataset.fence || "-"}] ${f.querySelector("code").textContent} | ${f.querySelector("[data-fence-copy]").getAttribute("aria-label")}`).join(" ; ");
+      try {
+        const fixed = document.querySelector("#fixed");
+        log("fixed", toks(fixed));
+        log("fences", fences(fixed));
+        log("escaped", fixed.querySelectorAll("b").length);
+        // Copying, with the clipboard stubbed.
+        let copied = null;
+        Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { copied = t; } } });
+        const btn = fixed.querySelector("[data-fence-copy]");
+        btn.click(); await wait(0); await wait(0);
+        log("copy", JSON.stringify(copied), btn.hasAttribute("data-copied"), fixed.querySelector("[data-fence-live]").textContent);
+        // From state: highlighted after each change.
+        const live = document.querySelector("#live");
+        log("live before", live.querySelectorAll("[data-fence]").length);
+        root.__irender.set("note", "```js\nconst a = 1;\n```"); await wait(0);
+        log("live", toks(live), fences(live));
+        root.__irender.set("note", "```python\nprint('x')\n```"); await wait(0);
+        log("live again", toks(live), live.querySelectorAll("[data-fence]").length);
+        // The editor's preview.
+        const area = document.querySelector("[data-md-editor] textarea");
+        area.value = "```json\n{\"a\": true}\n```"; area.dispatchEvent(new Event("input", { bubbles: true })); await wait(0);
+        log("preview", toks(document.querySelector("[data-md-preview]")));
+        // A chat message.
+        log("message", toks(document.querySelector("#msg")), fences(document.querySelector("#msg")));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "fixed f:irender n:--version c:# prints it",
+            "fences [bash] irender --version  # prints it | Copy bash code ; [-] plain <b> | Copy code",
+            "escaped 0",
+            "copy \"irender --version  # prints it\" true Copied to the clipboard",
+            "live before 0",
+            "live k:const n:1 [js] const a = 1; | Copy js code",
+            "live again f:print s:'x' 1",
+            "preview p:\"a\" l:true",
+            "message k:SELECT n:1 [sql] SELECT 1; | Copy sql code",
+        ],
+        "\n{result}"
+    );
+}
