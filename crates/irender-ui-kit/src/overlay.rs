@@ -224,7 +224,7 @@ impl Component for Dialog {
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         crate::anchors(cx);
-        let id = instance_id(cx, node, &self.name["ui-".len()..]);
+        let id = crate::own_id(cx, node, &self.name["ui-".len()..]);
         trigger_button(
             node,
             cx,
@@ -444,7 +444,7 @@ impl Component for Popover {
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         crate::anchors(cx);
-        let id = instance_id(cx, node, &self.name["ui-".len()..]);
+        let id = crate::own_id(cx, node, &self.name["ui-".len()..]);
         let anchor = id_after("--", &id);
         let mut anchor_style = StyleBlock::new();
         anchor_style.push("anchor-name", style_of(&anchor));

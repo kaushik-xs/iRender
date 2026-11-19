@@ -90,6 +90,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-navigation-link", json!({ "label": "Docs", "href": "/docs" })),
     ];
     let mut kit = 0;
+    let mut broken = Vec::new();
     for c in engine.registry.iter().filter(|c| c.name().starts_with("ui-")) {
         kit += 1;
         assert!(!c.info().doc.is_empty(), "{} has no doc", c.name());
@@ -119,10 +120,37 @@ fn every_component_is_prefixed_documented_and_renders() {
         if c.name() == "ui-sidebar-trigger" {
             root = json!({ "type": "ui-sidebar-layout", "props": { "bind": "k" }, "children": [root] });
         }
-        let page = render_with(root, json!({ "k": null }), json!({}))
+        let page = render_with(root.clone(), json!({ "k": null }), json!({}))
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
+        // With `attrs: { id }` on the component, that's its id: on one element, and what
+        // its buttons and labels point at.
+        fn tag(v: &mut Json, name: &str) -> bool {
+            if v["type"] == json!(name) {
+                v["attrs"] = json!({ "id": "picked-id" });
+                return true;
+            }
+            v.get_mut("children").and_then(Json::as_array_mut).is_some_and(|c| c.iter_mut().any(|k| tag(k, name)))
+        }
+        let mut with_id = root;
+        assert!(tag(&mut with_id, c.name()), "{}", c.name());
+        let body = render_with(with_id, json!({ "k": null }), json!({})).unwrap_or_else(|e| panic!("{}: {e}", c.name())).body;
+        let ids: Vec<&str> = body.split(" id=\"").skip(1).map(|r| &r[..r.find('"').unwrap()]).collect();
+        let n = ids.iter().filter(|i| **i == "picked-id").count();
+        if n > 1 {
+            broken.push(format!("{}: `picked-id` on {n} elements", c.name()));
+        }
+        for attr in ["popovertarget", "commandfor", "aria-controls", "aria-labelledby", "aria-describedby", "for", "list", "aria-activedescendant", "aria-owns"] {
+            for r in body.split(&format!(" {attr}=\"")).skip(1) {
+                for target in r[..r.find('"').unwrap()].split_whitespace() {
+                    if !ids.contains(&target) {
+                        broken.push(format!("{}: {attr}=\"{target}\" points at nothing", c.name()));
+                    }
+                }
+            }
+        }
     }
+    assert!(broken.is_empty(), "\n{}", broken.join("\n"));
     assert_eq!(kit, 116);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {

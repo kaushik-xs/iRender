@@ -305,16 +305,26 @@ impl Component for RailLayout {
         let mut list = Element::new("div");
         list.attr("role", "tablist").attr("aria-orientation", "vertical").attr("data-rail-tabs", true).base_style(pairs(&[("display", "contents")]));
         cx.open(&list, node)?;
+        // Each item's panel's id: the panel's own `attrs.id`, or one from the layout's.
+        let panel_ids: Vec<(String, Val)> = panels
+            .iter()
+            .map(|p| {
+                let f = cx.prop_string(p, "for").unwrap_or_default();
+                let pid = p.attrs.get("id").cloned().unwrap_or_else(|| id_with(&id, &format!("-panel-{f}")));
+                (f, pid)
+            })
+            .collect();
+        let panel_id = |it: &Item| panel_ids.iter().find(|(f, _)| *f == it.id).map(|(_, v)| v.clone());
         let (top, foot): (Vec<&Item>, Vec<&Item>) = items.iter().partition(|i| !i.bottom);
         for it in &top {
-            item(cx, node, it, &shown, &id, panels.iter().any(|p| cx.prop_string(p, "for").as_deref() == Some(&it.id)))?;
+            item(cx, node, it, &shown, &id, panel_id(it))?;
         }
         if !foot.is_empty() {
             let mut f = Element::new("div");
             f.attr("data-rail-foot", true);
             cx.open(&f, node)?;
             for it in &foot {
-                item(cx, node, it, &shown, &id, panels.iter().any(|p| cx.prop_string(p, "for").as_deref() == Some(&it.id)))?;
+                item(cx, node, it, &shown, &id, panel_id(it))?;
             }
             cx.close("div");
         }
@@ -329,7 +339,7 @@ impl Component for RailLayout {
             let label = items.iter().find(|i| i.id == f).map(|i| i.label.clone()).unwrap_or_default();
             let mut el = cx.element("section", p);
             el.base_style_ref(&PANEL)
-                .attr("id", id_with(&id, &format!("-panel-{f}")))
+                .attr("id", p.attrs.get("id").cloned().unwrap_or_else(|| id_with(&id, &format!("-panel-{f}"))))
                 .attr("role", "tabpanel")
                 .attr("aria-labelledby", id_with(&id, &format!("-tab-{f}")))
                 .attr("data-rail-panel", f.clone())
@@ -382,7 +392,7 @@ impl Component for RailLayout {
     }
 }
 
-fn item(cx: &mut RenderCx<'_>, node: &Node, it: &Item, shown: &Expr, id: &Val, has_panel: bool) -> Result<(), RenderError> {
+fn item(cx: &mut RenderCx<'_>, node: &Node, it: &Item, shown: &Expr, id: &Val, panel: Option<Val>) -> Result<(), RenderError> {
     let selected = bin(BinOp::Eq, shown.clone(), Expr::Lit(json!(it.id)));
     let mut el = Element::new(if it.href.is_some() { "a" } else { "button" });
     el.attr("data-rail-item", it.id.clone()).attr("data-tip", it.label.clone()).attr("aria-label", it.label.clone());
@@ -394,8 +404,8 @@ fn item(cx: &mut RenderCx<'_>, node: &Node, it: &Item, shown: &Expr, id: &Val, h
             .attr("id", id_with(id, &format!("-tab-{}", it.id)))
             .attr("aria-selected", expr_val(cond(selected.clone(), Expr::Lit(json!("true")), Expr::Lit(json!("false")))))
             .attr("tabindex", expr_val(cond(selected, Expr::Lit(json!(0)), Expr::Lit(json!(-1)))));
-        if has_panel {
-            el.attr("aria-controls", id_with(id, &format!("-panel-{}", it.id)));
+        if let Some(p) = panel {
+            el.attr("aria-controls", p);
         }
     }
     cx.open(&el, node)?;

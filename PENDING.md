@@ -7,7 +7,6 @@ _Last updated: 2026-11-19._
 ## Suggested next
 
 1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: paging inside API groups, or drawing Gantt arrows by dragging.
-2. Setting a popover component's id with `attrs: { id }` replaces the popover's own id, so its button no longer opens it; the `id` prop works. Idea: make `attrs.id` the component's id, or say so in the validator.
 
 ## Gaps you'd hit in real use
 

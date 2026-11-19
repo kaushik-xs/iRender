@@ -322,8 +322,18 @@ fn locale(cx: &RenderCx<'_>, node: &Node) -> Option<String> {
     cx.prop_string(node, "locale").filter(|l| !l.is_empty()).or_else(|| cx.labels().lang.clone())
 }
 
-/// The element id for this instance of a component: the `id` prop if given
-/// (templates allowed, e.g. `confirm-{{ item.id }}` inside a list), otherwise one
+/// `instance_id` for a component whose own element carries its id (a dialog, a popover,
+/// a menu): `attrs: { id }` is on that element, so it's the id the component's buttons
+/// and labels point at too.
+fn own_id(cx: &RenderCx<'_>, node: &Node, prefix: &str) -> Val {
+    match (node.prop("id"), node.attrs.get("id")) {
+        (None, Some(id)) => id.clone(),
+        _ => instance_id(cx, node, prefix),
+    }
+}
+
+/// The element id for this instance of a component: the `id` prop (or `attrs.id`) if
+/// given (templates allowed, e.g. `confirm-{{ item.id }}` inside a list), otherwise one
 /// derived from the node's place in the document and the list item it is in.
 fn instance_id(cx: &RenderCx<'_>, node: &Node, prefix: &str) -> Val {
     if let Some(id) = node.prop("id") {

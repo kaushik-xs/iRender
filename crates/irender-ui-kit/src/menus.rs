@@ -350,7 +350,7 @@ impl Component for Menubar {
             if menu.kind != "ui-menubar-menu" {
                 return Err(RenderError::new(menu, format!("`ui-menubar` takes `ui-menubar-menu` children, not `{}`", menu.kind)));
             }
-            let id = instance_id(cx, menu, "menubar-menu");
+            let id = crate::own_id(cx, menu, "menubar-menu");
             let anchor = expr::stringify(&cx.eval(&id_after("--", &id)));
             let mut t = Element::new("button");
             t.attr("type", "button")
@@ -518,7 +518,7 @@ impl Component for NavigationMenu {
             match child.kind.as_str() {
                 "ui-navigation-link" => cx.render(child)?,
                 "ui-navigation-item" => {
-                    let id = instance_id(cx, child, "nav-panel");
+                    let id = crate::own_id(cx, child, "nav-panel");
                     let anchor = expr::stringify(&cx.eval(&id_after("--", &id)));
                     let mut t = Element::new("button");
                     t.attr("type", "button")

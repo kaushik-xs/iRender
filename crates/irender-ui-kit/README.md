@@ -775,7 +775,7 @@ A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent e
 
 Dialogs, sheets, popovers and menus open from their `trigger` prop's button. To open one from your own button instead, give the overlay an `id` and put `"attrs": { "command": "show-modal", "commandfor": "<id>" }` (dialogs) or `"attrs": { "popovertarget": "<id>" }` (popovers) on the button.
 
-Every overlay needs an element id. Without the `id` prop, one is derived from the node's place in the document. It stays unique for each item of a list rendered on the server, and inside a list the browser rebuilds from state, it ends with the item's index and follows it when the list changes. An `id` you pass can use the item too, such as `"confirm-{{ item.id }}"`. Either way, the trigger, close buttons and menu items inside follow the same id.
+Every overlay needs an element id. The `id` prop gives it one, and so does `attrs: { id }` on a dialog, sheet, drawer, popover or menu, whose own element it is. (On components that wrap their popover, such as the date picker, tooltip or filters, `attrs.id` stays on the wrapper and the popover keeps its own.) A resizable or rail panel's `attrs.id` is the id its handle or tab points at. Without one, an id is derived from the node's place in the document. It stays unique for each item of a list rendered on the server, and inside a list the browser rebuilds from state, it ends with the item's index and follows it when the list changes. An `id` you pass can use the item too, such as `"confirm-{{ item.id }}"`. Either way, the trigger, close buttons and menu items inside follow the same id.
 
 To show a toast, set the toaster's state key to it:
 

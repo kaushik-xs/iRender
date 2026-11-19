@@ -191,7 +191,9 @@ impl Component for Resizable {
             let mut style = StyleBlock::new();
             style.push("--rz-size", size);
             let mut el = cx.element("div", p.node);
-            el.base_style(style).attr("id", id_with(&id, &format!("-{i}"))).attr("data-rz-panel", true);
+            // A panel's own `attrs.id` is its id, and its handle's `aria-controls`.
+            let pid = p.node.attrs.get("id").cloned().unwrap_or_else(|| id_with(&id, &format!("-{i}")));
+            el.base_style(style).attr("id", pid.clone()).attr("data-rz-panel", true);
             if p.size == 0.0 && key.is_none() {
                 el.attr("data-collapsed", true);
             }
@@ -206,7 +208,7 @@ impl Component for Resizable {
                     .attr("tabindex", "0")
                     // A line between side-by-side panels stands upright.
                     .attr("aria-orientation", if direction == "horizontal" { "vertical" } else { "horizontal" })
-                    .attr("aria-controls", id_with(&id, &format!("-{i}")))
+                    .attr("aria-controls", pid)
                     .attr("aria-label", label)
                     .attr("aria-valuemin", lit(p.min))
                     .attr("aria-valuemax", lit(p.max))
