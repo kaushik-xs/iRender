@@ -795,9 +795,10 @@ fn combobox_renders_its_value_and_configures_the_behaviour() {
     assert_eq!(cfg["closeOnSelect"], false);
     assert_eq!(cfg["options"][1], json!({ "value": "b", "label": "Bee", "description": "buzz" }));
     assert_eq!(cfg["options"][2], json!({ "group": "More", "options": [{ "value": "c", "label": "c", "disabled": true }] }));
-    // Its script and spinner keyframes ship once.
-    assert_eq!(page.scripts.len(), 1);
-    assert!(page.scripts[0].contains(r#"["ui-combobox"]"#));
+    // Its script (and the anchor positioning fallback) and spinner keyframes ship once.
+    assert_eq!(page.scripts.len(), 2);
+    assert!(page.scripts.iter().any(|s| s.contains(r#"["ui-combobox"]"#)));
+    assert!(page.scripts.iter().any(|s| s.contains("__irenderAnchors")));
     assert_eq!(page.css.matches("@keyframes ui-spin").count(), 1);
 }
 

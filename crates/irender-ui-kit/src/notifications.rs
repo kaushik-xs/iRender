@@ -193,6 +193,7 @@ impl Component for Notifications {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let inline = cx.prop(node, "inline").is_some_and(|v| expr::truthy(&v));
         let tab = cx.prop_string(node, "tab").unwrap_or_else(|| "unread".into());
         if tab != "unread" && tab != "all" {

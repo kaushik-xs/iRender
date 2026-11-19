@@ -5621,3 +5621,107 @@ fn dashboard_grid_breakpoints_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Anchor positioning without the browser's: with native anchors turned off, the
+/// fallback places each popover beside its trigger, on its side and alignment, flips it
+/// when it doesn't fit, mirrors it right to left, and follows the page as it scrolls.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn anchor_fallback_in_chrome() {
+    let item = |l: &str| serde_json::json!({ "type": "ui-menu-item", "props": { "label": l } });
+    let doc = serde_json::json!({ "version": 1, "state": {},
+        "root": { "type": "element", "style": { "padding": "40px 200px", "height": "2000px" }, "children": [
+            { "type": "ui-dropdown-menu", "props": { "id": "menu", "trigger": "Menu", "align": "start" }, "children": [item("One"), item("Two")] },
+            { "type": "ui-popover", "props": { "id": "right", "trigger": "Right", "side": "right" }, "children": [ { "type": "text", "props": { "value": "beside" } } ] },
+            { "type": "element", "attrs": { "dir": "rtl" }, "children": [
+                { "type": "ui-dropdown-menu", "props": { "id": "rtl", "trigger": "RTL", "align": "start" }, "children": [item("One")] } ] },
+            { "type": "ui-data-table", "props": { "rows": [ { "id": 1, "s": "A" }, { "id": 2, "s": "B" } ], "views": [ { "id": "v", "name": "V" } ] },
+              "children": [ { "type": "ui-data-table-column", "props": { "field": "s", "filter": "select" } } ] },
+            { "type": "ui-date-picker", "props": { "id": "day" } },
+            { "type": "ui-combobox", "props": { "id": "fruit", "options": ["Apple", "Banana"], "placeholder": "Fruit" } },
+            { "type": "element", "style": { "position": "absolute", "top": "740px", "left": "200px" }, "children": [
+                { "type": "ui-popover", "props": { "id": "low", "trigger": "Low" }, "children": [ { "type": "element", "style": { "height": "120px" }, "children": [ { "type": "text", "props": { "value": "tall" } } ] } ] } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const frames = () => wait(80);
+      const pop = (id) => [document.querySelector(`[popovertarget="${id}"]:not([popovertargetaction])`), document.getElementById(id)];
+      // The gap to the trigger on the popover's side, and how it lines up on the other axis.
+      const where = (id) => {
+        const [t, p] = pop(id), a = t.getBoundingClientRect(), r = p.getBoundingClientRect();
+        const mid = (lo, hi) => (lo + hi) / 2, centred = (x, y) => (Math.abs(x - y) <= 1 ? "centred" : `off ${Math.round(x - y)}`);
+        return {
+          menu: `under ${Math.round(r.top - a.bottom)}, left edges ${Math.round(r.left - a.left)}`,
+          right: `after ${Math.round(r.left - a.right)}, ${centred(mid(r.top, r.bottom), mid(a.top, a.bottom))}`,
+          rtl: `under ${Math.round(r.top - a.bottom)}, right edges ${Math.round(a.right - r.right)}`,
+          low: `above ${Math.round(a.top - r.bottom)}, ${centred(mid(r.left, r.right), mid(a.left, a.right))}`,
+        }[id] + "," ;
+      };
+      try {
+        log("native off", !CSS.supports("position-area", "bottom") || getComputedStyle(document.querySelector("[popover]")).positionArea === "none", !!window.__irenderAnchors);
+        for (const id of ["menu", "right", "rtl", "low"]) {
+          const [t, p] = pop(id);
+          t.click(); await frames(); await wait(20);
+          log(where(id), p.hasAttribute("data-anchored"));
+          p.hidePopover();
+        }
+        // The rest of the kit's popovers: each beside the button that opened it.
+        for (const t of document.querySelectorAll("[data-i-x=ui-data-table] [popovertarget], [data-i-x=ui-date-picker] [popovertarget]")) {
+          const p = document.getElementById(t.getAttribute("popovertarget"));
+          t.click(); await frames();
+          const a = t.getBoundingClientRect(), r = p.getBoundingClientRect();
+          log(p.getAttribute("data-dt-filter") ?? (p.hasAttribute("data-dt-views") ? "views" : p.hasAttribute("data-dt-columns") ? "columns" : "picker"), Math.round(r.top - a.bottom) >= 0 && Math.round(r.top - a.bottom) <= 8, Math.abs(Math.round(r.left - a.left)) <= 1 || Math.abs(Math.round(r.right - a.right)) <= 1);
+          p.hidePopover();
+        }
+        const box = document.querySelector("[data-i-x=ui-combobox] input");
+        box.focus(); box.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); await frames();
+        const list = document.querySelector("[data-i-x=ui-combobox] [popover]");
+        const ra = box.closest("[data-i-x=ui-combobox]").querySelector("[data-cb-control], [data-cb-anchor], input").getBoundingClientRect(), rl = list.getBoundingClientRect();
+        log("combobox", list.matches(":popover-open"), Math.round(rl.top - ra.bottom) >= 0 && Math.round(rl.top - ra.bottom) <= 12);
+        list.hidePopover?.();
+        // Scrolled: the open menu moves with its trigger.
+        const [t, p] = pop("menu");
+        t.click(); await frames();
+        window.scrollTo(0, 30); await frames(); await wait(20);
+        log("scrolled", Math.round(p.getBoundingClientRect().top - t.getBoundingClientRect().bottom));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    // The browser's own anchor positioning off, and the fallback asked for.
+    let off = "<style data-anchor-off>* { position-area: none !important; position-anchor: none !important; position-try-fallbacks: none !important; }</style>";
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test")
+        .replacen("<html", "<html data-anchor-fallback", 1)
+        .replace("</head>", &format!("{off}</head>"))
+        .replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("anchor-fallback", &html) else { return };
+    // The same places as the browser's own anchor positioning gives (checked against it).
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "native off true true",
+            // 6px under the trigger, from its left edge.
+            "under 6, left edges 0, true",
+            // 6px after it, centred on it.
+            "after 6, centred, true",
+            // Right to left: from its right edge.
+            "under 6, right edges 0, true",
+            // No room under it: flipped above.
+            "above 6, centred, true",
+            // The data table's Views menu, its filter and View menu, the date picker and
+            // the combobox's list: under their buttons, lined up with an edge.
+            "views true true",
+            "s true true",
+            "columns true true",
+            "picker true true",
+            "combobox true true",
+            "scrolled 6",
+        ],
+        "\n{result}"
+    );
+}

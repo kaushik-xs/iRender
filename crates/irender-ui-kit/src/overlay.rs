@@ -223,6 +223,7 @@ impl Component for Dialog {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let id = instance_id(cx, node, &self.name["ui-".len()..]);
         trigger_button(
             node,
@@ -322,6 +323,7 @@ impl Component for DialogClose {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let Some(dialog) = context(cx, "ui-dialog") else {
             return Err(RenderError::new(node, "`ui-dialog-close` must be inside a `ui-dialog`, `ui-alert-dialog` or `ui-sheet`"));
         };
@@ -356,6 +358,7 @@ impl Component for DialogFooter {
         ComponentInfo { doc: "A row of buttons at the bottom of a dialog.", props: &[], parts: &[], children: true, open_props: false }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let mut el = cx.element("div", node);
         el.base_style_ref(&DIALOG_FOOTER);
         cx.open(&el, node)?;
@@ -440,6 +443,7 @@ impl Component for Popover {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let id = instance_id(cx, node, &self.name["ui-".len()..]);
         let anchor = id_after("--", &id);
         let mut anchor_style = StyleBlock::new();
@@ -515,6 +519,7 @@ impl Component for ContextMenu {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let id = instance_id(cx, node, "context-menu");
         cx.global_js("ui-context-menu", CONTEXT_SCRIPT);
         cx.global_js("ui-dropdown-menu", MENU_SCRIPT);
@@ -600,6 +605,7 @@ impl Component for SplitButton {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let variant = node.prop("variant").cloned().unwrap_or_else(|| lit("default"));
         let mut primary = synthetic(node, "ui-button", vec![("label", node.prop("label").cloned().unwrap_or_else(|| lit(""))), ("variant", variant.clone())], Vec::new(), Vec::new());
         primary.on = node.on.clone();
@@ -713,6 +719,7 @@ impl Component for MenuItem {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let href = node.prop("href");
         let tag = if href.is_some() { "a" } else { "button" };
         let mut el = cx.element(tag, node);
@@ -758,6 +765,7 @@ impl Component for MenuSeparator {
         ComponentInfo { doc: "A line between groups of menu items.", props: &[], parts: &[], children: false, open_props: false }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let mut el = cx.element("div", node);
         el.base_style_ref(&MENU_SEPARATOR).attr("role", "separator");
         cx.open(&el, node)?;
@@ -775,6 +783,7 @@ impl Component for MenuLabel {
         ComponentInfo { doc: "A heading inside a menu.", props: PROPS, parts: &[], children: false, open_props: false }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let mut el = cx.element("div", node);
         el.base_style_ref(&MENU_LABEL);
         if let Some(t) = node.prop("text") {
@@ -846,6 +855,7 @@ impl Component for Tooltip {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         // The first child (usually a button) is described by the tip, so screen readers
         // read the tip with it.
         let id = instance_id(cx, node, "tooltip");
@@ -930,6 +940,7 @@ impl Component for HoverCard {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let mut el = cx.element("span", node);
         el.base_style_ref(&CARD_WRAP);
         cx.open(&el, node)?;

@@ -2516,8 +2516,8 @@ The toaster adds it to a stack and clears the key, so the next one can follow. E
 
 ## Browser support
 
-The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the Popover API, CSS anchor positioning and exclusive `<details name>`. Chrome and Edge 135 and later support all of them, and the kit's browser tests run in Chrome. Check your other target browsers. Where a feature is missing:
-- A popover still opens, but in the middle of the screen.
+The overlays rely on invoker commands (`command`/`commandfor`), `closedby`, the Popover API, CSS anchor positioning and exclusive `<details name>`. Chrome and Edge 135 and later support all of them, and the kit's browser tests run in Chrome, WebKit and Firefox. Check your other target browsers. Where a feature is missing:
+- Without anchor positioning (Safari before 26, Firefox ESR), a small script places menus, popovers, filters, pickers and the combobox's list beside their buttons instead: on the side the kit asks for, flipped when there's no room, mirrored right to left, kept on screen and following the page as it scrolls. It reads the kit's own CSS, so it covers every anchored component, and it does nothing in browsers that position anchors themselves. Its test turns the browser's anchor positioning off (`<html data-anchor-fallback>` runs it anyway).
 - Light dismiss falls back to Escape.
 - Accordion items stop closing each other.
 

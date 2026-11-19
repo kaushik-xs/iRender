@@ -362,6 +362,7 @@ impl Component for Combobox {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         let flag = |cx: &RenderCx<'_>, name: &str, default: bool| cx.prop(node, name).map_or(default, |v| expr::truthy(&v));
         // A prop's text, or the default's label.
         // Labels: "Select…", "No options", "Loading…", "Create “{input}”"

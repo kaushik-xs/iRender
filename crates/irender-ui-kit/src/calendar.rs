@@ -482,6 +482,7 @@ impl Component for Calendar {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         let config = config(cx, node, false)?;
         let value = current(cx, node);
@@ -524,6 +525,7 @@ impl Component for DatePicker {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         let config = config(cx, node, true)?;
         let value = current(cx, node);

@@ -286,6 +286,12 @@ fn touch_drag(cx: &mut RenderCx<'_>) {
     cx.global_js("ui-touch-drag", include_str!("touch_drag.js"));
 }
 
+/// Anchor positioning for browsers without it, for components that place popovers
+/// beside an anchor (`anchors.js`; it does nothing where the browser does it).
+fn anchors(cx: &mut RenderCx<'_>) {
+    cx.global_js("ui-anchors", include_str!("anchors.js"));
+}
+
 /// Adds the right-to-left rules, for components that use them.
 fn flips(cx: &mut RenderCx<'_>) {
     cx.global_css("ui-rtl", RTL);

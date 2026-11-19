@@ -851,6 +851,7 @@ impl Component for DataTable {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         let parts = Parts::collect(node)?;
         let flag = |cx: &RenderCx<'_>, name: &str, default: bool| cx.prop(node, name).filter(|v| !v.is_null()).map_or(default, |v| expr::truthy(&v));

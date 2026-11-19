@@ -87,6 +87,7 @@ impl Component for MenuSub {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         if context(cx, "ui-menu").is_none() {
             return Err(RenderError::new(node, "`ui-menu-sub` goes inside a menu: `ui-dropdown-menu`, `ui-context-menu`, `ui-menubar-menu` or another `ui-menu-sub`"));
@@ -166,6 +167,7 @@ impl Component for MenuCheckbox {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         let key = cx.prop_string(node, "bind").ok_or_else(|| RenderError::new(node, "`bind` is required"))?;
         let mut el = cx.element("button", node);
@@ -215,6 +217,7 @@ impl Component for MenuRadioGroup {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         let key = cx.prop_string(node, "bind").ok_or_else(|| RenderError::new(node, "`bind` is required"))?;
         let options = server_array(cx, node, "options")?;
@@ -333,6 +336,7 @@ impl Component for Menubar {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         cx.global_js("ui-dropdown-menu", MENU_SCRIPT);
         cx.global_js("ui-menubar", MENUBAR_SCRIPT);
@@ -496,6 +500,7 @@ impl Component for NavigationMenu {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         cx.global_js("ui-navigation-menu", NAVIGATION_SCRIPT);
         let align = cx.prop_string(node, "align").unwrap_or_else(|| "start".into());
@@ -596,6 +601,7 @@ impl Component for NavigationLink {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::anchors(cx);
         crate::flips(cx);
         let mut a = cx.element("a", node);
         a.attr("href", node.prop("href").cloned().unwrap_or_else(|| lit("#")));
