@@ -185,6 +185,7 @@ root: …
 `data_table.js`
 
 ```yaml
+"{n} more rows loaded": { one: "{n} more row loaded", other: "{n} more rows loaded" }
 "Couldn't load the rows under this one": "Couldn't load the rows under this one"
 "Loading…": "Loading…"
 "Couldn't load rows.": "Couldn't load rows."
@@ -203,6 +204,9 @@ root: …
 "{n} results": { one: "{n} result", other: "{n} results" }
 "No values": "No values"
 "(none)": "(none)"
+"Couldn't load rows. Try again": "Couldn't load rows. Try again"
+"Load {n} more of {total}": "Load {n} more of {total}"
+"Load more": "Load more"
 "{name} moved to column {n} of {count}": "{name} moved to column {n} of {count}"
 "Exported {n} rows": { one: "Exported {n} row", other: "Exported {n} rows" }
 "Saved view {name}": "Saved view {name}"

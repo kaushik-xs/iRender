@@ -380,7 +380,17 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Group rows: the value, a count, subtotals; a click folds the group.
         // Group rows from the API: shaded like a group's header, with nothing to select.
         .nest("& [data-dt-group-row] > td", pairs(&[("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
-        .nest("& [data-dt-group-row] :is([data-dt-select], [data-dt-expand])", pairs(&[("visibility", "hidden")]))
+        .nest("& :is([data-dt-group-row], [data-dt-more-row]) :is([data-dt-select], [data-dt-expand])", pairs(&[("visibility", "hidden")]))
+        // After a group's rows, the button that loads the next batch.
+        .nest(
+            "& [data-dt-load-group]",
+            pairs(&[("padding", sp!(2, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer"), ("white-space", "nowrap")]),
+        )
+        .nest("& [data-dt-load-group]:hover", pairs(&[("background", SUBTLE), ("text-decoration", "underline")]))
+        .nest("& [data-dt-load-group]:disabled", pairs(&[("color", MUTED), ("cursor", "progress"), ("text-decoration", "none")]))
+        .nest("& [data-dt-more-row] > td", pairs(&[("padding-block", sp!(4))]))
+        // Its other cells are a row template's with no row: empty, and kept so.
+        .nest("& [data-dt-more-row] > td:not([data-dt-tree]) > *", pairs(&[("visibility", "hidden")]))
         .nest("& [data-dt-group-row]", pairs(&[("cursor", "pointer")]))
         .nest("& [data-dt-group] > td", pairs(&[("padding", sp!(6, 8)), ("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
         .nest(

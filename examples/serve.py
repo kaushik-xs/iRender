@@ -19,7 +19,7 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                     Takes ui-data-table's query: offset, limit, sort (`-eta,id`), q (search),
                     filters (JSON conditions) and delay (ms); answers { rows, total }.
                     With groupBy=<field>, answers a row per group ({ <field>, count, value });
-                    with group=<value> too, that group's rows (the first 50).
+                    with group=<value> too, that group's rows, a batch at a time.
   api/upload        POST multipart (field `file`): keeps the file in memory for this run and
                     answers { id, url } for ui-file-upload. Files over 10 MB get 413.
   api/uploads/<id>/<name>  GET: an uploaded file back.
@@ -127,7 +127,8 @@ def shipments(query):
     time.sleep(min(2000, int(query.get("delay") or 300)) / 1000)
     group_by = query.get("groupBy")
     if group_by and "group" in query:
-        return {"rows": [r for r in rows if str(r.get(group_by)) == query["group"]][:50]}
+        mine = [r for r in rows if str(r.get(group_by)) == query["group"]]
+        return {"rows": mine[offset:offset + limit], "total": len(mine)}
     if group_by:
         groups = {}
         for r in rows:

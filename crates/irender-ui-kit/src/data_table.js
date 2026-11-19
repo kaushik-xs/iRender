@@ -89,8 +89,14 @@
   // Group rows from the API (grouped rows from `url`), keyed by their group's value.
   const groupRowSet = new WeakSet();
   const isGroupRow = (r) => isObj(r) && groupRowSet.has(r);
+  // After a group's rows loaded so far, a row that loads the next batch.
+  const moreRows = new Map(); // group key → its "load more" row
+  const isMoreRow = (r) => isObj(r) && r.__moreFor !== undefined && moreRows.get(r.__moreFor) === r;
+  // Rows that are data: not a group's, nor a "load more".
+  const isDataRow = (r) => !isGroupRow(r) && !isMoreRow(r);
   const rowKey = (r, i) => {
     if (isGroupRow(r)) return "\u0000group:" + keyOf(r.__value);
+    if (isMoreRow(r)) return "\u0000more:" + r.__moreFor;
     const k = isObj(r) ? at(r, cfg.rowKey) : undefined;
     return blank(k) ? i : k;
   };
@@ -212,6 +218,8 @@
   const tree = cfg.tree;
   let meta = [], treeVersion = 0, treeCache = null, byParent = new Map();
   const kids = new Map(), kidsLoading = new Set(), kidsFailed = new Set();
+  // Groups from the API: how many rows each has, and whether all have loaded.
+  const kidsMore = new Map();
   // Rows opened (or, with `expanded`, closed) by hand.
   const toggled = new Set();
   const isOpen = (k) => (tree.all ? !toggled.has(k) : toggled.has(k));
@@ -266,6 +274,12 @@
         const open = has && (isOpen(k) || (filtering && (ch ?? []).some(kept)));
         info.push({ depth, has, open, parent, loading: kidsLoading.has(k), failed: kidsFailed.has(k) });
         if (open && ch) walk(ch, depth + 1, i);
+        // A group from the API with more rows than it has loaded: a row to load them.
+        if (open && ch && isGroupRow(r) && kidsMore.get(k)?.done === false) {
+          if (!moreRows.has(k)) moreRows.set(k, { __moreFor: k });
+          out.push(moreRows.get(k));
+          info.push({ depth: depth + 1, has: false, open: false, parent: i, loading: kidsLoading.has(k), failed: kidsFailed.has(k) });
+        }
       }
     };
     walk(roots, 0, -1);
@@ -284,17 +298,24 @@
     if (want && lazy(r, i) && !kidsLoading.has(k)) loadChildren(r, i, k);
     apply();
   }
-  async function loadChildren(r, i, k) {
+  // `more`: the next batch of a group's rows, after those loaded.
+  async function loadChildren(r, i, k, more = false) {
     kidsLoading.add(k);
     kidsFailed.delete(k);
+    const had = more ? kids.get(k) ?? [] : [];
     try {
-      let u, p;
+      let u, p, batched = false;
       if (isGroupRow(r)) {
-        // A group's rows: the table's query, for that group.
+        // A group's rows: the table's query, for that group, a batch at a time.
         const q = remoteQuery();
         u = q.url;
         p = queryParams(q);
         p.set("group", typeof r.__value === "object" ? JSON.stringify(r.__value) : text(r.__value));
+        if (mode !== "none" && size > 0) {
+          batched = true;
+          p.set("offset", String(had.length));
+          p.set("limit", String(size));
+        }
       } else {
         u = text(resolve(tree.url));
         p = new URLSearchParams({ parent: text(rowKey(r, i)) });
@@ -305,8 +326,24 @@
       const res = await fetch(u + (u.includes("?") ? "&" : "?") + p, { headers: { accept: "application/json" } });
       if (!res.ok) throw new Error(String(res.status));
       const answer = await res.json();
-      kids.set(k, Array.isArray(answer) ? answer : Array.isArray(answer?.rows) ? answer.rows : []);
+      const batch = Array.isArray(answer) ? answer : Array.isArray(answer?.rows) ? answer.rows : [];
+      const rows = had.concat(batch);
+      kids.set(k, rows);
+      if (isGroupRow(r)) {
+        // The group's total: the answer's, else the group's count.
+        const total = Number.isFinite(answer?.total) ? answer.total : Number.isFinite(Number(r.count)) ? Number(r.count) : null;
+        const done = !batched || batch.length < size || (total !== null && rows.length >= total);
+        kidsMore.set(k, { total, done });
+        if (more) announce(L(["{n} more row loaded", "{n} more rows loaded"], { n: batch.length }));
+      }
     } catch {
+      // A batch after the first that failed: the rows loaded stay, and it can be tried again.
+      if (more) {
+        kidsFailed.add(k);
+        kidsLoading.delete(k);
+        treeVersion++;
+        return apply();
+      }
       // Closed again, so opening it retries.
       kidsFailed.add(k);
       if (tree.all) toggled.add(k);
@@ -489,7 +526,10 @@
         const c = byKey.get(x.closest("[data-dt-col]").getAttribute("data-dt-col"));
         x.textContent = fmt(c, at(data[i], c.field));
       }
-      if (cfg.groupRemote) drawGroupRow(tr, data[i]);
+      if (cfg.groupRemote) {
+        drawGroupRow(tr, data[i]);
+        drawMoreRow(tr, data[i], meta[i]);
+      }
       if (tree && meta[i]) {
         const m = meta[i];
         tr.setAttribute("aria-level", String(m.depth + 1));
@@ -654,7 +694,7 @@
       const sig = filtered.join(",");
       if (lastView?.data !== data || lastView.sig !== sig) {
         lastView = { data, sig };
-        const out = filtered.map((i) => data[i]).filter((r) => !isGroupRow(r));
+        const out = filtered.map((i) => data[i]).filter(isDataRow);
         queueMicrotask(() => api.set(B.view, out));
       }
     }
@@ -732,6 +772,8 @@
       // A group's rows depend on the query: they load again when it's opened.
       if (cfg.groupRemote) {
         kids.clear();
+        kidsMore.clear();
+        moreRows.clear();
         kidsFailed.clear();
         treeVersion++;
       }
@@ -961,6 +1003,44 @@
       } else count?.remove();
     }
   }
+  // A "load more" row: a button in the tree column, saying how many are left.
+  function drawMoreRow(tr, r, m) {
+    const on = isMoreRow(r);
+    tr.toggleAttribute("data-dt-more-row", on);
+    const node = tr.querySelector(":scope > [data-dt-tree] [data-dt-node]");
+    let b = node?.querySelector(":scope > [data-dt-load-group]");
+    if (!on) return b?.remove();
+    if (!b && node) {
+      b = document.createElement("button");
+      b.type = "button";
+      b.tabIndex = -1;
+      b.setAttribute("data-dt-load-group", "");
+      node.querySelector("[data-dt-twisty]").after(b);
+    }
+    if (!b) return;
+    const info = kidsMore.get(r.__moreFor) ?? {}, loaded = (kids.get(r.__moreFor) ?? []).length;
+    const next = info.total !== null && info.total !== undefined ? Math.min(size, info.total - loaded) : size;
+    b.disabled = !!m?.loading;
+    b.textContent = m?.loading ? L("Loading…")
+      : m?.failed ? L("Couldn't load rows. Try again")
+      : info.total !== null && info.total !== undefined ? L("Load {n} more of {total}", { n: num(next), total: num(info.total) })
+      : L("Load more");
+  }
+  // The next batch of the group a "load more" row is for.
+  function loadGroupMore(r) {
+    const k = r.__moreFor, i = data.findIndex((x) => isGroupRow(x) && keyOf(rowKey(x, 0)) === k);
+    if (i < 0 || kidsLoading.has(k)) return;
+    loadChildren(data[i], i, k, true);
+    treeVersion++;
+    apply();
+  }
+  const announce = (t) => {
+    const live = $("[data-dt-footer] [data-dt-live]");
+    if (!live) return;
+    live.textContent = "";
+    setTimeout(() => (live.textContent = t), 30);
+  };
+
   // The key of the column the rows are grouped by, if one shows that field.
   const groupKeyOf = () => cols.find((c) => c.field === groupField())?.key;
 
@@ -1219,7 +1299,7 @@
   // ---- CSV of the rows that pass the filters, in the order and columns shown
   function exportCsv() {
     const shownCols = colOrder.map((k) => byKey.get(k)).filter((c) => c && c.field && !hidden.has(c.key));
-    const seq = (groupList ? groupList.flatMap((x) => x.rows) : filtered).filter((i) => !isGroupRow(data[i]));
+    const seq = (groupList ? groupList.flatMap((x) => x.rows) : filtered).filter((i) => isDataRow(data[i]));
     const cell = (v) => {
       let s = blank(v) ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
       // A text that starts like a formula is kept as text (a spreadsheet would run it).
@@ -1482,6 +1562,7 @@
     const { row } = rowOf(tr);
     // A group row opens and closes its group.
     if (isGroupRow(row)) return toggleNode(indexOf(tr));
+    if (isMoreRow(row)) return loadGroupMore(row);
     if (B.row) api.set(B.row, row);
     api.emit("rowclick", { row });
   }
@@ -1502,6 +1583,7 @@
       return groupRows.get(k)?.querySelector("[data-dt-fold]")?.focus();
     }
     if (t.matches("[data-dt-export]")) return exportCsv();
+    if (t.matches("[data-dt-load-group]")) return loadGroupMore(rowOf(t.closest("[data-dt-row]")).row);
     if (t.matches("[data-dt-sort]")) {
       const field = byKey.get(t.getAttribute("data-dt-sort")).sortField;
       let keys = sortList(get("sort"));
@@ -1531,7 +1613,7 @@
     } else if (t.matches("[data-dt-clear]")) {
       setFilter(t.closest("[data-dt-filter]").getAttribute("data-dt-filter"), null);
     } else if (t.matches("[data-dt-select-all]")) {
-      toggleRows(filtered.filter((i) => !isGroupRow(data[i])).map((i) => rowKey(data[i], i)), true);
+      toggleRows(filtered.filter((i) => isDataRow(data[i])).map((i) => rowKey(data[i], i)), true);
     } else if (t.matches("[data-dt-clear-selection]")) {
       put("selection", []);
       api.emit("select", { selection: [] });
@@ -1561,7 +1643,7 @@
       } else toggleRows([key], t.checked);
       lastClicked = tr;
     } else if (t.matches("[data-dt-select-page]")) {
-      toggleRows(shown.filter((i) => !isGroupRow(data[i])).map((i) => rowKey(data[i], i)), t.checked);
+      toggleRows(shown.filter((i) => isDataRow(data[i])).map((i) => rowKey(data[i], i)), t.checked);
     } else if (t.matches("[data-dt-show]")) {
       t.checked ? hidden.delete(t.getAttribute("data-dt-show")) : hidden.add(t.getAttribute("data-dt-show"));
       if (B.columns || local.columns || cfg.reorderable || cfg.resizable) saveColumns();
@@ -1679,11 +1761,11 @@
       case " ":
         if (!cfg.selectable) return;
         e.preventDefault();
-        if (isGroupRow(rowOf(t).row)) return;
+        if (!isDataRow(rowOf(t).row)) return;
         return toggleRows([rowOf(t).key], !selection().some((k) => keyOf(k) === keyOf(rowOf(t).key)));
       case "Enter":
         e.preventDefault();
-        if (B.row || isGroupRow(rowOf(t).row)) return clickRow(t);
+        if (B.row || !isDataRow(rowOf(t).row)) return clickRow(t);
         if (cfg.detail) return toggleDetail(t);
         return;
       case "ArrowRight":

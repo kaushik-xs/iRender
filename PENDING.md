@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: paging inside API groups, or `cargo fmt` in CI.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: nested rows (selecting a parent selects its children, Expand all), or fuzzy ranking in the command palette.
 
 ## Gaps you'd hit in real use
 
@@ -68,7 +68,7 @@ _Last updated: 2026-11-19._
   - [ ] Nested rows: selecting a parent doesn't select its children; no "expand all" control; the footer counts the rows shown, children included.
   - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
   - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.
-  - [x] Grouping rows from an API (2026-11-20): `groupBy` with `url` asks the API for a row per group (count and subtotals) and loads a group's rows when it's opened. A group's rows come in one request, without paging or Load more.
+  - [x] Grouping rows from an API (2026-11-20): `groupBy` with `url` asks the API for a row per group (count and subtotals) and loads a group's rows when it's opened. A group's rows load a batch at a time, with a Load more row after them (2026-11-20); with `paging: scroll` they still wait for that row rather than loading as you scroll.
   - [x] Column order, widths and hidden columns are state with `bindColumns` (2026-11-19).
   - [x] Saved views (2026-11-20): a Views menu with ready-made `views` and people's own in `bindViews` (sort, filters, search, columns, grouping, page size), "(edited)" with Undo and Save changes, rename and delete (block data-table-01). Not done yet: no default chosen from the menu (only `defaultView`), no sharing a view by link, and views aren't ordered by dragging.
   - [ ] Formats are applied by the browser, so the server's HTML shows raw values until the script runs.

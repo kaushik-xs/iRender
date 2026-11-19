@@ -5725,3 +5725,102 @@ fn anchor_fallback_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A group from an API loads its rows a batch at a time: the first when it's opened,
+/// then the next from the "load more" row after them (a click or Enter), until all have.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_remote_group_batches_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        let rows = [("A", "X"), ("B", "X"), ("C", "X"), ("D", "X"), ("E", "X"), ("F", "Y")];
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let target = request.split_whitespace().nth(1).unwrap_or("").to_string();
+            let query: std::collections::HashMap<String, String> = target
+                .split_once('?')
+                .map(|(_, q)| q.split('&').filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_string(), v.to_string())).collect())
+                .unwrap_or_default();
+            seen.lock().unwrap().push(target.split_once('?').map_or(String::new(), |(_, q)| q.to_string()));
+            let num = |k: &str, d: usize| query.get(k).and_then(|v| v.parse().ok()).unwrap_or(d);
+            let (offset, limit) = (num("offset", 0), num("limit", 100));
+            let q = query.get("q").cloned().unwrap_or_default().to_lowercase();
+            let mine: Vec<_> = rows.iter().filter(|r| r.0.to_lowercase() != q).collect();
+            let body = if let Some(g) = query.get("group") {
+                let list: Vec<_> = mine.iter().filter(|r| r.1 == g).collect();
+                serde_json::json!({ "rows": list.iter().skip(offset).take(limit).map(|r| serde_json::json!({ "id": r.0, "name": r.0, "region": r.1 })).collect::<Vec<_>>(), "total": list.len() })
+            } else {
+                let x = mine.iter().filter(|r| r.1 == "X").count();
+                serde_json::json!({ "rows": [{ "region": "X", "count": x }, { "region": "Y", "count": 1 }], "total": 2 })
+            };
+            let body = body.to_string();
+            let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+        }
+    });
+    let url = format!("http://127.0.0.1:{port}/rows");
+    let doc = serde_json::json!({ "version": 1, "state": { "g": "region" },
+        "root": { "type": "ui-data-table", "props": { "url": url, "paging": "pages", "pageSize": 2, "pageSizes": [], "bindGroupBy": "g", "search": true,
+            "columns": [ { "field": "name", "label": "Name" }, { "field": "region", "label": "Region", "groupable": true } ] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 100 && !f(); i++) await wait(20); };
+      const T = document.querySelector("[data-i-x=ui-data-table]");
+      const lines = () => [...T.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")].map((tr) =>
+        tr.hasAttribute("data-dt-group-row") ? "[" + tr.querySelector("[data-dt-group-label]").textContent + "]"
+        : tr.hasAttribute("data-dt-more-row") ? "(" + tr.querySelector("[data-dt-load-group]").textContent + ")"
+        : tr.querySelector("[data-dt-tree]").textContent.trim()).join(" ");
+      const group = (v) => [...T.querySelectorAll("[data-dt-group-row]")].find((tr) => tr.querySelector("[data-dt-group-label]").textContent === v);
+      const more = () => T.querySelector("[data-dt-more-row]");
+      try {
+        await until(() => group("X"));
+        group("X").click();
+        await until(() => lines().includes("B"));
+        log("first", lines());
+        more().querySelector("[data-dt-load-group]").click();
+        await until(() => lines().includes("D") && !more()?.querySelector("button").disabled);
+        log("second", lines());
+        // Enter on the "load more" row loads the last batch; then it goes.
+        more().focus();
+        more().dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+        await until(() => lines().includes("E") && !more()); await wait(60);
+        log("all", lines(), T.querySelector("[data-dt-footer] [data-dt-live]").textContent);
+        // A new search: the group loads its first batch again.
+        const box = T.querySelector("[data-dt-search]");
+        box.value = "a"; box.dispatchEvent(new Event("input", { bubbles: true }));
+        await until(() => lines().includes("C") && !lines().includes("A") && !lines().includes("D"));
+        log("searched", lines());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("remote-group-batches", &html) else { return };
+    let asked = log.lock().unwrap().iter().filter(|q| q.contains("group=")).cloned().collect::<Vec<_>>().join("\n");
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Two at a time (`pageSize`), out of the 5 the API says the group has.
+            "first [X] A B (Load 2 more of 5) [Y]",
+            "second [X] A B C D (Load 1 more of 5) [Y]",
+            "all [X] A B C D E [Y] 1 more row loaded",
+            // A new search starts the group over.
+            "searched [X] B C (Load 2 more of 4) [Y]",
+        ],
+        "\n{result}\n---\n{asked}"
+    );
+    assert_eq!(asked, "groupBy=region&group=X&offset=0&limit=2\ngroupBy=region&group=X&offset=2&limit=2\ngroupBy=region&group=X&offset=4&limit=2\nq=a&groupBy=region&group=X&offset=0&limit=2");
+}
