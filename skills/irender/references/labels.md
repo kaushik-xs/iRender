@@ -606,6 +606,7 @@ root: …
 `tree.js`
 
 ```yaml
+"Rename {name}": "Rename {name}"
 "Add under {name}": "Add under {name}"
 "Delete {name}": "Delete {name}"
 "New item's name": "New item's name"
@@ -613,6 +614,9 @@ root: …
 "Name, then Enter": "Name, then Enter"
 "No matches.": "No matches."
 "{n} selected": "{n} selected"
+"{name}: {n} items": { one: "{name}: {n} item", other: "{name}: {n} items" }
+"Couldn't load what's in {name}": "Couldn't load what's in {name}"
+"Renamed to {name}": "Renamed to {name}"
 "{name} unchecked": "{name} unchecked"
 "{name} checked": "{name} checked"
 "Added {name}": "Added {name}"

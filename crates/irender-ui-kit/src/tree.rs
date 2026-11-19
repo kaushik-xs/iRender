@@ -17,7 +17,7 @@ const SCRIPT: &str = include_str!("tree.js");
 pub struct Tree;
 
 const PROPS: &[PropDef] = &[
-    PropDef::new("nodes", PropKind::Any, "The nodes: `{ id, label (or name), children }`, usually from state, e.g. `{{ locations }}`").required(),
+    PropDef::new("nodes", PropKind::Any, "The nodes: `{ id, label (or name), icon, children }`, usually from state, e.g. `{{ locations }}`").required(),
     PropDef::new("bindNodes", PropKind::StateKey, "State key the nodes are in: moves and deletions are written back to it"),
     PropDef::new("bind", PropKind::StateKey, "State key for the selected node's id"),
     PropDef::new("bindNode", PropKind::StateKey, "State key for the selected node itself, to show its fields beside the tree"),
@@ -31,9 +31,16 @@ const PROPS: &[PropDef] = &[
     PropDef::new("bindParent", PropKind::StateKey, "State key that gets the parent's id when Add is pressed"),
     PropDef::new("deletable", PropKind::Bool, "A delete button on each node, Delete on the keyboard, and Delete for the checked nodes"),
     PropDef::new("movable", PropKind::Bool, "Drag nodes to a new place, or move the focused one with Alt and the arrow keys"),
+    PropDef::new("renamable", PropKind::Bool, "Rename a node in place: F2, or a double click on its name"),
+    PropDef::new(
+        "childrenUrl",
+        PropKind::Any,
+        "Loads a node's children when it's first opened, for nodes with `children: true`: GET with `?parent=<id>`, answering a list of nodes (or `{ nodes }`)",
+    ),
     PropDef::new("search", PropKind::Any, "A search box above the tree: `true`, or its placeholder. Shows matches with the nodes above them"),
     PropDef::new("counts", PropKind::Bool, "Show how many nodes are under each node"),
     PropDef::new("expanded", PropKind::Any, "Open to start with: `true` for every node, a number of levels, or a list of ids (default: the selected node's parents)"),
+    PropDef::new("icons", PropKind::Any, "Icon names nodes loaded later may use (from `childrenUrl` or state), so the icon kit draws them"),
     PropDef::new("title", PropKind::Any, "A heading above the tree, which also names it for screen readers"),
     PropDef::new("label", PropKind::Any, "Names the tree for screen readers when there's no `title` (default `Tree`)"),
     PropDef::new("addLabel", PropKind::Any, "The Add button's text (default `Add`)"),
@@ -100,6 +107,10 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Its icon is mirrored right to left (pointing left): it turns the other way to point down.
         .nest("&:dir(rtl) [aria-expanded=true] > [data-tree-row] [data-tree-twisty]", pairs(&[("transform", "rotate(-90deg)")]))
         .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& [data-tree-twisty]", pairs(&[("transition", "none")])))
+        // Loading its children: the chevron faded and turning.
+        .nest("& [data-tree-twisty][data-loading] svg", pairs(&[("opacity", "0.5"), ("animation", "ui-spin 0.8s linear infinite")]))
+        .nest("& span[data-tree-icon]", pairs(&[("display", "inline-flex"), ("flex", "none"), ("align-items", "center"), ("color", MUTED), ("line-height", "1")]))
+        .nest("& [data-tree-rename]", pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("height", "26px"), ("padding-block", "0")]))
         .nest(
             "& [data-tree-check]",
             pairs(&[
@@ -167,9 +178,22 @@ struct Draw<'a> {
     deletable: bool,
     movable: bool,
     counts: bool,
+    lazy: bool,
     selected: Option<String>,
     checked: HashSet<String>,
     open: &'a dyn Fn(&str, usize) -> bool,
+}
+
+/// The icon names the nodes use, once each, in order.
+fn icon_names(nodes: &[Json], out: &mut Vec<String>) {
+    for n in nodes {
+        if let Some(i) = n.get("icon").filter(|v| !v.is_null()).map(expr::stringify)
+            && !out.contains(&i)
+        {
+            out.push(i);
+        }
+        icon_names(children_of(n), out);
+    }
 }
 
 fn id_of(n: &Json) -> Option<String> {
@@ -220,6 +244,8 @@ fn items(cx: &mut RenderCx<'_>, node: &Node, nodes: &[Json], depth: usize, d: &D
         let Some(id) = id_of(n) else { continue };
         let label = label_of(n);
         let kids = children_of(n);
+        // `children: true` with a `childrenUrl`: it has some, loaded when it opens.
+        let later = d.lazy && kids.is_empty() && (n.get("children") == Some(&Json::Bool(true)) || n.get("hasChildren") == Some(&Json::Bool(true)));
         let open = !kids.is_empty() && (d.open)(&id, depth);
         let selected = d.selected.as_deref() == Some(id.as_str());
         // One stop in the tab order: the selected node, or the first.
@@ -233,7 +259,7 @@ fn items(cx: &mut RenderCx<'_>, node: &Node, nodes: &[Json], depth: usize, d: &D
             .attr("aria-posinset", lit(i + 1))
             .attr("aria-selected", if selected { "true" } else { "false" })
             .attr("tabindex", lit(if stop { 0 } else { -1 }));
-        if !kids.is_empty() {
+        if !kids.is_empty() || later {
             li.attr("aria-expanded", if open { "true" } else { "false" });
         }
         if d.checkable {
@@ -249,7 +275,7 @@ fn items(cx: &mut RenderCx<'_>, node: &Node, nodes: &[Json], depth: usize, d: &D
         let mut twisty = Element::new("span");
         twisty.attr("data-tree-twisty", true).attr("aria-hidden", "true");
         cx.open(&twisty, node)?;
-        if !kids.is_empty() {
+        if !kids.is_empty() || later {
             cx.markup(CHEVRON);
         }
         cx.close("span");
@@ -258,6 +284,13 @@ fn items(cx: &mut RenderCx<'_>, node: &Node, nodes: &[Json], depth: usize, d: &D
             b.attr("data-tree-check", true).attr("aria-hidden", "true");
             cx.open(&b, node)?;
             cx.markup(CHECK);
+            cx.close("span");
+        }
+        if let Some(i) = n.get("icon").filter(|v| !v.is_null()) {
+            let mut wrap = Element::new("span");
+            wrap.attr("data-tree-icon", true).attr("aria-hidden", "true");
+            cx.open(&wrap, node)?;
+            crate::icon(cx, node, &lit(expr::stringify(i)), 16)?;
             cx.close("span");
         }
         let mut l = Element::new("span");
@@ -311,7 +344,9 @@ impl Component for Tree {
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
             doc: "A tree of nodes to browse, select, check, search, add to, delete from and rearrange by dragging or with Alt and \
-                  the arrow keys. Changes go to state (`bindNodes`) and fire `select`, `add`, `delete` and `move` events.",
+                  the arrow keys. Nodes can be renamed in place (`renamable`), carry an `icon`, and load their children \
+                  from an API when first opened (`childrenUrl`). Changes go to state (`bindNodes`) and fire `select`, `add`, `delete`, \
+                  `move` and `rename` events.",
             props: PROPS,
             parts: &["tree"],
             children: false,
@@ -322,8 +357,9 @@ impl Component for Tree {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         crate::flips(cx);
         let flag = |cx: &RenderCx<'_>, name: &str| cx.prop(node, name).is_some_and(|v| expr::truthy(&v));
-        let (checkable, addable, deletable, movable, counts) =
-            (flag(cx, "checkable"), flag(cx, "addable"), flag(cx, "deletable"), flag(cx, "movable"), flag(cx, "counts"));
+        let (checkable, addable, deletable, movable, counts, renamable) =
+            (flag(cx, "checkable"), flag(cx, "addable"), flag(cx, "deletable"), flag(cx, "movable"), flag(cx, "counts"), flag(cx, "renamable"));
+        let children_url = node.prop("childrenUrl").map(|v| dynamic(cx, node, "childrenUrl", v)).transpose()?;
         let key = |name: &str| cx.prop_string(node, name);
         let (bind, bind_checked, bind_nodes, bind_parent, bind_node) = (key("bind"), key("bindChecked"), key("bindNodes"), key("bindParent"), key("bindNode"));
         let nodes = match cx.prop(node, "nodes") {
@@ -360,11 +396,14 @@ impl Component for Tree {
 
         crate::touch_drag(cx);
         cx.global_js("ui-tree", SCRIPT);
+        if children_url.is_some() {
+            cx.global_css("ui-spin", crate::SPIN);
+        }
         let config = json!({
             "nodes": dynamic(cx, node, "nodes", node.prop("nodes").expect("required"))?,
             "bind": bind, "bindChecked": bind_checked, "bindNodes": bind_nodes, "bindParent": bind_parent, "bindNode": bind_node,
             "checkable": checkable, "addable": addable, "deletable": deletable, "movable": movable, "counts": counts,
-            "expanded": expanded,
+            "renamable": renamable, "childrenUrl": children_url, "expanded": expanded,
         });
         let mut root = cx.element("div", node);
         root.base_style_ref(&ROOT).behavior("ui-tree", config);
@@ -443,9 +482,27 @@ impl Component for Tree {
             ul.attr("hidden", true);
         }
         cx.open(&ul, node)?;
-        let draw = Draw { checkable, addable, deletable, movable, counts, selected, checked, open: &open };
+        let draw = Draw { checkable, addable, deletable, movable, counts, lazy: children_url.is_some(), selected, checked, open: &open };
         items(cx, node, &nodes, 0, &draw, &mut true)?;
         cx.close("ul");
+
+        // The icon kit's drawing of each icon name the nodes use, for the script to copy
+        // when it draws the tree again.
+        if cx.has_component("ui-icon") {
+            let mut names = Vec::new();
+            icon_names(&nodes, &mut names);
+            for name in names.into_iter().chain(cx.prop(node, "icons").and_then(|v| v.as_array().cloned()).unwrap_or_default().iter().map(expr::stringify)) {
+                let is_name = !name.is_empty() && name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == ':');
+                if !is_name {
+                    continue;
+                }
+                let mut t = Element::new("template");
+                t.attr("data-tree-icon", name.clone());
+                cx.open(&t, node)?;
+                crate::icon(cx, node, &lit(name), 16)?;
+                cx.close("template");
+            }
+        }
 
         let mut empty = Element::new("p");
         empty.attr("data-tree-empty", true).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit(cx.label("Nothing here yet."))));

@@ -6363,3 +6363,100 @@ fn long_press_and_keep_open_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A tree's renaming in place (F2, a double click on the name; Enter keeps, Escape
+/// doesn't), icons per node, and children loaded from `childrenUrl` when a node with
+/// `children: true` first opens (once; a failure closes it and opening tries again).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn tree_rename_icons_and_lazy_children_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "files": [
+            { "id": "docs", "label": "Docs", "icon": "📁", "children": [ { "id": "a", "label": "a.txt", "icon": "📄" } ] },
+            { "id": "src", "label": "src", "icon": "📁", "children": true },
+            { "id": "bad", "name": "broken", "children": true } ] },
+        "root": { "type": "ui-tree", "props": { "nodes": "{{ files }}", "bindNodes": "files", "renamable": true, "childrenUrl": "/api/children", "label": "Files" } } });
+    let driver = r##"<script>
+    const asked = [];
+    let fail = true;
+    window.fetch = async (u) => {
+      asked.push(String(u));
+      const parent = new URL(u, location.href).searchParams.get("parent");
+      await new Promise((r) => setTimeout(r, 20));
+      if (parent === "bad" && fail) return new Response("no", { status: 500 });
+      const body = parent === "src" ? [{ id: "main", label: "main.rs", icon: "🦀" }, { id: "lib", label: "lib", children: true }] : { nodes: [{ id: parent + "-1", label: "one" }] };
+      return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+    };
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const T = document.querySelector("[data-i-x=ui-tree]");
+      const $ = (s) => T.querySelector(s), $$ = (s) => [...T.querySelectorAll(s)];
+      const li = (id) => $(`[data-tree-id="${id}"]`);
+      const shape = () => $$("[role=treeitem]").filter((x) => !x.closest("[hidden]")).map((x) =>
+        "  ".repeat(x.getAttribute("aria-level") - 1) + (x.querySelector(":scope > [data-tree-row] > [data-tree-icon]")?.textContent ?? "") + (x.querySelector(":scope > [data-tree-row] > [data-tree-label]")?.textContent ?? "[box]")
+        + (x.hasAttribute("aria-expanded") ? (x.getAttribute("aria-expanded") === "true" ? "-" : "+") : "") + (x.getAttribute("aria-busy") ? "…" : "")).join(" ");
+      const key = async (target, k) => { target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); await wait(0); };
+      const said = async () => { await wait(60); return $("[data-tree-live]").textContent; };
+      let renamed = "";
+      T.addEventListener("rename", (e) => (renamed = `${e.detail.id}=${e.detail.label}`));
+      try {
+        log("server", shape());
+        await wait(0); // the script has drawn it again
+        log("drawn", shape());
+        // Opening a lazy node: busy, then its children, once.
+        li("src").querySelector("[data-tree-twisty]").click(); await wait(0);
+        log("opening", shape());
+        await wait(60);
+        log("opened", shape(), "|", await said());
+        await key(li("src"), "ArrowLeft"); await key(li("src"), "ArrowRight"); await wait(60);
+        log("asked", asked.length);
+        // A failure closes it; opening again tries again.
+        await key(li("bad"), "ArrowRight"); await wait(60);
+        log("failed", shape().split(" ").slice(-1)[0], "|", await said());
+        fail = false; await key(li("bad"), "ArrowRight"); await wait(60);
+        log("retried", li("bad").getAttribute("aria-expanded"), li("bad-1")?.textContent, asked.length);
+        // F2 renames; Enter keeps it, in state with the loaded children.
+        li("main").focus(); await key(li("main"), "F2");
+        const box = $("[data-tree-rename]");
+        log("box", box.value, box.getAttribute("aria-label"), document.activeElement === box);
+        box.value = "main2.rs"; await key(box, "Enter");
+        log("renamed", renamed, S().files[1].children[0].label, document.activeElement === li("main"), "|", await said());
+        // A double click on the name; Escape leaves it.
+        li("a").querySelector("[data-tree-label]").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+        $("[data-tree-rename]").value = "nope"; await key($("[data-tree-rename]"), "Escape");
+        log("escaped", li("a").textContent, renamed);
+        // `name` nodes keep `name`.
+        li("bad").focus(); await key(li("bad"), "F2"); $("[data-tree-rename]").value = "fixed"; await key($("[data-tree-rename]"), "Enter");
+        log("name", JSON.stringify(S().files[2].name), S().files[2].label);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("tree-lazy", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "server 📁Docs+ 📁src+ broken+",
+            "drawn 📁Docs+ 📁src+ broken+",
+            // Busy while its children load, then they're there.
+            "opening 📁Docs+ 📁src-… broken+",
+            "opened 📁Docs+ 📁src-   🦀main.rs   lib+ broken+ | src: 2 items",
+            // Closed and opened again: not asked again.
+            "asked 1",
+            "failed broken+ | Couldn't load what's in broken",
+            "retried true one 3",
+            "box main.rs Rename main.rs true",
+            // Written into the loaded children, in state.
+            "renamed main=main2.rs main2.rs true | Renamed to main2.rs",
+            "escaped 📄a.txt main=main2.rs",
+            "name \"fixed\" ",
+        ],
+        "\n{result}"
+    );
+}

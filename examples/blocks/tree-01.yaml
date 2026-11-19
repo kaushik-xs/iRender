@@ -5,6 +5,8 @@
 # - Drag a location onto another to move it there, or near an edge to put it before or
 #   after; with the keyboard, Alt and the arrow keys.
 # - Check locations to delete several at once; the bin on a row deletes one.
+# - F2, or a double click on a name, renames a location; each kind has its icon
+#   (`icons` lists them all, so locations added later can use them too).
 # - `bindNode` writes the selected location to `place`, which the details card reads.
 #
 #   cargo run -p irender-cli -- render examples/blocks/tree-01.yaml --ui-kit --icon-kit -o tree-01.html
@@ -17,36 +19,41 @@ state:
     - id: in
       label: India
       kind: Country
+      icon: flag
       staff: 412
       children:
         - id: mh
           label: Maharashtra
           kind: Region
+          icon: pin
           staff: 268
           children:
-            - { id: mumbai, label: Mumbai office, kind: Office, staff: 84, address: "Bandra Kurla Complex, Mumbai 400051", status: Open }
+            - { id: mumbai, label: Mumbai office, kind: Office, icon: building, staff: 84, address: "Bandra Kurla Complex, Mumbai 400051", status: Open }
             - id: pune
               label: Pune
               kind: City
+              icon: skyscraper
               staff: 184
               children:
-                - { id: hinjewadi, label: Hinjewadi plant, kind: Plant, staff: 152, address: "Phase 2, Hinjewadi, Pune 411057", status: Open }
-                - { id: chakan, label: Chakan warehouse, kind: Warehouse, staff: 32, address: "MIDC Chakan, Pune 410501", status: Under review }
+                - { id: hinjewadi, label: Hinjewadi plant, kind: Plant, icon: factory, staff: 152, address: "Phase 2, Hinjewadi, Pune 411057", status: Open }
+                - { id: chakan, label: Chakan warehouse, kind: Warehouse, icon: warehouse, staff: 32, address: "MIDC Chakan, Pune 410501", status: Under review }
         - id: ka
           label: Karnataka
           kind: Region
+          icon: pin
           staff: 144
           children:
-            - { id: blr, label: Bengaluru office, kind: Office, staff: 120, address: "Outer Ring Road, Bengaluru 560103", status: Open }
-            - { id: mys, label: Mysuru depot, kind: Warehouse, staff: 24, address: "Hebbal Industrial Area, Mysuru 570016", status: Closed }
+            - { id: blr, label: Bengaluru office, kind: Office, icon: building, staff: 120, address: "Outer Ring Road, Bengaluru 560103", status: Open }
+            - { id: mys, label: Mysuru depot, kind: Warehouse, icon: warehouse, staff: 24, address: "Hebbal Industrial Area, Mysuru 570016", status: Closed }
     - id: de
       label: Germany
       kind: Country
+      icon: flag
       staff: 96
       children:
-        - { id: berlin, label: Berlin office, kind: Office, staff: 58, address: "Friedrichstraße 68, 10117 Berlin", status: Open }
-        - { id: munich, label: München lab, kind: Lab, staff: 38, address: "Leopoldstraße 4, 80802 München", status: Open }
-    - { id: sg, label: Singapore office, kind: Office, staff: 22, address: "1 Raffles Place, Singapore 048616", status: Open }
+        - { id: berlin, label: Berlin office, kind: Office, icon: building, staff: 58, address: "Friedrichstraße 68, 10117 Berlin", status: Open }
+        - { id: munich, label: München lab, kind: Lab, icon: microscope, staff: 38, address: "Leopoldstraße 4, 80802 München", status: Open }
+    - { id: sg, label: Singapore office, kind: Office, icon: building, staff: 22, address: "1 Raffles Place, Singapore 048616", status: Open }
 root:
   type: element
   style:
@@ -84,6 +91,8 @@ root:
                     deletable: true
                     movable: true
                     counts: true
+                    renamable: true
+                    icons: [flag, pin, skyscraper, building, factory, warehouse, microscope]
                     search: Search locations…
                     label: Locations
                     expanded: 1

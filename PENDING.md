@@ -24,8 +24,8 @@ _Last updated: 2026-11-19._
     - [x] Dates pick on the kit's calendar, and amounts are grouped as typed with the currency's symbol (2026-11-18). No quarter type yet.
     - [ ] List values come from `options` or `rows` only, not from an API as you search, so very long lists (thousands of customers) need their values in state.
   - [x] **Tree view** (2026-11-18): `ui-tree` selects, checks (with partial parents), searches, adds by name, deletes one or the checked, and moves nodes by dragging or Alt and the arrow keys, writing to `bindNodes` and firing events (block tree-01, gallery section). Not done yet:
-    - [ ] No renaming in place (F2), and no icons per node.
-    - [ ] Children can't load from an API when a node opens, as the data table's nested rows can; very large trees draw every node.
+    - [x] Renaming in place (`renamable`: F2, a double click), icons per node, and children loaded from `childrenUrl` when a node first opens (2026-11-20).
+    - [ ] Very large trees draw every node (no windowing). Search doesn't look inside children that haven't loaded.
   - [x] **Calendar views** (2026-11-18): `ui-event-calendar`, events in month, week (hours, overlaps side by side) and list views, coloured by category, with `bindEvent`, `bindDay` and the keyboard (block calendar-01, gallery section). Not done yet:
     - [x] Year and day views (2026-11-19).
     - [x] Events move by dragging (to another day, or time in the week and day views, and resized by their foot) or with Alt and the arrow keys, written back with `bindEvents` (2026-11-19). Adding is still up to the page (`bindDay`), and the year and list views don't move events.

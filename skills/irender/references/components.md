@@ -271,8 +271,8 @@ ui-filter: One field of the `ui-filters` it is in: its type, label and operators
   currency     string  This filter's currency, over the filters' `currency`
   presets      any  A date filter's quick ranges: `true` (default: today, yesterday, last7, last30, thisMonth, lastMonth, thisQuarter, thisYear), `false`, or a list of those names
   children: no
-ui-tree: A tree of nodes to browse, select, check, search, add to, delete from and rearrange by dragging or with Alt and the arrow keys. Changes go to state (`bindNodes`) and fire `select`, `add`, `delete` and `move` events.
-  nodes        any (required)  The nodes: `{ id, label (or name), children }`, usually from state, e.g. `{{ locations }}`
+ui-tree: A tree of nodes to browse, select, check, search, add to, delete from and rearrange by dragging or with Alt and the arrow keys. Nodes can be renamed in place (`renamable`), carry an `icon`, and load their children from an API when first opened (`childrenUrl`). Changes go to state (`bindNodes`) and fire `select`, `add`, `delete`, `move` and `rename` events.
+  nodes        any (required)  The nodes: `{ id, label (or name), icon, children }`, usually from state, e.g. `{{ locations }}`
   bindNodes    statekey  State key the nodes are in: moves and deletions are written back to it
   bind         statekey  State key for the selected node's id
   bindNode     statekey  State key for the selected node itself, to show its fields beside the tree
@@ -282,9 +282,12 @@ ui-tree: A tree of nodes to browse, select, check, search, add to, delete from a
   bindParent   statekey  State key that gets the parent's id when Add is pressed
   deletable    bool  A delete button on each node, Delete on the keyboard, and Delete for the checked nodes
   movable      bool  Drag nodes to a new place, or move the focused one with Alt and the arrow keys
+  renamable    bool  Rename a node in place: F2, or a double click on its name
+  childrenUrl  any  Loads a node's children when it's first opened, for nodes with `children: true`: GET with `?parent=<id>`, answering a list of nodes (or `{ nodes }`)
   search       any  A search box above the tree: `true`, or its placeholder. Shows matches with the nodes above them
   counts       bool  Show how many nodes are under each node
   expanded     any  Open to start with: `true` for every node, a number of levels, or a list of ids (default: the selected node's parents)
+  icons        any  Icon names nodes loaded later may use (from `childrenUrl` or state), so the icon kit draws them
   title        any  A heading above the tree, which also names it for screen readers
   label        any  Names the tree for screen readers when there's no `title` (default `Tree`)
   addLabel     any  The Add button's text (default `Add`)

@@ -7,6 +7,8 @@
 // - add and delete, as buttons, Delete on the keyboard, and Delete for the checked.
 //   With `bindNodes`, Add puts a name box where the node will go: Enter adds it with a
 //   new id, Escape cancels. Without it, Add only reports the parent, for the host;
+// - renaming in place (F2, a double click on the name), with `renamable`;
+// - children loaded from `childrenUrl` when a node with `children: true` first opens;
 // - moving, by dragging (onto a node: into it; near its top or bottom edge: before or
 //   after it) or with Alt and the arrows (up, down; right: into the node above; left:
 //   out to after its parent).
@@ -37,7 +39,12 @@
   };
   const idOf = (n) => (n == null || n.id == null ? null : String(n.id));
   const labelOf = (n) => String(n.label ?? n.name ?? "");
-  const kids = (n) => (Array.isArray(n?.children) ? n.children : []);
+  // A node's children: its own, or those loaded from `childrenUrl` for `children: true`.
+  const loaded = new Map(), loading = new Set(), failed = new Set();
+  const kids = (n) => (Array.isArray(n?.children) ? n.children : loaded.get(idOf(n)) ?? []);
+  // Has children, or will load some when opened.
+  const lazy = (n) => !!cfg.childrenUrl && (n?.children === true || n?.hasChildren === true) && !loaded.has(idOf(n));
+  const hasKids = (n) => kids(n).length > 0 || lazy(n);
 
   // id → { node, parent id, depth, index among its siblings }
   let index = new Map();
@@ -109,7 +116,16 @@
     plus: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>',
     trash: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>',
   };
-  let focusId = null;
+  let focusId = null, renaming = null;
+  // A node's `icon`: the icon kit's drawing the server left in a template, else the text
+  // (an emoji, say).
+  function iconEl(name) {
+    const span = make("span", { "data-tree-icon": "", "aria-hidden": "true" });
+    const tpl = el.querySelector(`template[data-tree-icon="${CSS.escape(name)}"]`);
+    if (tpl) span.append(tpl.content.cloneNode(true));
+    else span.textContent = name;
+    return span;
+  }
   const make = (tag, attrs = {}, html) => {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -127,18 +143,29 @@
       const shown = list.filter((n) => idOf(n) !== null && (!show || show.has(idOf(n))));
       return shown.map((n, i) => {
         const id = idOf(n), label = labelOf(n), k = kids(n).filter((c) => idOf(c) !== null && (!show || show.has(idOf(c))));
-        const isOpen = k.length > 0 && (open.has(id) || !!show);
+        const isOpen = (k.length > 0 || (lazy(n) && loading.has(id))) && (open.has(id) || !!show);
         const li = make("li", {
           role: "treeitem", "data-tree-id": id, "aria-level": depth + 1, "aria-setsize": shown.length, "aria-posinset": i + 1,
           "aria-selected": id === sel ? "true" : "false", tabindex: (stop ? id === stop : first) ? 0 : -1,
         });
         first = false;
-        if (kids(n).length) li.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        if (hasKids(n)) li.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        if (loading.has(id)) li.setAttribute("aria-busy", "true");
         if (cfg.checkable) li.setAttribute("aria-checked", state(id, on));
         const row = make("div", { "data-tree-row": "", style: `--depth: ${depth}` });
         if (cfg.movable && !q) row.draggable = true;
-        row.append(make("span", { "data-tree-twisty": "", "aria-hidden": "true" }, kids(n).length ? svg.chevron : ""));
+        row.append(make("span", { "data-tree-twisty": "", "aria-hidden": "true", ...(loading.has(id) ? { "data-loading": "" } : {}) }, hasKids(n) ? svg.chevron : ""));
         if (cfg.checkable) row.append(make("span", { "data-tree-check": "", "aria-hidden": "true" }, svg.check));
+        if (n.icon) row.append(iconEl(String(n.icon)));
+        // Renaming: a name box in place of the label.
+        if (renaming === id) {
+          const box = make("input", { type: "text", "data-tree-rename": "", "aria-label": L("Rename {name}", { name: label }) });
+          box.value = label;
+          box.className = $("[data-tree-search]")?.className ?? "";
+          row.append(box);
+          li.append(row);
+          return li;
+        }
         const text = make("span", { "data-tree-label": "" });
         const at = q ? fold(label).indexOf(q) : -1;
         // The match, marked (positions hold: folding keeps one character per letter).
@@ -223,11 +250,55 @@
     api.emit("select", { id, node: index.get(id)?.node });
   }
   function toggleOpen(id, to) {
-    if (!kids(index.get(id)?.node).length) return;
+    const n = index.get(id)?.node;
+    if (!hasKids(n)) return;
     const now = to ?? !open.has(id);
     now ? open.add(id) : open.delete(id);
     focusId = id;
+    if (now && lazy(n) && !loading.has(id)) load(id, n);
     draw();
+  }
+  // Children from `childrenUrl` (`?parent=<id>`), answering a list or `{ nodes }` /
+  // `{ rows }`. They load once; failing, the node closes and opening it tries again.
+  async function load(id, n) {
+    loading.add(id);
+    failed.delete(id);
+    try {
+      const u = String(resolve(cfg.childrenUrl));
+      const res = await fetch(u + (u.includes("?") ? "&" : "?") + new URLSearchParams({ parent: String(n.id) }), { headers: { accept: "application/json" } });
+      if (!res.ok) throw new Error(String(res.status));
+      const a = await res.json();
+      loaded.set(id, Array.isArray(a) ? a : Array.isArray(a?.nodes) ? a.nodes : Array.isArray(a?.rows) ? a.rows : []);
+      say(L(["{name}: {n} item", "{name}: {n} items"], { name: labelOf(n), n: loaded.get(id).length }));
+    } catch {
+      failed.add(id);
+      open.delete(id);
+      say(L("Couldn't load what's in {name}", { name: labelOf(n) }));
+    }
+    loading.delete(id);
+    draw();
+  }
+  // Renames node `id` (`label`, or `name` where the node uses that).
+  function rename(id, text) {
+    const n = index.get(id)?.node;
+    renaming = null;
+    const name = text.trim();
+    if (!n || !name || name === labelOf(n)) {
+      draw();
+      return focus(id);
+    }
+    if (cfg.bindNodes) {
+      const nodes = copy(roots());
+      const where = locate(nodes, id);
+      const x = where.list[where.i];
+      if ("label" in x || !("name" in x)) x.label = name;
+      else x.name = name;
+      focusId = id;
+      write(nodes);
+    }
+    api.emit("rename", { id: n.id, label: name, node: n });
+    say(L("Renamed to {name}", { name }));
+    queueMicrotask(() => focus(id));
   }
   function setChecked(ids) {
     const out = [...ids];
@@ -281,7 +352,16 @@
   }
 
   // A copy of the nodes with `fn` applied to the list holding `id` (or the top list).
-  const copy = (nodes) => JSON.parse(JSON.stringify(nodes));
+  // A copy, with the children loaded so far in place of `children: true`.
+  const copy = (nodes) => {
+    const fill = (list) => list.map((n) => {
+      const c = { ...n };
+      if (loaded.has(idOf(n)) && !Array.isArray(n.children)) c.children = loaded.get(idOf(n));
+      if (Array.isArray(c.children)) c.children = fill(c.children);
+      return c;
+    });
+    return JSON.parse(JSON.stringify(fill(nodes)));
+  };
   function locate(nodes, id) {
     for (const [i, n] of nodes.entries()) {
       if (idOf(n) === id) return { list: nodes, i };
@@ -371,8 +451,20 @@
   });
   list.addEventListener("dblclick", (e) => {
     const id = idAt(e.target);
-    if (id && !e.target.closest("button, [data-tree-check], [data-tree-twisty]")) toggleOpen(id);
+    if (!id || e.target.closest("button, [data-tree-check], [data-tree-twisty], [data-tree-rename]")) return;
+    // On the name, with `renamable`: rename it; elsewhere, open or close it.
+    if (cfg.renamable && e.target.closest("[data-tree-label]")) return startRename(id);
+    toggleOpen(id);
   });
+  function startRename(id) {
+    if (!cfg.renamable || !index.has(id)) return;
+    renaming = id;
+    focusId = id;
+    draw();
+    const box = $("[data-tree-rename]");
+    box?.focus();
+    box?.select();
+  }
   list.addEventListener("focusin", (e) => {
     const id = idAt(e.target);
     if (id && e.target.matches("[role=treeitem]")) {
@@ -420,6 +512,10 @@
       case " ":
         e.preventDefault();
         return cfg.checkable ? toggleCheck(id) : select(id);
+      case "F2":
+        if (!cfg.renamable) return;
+        e.preventDefault();
+        return startRename(id);
       case "Delete":
         if (!cfg.deletable) return;
         e.preventDefault();
@@ -428,19 +524,30 @@
         // Opens every sibling of the focused node, as the pattern suggests.
         e.preventDefault();
         const siblings = at.parent === null ? roots() : kids(index.get(at.parent).node);
-        siblings.forEach((n) => kids(n).length && open.add(idOf(n)));
+        siblings.forEach((n) => {
+          if (!hasKids(n)) return;
+          open.add(idOf(n));
+          if (lazy(n) && !loading.has(idOf(n))) load(idOf(n), n);
+        });
         focusId = id;
         return draw();
       }
     }
   });
   list.addEventListener("keydown", (e) => {
+    if (e.target.matches("[data-tree-rename]")) {
+      const id = idAt(e.target);
+      if (e.key === "Enter") e.preventDefault(), rename(id, e.target.value);
+      else if (e.key === "Escape") e.preventDefault(), e.stopPropagation(), rename(id, "");
+      return;
+    }
     if (!e.target.matches("[data-tree-name]")) return;
     if (e.key === "Enter") e.preventDefault(), finish(e.target.value);
     else if (e.key === "Escape") e.preventDefault(), e.stopPropagation(), finish("");
   });
   list.addEventListener("focusout", (e) => {
     // Leaving the box keeps what was typed, as a file browser does.
+    if (e.target.matches("[data-tree-rename]") && renaming) return rename(renaming, e.target.value);
     if (e.target.matches("[data-tree-name]") && editing) finish(e.target.value);
   });
   search?.addEventListener("input", () => draw());

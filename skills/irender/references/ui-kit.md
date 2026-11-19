@@ -657,7 +657,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 ## Tree
 
-`ui-tree` shows nodes `{ id, label, children }` (`name` works as the label too) as a tree to browse, select, check, search, add to, delete from and rearrange. The block [`tree-01`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/tree-01.yaml) has all of it.
+`ui-tree` shows nodes `{ id, label, icon, children }` (`name` works as the label too) as a tree to browse, select, check, search, add to, delete from and rearrange. The block [`tree-01`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/tree-01.yaml) has all of it.
 
 ```yaml
 - type: ui-tree
@@ -685,11 +685,17 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **Moving.** With `movable`, drag a node onto another to put it inside, or near its top or bottom edge to put it before or after. On a touch screen, hold a node still for a moment to pick it up, then drag it. From the keyboard, Alt with Up and Down moves the focused node among its siblings, Alt+Right puts it inside the node above, and Alt+Left moves it out to after its parent. A node can't go inside itself. Moving fires `move` with `{ id, parent, index }` and, with `bindNodes`, writes the new tree. Dragging is off while searching.
 
+**Renaming.** With `renamable`, F2 or a double click on a node's name puts a box in its place: Enter (or leaving the box) keeps the new name, Escape doesn't. It fires `rename` with `{ id, label, node }` and, with `bindNodes`, writes it (to `name` for nodes that use that).
+
+**Icons.** A node's `icon` shows before its name: an icon kit name (`folder`, `logistics:warehouse`) or text such as an emoji. The icon kit draws the names the starting nodes use; list others that nodes added later may use in `icons`.
+
+**Loading children.** With `childrenUrl`, a node with `children: true` loads its children when it's first opened: a GET to the URL with `?parent=<id>`, answering a list of nodes (or `{ nodes }`). Its arrow turns while it loads; the children are kept, so closing and opening it again doesn't ask again, and they can have `children: true` too. If the request fails the node closes, says so, and opening it tries again. With `bindNodes`, the loaded children are written along with the next change.
+
 **Search.** `search` adds a box above the tree that shows the matches with the nodes above them and marks the match, ignoring case and accents. Down moves from the box into the tree, and Escape clears it.
 
 **Keyboard and screen readers.** The tree follows the ARIA tree pattern: one tab stop; Up, Down, Home and End move; Right opens a node or steps into it, Left closes it or steps out; `*` opens a node's siblings; Enter selects and Space checks (or selects). The row buttons are left out of the tab order, since Delete, the Add button and Alt+arrows do the same. Moves, additions and deletions are announced.
 
-**Props.** `nodes` (required), `bindNodes`, `bind`, `bindNode`, `checkable`, `bindChecked`, `addable`, `bindParent`, `addLabel` (default `Add`), `deletable`, `movable`, `search` (`true` or a placeholder), `counts` (how many nodes are under each), `expanded`, `title` (a heading that also names it), `label` (its name without a title, default `Tree`), `emptyText`, `height` (most it grows to before it scrolls); part `tree`.
+**Props.** `nodes` (required), `bindNodes`, `bind`, `bindNode`, `checkable`, `bindChecked`, `addable`, `bindParent`, `addLabel` (default `Add`), `deletable`, `movable`, `renamable`, `childrenUrl`, `icons`, `search` (`true` or a placeholder), `counts` (how many nodes are under each), `expanded`, `title` (a heading that also names it), `label` (its name without a title, default `Tree`), `emptyText`, `height` (most it grows to before it scrolls); part `tree`.
 
 ## File upload
 
