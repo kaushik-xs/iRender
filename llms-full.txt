@@ -565,9 +565,9 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   emptyText    string  In a column with no cards (default `No cards`)
   columnWidth  number  Each column's width in px (default 280)
   label        any  Names the board for screen readers (default `Board`)
-  swimlanes    string  A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it
+  swimlanes    string  A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it. May use state (null: no lanes)
   lanes        any  With `swimlanes`, the lanes in order: values or `{ value, label }` (default: the values as cards have them)
-  fields       any  More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`
+  fields       any  More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`. May use state, e.g. a list picked by a setting
   reorderable  bool  A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)
   bindColumns  statekey  State key the columns are in: a moved column's new order is written back to it
   locale       string  Locale for `date` fields (default: the document's `lang`)
@@ -2369,6 +2369,8 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **Swimlanes.** `swimlanes: assignee` splits the board into a row per value of that card field (an object's `name`, `label` or `id`): the columns' headers once at the top, then each lane's header (its name and count, a button that folds it) over a cell per column. A card's place is its column and its lane. Dragging it into another lane's cell, or Alt with Down at the end of a cell (Up at its start), moves it there and writes the lane's value into the field; Up and Down go on into the next lane's cell in the same column. Lanes come from `lanes` (values or `{ value, label }`, kept even when empty) and then from the cards' values as they come, the cards without one last ("No assignee"). A column's `limit` counts its cards in every lane. Add card in a lane's cell gives the new card that lane's value.
 
 **Fields.** `fields` adds lines to each card, in order: `{ field, label, cell }` (a dotted field works), `cell` being `text` (default), `badge` (a pill in `tones`' tone for its value), `progress` (a bar, 0–100) or `date` (written in `locale`). A card without the field leaves its line out.
+
+**Settings from state.** `swimlanes` and `fields` may use state, so a board's settings can change them: `swimlanes: "{{ laneBy == 'none' ? null : laneBy }}"` from a select, or `fields: "{{ detailed ? long : short }}"` with the two lists in state. The board redraws with the new lanes or lines, and keeps them as cards move (block crm-01).
 
 **Moving columns.** With `reorderable`, each column's header has a grip: drag it onto another header (its first half puts it before that column, its second after), or focus it and press Left or Right. The columns' new order goes to `bindColumns` (the state key `columns` reads), with a `columns` event, and is announced.
 

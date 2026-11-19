@@ -399,9 +399,9 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   emptyText    string  In a column with no cards (default `No cards`)
   columnWidth  number  Each column's width in px (default 280)
   label        any  Names the board for screen readers (default `Board`)
-  swimlanes    string  A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it
+  swimlanes    string  A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it. May use state (null: no lanes)
   lanes        any  With `swimlanes`, the lanes in order: values or `{ value, label }` (default: the values as cards have them)
-  fields       any  More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`
+  fields       any  More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`. May use state, e.g. a list picked by a setting
   reorderable  bool  A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)
   bindColumns  statekey  State key the columns are in: a moved column's new order is written back to it
   locale       string  Locale for `date` fields (default: the document's `lang`)

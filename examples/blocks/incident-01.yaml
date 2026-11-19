@@ -1,0 +1,488 @@
+# Block: an incident in progress. Everything on the page is state the controls write and
+# the components read:
+# - The service map is a ui-flow laid out by itself. Each node's look (border, badge,
+#   numbers) comes from its `data`, through one node template per kind. Click a service
+#   (or use the search, or "Only what's affected") and its latency and error charts below
+#   switch to it; the map dims what it isn't connected to.
+# - Severity, status and the incident commander are controls; the header's badges, the
+#   status page preview and the update's prefix all read them.
+# - The runbook's progress ring is worked out from its checkboxes, in an expression.
+# - Posting an update adds the draft to the list of updates (`toggle` adds it).
+#
+#   cargo run -p irender-cli -- render examples/blocks/incident-01.yaml --ui-kit --chart-kit --flow-kit --icon-kit -o incident-01.html
+version: 1
+state:
+  service: payments
+  picked: null
+  query: ""
+  matches: []
+  onlyAffected: false
+  affected: [edge, gateway, orders, payments, psp]
+  severity: SEV2
+  status: identified
+  commander: Meera Iyer
+  check1: true
+  check2: true
+  check3: false
+  check4: false
+  check5: false
+  draft: ""
+  updates:
+    - "10:16 · Investigating: checkout is slow and some payments fail."
+    - "10:22 · Identified: card payments time out at the payment provider. Orders that need a card retry for up to 2 minutes."
+  customer: "Some card payments are failing or slow. We've found the cause and are working on a fix. Orders already placed are safe."
+  nodes:
+    - { id: edge, type: external, data: { label: CDN, detail: edge cache, status: degraded, p99: 210, errors: 1.9, team: Platform } }
+    - { id: gateway, type: service, data: { label: API gateway, detail: envoy, status: degraded, p99: 205, errors: 2.1, team: Platform } }
+    - { id: auth, type: service, data: { label: Auth, detail: sessions and tokens, status: ok, p99: 58, errors: 0.1, team: Identity } }
+    - { id: search, type: service, data: { label: Search, detail: catalogue, status: ok, p99: 71, errors: 0.1, team: Discovery } }
+    - { id: orders, type: service, data: { label: Orders, detail: checkout, status: degraded, p99: 520, errors: 4.2, team: Commerce } }
+    - { id: inventory, type: service, data: { label: Inventory, detail: stock and holds, status: ok, p99: 88, errors: 0.1, team: Commerce } }
+    - { id: payments, type: service, data: { label: Payments, detail: card and wallet, status: down, p99: 1730, errors: 11.4, team: Payments } }
+    - { id: psp, type: external, data: { label: Payment provider, detail: third party, status: down, p99: 1690, errors: 12.0, team: Vendor } }
+    - { id: postgres, type: store, data: { label: Postgres, detail: primary + 2 replicas, status: ok, p99: 12, errors: 0, team: Data } }
+    - { id: queue, type: store, data: { label: Event queue, detail: order events, status: ok, p99: 9, errors: 0, team: Data } }
+  edges:
+    - { id: e1, source: edge, target: gateway, type: hot }
+    - { id: e2, source: gateway, target: auth }
+    - { id: e3, source: gateway, target: search }
+    - { id: e4, source: gateway, target: orders, type: hot }
+    - { id: e5, source: orders, target: inventory }
+    - { id: e6, source: orders, target: payments, type: hot }
+    - { id: e7, source: payments, target: psp, type: hot, label: timeouts }
+    - { id: e8, source: orders, target: postgres }
+    - { id: e9, source: orders, target: queue }
+    - { id: e10, source: inventory, target: postgres }
+    - { id: e11, source: payments, target: queue }
+  metrics:
+    - {"time": "10:00", "service": "gateway", "p99": 126, "errors": 0.22}
+    - {"time": "10:00", "service": "orders", "p99": 196, "errors": 0.39}
+    - {"time": "10:00", "service": "payments", "p99": 260, "errors": 0.25}
+    - {"time": "10:00", "service": "auth", "p99": 60, "errors": 0.05}
+    - {"time": "10:00", "service": "inventory", "p99": 93, "errors": 0.14}
+    - {"time": "10:00", "service": "search", "p99": 65, "errors": 0.14}
+    - {"time": "10:00", "service": "postgres", "p99": 11, "errors": 0.0}
+    - {"time": "10:01", "service": "gateway", "p99": 122, "errors": 0.21}
+    - {"time": "10:01", "service": "orders", "p99": 170, "errors": 0.15}
+    - {"time": "10:01", "service": "payments", "p99": 260, "errors": 0.16}
+    - {"time": "10:01", "service": "auth", "p99": 56, "errors": 0.13}
+    - {"time": "10:01", "service": "inventory", "p99": 83, "errors": 0.13}
+    - {"time": "10:01", "service": "search", "p99": 65, "errors": 0.11}
+    - {"time": "10:01", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:02", "service": "gateway", "p99": 113, "errors": 0.14}
+    - {"time": "10:02", "service": "orders", "p99": 193, "errors": 0.44}
+    - {"time": "10:02", "service": "payments", "p99": 262, "errors": 0.16}
+    - {"time": "10:02", "service": "auth", "p99": 62, "errors": 0.1}
+    - {"time": "10:02", "service": "inventory", "p99": 98, "errors": 0.07}
+    - {"time": "10:02", "service": "search", "p99": 77, "errors": 0.12}
+    - {"time": "10:02", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:03", "service": "gateway", "p99": 112, "errors": 0.17}
+    - {"time": "10:03", "service": "orders", "p99": 164, "errors": 0.19}
+    - {"time": "10:03", "service": "payments", "p99": 245, "errors": 0.16}
+    - {"time": "10:03", "service": "auth", "p99": 62, "errors": 0.05}
+    - {"time": "10:03", "service": "inventory", "p99": 87, "errors": 0.08}
+    - {"time": "10:03", "service": "search", "p99": 70, "errors": 0.13}
+    - {"time": "10:03", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:04", "service": "gateway", "p99": 109, "errors": 0.24}
+    - {"time": "10:04", "service": "orders", "p99": 163, "errors": 0.44}
+    - {"time": "10:04", "service": "payments", "p99": 257, "errors": 0.25}
+    - {"time": "10:04", "service": "auth", "p99": 63, "errors": 0.05}
+    - {"time": "10:04", "service": "inventory", "p99": 91, "errors": 0.09}
+    - {"time": "10:04", "service": "search", "p99": 64, "errors": 0.05}
+    - {"time": "10:04", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:05", "service": "gateway", "p99": 126, "errors": 0.14}
+    - {"time": "10:05", "service": "orders", "p99": 196, "errors": 0.43}
+    - {"time": "10:05", "service": "payments", "p99": 233, "errors": 0.17}
+    - {"time": "10:05", "service": "auth", "p99": 63, "errors": 0.1}
+    - {"time": "10:05", "service": "inventory", "p99": 94, "errors": 0.06}
+    - {"time": "10:05", "service": "search", "p99": 75, "errors": 0.13}
+    - {"time": "10:05", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:06", "service": "gateway", "p99": 116, "errors": 0.12}
+    - {"time": "10:06", "service": "orders", "p99": 195, "errors": 0.33}
+    - {"time": "10:06", "service": "payments", "p99": 260, "errors": 0.17}
+    - {"time": "10:06", "service": "auth", "p99": 58, "errors": 0.1}
+    - {"time": "10:06", "service": "inventory", "p99": 84, "errors": 0.08}
+    - {"time": "10:06", "service": "search", "p99": 65, "errors": 0.06}
+    - {"time": "10:06", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:07", "service": "gateway", "p99": 109, "errors": 0.13}
+    - {"time": "10:07", "service": "orders", "p99": 181, "errors": 0.45}
+    - {"time": "10:07", "service": "payments", "p99": 227, "errors": 0.18}
+    - {"time": "10:07", "service": "auth", "p99": 64, "errors": 0.11}
+    - {"time": "10:07", "service": "inventory", "p99": 89, "errors": 0.1}
+    - {"time": "10:07", "service": "search", "p99": 76, "errors": 0.06}
+    - {"time": "10:07", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:08", "service": "gateway", "p99": 111, "errors": 0.27}
+    - {"time": "10:08", "service": "orders", "p99": 196, "errors": 0.37}
+    - {"time": "10:08", "service": "payments", "p99": 254, "errors": 0.23}
+    - {"time": "10:08", "service": "auth", "p99": 59, "errors": 0.06}
+    - {"time": "10:08", "service": "inventory", "p99": 96, "errors": 0.06}
+    - {"time": "10:08", "service": "search", "p99": 69, "errors": 0.08}
+    - {"time": "10:08", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:09", "service": "gateway", "p99": 119, "errors": 0.3}
+    - {"time": "10:09", "service": "orders", "p99": 188, "errors": 0.3}
+    - {"time": "10:09", "service": "payments", "p99": 230, "errors": 0.2}
+    - {"time": "10:09", "service": "auth", "p99": 56, "errors": 0.09}
+    - {"time": "10:09", "service": "inventory", "p99": 99, "errors": 0.09}
+    - {"time": "10:09", "service": "search", "p99": 72, "errors": 0.15}
+    - {"time": "10:09", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:10", "service": "gateway", "p99": 115, "errors": 0.12}
+    - {"time": "10:10", "service": "orders", "p99": 193, "errors": 0.38}
+    - {"time": "10:10", "service": "payments", "p99": 254, "errors": 0.17}
+    - {"time": "10:10", "service": "auth", "p99": 62, "errors": 0.13}
+    - {"time": "10:10", "service": "inventory", "p99": 95, "errors": 0.12}
+    - {"time": "10:10", "service": "search", "p99": 73, "errors": 0.09}
+    - {"time": "10:10", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:11", "service": "gateway", "p99": 125, "errors": 0.25}
+    - {"time": "10:11", "service": "orders", "p99": 196, "errors": 0.24}
+    - {"time": "10:11", "service": "payments", "p99": 244, "errors": 0.23}
+    - {"time": "10:11", "service": "auth", "p99": 61, "errors": 0.05}
+    - {"time": "10:11", "service": "inventory", "p99": 93, "errors": 0.08}
+    - {"time": "10:11", "service": "search", "p99": 74, "errors": 0.1}
+    - {"time": "10:11", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:12", "service": "gateway", "p99": 123, "errors": 0.17}
+    - {"time": "10:12", "service": "orders", "p99": 192, "errors": 0.37}
+    - {"time": "10:12", "service": "payments", "p99": 1727, "errors": 11.37}
+    - {"time": "10:12", "service": "auth", "p99": 66, "errors": 0.12}
+    - {"time": "10:12", "service": "inventory", "p99": 90, "errors": 0.15}
+    - {"time": "10:12", "service": "search", "p99": 65, "errors": 0.1}
+    - {"time": "10:12", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:13", "service": "gateway", "p99": 125, "errors": 0.2}
+    - {"time": "10:13", "service": "orders", "p99": 188, "errors": 0.37}
+    - {"time": "10:13", "service": "payments", "p99": 1547, "errors": 11.12}
+    - {"time": "10:13", "service": "auth", "p99": 59, "errors": 0.12}
+    - {"time": "10:13", "service": "inventory", "p99": 95, "errors": 0.11}
+    - {"time": "10:13", "service": "search", "p99": 73, "errors": 0.11}
+    - {"time": "10:13", "service": "postgres", "p99": 11, "errors": 0.0}
+    - {"time": "10:14", "service": "gateway", "p99": 124, "errors": 0.19}
+    - {"time": "10:14", "service": "orders", "p99": 502, "errors": 4.37}
+    - {"time": "10:14", "service": "payments", "p99": 1380, "errors": 9.89}
+    - {"time": "10:14", "service": "auth", "p99": 56, "errors": 0.06}
+    - {"time": "10:14", "service": "inventory", "p99": 84, "errors": 0.08}
+    - {"time": "10:14", "service": "search", "p99": 63, "errors": 0.07}
+    - {"time": "10:14", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:15", "service": "gateway", "p99": 203, "errors": 2.09}
+    - {"time": "10:15", "service": "orders", "p99": 601, "errors": 3.0}
+    - {"time": "10:15", "service": "payments", "p99": 1453, "errors": 9.64}
+    - {"time": "10:15", "service": "auth", "p99": 58, "errors": 0.13}
+    - {"time": "10:15", "service": "inventory", "p99": 92, "errors": 0.05}
+    - {"time": "10:15", "service": "search", "p99": 71, "errors": 0.06}
+    - {"time": "10:15", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:16", "service": "gateway", "p99": 223, "errors": 2.32}
+    - {"time": "10:16", "service": "orders", "p99": 581, "errors": 4.28}
+    - {"time": "10:16", "service": "payments", "p99": 1527, "errors": 10.38}
+    - {"time": "10:16", "service": "auth", "p99": 66, "errors": 0.15}
+    - {"time": "10:16", "service": "inventory", "p99": 87, "errors": 0.11}
+    - {"time": "10:16", "service": "search", "p99": 63, "errors": 0.14}
+    - {"time": "10:16", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:17", "service": "gateway", "p99": 220, "errors": 1.64}
+    - {"time": "10:17", "service": "orders", "p99": 602, "errors": 3.75}
+    - {"time": "10:17", "service": "payments", "p99": 1695, "errors": 9.17}
+    - {"time": "10:17", "service": "auth", "p99": 66, "errors": 0.09}
+    - {"time": "10:17", "service": "inventory", "p99": 92, "errors": 0.14}
+    - {"time": "10:17", "service": "search", "p99": 77, "errors": 0.08}
+    - {"time": "10:17", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:18", "service": "gateway", "p99": 203, "errors": 2.48}
+    - {"time": "10:18", "service": "orders", "p99": 464, "errors": 3.95}
+    - {"time": "10:18", "service": "payments", "p99": 1666, "errors": 9.77}
+    - {"time": "10:18", "service": "auth", "p99": 64, "errors": 0.13}
+    - {"time": "10:18", "service": "inventory", "p99": 91, "errors": 0.05}
+    - {"time": "10:18", "service": "search", "p99": 76, "errors": 0.08}
+    - {"time": "10:18", "service": "postgres", "p99": 11, "errors": 0.0}
+    - {"time": "10:19", "service": "gateway", "p99": 221, "errors": 1.65}
+    - {"time": "10:19", "service": "orders", "p99": 500, "errors": 4.22}
+    - {"time": "10:19", "service": "payments", "p99": 1835, "errors": 10.42}
+    - {"time": "10:19", "service": "auth", "p99": 63, "errors": 0.06}
+    - {"time": "10:19", "service": "inventory", "p99": 91, "errors": 0.08}
+    - {"time": "10:19", "service": "search", "p99": 67, "errors": 0.08}
+    - {"time": "10:19", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:20", "service": "gateway", "p99": 209, "errors": 2.25}
+    - {"time": "10:20", "service": "orders", "p99": 453, "errors": 3.5}
+    - {"time": "10:20", "service": "payments", "p99": 1897, "errors": 11.55}
+    - {"time": "10:20", "service": "auth", "p99": 63, "errors": 0.05}
+    - {"time": "10:20", "service": "inventory", "p99": 91, "errors": 0.09}
+    - {"time": "10:20", "service": "search", "p99": 72, "errors": 0.12}
+    - {"time": "10:20", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:21", "service": "gateway", "p99": 220, "errors": 1.89}
+    - {"time": "10:21", "service": "orders", "p99": 517, "errors": 3.59}
+    - {"time": "10:21", "service": "payments", "p99": 1529, "errors": 11.35}
+    - {"time": "10:21", "service": "auth", "p99": 57, "errors": 0.09}
+    - {"time": "10:21", "service": "inventory", "p99": 97, "errors": 0.13}
+    - {"time": "10:21", "service": "search", "p99": 70, "errors": 0.06}
+    - {"time": "10:21", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:22", "service": "gateway", "p99": 207, "errors": 1.65}
+    - {"time": "10:22", "service": "orders", "p99": 564, "errors": 3.14}
+    - {"time": "10:22", "service": "payments", "p99": 1893, "errors": 11.17}
+    - {"time": "10:22", "service": "auth", "p99": 63, "errors": 0.05}
+    - {"time": "10:22", "service": "inventory", "p99": 99, "errors": 0.15}
+    - {"time": "10:22", "service": "search", "p99": 64, "errors": 0.12}
+    - {"time": "10:22", "service": "postgres", "p99": 11, "errors": 0.0}
+    - {"time": "10:23", "service": "gateway", "p99": 224, "errors": 2.45}
+    - {"time": "10:23", "service": "orders", "p99": 514, "errors": 3.58}
+    - {"time": "10:23", "service": "payments", "p99": 1486, "errors": 10.44}
+    - {"time": "10:23", "service": "auth", "p99": 61, "errors": 0.07}
+    - {"time": "10:23", "service": "inventory", "p99": 83, "errors": 0.05}
+    - {"time": "10:23", "service": "search", "p99": 64, "errors": 0.09}
+    - {"time": "10:23", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:24", "service": "gateway", "p99": 203, "errors": 2.38}
+    - {"time": "10:24", "service": "orders", "p99": 538, "errors": 3.63}
+    - {"time": "10:24", "service": "payments", "p99": 1633, "errors": 11.75}
+    - {"time": "10:24", "service": "auth", "p99": 62, "errors": 0.06}
+    - {"time": "10:24", "service": "inventory", "p99": 92, "errors": 0.07}
+    - {"time": "10:24", "service": "search", "p99": 76, "errors": 0.1}
+    - {"time": "10:24", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:25", "service": "gateway", "p99": 192, "errors": 2.05}
+    - {"time": "10:25", "service": "orders", "p99": 542, "errors": 4.03}
+    - {"time": "10:25", "service": "payments", "p99": 1626, "errors": 9.48}
+    - {"time": "10:25", "service": "auth", "p99": 63, "errors": 0.07}
+    - {"time": "10:25", "service": "inventory", "p99": 83, "errors": 0.12}
+    - {"time": "10:25", "service": "search", "p99": 64, "errors": 0.12}
+    - {"time": "10:25", "service": "postgres", "p99": 12, "errors": 0.0}
+    - {"time": "10:26", "service": "gateway", "p99": 200, "errors": 2.38}
+    - {"time": "10:26", "service": "orders", "p99": 460, "errors": 4.59}
+    - {"time": "10:26", "service": "payments", "p99": 1663, "errors": 8.21}
+    - {"time": "10:26", "service": "auth", "p99": 62, "errors": 0.15}
+    - {"time": "10:26", "service": "inventory", "p99": 83, "errors": 0.07}
+    - {"time": "10:26", "service": "search", "p99": 72, "errors": 0.15}
+    - {"time": "10:26", "service": "postgres", "p99": 11, "errors": 0.0}
+    - {"time": "10:27", "service": "gateway", "p99": 203, "errors": 1.85}
+    - {"time": "10:27", "service": "orders", "p99": 495, "errors": 4.23}
+    - {"time": "10:27", "service": "payments", "p99": 1733, "errors": 8.55}
+    - {"time": "10:27", "service": "auth", "p99": 64, "errors": 0.11}
+    - {"time": "10:27", "service": "inventory", "p99": 96, "errors": 0.09}
+    - {"time": "10:27", "service": "search", "p99": 71, "errors": 0.1}
+    - {"time": "10:27", "service": "postgres", "p99": 13, "errors": 0.0}
+    - {"time": "10:28", "service": "gateway", "p99": 187, "errors": 1.6}
+    - {"time": "10:28", "service": "orders", "p99": 524, "errors": 3.08}
+    - {"time": "10:28", "service": "payments", "p99": 1504, "errors": 11.04}
+    - {"time": "10:28", "service": "auth", "p99": 65, "errors": 0.1}
+    - {"time": "10:28", "service": "inventory", "p99": 89, "errors": 0.11}
+    - {"time": "10:28", "service": "search", "p99": 64, "errors": 0.1}
+    - {"time": "10:28", "service": "postgres", "p99": 11, "errors": 0.0}
+    - {"time": "10:29", "service": "gateway", "p99": 221, "errors": 1.89}
+    - {"time": "10:29", "service": "orders", "p99": 456, "errors": 3.51}
+    - {"time": "10:29", "service": "payments", "p99": 1437, "errors": 9.15}
+    - {"time": "10:29", "service": "auth", "p99": 54, "errors": 0.1}
+    - {"time": "10:29", "service": "inventory", "p99": 88, "errors": 0.14}
+    - {"time": "10:29", "service": "search", "p99": 73, "errors": 0.14}
+    - {"time": "10:29", "service": "postgres", "p99": 12, "errors": 0.0}
+fragments:
+  # The inside of every node: its name, what it is, its status and two numbers. The
+  # border follows `data-status`, set from the node's data.
+  node-body:
+    type: element
+    style: { display: grid, gap: 6, min-width: 170, text-align: left }
+    children:
+      - type: element
+        style: { display: flex, align-items: center, justify-content: space-between, gap: 8 }
+        children:
+          - { type: text, props: { value: "{{ node.data.label }}" }, style: { font-weight: 600 } }
+          - { type: ui-status-badge, props: { status: "{{ node.data.status }}", labels: { ok: OK, degraded: Degraded, down: Down }, tones: { ok: success, degraded: warning, down: danger } } }
+      - { type: text, props: { tag: div, value: "{{ node.data.detail }} · {{ node.data.team }}" }, style: { color: $color.muted, font-size: 11 } }
+      - { type: text, props: { tag: div, value: "p99 {{ node.data.p99 }} ms · {{ node.data.errors }}% errors" }, style: { font-size: 11, font-variant-numeric: tabular-nums } }
+  # One step of the runbook.
+  step:
+    type: ui-checkbox
+    props: { bind: "{{ key }}", label: "{{ label }}" }
+root:
+  type: stack
+  style:
+    max-width: 1400px
+    margin: 0 auto
+    padding: 16px
+    gap: 20px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@md": { padding: 24px }
+  children:
+    # ---- the incident: what, how bad, who's on it
+    - type: element
+      style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 16 }
+      children:
+        - type: stack
+          style: { gap: 6 }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: Incidents, href: "#" }, { label: INC-2041 } ] } }
+            - type: element
+              style: { display: flex, flex-wrap: wrap, align-items: center, gap: 10 }
+              children:
+                - { type: ui-heading, props: { level: 2, text: Card payments failing at checkout } }
+                - { type: ui-badge, props: { text: "{{ severity }}", variant: "{{ severity == 'SEV1' || severity == 'SEV2' ? 'destructive' : 'secondary' }}" } }
+                - { type: ui-status-badge, props: { status: "{{ status }}", labels: { investigating: Investigating, identified: Identified, monitoring: Monitoring, resolved: Resolved }, tones: { investigating: danger, identified: warning, monitoring: info, resolved: success } } }
+            - { type: ui-text, props: { variant: muted, text: "Opened 10:14 by an alert on checkout errors · commander {{ commander }} · 5 services affected" } }
+        - type: element
+          style: { display: flex, flex-wrap: wrap, gap: 12, align-items: end }
+          children:
+            - type: ui-field
+              props: { label: Severity }
+              children:
+                - { type: ui-select, props: { bind: severity, options: [SEV1, SEV2, SEV3, SEV4] } }
+            - type: ui-field
+              props: { label: Commander }
+              children:
+                - { type: ui-select, props: { bind: commander, options: [Meera Iyer, Asha Rao, Dan Okafor, Ravi Kumar] } }
+            - type: ui-field
+              props: { label: Status }
+              children:
+                - type: ui-select
+                  props: { bind: status, options: [ { value: investigating, label: Investigating }, { value: identified, label: Identified }, { value: monitoring, label: Monitoring }, { value: resolved, label: Resolved } ] }
+
+    - type: if
+      props: { when: "{{ status == 'resolved' }}" }
+      children:
+        - { type: ui-alert, props: { icon: check, title: Resolved, description: "Write the review while it's fresh: the timeline and charts are kept with the incident." } }
+
+    # ---- the map, and the service picked on it
+    - type: element
+      style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@xl": { grid-template-columns: "minmax(0, 1fr) 360px" }, align-items: start }
+      children:
+        - type: ui-card
+          props: { title: Service map, description: "Live status, from each service's data. Click one to see its numbers." }
+          children:
+            - type: ui-flow
+              props:
+                title: Service map
+                nodes: "{{ nodes }}"
+                edges: "{{ edges }}"
+                layout: layered
+                direction: LR
+                rankGap: 70
+                nodeGap: 24
+                height: 440
+                highlight: neighbors
+                bind: picked
+                search: "{{ query }}"
+                bindMatches: matches
+                filter: "{{ onlyAffected ? affected : null }}"
+                filterNeighbors: false
+                nodeStyles: false
+              on:
+                nodeselect: { action: set_state, key: service, value: "{{ picked ? picked : service }}" }
+              children:
+                - type: ui-flow-panel
+                  props: { position: top-left }
+                  children:
+                    - type: element
+                      style: { display: flex, flex-wrap: wrap, gap: 8, align-items: center, padding: 4, background: $color.surface, border-radius: 8 }
+                      children:
+                        - { type: ui-input, props: { bind: query, placeholder: Find a service… }, attrs: { aria-label: Find a service }, style: { width: 180 } }
+                        - { type: ui-switch, props: { bind: onlyAffected, label: "Only what's affected" } }
+                - type: ui-flow-node
+                  props: { type: service }
+                  attrs: { data-status: "{{ node.data.status }}" }
+                  style: { "&[data-status=degraded]": { border-color: "#d97706" }, "&[data-status=down]": { border-color: $color.destructive, box-shadow: "0 0 0 3px color-mix(in srgb, var(--color-destructive) 18%, transparent)" } }
+                  children:
+                    - { type: include, props: { name: node-body } }
+                    - { type: ui-flow-port, props: { type: target } }
+                    - { type: ui-flow-port, props: { type: source } }
+                - type: ui-flow-node
+                  props: { type: external, shape: rounded }
+                  attrs: { data-status: "{{ node.data.status }}" }
+                  style: { border-style: dashed, "&[data-status=degraded]": { border-color: "#d97706" }, "&[data-status=down]": { border-color: $color.destructive } }
+                  children:
+                    - { type: include, props: { name: node-body } }
+                    - { type: ui-flow-port, props: { type: target } }
+                    - { type: ui-flow-port, props: { type: source } }
+                - type: ui-flow-node
+                  props: { type: store, shape: cylinder }
+                  style: { padding: "22px 14px 14px" }
+                  children:
+                    - { type: include, props: { name: node-body } }
+                    - { type: ui-flow-port, props: { type: target } }
+                - type: ui-flow-edge
+                  props: { type: hot, animated: true, marker: arrowclosed }
+                  style: { stroke: $color.destructive, stroke-width: 2 }
+                - type: ui-flow-edge
+                  props: { marker: arrowclosed }
+            - type: if
+              props: { when: "{{ query != '' }}" }
+              children:
+                - { type: ui-text, props: { variant: muted, text: "{{ matches.length }} found for “{{ query }}”" }, style: { margin-top: 8, font-size: 13 } }
+
+        - type: ui-card
+          props: { title: Runbook, description: Card payment failures (RB-17). }
+          children:
+            - type: element
+              style: { display: flex, align-items: center, gap: 12, margin-bottom: 14 }
+              children:
+                - { type: ui-progress-ring, props: { value: "{{ ((check1 ? 1 : 0) + (check2 ? 1 : 0) + (check3 ? 1 : 0) + (check4 ? 1 : 0) + (check5 ? 1 : 0)) * 20 }}", size: 44, label: Runbook progress } }
+                - { type: text, props: { value: "{{ (check1 ? 1 : 0) + (check2 ? 1 : 0) + (check3 ? 1 : 0) + (check4 ? 1 : 0) + (check5 ? 1 : 0) }} of 5 steps done" }, style: { font-size: 14, font-weight: 500 } }
+            - type: stack
+              style: { gap: 10 }
+              children:
+                - { type: include, props: { name: step, with: { key: check1, label: Page the payments on-call } } }
+                - { type: include, props: { name: step, with: { key: check2, label: "Check the provider's status page" } } }
+                - { type: include, props: { name: step, with: { key: check3, label: Turn on retries with backoff } } }
+                - { type: include, props: { name: step, with: { key: check4, label: Fail over to the backup provider } } }
+                - { type: include, props: { name: step, with: { key: check5, label: Post on the status page } } }
+            - type: if
+              props: { when: "{{ check4 }}" }
+              children:
+                - { type: ui-alert, props: { icon: warning, title: Failing over, description: "Wallet payments stay on the main provider. Watch Payments' error rate below." }, style: { margin-top: 14 } }
+
+    # ---- the picked service's numbers
+    - type: element
+      style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+      children:
+        - type: ui-card
+          props: { title: "Latency: {{ service }}", description: "p99 in ms, 10:00 to 10:29. The line marks the alert." }
+          children:
+            - type: ui-chart
+              props:
+                title: p99 latency
+                type: area
+                data: "{{ metrics }}"
+                filter: { service: "{{ service }}" }
+                x: time
+                y: { field: p99, name: p99 ms }
+                smooth: true
+                height: 240
+                group: incident
+                option: { series: [ { markLine: { symbol: none, data: [ { xAxis: "10:14", name: Alert } ], label: { formatter: Alert } } } ] }
+        - type: ui-card
+          props: { title: "Errors: {{ service }}", description: "Share of requests that failed, in %." }
+          children:
+            - type: ui-chart
+              props: { title: Error rate, type: bar, data: "{{ metrics }}", filter: { service: "{{ service }}" }, x: time, y: { field: errors, name: errors % }, height: 240, group: incident }
+
+    # ---- updates: inside, and what customers see
+    - type: element
+      style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" }, align-items: start }
+      children:
+        - type: ui-card
+          props: { title: Updates, description: "For the incident channel, oldest first." }
+          children:
+            - type: list
+              props: { items: "{{ updates }}", as: u, tag: ol }
+              style: { margin: 0, padding-left: 18, display: grid, gap: 8, font-size: 14 }
+              children:
+                - { type: text, props: { tag: li, value: "{{ u }}" } }
+            - type: element
+              style: { display: grid, gap: 8, margin-top: 14 }
+              children:
+                - { type: ui-textarea, props: { bind: draft, rows: 2, placeholder: "What changed, and what's next?" }, attrs: { aria-label: Update } }
+                - type: element
+                  style: { display: flex, gap: 8, align-items: center }
+                  children:
+                    - { type: ui-text, props: { variant: muted, text: "Posted as “{{ status }} ({{ severity }})”" }, style: { font-size: 12 } }
+                    - type: ui-button
+                      props: { label: Post update, size: sm, disabled: "{{ draft == '' }}" }
+                      style: { margin-left: auto }
+                      on:
+                        click:
+                          - { action: set_state, key: updates, value: "{{ toggle(updates, status + ' (' + severity + '): ' + draft) }}" }
+                          - { action: set_state, key: draft, value: "" }
+        - type: ui-card
+          props: { title: Status page, description: What customers see. Edit the message; the preview follows. }
+          children:
+            - { type: ui-textarea, props: { bind: customer, rows: 3 }, attrs: { aria-label: Message for customers } }
+            - type: element
+              style: { margin-top: 14, padding: 16, border: 1px solid $color.border, border-radius: 10, display: grid, gap: 8 }
+              children:
+                - type: element
+                  style: { display: flex, align-items: center, gap: 8 }
+                  children:
+                    - { type: ui-status-badge, props: { status: "{{ status == 'resolved' ? 'operational' : (severity == 'SEV1' ? 'outage' : 'partial') }}", labels: { operational: All systems operational, outage: Major outage, partial: Partial outage }, tones: { operational: success, outage: danger, partial: warning } } }
+                    - { type: text, props: { value: "Payments" }, style: { font-weight: 600 } }
+                - { type: text, props: { tag: p, value: "{{ status == 'resolved' ? 'This incident has been resolved.' : customer }}" }, style: { margin: 0, font-size: 14 } }
+                - { type: text, props: { tag: div, value: "{{ status == 'investigating' ? 'Investigating' : (status == 'identified' ? 'Identified' : (status == 'monitoring' ? 'Monitoring' : 'Resolved')) }} · updated 10:22" }, style: { color: $color.muted, font-size: 12 } }

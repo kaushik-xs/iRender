@@ -27,7 +27,7 @@ root:
             # Picks every theme option and the mode; the previews below follow live.
             - { type: ui-popover, props: { trigger: Theme, align: end }, style: { width: 340 }, parts: { trigger: { style: { margin-left: auto } } }, children: [ { type: ui-theme-panel } ] }
         - type: ui-text
-          props: { variant: lead, text: "Whole pages to start from: a dashboard, data tables, a tree, a kanban board, a calendar, an AI chat, a docs page, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, a report builder, an incident room, a sales pipeline, data tables, a tree, a kanban board, a calendar, an AI chat, a docs page, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group
           props:
             bind: filter
@@ -39,6 +39,9 @@ root:
       props:
         as: block
         items:
+          - { id: report-01, category: dashboard, title: "A report builder: chart type, grouping, measure, aggregate, split, sort and top N are all controls on one chart; saved reports set them in one click, a clicked bar filters the rows, and the Config tab shows the chart as YAML", kits: [ui-kit, chart-kit, icon-kit], height: 1180 }
+          - { id: incident-01, category: dashboard, title: "An incident in progress: a service map coloured from each service's data, the clicked service's latency and errors, a runbook whose progress is worked out from its checkboxes, updates and a status page preview", kits: [ui-kit, chart-kit, flow-kit, icon-kit], height: 1460 }
+          - { id: crm-01, category: table, title: "A sales pipeline from one list of deals: a board with swimlanes and card detail picked in its settings, a table grouped by stage, and forecast charts, all following each move", kits: [ui-kit, chart-kit, icon-kit], height: 1000 }
           - { id: dashboard-01, category: dashboard, title: "A dashboard with sidebar, charts, data table and a ⌘K palette", kits: [ui-kit, chart-kit, icon-kit], height: 860 }
           - { id: dashboard-02, category: dashboard, title: "An operations dashboard to arrange: drag tiles by their header, resize them from the corner or use the arrow keys, with the layout in state and a locked alerts strip", kits: [ui-kit, chart-kit, icon-kit], height: 1080 }
           - { id: data-table-01, category: table, title: "Tasks: search, faceted filters, sorting, paging, a View menu and bulk actions on selected rows", kits: [ui-kit, icon-kit], height: 860 }

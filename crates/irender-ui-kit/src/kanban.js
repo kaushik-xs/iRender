@@ -41,8 +41,9 @@
   const initialsOf = (name) => String(name ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   const at = (r, f) => String(f).split(".").reduce((x, k) => (x !== null && typeof x === "object" ? x[k] : undefined), r);
 
-  // ---- lanes: one per value of the `swimlanes` field, in `lanes`' order or as they come
-  const laneField = cfg.swimlanes || null;
+  // ---- lanes: one per value of the `swimlanes` field, in `lanes`' order or as they come.
+  // The field may follow state, so it's read again on each draw.
+  let laneField = resolve(cfg.swimlanes) || null;
   // A lane's key from a card's value: a name (or label, id) for an object, else the text.
   const laneKey = (v) => (v == null || v === "" ? "" : isObj(v) ? key(v.name ?? v.label ?? v.id) : key(v));
   const laneName = (v) => (v == null || v === "" ? L("No {field}", { field: String(laneField) }) : isObj(v) ? String(v.name ?? v.label ?? v.id) : String(v));
@@ -101,7 +102,8 @@
     a.setAttribute("aria-label", label);
     a.append(make("div", { "data-kb-title": "" }, String(c.title ?? "")));
     if (c.description) a.append(make("p", { "data-kb-desc": "" }, String(c.description)));
-    const fields = (Array.isArray(cfg.fields) ? cfg.fields : []).map((f) => fieldEl(f, c)).filter(Boolean);
+    const list = resolve(cfg.fields);
+    const fields = (Array.isArray(list) ? list : []).map((f) => fieldEl(isObj(f) ? f : { field: f }, c)).filter(Boolean);
     if (fields.length) {
       const box = make("div", { "data-kb-fields": "" });
       box.append(...fields);
@@ -180,6 +182,7 @@
     return section;
   }
   function draw() {
+    laneField = resolve(cfg.swimlanes) || null;
     const cols = columns(), all = cards();
     const hadFocus = el.contains(document.activeElement) && document.activeElement.matches("[data-kb-card]");
     const grip = el.contains(document.activeElement) ? document.activeElement.getAttribute("data-kb-grip") : null;
@@ -529,7 +532,7 @@
   draw();
   return {
     update() {
-      const now = [resolve(cfg.columns), resolve(cfg.cards), resolve(cfg.lanes)];
+      const now = [resolve(cfg.columns), resolve(cfg.cards), resolve(cfg.lanes), resolve(cfg.swimlanes), resolve(cfg.fields)];
       if (last && now.every((x, n) => x === last[n])) return;
       last = now;
       draw();

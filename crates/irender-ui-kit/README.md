@@ -620,6 +620,8 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Fields.** `fields` adds lines to each card, in order: `{ field, label, cell }` (a dotted field works), `cell` being `text` (default), `badge` (a pill in `tones`' tone for its value), `progress` (a bar, 0–100) or `date` (written in `locale`). A card without the field leaves its line out.
 
+**Settings from state.** `swimlanes` and `fields` may use state, so a board's settings can change them: `swimlanes: "{{ laneBy == 'none' ? null : laneBy }}"` from a select, or `fields: "{{ detailed ? long : short }}"` with the two lists in state. The board redraws with the new lanes or lines, and keeps them as cards move (block crm-01).
+
 **Moving columns.** With `reorderable`, each column's header has a grip: drag it onto another header (its first half puts it before that column, its second after), or focus it and press Left or Right. The columns' new order goes to `bindColumns` (the state key `columns` reads), with a `columns` event, and is announced.
 
 **Props.** `columns` and `cards` (required), `bindCards`, `bindCard`, `movable` (default true), `addable`, `collapsible`, `collapsed`, `addLabel`, `emptyText`, `columnWidth` (px, default 280), `label` (default `Board`), `swimlanes`, `lanes`, `fields`, `reorderable`, `bindColumns`, `locale`; part `board`.

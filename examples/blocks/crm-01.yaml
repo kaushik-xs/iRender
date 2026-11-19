@@ -1,0 +1,223 @@
+# Block: a sales pipeline. One list of deals in state, `deals`, drawn four ways: a board,
+# a table, and two charts. Drag a deal to another stage and the table's stage column,
+# its subtotals and the charts follow, since they all read `deals`.
+#
+# - Board settings picks the swimlanes (none, owner, region or tier) and how much each
+#   card shows (the `fields` list comes from state), so one board covers several views.
+# - Negotiation has a limit of 4; Lost starts folded.
+# - The table is grouped by stage with subtotals, and its owner filter, search and sort
+#   are its own. Clicking an owner's bar in Forecast filters the table to them.
+# - The deal clicked (or opened with Enter) shows beside the board.
+#
+#   cargo run -p irender-cli -- render examples/blocks/crm-01.yaml --ui-kit --chart-kit --icon-kit -o crm-01.html
+version: 1
+state:
+  view: board
+  lanes: none
+  detail: standard
+  deal: null
+  owner: null
+  stageTones: { Lead: neutral, Qualified: info, Proposal: primary, Negotiation: warning, Won: success, Lost: danger }
+  compact: []
+  standard: [ { field: value, label: Value }, { field: close, label: Closes, cell: date } ]
+  detailed: [ { field: value, label: Value }, { field: close, label: Closes, cell: date }, { field: assignee, label: Owner }, { field: product, label: Product, cell: badge, tones: { Platform: primary, Analytics: info } } ]
+  stages:
+    - { id: Lead, title: Lead, tone: neutral }
+    - { id: Qualified, title: Qualified, tone: info }
+    - { id: Proposal, title: Proposal, tone: primary }
+    - { id: Negotiation, title: Negotiation, tone: warning, limit: 4 }
+    - { id: Won, title: Won, tone: success }
+    - { id: Lost, title: Lost, tone: danger }
+  deals:
+    - {"id": "D-301", "column": "Lead", "title": "Northwind Traders", "assignee": "Dan Okafor", "amount": 300000, "value": "$300k", "close": "2026-12-14", "month": "2026-12", "region": "Asia Pacific", "tier": "Enterprise", "product": "Support plus", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-302", "column": "Lead", "title": "Harbor Freight Co", "assignee": "Ravi Kumar", "amount": 24000, "value": "$24k", "close": "2027-01-11", "month": "2027-01", "region": "North America", "tier": "Enterprise", "product": "Support plus", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-303", "column": "Lead", "title": "Lumen Health", "assignee": "Dan Okafor", "amount": 150000, "value": "$150k", "close": "2027-01-18", "month": "2027-01", "region": "Asia Pacific", "tier": "Mid-market", "product": "Platform", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-304", "column": "Lead", "title": "Corvid Logistics", "assignee": "Asha Rao", "amount": 48000, "value": "$48k", "close": "2027-01-15", "month": "2027-01", "region": "Asia Pacific", "tier": "Enterprise", "product": "Platform", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-305", "column": "Lead", "title": "Brightwater Foods", "assignee": "Asha Rao", "amount": 24000, "value": "$24k", "close": "2026-12-27", "month": "2026-12", "region": "Europe", "tier": "Enterprise", "product": "Analytics", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-306", "column": "Qualified", "title": "Kestrel Retail", "assignee": "Dan Okafor", "amount": 85000, "value": "$85k", "close": "2027-02-16", "month": "2027-02", "region": "Asia Pacific", "tier": "SMB", "product": "Support plus", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-307", "column": "Qualified", "title": "Fernhill Cloud", "assignee": "Asha Rao", "amount": 24000, "value": "$24k", "close": "2026-12-06", "month": "2026-12", "region": "North America", "tier": "Mid-market", "product": "Analytics", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-308", "column": "Qualified", "title": "Saltmarsh Imports", "assignee": "Meera Iyer", "amount": 96000, "value": "$96k", "close": "2027-02-16", "month": "2027-02", "region": "Europe", "tier": "Enterprise", "product": "Support plus", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-309", "column": "Qualified", "title": "Quarry Labs", "assignee": "Dan Okafor", "amount": 60000, "value": "$60k", "close": "2027-01-21", "month": "2027-01", "region": "Asia Pacific", "tier": "Mid-market", "product": "Platform", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-310", "column": "Qualified", "title": "Ironleaf Robotics", "assignee": "Ravi Kumar", "amount": 12000, "value": "$12k", "close": "2026-12-22", "month": "2026-12", "region": "Asia Pacific", "tier": "Mid-market", "product": "Analytics", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-311", "column": "Proposal", "title": "Tidepool Bio", "assignee": "Ravi Kumar", "amount": 18000, "value": "$18k", "close": "2027-02-23", "month": "2027-02", "region": "Asia Pacific", "tier": "SMB", "product": "Support plus", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-312", "column": "Proposal", "title": "Copperline Sweets", "assignee": "Dan Okafor", "amount": 48000, "value": "$48k", "close": "2026-11-05", "month": "2026-11", "region": "Asia Pacific", "tier": "Mid-market", "product": "Analytics", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-313", "column": "Proposal", "title": "Juniper Software", "assignee": "Ravi Kumar", "amount": 120000, "value": "$120k", "close": "2026-11-16", "month": "2026-11", "region": "North America", "tier": "Enterprise", "product": "Analytics", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-314", "column": "Proposal", "title": "Monarch Freight", "assignee": "Asha Rao", "amount": 85000, "value": "$85k", "close": "2026-11-04", "month": "2026-11", "region": "Europe", "tier": "Mid-market", "product": "Support plus", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-315", "column": "Proposal", "title": "Ledgerstone Finance", "assignee": "Ravi Kumar", "amount": 60000, "value": "$60k", "close": "2027-01-11", "month": "2027-01", "region": "North America", "tier": "SMB", "product": "Analytics", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-316", "column": "Negotiation", "title": "Solace Energy", "assignee": "Asha Rao", "amount": 36000, "value": "$36k", "close": "2026-11-22", "month": "2026-11", "region": "North America", "tier": "Enterprise", "product": "Analytics", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-317", "column": "Negotiation", "title": "Halcyon Systems", "assignee": "Asha Rao", "amount": 48000, "value": "$48k", "close": "2026-12-25", "month": "2026-12", "region": "Europe", "tier": "Mid-market", "product": "Analytics", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-318", "column": "Negotiation", "title": "Granite Peak Media", "assignee": "Dan Okafor", "amount": 24000, "value": "$24k", "close": "2027-01-15", "month": "2027-01", "region": "Asia Pacific", "tier": "Mid-market", "product": "Analytics", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-319", "column": "Negotiation", "title": "Riverbend Beverages", "assignee": "Meera Iyer", "amount": 150000, "value": "$150k", "close": "2026-11-22", "month": "2026-11", "region": "Europe", "tier": "SMB", "product": "Support plus", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-320", "column": "Won", "title": "Oakhurst Studios", "assignee": "Meera Iyer", "amount": 36000, "value": "$36k", "close": "2026-12-16", "month": "2026-12", "region": "Asia Pacific", "tier": "SMB", "product": "Analytics", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-321", "column": "Won", "title": "Pinecrest Advisors", "assignee": "Meera Iyer", "amount": 60000, "value": "$60k", "close": "2026-11-16", "month": "2026-11", "region": "North America", "tier": "SMB", "product": "Analytics", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-322", "column": "Won", "title": "Meridian Paper", "assignee": "Meera Iyer", "amount": 24000, "value": "$24k", "close": "2026-11-23", "month": "2026-11", "region": "Europe", "tier": "SMB", "product": "Analytics", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-323", "column": "Won", "title": "Bayview Homes", "assignee": "Meera Iyer", "amount": 60000, "value": "$60k", "close": "2027-01-25", "month": "2027-01", "region": "Asia Pacific", "tier": "SMB", "product": "Analytics", "tags": [{"label": "SMB", "tone": "neutral"}]}
+    - {"id": "D-324", "column": "Lost", "title": "Atlas Kitchens", "assignee": "Meera Iyer", "amount": 24000, "value": "$24k", "close": "2027-02-03", "month": "2027-02", "region": "Europe", "tier": "Enterprise", "product": "Support plus", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-325", "column": "Lost", "title": "Sunfield Foods", "assignee": "Meera Iyer", "amount": 48000, "value": "$48k", "close": "2027-01-22", "month": "2027-01", "region": "North America", "tier": "Mid-market", "product": "Analytics", "tags": [{"label": "Mid-market", "tone": "info"}]}
+    - {"id": "D-326", "column": "Qualified", "title": "Bramble Trading", "assignee": "Meera Iyer", "amount": 120000, "value": "$120k", "close": "2026-12-22", "month": "2026-12", "region": "Europe", "tier": "Enterprise", "product": "Analytics", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-327", "column": "Lead", "title": "Wexford Health", "assignee": "Ravi Kumar", "amount": 24000, "value": "$24k", "close": "2027-01-24", "month": "2027-01", "region": "Europe", "tier": "Enterprise", "product": "Support plus", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+    - {"id": "D-328", "column": "Proposal", "title": "Clearpath Mobility", "assignee": "Ravi Kumar", "amount": 96000, "value": "$96k", "close": "2026-12-13", "month": "2026-12", "region": "Asia Pacific", "tier": "Enterprise", "product": "Analytics", "tags": [{"label": "Enterprise", "tone": "primary"}]}
+fragments:
+  # A label and value in the deal panel.
+  fact:
+    type: element
+    style: { display: contents }
+    children:
+      - { type: element, props: { tag: dt }, style: { color: $color.muted }, children: [ { type: text, props: { value: "{{ label }}" } } ] }
+      - { type: element, props: { tag: dd }, style: { margin: 0 }, children: [ { type: text, props: { value: "{{ value }}" } } ] }
+root:
+  type: stack
+  style:
+    max-width: 1500px
+    margin: 0 auto
+    padding: 16px
+    gap: 20px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@md": { padding: 24px }
+  children:
+    - type: element
+      style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12 }
+      children:
+        - type: stack
+          style: { gap: 4 }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: Sales, href: "#" }, { label: Pipelines, href: "#" }, { label: New business } ] } }
+            - { type: ui-heading, props: { level: 2, text: New business pipeline } }
+            - { type: ui-text, props: { variant: muted, text: "28 deals closing November to February. Drag a deal to change its stage, or focus it and press Alt with an arrow key." } }
+        - type: element
+          style: { display: flex, flex-wrap: wrap, gap: 8, align-items: center }
+          children:
+            - type: ui-popover
+              props: { trigger: Board settings, align: end }
+              style: { width: 300 }
+              children:
+                - type: stack
+                  style: { gap: 14 }
+                  children:
+                    - type: ui-field
+                      props: { label: Swimlanes, description: Dragging a deal to another lane changes that field too. }
+                      children:
+                        - type: ui-select
+                          props: { bind: lanes, options: [ { value: none, label: None }, { value: assignee, label: By owner }, { value: region, label: By region }, { value: tier, label: By tier } ] }
+                    - type: ui-field
+                      props: { label: Cards show }
+                      children:
+                        - type: ui-radio-group
+                          props: { bind: detail, options: [ { value: compact, label: "The company and tier" }, { value: standard, label: "Value and close date too" }, { value: detailed, label: "Owner and product too" } ] }
+            - { type: ui-button, props: { label: New deal, icon: add, size: sm } }
+
+    - type: ui-tabs
+      props: { bind: view }
+      children:
+        - type: ui-tab-panel
+          props: { value: board, label: Board }
+          children:
+            - type: element
+              style: { display: grid, gap: 20px, grid-template-columns: "minmax(0, 1fr)", "@xl": { grid-template-columns: "minmax(0, 1fr) 300px" }, align-items: start }
+              children:
+                - type: ui-kanban
+                  props:
+                    label: New business pipeline
+                    columns: "{{ stages }}"
+                    bindColumns: stages
+                    cards: "{{ deals }}"
+                    bindCards: deals
+                    bindCard: deal
+                    swimlanes: "{{ lanes == 'none' ? null : lanes }}"
+                    fields: "{{ detail == 'compact' ? compact : (detail == 'detailed' ? detailed : standard) }}"
+                    collapsible: true
+                    collapsed: [Lost]
+                    addable: true
+                    addLabel: Add deal
+                    emptyText: No deals
+                    columnWidth: 230
+                    locale: en-US
+                - type: ui-card
+                  props: { title: "{{ deal ? deal.title : 'No deal open' }}", description: "{{ deal ? deal.id + ' · ' + deal.product : 'Click a deal, or press Enter on one, to see it here.' }}" }
+                  style: { position: sticky, top: "calc(var(--site-nav, 0px) + 16px)" }
+                  children:
+                    - type: if
+                      props: { when: "{{ deal }}" }
+                      children:
+                        - type: element
+                          style: { display: flex, align-items: center, justify-content: space-between, gap: 12 }
+                          children:
+                            - { type: ui-status-badge, props: { status: "{{ deal.column }}", tones: "{{ stageTones }}" } }
+                            - { type: text, props: { value: "{{ deal.value }}" }, style: { font-size: 24px, font-weight: 600 } }
+                        - type: element
+                          props: { tag: dl }
+                          style: { display: grid, grid-template-columns: "max-content 1fr", gap: "10px 16px", margin: "16px 0 0", font-size: 14px }
+                          children:
+                            - { type: include, props: { name: fact, with: { label: Owner, value: "{{ deal.assignee }}" } } }
+                            - { type: include, props: { name: fact, with: { label: Closes, value: "{{ deal.close }}" } } }
+                            - { type: include, props: { name: fact, with: { label: Region, value: "{{ deal.region }}" } } }
+                            - { type: include, props: { name: fact, with: { label: Tier, value: "{{ deal.tier }}" } } }
+                        - type: if
+                          props: { when: "{{ deal.column == 'Lost' }}" }
+                          children:
+                            - { type: ui-alert, props: { variant: destructive, icon: warning, title: Lost, description: "Move it back to a stage to reopen it." }, style: { margin-top: 16 } }
+
+        - type: ui-tab-panel
+          props: { value: table, label: Table }
+          children:
+            - type: ui-data-table
+              props:
+                rows: "{{ deals }}"
+                title: Deals
+                rowKey: id
+                sort: close
+                groupBy: column
+                pageSize: 0
+                pageSizes: []
+                search: Search companies…
+                searchFields: [title]
+                filter: { assignee: "{{ owner }}" }
+                export: deals.csv
+                locale: en-US
+              children:
+                - type: ui-data-table-toolbar
+                  children:
+                    - type: if
+                      props: { when: "{{ owner != null }}" }
+                      children:
+                        - type: ui-button
+                          props: { label: "{{ owner }}", icon: x, variant: secondary, size: sm }
+                          attrs: { aria-label: "Show every owner's deals" }
+                          on: { click: { action: set_state, key: owner, value: null } }
+                - { type: ui-data-table-column, props: { field: title, label: Company } }
+                - { type: ui-data-table-column, props: { field: column, label: Stage, cell: badge, groupable: true, tones: { Won: success, Lost: destructive, Negotiation: warning } } }
+                - { type: ui-data-table-column, props: { field: assignee, label: Owner, filter: select, groupable: true } }
+                - { type: ui-data-table-column, props: { field: tier, label: Tier, filter: select, groupable: true } }
+                - { type: ui-data-table-column, props: { field: region, label: Region, groupable: true } }
+                - { type: ui-data-table-column, props: { field: close, label: Closes, format: date, filter: date } }
+                - { type: ui-data-table-column, props: { field: amount, label: Amount, format: currency, decimals: 0, summary: sum } }
+
+        - type: ui-tab-panel
+          props: { value: forecast, label: Forecast }
+          children:
+            - type: element
+              style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+              children:
+                - type: ui-card
+                  props: { title: Value by stage, description: Open deals only. }
+                  children:
+                    - type: ui-chart
+                      props: { title: Value by stage, type: funnel, data: "{{ deals }}", filter: { column: { not: [Won, Lost] } }, x: column, y: amount, aggregate: sum, labels: true, height: 300, option: { series: [ { sort: none } ] } }
+                - type: ui-card
+                  props: { title: Each owner's pipeline, description: "Stacked by stage. Click an owner to list their deals in the table." }
+                  children:
+                    - type: ui-chart
+                      props: { title: Pipeline by owner, type: bar, data: "{{ deals }}", x: assignee, y: amount, series: column, aggregate: sum, stack: true, horizontal: true, height: 300, bind: owner }
+                      on: { change: { action: set_state, key: view, value: table } }
+                - type: ui-card
+                  props: { title: Closing by month, description: "Open deals, by the month they're due to close, and tier." }
+                  children:
+                    - type: ui-chart
+                      props: { title: Closing by month, type: bar, data: "{{ deals }}", filter: { column: { not: [Won, Lost] } }, x: month, xType: category, sort: month, y: amount, series: tier, aggregate: sum, stack: true, height: 280 }
+                - type: ui-card
+                  props: { title: Won and lost, description: By region. }
+                  children:
+                    - type: ui-chart
+                      props: { title: Won and lost by region, type: bar, data: "{{ deals }}", filter: { column: [Won, Lost] }, x: region, series: column, aggregate: count, height: 280 }

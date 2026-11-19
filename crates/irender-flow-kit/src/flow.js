@@ -725,7 +725,8 @@
         seen.add(id);
         const s = str(e.source), t = str(e.target);
         const visible = !e.hidden && geo.has(s) && geo.has(t);
-        if (r.svg) r.svg.hidden = !visible;
+        // An <svg> has no `hidden` property, so set the attribute (the CSS hides it).
+        if (r.svg) r.svg.toggleAttribute("hidden", !visible);
         if (r.label) r.label.hidden = !visible;
         if (!visible || !r.svg) continue;
         const type = str(e.type);
@@ -788,7 +789,7 @@
           flag(r.label, "data-dimmed", dim);
         }
       }
-      for (const [id, r] of els) if (!seen.has(id)) { if (r.svg) r.svg.hidden = true; if (r.label) r.label.hidden = true; }
+      for (const [id, r] of els) if (!seen.has(id)) { if (r.svg) r.svg.setAttribute("hidden", ""); if (r.label) r.label.hidden = true; }
     }
 
     // --------------------------------------------------------------- the view

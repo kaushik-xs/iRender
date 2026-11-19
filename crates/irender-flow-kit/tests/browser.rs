@@ -120,7 +120,7 @@ fn positions_ports_edges_and_selection() {
         log("label", label(f, "1-2").textContent, label(f, "1-2").hidden);
         log("marker", /arrowclosed/.test(edge(f, "x").querySelector("path").getAttribute("marker-end")));
         log("step", /L/.test(edge(f, "x").querySelector("path").getAttribute("d")) && !/C/.test(edge(f, "x").querySelector("path").getAttribute("d")));
-        log("edgeToHidden", edge(f, "y").hidden);
+        log("edgeToHidden", edge(f, "y").hasAttribute("hidden"));
         click(node(f, "2"));
         log("selected", S().sel, node(f, "2").hasAttribute("data-selected"), S().picks);
         click(flow(f).querySelector("[data-flow-pane]"));
@@ -200,7 +200,7 @@ fn templates_layout_state_and_dragging() {
         set("wfe", [...S().wfe, { id: "ce", source: "c", target: "e" }]);
         set("wf", [...S().wf, { id: "e", type: "task", data: { label: "E" } }]);
         await wait(100);
-        log("kept", node(f, "a") === keep, !!node(f, "e"), edge(f, "ce").hidden, at(node(f, "e"))[0] > at(node(f, "c"))[0]);
+        log("kept", node(f, "a") === keep, !!node(f, "e"), edge(f, "ce").hasAttribute("hidden"), at(node(f, "e"))[0] > at(node(f, "c"))[0]);
 
         // Highlighting the selection's neighbours.
         click(node(f, "a"));
@@ -560,12 +560,12 @@ fn filter_self_loops_and_packing() {
     // a → b → c, a self-reference on c, and five unconnected nodes.
     let mut nodes: Vec<Json> = ["a", "b", "c"].iter().map(|id| json!({ "id": id, "data": { "label": id } })).collect();
     nodes.extend((1..=5).map(|i| json!({ "id": format!("lone{i}"), "data": { "label": format!("lone {i}") } })));
-    let doc = json!({ "version": 1, "state": { "picked": [] },
+    let doc = json!({ "version": 1, "state": { "picked": [], "near": true },
         "root": { "type": "ui-flow", "attrs": { "id": "f" },
             "props": { "nodes": nodes, "edges": [
                     { "id": "ab", "source": "a", "target": "b" }, { "id": "bc", "source": "b", "target": "c" },
                     { "id": "cc", "source": "c", "target": "c", "type": "floating", "label": "parent" } ],
-                "layout": "layered", "filter": "{{ picked }}", "height": 600 } } });
+                "layout": "layered", "filter": "{{ picked }}", "filterNeighbors": "{{ near }}", "height": 600 } } });
     let driver = r##"
         const f = "f";
         const shown = () => [...flow(f).querySelectorAll("[data-flow-nodes] > [data-flow-node]")].filter((n) => n.style.display !== "none").map((n) => n.getAttribute("data-flow-node")).sort().join(",");
@@ -574,17 +574,22 @@ fn filter_self_loops_and_packing() {
         log("packed", new Set(lone.map(([x]) => x)).size > 1, new Set(lone.map(([, y]) => y)).size < 5);
         // A floating self-edge is a loop, with its label.
         const d = edge(f, "cc").querySelector("[data-flow-path]").getAttribute("d");
-        log("selfLoop", /^M[-\d.]+,[-\d.]+ C/.test(d), !edge(f, "cc").hidden, label(f, "cc").textContent);
+        log("selfLoop", /^M[-\d.]+,[-\d.]+ C/.test(d), !edge(f, "cc").hasAttribute("hidden"), label(f, "cc").textContent);
         // `filter`: the picked node, its neighbours as context, nothing else.
         set("picked", ["a"]);
         await wait(100);
-        log("filter", shown(), node(f, "b").hasAttribute("data-neighbor"), node(f, "a").hasAttribute("data-neighbor"), edge(f, "bc").hidden);
+        log("filter", shown(), node(f, "b").hasAttribute("data-neighbor"), node(f, "a").hasAttribute("data-neighbor"), edge(f, "bc").hasAttribute("hidden"));
         set("picked", []);
         await wait(100);
         log("all", shown().split(",").length);
+        // Without neighbours, edges to the hidden nodes go too, though they were drawn before.
+        set("near", false);
+        set("picked", ["a", "c"]);
+        await wait(100);
+        log("alone", shown(), edge(f, "ab").hasAttribute("hidden"), edge(f, "bc").hasAttribute("hidden"), edge(f, "cc").hasAttribute("hidden"));
     "##;
     let Some(lines) = run("filter", doc, driver) else { return };
-    check(&lines, &["packed true true", "selfLoop true true parent", "filter a,b true false true", "all 8"]);
+    check(&lines, &["packed true true", "selfLoop true true parent", "filter a,b true false true", "all 8", "alone a,c true true false"]);
 }
 
 #[test]

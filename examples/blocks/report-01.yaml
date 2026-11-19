@@ -1,0 +1,502 @@
+# Block: a report builder. One list of sales, in state, and one ui-chart whose every
+# prop is a control's state key: chart type, dimension, measure, how it's aggregated,
+# what it's split by, the sort, the top N, stacking, labels and orientation. The filter
+# panel feeds the same chart. Saved reports are plain lists of set_state actions, so a
+# click reconfigures the whole page.
+#
+# - Clicking a bar (or slice) picks it: the rows table below shows the sales behind it,
+#   by turning the picked value into a filter on whichever field is the dimension.
+# - The rows table can be grouped by the chart's dimension, with subtotals.
+# - The Config tab shows the chart's props as YAML, and the filter as JSON, both live:
+#   what the controls build is a document, the same as this page.
+#
+#   cargo run -p irender-cli -- render examples/blocks/report-01.yaml --ui-kit --chart-kit --icon-kit -o report-01.html
+version: 1
+state:
+  kind: bar
+  dim: region
+  measure: revenue
+  agg: sum
+  split: channel
+  order: desc
+  top: 10
+  stack: true
+  labels: false
+  horizontal: false
+  picked: null
+  filters: {}
+  views:
+    - { name: Online only, filters: { channel: [Online] } }
+    - { name: Big-ticket, filters: { category: [Laptops, Phones] } }
+  tab: rows
+  groupRows: false
+  report: region
+  sales:
+    - {"id": "S-0001", "month": "2026-01", "region": "North America", "channel": "Online", "category": "Tablets", "units": 60, "revenue": 28735, "profit": 4293}
+    - {"id": "S-0002", "month": "2026-01", "region": "North America", "channel": "Online", "category": "Phones", "units": 68, "revenue": 55301, "profit": 14050}
+    - {"id": "S-0003", "month": "2026-01", "region": "North America", "channel": "Retail", "category": "Phones", "units": 61, "revenue": 46269, "profit": 9930}
+    - {"id": "S-0004", "month": "2026-01", "region": "North America", "channel": "Retail", "category": "Laptops", "units": 56, "revenue": 56168, "profit": 9936}
+    - {"id": "S-0005", "month": "2026-01", "region": "North America", "channel": "Partner", "category": "Phones", "units": 23, "revenue": 20153, "profit": 3207}
+    - {"id": "S-0006", "month": "2026-01", "region": "North America", "channel": "Partner", "category": "Laptops", "units": 27, "revenue": 31829, "profit": 4840}
+    - {"id": "S-0007", "month": "2026-01", "region": "Europe", "channel": "Online", "category": "Phones", "units": 35, "revenue": 29019, "profit": 4798}
+    - {"id": "S-0008", "month": "2026-01", "region": "Europe", "channel": "Online", "category": "Laptops", "units": 45, "revenue": 50205, "profit": 7175}
+    - {"id": "S-0009", "month": "2026-01", "region": "Europe", "channel": "Retail", "category": "Laptops", "units": 25, "revenue": 27480, "profit": 4778}
+    - {"id": "S-0010", "month": "2026-01", "region": "Europe", "channel": "Retail", "category": "Wearables", "units": 34, "revenue": 7895, "profit": 2578}
+    - {"id": "S-0011", "month": "2026-01", "region": "Europe", "channel": "Partner", "category": "Accessories", "units": 137, "revenue": 6410, "profit": 2371}
+    - {"id": "S-0012", "month": "2026-01", "region": "Europe", "channel": "Partner", "category": "Tablets", "units": 41, "revenue": 18725, "profit": 3605}
+    - {"id": "S-0013", "month": "2026-01", "region": "Asia Pacific", "channel": "Online", "category": "Tablets", "units": 40, "revenue": 16625, "profit": 3023}
+    - {"id": "S-0014", "month": "2026-01", "region": "Asia Pacific", "channel": "Online", "category": "Accessories", "units": 544, "revenue": 25739, "profit": 8988}
+    - {"id": "S-0015", "month": "2026-01", "region": "Asia Pacific", "channel": "Retail", "category": "Accessories", "units": 321, "revenue": 15209, "profit": 6752}
+    - {"id": "S-0016", "month": "2026-01", "region": "Asia Pacific", "channel": "Retail", "category": "Wearables", "units": 41, "revenue": 9697, "profit": 2908}
+    - {"id": "S-0017", "month": "2026-01", "region": "Asia Pacific", "channel": "Partner", "category": "Tablets", "units": 17, "revenue": 8170, "profit": 1916}
+    - {"id": "S-0018", "month": "2026-01", "region": "Asia Pacific", "channel": "Partner", "category": "Accessories", "units": 125, "revenue": 5596, "profit": 2599}
+    - {"id": "S-0019", "month": "2026-01", "region": "Latin America", "channel": "Online", "category": "Laptops", "units": 10, "revenue": 11708, "profit": 1775}
+    - {"id": "S-0020", "month": "2026-01", "region": "Latin America", "channel": "Online", "category": "Tablets", "units": 6, "revenue": 2638, "profit": 546}
+    - {"id": "S-0021", "month": "2026-01", "region": "Latin America", "channel": "Retail", "category": "Laptops", "units": 13, "revenue": 14282, "profit": 2080}
+    - {"id": "S-0022", "month": "2026-01", "region": "Latin America", "channel": "Retail", "category": "Accessories", "units": 148, "revenue": 6377, "profit": 3068}
+    - {"id": "S-0023", "month": "2026-01", "region": "Latin America", "channel": "Partner", "category": "Accessories", "units": 97, "revenue": 4074, "profit": 1651}
+    - {"id": "S-0024", "month": "2026-01", "region": "Latin America", "channel": "Partner", "category": "Wearables", "units": 10, "revenue": 2102, "profit": 565}
+    - {"id": "S-0025", "month": "2026-02", "region": "North America", "channel": "Online", "category": "Accessories", "units": 308, "revenue": 14367, "profit": 5755}
+    - {"id": "S-0026", "month": "2026-02", "region": "North America", "channel": "Online", "category": "Tablets", "units": 10, "revenue": 4258, "profit": 631}
+    - {"id": "S-0027", "month": "2026-02", "region": "North America", "channel": "Retail", "category": "Phones", "units": 49, "revenue": 41796, "profit": 7275}
+    - {"id": "S-0028", "month": "2026-02", "region": "North America", "channel": "Retail", "category": "Wearables", "units": 48, "revenue": 10099, "profit": 2732}
+    - {"id": "S-0029", "month": "2026-02", "region": "North America", "channel": "Partner", "category": "Wearables", "units": 26, "revenue": 5292, "profit": 2092}
+    - {"id": "S-0030", "month": "2026-02", "region": "North America", "channel": "Partner", "category": "Tablets", "units": 28, "revenue": 13735, "profit": 2822}
+    - {"id": "S-0031", "month": "2026-02", "region": "Europe", "channel": "Online", "category": "Laptops", "units": 81, "revenue": 95774, "profit": 18945}
+    - {"id": "S-0032", "month": "2026-02", "region": "Europe", "channel": "Online", "category": "Accessories", "units": 236, "revenue": 10391, "profit": 4206}
+    - {"id": "S-0033", "month": "2026-02", "region": "Europe", "channel": "Retail", "category": "Laptops", "units": 39, "revenue": 39188, "profit": 5674}
+    - {"id": "S-0034", "month": "2026-02", "region": "Europe", "channel": "Retail", "category": "Accessories", "units": 235, "revenue": 9861, "profit": 3861}
+    - {"id": "S-0035", "month": "2026-02", "region": "Europe", "channel": "Partner", "category": "Laptops", "units": 33, "revenue": 33407, "profit": 5303}
+    - {"id": "S-0036", "month": "2026-02", "region": "Europe", "channel": "Partner", "category": "Wearables", "units": 28, "revenue": 5575, "profit": 2219}
+    - {"id": "S-0037", "month": "2026-02", "region": "Asia Pacific", "channel": "Online", "category": "Wearables", "units": 58, "revenue": 12371, "profit": 3819}
+    - {"id": "S-0038", "month": "2026-02", "region": "Asia Pacific", "channel": "Online", "category": "Accessories", "units": 368, "revenue": 15311, "profit": 7748}
+    - {"id": "S-0039", "month": "2026-02", "region": "Asia Pacific", "channel": "Retail", "category": "Accessories", "units": 203, "revenue": 8408, "profit": 3297}
+    - {"id": "S-0040", "month": "2026-02", "region": "Asia Pacific", "channel": "Retail", "category": "Wearables", "units": 39, "revenue": 8176, "profit": 3189}
+    - {"id": "S-0041", "month": "2026-02", "region": "Asia Pacific", "channel": "Partner", "category": "Phones", "units": 31, "revenue": 24114, "profit": 5544}
+    - {"id": "S-0042", "month": "2026-02", "region": "Asia Pacific", "channel": "Partner", "category": "Laptops", "units": 44, "revenue": 52409, "profit": 10180}
+    - {"id": "S-0043", "month": "2026-02", "region": "Latin America", "channel": "Online", "category": "Tablets", "units": 23, "revenue": 10074, "profit": 1579}
+    - {"id": "S-0044", "month": "2026-02", "region": "Latin America", "channel": "Online", "category": "Laptops", "units": 20, "revenue": 23197, "profit": 4035}
+    - {"id": "S-0045", "month": "2026-02", "region": "Latin America", "channel": "Retail", "category": "Wearables", "units": 14, "revenue": 3258, "profit": 1231}
+    - {"id": "S-0046", "month": "2026-02", "region": "Latin America", "channel": "Retail", "category": "Tablets", "units": 13, "revenue": 5493, "profit": 901}
+    - {"id": "S-0047", "month": "2026-02", "region": "Latin America", "channel": "Partner", "category": "Accessories", "units": 86, "revenue": 4049, "profit": 2177}
+    - {"id": "S-0048", "month": "2026-02", "region": "Latin America", "channel": "Partner", "category": "Phones", "units": 17, "revenue": 14389, "profit": 2963}
+    - {"id": "S-0049", "month": "2026-03", "region": "North America", "channel": "Online", "category": "Phones", "units": 23, "revenue": 20196, "profit": 5232}
+    - {"id": "S-0050", "month": "2026-03", "region": "North America", "channel": "Online", "category": "Tablets", "units": 85, "revenue": 37214, "profit": 6030}
+    - {"id": "S-0051", "month": "2026-03", "region": "North America", "channel": "Retail", "category": "Phones", "units": 55, "revenue": 45092, "profit": 11410}
+    - {"id": "S-0052", "month": "2026-03", "region": "North America", "channel": "Retail", "category": "Accessories", "units": 374, "revenue": 17976, "profit": 7602}
+    - {"id": "S-0053", "month": "2026-03", "region": "North America", "channel": "Partner", "category": "Tablets", "units": 37, "revenue": 16279, "profit": 3437}
+    - {"id": "S-0054", "month": "2026-03", "region": "North America", "channel": "Partner", "category": "Laptops", "units": 30, "revenue": 31016, "profit": 6390}
+    - {"id": "S-0055", "month": "2026-03", "region": "Europe", "channel": "Online", "category": "Accessories", "units": 574, "revenue": 26976, "profit": 11309}
+    - {"id": "S-0056", "month": "2026-03", "region": "Europe", "channel": "Online", "category": "Tablets", "units": 81, "revenue": 38224, "profit": 5676}
+    - {"id": "S-0057", "month": "2026-03", "region": "Europe", "channel": "Retail", "category": "Phones", "units": 47, "revenue": 38283, "profit": 7855}
+    - {"id": "S-0058", "month": "2026-03", "region": "Europe", "channel": "Retail", "category": "Wearables", "units": 44, "revenue": 9982, "profit": 3514}
+    - {"id": "S-0059", "month": "2026-03", "region": "Europe", "channel": "Partner", "category": "Wearables", "units": 25, "revenue": 5554, "profit": 1488}
+    - {"id": "S-0060", "month": "2026-03", "region": "Europe", "channel": "Partner", "category": "Accessories", "units": 136, "revenue": 5525, "profit": 2947}
+    - {"id": "S-0061", "month": "2026-03", "region": "Asia Pacific", "channel": "Online", "category": "Laptops", "units": 23, "revenue": 26950, "profit": 3908}
+    - {"id": "S-0062", "month": "2026-03", "region": "Asia Pacific", "channel": "Online", "category": "Phones", "units": 66, "revenue": 50179, "profit": 9345}
+    - {"id": "S-0063", "month": "2026-03", "region": "Asia Pacific", "channel": "Retail", "category": "Phones", "units": 39, "revenue": 28898, "profit": 7343}
+    - {"id": "S-0064", "month": "2026-03", "region": "Asia Pacific", "channel": "Retail", "category": "Tablets", "units": 52, "revenue": 22716, "profit": 4221}
+    - {"id": "S-0065", "month": "2026-03", "region": "Asia Pacific", "channel": "Partner", "category": "Wearables", "units": 34, "revenue": 6928, "profit": 1881}
+    - {"id": "S-0066", "month": "2026-03", "region": "Asia Pacific", "channel": "Partner", "category": "Accessories", "units": 73, "revenue": 3292, "profit": 1683}
+    - {"id": "S-0067", "month": "2026-03", "region": "Latin America", "channel": "Online", "category": "Phones", "units": 27, "revenue": 20052, "profit": 4454}
+    - {"id": "S-0068", "month": "2026-03", "region": "Latin America", "channel": "Online", "category": "Laptops", "units": 22, "revenue": 22362, "profit": 2942}
+    - {"id": "S-0069", "month": "2026-03", "region": "Latin America", "channel": "Retail", "category": "Wearables", "units": 20, "revenue": 4453, "profit": 1285}
+    - {"id": "S-0070", "month": "2026-03", "region": "Latin America", "channel": "Retail", "category": "Accessories", "units": 104, "revenue": 4471, "profit": 2185}
+    - {"id": "S-0071", "month": "2026-03", "region": "Latin America", "channel": "Partner", "category": "Wearables", "units": 7, "revenue": 1667, "profit": 538}
+    - {"id": "S-0072", "month": "2026-03", "region": "Latin America", "channel": "Partner", "category": "Accessories", "units": 65, "revenue": 2991, "profit": 1282}
+    - {"id": "S-0073", "month": "2026-04", "region": "North America", "channel": "Online", "category": "Wearables", "units": 63, "revenue": 13952, "profit": 4585}
+    - {"id": "S-0074", "month": "2026-04", "region": "North America", "channel": "Online", "category": "Phones", "units": 50, "revenue": 43532, "profit": 10052}
+    - {"id": "S-0075", "month": "2026-04", "region": "North America", "channel": "Retail", "category": "Tablets", "units": 59, "revenue": 24541, "profit": 4521}
+    - {"id": "S-0076", "month": "2026-04", "region": "North America", "channel": "Retail", "category": "Phones", "units": 46, "revenue": 33654, "profit": 6074}
+    - {"id": "S-0077", "month": "2026-04", "region": "North America", "channel": "Partner", "category": "Laptops", "units": 26, "revenue": 30871, "profit": 4319}
+    - {"id": "S-0078", "month": "2026-04", "region": "North America", "channel": "Partner", "category": "Phones", "units": 19, "revenue": 15857, "profit": 3594}
+    - {"id": "S-0079", "month": "2026-04", "region": "Europe", "channel": "Online", "category": "Phones", "units": 96, "revenue": 72493, "profit": 18759}
+    - {"id": "S-0080", "month": "2026-04", "region": "Europe", "channel": "Online", "category": "Tablets", "units": 28, "revenue": 12344, "profit": 2330}
+    - {"id": "S-0081", "month": "2026-04", "region": "Europe", "channel": "Retail", "category": "Phones", "units": 33, "revenue": 25892, "profit": 5187}
+    - {"id": "S-0082", "month": "2026-04", "region": "Europe", "channel": "Retail", "category": "Wearables", "units": 3, "revenue": 641, "profit": 167}
+    - {"id": "S-0083", "month": "2026-04", "region": "Europe", "channel": "Partner", "category": "Tablets", "units": 25, "revenue": 11707, "profit": 2089}
+    - {"id": "S-0084", "month": "2026-04", "region": "Europe", "channel": "Partner", "category": "Laptops", "units": 39, "revenue": 43050, "profit": 6569}
+    - {"id": "S-0085", "month": "2026-04", "region": "Asia Pacific", "channel": "Online", "category": "Laptops", "units": 84, "revenue": 101117, "profit": 13694}
+    - {"id": "S-0086", "month": "2026-04", "region": "Asia Pacific", "channel": "Online", "category": "Wearables", "units": 52, "revenue": 10904, "profit": 2747}
+    - {"id": "S-0087", "month": "2026-04", "region": "Asia Pacific", "channel": "Retail", "category": "Phones", "units": 42, "revenue": 35949, "profit": 8209}
+    - {"id": "S-0088", "month": "2026-04", "region": "Asia Pacific", "channel": "Retail", "category": "Tablets", "units": 18, "revenue": 8823, "profit": 1593}
+    - {"id": "S-0089", "month": "2026-04", "region": "Asia Pacific", "channel": "Partner", "category": "Wearables", "units": 26, "revenue": 5214, "profit": 1905}
+    - {"id": "S-0090", "month": "2026-04", "region": "Asia Pacific", "channel": "Partner", "category": "Accessories", "units": 146, "revenue": 6472, "profit": 2144}
+    - {"id": "S-0091", "month": "2026-04", "region": "Latin America", "channel": "Online", "category": "Laptops", "units": 28, "revenue": 32994, "profit": 4355}
+    - {"id": "S-0092", "month": "2026-04", "region": "Latin America", "channel": "Online", "category": "Wearables", "units": 24, "revenue": 5663, "profit": 1837}
+    - {"id": "S-0093", "month": "2026-04", "region": "Latin America", "channel": "Retail", "category": "Tablets", "units": 25, "revenue": 10416, "profit": 2007}
+    - {"id": "S-0094", "month": "2026-04", "region": "Latin America", "channel": "Retail", "category": "Accessories", "units": 112, "revenue": 4776, "profit": 1622}
+    - {"id": "S-0095", "month": "2026-04", "region": "Latin America", "channel": "Partner", "category": "Phones", "units": 16, "revenue": 12319, "profit": 2310}
+    - {"id": "S-0096", "month": "2026-04", "region": "Latin America", "channel": "Partner", "category": "Tablets", "units": 14, "revenue": 6627, "profit": 1120}
+    - {"id": "S-0097", "month": "2026-05", "region": "North America", "channel": "Online", "category": "Wearables", "units": 69, "revenue": 16681, "profit": 4195}
+    - {"id": "S-0098", "month": "2026-05", "region": "North America", "channel": "Online", "category": "Phones", "units": 115, "revenue": 83139, "profit": 17428}
+    - {"id": "S-0099", "month": "2026-05", "region": "North America", "channel": "Retail", "category": "Phones", "units": 56, "revenue": 46219, "profit": 10423}
+    - {"id": "S-0100", "month": "2026-05", "region": "North America", "channel": "Retail", "category": "Accessories", "units": 446, "revenue": 20698, "profit": 9062}
+    - {"id": "S-0101", "month": "2026-05", "region": "North America", "channel": "Partner", "category": "Accessories", "units": 151, "revenue": 6581, "profit": 3305}
+    - {"id": "S-0102", "month": "2026-05", "region": "North America", "channel": "Partner", "category": "Tablets", "units": 7, "revenue": 3280, "profit": 668}
+    - {"id": "S-0103", "month": "2026-05", "region": "Europe", "channel": "Online", "category": "Accessories", "units": 595, "revenue": 24174, "profit": 11017}
+    - {"id": "S-0104", "month": "2026-05", "region": "Europe", "channel": "Online", "category": "Tablets", "units": 59, "revenue": 28567, "profit": 5230}
+    - {"id": "S-0105", "month": "2026-05", "region": "Europe", "channel": "Retail", "category": "Laptops", "units": 40, "revenue": 44052, "profit": 9400}
+    - {"id": "S-0106", "month": "2026-05", "region": "Europe", "channel": "Retail", "category": "Wearables", "units": 35, "revenue": 7852, "profit": 2876}
+    - {"id": "S-0107", "month": "2026-05", "region": "Europe", "channel": "Partner", "category": "Laptops", "units": 34, "revenue": 33687, "profit": 5349}
+    - {"id": "S-0108", "month": "2026-05", "region": "Europe", "channel": "Partner", "category": "Accessories", "units": 231, "revenue": 10039, "profit": 5387}
+    - {"id": "S-0109", "month": "2026-05", "region": "Asia Pacific", "channel": "Online", "category": "Tablets", "units": 92, "revenue": 39064, "profit": 6184}
+    - {"id": "S-0110", "month": "2026-05", "region": "Asia Pacific", "channel": "Online", "category": "Phones", "units": 65, "revenue": 50287, "profit": 8208}
+    - {"id": "S-0111", "month": "2026-05", "region": "Asia Pacific", "channel": "Retail", "category": "Tablets", "units": 43, "revenue": 17767, "profit": 3939}
+    - {"id": "S-0112", "month": "2026-05", "region": "Asia Pacific", "channel": "Retail", "category": "Phones", "units": 65, "revenue": 48296, "profit": 10555}
+    - {"id": "S-0113", "month": "2026-05", "region": "Asia Pacific", "channel": "Partner", "category": "Accessories", "units": 150, "revenue": 6189, "profit": 3283}
+    - {"id": "S-0114", "month": "2026-05", "region": "Asia Pacific", "channel": "Partner", "category": "Laptops", "units": 40, "revenue": 47109, "profit": 6594}
+    - {"id": "S-0115", "month": "2026-05", "region": "Latin America", "channel": "Online", "category": "Wearables", "units": 30, "revenue": 6592, "profit": 1943}
+    - {"id": "S-0116", "month": "2026-05", "region": "Latin America", "channel": "Online", "category": "Accessories", "units": 90, "revenue": 4146, "profit": 1441}
+    - {"id": "S-0117", "month": "2026-05", "region": "Latin America", "channel": "Retail", "category": "Wearables", "units": 20, "revenue": 4083, "profit": 1375}
+    - {"id": "S-0118", "month": "2026-05", "region": "Latin America", "channel": "Retail", "category": "Accessories", "units": 58, "revenue": 2612, "profit": 1313}
+    - {"id": "S-0119", "month": "2026-05", "region": "Latin America", "channel": "Partner", "category": "Laptops", "units": 15, "revenue": 16952, "profit": 3600}
+    - {"id": "S-0120", "month": "2026-05", "region": "Latin America", "channel": "Partner", "category": "Phones", "units": 15, "revenue": 11704, "profit": 2384}
+    - {"id": "S-0121", "month": "2026-06", "region": "North America", "channel": "Online", "category": "Laptops", "units": 52, "revenue": 57078, "profit": 7209}
+    - {"id": "S-0122", "month": "2026-06", "region": "North America", "channel": "Online", "category": "Wearables", "units": 52, "revenue": 12121, "profit": 4557}
+    - {"id": "S-0123", "month": "2026-06", "region": "North America", "channel": "Retail", "category": "Wearables", "units": 54, "revenue": 12443, "profit": 3598}
+    - {"id": "S-0124", "month": "2026-06", "region": "North America", "channel": "Retail", "category": "Laptops", "units": 52, "revenue": 52332, "profit": 7845}
+    - {"id": "S-0125", "month": "2026-06", "region": "North America", "channel": "Partner", "category": "Phones", "units": 36, "revenue": 28765, "profit": 5640}
+    - {"id": "S-0126", "month": "2026-06", "region": "North America", "channel": "Partner", "category": "Wearables", "units": 7, "revenue": 1534, "profit": 559}
+    - {"id": "S-0127", "month": "2026-06", "region": "Europe", "channel": "Online", "category": "Laptops", "units": 75, "revenue": 78440, "profit": 15130}
+    - {"id": "S-0128", "month": "2026-06", "region": "Europe", "channel": "Online", "category": "Phones", "units": 70, "revenue": 53809, "profit": 11647}
+    - {"id": "S-0129", "month": "2026-06", "region": "Europe", "channel": "Retail", "category": "Laptops", "units": 59, "revenue": 67133, "profit": 12641}
+    - {"id": "S-0130", "month": "2026-06", "region": "Europe", "channel": "Retail", "category": "Accessories", "units": 320, "revenue": 14906, "profit": 5671}
+    - {"id": "S-0131", "month": "2026-06", "region": "Europe", "channel": "Partner", "category": "Wearables", "units": 21, "revenue": 4267, "profit": 1713}
+    - {"id": "S-0132", "month": "2026-06", "region": "Europe", "channel": "Partner", "category": "Tablets", "units": 35, "revenue": 14803, "profit": 3520}
+    - {"id": "S-0133", "month": "2026-06", "region": "Asia Pacific", "channel": "Online", "category": "Accessories", "units": 346, "revenue": 15591, "profit": 8400}
+    - {"id": "S-0134", "month": "2026-06", "region": "Asia Pacific", "channel": "Online", "category": "Laptops", "units": 66, "revenue": 79772, "profit": 12829}
+    - {"id": "S-0135", "month": "2026-06", "region": "Asia Pacific", "channel": "Retail", "category": "Phones", "units": 38, "revenue": 30546, "profit": 7905}
+    - {"id": "S-0136", "month": "2026-06", "region": "Asia Pacific", "channel": "Retail", "category": "Laptops", "units": 41, "revenue": 41786, "profit": 8350}
+    - {"id": "S-0137", "month": "2026-06", "region": "Asia Pacific", "channel": "Partner", "category": "Wearables", "units": 40, "revenue": 8327, "profit": 3348}
+    - {"id": "S-0138", "month": "2026-06", "region": "Asia Pacific", "channel": "Partner", "category": "Tablets", "units": 20, "revenue": 8975, "profit": 1279}
+    - {"id": "S-0139", "month": "2026-06", "region": "Latin America", "channel": "Online", "category": "Laptops", "units": 25, "revenue": 28750, "profit": 4699}
+    - {"id": "S-0140", "month": "2026-06", "region": "Latin America", "channel": "Online", "category": "Accessories", "units": 128, "revenue": 5617, "profit": 1922}
+    - {"id": "S-0141", "month": "2026-06", "region": "Latin America", "channel": "Retail", "category": "Tablets", "units": 19, "revenue": 8376, "profit": 1960}
+    - {"id": "S-0142", "month": "2026-06", "region": "Latin America", "channel": "Retail", "category": "Laptops", "units": 27, "revenue": 27893, "profit": 3544}
+    - {"id": "S-0143", "month": "2026-06", "region": "Latin America", "channel": "Partner", "category": "Tablets", "units": 11, "revenue": 5444, "profit": 1083}
+    - {"id": "S-0144", "month": "2026-06", "region": "Latin America", "channel": "Partner", "category": "Wearables", "units": 18, "revenue": 3850, "profit": 1232}
+    - {"id": "S-0145", "month": "2026-07", "region": "North America", "channel": "Online", "category": "Tablets", "units": 78, "revenue": 36237, "profit": 7374}
+    - {"id": "S-0146", "month": "2026-07", "region": "North America", "channel": "Online", "category": "Laptops", "units": 87, "revenue": 88980, "profit": 18988}
+    - {"id": "S-0147", "month": "2026-07", "region": "North America", "channel": "Retail", "category": "Accessories", "units": 397, "revenue": 19495, "profit": 10020}
+    - {"id": "S-0148", "month": "2026-07", "region": "North America", "channel": "Retail", "category": "Tablets", "units": 76, "revenue": 36334, "profit": 7379}
+    - {"id": "S-0149", "month": "2026-07", "region": "North America", "channel": "Partner", "category": "Wearables", "units": 39, "revenue": 8979, "profit": 2908}
+    - {"id": "S-0150", "month": "2026-07", "region": "North America", "channel": "Partner", "category": "Phones", "units": 36, "revenue": 30255, "profit": 6804}
+    - {"id": "S-0151", "month": "2026-07", "region": "Europe", "channel": "Online", "category": "Tablets", "units": 111, "revenue": 46227, "profit": 8655}
+    - {"id": "S-0152", "month": "2026-07", "region": "Europe", "channel": "Online", "category": "Accessories", "units": 489, "revenue": 21317, "profit": 8143}
+    - {"id": "S-0153", "month": "2026-07", "region": "Europe", "channel": "Retail", "category": "Tablets", "units": 43, "revenue": 19572, "profit": 3512}
+    - {"id": "S-0154", "month": "2026-07", "region": "Europe", "channel": "Retail", "category": "Accessories", "units": 240, "revenue": 10081, "profit": 3542}
+    - {"id": "S-0155", "month": "2026-07", "region": "Europe", "channel": "Partner", "category": "Phones", "units": 23, "revenue": 17785, "profit": 4224}
+    - {"id": "S-0156", "month": "2026-07", "region": "Europe", "channel": "Partner", "category": "Accessories", "units": 181, "revenue": 8027, "profit": 3518}
+    - {"id": "S-0157", "month": "2026-07", "region": "Asia Pacific", "channel": "Online", "category": "Phones", "units": 72, "revenue": 55518, "profit": 10799}
+    - {"id": "S-0158", "month": "2026-07", "region": "Asia Pacific", "channel": "Online", "category": "Laptops", "units": 82, "revenue": 95781, "profit": 13811}
+    - {"id": "S-0159", "month": "2026-07", "region": "Asia Pacific", "channel": "Retail", "category": "Laptops", "units": 29, "revenue": 30050, "profit": 4517}
+    - {"id": "S-0160", "month": "2026-07", "region": "Asia Pacific", "channel": "Retail", "category": "Accessories", "units": 368, "revenue": 17395, "profit": 7429}
+    - {"id": "S-0161", "month": "2026-07", "region": "Asia Pacific", "channel": "Partner", "category": "Wearables", "units": 38, "revenue": 8577, "profit": 3396}
+    - {"id": "S-0162", "month": "2026-07", "region": "Asia Pacific", "channel": "Partner", "category": "Tablets", "units": 38, "revenue": 16129, "profit": 2695}
+    - {"id": "S-0163", "month": "2026-07", "region": "Latin America", "channel": "Online", "category": "Phones", "units": 22, "revenue": 19198, "profit": 4749}
+    - {"id": "S-0164", "month": "2026-07", "region": "Latin America", "channel": "Online", "category": "Accessories", "units": 219, "revenue": 10590, "profit": 3388}
+    - {"id": "S-0165", "month": "2026-07", "region": "Latin America", "channel": "Retail", "category": "Laptops", "units": 19, "revenue": 20788, "profit": 3718}
+    - {"id": "S-0166", "month": "2026-07", "region": "Latin America", "channel": "Retail", "category": "Accessories", "units": 52, "revenue": 2106, "profit": 849}
+    - {"id": "S-0167", "month": "2026-07", "region": "Latin America", "channel": "Partner", "category": "Wearables", "units": 18, "revenue": 3650, "profit": 993}
+    - {"id": "S-0168", "month": "2026-07", "region": "Latin America", "channel": "Partner", "category": "Accessories", "units": 88, "revenue": 3978, "profit": 1864}
+    - {"id": "S-0169", "month": "2026-08", "region": "North America", "channel": "Online", "category": "Accessories", "units": 454, "revenue": 21583, "profit": 7928}
+    - {"id": "S-0170", "month": "2026-08", "region": "North America", "channel": "Online", "category": "Laptops", "units": 80, "revenue": 95391, "profit": 17561}
+    - {"id": "S-0171", "month": "2026-08", "region": "North America", "channel": "Retail", "category": "Tablets", "units": 45, "revenue": 19997, "profit": 4327}
+    - {"id": "S-0172", "month": "2026-08", "region": "North America", "channel": "Retail", "category": "Phones", "units": 45, "revenue": 33116, "profit": 6194}
+    - {"id": "S-0173", "month": "2026-08", "region": "North America", "channel": "Partner", "category": "Wearables", "units": 34, "revenue": 7631, "profit": 1884}
+    - {"id": "S-0174", "month": "2026-08", "region": "North America", "channel": "Partner", "category": "Phones", "units": 46, "revenue": 35339, "profit": 7233}
+    - {"id": "S-0175", "month": "2026-08", "region": "Europe", "channel": "Online", "category": "Tablets", "units": 54, "revenue": 23071, "profit": 5446}
+    - {"id": "S-0176", "month": "2026-08", "region": "Europe", "channel": "Online", "category": "Phones", "units": 72, "revenue": 59958, "profit": 11261}
+    - {"id": "S-0177", "month": "2026-08", "region": "Europe", "channel": "Retail", "category": "Laptops", "units": 28, "revenue": 30307, "profit": 4520}
+    - {"id": "S-0178", "month": "2026-08", "region": "Europe", "channel": "Retail", "category": "Phones", "units": 52, "revenue": 42992, "profit": 10996}
+    - {"id": "S-0179", "month": "2026-08", "region": "Europe", "channel": "Partner", "category": "Phones", "units": 44, "revenue": 34641, "profit": 7936}
+    - {"id": "S-0180", "month": "2026-08", "region": "Europe", "channel": "Partner", "category": "Accessories", "units": 221, "revenue": 9344, "profit": 4619}
+    - {"id": "S-0181", "month": "2026-08", "region": "Asia Pacific", "channel": "Online", "category": "Wearables", "units": 77, "revenue": 16302, "profit": 6333}
+    - {"id": "S-0182", "month": "2026-08", "region": "Asia Pacific", "channel": "Online", "category": "Laptops", "units": 111, "revenue": 115526, "profit": 16859}
+    - {"id": "S-0183", "month": "2026-08", "region": "Asia Pacific", "channel": "Retail", "category": "Tablets", "units": 63, "revenue": 26577, "profit": 4314}
+    - {"id": "S-0184", "month": "2026-08", "region": "Asia Pacific", "channel": "Retail", "category": "Laptops", "units": 42, "revenue": 45433, "profit": 8445}
+    - {"id": "S-0185", "month": "2026-08", "region": "Asia Pacific", "channel": "Partner", "category": "Wearables", "units": 34, "revenue": 6767, "profit": 2364}
+    - {"id": "S-0186", "month": "2026-08", "region": "Asia Pacific", "channel": "Partner", "category": "Phones", "units": 30, "revenue": 23594, "profit": 5476}
+    - {"id": "S-0187", "month": "2026-08", "region": "Latin America", "channel": "Online", "category": "Phones", "units": 17, "revenue": 13095, "profit": 2180}
+    - {"id": "S-0188", "month": "2026-08", "region": "Latin America", "channel": "Online", "category": "Accessories", "units": 218, "revenue": 8985, "profit": 3165}
+    - {"id": "S-0189", "month": "2026-08", "region": "Latin America", "channel": "Retail", "category": "Phones", "units": 18, "revenue": 14307, "profit": 2694}
+    - {"id": "S-0190", "month": "2026-08", "region": "Latin America", "channel": "Retail", "category": "Wearables", "units": 16, "revenue": 3679, "profit": 1442}
+    - {"id": "S-0191", "month": "2026-08", "region": "Latin America", "channel": "Partner", "category": "Tablets", "units": 16, "revenue": 6883, "profit": 1206}
+    - {"id": "S-0192", "month": "2026-08", "region": "Latin America", "channel": "Partner", "category": "Accessories", "units": 96, "revenue": 4714, "profit": 1616}
+    - {"id": "S-0193", "month": "2026-09", "region": "North America", "channel": "Online", "category": "Phones", "units": 55, "revenue": 46834, "profit": 9440}
+    - {"id": "S-0194", "month": "2026-09", "region": "North America", "channel": "Online", "category": "Accessories", "units": 731, "revenue": 29930, "profit": 12616}
+    - {"id": "S-0195", "month": "2026-09", "region": "North America", "channel": "Retail", "category": "Tablets", "units": 70, "revenue": 34001, "profit": 4863}
+    - {"id": "S-0196", "month": "2026-09", "region": "North America", "channel": "Retail", "category": "Accessories", "units": 484, "revenue": 21391, "profit": 10645}
+    - {"id": "S-0197", "month": "2026-09", "region": "North America", "channel": "Partner", "category": "Accessories", "units": 194, "revenue": 9260, "profit": 3046}
+    - {"id": "S-0198", "month": "2026-09", "region": "North America", "channel": "Partner", "category": "Laptops", "units": 52, "revenue": 53710, "profit": 7071}
+    - {"id": "S-0199", "month": "2026-09", "region": "Europe", "channel": "Online", "category": "Wearables", "units": 59, "revenue": 14158, "profit": 3577}
+    - {"id": "S-0200", "month": "2026-09", "region": "Europe", "channel": "Online", "category": "Tablets", "units": 86, "revenue": 40607, "profit": 8485}
+    - {"id": "S-0201", "month": "2026-09", "region": "Europe", "channel": "Retail", "category": "Tablets", "units": 80, "revenue": 38999, "profit": 7932}
+    - {"id": "S-0202", "month": "2026-09", "region": "Europe", "channel": "Retail", "category": "Wearables", "units": 54, "revenue": 12933, "profit": 3223}
+    - {"id": "S-0203", "month": "2026-09", "region": "Europe", "channel": "Partner", "category": "Phones", "units": 9, "revenue": 7854, "profit": 1543}
+    - {"id": "S-0204", "month": "2026-09", "region": "Europe", "channel": "Partner", "category": "Laptops", "units": 40, "revenue": 41809, "profit": 6886}
+    - {"id": "S-0205", "month": "2026-09", "region": "Asia Pacific", "channel": "Online", "category": "Accessories", "units": 458, "revenue": 21857, "profit": 10517}
+    - {"id": "S-0206", "month": "2026-09", "region": "Asia Pacific", "channel": "Online", "category": "Phones", "units": 59, "revenue": 50247, "profit": 12009}
+    - {"id": "S-0207", "month": "2026-09", "region": "Asia Pacific", "channel": "Retail", "category": "Wearables", "units": 42, "revenue": 8985, "profit": 3431}
+    - {"id": "S-0208", "month": "2026-09", "region": "Asia Pacific", "channel": "Retail", "category": "Phones", "units": 60, "revenue": 43959, "profit": 7724}
+    - {"id": "S-0209", "month": "2026-09", "region": "Asia Pacific", "channel": "Partner", "category": "Phones", "units": 20, "revenue": 15941, "profit": 3410}
+    - {"id": "S-0210", "month": "2026-09", "region": "Asia Pacific", "channel": "Partner", "category": "Wearables", "units": 40, "revenue": 8203, "profit": 2622}
+    - {"id": "S-0211", "month": "2026-09", "region": "Latin America", "channel": "Online", "category": "Laptops", "units": 32, "revenue": 32359, "profit": 5529}
+    - {"id": "S-0212", "month": "2026-09", "region": "Latin America", "channel": "Online", "category": "Wearables", "units": 36, "revenue": 8252, "profit": 2667}
+    - {"id": "S-0213", "month": "2026-09", "region": "Latin America", "channel": "Retail", "category": "Phones", "units": 15, "revenue": 12418, "profit": 2934}
+    - {"id": "S-0214", "month": "2026-09", "region": "Latin America", "channel": "Retail", "category": "Wearables", "units": 29, "revenue": 6823, "profit": 2465}
+    - {"id": "S-0215", "month": "2026-09", "region": "Latin America", "channel": "Partner", "category": "Laptops", "units": 14, "revenue": 15009, "profit": 2888}
+    - {"id": "S-0216", "month": "2026-09", "region": "Latin America", "channel": "Partner", "category": "Tablets", "units": 22, "revenue": 9304, "profit": 1533}
+    - {"id": "S-0217", "month": "2026-10", "region": "North America", "channel": "Online", "category": "Phones", "units": 118, "revenue": 95878, "profit": 18207}
+    - {"id": "S-0218", "month": "2026-10", "region": "North America", "channel": "Online", "category": "Wearables", "units": 132, "revenue": 28436, "profit": 11906}
+    - {"id": "S-0219", "month": "2026-10", "region": "North America", "channel": "Retail", "category": "Wearables", "units": 60, "revenue": 13105, "profit": 3296}
+    - {"id": "S-0220", "month": "2026-10", "region": "North America", "channel": "Retail", "category": "Phones", "units": 58, "revenue": 41802, "profit": 10497}
+    - {"id": "S-0221", "month": "2026-10", "region": "North America", "channel": "Partner", "category": "Phones", "units": 46, "revenue": 35281, "profit": 5896}
+    - {"id": "S-0222", "month": "2026-10", "region": "North America", "channel": "Partner", "category": "Accessories", "units": 250, "revenue": 10552, "profit": 5634}
+    - {"id": "S-0223", "month": "2026-10", "region": "Europe", "channel": "Online", "category": "Wearables", "units": 93, "revenue": 21958, "profit": 7105}
+    - {"id": "S-0224", "month": "2026-10", "region": "Europe", "channel": "Online", "category": "Phones", "units": 64, "revenue": 48742, "profit": 11676}
+    - {"id": "S-0225", "month": "2026-10", "region": "Europe", "channel": "Retail", "category": "Laptops", "units": 38, "revenue": 40543, "profit": 5245}
+    - {"id": "S-0226", "month": "2026-10", "region": "Europe", "channel": "Retail", "category": "Wearables", "units": 35, "revenue": 7454, "profit": 1884}
+    - {"id": "S-0227", "month": "2026-10", "region": "Europe", "channel": "Partner", "category": "Tablets", "units": 23, "revenue": 9736, "profit": 1374}
+    - {"id": "S-0228", "month": "2026-10", "region": "Europe", "channel": "Partner", "category": "Laptops", "units": 27, "revenue": 28674, "profit": 5363}
+    - {"id": "S-0229", "month": "2026-10", "region": "Asia Pacific", "channel": "Online", "category": "Phones", "units": 71, "revenue": 56750, "profit": 11758}
+    - {"id": "S-0230", "month": "2026-10", "region": "Asia Pacific", "channel": "Online", "category": "Tablets", "units": 69, "revenue": 30480, "profit": 6693}
+    - {"id": "S-0231", "month": "2026-10", "region": "Asia Pacific", "channel": "Retail", "category": "Wearables", "units": 46, "revenue": 9439, "profit": 3461}
+    - {"id": "S-0232", "month": "2026-10", "region": "Asia Pacific", "channel": "Retail", "category": "Phones", "units": 45, "revenue": 35350, "profit": 6546}
+    - {"id": "S-0233", "month": "2026-10", "region": "Asia Pacific", "channel": "Partner", "category": "Tablets", "units": 41, "revenue": 18695, "profit": 3285}
+    - {"id": "S-0234", "month": "2026-10", "region": "Asia Pacific", "channel": "Partner", "category": "Accessories", "units": 186, "revenue": 8230, "profit": 4193}
+    - {"id": "S-0235", "month": "2026-10", "region": "Latin America", "channel": "Online", "category": "Tablets", "units": 25, "revenue": 12244, "profit": 2246}
+    - {"id": "S-0236", "month": "2026-10", "region": "Latin America", "channel": "Online", "category": "Phones", "units": 40, "revenue": 29802, "profit": 4962}
+    - {"id": "S-0237", "month": "2026-10", "region": "Latin America", "channel": "Retail", "category": "Laptops", "units": 18, "revenue": 20881, "profit": 2875}
+    - {"id": "S-0238", "month": "2026-10", "region": "Latin America", "channel": "Retail", "category": "Accessories", "units": 130, "revenue": 5325, "profit": 1848}
+    - {"id": "S-0239", "month": "2026-10", "region": "Latin America", "channel": "Partner", "category": "Accessories", "units": 38, "revenue": 1791, "profit": 633}
+    - {"id": "S-0240", "month": "2026-10", "region": "Latin America", "channel": "Partner", "category": "Laptops", "units": 11, "revenue": 11732, "profit": 1649}
+fragments:
+  # A saved report's button. Its actions set every key the chart reads.
+  report:
+    type: ui-button
+    props: { label: "{{ label }}", icon: "{{ icon }}", variant: outline, size: sm }
+    attrs: { aria-pressed: "{{ report == id }}" }
+    style: { "&[aria-pressed=true]": { background: $color.accent, border-color: $color.primary } }
+    on:
+      click:
+        - { action: set_state, key: report, value: "{{ id }}" }
+        - { action: set_state, key: kind, value: "{{ kind }}" }
+        - { action: set_state, key: dim, value: "{{ dim }}" }
+        - { action: set_state, key: measure, value: "{{ measure }}" }
+        - { action: set_state, key: agg, value: "{{ agg }}" }
+        - { action: set_state, key: split, value: "{{ split }}" }
+        - { action: set_state, key: order, value: "{{ order }}" }
+        - { action: set_state, key: stack, value: "{{ stack }}" }
+        - { action: set_state, key: horizontal, value: "{{ horizontal }}" }
+        - { action: set_state, key: labels, value: "{{ labels }}" }
+        - { action: set_state, key: picked, value: null }
+root:
+  type: stack
+  style:
+    max-width: 1320px
+    margin: 0 auto
+    padding: 16px
+    gap: 20px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@md": { padding: 24px }
+  children:
+    - type: element
+      style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12 }
+      children:
+        - type: stack
+          style: { gap: 4 }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: Analytics, href: "#" }, { label: Reports, href: "#" }, { label: Sales explorer } ] } }
+            - { type: ui-heading, props: { level: 2, text: Sales explorer } }
+            - { type: ui-text, props: { variant: muted, text: "240 sales, January to October 2026. Every control below is a prop of one chart." } }
+        - type: ui-filters
+          props: { bind: filters, bindViews: views, rows: "{{ sales }}", title: Filter sales, currency: USD }
+          children:
+            - { type: ui-filter, props: { field: region, label: Region, section: Where } }
+            - { type: ui-filter, props: { field: channel, label: Channel, section: Where } }
+            - { type: ui-filter, props: { field: category, label: Category, section: What } }
+            - { type: ui-filter, props: { field: month, label: Month, section: What } }
+            - { type: ui-filter, props: { field: revenue, label: Revenue, type: currency, section: Amounts } }
+            - { type: ui-filter, props: { field: units, label: Units, type: number, section: Amounts } }
+
+    - type: element
+      attrs: { role: group, aria-label: Saved reports }
+      style: { display: flex, flex-wrap: wrap, align-items: center, gap: 8 }
+      children:
+        - { type: text, props: { value: "Saved reports" }, style: { font-size: 13px, color: $color.muted, margin-right: 4 } }
+        - { type: include, props: { name: report, with: { id: region, label: Revenue by region, icon: stock-chart, kind: bar, dim: region, measure: revenue, agg: sum, split: channel, order: desc, stack: true, horizontal: false, labels: false } } }
+        - { type: include, props: { name: report, with: { id: trend, label: Monthly trend, icon: trend-up, kind: area, dim: month, measure: revenue, agg: sum, split: category, order: label, stack: true, horizontal: false, labels: false } } }
+        - { type: include, props: { name: report, with: { id: mix, label: Units by category, icon: tag, kind: donut, dim: category, measure: units, agg: sum, split: none, order: desc, stack: false, horizontal: false, labels: true } } }
+        - { type: include, props: { name: report, with: { id: margin, label: Average profit, icon: coins, kind: bar, dim: category, measure: profit, agg: avg, split: none, order: desc, stack: false, horizontal: true, labels: false } } }
+        - { type: include, props: { name: report, with: { id: funnel, label: Channel funnel, icon: funnel, kind: funnel, dim: channel, measure: revenue, agg: sum, split: none, order: desc, stack: false, horizontal: false, labels: true } } }
+
+    - type: element
+      style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "280px minmax(0, 1fr)" }, align-items: start }
+      children:
+        - type: ui-card
+          props: { title: Build, description: Change anything; the chart follows. }
+          children:
+            - type: stack
+              style: { gap: 14 }
+              children:
+                - type: ui-field
+                  props: { label: Chart }
+                  children:
+                    - type: ui-select
+                      props: { bind: kind, options: [ { value: bar, label: Bars }, { value: line, label: Line }, { value: area, label: Area }, { value: pie, label: Pie }, { value: donut, label: Donut }, { value: funnel, label: Funnel } ] }
+                      on: { change: { action: set_state, key: report, value: null } }
+                - type: ui-field
+                  props: { label: Group by }
+                  children:
+                    - type: ui-select
+                      props: { bind: dim, options: [ { value: region, label: Region }, { value: channel, label: Channel }, { value: category, label: Category }, { value: month, label: Month } ] }
+                      on:
+                        change:
+                          - { action: set_state, key: picked, value: null }
+                          - { action: set_state, key: report, value: null }
+                - type: element
+                  style: { display: grid, grid-template-columns: 1fr 1fr, gap: 10 }
+                  children:
+                    - type: ui-field
+                      props: { label: Measure }
+                      children:
+                        - type: ui-select
+                          props: { bind: measure, disabled: "{{ agg == 'count' }}", options: [ { value: revenue, label: Revenue }, { value: profit, label: Profit }, { value: units, label: Units } ] }
+                          on: { change: { action: set_state, key: report, value: null } }
+                    - type: ui-field
+                      props: { label: As }
+                      children:
+                        - type: ui-select
+                          props: { bind: agg, options: [ { value: sum, label: Total }, { value: avg, label: Average }, { value: max, label: Largest }, { value: min, label: Smallest }, { value: count, label: Count } ] }
+                          on: { change: { action: set_state, key: report, value: null } }
+                - type: ui-field
+                  props: { label: Split by, description: "{{ kind == 'pie' || kind == 'donut' || kind == 'funnel' ? 'Not for a ' + kind + ' chart.' : 'A series per value, in its own colour.' }}" }
+                  children:
+                    - type: ui-select
+                      props:
+                        bind: split
+                        disabled: "{{ kind == 'pie' || kind == 'donut' || kind == 'funnel' }}"
+                        options: [ { value: none, label: Nothing }, { value: channel, label: Channel }, { value: category, label: Category }, { value: region, label: Region } ]
+                      on: { change: { action: set_state, key: report, value: null } }
+                - type: ui-field
+                  props: { label: Order }
+                  children:
+                    - type: ui-radio-group
+                      props: { bind: order, orientation: horizontal, options: [ { value: desc, label: Most }, { value: asc, label: Least }, { value: label, label: "A–Z" } ] }
+                - type: ui-field
+                  props: { label: "Show the top {{ top }}", description: "{{ dim == 'month' ? 'Every month is shown.' : (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel' ? 'Split charts show every group.' : '') }}" }
+                  children:
+                    - { type: ui-slider, props: { bind: top, min: 2, max: 10, disabled: "{{ dim == 'month' || (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel') }}" } }
+                - { type: ui-separator }
+                - { type: ui-switch, props: { bind: stack, label: Stack the series, disabled: "{{ split == 'none' || kind == 'pie' || kind == 'donut' || kind == 'funnel' }}" } }
+                - { type: ui-switch, props: { bind: horizontal, label: Horizontal bars, disabled: "{{ kind != 'bar' }}" } }
+                - { type: ui-switch, props: { bind: labels, label: Values on the marks } }
+
+        - type: stack
+          style: { gap: 20, min-width: 0 }
+          children:
+            - type: ui-card
+              props:
+                title: "{{ agg == 'count' ? 'Number of sales' : (agg == 'sum' ? 'Total' : (agg == 'avg' ? 'Average' : (agg == 'max' ? 'Largest' : 'Smallest'))) + ' ' + measure }} by {{ dim }}"
+                description: "{{ split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel' ? 'Split by ' + split + '. ' : '' }}Click a mark to see its sales below."
+              children:
+                - type: ui-chart
+                  props:
+                    title: Sales chart
+                    type: "{{ kind }}"
+                    data: "{{ sales }}"
+                    filter: "{{ filters }}"
+                    x: "{{ dim }}"
+                    y: "{{ agg == 'count' ? 'count' : measure }}"
+                    aggregate: "{{ agg }}"
+                    series: "{{ split == 'none' || kind == 'pie' || kind == 'donut' || kind == 'funnel' ? null : split }}"
+                    sort: "{{ order == 'label' ? dim : (order == 'desc' ? '-' : '') + (agg == 'count' ? 'count' : measure) }}"
+                    limit: "{{ dim == 'month' || (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel') ? null : top }}"
+                    stack: "{{ stack }}"
+                    horizontal: "{{ horizontal }}"
+                    labels: "{{ labels }}"
+                    height: 380
+                    bind: picked
+                - type: if
+                  props: { when: "{{ picked != null }}" }
+                  children:
+                    - type: element
+                      style: { display: flex, align-items: center, gap: 8, margin-top: 8, font-size: 14px }
+                      children:
+                        - { type: ui-badge, props: { text: "{{ picked }}", icon: funnel, variant: secondary } }
+                        - { type: text, props: { value: "The rows below are its sales." }, style: { color: $color.muted } }
+                        - type: ui-button
+                          props: { label: Clear, variant: ghost, size: sm, icon: x }
+                          style: { margin-left: auto }
+                          on: { click: { action: set_state, key: picked, value: null } }
+
+            - type: ui-tabs
+              props: { bind: tab }
+              children:
+                - type: ui-tab-panel
+                  props: { value: rows, label: Rows }
+                  children:
+                    - type: ui-data-table
+                      props:
+                        rows: "{{ sales }}"
+                        title: Sales
+                        rowKey: id
+                        sort: -revenue
+                        pageSize: 8
+                        pageSizes: [8, 20, 50]
+                        search: Search sales…
+                        export: sales.csv
+                        groupBy: "{{ groupRows ? dim : null }}"
+                        locale: en-US
+                        filter:
+                          region: "{{ dim == 'region' && picked != null ? picked : filters.region }}"
+                          channel: "{{ dim == 'channel' && picked != null ? picked : filters.channel }}"
+                          category: "{{ dim == 'category' && picked != null ? picked : filters.category }}"
+                          month: "{{ dim == 'month' && picked != null ? picked : filters.month }}"
+                          revenue: "{{ filters.revenue }}"
+                          units: "{{ filters.units }}"
+                      children:
+                        - type: ui-data-table-toolbar
+                          children:
+                            - { type: ui-switch, props: { bind: groupRows, label: "Group by {{ dim }}" } }
+                        - { type: ui-data-table-column, props: { field: id, label: Sale } }
+                        - { type: ui-data-table-column, props: { field: month, label: Month } }
+                        - { type: ui-data-table-column, props: { field: region, label: Region } }
+                        - { type: ui-data-table-column, props: { field: channel, label: Channel, cell: badge, tones: { Online: info, Retail: default, Partner: secondary } } }
+                        - { type: ui-data-table-column, props: { field: category, label: Category } }
+                        - { type: ui-data-table-column, props: { field: units, label: Units, format: number, summary: sum } }
+                        - { type: ui-data-table-column, props: { field: revenue, label: Revenue, format: currency, decimals: 0, summary: sum } }
+                        - { type: ui-data-table-column, props: { field: profit, label: Profit, format: currency, decimals: 0, summary: sum } }
+                - type: ui-tab-panel
+                  props: { value: config, label: Config }
+                  children:
+                    - type: element
+                      style: { display: grid, gap: 16, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+                      children:
+                        - type: ui-code-block
+                          props:
+                            title: The chart, as the controls built it
+                            language: yaml
+                            lineNumbers: true
+                            code: |-
+                              type: ui-chart
+                              props:
+                                type: {{ kind }}
+                                data: $sales
+                                filter: $filters
+                                x: {{ dim }}
+                                y: {{ agg == 'count' ? 'count' : measure }}
+                                aggregate: {{ agg }}
+                                series: {{ split == 'none' || kind == 'pie' || kind == 'donut' || kind == 'funnel' ? 'null' : split }}
+                                sort: {{ order == 'label' ? dim : (order == 'desc' ? '-' : '') + (agg == 'count' ? 'count' : measure) }}
+                                limit: {{ dim == 'month' || (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel') ? 'null' : top }}
+                                stack: {{ stack }}
+                                horizontal: {{ horizontal }}
+                                labels: {{ labels }}
+                                bind: picked
+                        - type: ui-code-block
+                          props: { title: "$filters, from the filter panel", language: json, lineNumbers: true, code: "{{ filters }}" }

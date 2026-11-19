@@ -6141,6 +6141,63 @@ fn kanban_lanes_fields_and_columns_in_chrome() {
     );
 }
 
+/// `swimlanes` and `fields` from state: a setting changes the lanes and what each card
+/// shows, and a later move keeps them.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn kanban_lanes_and_fields_from_state_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": {
+            "lanes": null, "rich": false,
+            "short": [ { "field": "points", "label": "Points" } ],
+            "long": [ { "field": "points", "label": "Points" }, "team" ],
+            "tasks": [
+                { "id": "a", "column": "todo", "title": "Alpha", "assignee": "Asha", "team": "Web", "points": 3 },
+                { "id": "b", "column": "doing", "title": "Bravo", "assignee": "Ravi", "team": "Mobile", "points": 5 } ] },
+        "root": { "type": "ui-kanban", "props": { "columns": [ "todo", "doing" ], "cards": "{{ tasks }}", "bindCards": "tasks",
+            "swimlanes": "{{ lanes }}", "fields": "{{ rich ? long : short }}" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), api = root.__irender;
+      const K = document.querySelector("[data-i-x=ui-kanban]"), $ = (s) => K.querySelector(s), $$ = (s) => [...K.querySelectorAll(s)];
+      const lanes = () => $$("[data-kb-lane-row]").map((r) => r.getAttribute("data-kb-lane-row")).join(",") || "none";
+      const fields = () => [...$('[data-kb-card="a"]').querySelectorAll("[data-kb-field]")].map((f) => f.textContent).join(" · ");
+      try {
+        log("start", lanes(), fields());
+        api.set("lanes", "assignee"); await wait(0);
+        log("lanes", lanes(), fields());
+        api.set("rich", true); await wait(0);
+        log("rich", lanes(), fields());
+        $('[data-kb-card="a"]').focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true, cancelable: true })); await wait(0);
+        log("moved", api.state.tasks.map((t) => t.id + "@" + t.column).join(" "), lanes(), fields());
+        api.set("lanes", null); await wait(0);
+        log("no lanes", lanes(), fields());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("kanban-lanes-state", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start none Points3",
+            "lanes Asha,Ravi Points3",
+            "rich Asha,Ravi Points3 · Web",
+            // Moving keeps both: the board redraws from the same settings (lanes in the cards' new order).
+            "moved b@doing a@doing Ravi,Asha Points3 · Web",
+            "no lanes none Points3 · Web",
+        ],
+        "\n{result}"
+    );
+}
+
 /// The carousel: slides of different widths stepped one at a time, dots marking and
 /// going to slides, `loop` going round at the ends, and `autoplay` moving on by itself
 /// while it isn't held by the pointer or paused.

@@ -14,6 +14,8 @@ _Last updated: 2026-11-19._
 - [ ] **Touch dragging isn't tried on real phones.** The kanban board, tree and flow palette pick an item up after a 300 ms hold (2026-11-19); that's tested with Chrome's emulated touch input and with touch pointer events in Chrome, WebKit and Firefox, not on an iPhone or an Android phone.
 - [ ] **Older browsers aren't tested.** The browser tests run in Chrome, and in Playwright's WebKit and Firefox (CI, and `tools/playwright/dump-dom.js` locally), which are recent builds (Safari 27.2, Firefox 159 on 2026-11-17). Safari releases and Firefox ESR without the Popover API, invoker commands, `closedby` or `<details name>` aren't covered. Anchor positioning has a fallback script (2026-11-20), tested by turning the browser's own off; `anchor()` and `anchor-size()` in a document's own CSS aren't handled by it.
   - Idea: run the tests in the installed Safari through `safaridriver`.
+- [ ] **Charts with `series`: `sort` and `limit` act on the long rows.** After `aggregate` with `series`, `sort: -amount` orders the (category, series) rows, so categories come in the order of their biggest single series rather than their total, and `limit: 5` drops series rows, not categories. Block report-01 turns Top N off while a chart is split. Idea: with `series`, sort and limit the categories by their total.
+- [ ] **No lookup by a computed key in expressions.** `names[dim]` is refused (only literal strings or numbers go inside `[]`), so a label per value needs a chain of `? :` (report-01's title). Idea: allow a path or expression inside `[]`.
 
 ## UI kit: not built yet
 
@@ -41,7 +43,8 @@ _Last updated: 2026-11-19._
     - [ ] No scrolling inside the chart: a long plan is as tall as its rows. No critical path, baselines or working days (weekends count).
     - [x] The axis's dates are in the document's `lang` (2026-11-20).
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
-    - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved; moving a column has no touch drag (the grip's keys work).
+    - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved; moving a column has no touch drag (the grip's keys work). `swimlanes` and `fields` may use state (2026-11-19; block crm-01's Board settings).
+    - [ ] No `filter` on the board, as the data table and charts have: a filter panel can't narrow the cards, so crm-01's board always shows every deal.
   - [x] **Dashboard grid** (2026-11-19): `ui-dashboard-grid` + `ui-tile`, tiles dragged by their header and resized from their corner (pointer events, so touch too) or with the arrow keys, pushing the others aside and floating up, locked tiles, the layout in `bind`, and one column on a narrow grid (block dashboard-02, gallery section). Not done yet:
     - [x] A layout per width (2026-11-20): `breakpoints` with each size's columns, tiles' `layouts` per size, the rest worked out from the widest, all in the page's CSS, and `bind` keeping each size's (block dashboard-02's tablet layout).
     - [ ] Tiles come from the document, not from a list in state, so a dashboard can't add or remove tiles on its own; show and hide them with `if` around the content.
@@ -100,7 +103,7 @@ _Last updated: 2026-11-19._
   - [ ] More drawings people ask for: no permission to a file, upload failed, too many requests (429), not found in a list ("no matches" for a person or place), a deleted item, an empty calendar or schedule, welcome / onboarding.
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
-- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up.
+- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up; and app pages beyond shadcn's: a report builder (report-01), an incident room (incident-01) and a sales pipeline (crm-01).
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** item, and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.
