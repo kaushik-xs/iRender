@@ -3,7 +3,9 @@
 // Events: { id, title, start, end, allDay, category, tone, description }; `start` and
 // `end` are dates ("2026-11-04") or local times ("2026-11-04T09:30"). A click on an
 // event writes it to `bindEvent` (and fires `open`); on a day, its date to `bindDay`
-// (and fires `day`), for adding one.
+// (and fires `day`), for adding one. With `bindEvents`, events move: dragged to another
+// time or day (or resized by a timed one's foot), or with Alt and the arrow keys; the
+// list goes back to state with their new dates, written as they were.
 (window.__irenderBehaviors ||= {})["ui-event-calendar"] = (el, api) => {
   const cfg = api.config;
   const $ = (s, from = el) => from.querySelector(s);
@@ -148,7 +150,7 @@
     const allDay = make("div", { "data-ev-allday": "" });
     allDay.append(make("div", { "data-ev-hour": "" }, "All day"));
     for (const d of days) {
-      const cell = make("div", { "data-ev-allday-cell": "" });
+      const cell = make("div", { "data-ev-allday-cell": "", "data-ev-cell-date": iso(d) });
       on(list, d).filter((e) => e.allDay || e.first < e.last).forEach((e) => cell.append(chip(e, d)));
       allDay.append(cell);
     }
@@ -182,6 +184,7 @@
         const len = (end - e.startAt) / 36e5 / hours;
         const c = chip(e, d);
         c.setAttribute("data-ev-timed", "");
+        if (cfg.bindEvents) c.append(make("span", { "data-ev-resize": "", "aria-hidden": "true" }));
         // Under 45 minutes: time and title on one line, so both fit.
         if ((end - e.startAt) / 6e4 < 45) c.setAttribute("data-short", "");
         const pc = (n) => `${+(n * 100).toFixed(3)}%`;
@@ -287,7 +290,8 @@
     body.setAttribute("data-view", view);
     body.replaceChildren(view === "week" ? week(list) : view === "day" ? week(list, [cursor]) : view === "year" ? year(list) : view === "list" ? agenda(list) : month(list));
     // The focused day's events join the tab order after it.
-    for (const c of $$(`[data-ev-day="${iso(cursor)}"] [data-ev-event], [data-ev-day="${iso(cursor)}"] [data-ev-more]`)) c.tabIndex = 0;
+    const at = iso(cursor);
+    for (const c of $$(`[data-ev-day="${at}"] :is([data-ev-event], [data-ev-more]), :is([data-ev-date-col="${at}"], [data-ev-cell-date="${at}"]) [data-ev-event]`)) c.tabIndex = 0;
     if (focus) $(`[data-ev-day="${iso(cursor)}"]`)?.focus();
     const legend = $("[data-ev-legend]");
     if (legend) {
@@ -376,6 +380,163 @@
       e.preventDefault();
       pick(cursor);
       if (view === "year" && cfg.views.includes("day")) switchTo("day", true);
+    }
+  });
+
+  // ---- moving events
+  const snap = cfg.snap ?? 15;
+  const MIN = 6e4, DAY = 864e5;
+  const stamp = (d, allDay) => (allDay ? iso(d) : `${iso(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`);
+  // Moves event `key` by `days` and `minutes`, and its end by `longer` minutes more;
+  // writes the list back. Days are counted on the calendar, so a move over a clock change
+  // keeps the time of day.
+  function move(key, { days = 0, minutes = 0, longer = 0 }) {
+    const e = events().find((x) => x.key === key);
+    if (!e || !(days || minutes || longer)) return null;
+    const at = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + days, d.getHours(), d.getMinutes() + n);
+    const start = at(e.startAt, minutes);
+    const shown = e.endAt > e.startAt ? e.endAt : new Date(e.startAt.getTime() + 30 * MIN);
+    let end = at(shown, minutes + longer);
+    if (!e.allDay && end - start < snap * MIN) end = new Date(start.getTime() + snap * MIN);
+    const list = resolve(cfg.events) ?? [];
+    let moved = null;
+    const next = list.map((x, i) => {
+      if (String(x.id ?? i) !== key) return x;
+      moved = { ...x, start: stamp(start, e.allDay) };
+      // An end it had moves with it; one it didn't stays unwritten unless it was resized.
+      if (x.end !== undefined && x.end !== null && x.end !== "") moved.end = stamp(e.allDay ? at(e.endAt, 0) : end, e.allDay);
+      else if (longer) moved.end = stamp(end, false);
+      return moved;
+    });
+    if (!moved) return null;
+    api.set(cfg.bindEvents, next);
+    api.emit("move", { event: moved, from: list.find((x, i) => String(x.id ?? i) === key) });
+    cursor = day(start);
+    return moved;
+  }
+  const tell = (m) => say(`${m.title} moved to ${fmt({ weekday: "long", day: "numeric", month: "long" }).format(parse(m.start))}${timed(m.start) ? `, ${time(parse(m.start))}` : ""}${m.end && timed(m.end) ? ` to ${time(parse(m.end))}` : ""}`);
+  const refocus = (key) => {
+    draw(false);
+    const c = $(`[data-ev-event="${CSS.escape(key)}"]`);
+    if (c) (c.tabIndex = 0), c.focus();
+  };
+
+  // Dragging. A press becomes a drag after a few pixels, so a click still opens the event.
+  let drag = null;
+  const dateAt = (x, y) => {
+    const t = document.elementFromPoint(x, y)?.closest("[data-ev-date-col], [data-ev-cell-date], [data-ev-day]");
+    return t && body.contains(t) ? t.getAttribute("data-ev-date-col") || t.getAttribute("data-ev-cell-date") || t.getAttribute("data-ev-day") : null;
+  };
+  body.addEventListener("pointerdown", (e) => {
+    if (!cfg.bindEvents || e.button !== 0 || view === "list" || view === "year") return;
+    const chipEl = e.target.closest("[data-ev-event]");
+    if (!chipEl) return;
+    const ev = events().find((x) => x.key === chipEl.getAttribute("data-ev-event"));
+    if (!ev) return;
+    const col = chipEl.closest("[data-ev-date-col]");
+    drag = {
+      chip: chipEl, ev, x: e.clientX, y: e.clientY, id: e.pointerId, on: false,
+      resize: !!e.target.closest("[data-ev-resize]"),
+      timed: !!col,
+      from: col?.getAttribute("data-ev-date-col") ?? chipEl.closest("[data-ev-cell-date], [data-ev-day]")?.getAttribute("data-ev-cell-date") ?? chipEl.closest("[data-ev-day]")?.getAttribute("data-ev-day"),
+      pxPerMin: col ? col.getBoundingClientRect().height / ((hourTo - hourFrom) * 60) : 0,
+      top: chipEl.style.top, height: chipEl.style.height, parent: chipEl.parentElement, next: chipEl.nextSibling,
+      result: null,
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  });
+  function onMove(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.on) {
+      if (Math.hypot(dx, dy) < 5) return;
+      drag.on = true;
+      drag.chip.setAttribute("data-dragging", "");
+    }
+    e.preventDefault();
+    const { ev } = drag;
+    const steps = (px) => Math.round(px / drag.pxPerMin / snap) * snap;
+    if (drag.timed) {
+      const hours = (hourTo - hourFrom) * 60;
+      const startMin = ev.startAt.getHours() * 60 + ev.startAt.getMinutes() - hourFrom * 60;
+      const length = ((ev.endAt > ev.startAt ? ev.endAt : new Date(ev.startAt.getTime() + 30 * MIN)) - ev.startAt) / MIN;
+      const pc = (n) => `${+((n / hours) * 100).toFixed(3)}%`;
+      if (drag.resize) {
+        const longer = Math.max(snap - length, Math.min(hours - startMin - length, steps(dy)));
+        drag.result = { longer };
+        drag.chip.style.height = `max(22px, ${pc(length + longer)})`;
+      } else {
+        const minutes = Math.max(-startMin, Math.min(hours - startMin - length, steps(dy)));
+        const to = dateAt(e.clientX, Math.min(Math.max(e.clientY, drag.parent.getBoundingClientRect().top + 1), drag.parent.getBoundingClientRect().bottom - 1)) || drag.from;
+        const col = $(`[data-ev-date-col="${to}"]`) || drag.parent;
+        if (drag.chip.parentElement !== col) col.append(drag.chip);
+        drag.chip.style.top = pc(startMin + minutes);
+        drag.chip.style.left = "2px";
+        drag.chip.style.width = "calc(100% - 4px)";
+        drag.result = { minutes, days: Math.round((parse(to) - parse(drag.from)) / DAY) };
+      }
+    } else {
+      // A day's event: it follows the pointer, and drops on another day.
+      drag.chip.style.transform = `translate(${dx}px, ${dy}px)`;
+      const to = dateAt(e.clientX, e.clientY);
+      $$("[data-ev-drop]").forEach((c) => c.removeAttribute("data-ev-drop"));
+      if (to) {
+        $(`[data-ev-day="${to}"]:not([data-ev-week-head] *), [data-ev-cell-date="${to}"]`)?.setAttribute("data-ev-drop", "");
+        drag.result = { days: Math.round((parse(to) - parse(drag.from)) / DAY) };
+      }
+    }
+  }
+  function stopDrag() {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    window.removeEventListener("pointercancel", onCancel);
+    $$("[data-ev-drop]").forEach((c) => c.removeAttribute("data-ev-drop"));
+  }
+  function onUp(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    stopDrag();
+    if (!d.on) return;
+    // A drag isn't a click on the event.
+    const stop = (c) => (c.stopPropagation(), c.preventDefault());
+    window.addEventListener("click", stop, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 0);
+    const m = d.result && move(d.ev.key, d.result);
+    if (m) tell(m);
+    draw(false);
+  }
+  function onCancel(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    drag = null;
+    stopDrag();
+    draw(false);
+  }
+
+  // The keys: Alt and the arrows move the focused event (a day across, a snap or a week
+  // down); with Shift, Up and Down make a timed one shorter or longer.
+  body.addEventListener("keydown", (e) => {
+    if (!cfg.bindEvents || !e.altKey) return;
+    const c = e.target.closest?.("[data-ev-event]");
+    if (!c || view === "list" || view === "year") return;
+    const key = c.getAttribute("data-ev-event");
+    const ev = events().find((x) => x.key === key);
+    if (!ev) return;
+    const hours = view === "week" || view === "day";
+    const timedHere = hours && !!c.closest("[data-ev-date-col]");
+    const v = { ArrowUp: -1, ArrowDown: 1 }[e.key], h = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    let change = null;
+    if (h) change = { days: h };
+    else if (v && timedHere) change = e.shiftKey ? { longer: v * snap } : { minutes: v * snap };
+    else if (v && !hours) change = { days: v * 7 };
+    if (!change) return;
+    e.preventDefault();
+    const m = move(key, change);
+    if (m) {
+      refocus(key);
+      tell(m);
     }
   });
 

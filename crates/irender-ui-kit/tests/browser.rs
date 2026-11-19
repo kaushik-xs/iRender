@@ -4568,3 +4568,362 @@ fn code_block_and_json_editor_in_chrome() {
         "\n{result}"
     );
 }
+
+/// The rail layout's panel resized: dragging its edge, the keys within the limits,
+/// Enter to fold it, a double click to reset, and the width to and from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn rail_panel_resize_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "section": "a", "open": true, "w": 300 },
+        "root": { "type": "ui-rail-layout", "props": { "bind": "section", "bindOpen": "open", "height": 300, "panelWidth": 240, "resizable": true,
+                "bindWidth": "w", "minPanelWidth": 200, "maxPanelWidth": 400, "items": [ { "id": "a", "label": "Alpha" } ] },
+            "children": [ { "type": "ui-rail-panel", "props": { "for": "a" }, "children": [ { "type": "text", "props": { "value": "panel" } } ] },
+                { "type": "text", "props": { "value": "main" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const L = document.querySelector("[data-i-x=ui-rail-layout]"), E = L.querySelector("[data-rail-resize]");
+      const P = L.querySelector("[data-rail-panels]");
+      // Without transitions: virtual time doesn't run them. The panel's own width, less its border.
+      document.head.append(Object.assign(document.createElement("style"), { textContent: "* { transition: none !important }" }));
+      const px = async () => { await wait(0); return Math.round(P.getBoundingClientRect().width) - 1; };
+      const now = async () => `w=${S().w} panel=${await px()} aria=${E.getAttribute("aria-valuenow")} edge=${Math.round(E.getBoundingClientRect().left + 3 - L.getBoundingClientRect().left)}`;
+      const key = (k, shift) => E.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: !!shift, bubbles: true, cancelable: true }));
+      const ptr = (type, x) => E.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 3, button: 0, clientX: x, clientY: 50 }));
+      try {
+        log("handle", E.getAttribute("role"), E.getAttribute("aria-orientation"), E.getAttribute("aria-label"), E.getAttribute("aria-valuemin"), E.getAttribute("aria-valuemax"), E.getAttribute("aria-controls") === P.id);
+        log("from state", await now());
+        key("ArrowRight"); log("right", await now());
+        key("ArrowLeft", true); log("shift-left", await now());
+        key("End"); log("end", await now());
+        key("Home"); log("home", await now());
+        const x = E.getBoundingClientRect().left;
+        ptr("pointerdown", x); ptr("pointermove", x + 90); log("dragging", L.hasAttribute("data-resizing"), S().w, await px()); ptr("pointerup", x + 90);
+        log("dropped", await now(), L.hasAttribute("data-resizing"));
+        ptr("pointerdown", x); ptr("pointermove", x + 900); ptr("pointerup", x + 900); log("past max", await now());
+        E.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); log("reset", await now());
+        root.__irender.set("w", 333); await wait(0); log("state", await now());
+        E.focus(); key("Enter"); await wait(0); log("enter folds", S().open, L.hasAttribute("data-closed"), getComputedStyle(E).display, document.activeElement === L.querySelector("[data-rail-item=a]"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("rail-resize", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "handle separator vertical Resize the panel 200 400 true",
+            "from state w=300 panel=300 aria=300 edge=356",
+            "right w=316 panel=316 aria=316 edge=372",
+            "shift-left w=312 panel=312 aria=312 edge=368",
+            "end w=400 panel=400 aria=400 edge=456",
+            "home w=200 panel=200 aria=200 edge=256",
+            "dragging true 200 290",
+            "dropped w=290 panel=290 aria=290 edge=346 false",
+            "past max w=400 panel=400 aria=400 edge=456",
+            "reset w=240 panel=240 aria=240 edge=296",
+            "state w=333 panel=333 aria=333 edge=389",
+            "enter folds false true none true",
+        ],
+        "\n{result}"
+    );
+}
+
+/// The drawer: opened by its trigger; a short drag on its grip springs back, a long one
+/// (or a flick) closes it; a mouse drag on its content does nothing, a touch drag does;
+/// and a drag isn't a click on what it started on.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn drawer_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "n": 0 },
+        "root": { "type": "ui-drawer", "props": { "trigger": "Open", "title": "Goal", "width": 400 }, "children": [
+            { "type": "ui-button", "attrs": { "id": "inc" }, "props": { "label": "Add" }, "on": { "click": { "action": "set_state", "key": "n", "value": "{{ n + 1 }}" } } },
+            { "type": "element", "attrs": { "id": "body" }, "style": { "height": "200px" }, "children": [ { "type": "text", "props": { "value": "content" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      document.head.append(Object.assign(document.createElement("style"), { textContent: "* { transition: none !important }" }));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const D = document.querySelector("dialog"), G = D.querySelector("[data-drawer-grip]");
+      let dismissed = 0; D.addEventListener("dismiss", () => dismissed++);
+      const ptr = (t, type, y, kind = "mouse", ts) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 5, pointerType: kind, button: 0, clientX: 100, clientY: y }));
+      const drag = async (t, from, to, kind, steps = 4) => {
+        ptr(t, "pointerdown", from, kind);
+        for (let i = 1; i <= steps; i++) { await wait(30); ptr(t, "pointermove", from + ((to - from) * i) / steps, kind); }
+        const mid = D.style.transform, dragging = D.hasAttribute("data-dragging");
+        ptr(t, "pointerup", to, kind);
+        return `${mid || "-"} ${dragging}`;
+      };
+      try {
+        const trigger = document.querySelector("button[commandfor]");
+        log("trigger", trigger.textContent, trigger.getAttribute("aria-haspopup"), D.id === trigger.getAttribute("commandfor"));
+        log("drawer", D.getAttribute("closedby"), D.getAttribute("aria-labelledby") === D.querySelector("h2").id, G.getAttribute("aria-hidden"), getComputedStyle(D).getPropertyValue("--drawer-width").trim());
+        D.showModal(); await wait(0);
+        log("open", D.open, getComputedStyle(D).transform);
+        const top = D.getBoundingClientRect().top, h = D.offsetHeight;
+        log("short drag", await drag(G, top + 5, top + 25, "mouse", 4), D.open, D.style.transform || "-");
+        log("long drag", await drag(G, top + 5, top + 5 + h * 0.5, "mouse", 4), D.open, dismissed);
+        D.showModal(); await wait(0);
+        // A quick flick: a short distance, fast.
+        ptr(G, "pointerdown", top + 5); await wait(10); ptr(G, "pointermove", top + 20); await wait(10); ptr(G, "pointermove", top + 45); ptr(G, "pointerup", top + 45);
+        log("flick", D.open, dismissed);
+        D.showModal(); await wait(0);
+        const body = D.querySelector("#body");
+        log("mouse on content", await drag(body, top + 100, top + 100 + h * 0.6, "mouse"), D.open);
+        log("touch on content", await drag(body, top + 100, top + 100 + h * 0.6, "touch"), D.open);
+        // A drag that starts on a button doesn't press it.
+        D.showModal(); await wait(0);
+        const inc = D.querySelector("#inc");
+        await drag(inc, top + 40, top + 50, "touch");
+        inc.click(); await wait(0);
+        log("no click after a drag", S().n, D.open);
+        inc.click(); await wait(0);
+        log("a tap still clicks", S().n);
+        // Escape, as any dialog.
+        D.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); D.close(); log("closed", D.open);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("drawer", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "trigger Open dialog true",
+            "drawer any true true 400px",
+            "open true none",
+            "short drag translateY(20px) true true -",
+            "long drag translateY(171.5px) true false 1",
+            "flick false 2",
+            "mouse on content - false true",
+            "touch on content translateY(205.8px) true false",
+            "no click after a drag 0 true",
+            "a tap still clicks 1",
+            "closed false",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Moving events with `bindEvents`: dragged in the month and the week, resized by the
+/// foot, moved with Alt and the arrows; the list goes back with dates written as they
+/// were; a press that doesn't move still opens the event.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn event_calendar_moves_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "opened": null, "list": [
+            { "id": "a", "title": "Standup", "start": "2026-11-04T09:00", "end": "2026-11-04T09:30" },
+            { "id": "b", "title": "Call", "start": "2026-11-05T14:00" },
+            { "id": "c", "title": "Offsite", "start": "2026-11-09", "end": "2026-11-10" } ] },
+        "root": { "type": "element", "style": { "width": "900px" }, "children": [
+            { "type": "ui-event-calendar", "props": { "events": "{{ list }}", "bindEvents": "list", "bindEvent": "opened", "date": "2026-11-04", "today": "2026-11-04", "hours": [8, 18], "snap": 15, "view": "month" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const C = document.querySelector("[data-i-x=ui-event-calendar]");
+      const list = () => S().list.map((e) => `${e.id}:${e.start}${e.end ? "→" + e.end : ""}`).join(" ");
+      const chip = (id) => C.querySelector(`[data-ev-event="${id}"]`);
+      const mid = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + Math.min(8, r.height / 2)]; };
+      const ptr = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 9, button: 0, clientX: x, clientY: y }));
+      const drag = async (el, dx, dy) => {
+        const [x, y] = mid(el);
+        ptr(el, "pointerdown", x, y);
+        for (let i = 1; i <= 4; i++) ptr(window, "pointermove", x + (dx * i) / 4, y + (dy * i) / 4);
+        const drop = [...C.querySelectorAll("[data-ev-drop]")].map((c) => c.getAttribute("data-ev-day") || c.getAttribute("data-ev-cell-date")).join(",") || "-";
+        ptr(window, "pointerup", x + dx, y + dy);
+        el.click(); // the click a real drag ends with: swallowed
+        await wait(0);
+        return drop;
+      };
+      const say = () => C.querySelector("[data-ev-live]").textContent;
+      try {
+        log("editable", C.hasAttribute("data-editable"));
+        // Month: a press without a move opens the event.
+        const a = chip("a"); const [ax, ay] = mid(a);
+        ptr(a, "pointerdown", ax, ay); ptr(window, "pointerup", ax, ay); a.click(); await wait(0);
+        log("click opens", S().opened?.id, list());
+        // Month: two days on.
+        const w = C.querySelector("[data-ev-month] [data-ev-day]").getBoundingClientRect().width;
+        log("month drop", await drag(chip("a"), w * 2, 0), list(), S().opened?.id);
+        await wait(40); log("said", say());
+        // An all-day event a week on, its end with it.
+        const h = C.querySelector("[data-ev-month] [data-ev-week]").getBoundingClientRect().height;
+        log("all-day", await drag(chip("c"), 0, h), list());
+        // Week: an hour later and a day on; then the event with no end made longer.
+        C.querySelector("[data-ev-today]").click(); C.querySelector("[data-ev-view=week]").click(); await wait(0);
+        const col = C.querySelector("[data-ev-date-col]").getBoundingClientRect();
+        const hour = col.height / 10;
+        log("week move", await drag(chip("b"), col.width, hour), list());
+        const foot = chip("b").querySelector("[data-ev-resize]");
+        log("resize", foot.getAttribute("aria-hidden"), await drag(foot, 0, hour), list());
+        // The keys: Alt+Down a snap later, Alt+Shift+Up a snap shorter, Alt+Left a day back.
+        const key = (k, shift) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, altKey: true, shiftKey: !!shift, bubbles: true, cancelable: true }));
+        chip("b").focus(); key("ArrowDown"); log("alt-down", list(), document.activeElement.getAttribute("data-ev-event"));
+        key("ArrowUp", true); log("alt-shift-up", list());
+        key("ArrowLeft"); log("alt-left", list(), document.activeElement.getAttribute("data-ev-event"), document.activeElement.tabIndex);
+        await wait(40); log("said", say());
+        // Plain arrows on an event don't move it.
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true })); log("no alt", list());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("calendar-moves", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "editable true",
+            "click opens a a:2026-11-04T09:00→2026-11-04T09:30 b:2026-11-05T14:00 c:2026-11-09→2026-11-10",
+            "month drop 2026-11-06 a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-05T14:00 c:2026-11-09→2026-11-10 a",
+            "said Standup moved to Friday, November 6, 9:00 AM to 9:30 AM",
+            "all-day 2026-11-16 a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-05T14:00 c:2026-11-16→2026-11-17",
+            "week move - a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-06T15:00 c:2026-11-16→2026-11-17",
+            "resize true - a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-06T15:00→2026-11-06T16:30 c:2026-11-16→2026-11-17",
+            "alt-down a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-06T15:15→2026-11-06T16:45 c:2026-11-16→2026-11-17 b",
+            "alt-shift-up a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-06T15:15→2026-11-06T16:30 c:2026-11-16→2026-11-17",
+            "alt-left a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-05T15:15→2026-11-05T16:30 c:2026-11-16→2026-11-17 b 0",
+            "said Call moved to Thursday, November 5, 3:15 PM to 4:30 PM",
+            "no alt a:2026-11-06T09:00→2026-11-06T09:30 b:2026-11-05T15:15→2026-11-05T16:30 c:2026-11-16→2026-11-17",
+        ],
+        "\n{result}"
+    );
+}
+
+/// The data table's layout tools: rows grouped (headers with counts and subtotals,
+/// folding, Group by in View, paging over groups), the band row, columns moved and
+/// resized (and kept in `bindColumns`, both ways), and CSV export.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_groups_columns_and_export_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "g": "region", "cols": null, "rows": [
+            { "id": 1, "name": "Ada", "region": "North", "net": 100, "note": "=SUM(A1)" },
+            { "id": 2, "name": "Bo, Jr", "region": "South", "net": 50, "note": "say \"hi\"" },
+            { "id": 3, "name": "Cy", "region": "North", "net": 25, "note": "" },
+            { "id": 4, "name": "Di", "region": null, "net": 10, "note": "-" },
+            { "id": 5, "name": "Ed", "region": "South", "net": 5, "note": "ok" } ] },
+        "root": { "type": "ui-data-table", "props": { "rows": "{{ rows }}", "bindGroupBy": "g", "bindColumns": "cols", "resizable": true, "reorderable": true,
+                "export": "people", "pageSize": 0, "title": "People" },
+            "children": [
+                { "type": "ui-data-table-column", "props": { "field": "name", "label": "Name" } },
+                { "type": "ui-data-table-column", "props": { "field": "region", "label": "Region", "groupable": true } },
+                { "type": "ui-data-table-column", "props": { "field": "net", "label": "Net", "group": "Money", "summary": "sum" } },
+                { "type": "ui-data-table-column", "props": { "field": "note", "label": "Note", "group": "Money" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      document.head.append(Object.assign(document.createElement("style"), { textContent: "* { transition: none !important }" }));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const T = document.querySelector("[data-i-x=ui-data-table]");
+      const lines = () => [...T.querySelectorAll("[data-dt-body] > tr:not([hidden])")].map((tr) => tr.hasAttribute("data-dt-group")
+        ? `[${[...tr.cells].map((c) => c.textContent.trim()).filter(Boolean).join(" / ")}]`
+        : tr.cells[0].textContent.trim()).join(" ");
+      const head = () => [...T.querySelectorAll("thead tr:last-child th:not([hidden])")].map((t) => t.textContent.trim()).join(",");
+      const bands = () => [...T.querySelectorAll("[data-dt-bands] th[data-dt-band]")].map((t) => `${t.textContent || "-"}:${t.colSpan}`).join(",");
+      const cols = () => JSON.stringify(S().cols);
+      try {
+        log("grouped", lines());
+        const fold = T.querySelector("[data-dt-fold]");
+        log("fold button", fold.getAttribute("aria-expanded"), T.querySelector("[data-dt-group-count]").getAttribute("aria-label"));
+        fold.click(); await wait(0);
+        log("folded", lines(), document.activeElement === T.querySelector("[data-dt-fold]"));
+        T.querySelector("[data-dt-fold]").click(); await wait(0);
+        // Sorting by the group field the other way puts the groups the other way (blanks still last).
+        T.querySelector('[data-dt-sort="region"]').click(); T.querySelector('[data-dt-sort="region"]').click(); await wait(0);
+        log("desc", lines());
+        T.querySelector('[data-dt-sort="region"]').click(); await wait(0);
+        // View → Group by: None.
+        const none = T.querySelector('[data-dt-group-by][value=""]');
+        log("radios", [...T.querySelectorAll("[data-dt-group-by]")].map((r) => (r.value || "none") + (r.checked ? "*" : "")).join(","));
+        none.checked = true; none.dispatchEvent(new Event("change", { bubbles: true })); await wait(0);
+        log("ungrouped", S().g, lines());
+        root.__irender.set("g", "region"); await wait(0);
+        // The band row.
+        log("bands", bands(), head());
+        // Moving: Alt+Right on Name; the layout goes to state.
+        const nameSort = T.querySelector('[data-dt-sort="name"]');
+        nameSort.focus();
+        nameSort.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true, cancelable: true })); await wait(0);
+        log("moved", head(), bands(), cols(), document.activeElement === nameSort, T.querySelector("[data-dt-footer] [data-dt-live]").textContent);
+        log("cells follow", [...T.querySelector("[data-dt-body] > [data-dt-row]:not([hidden])").cells].map((c) => c.textContent.trim()).join(","));
+        // Resizing with the keys; a double click resets.
+        const rz = T.querySelector('[data-dt-resizer="net"]');
+        const w = () => Math.round(T.querySelector('th[data-dt-col="net"]').getBoundingClientRect().width);
+        const before = w();
+        rz.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true })); await wait(0);
+        log("resized", w() - before, S().cols.widths.net - before, rz.getAttribute("role"), rz.getAttribute("aria-label"), rz.getAttribute("aria-valuenow") === String(S().cols.widths.net));
+        rz.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); await wait(0);
+        log("reset", JSON.stringify(S().cols.widths), w() === before);
+        // Hiding a column: the band shrinks, and state has it.
+        const show = T.querySelector('[data-dt-show="note"]'); show.checked = false; show.dispatchEvent(new Event("change", { bubbles: true })); await wait(0);
+        log("hidden", bands(), JSON.stringify(S().cols.hidden));
+        // A layout from state.
+        root.__irender.set("cols", { order: ["net", "name", "region", "note"], hidden: [], widths: { name: 200 } }); await wait(0);
+        log("from state", head(), bands(), Math.round(T.querySelector('th[data-dt-col="name"]').getBoundingClientRect().width));
+        // Export: the rows that pass, in the order and columns shown, as CSV.
+        let got = null;
+        T.addEventListener("export", (e) => (got = e.detail));
+        const click = HTMLAnchorElement.prototype.click; let downloaded = null;
+        HTMLAnchorElement.prototype.click = function () { downloaded = this.download; };
+        T.querySelector("[data-dt-export]").click();
+        HTMLAnchorElement.prototype.click = click;
+        log("export", got.file, got.rows, downloaded, got.csv.charCodeAt(0) === 0xfeff);
+        for (const l of got.csv.slice(1).split("\r\n")) log("csv", JSON.stringify(l));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("table-layout", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "grouped [Region: North2 / 125] Ada Cy [Region: South2 / 55] Bo, Jr Ed [Region: (none)1 / 10] Di",
+            "fold button true 2 rows",
+            "folded [Region: North2 / 125] [Region: South2 / 55] Bo, Jr Ed [Region: (none)1 / 10] Di true",
+            "desc [Region: South2 / 55] Bo, Jr Ed [Region: North2 / 125] Ada Cy [Region: (none)1 / 10] Di",
+            "radios none,region*",
+            "ungrouped  Ada Bo, Jr Cy Di Ed",
+            "bands -:2,Money:2 Name,Region,Net,Note",
+            "moved Region,Name,Net,Note -:2,Money:2 {\"order\":[\"region\",\"name\",\"net\",\"note\"],\"widths\":{},\"hidden\":[]} true Name moved to column 2 of 4",
+            "cells follow North,Ada,100,=SUM(A1)",
+            "resized 16 16 separator Resize Net true",
+            "reset {} true",
+            "hidden -:2,Money:1 [\"note\"]",
+            "from state Net,Name,Region,Note Money:1,-:2,Money:1 200",
+            "export people.csv 5 people.csv true",
+            "csv \"Net,Name,Region,Note\"",
+            "csv \"100,Ada,North,'=SUM(A1)\"",
+            "csv \"25,Cy,North,\"",
+            "csv \"50,\\\"Bo, Jr\\\",South,\\\"say \\\"\\\"hi\\\"\\\"\\\"\"",
+            "csv \"5,Ed,South,ok\"",
+            "csv \"10,Di,,'-\"",
+            "csv \"\"",
+        ],
+        "\n{result}"
+    );
+}

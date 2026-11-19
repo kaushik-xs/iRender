@@ -90,6 +90,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-dialog` | `trigger`, `triggerVariant`, `title`, `description`, `id` | A modal `<dialog>`. Escape, its ✕ or a click outside closes it. |
 | `ui-alert-dialog` | same as `ui-dialog` | `role=alertdialog`; only its own buttons close it. |
 | `ui-sheet` | same, plus `side` (right, left, top, bottom) | A dialog along one edge. |
+| `ui-drawer` | `trigger`, `triggerVariant`, `title`, `description`, `width`, `id` | A panel that slides up from the bottom, with rounded top corners and a grab bar: the standard sheet on a phone. Drag the bar down (on a touch screen, anywhere while the content is scrolled to the top) and let go past a quarter of its height, or flick it, to close it; otherwise it springs back. A drag doesn't count as a click on what it started on. Escape and the ✕ close it too, and it opens like a dialog (its trigger, or `command: show-modal`). `width` caps it, centred, on a wide screen. Event `dismiss` when a drag closes it. |
 | `ui-dialog-close` | `label`, `variant` | Closes the dialog it is in; its own `on.click` actions run too. |
 | `ui-dialog-footer` | | A right-aligned row of buttons. |
 | `ui-popover` | `trigger`, `triggerVariant`, `side` (bottom, top, right, left), `align` (center, start, end), `id` | Native popover, placed next to its trigger and flipped when there's no room. |
@@ -103,7 +104,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-hover-card` | `trigger`, `href` | Children are the card, shown while the trigger is hovered or focused. CSS only. |
 | `ui-toaster` | `bind`, `duration` (default 4000 ms), `max` (default 3) | Toasts at the bottom right. Setting `bind` to `{ title, description, variant, duration }` adds one to the stack. |
 | `ui-resizable` + `ui-resizable-panel` | group: `direction` (`horizontal`, `vertical`), `bind`, `handle`, `height`, `label`; panel: `size`, `min` (default 10), `max` (default 100), `collapsible`, `label` | Panels side by side or stacked with a line between each two that resizes them: drag it (mouse or touch), or focus it and use the arrow keys (5%, Shift for 1%), Home and End. Sizes are percentages: each panel's `size`, the panels without one sharing what's left, or from state with `bind`, which gets them back after each move. A `collapsible` panel folds when dragged under half its `min`, or with Enter on its line, and Enter brings it back to its last size; a double click on a line goes back to the starting sizes. Each line is a focusable `separator` with the size of the panel before it. `handle: true` shows a grip. Groups nest. Part: `handle`; event `resize` with `{ sizes }`. |
-| `ui-rail-layout` + `ui-rail-panel` | layout: `items` (required; `{ id, label, icon, badge, bottom, href }`), `bind` (required), `bindOpen`, `label`, `panelWidth`, `height`; panel: `for` (required), `title` | An app shell: a rail of icons down the left (labels as tooltips, badges, items at the foot with `bottom`, links with `href`), each opening its own panel beside it, then the main content (the layout's other children). The section shown is `bind`, the panel's open state `bindOpen`: a click on the section shown, or the panel's fold button, folds it. The rail is a vertical tab list (Up, Down, Home, End; one tab stop) and each panel its tabpanel; the server draws the section and panel as state has them. On a phone the panel lies over the page, and a click on the page or Escape folds it. `icon` is an icon kit name or a character (default: the label's first letter). Parts: `rail`, `panels`, `main`. |
+| `ui-rail-layout` + `ui-rail-panel` | layout: `items` (required; `{ id, label, icon, badge, bottom, href }`), `bind` (required), `bindOpen`, `label`, `panelWidth`, `height`, `resizable`, `bindWidth`, `minPanelWidth` (default 180), `maxPanelWidth` (default 560); panel: `for` (required), `title` | An app shell: a rail of icons down the left (labels as tooltips, badges, items at the foot with `bottom`, links with `href`), each opening its own panel beside it, then the main content (the layout's other children). The section shown is `bind`, the panel's open state `bindOpen`: a click on the section shown, or the panel's fold button, folds it. The rail is a vertical tab list (Up, Down, Home, End; one tab stop) and each panel its tabpanel; the server draws the section and panel as state has them. On a phone the panel lies over the page, and a click on the page or Escape folds it. `icon` is an icon kit name or a character (default: the label's first letter). With `resizable`, the panel's edge is a separator to drag (or focus and use the arrow keys: 16 px, Shift for 4, Home and End to the limits, Enter to fold the panel; a double click resets it), and `bindWidth` keeps its width in state. Parts: `rail`, `panels`, `main`; event `resize` with `{ width }`. |
 | `ui-scroll-spy` | `offset` (pixels a sticky header covers; default 0), `label` (default `On this page`), `tag` (default `nav`) | Navigation that follows the reading, for a table of contents or a docs sidebar. Its children hold in-page links (`href="#id"`) in any layout; as the page scrolls, the link for the current section (the last whose top has passed a line just below `offset`, or the last one at the very bottom) gets `aria-current="location"`, shown in bold on the accent colour, and is kept in view inside a list that scrolls on its own, without moving the page. A sticky bar that sets `--site-nav` on the page counts towards the offset. Links that set their own `color` or `background` outrank its highlight, as a document's styles do: give them `"&[aria-current=location]": { … }` too. |
 | `ui-sidebar-layout` + `ui-sidebar` | layout: `bind`, `collapsible` (offcanvas, icon, none), `variant` (sidebar, inset, floating), `side`, `width`; sidebar: `label` | See [Sidebar](#sidebar). |
 | `ui-sidebar-header`, `ui-sidebar-content`, `ui-sidebar-footer`, `ui-sidebar-group`, `ui-sidebar-item`, `ui-sidebar-trigger` | group: `label`; item: `label`, `icon`, `href`, `active`, `badge`, `open`; trigger: `label` | The parts of a sidebar. An item with children opens a sub-menu. |
@@ -382,6 +383,9 @@ Text that isn't a value, or is outside `min`, `max` or the disabled days, stays 
 | `filter` | Conditions from outside the table, e.g. `{ region: "{{ region }}" }` from a chart's `bind` or a toggle. |
 | `pageSize`, `pageSizes` | Rows per page, or per batch with `more` and `scroll` (default 10; `0` shows every row), and the choices offered with `pages` (default `[10, 20, 50, 100]`; `[]` hides the menu). |
 | `columnsMenu` | The View menu (default true). |
+| `groupBy`, `bindGroupBy` | Group the rows by a field, under header rows with counts and subtotals; see [Grouping, column layout and export](#grouping-column-layout-and-export). |
+| `resizable`, `reorderable`, `bindColumns` | Columns resized by their header's edge and moved by dragging their header, the layout kept in state. |
+| `export` | An Export button: the rows that pass, as CSV (`true`, or the file's name). |
 | `height` | Most the table grows to; past it the rows scroll under a header that stays put. |
 | `striped`, `loading`, `title`, `emptyText`, `locale` | Shade every other row; dim it while `loading` is true; the table's accessible name; the empty message (default `No results.`); the locale for formatted values. |
 | `bindSelection`, `bindSort`, `bindFilters`, `bindSearch`, `bindPage` | State keys for the selection (a list of row keys), the sort, the column filters, the search text and the page, both ways. |
@@ -399,6 +403,9 @@ Text that isn't a value, or is outside `min`, `max` or the disabled days, stays 
 | `summary` | A footer cell: `sum`, `avg`, `min`, `max` or `count` of the rows that pass the filters. |
 | `pin` | `left` or `right`: the column stays in view while the rest scroll sideways. The checkbox and arrow columns stay with the left ones, and a shadow marks where pinned columns end. |
 | `tree` | The column that shows nesting, indented with the arrow that opens a row (default: the first column, in a table with nested rows). |
+| `group` | A header over this column and its neighbours with the same `group`. |
+| `groupable` | Offered in the View menu's Group by. |
+| `resizable` | `false` keeps this column's width when the table is `resizable`. |
 | `hideable`, `hidden` | Listed in the View menu (default true), and hidden to start with. |
 | `id` | The column's key when it has no field. |
 
@@ -434,6 +441,18 @@ Rows can hold rows. The tree column (`tree: true`, or the first) indents each ro
 `expanded: true` opens every row to start with. Siblings sort among themselves under their parent. A search or filter shows the rows that match with the rows above them, opened. Summaries add up the top rows only, so nothing counts twice. Give rows a `rowKey`: it identifies them when they open, load and are selected.
 
 On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent. The other keys work as in any table.
+
+### Grouping, column layout and export
+
+The [`data-table-07`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/data-table-07.yaml) block uses all of these.
+
+**Grouped rows.** `groupBy: region` (a field; it may read state) puts the rows under a header row per value, in the value's order (descending when the table is sorted by that field descending; rows without a value last, as "(none)"). The header shows the value, how many rows it has, and a subtotal under each column with a `summary`; its button folds and unfolds the group. Within a group the rows keep the table's sort. Columns with `groupable: true` are offered in the View menu's Group by (with None), which writes `bindGroupBy`. Paging counts the header rows as lines. Grouping needs the rows in the page: not `url`, `virtual` or nested rows.
+
+**Grouped headers.** A column's `group` puts a header over it and the columns next to it with the same `group` (a `colgroup`), in a row above the column headers; it follows columns as they move and hide.
+
+**Resizing and moving columns.** With `resizable`, each header's right edge is a separator: drag it, or focus it and use Left and Right (16 px, Shift for 4); a double click puts the column back to its own width. A column's `resizable: false` opts out. With `reorderable`, drag a header onto another to move the column before or after it (a press that doesn't move still sorts), or press Alt with Left or Right on its header; pinned columns stay put. `bindColumns` keeps the layout as `{ order, widths, hidden }`, and setting it lays the columns out that way (hidden columns from the View menu are in it too). A move is announced, and fires `columns`.
+
+**Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. A remote table exports the rows it has loaded.
 
 ### Filters
 
@@ -522,6 +541,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
     categories: { Meetings: info, Maintenance: warning, Holidays: success }
     bindEvent: event           # the event clicked
     bindDay: day               # the day picked, e.g. to add an event on it
+    bindEvents: events         # makes events movable; the list is written back
     view: month                # or day, week, year, list
 ```
 
@@ -539,9 +559,11 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **Moving.** The arrows move a day, a week, a month or a year, as the view shows; Today comes back, and the switch changes view (`views` picks which, in order, from day, week, month, year and list, all five by default; `bindView` gets the change). It starts in `view`, or Month when it's offered. `date` sets where it starts, `today` the day treated as today, `weekStart` Sunday (0) or Monday (1, the default), and `locale` how dates and times are written.
 
+**Moving events.** With `bindEvents` (the key `events` reads), events can be moved, and the list goes back to it with their new dates, written as they were (a date stays a date, a time a time; an event with no `end` keeps none unless it's made longer). In the month, drag an event onto another day; in the week and day views, drag a timed one to another time (snapped to `snap` minutes, default 15) or day, or its foot to make it longer or shorter, and an all-day one across the days. A press that doesn't move still opens the event, and a drag doesn't. With the keyboard, focus an event and use Alt and the arrow keys: Left and Right a day, Up and Down a snap in the week and day views (with Shift, the end only) or a week in the month. Each move fires `move` with `{ event, from }` and is announced.
+
 **Keyboard and screen readers.** The days are a grid with one tab stop: the arrow keys move a day (or a week, up and down), Home and End to the week's ends, Page Up and Page Down a month, and Enter or Space picks the day (`bindDay`, and a `day` event). Tab then reaches that day's events. Each day is named with its date and how many events it has, each event with its title, time and category, and a change of month or week is announced. A click on an event fires `open` (and sets `bindEvent`); moving fires `navigate`.
 
-**Props.** `events` (required), `view`, `views`, `date`, `categories`, `bindEvent`, `bindDay`, `bindView`, `hours`, `weekStart`, `maxPerDay`, `today`, `locale`, `emptyText`, `label` (default `Calendar`); part `toolbar`.
+**Props.** `events` (required), `view`, `views`, `date`, `categories`, `bindEvent`, `bindEvents`, `snap`, `bindDay`, `bindView`, `hours`, `weekStart`, `maxPerDay`, `today`, `locale`, `emptyText`, `label` (default `Calendar`); part `toolbar`.
 
 ## Kanban board
 

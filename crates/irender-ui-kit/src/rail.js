@@ -3,7 +3,8 @@
 // The rail is a vertical tab list: Up and Down (and Home, End) move between sections,
 // Enter or Space shows one. On a phone the panel lies over the page, and Escape or a
 // click on the page folds it. Which section and whether it's open are state, so the
-// runtime redraws the rest.
+// runtime redraws the rest. With `resizable`, the panel's edge drags it wider or
+// narrower, within its limits; its width can be state too.
 (window.__irenderBehaviors ||= {})["ui-rail-layout"] = (el, api) => {
   const cfg = api.config;
   const tabs = () => [...el.querySelectorAll("[data-rail-tabs] [role=tab]")];
@@ -53,5 +54,73 @@
       el.querySelector(`[data-rail-item="${CSS.escape(api.state[cfg.bind])}"]`)?.focus();
     }
   });
+  // ---- the panel's width: dragging its edge, or the keys on it
+  const edge = el.querySelector(":scope > [data-rail-resize]");
+  if (edge) {
+    const clamp = (w) => Math.round(Math.min(cfg.max, Math.max(cfg.min, w)));
+    const current = () => {
+      const w = cfg.bindWidth ? Number(api.state[cfg.bindWidth]) : NaN;
+      return w > 0 ? w : el.querySelector("[data-rail-panels]").getBoundingClientRect().width || cfg.width;
+    };
+    let width = clamp(current());
+    const paint = (w) => {
+      width = clamp(w);
+      el.style.setProperty("--rail-panel", `${width}px`);
+      edge.setAttribute("aria-valuenow", String(width));
+      edge.setAttribute("aria-valuetext", `${width} pixels`);
+    };
+    const save = () => {
+      if (cfg.bindWidth) api.set(cfg.bindWidth, width);
+      api.emit("resize", { width });
+    };
+    let drag = null;
+    edge.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      drag = { at: e.clientX, from: width, id: e.pointerId };
+      try {
+        edge.setPointerCapture(e.pointerId);
+      } catch {}
+      el.setAttribute("data-resizing", "");
+    });
+    edge.addEventListener("pointermove", (e) => drag && e.pointerId === drag.id && paint(drag.from + e.clientX - drag.at));
+    const end = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      drag = null;
+      el.removeAttribute("data-resizing");
+      save();
+    };
+    edge.addEventListener("pointerup", end);
+    edge.addEventListener("pointercancel", end);
+    edge.addEventListener("dblclick", () => {
+      paint(cfg.width);
+      save();
+    });
+    edge.addEventListener("keydown", (e) => {
+      const step = e.shiftKey ? 4 : 16;
+      const to = { ArrowRight: width + step, ArrowLeft: width - step, Home: cfg.min, End: cfg.max }[e.key];
+      if (to !== undefined) {
+        e.preventDefault();
+        paint(to);
+        save();
+      } else if (e.key === "Enter" && cfg.bindOpen) {
+        // Folds the panel; its section's icon brings it back.
+        e.preventDefault();
+        setOpen(false);
+        el.querySelector(`[data-rail-item="${CSS.escape(api.state[cfg.bind])}"]`)?.focus();
+      }
+    });
+    paint(width);
+    let seen = cfg.bindWidth ? api.state[cfg.bindWidth] : undefined;
+    return {
+      update() {
+        if (!cfg.bindWidth || drag) return;
+        const now = api.state[cfg.bindWidth];
+        if (now === seen) return;
+        seen = now;
+        if (Number(now) > 0) paint(Number(now));
+      },
+    };
+  }
   return {};
 };

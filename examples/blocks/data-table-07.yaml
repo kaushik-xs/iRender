@@ -1,0 +1,69 @@
+# Block: a sales ledger in a `ui-data-table` with its newer layout tools. The rows are
+# grouped by region (pick another grouping, or none, from View), each group under a header
+# row with its count and subtotals; the money columns sit under an "Amounts" band. Drag a
+# header's edge to resize the column, or the header itself to move it (Alt and the arrow
+# keys on it do the same): the layout is state (`bindColumns`), so a page could keep it.
+# Export downloads the rows that pass the filters as CSV.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-07.yaml --ui-kit --icon-kit -o data-table-07.html
+version: 1
+state:
+  groupBy: region
+  layout: null
+  orders:
+    - { id: "SO-1002", customer: "Kashmir Crafts", region: "North", rep: "Ravi Kumar", date: "2026-07-03", net: 78500, tax: 14130, total: 92630, status: "Paid" }
+    - { id: "SO-1004", customer: "Delhi Traders", region: "North", rep: "Asha Rao", date: "2026-10-02", net: 109500, tax: 19710, total: 129210, status: "Pending" }
+    - { id: "SO-1015", customer: "Surat Textiles", region: "West", rep: "Asha Rao", date: "2026-07-24", net: 15500, tax: 2790, total: 18290, status: "Overdue" }
+    - { id: "SO-1021", customer: "Odisha Steel", region: "East", rep: "Ravi Kumar", date: "2026-08-03", net: 57000, tax: 10260, total: 67260, status: "Overdue" }
+    - { id: "SO-1018", customer: "Kolkata Paper", region: "East", rep: "Meera Iyer", date: "2026-08-24", net: 18500, tax: 3330, total: 21830, status: "Paid" }
+    - { id: "SO-1009", customer: "Kochi Spices", region: "South", rep: "Meera Iyer", date: "2026-08-26", net: 78500, tax: 14130, total: 92630, status: "Overdue" }
+    - { id: "SO-1011", customer: "Bengaluru Labs", region: "South", rep: "Kaushik Sundar", date: "2026-09-20", net: 67000, tax: 12060, total: 79060, status: "Pending" }
+    - { id: "SO-1007", customer: "Kochi Spices", region: "South", rep: "Asha Rao", date: "2026-07-19", net: 77000, tax: 13860, total: 90860, status: "Pending" }
+    - { id: "SO-1013", customer: "Mumbai Retail", region: "West", rep: "Asha Rao", date: "2026-09-11", net: 57500, tax: 10350, total: 67850, status: "Paid" }
+    - { id: "SO-1017", customer: "Odisha Steel", region: "East", rep: "Meera Iyer", date: "2026-08-20", net: 48000, tax: 8640, total: 56640, status: "Paid" }
+    - { id: "SO-1012", customer: "Pune Tools", region: "West", rep: "Meera Iyer", date: "2026-08-16", net: 19000, tax: 3420, total: 22420, status: "Paid" }
+    - { id: "SO-1020", customer: "Kolkata Paper", region: "East", rep: "Kaushik Sundar", date: "2026-09-23", net: 55000, tax: 9900, total: 64900, status: "Paid" }
+    - { id: "SO-1003", customer: "Delhi Traders", region: "North", rep: "Asha Rao", date: "2026-10-02", net: 59500, tax: 10710, total: 70210, status: "Paid" }
+    - { id: "SO-1010", customer: "Chennai Motors", region: "South", rep: "Asha Rao", date: "2026-09-17", net: 27000, tax: 4860, total: 31860, status: "Pending" }
+    - { id: "SO-1014", customer: "Surat Textiles", region: "West", rep: "Kaushik Sundar", date: "2026-07-27", net: 92500, tax: 16650, total: 109150, status: "Paid" }
+    - { id: "SO-1016", customer: "Odisha Steel", region: "East", rep: "Meera Iyer", date: "2026-10-22", net: 43500, tax: 7830, total: 51330, status: "Pending" }
+    - { id: "SO-1001", customer: "Delhi Traders", region: "North", rep: "Asha Rao", date: "2026-07-12", net: 23000, tax: 4140, total: 27140, status: "Paid" }
+    - { id: "SO-1019", customer: "Odisha Steel", region: "East", rep: "Asha Rao", date: "2026-08-15", net: 35500, tax: 6390, total: 41890, status: "Paid" }
+    - { id: "SO-1008", customer: "Kochi Spices", region: "South", rep: "Kaushik Sundar", date: "2026-09-15", net: 11500, tax: 2070, total: 13570, status: "Pending" }
+    - { id: "SO-1005", customer: "Delhi Traders", region: "North", rep: "Meera Iyer", date: "2026-10-05", net: 32000, tax: 5760, total: 37760, status: "Paid" }
+    - { id: "SO-1006", customer: "Bengaluru Labs", region: "South", rep: "Ravi Kumar", date: "2026-07-19", net: 19000, tax: 3420, total: 22420, status: "Pending" }
+root:
+  type: stack
+  props: { gap: 20 }
+  style: { max-width: 1180px, margin: 0 auto, padding: 32px 24px, font-family: $font.body, color: $color.text, background: $color.surface }
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Sales ledger } }
+        - { type: ui-text, props: { variant: muted, text: "Orders for July to October, by region. Group, resize, move and export from the table's own controls." } }
+    - type: ui-data-table
+      props:
+        rows: "{{ orders }}"
+        title: Sales ledger
+        search: Search orders…
+        bindGroupBy: groupBy
+        resizable: true
+        reorderable: true
+        bindColumns: layout
+        export: sales-ledger
+        pageSize: 0
+        sort: -date
+        height: 620
+      children:
+        - { type: ui-data-table-column, props: { field: id, label: Order, width: 96 } }
+        - { type: ui-data-table-column, props: { field: customer, label: Customer, groupable: true } }
+        - { type: ui-data-table-column, props: { field: region, label: Region, groupable: true, filter: select } }
+        - { type: ui-data-table-column, props: { field: rep, label: Rep, groupable: true } }
+        - { type: ui-data-table-column, props: { field: date, label: Date, format: date } }
+        - { type: ui-data-table-column, props: { field: status, label: Status, cell: badge, groupable: true, filter: select, tones: { Paid: success, Pending: warning, Overdue: destructive } } }
+        - { type: ui-data-table-column, props: { field: net, label: Net, group: Amounts, format: currency, currency: INR, decimals: 0, summary: sum } }
+        - { type: ui-data-table-column, props: { field: tax, label: GST, group: Amounts, format: currency, currency: INR, decimals: 0, summary: sum } }
+        - { type: ui-data-table-column, props: { field: total, label: Total, group: Amounts, format: currency, currency: INR, decimals: 0, summary: sum } }
+    - type: ui-text
+      props: { variant: muted, text: "{{ layout ? 'Column layout in state: ' + layout.order.length + ' columns, ' + layout.hidden.length + ' hidden' : 'Move or resize a column, and its layout is kept in state.' }}" }

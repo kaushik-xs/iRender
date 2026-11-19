@@ -1,7 +1,9 @@
 # Block: a plant's calendar. Maintenance, audits, safety drills, shifts, meetings and
 # holidays in a `ui-event-calendar`, coloured by category, with the month, week and
 # list views. Click an event to see it in the panel beside the calendar, or a day to
-# see what's on it; the arrow keys move through the days and Enter picks one.
+# see what's on it; the arrow keys move through the days and Enter picks one. Drag an
+# event to move it (in the week, to another time, or by its foot to make it longer), or
+# focus it and use Alt and the arrow keys: `bindEvents` writes the list back.
 #
 #   cargo run -p irender-cli -- render examples/blocks/calendar-01.yaml --ui-kit --icon-kit -o calendar-01.html
 version: 1
@@ -55,6 +57,7 @@ root:
                 events: "{{ events }}"
                 categories: { Maintenance: warning, Audits: info, Safety: danger, Shifts: neutral, Meetings: primary, Holidays: success }
                 bindEvent: event
+                bindEvents: events
                 bindDay: day
                 date: "2026-11-04"
                 hours: [6, 18]

@@ -103,6 +103,7 @@ state:
   panes: [25, 75]
   hookPayload: { event: order.paid, retries: 3, notify: [ops, finance] }
   hookOk: true
+  goal: 350
   notes:
     - { id: 1, title: Meera commented on INV002, body: "Customer asked for the PO number on the next one.", who: Meera Iyer, when: 5 min ago }
     - { id: 2, title: Payment failed for INV007, body: "Card declined. We'll retry tomorrow.", when: 1 h ago, tone: danger }
@@ -1987,6 +1988,15 @@ root:
                             - type: ui-dialog-footer
                               children:
                                 - { type: ui-dialog-close, props: { label: Done } }
+                        - type: ui-drawer
+                          props: { trigger: Open drawer, title: Move goal, description: Set your daily activity goal. Drag the bar down to close., width: 480 }
+                          children:
+                            - { type: ui-slider, props: { bind: goal, min: 200, max: 600, step: 10 }, attrs: { aria-label: Daily goal } }
+                            - { type: ui-text, props: { text: "{{ goal }} calories a day" }, style: { font-size: 28, font-weight: 700, text-align: center } }
+                            - type: ui-dialog-footer
+                              children:
+                                - { type: ui-dialog-close, props: { label: Cancel, variant: outline } }
+                                - { type: ui-dialog-close, props: { label: Submit } }
 
                 - { type: if, props: { when: "{{ api.dialog.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list

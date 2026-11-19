@@ -6,7 +6,7 @@ _Last updated: 2026-11-18._
 
 ## Suggested next
 
-1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: quarter filters, and dragging events in the calendar.
+1. The keyboard-driven UI kit components are all in (data table, date picker, context menu, menubar, navigation menu and the one-time-code input, 2026-11-18). Next candidates: quarter filters, named column views in the data table, and grouping for remote tables.
 
 ## Gaps you'd hit in real use
 
@@ -28,7 +28,7 @@ _Last updated: 2026-11-18._
     - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [x] **Calendar views** (2026-11-18): `ui-event-calendar`, events in month, week (hours, overlaps side by side) and list views, coloured by category, with `bindEvent`, `bindDay` and the keyboard (block calendar-01, gallery section). Not done yet:
     - [x] Year and day views (2026-11-19).
-    - [ ] Events can't be dragged to a new time or resized; adding is up to the page (`bindDay`).
+    - [x] Events move by dragging (to another day, or time in the week and day views, and resized by their foot) or with Alt and the arrow keys, written back with `bindEvents` (2026-11-19). Adding is still up to the page (`bindDay`), and the year and list views don't move events.
     - [ ] No recurring events: each one is listed. No time zones: times are local to the browser.
   - [x] **File upload and preview** (2026-11-18): `ui-file-upload`, a drop zone with type, size and count checks, uploads with progress, errors and retry, a grid or list, previews of images, PDFs, CSV and .xlsx (read in the browser) and text, and Download all as a zip, without libraries (block expense-01, gallery section). Not done yet:
     - [ ] No thumbnails for PDFs or sheets (client-ui-next draws the first page); they show a type badge.
@@ -48,9 +48,10 @@ _Last updated: 2026-11-18._
   - [x] **Progress ring** (2026-11-18): `ui-progress-ring`, following state without a script.
   - [x] **Status badge, rating and password checklist** (2026-11-18): `ui-status-badge` (built-in tones for common statuses, `tones` and `labels`), `ui-rating` (pick, or show a fractional average) and `ui-password-checklist` (rules, strength, `bindValid`; in the signup block). The rating has no half-star picking.
   - [x] **Number and currency input** (2026-11-18): `ui-number-input`, grouped as typed in the locale's way, with a currency symbol, prefix or suffix, steps and clamping.
-  - [x] **Sidebar icon rail** (2026-11-19): `ui-rail-layout` + `ui-rail-panel`, a rail of icons each opening its own panel, with the section and the panel's open state in state (block workspace-01, gallery section). No drag to resize the panel, and the rail can't be on the right.
-  - [x] **Resizable panels** (2026-11-19): `ui-resizable` + `ui-resizable-panel`, dragging and the keys, limits, collapsible panels, sizes in state (block mail-01, gallery section). Sizes are percentages only (no fixed px panel), and the rail layout's panel doesn't use it yet.
+  - [x] **Sidebar icon rail** (2026-11-19): `ui-rail-layout` + `ui-rail-panel`, a rail of icons each opening its own panel, with the section and the panel's open state in state (block workspace-01, gallery section). The panel resizes by dragging its edge (2026-11-19). The rail can't be on the right.
+  - [x] **Resizable panels** (2026-11-19): `ui-resizable` + `ui-resizable-panel`, dragging and the keys, limits, collapsible panels, sizes in state (block mail-01, gallery section). Sizes are percentages only (no fixed px panel).
   - [x] **Code block and JSON editor** (2026-11-19): `ui-code-block` (highlighting for ten languages, line numbers, marked lines, copy) and `ui-json-editor` (checks as you type with line, column and reason, Format, value to state while valid). In docs-01 and the settings block's Webhooks. Not done: a general code editor (other languages, a schema to check JSON against, folding), and the highlighter is a tokenizer, so nested languages (JS in HTML) stay plain.
+  - [x] **Drawer** (2026-11-19): `ui-drawer`, a bottom sheet dragged down (or flicked) to close, in the dialog family (block mail-01's Compose, gallery). No snap points (half-open, full), and like the other dialogs it opens from a button, not from state.
 - [x] **Keyboard-driven components** (2026-11-18): data table, date picker, context menu, menubar, navigation menu, one-time-code input.
 - [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
@@ -58,12 +59,12 @@ _Last updated: 2026-11-18._
   - [ ] Remote tables: select filters offer only `options` or the values loaded so far, and summaries and `bindView` cover the loaded rows only. Idea: let the API answer facets and totals too.
   - [ ] Nested rows: selecting a parent doesn't select its children; no "expand all" control; the footer counts the rows shown, children included.
   - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
-  - [ ] No grouped headers, row grouping (`GroupedDataTable`), resizing or reordering columns.
-  - [ ] Hidden columns and page size aren't in state or remembered; no saved column views.
+  - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with remote, virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.
+  - [x] Column order, widths and hidden columns are state with `bindColumns` (2026-11-19). Page size isn't, and there are no named column views (as `ui-filters` has for filters).
   - [ ] Formats are applied by the browser, so the server's HTML shows raw values until the script runs.
   - [ ] The server's starting order compares text without locale rules, so mixed-case text can reorder once the script runs.
   - [ ] Interface text (Rows per page, Select all, Clear filter, …) is English only; only `emptyText` can be changed.
-  - [ ] No CSV export; a bulk action can `call` the host with the selected keys.
+  - [x] CSV export of the rows that pass, in the columns shown (2026-11-19). A remote table exports only the rows it has loaded; no Excel (.xlsx) file.
 - [ ] **Date picker gaps** (`ui-date-picker` and `ui-calendar` shipped 2026-11-18: days with a time, months, quarters and years on a financial year, single, range and multiple, limits, disabled days, presets, month and year menus, `bindRange`; the data table's date filter uses the calendar):
   - [x] Typing a date (`input: true`, 2026-11-18): the locale's numeric order, month names, two-digit years, ranges, times, quarters and years, with errors for `ui-field`.
   - [ ] Typing: month names are matched in the locale and in English only; error messages are English.
@@ -91,7 +92,7 @@ _Last updated: 2026-11-18._
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
-- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, drawer (a draggable bottom sheet; `ui-sheet` with `side: bottom` covers the look), item, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
+- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** calendar, item, direction (RTL), and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.
   - [ ] Quoting, leaving a quote or code block, and ticking a task change the page directly, so ⌘Z doesn't undo them; the other edits go through the browser's editing and undo.

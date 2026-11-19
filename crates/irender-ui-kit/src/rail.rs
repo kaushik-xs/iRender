@@ -6,7 +6,7 @@
 
 use crate::{ACCENT, MUTED, PRIMARY_FILL, SURFACE, TEXT, bin, cond, expr_val, forms, icon_kit, icon_name, id_with, instance_id, lit, path};
 use irender_core::{
-    ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val,
+    ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Template, Val,
     expr::{self, BinOp, Expr, UnOp},
 };
 use irender_html::{Component, Element, RenderCx, RenderError};
@@ -29,6 +29,10 @@ const PROPS: &[PropDef] = &[
     PropDef::new("bindOpen", PropKind::StateKey, "State key for whether the panel is open (true or false): a click on the open section folds it"),
     PropDef::new("label", PropKind::Any, "Names the rail for screen readers (default `Sections`)"),
     PropDef::new("panelWidth", PropKind::Number, "The panel's width in px (default 260)"),
+    PropDef::new("resizable", PropKind::Bool, "A handle on the panel's edge to drag it wider or narrower (or focus it and use the arrow keys)"),
+    PropDef::new("bindWidth", PropKind::StateKey, "State key for the panel's width in px, written after each resize"),
+    PropDef::new("minPanelWidth", PropKind::Number, "The narrowest a resize makes it, in px (default 180)"),
+    PropDef::new("maxPanelWidth", PropKind::Number, "The widest a resize makes it, in px (default 560)"),
     PropDef::new("height", PropKind::Any, "The shell's height (default `100svh`)"),
 ];
 const PANEL_PROPS: &[PropDef] = &[
@@ -152,6 +156,16 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ]),
     )
     .nest("&[data-closed] [data-rail-panels]", pairs(&[("width", "0"), ("border-right-width", "0")]))
+    .nest("&[data-resizing] [data-rail-panels]", pairs(&[("transition", "none")]))
+    .nest("&[data-resizing]", pairs(&[("cursor", "col-resize"), ("user-select", "none")]))
+    // The resize handle: a strip on the panel's edge, a line when hovered or focused.
+    .nest(
+        "& [data-rail-resize]",
+        pairs(&[("position", "absolute"), ("z-index", "21"), ("top", "0"), ("bottom", "0"), ("left", "calc(56px + var(--rail-panel, 260px) - 3px)"), ("width", "7px"), ("cursor", "col-resize"), ("touch-action", "none"), ("outline", "none")]),
+    )
+    .nest("& [data-rail-resize]::after", pairs(&[("content", "''"), ("position", "absolute"), ("top", "0"), ("bottom", "0"), ("left", "3px"), ("width", "1px"), ("transition", "background .15s")]))
+    .nest("& [data-rail-resize]:is(:hover, :focus-visible)::after, &[data-resizing] [data-rail-resize]::after", pairs(&[("left", "2px"), ("width", "3px"), ("background", "var(--color-ring, var(--color-muted))")]))
+    .nest("&[data-closed] [data-rail-resize]", pairs(&[("display", "none")]))
     .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& [data-rail-panels]", pairs(&[("transition", "none")])))
     .nest("& [data-rail-main]", pairs(&[("min-width", "0"), ("min-height", "0"), ("overflow", "auto")]))
     // On a phone: the panel over the page, beside the rail.
@@ -244,16 +258,33 @@ impl Component for RailLayout {
         let open = open_key.as_ref().map(|k| path(&[k]));
         let id = instance_id(cx, node, "rail");
         let width = cx.prop(node, "panelWidth").map_or(260.0, |v| expr::to_num(&v));
+        let resizable = cx.prop(node, "resizable").is_some_and(|v| expr::truthy(&v));
+        let width_key = cx.prop_string(node, "bindWidth");
+        let (min, max) = (cx.prop(node, "minPanelWidth").map_or(180.0, |v| expr::to_num(&v)), cx.prop(node, "maxPanelWidth").map_or(560.0, |v| expr::to_num(&v)));
+        if resizable && !(min > 0.0 && min <= width && width <= max) {
+            return Err(RenderError::new(node, "a resizable panel needs `minPanelWidth` ≤ `panelWidth` ≤ `maxPanelWidth`"));
+        }
 
         cx.global_js("ui-rail-layout", SCRIPT);
         let mut root = cx.element("div", node);
-        let mut vars = StyleBlock::new().set("--rail-panel", format!("{width}px"));
+        let mut vars = StyleBlock::new();
+        match &width_key {
+            // The width in state, when it's a number there.
+            Some(k) => {
+                let w = Expr::Path(vec![k.clone()]);
+                let px = bin(BinOp::Add, w.clone(), Expr::Lit(json!("px")));
+                let ok = bin(BinOp::Gt, w, Expr::Lit(json!(0)));
+                vars.push("--rail-panel", StyleValue::Dynamic { tpl: Template { parts: vec![Part::Expr(cond(ok, px, Expr::Lit(json!(format!("{width}px")))))] }, px: false });
+            }
+            None => vars = vars.set("--rail-panel", format!("{width}px")),
+        }
         if let Some(h) = cx.prop(node, "height") {
             vars = vars.set("--rail-height", if let Json::Number(n) = &h { format!("{n}px") } else { expr::stringify(&h) });
         }
         root.base_style_ref(&LAYOUT).base_style(vars).behavior(
             "ui-rail-layout",
-            json!({ "bind": key, "bindOpen": open_key, "panels": panels.iter().map(|p| cx.prop_string(p, "for")).collect::<Vec<_>>() }),
+            json!({ "bind": key, "bindOpen": open_key, "panels": panels.iter().map(|p| cx.prop_string(p, "for")).collect::<Vec<_>>(),
+                "width": width, "bindWidth": width_key, "min": min, "max": max }),
         );
         // Closed: no panel for the section, or `bindOpen` false.
         let has_panel = panels.iter().fold(Expr::Lit(json!(false)), |acc, p| {
@@ -290,7 +321,7 @@ impl Component for RailLayout {
         cx.close("nav");
 
         let mut wrap = cx.part("div", node, "panels");
-        wrap.attr("data-rail-panels", true);
+        wrap.attr("data-rail-panels", true).attr("id", id_with(&id, "-panels"));
         cx.open(&wrap, node)?;
         for p in &panels {
             let f = cx.prop_string(p, "for").unwrap_or_default();
@@ -322,6 +353,21 @@ impl Component for RailLayout {
             cx.close("section");
         }
         cx.close("div");
+        if resizable {
+            // Beside the panels, not in them: they clip what overflows.
+            let mut h = Element::new("div");
+            h.attr("data-rail-resize", true)
+                .attr("role", "separator")
+                .attr("tabindex", "0")
+                .attr("aria-orientation", "vertical")
+                .attr("aria-label", "Resize the panel")
+                .attr("aria-controls", id_with(&id, "-panels"))
+                .attr("aria-valuemin", lit(min))
+                .attr("aria-valuemax", lit(max))
+                .attr("aria-valuenow", lit(width));
+            cx.open(&h, node)?;
+            cx.close("div");
+        }
 
         let mut main = cx.part("main", node, "main");
         main.attr("data-rail-main", true);

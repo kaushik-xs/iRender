@@ -2,13 +2,14 @@
 # panels: Inbox (the notifications, in the page), Projects (a tree of projects to pick
 # from), Calendar (the week, as a list), and Settings at the foot. The main content is
 # the sprint board. A click on the open icon folds its panel; Up and Down move along
-# the rail.
+# the rail. Drag the panel's edge to resize it (or focus it and use the arrow keys).
 #
 #   cargo run -p irender-cli -- render examples/blocks/workspace-01.yaml --ui-kit --icon-kit -o workspace-01.html
 version: 1
 state:
   section: inbox
   panel: true
+  panelWidth: 300
   project: web
   projectNode: null
   notes:
@@ -39,6 +40,8 @@ root:
     bindOpen: panel
     label: Workspace
     panelWidth: 300
+    resizable: true
+    bindWidth: panelWidth
     items:
       - { id: inbox, label: Inbox, icon: core:bell, badge: 3 }
       - { id: projects, label: Projects, icon: core:kanban }

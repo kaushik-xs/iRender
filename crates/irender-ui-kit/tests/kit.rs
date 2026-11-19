@@ -122,7 +122,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 113);
+    assert_eq!(kit, 114);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1474,6 +1474,14 @@ fn rail_layout_structure_and_mistakes() {
     assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "items": [ { "id": "a", "label": "A" }, { "id": "a", "label": "B" } ] } })).contains("two rail items have the id `a`"));
     assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "items": [ { "id": "a" } ] } })).contains("needs a `label`"));
     assert!(err(json!({ "type": "ui-rail-panel", "props": { "for": "a" } })).contains("must be a direct child of `ui-rail-layout`"));
+
+    // Resizable: the handle, and the width from state.
+    let page = render_with(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "resizable": true, "bindWidth": "w", "items": [ { "id": "a", "label": "A" } ] },
+        "children": [ { "type": "ui-rail-panel", "props": { "for": "a" } } ] }), json!({ "s": "a", "o": true, "w": 320 }), json!({})).unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"<div data-rail-resize role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize the panel" aria-controls="rail-root-panels" aria-valuemin="180" aria-valuemax="560" aria-valuenow="260"></div>"#), "{body}");
+    assert!(body.contains(r#"style="--i-d0: 320px""#), "{body}");
+    assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "resizable": true, "panelWidth": 100, "items": [ { "id": "a", "label": "A" } ] } })).contains("`minPanelWidth` ≤ `panelWidth` ≤ `maxPanelWidth`"));
 }
 
 #[test]
@@ -1544,4 +1552,35 @@ fn button_variant_from_state() {
     // A fixed one doesn't.
     let page = render_with(json!({ "type": "ui-button", "props": { "label": "A", "variant": "ghost" } }), json!({}), json!({})).unwrap();
     assert!(!page.body.contains("data-variant") && !page.css.contains("[data-variant="), "{}", page.body);
+}
+
+#[test]
+fn data_table_bands_resizers_export_and_group_by() {
+    let table = |props: Json| {
+        let mut p = json!({ "rows": [ { "a": 1, "b": 2, "c": 3 } ], "title": "Q3 sales" });
+        p.as_object_mut().unwrap().extend(props.as_object().unwrap().clone());
+        json!({ "type": "ui-data-table", "props": p, "children": [
+            { "type": "ui-data-table-column", "props": { "field": "a", "label": "A", "groupable": true } },
+            { "type": "ui-data-table-column", "props": { "field": "b", "label": "B", "group": "Money" } },
+            { "type": "ui-data-table-column", "props": { "field": "c", "label": "C", "group": "Money", "resizable": false } } ] })
+    };
+    let body = plain(&render_with(table(json!({ "resizable": true, "reorderable": true, "export": true })), json!({}), json!({})).unwrap().body);
+    // The band row: an empty band over A, Money over B and C.
+    assert!(body.contains(r#"<tr data-dt-bands><th data-dt-band="" colspan="1" aria-hidden="true"></th><th data-dt-band="Money" colspan="2" scope="colgroup">Money</th></tr>"#), "{body}");
+    assert!(body.contains(r#"<span data-dt-resizer="a" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize A"></span>"#), "{body}");
+    assert!(!body.contains(r#"data-dt-resizer="c""#), "a column can opt out: {body}");
+    assert!(body.contains(r#"<th data-dt-col="a" scope="col" data-dt-movable>"#), "{body}");
+    assert!(body.contains(r#"data-dt-export"#) && body.contains(r#""export":"q3-sales.csv""#.replace('"', "&quot;").as_str()), "{body}");
+    // Group by in View: None and the groupable columns.
+    assert!(body.contains(r#"<div data-dt-pop-title data-dt-group-title>Group by</div>"#), "{body}");
+    assert!(body.contains(r#"<input type="radio" name="data-table-root-group-by" value="" data-dt-group-by>None</label>"#), "{body}");
+    assert!(body.contains(r#"value="a" data-dt-group-by>A</label>"#), "{body}");
+    // A named file keeps its name, with .csv.
+    let body = plain(&render_with(table(json!({ "export": "ledger" })), json!({}), json!({})).unwrap().body);
+    assert!(body.contains("ledger.csv"), "{body}");
+
+    let mut remote = table(json!({ "url": "/api/rows", "groupBy": "a" }));
+    remote["props"].as_object_mut().unwrap().remove("rows");
+    let err = render_with(remote, json!({}), json!({})).unwrap_err().to_string();
+    assert!(err.contains("grouping rows needs the rows in the page"), "{err}");
 }

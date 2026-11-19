@@ -28,6 +28,12 @@ const PROPS: &[PropDef] = &[
     PropDef::new("date", PropKind::Any, "The day to show to start with (default today)"),
     PropDef::new("categories", PropKind::Any, "Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend"),
     PropDef::new("bindEvent", PropKind::StateKey, "State key that gets the event clicked"),
+    PropDef::new(
+        "bindEvents",
+        PropKind::StateKey,
+        "State key holding the events: makes them movable (drag them, or Alt and the arrow keys) and writes the list back",
+    ),
+    PropDef::new("snap", PropKind::Number, "Minutes a move or a resize snaps to (default 15)"),
     PropDef::new("bindDay", PropKind::StateKey, "State key that gets the day picked (`2026-11-04`), e.g. to add an event on it"),
     PropDef::new("bindView", PropKind::StateKey, "State key that gets the view when it changes"),
     PropDef::new("hours", PropKind::Any, "The week view's hours, `[from, to]` (default `[7, 20]`)"),
@@ -140,6 +146,11 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-col][data-today]", pairs(&[("background-color", "color-mix(in srgb, var(--color-primary) 4%, transparent)")]))
         .nest("& [data-ev-timed]", pairs(&[("position", "absolute"), ("flex-direction", "column"), ("align-items", "stretch"), ("gap", "0"), ("padding", "2px 6px"), ("white-space", "normal"), ("z-index", "1")]))
         .nest("& [data-ev-timed] > span", pairs(&[("font-weight", "500")]))
+        // Movable events: grabbed, dragged, and resized by the strip at a timed one's foot.
+        .nest("&[data-editable] [data-ev-event]:not([data-ev-list] *)", pairs(&[("cursor", "grab"), ("touch-action", "none")]))
+        .nest("& [data-ev-event][data-dragging]", pairs(&[("z-index", "5"), ("cursor", "grabbing"), ("opacity", ".9"), ("box-shadow", "0 6px 16px rgb(0 0 0 / .18)"), ("pointer-events", "none")]))
+        .nest("& [data-ev-resize]", pairs(&[("position", "absolute"), ("left", "0"), ("right", "0"), ("bottom", "0"), ("height", "7px"), ("cursor", "ns-resize")]))
+        .nest("&[data-editable] :is([data-ev-month] [data-ev-day], [data-ev-cell-date])[data-ev-drop]", pairs(&[("outline", "2px dashed var(--color-ring, var(--color-muted))"), ("outline-offset", "-2px")]))
         .nest("& [data-ev-timed][data-short]", pairs(&[("flex-direction", "row"), ("align-items", "center"), ("gap", "4px"), ("padding-top", "0"), ("padding-bottom", "0"), ("white-space", "nowrap")]))
         .nest("& [data-ev-now]", pairs(&[("position", "absolute"), ("left", "0"), ("right", "0"), ("height", "2px"), ("background", "var(--color-destructive, #dc2626)"), ("z-index", "2")]))
         .nest("& [data-ev-now]::before", pairs(&[("content", "''"), ("position", "absolute"), ("left", "-4px"), ("top", "-3px"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--color-destructive, #dc2626)")]))
@@ -268,6 +279,8 @@ impl Component for EventCalendar {
             "views": views,
             "date": node.prop("date").map(|d| dynamic(cx, node, "date", d)).transpose()?,
             "bindEvent": cx.prop_string(node, "bindEvent"),
+            "bindEvents": cx.prop_string(node, "bindEvents"),
+            "snap": cx.prop(node, "snap").map(|v| expr::to_num(&v).clamp(1.0, 240.0) as i64),
             "bindDay": cx.prop_string(node, "bindDay"),
             "bindView": cx.prop_string(node, "bindView"),
             "hours": hours,
@@ -278,6 +291,9 @@ impl Component for EventCalendar {
             "emptyText": node.prop("emptyText").map(|v| expr::stringify(&cx.eval(v))),
         });
         let mut root = cx.element("div", node);
+        if cx.prop_string(node, "bindEvents").is_some() {
+            root.attr("data-editable", true);
+        }
         root.base_style_ref(&CALENDAR)
             .behavior("ui-event-calendar", config)
             .attr("role", "region")

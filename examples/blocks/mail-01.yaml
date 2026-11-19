@@ -2,12 +2,16 @@
 # the message picked. Drag a line between them (or focus it and use the arrow keys) to
 # resize; the folders fold away when dragged small, or with Enter on their line, and a
 # double click puts the sizes back. The sizes are state (`bind: panes`), so a page could
-# remember them.
+# remember them. Compose opens a `ui-drawer` from the bottom: drag it down to close it.
 #
 #   cargo run -p irender-cli -- render examples/blocks/mail-01.yaml --ui-kit --icon-kit -o mail-01.html
 version: 1
 state:
   panes: [18, 34, 48]
+  draftTo: ""
+  draftSubject: ""
+  draftBody: ""
+  toast: null
   folder: inbox
   mail: { id: 1, from: Meera Iyer, subject: About INV002, when: "09:40", folder: inbox, body: "Hi, the invoice for October is attached. The PO number is PO-2291; could you add it to the copy you send finance? Thanks!" }
   folders:
@@ -31,6 +35,24 @@ root:
       children:
         - { type: ui-heading, props: { level: 4, text: Mail } }
         - { type: ui-input, props: { placeholder: Search mail, type: search }, style: { max-width: 320px, margin-left: auto } }
+        - type: ui-drawer
+          props: { trigger: Compose, triggerVariant: default, title: New message, description: "Drag the bar down, or press Escape, to close it.", width: 640 }
+          children:
+            - type: ui-field
+              props: { label: To, for: compose-to }
+              children: [ { type: ui-input, props: { bind: draftTo, type: email, placeholder: name@example.com }, attrs: { id: compose-to } } ]
+            - type: ui-field
+              props: { label: Subject, for: compose-subject }
+              children: [ { type: ui-input, props: { bind: draftSubject }, attrs: { id: compose-subject } } ]
+            - type: ui-field
+              props: { label: Message, for: compose-body }
+              children: [ { type: ui-textarea, props: { bind: draftBody, rows: 6 }, attrs: { id: compose-body } } ]
+            - type: ui-dialog-footer
+              children:
+                - { type: ui-dialog-close, props: { label: Discard, variant: outline } }
+                - type: ui-dialog-close
+                  props: { label: Send }
+                  on: { click: { action: set_state, key: toast, value: { title: Message sent, description: "To {{ draftTo || 'nobody yet' }}" } } }
     - type: element
       style: { flex: 1, min-height: 0 }
       children:
@@ -112,3 +134,4 @@ root:
                       children:
                         - { type: ui-button, props: { label: Reply, size: sm } }
                         - { type: ui-button, props: { label: Forward, variant: outline, size: sm } }
+    - { type: ui-toaster, props: { bind: toast } }

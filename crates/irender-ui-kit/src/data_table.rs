@@ -79,6 +79,12 @@ const PROPS: &[PropDef] = &[
     PropDef::new("rowHeight", PropKind::Number, "With `virtual`, a row's height to start from before rows are measured (default 41)"),
     PropDef::new("pageSizes", PropKind::Any, "Choices for rows per page (default `[10, 20, 50, 100]`; `[]` hides it)"),
     PropDef::new("columnsMenu", PropKind::Bool, "A View menu that shows and hides columns (default true)"),
+    PropDef::new("groupBy", PropKind::Any, "Groups the rows by this field, each group under a header row with its count and subtotals (may use state)"),
+    PropDef::new("bindGroupBy", PropKind::StateKey, "State key holding the field the rows are grouped by (or null), set from the View menu"),
+    PropDef::new("resizable", PropKind::Bool, "Columns can be made wider or narrower by dragging their header's edge"),
+    PropDef::new("reorderable", PropKind::Bool, "Columns can be moved by dragging their header, or Alt and the arrow keys on it"),
+    PropDef::new("bindColumns", PropKind::StateKey, "State key holding the columns' layout, `{ order, widths, hidden }`, to keep it"),
+    PropDef::new("export", PropKind::Any, "An Export button that downloads the rows that pass the filters as CSV: `true`, or the file's name"),
     PropDef::new("title", PropKind::Any, "Accessible name of the table"),
     PropDef::new("emptyText", PropKind::Any, "Shown when no row matches (default `No results.`)"),
     PropDef::new("locale", PropKind::String, "Locale for formatted numbers and dates (default: the browser's)"),
@@ -122,6 +128,9 @@ const COLUMN_PROPS: &[PropDef] = &[
     PropDef::new("tree", PropKind::Bool, "The column that shows nesting: indented, with the arrow that opens a row (default: the first)"),
     PropDef::new("hideable", PropKind::Bool, "Listed in the View menu (default true)"),
     PropDef::new("hidden", PropKind::Bool, "Starts hidden"),
+    PropDef::new("group", PropKind::Any, "A header over this column and the ones next to it with the same `group`"),
+    PropDef::new("groupable", PropKind::Bool, "Offered in the View menu's Group by"),
+    PropDef::new("resizable", PropKind::Bool, "With the table's `resizable`, false keeps this column's width"),
     PropDef::new("id", PropKind::String, "The column's key when it has no field (default: its position)"),
 ];
 
@@ -307,6 +316,40 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("padding", sp!(8)), ("vertical-align", "middle"), ("white-space", "nowrap"), ("border-bottom", "1px solid var(--color-border)")]),
         )
         .nest("& [data-dt-detail] > td, & [data-dt-empty] > td", pairs(&[("white-space", "normal")]))
+        // Bands over groups of columns, and the column row under them.
+        .nest("& [data-dt-bands] > th", pairs(&[("height", sp!(30)), ("text-align", "center"), ("color", TEXT), ("font-size", fs!(12)), ("font-weight", "600")]))
+        .nest("& [data-dt-bands] > th[data-dt-band]:not([data-dt-band=''])", pairs(&[("box-shadow", "inset 1px 0 var(--color-border), inset -1px 0 var(--color-border)")]))
+        .nest("& thead > tr:not([data-dt-bands]) > th", pairs(&[("top", "var(--dt-band-h, 0px)")]))
+        // Resizing and moving columns.
+        .nest(
+            "& [data-dt-resizer]",
+            pairs(&[("position", "absolute"), ("z-index", "2"), ("top", "0"), ("bottom", "0"), ("right", "0"), ("width", "7px"), ("cursor", "col-resize"), ("touch-action", "none"), ("outline", "none")]),
+        )
+        .nest("& [data-dt-resizer]::after", pairs(&[("content", "''"), ("position", "absolute"), ("top", "8px"), ("bottom", "8px"), ("right", "3px"), ("width", "1px")]))
+        .nest("& th:hover > [data-dt-resizer]::after", pairs(&[("background", "var(--color-border)")]))
+        .nest(
+            "& [data-dt-resizer]:is(:hover, :focus-visible)::after, &[data-dt-resizing] [data-dt-resizer]::after",
+            pairs(&[("top", "0"), ("bottom", "0"), ("right", "2px"), ("width", "3px"), ("background", "var(--color-ring, var(--color-muted))")]),
+        )
+        .nest("&[data-dt-resizing]", pairs(&[("cursor", "col-resize"), ("user-select", "none")]))
+        .nest("& th[data-dt-moving]", pairs(&[("opacity", "0.5")]))
+        .nest("& th[data-dt-drop=before]", pairs(&[("box-shadow", "inset 3px 0 var(--color-primary)")]))
+        .nest("& th[data-dt-drop=after]", pairs(&[("box-shadow", "inset -3px 0 var(--color-primary)")]))
+        // Group rows: the value, a count, subtotals; a click folds the group.
+        .nest("& [data-dt-group] > td", pairs(&[("padding", sp!(6, 8)), ("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
+        .nest(
+            "& [data-dt-fold]",
+            pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(6)), ("padding", sp!(2, 6, 2, 2)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", TEXT), ("font", "inherit"), ("cursor", "pointer")]),
+        )
+        .nest("& [data-dt-fold]:hover", pairs(&[("background", "color-mix(in srgb, var(--color-text) 7%, transparent)")]))
+        .nest("& [data-dt-fold]:focus-visible", forms::focus_ring())
+        .nest("& [data-dt-fold] [data-dt-chevron]", pairs(&[("transition", "transform .15s"), ("color", MUTED)]))
+        .nest("& [data-dt-fold][aria-expanded=true] [data-dt-chevron]", pairs(&[("transform", "rotate(90deg)")]))
+        .nest(
+            "& [data-dt-group-count]",
+            pairs(&[("min-width", "20px"), ("padding", sp!(0, 6)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "500"), ("text-align", "center")]),
+        )
+        .nest("& [data-dt-group-title]", pairs(&[("margin-top", sp!(6)), ("padding-top", sp!(8)), ("border-top", "1px solid var(--color-border)")]))
         .nest("& tfoot td", pairs(&[("border-bottom", "0"), ("border-top", "1px solid var(--color-border)"), ("font-weight", "600"), ("background", SUBTLE)]))
         .nest("& [data-dt-body] > tr:last-of-type > td", pairs(&[("border-bottom", "0")]))
         .nest("& [data-dt-body]:has(> tr:not([hidden])) + [data-dt-empty-body] td", pairs(&[("border-top", "1px solid var(--color-border)")]))
@@ -503,6 +546,7 @@ const CHEVRON: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="n
 const SORT_ARROW: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>"#;
 const SORT_BOTH: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>"#;
 const PLUS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
+const DOWNLOAD: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
 const COLUMNS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12M5 2.5v11"/></svg>"#;
 const PAGE_BUTTONS: &[(&str, &str, &str)] = &[
     ("first", "Go to first page", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3.5 4 8l4.5 4.5M12.5 3.5 8 8l4.5 4.5"/></svg>"#),
@@ -536,6 +580,9 @@ struct Column<'n> {
     hidden: bool,
     pin: Option<&'static str>,
     tree: bool,
+    group: Option<String>,
+    groupable: bool,
+    resizable: bool,
     template: Option<&'n Node>,
 }
 
@@ -614,6 +661,9 @@ fn column<'n>(
             Some(other) => return Err(RenderError::new(at, format!("column `pin` must be left or right, got `{other}`"))),
         },
         tree: flag("tree", false),
+        group: string("group").filter(|g| !g.is_empty()),
+        groupable: flag("groupable", false),
+        resizable: flag("resizable", true),
         template,
     })
 }
@@ -854,6 +904,18 @@ impl Component for DataTable {
         };
 
         let children_url = node.prop("childrenUrl").map(|u| dynamic(cx, node, "childrenUrl", u)).transpose()?;
+        let grouped = node.prop("groupBy").is_some() || bind("bindGroupBy").is_some() || columns.iter().any(|c| c.groupable);
+        if grouped && listed {
+            return Err(RenderError::new(node, "grouping rows needs the rows in the page: it doesn't work with `url`, `virtual` or nested rows"));
+        }
+        let resizable = flag(cx, "resizable", false);
+        let reorderable = flag(cx, "reorderable", false);
+        // The file name, from `export: true` (the title's, or `rows`) or `export: "name.csv"`.
+        let export = match cx.prop(node, "export") {
+            None | Some(Json::Null) | Some(Json::Bool(false)) => None,
+            Some(Json::String(name)) if !name.is_empty() => Some(if name.ends_with(".csv") { name } else { format!("{name}.csv") }),
+            Some(_) => Some(format!("{}.csv", cx.prop_string(node, "title").map(|t| slug(&t)).filter(|t| !t.is_empty()).unwrap_or_else(|| "rows".into()))),
+        };
         let id = instance_id(cx, node, "data-table");
         let search = cx.prop(node, "search").filter(expr::truthy);
         let search_fields = cx.prop(node, "searchFields").filter(|v| !v.is_null());
@@ -875,8 +937,12 @@ impl Component for DataTable {
             "columns": columns.iter().map(|c| json!({
                 "key": c.key, "field": c.field, "sortField": c.sort_field, "label": c.label_text, "sortable": c.sortable, "filter": c.filter,
                 "options": c.options, "format": c.format, "currency": c.currency, "decimals": c.decimals,
-                "summary": c.summary, "hidden": c.hidden,
+                "summary": c.summary, "hidden": c.hidden, "group": c.group, "groupable": c.groupable, "pin": c.pin, "align": c.align,
             })).collect::<Vec<_>>(),
+            "groupBy": node.prop("groupBy").map(|g| dynamic(cx, node, "groupBy", g)).transpose()?,
+            "resizable": resizable,
+            "reorderable": reorderable,
+            "export": export.clone(),
             "selectable": selectable,
             "search": search.is_some(),
             "searchFields": search_fields,
@@ -888,6 +954,7 @@ impl Component for DataTable {
             "bind": {
                 "selection": bind("bindSelection"), "sort": bind("bindSort"), "filters": bind("bindFilters"),
                 "search": bind("bindSearch"), "page": bind("bindPage"), "view": bind("bindView"), "row": bind("bindRow"),
+                "groupBy": bind("bindGroupBy"), "columns": bind("bindColumns"),
             },
             "filters": state_of(bind("bindFilters")),
             "searchText": state_of(bind("bindSearch")),
@@ -912,8 +979,9 @@ impl Component for DataTable {
 
         // ---- toolbar
         let filtered: Vec<&Column> = columns.iter().filter(|c| c.filter.is_some()).collect();
-        let menu = flag(cx, "columnsMenu", true) && columns.iter().any(|c| c.hideable);
-        if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() {
+        let groupable: Vec<&Column> = columns.iter().filter(|c| c.groupable && c.field.is_some()).collect();
+        let menu = (flag(cx, "columnsMenu", true) && columns.iter().any(|c| c.hideable)) || !groupable.is_empty();
+        if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() || export.is_some() {
             let mut bar = cx.part("div", node, "toolbar");
             bar.attr("data-dt-toolbar", true);
             cx.open(&bar, node)?;
@@ -948,6 +1016,15 @@ impl Component for DataTable {
             for t in &parts.toolbar {
                 cx.children(t)?;
             }
+            if export.is_some() {
+                let mut b = Element::new("button");
+                forms::button_look(&mut b, "outline", "sm");
+                b.attr("type", "button").attr("data-dt-export", true).attr("title", "Download the rows that pass the filters as CSV");
+                cx.open(&b, node)?;
+                cx.markup(DOWNLOAD);
+                cx.text("Export");
+                cx.close("button");
+            }
             if menu {
                 let pop = id_with(&id, "-columns");
                 let mut b = Element::new("button");
@@ -975,6 +1052,23 @@ impl Component for DataTable {
                     cx.open(&cb, node)?;
                     cx.text(&c.label_text);
                     cx.close("label");
+                }
+                if !groupable.is_empty() {
+                    let mut title = Element::new("div");
+                    title.attr("data-dt-pop-title", true).attr("data-dt-group-title", true).text(lit("Group by"));
+                    cx.open(&title, node)?;
+                    cx.close("div");
+                    let name = format!("{}-group-by", expr::stringify(&cx.eval(&id)));
+                    let none = (String::new(), "None".to_string());
+                    for (value, text) in std::iter::once(none).chain(groupable.iter().map(|c| (c.field.clone().unwrap_or_default(), c.label_text.clone()))) {
+                        let mut label = Element::new("label");
+                        cx.open(label.attr("data-dt-option", true), node)?;
+                        let mut r = Element::new("input");
+                        r.attr("type", "radio").attr("name", name.clone()).attr("value", value).attr("data-dt-group-by", true);
+                        cx.open(&r, node)?;
+                        cx.text(&text);
+                        cx.close("label");
+                    }
                 }
                 cx.close("div");
             }
@@ -1035,6 +1129,39 @@ impl Component for DataTable {
         // The checkbox and arrow columns stay with the columns pinned to the left.
         let lead_pin = if columns.iter().any(|c| c.pin == Some("left")) { lit("left") } else { Val::Lit(Json::Null) };
         cx.open(&Element::new("thead"), node)?;
+        if columns.iter().any(|c| c.group.is_some()) {
+            // Headers over runs of columns with the same `group`; the browser redraws it
+            // when columns move or hide.
+            let mut tr = Element::new("tr");
+            tr.attr("data-dt-bands", true);
+            cx.open(&tr, node)?;
+            for _ in 0..lead {
+                let mut th = Element::new("th");
+                th.attr("data-dt-box", true).attr("data-pin", lead_pin.clone()).attr("aria-hidden", "true");
+                cx.open(&th, node)?;
+                cx.close("th");
+            }
+            let shown: Vec<&Column> = columns.iter().filter(|c| !c.hidden).collect();
+            let mut i = 0;
+            while i < shown.len() {
+                let g = shown[i].group.clone();
+                let n = shown[i..].iter().take_while(|c| c.group == g).count();
+                let mut th = Element::new("th");
+                th.attr("data-dt-band", g.clone().unwrap_or_default()).attr("colspan", lit(n));
+                match &g {
+                    Some(g) => {
+                        th.attr("scope", "colgroup").text(lit(g.clone()));
+                    }
+                    None => {
+                        th.attr("aria-hidden", "true");
+                    }
+                }
+                cx.open(&th, node)?;
+                cx.close("th");
+                i += n;
+            }
+            cx.close("tr");
+        }
         cx.open(&Element::new("tr"), node)?;
         if selectable {
             let mut th = Element::new("th");
@@ -1077,6 +1204,9 @@ impl Component for DataTable {
                 }
                 th.base_style(s);
             }
+            if reorderable && c.pin.is_none() {
+                th.attr("data-dt-movable", true);
+            }
             cx.open(&th, node)?;
             if c.sortable {
                 let mut b = Element::new("button");
@@ -1096,6 +1226,16 @@ impl Component for DataTable {
                 let mut label = Element::new("span");
                 label.text(c.label.clone());
                 cx.open(&label, node)?;
+                cx.close("span");
+            }
+            if resizable && c.resizable {
+                let mut r = Element::new("span");
+                r.attr("data-dt-resizer", c.key.clone())
+                    .attr("role", "separator")
+                    .attr("aria-orientation", "vertical")
+                    .attr("tabindex", "0")
+                    .attr("aria-label", format!("Resize {}", c.label_text));
+                cx.open(&r, node)?;
                 cx.close("span");
             }
             cx.close("th");

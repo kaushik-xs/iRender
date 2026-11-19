@@ -153,6 +153,7 @@ pub fn register(registry: &mut Registry) {
         .register(overlay::Dialog::DIALOG)
         .register(overlay::Dialog::ALERT)
         .register(overlay::Dialog::SHEET)
+        .register(overlay::Dialog::DRAWER)
         .register(overlay::DialogClose)
         .register(overlay::DialogFooter)
         .register(overlay::Popover::POPOVER)

@@ -378,6 +378,8 @@ ui-event-calendar: Events in a month grid, a week of hours, or a list by day, co
   date         any  The day to show to start with (default today)
   categories   any  Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend
   bindEvent    statekey  State key that gets the event clicked
+  bindEvents   statekey  State key holding the events: makes them movable (drag them, or Alt and the arrow keys) and writes the list back
+  snap         number  Minutes a move or a resize snaps to (default 15)
   bindDay      statekey  State key that gets the day picked (`2026-11-04`), e.g. to add an event on it
   bindView     statekey  State key that gets the view when it changes
   hours        any  The week view's hours, `[from, to]` (default `[7, 20]`)
@@ -428,6 +430,10 @@ ui-rail-layout: An app shell: a rail of icons, each opening its own panel beside
   bindOpen     statekey  State key for whether the panel is open (true or false): a click on the open section folds it
   label        any  Names the rail for screen readers (default `Sections`)
   panelWidth   number  The panel's width in px (default 260)
+  resizable    bool  A handle on the panel's edge to drag it wider or narrower (or focus it and use the arrow keys)
+  bindWidth    statekey  State key for the panel's width in px, written after each resize
+  minPanelWidth number  The narrowest a resize makes it, in px (default 180)
+  maxPanelWidth number  The widest a resize makes it, in px (default 560)
   height       any  The shell's height (default `100svh`)
   parts: rail, panels, main
   children: yes
@@ -570,6 +576,15 @@ ui-sheet: A modal panel along one edge of the screen.
   title        any  Heading
   description  any  Text under the heading
   side         one of: right, left, top, bottom  Edge it slides from (default `right`)
+  id           any  Element id (default: derived from the document)
+  parts: trigger, header, title, description
+  children: yes
+ui-drawer: A panel that slides up from the bottom, and that a drag down (or Escape, or the ✕) closes.
+  trigger      any  Text of a button that opens it
+  triggerVariant one of: default, secondary, destructive, outline, ghost, link, brand  The trigger button's variant (default `outline`)
+  title        any  Heading
+  description  any  Text under the heading
+  width        any  Its widest, centred on a wide screen (default: the whole width)
   id           any  Element id (default: derived from the document)
   parts: trigger, header, title, description
   children: yes
@@ -905,6 +920,12 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   rowHeight    number  With `virtual`, a row's height to start from before rows are measured (default 41)
   pageSizes    any  Choices for rows per page (default `[10, 20, 50, 100]`; `[]` hides it)
   columnsMenu  bool  A View menu that shows and hides columns (default true)
+  groupBy      any  Groups the rows by this field, each group under a header row with its count and subtotals (may use state)
+  bindGroupBy  statekey  State key holding the field the rows are grouped by (or null), set from the View menu
+  resizable    bool  Columns can be made wider or narrower by dragging their header's edge
+  reorderable  bool  Columns can be moved by dragging their header, or Alt and the arrow keys on it
+  bindColumns  statekey  State key holding the columns' layout, `{ order, widths, hidden }`, to keep it
+  export       any  An Export button that downloads the rows that pass the filters as CSV: `true`, or the file's name
   title        any  Accessible name of the table
   emptyText    any  Shown when no row matches (default `No results.`)
   locale       string  Locale for formatted numbers and dates (default: the browser's)
@@ -940,6 +961,9 @@ ui-data-table-column: A column of the `ui-data-table` it is in. Children, if any
   tree         bool  The column that shows nesting: indented, with the arrow that opens a row (default: the first)
   hideable     bool  Listed in the View menu (default true)
   hidden       bool  Starts hidden
+  group        any  A header over this column and the ones next to it with the same `group`
+  groupable    bool  Offered in the View menu's Group by
+  resizable    bool  With the table's `resizable`, false keeps this column's width
   id           string  The column's key when it has no field (default: its position)
   children: yes
 ui-data-table-toolbar: Controls added to the table's toolbar, after its filters (e.g. an Add or Export button).

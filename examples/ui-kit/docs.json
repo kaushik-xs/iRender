@@ -369,14 +369,15 @@
   {
    "id": "dialog",
    "group": "Overlays",
-   "title": "Dialog, alert dialog and sheet",
-   "nav": "Dialog and sheet",
-   "summary": "A modal dialog opened by its trigger; an alert dialog that only its own buttons close; and a sheet that slides in from an edge. A dialog close button closes the one it's in, and runs its own actions too.",
+   "title": "Dialog, alert dialog, sheet and drawer",
+   "nav": "Dialog, sheet, drawer",
+   "summary": "A modal dialog opened by its trigger; an alert dialog that only its own buttons close; a sheet that slides in from an edge; and a drawer that slides up from the bottom and closes with a drag down. A dialog close button closes the one it's in, and runs its own actions too.",
    "usage": "- type: ui-dialog\n  props: { trigger: Edit profile, title: Edit profile, description: Make changes here. }\n  children:\n    - { type: ui-input, props: { bind: name } }\n    - type: ui-dialog-footer\n      children: [ { type: ui-dialog-close, props: { label: Save } } ]",
    "components": [
     "ui-dialog",
     "ui-alert-dialog",
     "ui-sheet",
+    "ui-drawer",
     "ui-dialog-close",
     "ui-dialog-footer"
    ]

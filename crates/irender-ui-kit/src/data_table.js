@@ -2,7 +2,9 @@
 // sorts, filters, searches and pages them by moving and hiding the rendered rows, so
 // what's inside a cell keeps its DOM. It also keeps the selection, the expanded rows,
 // hidden columns, formatted values, summaries, the toolbar and the footer up to date.
-// Everything it writes is textContent, never HTML, apart from its own icons.
+// It groups rows under header rows (`groupBy`), lays columns out as moved and resized
+// (`bindColumns`), and exports what passes as CSV. Everything it writes is textContent,
+// never HTML, apart from its own icons.
 (window.__irenderBehaviors ||= {})["ui-data-table"] = (el, api) => {
   const cfg = api.config, B = cfg.bind;
   // Elements of this table, not of a table inside one of its rows.
@@ -88,6 +90,8 @@
     search: cfg.searchText ?? "",
     page: 1,
     selection: [],
+    groupBy: undefined,
+    columns: null,
   };
   let size = cfg.pageSize;
   // `pages`, `more`, `scroll` or `none`; with `more` and `scroll`, how many rows are
@@ -305,7 +309,8 @@
       if (n.nodeType === 1 && n.hasAttribute("data-dt-row")) {
         cur = [n];
         out.set(indexOf(n), cur);
-      } else if (cur) cur.push(n);
+      } else if (n.nodeType === 1 && n.hasAttribute("data-dt-group")) cur = null;
+      else if (cur) cur.push(n);
     }
     return out;
   }
@@ -318,8 +323,12 @@
   const BOTH = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>';
 
   let applies = 0, page = 1, pages = 1, query = null, viewOf = null, listSig = null, listData = null, listStart = 0;
+  // Grouped rows: the groups in order (`{ key, value, rows }`), and the lines they make,
+  // header and rows, that paging counts (`{ g }` or `{ i }`).
+  let groupList = null, entries = null;
   function apply() {
     applies++;
+    syncColumns();
     outside = resolve(cfg.filter);
     page = Math.max(1, Math.trunc(Number(get("page")) || 1));
     // New filters, search or sort start again from the first batch, at the top.
@@ -351,7 +360,25 @@
         viewOf = { data, q };
       }
     }
+    // Grouped: the rows under a header row per group, the folded groups' rows left out.
+    const gf = groupField();
+    if (gf && !cfg.listed && !tree) {
+      const byGroup = new Map();
+      for (const i of filtered) {
+        const v = at(data[i], gf), k = keyOf(blank(v) ? null : v);
+        if (!byGroup.has(k)) byGroup.set(k, { key: k, value: v, rows: [] });
+        byGroup.get(k).rows.push(i);
+      }
+      // Groups in their value's order (descending when the table sorts by it so), blanks last.
+      const first = sortList(get("sort"))[0];
+      const dir = first?.field === gf && first.desc ? -1 : 1;
+      groupList = [...byGroup.values()].sort((a, b) => (blank(a.value) ? 1 : 0) - (blank(b.value) ? 1 : 0) || dir * cmp(a.value, b.value));
+      entries = groupList.flatMap((g) => [{ g }, ...(folded.has(g.key) ? [] : g.rows.map((i) => ({ i })))]);
+    } else {
+      groupList = entries = null;
+    }
     pages = mode !== "pages" ? 1
+      : entries ? Math.max(1, Math.ceil(entries.length / size))
       : !remote ? Math.max(1, Math.ceil(filtered.length / size))
       : R.total != null ? Math.max(1, Math.ceil(R.total / size))
       : R.done ? Math.max(1, R.page) : Math.max(page, R.page + 1);
@@ -359,9 +386,15 @@
       page = pages;
       local.page = page;
     }
-    shown = remote || mode === "none" ? filtered
-      : mode === "pages" ? filtered.slice((page - 1) * size, page * size)
-      : filtered.slice(0, loaded);
+    let pageLines = null;
+    if (entries) {
+      pageLines = mode === "none" ? entries : mode === "pages" ? entries.slice((page - 1) * size, page * size) : entries.slice(0, loaded);
+      shown = pageLines.filter((e) => e.i !== undefined).map((e) => e.i);
+    } else {
+      shown = remote || mode === "none" ? filtered
+        : mode === "pages" ? filtered.slice((page - 1) * size, page * size)
+        : filtered.slice(0, loaded);
+    }
     const showing = new Set(shown);
 
     const g = groups();
@@ -381,14 +414,35 @@
         if (applies !== n) return; // the redraw applied everything again
       }
     } else {
-      // Rows: in order, the shown ones first, every other one hidden.
-      const passing = new Set(filtered);
-      const order = [...filtered, ...[...g.keys()].filter((i) => !passing.has(i))];
-      const current = [...g.keys()];
-      if (order.some((i, n) => current[n] !== i)) {
+      // Rows: in order, the shown ones first, every other one hidden; grouped, each
+      // group's header row before its rows.
+      const seq = groupList ? groupList.flatMap((x) => x.rows) : filtered;
+      const passing = new Set(seq);
+      const order = [...seq, ...[...g.keys()].filter((i) => !passing.has(i))];
+      const want = [];
+      const heads = new Map();
+      if (groupList) {
+        const starts = new Map(groupList.map((x) => [x.rows[0], x]));
+        for (const i of order) {
+          const x = starts.get(i);
+          if (x) want.push(heads.set(x.key, groupRow(x)).get(x.key));
+          if (g.has(i)) want.push(...g.get(i));
+        }
+      } else for (const i of order) if (g.has(i)) want.push(...g.get(i));
+      for (const [k, tr] of groupRows) if (!heads.has(k)) tr.remove(), groupRows.delete(k);
+      const now = [...body.childNodes];
+      if (want.some((n, at) => now[at] !== n)) {
         const focused = body.contains(document.activeElement) ? document.activeElement : null;
-        for (const i of order) if (g.has(i)) body.append(...g.get(i));
+        body.append(...want);
         if (focused?.isConnected && document.activeElement !== focused) focused.focus({ preventScroll: true });
+      }
+      if (groupList) {
+        const here = new Set(pageLines.filter((e) => e.g).map((e) => e.g.key));
+        for (const x of groupList) {
+          const tr = groupRows.get(x.key);
+          tr.hidden = !here.has(x.key);
+          if (!tr.hidden) drawGroup(tr, x);
+        }
       }
     }
     const chosen = new Set(selection().map(keyOf));
@@ -429,11 +483,15 @@
         }
       }
     }
+    // Rows drawn since (a listed table's) take the columns' order too.
+    if (table.__moved) placeColumns();
     roving();
     if (cfg.virtual) measure(g);
 
     // Columns shown and the cells that span them.
     for (const cell of $$("[data-dt-col]")) cell.hidden = hidden.has(cell.getAttribute("data-dt-col"));
+    drawBands();
+    for (const r of $$("[data-dt-group-by]")) r.checked = r.value === (gf ?? "");
     const span = String(cols.length - hidden.size + lead);
     for (const td of $$("[data-dt-detail] > td, [data-dt-empty] > td")) td.colSpan = span;
     for (const box of $$("[data-dt-show]")) box.checked = !hidden.has(box.getAttribute("data-dt-show"));
@@ -583,7 +641,7 @@
   // ---- more rows: revealed here, or loaded from `url`
   const scroller = $("[data-dt-scroll]"), more = $("[data-dt-more]");
   const emptyText = $("[data-dt-empty]")?.textContent ?? "";
-  const hasMore = () => (remote ? !R.done && mode !== "pages" : (mode === "more" || mode === "scroll") && loaded < filtered.length);
+  const hasMore = () => (remote ? !R.done && mode !== "pages" : (mode === "more" || mode === "scroll") && loaded < (entries ? entries.length : filtered.length));
   function loadMore() {
     if (remote) {
       if (!R.loading && !R.done && !R.error) {
@@ -724,9 +782,11 @@
 
   // ---- pinned columns: each one's offset is the width of the pinned ones before it
   const table = $("table"), pinned = !!table.querySelector("thead [data-pin]");
+  // The row of column headers (under the band row, when there is one).
+  const headRow = () => [...table.tHead.rows].find((r) => !r.hasAttribute("data-dt-bands"));
   function pinLayout() {
     if (!pinned) return;
-    const head = [...table.tHead.rows[0].cells];
+    const head = [...headRow().cells];
     const offsets = (side, cells) => {
       const out = new Map();
       let x = 0, edge = -1;
@@ -825,6 +885,282 @@
     return { i, row: data[i], key: rowKey(data[i], i) };
   };
 
+
+  // ---- grouped rows: a header row per group, with its count and subtotals
+  const folded = new Set();
+  const groupRows = new Map(); // group key → its header row
+  const CHEVRON = '<svg data-dt-chevron width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
+  const groupField = () => {
+    const v = B.groupBy ? api.state[B.groupBy] : local.groupBy !== undefined ? local.groupBy : resolve(cfg.groupBy);
+    return blank(v) ? null : String(v);
+  };
+  function groupRow(x) {
+    let tr = groupRows.get(x.key);
+    if (!tr) {
+      tr = document.createElement("tr");
+      tr.setAttribute("data-dt-group", x.key);
+      groupRows.set(x.key, tr);
+    }
+    return tr;
+  }
+  // Its cells: the fold button with the value and count over the columns up to the first
+  // one with a summary, then a subtotal (or nothing) under each column after.
+  function drawGroup(tr, x) {
+    const gf = groupField(), c = byKey.get(gf) ?? cols.find((k) => k.field === gf);
+    const shownCols = colOrder.map((k) => byKey.get(k)).filter((k) => k && !hidden.has(k.key));
+    let firstSum = shownCols.findIndex((k) => k.summary);
+    if (firstSum < 0) firstSum = shownCols.length;
+    const open = !folded.has(x.key);
+    const value = blank(x.value) ? "(none)" : c ? fmt(c, x.value) : text(x.value);
+    const sig = JSON.stringify([open, value, x.rows.length, colOrder, [...hidden], firstSum, shownCols.slice(firstSum).map((k) => k.summary ? subtotal(k, x.rows) : "")]);
+    if (tr.__sig === sig) return;
+    tr.__sig = sig;
+    const td = document.createElement("td");
+    td.colSpan = lead + firstSum;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("data-dt-fold", "");
+    b.setAttribute("aria-expanded", String(open));
+    b.innerHTML = CHEVRON;
+    const label = Object.assign(document.createElement("span"), { textContent: `${c?.label || gf}: ${value}` });
+    const count = Object.assign(document.createElement("span"), { textContent: String(x.rows.length) });
+    count.setAttribute("data-dt-group-count", "");
+    count.setAttribute("aria-label", `${x.rows.length} row${x.rows.length === 1 ? "" : "s"}`);
+    b.append(label, count);
+    td.append(b);
+    const cells = [td];
+    for (const k of shownCols.slice(firstSum)) {
+      const cell = document.createElement("td");
+      if (k.align) cell.setAttribute("data-align", k.align);
+      if (k.summary) cell.textContent = subtotal(k, x.rows);
+      cells.push(cell);
+    }
+    tr.replaceChildren(...cells);
+  }
+  function subtotal(c, rowsIn) {
+    if (c.summary === "count") return String(rowsIn.length);
+    const v = SUM[c.summary](rowsIn.map((i) => at(data[i], c.field)).filter(isNum).map(Number));
+    return v === null ? "" : fmt({ ...c, format: c.format || "number" }, Math.round(v * 1e9) / 1e9);
+  }
+
+  // ---- the columns' layout: their order, widths and the hidden ones, kept in
+  // `bindColumns` (or here), and the band row over them
+  let colOrder = cols.map((c) => c.key), widths = {}, layoutSig = null;
+  const columnsState = () => {
+    const v = B.columns ? api.state[B.columns] : local.columns;
+    return isObj(v) ? v : null;
+  };
+  function syncColumns() {
+    const v = columnsState();
+    const sig = JSON.stringify(v);
+    if (sig === layoutSig) return;
+    layoutSig = sig;
+    if (v) {
+      const known = new Set(cols.map((c) => c.key));
+      if (Array.isArray(v.order)) {
+        const order = v.order.map(String).filter((k) => known.has(k));
+        colOrder = [...new Set([...order, ...cols.map((c) => c.key)])];
+      }
+      if (isObj(v.widths)) widths = Object.fromEntries(Object.entries(v.widths).filter(([k, w]) => known.has(k) && Number(w) > 0).map(([k, w]) => [k, Math.round(Number(w))]));
+      if (Array.isArray(v.hidden)) {
+        hidden.clear();
+        for (const k of v.hidden) if (known.has(String(k))) hidden.add(String(k));
+      }
+    }
+    placeColumns();
+    drawWidths();
+  }
+  function saveColumns() {
+    const v = { order: [...colOrder], widths: { ...widths }, hidden: [...hidden] };
+    layoutSig = JSON.stringify(v);
+    if (B.columns) api.set(B.columns, v);
+    else local.columns = v;
+    api.emit("columns", v);
+  }
+  const moved = () => colOrder.some((k, n) => cols[n].key !== k);
+  // Puts every row's cells in `colOrder` (the checkbox and arrow cells stay first).
+  function placeColumns() {
+    if (!moved() && !table.__moved) return;
+    table.__moved = true;
+    for (const tr of table.rows) {
+      if (tr.hasAttribute("data-dt-bands") || tr.hasAttribute("data-dt-group")) continue;
+      const cells = [...tr.children].filter((c) => c.hasAttribute("data-dt-col"));
+      if (cells.length < 2) continue;
+      const map = new Map(cells.map((c) => [c.getAttribute("data-dt-col"), c]));
+      const want = colOrder.filter((k) => map.has(k)).map((k) => map.get(k));
+      if (want.some((c, n) => cells[n] !== c)) tr.append(...want);
+    }
+  }
+  // Widths as one style rule a column, so rows drawn later have them too.
+  const sheet = document.createElement("style");
+  function drawWidths() {
+    const scope = `#${CSS.escape(el.id)} > [data-dt-scroll] > table > * > tr > `;
+    const css = Object.entries(widths).map(([k, w]) => `${scope}[data-dt-col="${CSS.escape(k)}"] { box-sizing: border-box; width: ${w}px; min-width: ${w}px; max-width: ${w}px; overflow: hidden; text-overflow: ellipsis }`).join("\n");
+    if (sheet.textContent !== css) sheet.textContent = css;
+    if (css && !sheet.isConnected) el.append(sheet);
+    for (const r of $$("[data-dt-resizer]")) {
+      const th = r.closest("th");
+      r.setAttribute("aria-valuenow", String(Math.round(widths[r.getAttribute("data-dt-resizer")] ?? th.getBoundingClientRect().width)));
+    }
+  }
+  // The band row: a header over each run of shown columns in the same `group`.
+  function drawBands() {
+    const row = table.tHead.querySelector("[data-dt-bands]");
+    if (!row) return;
+    const shownCols = colOrder.map((k) => byKey.get(k)).filter((c) => c && !hidden.has(c.key));
+    const runs = [];
+    for (const c of shownCols) {
+      const g = c.group ?? "";
+      if (runs.length && runs[runs.length - 1].g === g) runs[runs.length - 1].n++;
+      else runs.push({ g, n: 1 });
+    }
+    const sig = JSON.stringify(runs);
+    if (row.__sig !== sig) {
+      row.__sig = sig;
+      const leadCells = [...row.children].filter((c) => c.hasAttribute("data-dt-box"));
+      row.replaceChildren(...leadCells, ...runs.map(({ g, n }) => {
+        const th = document.createElement("th");
+        th.setAttribute("data-dt-band", g);
+        th.colSpan = n;
+        if (g) (th.scope = "colgroup"), (th.textContent = g);
+        else th.setAttribute("aria-hidden", "true");
+        return th;
+      }));
+    }
+    table.style.setProperty("--dt-band-h", `${row.offsetHeight}px`);
+  }
+
+  // Resizing: drag a header's edge, or focus it and use Left and Right (Shift for less);
+  // a double click goes back to the column's own width.
+  let sizing = null;
+  el.addEventListener("pointerdown", (e) => {
+    const r = e.target.closest?.("[data-dt-resizer]");
+    if (!r || e.button !== 0 || !el.contains(r)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    sizing = { key: r.getAttribute("data-dt-resizer"), x: e.clientX, w: r.closest("th").getBoundingClientRect().width, id: e.pointerId, r };
+    try {
+      r.setPointerCapture(e.pointerId);
+    } catch {}
+    el.setAttribute("data-dt-resizing", "");
+  }, true);
+  el.addEventListener("pointermove", (e) => {
+    if (!sizing || e.pointerId !== sizing.id) return;
+    widths[sizing.key] = Math.max(48, Math.round(sizing.w + e.clientX - sizing.x));
+    drawWidths();
+    pinLayout();
+  });
+  const endSizing = (e) => {
+    if (!sizing || e.pointerId !== sizing.id) return;
+    sizing = null;
+    el.removeAttribute("data-dt-resizing");
+    saveColumns();
+    apply();
+  };
+  el.addEventListener("pointerup", endSizing);
+  el.addEventListener("pointercancel", endSizing);
+  el.addEventListener("dblclick", (e) => {
+    const r = e.target.closest?.("[data-dt-resizer]");
+    if (!r || !el.contains(r)) return;
+    delete widths[r.getAttribute("data-dt-resizer")];
+    drawWidths();
+    saveColumns();
+    apply();
+  });
+
+  // Moving columns: drag a header onto another (a press that doesn't move still sorts),
+  // or Alt and Left or Right on it. Pinned columns stay where they are.
+  let moving = null;
+  const movable = () => colOrder.filter((k) => !hidden.has(k) && !byKey.get(k).pin);
+  const sayCols = (t) => {
+    const live = $("[data-dt-footer] [data-dt-live]");
+    if (live) live.textContent = t;
+  };
+  function moveColumn(key, to) {
+    const list = movable();
+    const from = list.indexOf(key);
+    if (from < 0 || to < 0 || to >= list.length || to === from) return false;
+    const target = list[to];
+    const order = colOrder.filter((k) => k !== key);
+    order.splice(order.indexOf(target) + (to > from ? 1 : 0), 0, key);
+    colOrder = order;
+    placeColumns();
+    saveColumns();
+    apply();
+    sayCols(`${byKey.get(key).label || key} moved to column ${to + 1} of ${list.length}`);
+    return true;
+  }
+  el.addEventListener("pointerdown", (e) => {
+    const th = e.target.closest?.("th[data-dt-movable]");
+    if (!th || e.button !== 0 || !el.contains(th) || e.target.closest("[data-dt-resizer]")) return;
+    moving = { th, key: th.getAttribute("data-dt-col"), x: e.clientX, id: e.pointerId, on: false, drop: null };
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!moving || e.pointerId !== moving.id) return;
+    if (!moving.on) {
+      if (Math.abs(e.clientX - moving.x) < 6) return;
+      moving.on = true;
+      moving.th.setAttribute("data-dt-moving", "");
+      try {
+        moving.th.setPointerCapture(e.pointerId);
+      } catch {}
+    }
+    const over = [...headRow().cells].find((c) => {
+      const b = c.getBoundingClientRect();
+      return c.hasAttribute("data-dt-movable") && !c.hidden && e.clientX >= b.left && e.clientX < b.right;
+    });
+    $$("[data-dt-drop]").forEach((c) => c.removeAttribute("data-dt-drop"));
+    moving.drop = null;
+    if (over && over !== moving.th) {
+      const b = over.getBoundingClientRect(), side = e.clientX < b.left + b.width / 2 ? "before" : "after";
+      over.setAttribute("data-dt-drop", side);
+      moving.drop = { key: over.getAttribute("data-dt-col"), side };
+    }
+  });
+  const endMoving = (e) => {
+    if (!moving || e.pointerId !== moving.id) return;
+    const m = moving;
+    moving = null;
+    $$("[data-dt-drop]").forEach((c) => c.removeAttribute("data-dt-drop"));
+    m.th.removeAttribute("data-dt-moving");
+    if (!m.on) return;
+    // A drag isn't a click on the header's sort button.
+    const stop = (c) => (c.stopPropagation(), c.preventDefault());
+    window.addEventListener("click", stop, { capture: true, once: true });
+    setTimeout(() => window.removeEventListener("click", stop, { capture: true }), 0);
+    if (!m.drop) return;
+    const list = movable(), from = list.indexOf(m.key);
+    let to = list.indexOf(m.drop.key) + (m.drop.side === "after" ? 1 : 0);
+    if (to > from) to--;
+    moveColumn(m.key, to);
+  };
+  el.addEventListener("pointerup", endMoving);
+  el.addEventListener("pointercancel", endMoving);
+
+  // ---- CSV of the rows that pass the filters, in the order and columns shown
+  function exportCsv() {
+    const shownCols = colOrder.map((k) => byKey.get(k)).filter((c) => c && c.field && !hidden.has(c.key));
+    const seq = groupList ? groupList.flatMap((x) => x.rows) : filtered;
+    const cell = (v) => {
+      let s = blank(v) ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
+      // A text that starts like a formula is kept as text (a spreadsheet would run it).
+      if (/^[=+\-@\t\r]/.test(s) && !isNum(s)) s = "'" + s;
+      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [shownCols.map((c) => cell(c.label || c.field)), ...seq.map((i) => shownCols.map((c) => cell(at(data[i], c.field))))];
+    const csv = "﻿" + lines.map((l) => l.join(",")).join("\r\n") + "\r\n";
+    api.emit("export", { csv, rows: seq.length, file: cfg.export });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = cfg.export;
+    a.hidden = true;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    sayCols(`Exported ${seq.length} row${seq.length === 1 ? "" : "s"}`);
+  }
+
   // ---- changes people make
   const setFilter = (key, c) => {
     const next = { ...filters() };
@@ -855,6 +1191,14 @@
   el.addEventListener("click", (e) => {
     const t = e.target.closest("button, [data-dt-row]");
     if (!t || !el.contains(t)) return;
+    if (t.matches("[data-dt-fold]")) {
+      const k = t.closest("[data-dt-group]").getAttribute("data-dt-group");
+      folded.has(k) ? folded.delete(k) : folded.add(k);
+      apply();
+      // Its header row was redrawn: focus its new button.
+      return groupRows.get(k)?.querySelector("[data-dt-fold]")?.focus();
+    }
+    if (t.matches("[data-dt-export]")) return exportCsv();
     if (t.matches("[data-dt-sort]")) {
       const field = byKey.get(t.getAttribute("data-dt-sort")).sortField;
       let keys = sortList(get("sort"));
@@ -917,7 +1261,19 @@
       toggleRows(shown.map((i) => rowKey(data[i], i)), t.checked);
     } else if (t.matches("[data-dt-show]")) {
       t.checked ? hidden.delete(t.getAttribute("data-dt-show")) : hidden.add(t.getAttribute("data-dt-show"));
+      if (B.columns || local.columns || cfg.reorderable || cfg.resizable) saveColumns();
       apply();
+    } else if (t.matches("[data-dt-group-by]")) {
+      const v = t.value || null;
+      local.page = 1;
+      if (B.page) api.set(B.page, 1);
+      folded.clear();
+      if (B.groupBy) api.set(B.groupBy, v);
+      else {
+        local.groupBy = v;
+        apply();
+      }
+      api.emit("group", { field: v });
     } else if (t.matches("[data-dt-size]")) {
       size = Math.max(1, Number(t.value) || cfg.pageSize);
       local.page = 1;
@@ -966,6 +1322,21 @@
       t.value = "";
       t.dispatchEvent(new Event("input", { bubbles: true }));
       return;
+    }
+    if (t.matches("[data-dt-resizer]") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault();
+      const k = t.getAttribute("data-dt-resizer"), w = widths[k] ?? t.closest("th").getBoundingClientRect().width;
+      widths[k] = Math.max(48, Math.round(w + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 4 : 16)));
+      drawWidths();
+      saveColumns();
+      return apply();
+    }
+    const th = t.closest?.("th[data-dt-movable]");
+    if (cfg.reorderable && e.altKey && th && el.contains(th) && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+      e.preventDefault();
+      const k = th.getAttribute("data-dt-col"), list = movable();
+      moveColumn(k, list.indexOf(k) + (e.key === "ArrowRight" ? 1 : -1));
+      return t.isConnected && t.focus();
     }
     if (!navigable || !t.matches("[data-dt-row]")) return;
     // Positions count over every shown row: a virtual table draws the target first.

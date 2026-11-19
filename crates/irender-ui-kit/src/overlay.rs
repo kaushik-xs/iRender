@@ -9,7 +9,7 @@ use crate::{
 };
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
-use serde_json::json;
+use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
 
 pub(crate) const MENU_SCRIPT: &str = include_str!("menu.js");
@@ -56,6 +56,7 @@ enum Kind {
     Dialog,
     Alert,
     Sheet,
+    Drawer,
 }
 
 pub struct Dialog {
@@ -67,6 +68,7 @@ impl Dialog {
     pub const DIALOG: Dialog = Dialog { name: "ui-dialog", kind: Kind::Dialog };
     pub const ALERT: Dialog = Dialog { name: "ui-alert-dialog", kind: Kind::Alert };
     pub const SHEET: Dialog = Dialog { name: "ui-sheet", kind: Kind::Sheet };
+    pub const DRAWER: Dialog = Dialog { name: "ui-drawer", kind: Kind::Drawer };
 }
 
 const DIALOG_PROPS: &[PropDef] = &[
@@ -85,6 +87,17 @@ const SHEET_PROPS: &[PropDef] = &[
     PropDef::new("side", PropKind::Enum(SIDES), "Edge it slides from (default `right`)"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
 ];
+
+const DRAWER_PROPS: &[PropDef] = &[
+    PropDef::new("trigger", PropKind::Any, "Text of a button that opens it"),
+    PropDef::new("triggerVariant", BUTTON_VARIANTS, "The trigger button's variant (default `outline`)"),
+    PropDef::new("title", PropKind::Any, "Heading"),
+    PropDef::new("description", PropKind::Any, "Text under the heading"),
+    PropDef::new("width", PropKind::Any, "Its widest, centred on a wide screen (default: the whole width)"),
+    PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
+];
+
+const DRAWER_SCRIPT: &str = include_str!("drawer.js");
 
 fn dialog_base() -> StyleBlock {
     StyleBlock::from_pairs(&[
@@ -124,6 +137,51 @@ pub(crate) static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         side(&[("width", "100%"), ("margin", "auto 0 0"), ("border-width", "1px 0 0")]),
     ]
 });
+/// The drawer: a sheet from the bottom with rounded top corners and a grab bar, that
+/// slides up and can be dragged down to close.
+static DRAWER: LazyLock<StyleBlock> = LazyLock::new(|| {
+    dialog_base()
+        .set("--ui-bg", BG_SHEET)
+        .set("background", BG_SHEET)
+        .set("width", "min(100%, var(--drawer-width, 100%))")
+        .set("max-width", "none")
+        .set("max-height", "85dvh")
+        .set("margin", "auto auto 0")
+        .set("padding-top", sp!(28))
+        .set("border-width", "1px 1px 0")
+        .set("border-radius", "var(--radius-xl, 16px) var(--radius-xl, 16px) 0 0")
+        .set("overscroll-behavior", "contain")
+        .set("transform", "translateY(100%)")
+        .set("transition", "transform .3s cubic-bezier(.32, .72, 0, 1), overlay .3s allow-discrete, display .3s allow-discrete")
+        .nest("&[open]", StyleBlock::from_pairs(&[("transform", "none")]))
+        .nest("@starting-style", StyleBlock::new().nest("&[open]", StyleBlock::from_pairs(&[("transform", "translateY(100%)")])))
+        .nest("&[data-dragging]", StyleBlock::from_pairs(&[("transition", "none"), ("user-select", "none")]))
+        .nest("::backdrop", StyleBlock::from_pairs(&[("transition", "opacity .3s, overlay .3s allow-discrete, display .3s allow-discrete"), ("opacity", "0")]))
+        .nest("&[open]::backdrop", StyleBlock::from_pairs(&[("opacity", "1")]))
+        .nest("@starting-style", StyleBlock::new().nest("&[open]::backdrop", StyleBlock::from_pairs(&[("opacity", "0")])))
+        .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::new().nest("&, &::backdrop", StyleBlock::from_pairs(&[("transition", "none")])))
+        // The grab bar, and the strip around it that takes the drag.
+        .nest(
+            "& [data-drawer-grip]",
+            StyleBlock::from_pairs(&[("position", "absolute"), ("top", "0"), ("left", "0"), ("right", "0"), ("height", "28px"), ("cursor", "grab"), ("touch-action", "none")]),
+        )
+        .nest(
+            "& [data-drawer-grip]::after",
+            StyleBlock::from_pairs(&[
+                ("content", "''"),
+                ("position", "absolute"),
+                ("top", "10px"),
+                ("left", "50%"),
+                ("width", "40px"),
+                ("height", "5px"),
+                ("margin-left", "-20px"),
+                ("border-radius", "999px"),
+                ("background", "color-mix(in srgb, var(--color-text) 18%, transparent)"),
+            ]),
+        )
+        .nest("&[data-dragging] [data-drawer-grip]", StyleBlock::from_pairs(&[("cursor", "grabbing")]))
+});
+
 pub(crate) static DIALOG_HEADER: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6)), ("padding-right", sp!(24))]));
 pub(crate) static DIALOG_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -159,6 +217,7 @@ impl Component for Dialog {
             Kind::Dialog => ("A modal window. Escape, the ✕ or a click outside closes it.", DIALOG_PROPS),
             Kind::Alert => ("A modal that needs an answer: only its own buttons close it.", DIALOG_PROPS),
             Kind::Sheet => ("A modal panel along one edge of the screen.", SHEET_PROPS),
+            Kind::Drawer => ("A panel that slides up from the bottom, and that a drag down (or Escape, or the ✕) closes.", DRAWER_PROPS),
         };
         ComponentInfo { doc, props, parts: &["trigger", "header", "title", "description"], children: true, open_props: false }
     }
@@ -174,6 +233,7 @@ impl Component for Dialog {
 
         let base = match self.kind {
             Kind::Sheet => &SHEETS[choice(cx, node, "side", SIDES)],
+            Kind::Drawer => &*DRAWER,
             _ => &*DIALOG,
         };
         let (title, description) = (node.prop("title"), node.prop("description"));
@@ -184,6 +244,13 @@ impl Component for Dialog {
         } else {
             el.attr("closedby", "any");
         }
+        if self.kind == Kind::Drawer {
+            cx.global_js("ui-drawer", DRAWER_SCRIPT);
+            el.behavior("ui-drawer", json!({}));
+            if let Some(w) = cx.prop(node, "width") {
+                el.base_style(StyleBlock::new().set("--drawer-width", if let Json::Number(n) = &w { format!("{n}px") } else { expr::stringify(&w) }));
+            }
+        }
         if title.is_some() {
             el.attr("aria-labelledby", id_with(&id, "-title"));
         }
@@ -191,6 +258,13 @@ impl Component for Dialog {
             el.attr("aria-describedby", id_with(&id, "-description"));
         }
         cx.open(&el, node)?;
+        if self.kind == Kind::Drawer {
+            // Decorative: Escape and the ✕ do the same for the keyboard.
+            let mut grip = Element::new("div");
+            grip.attr("data-drawer-grip", true).attr("aria-hidden", "true");
+            cx.open(&grip, node)?;
+            cx.close("div");
+        }
         if title.is_some() || description.is_some() {
             let mut header = cx.part("div", node, "header");
             header.base_style_ref(&DIALOG_HEADER);
