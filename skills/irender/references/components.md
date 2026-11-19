@@ -1027,7 +1027,8 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   markers      any  Gantt: dated lines down the timeline, `[{ at, name, color }]`
   today        bool  Gantt: a line at today's date when it's on the timeline (default true)
   bindData     statekey  Gantt: the state key `data` reads; bars dragged (or moved with Alt and the arrows) write their new dates back to it
-  editable     bool  Gantt: with `bindData`, bars can be moved and stretched (default true)
+  editable     bool  Gantt: with `bindData`, bars can be moved and stretched, and links drawn and removed (default true)
+  cascade      bool  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends
   stack        bool  Stack the series
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis

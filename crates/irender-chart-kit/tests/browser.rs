@@ -422,6 +422,71 @@ fn gantt_editing_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// Gantt links: drawn by dragging from a bar's dot onto another task, refused when they'd
+/// go round in a circle, removed by clicking the arrow; and with `cascade`, the tasks that
+/// wait on a moved one move on so they start when it ends.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_links_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1,
+        "state": { "links": 0, "tasks": [
+            { "id": "a", "name": "A", "start": "2026-03-02", "end": "2026-03-06" },
+            { "id": "b", "name": "B", "start": "2026-03-09", "end": "2026-03-13", "after": "a" },
+            { "id": "c", "name": "C", "start": "2026-03-16", "end": "2026-03-20", "after": "b" },
+            { "id": "d", "name": "D", "start": "2026-03-02", "end": "2026-03-04" } ] },
+        "root": { "type": "ui-chart", "attrs": { "id": "g" },
+            "props": { "type": "gantt", "data": "{{ tasks }}", "bindData": "tasks", "cascade": true, "today": false },
+            "on": { "link": { "action": "set_state", "key": "links", "value": "{{ links + 1 }}" } } } });
+    let body = r##"
+    await ready(["g"]);
+    const g = chart("g"), canvas = el("g").querySelector("canvas");
+    const tasks = () => S().tasks.map((t) => `${t.id}:${t.start.slice(5)}..${t.end.slice(5)}${t.after ? "<" + [].concat(t.after).join("+") : ""}`).join(" ");
+    const ms = (v) => { const [y, m, d] = v.split("-").map(Number); return new Date(y, m - 1, d).getTime(); };
+    const x = (v) => g.convertToPixel({ xAxisIndex: 0 }, ms(v)), row = (i) => g.convertToPixel({ yAxisIndex: 0 }, String(i));
+    const day = x("2026-03-03") - x("2026-03-02");
+    const ptr = (target, type, px, py) => {
+      const r = canvas.getBoundingClientRect(), o = { bubbles: true, cancelable: true, pointerId: 4, pointerType: "mouse", isPrimary: true, button: 0, clientX: r.left + px, clientY: r.top + py };
+      target.dispatchEvent(new PointerEvent(type, o));
+      target.dispatchEvent(new MouseEvent(type.replace("pointer", "mouse"), o));
+    };
+    const drag = async (px, py, qx, qy) => {
+      ptr(canvas, "pointermove", px, py); ptr(canvas, "pointerdown", px, py);
+      ptr(window, "pointermove", (px + qx) / 2, (py + qy) / 2); ptr(window, "pointermove", qx, qy); ptr(window, "pointerup", qx, qy);
+      canvas.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await wait(60);
+    };
+    log("start", tasks());
+    // A's end three days on: B (after A) and C (after B) move on with it.
+    await drag(x("2026-03-07") - 2, row(0), x("2026-03-07") - 2 + day * 6, row(0));
+    log("cascade", tasks());
+    // From D's dot onto C: C waits for D too.
+    await drag(x("2026-03-05") + 10, row(3), x("2026-03-20"), row(2));
+    log("linked", tasks(), S().links);
+    // From C's dot onto A: A would wait for C, which waits for A. Refused.
+    await drag(x("2026-03-23") + 10, row(2), x("2026-03-04"), row(0)); await wait(60);
+    log("circle", tasks(), S().links, el("g").querySelector("[role=status]")?.textContent ?? "");
+    // The arrow into B, clicked: B no longer waits for A.
+    const bStart = x(S().tasks[1].start);
+    ptr(canvas, "pointermove", bStart - 6, row(1)); ptr(canvas, "pointerdown", bStart - 6, row(1)); ptr(canvas, "pointerup", bStart - 6, row(1));
+    canvas.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: canvas.getBoundingClientRect().left + bStart - 6, clientY: canvas.getBoundingClientRect().top + row(1) }));
+    await wait(60);
+    log("unlinked", tasks(), S().links);
+"##;
+    let Some(lines) = run("gantt-links", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        "start a:03-02..03-06 b:03-09..03-13<a c:03-16..03-20<b d:03-02..03-04",
+        // A ends on the 12th: B starts the 13th, C after B, each as long as it was.
+        "cascade a:03-02..03-12 b:03-13..03-17<a c:03-18..03-22<b d:03-02..03-04",
+        "linked a:03-02..03-12 b:03-13..03-17<a c:03-18..03-22<b+d d:03-02..03-04 1",
+        "circle a:03-02..03-12 b:03-13..03-17<a c:03-18..03-22<b+d d:03-02..03-04 1 A can't wait for C: C waits for it",
+        "unlinked a:03-02..03-12 b:03-13..03-17 c:03-18..03-22<b+d d:03-02..03-04 2",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// Picking a chart colour scheme (the `chart` theme option) recolours the charts on
 /// the page; picking the default goes back to the kit's hues.
 #[test]

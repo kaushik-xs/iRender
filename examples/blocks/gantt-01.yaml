@@ -5,7 +5,9 @@
 # the chart; the bars are coloured by team, and the legend hides a team's tasks. Drag
 # a bar to move its task, or an end to stretch it (on a phone, hold it first); on a
 # focused row, Alt with Left or Right moves the task a day, and with Shift its end. A
-# task that starts before the one it waits for ends gets a red arrow.
+# task that starts before the one it waits for ends gets a red arrow. Drag from the dot
+# after a bar onto another task to make it wait on that one, and click an arrow to remove
+# it; with `cascade`, the tasks that wait on a moved one move on too.
 #
 #   cargo run -p irender-cli -- render examples/blocks/gantt-01.yaml --ui-kit --chart-kit --icon-kit -o gantt-01.html
 version: 1
@@ -64,6 +66,7 @@ root:
                     zoom: true
                     bindRow: task
                     bindData: tasks
+                    cascade: true
             - type: ui-card
               props: { title: "{{ task ? task.name : 'No task picked' }}", description: "{{ task ? (task.team ? task.team : 'Milestone') : 'Click a bar to see the task here.' }}" }
               children:

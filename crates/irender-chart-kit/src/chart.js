@@ -453,9 +453,15 @@
       const kind = api.value(4), done = api.value(3);
       const color = api.visual("color");
       const y = at0[1];
+      // Editable: a dot after the bar, shown on hover, to drag to a task that waits on it.
+      const connector = (x) => [
+        { type: "circle", shape: { cx: x + 10, cy: y, r: 9 }, style: { fill: "transparent" }, cursor: "crosshair" },
+        { type: "circle", shape: { cx: x + 10, cy: y, r: 4 }, style: { fill: t.surface, stroke: color, lineWidth: 1.5, opacity: 0 }, emphasis: { style: { opacity: 1 } }, cursor: "crosshair" },
+      ];
       if (kind === 2) {
         const s = Math.min(h * 0.32, 9);
-        return { type: "polygon", shape: { points: [[at0[0], y - s], [at0[0] + s, y], [at0[0], y + s], [at0[0] - s, y]] }, style: { fill: color, stroke: t.surface, lineWidth: 1 } };
+        const diamond = { type: "polygon", shape: { points: [[at0[0], y - s], [at0[0] + s, y], [at0[0], y + s], [at0[0] - s, y]] }, style: { fill: color, stroke: t.surface, lineWidth: 1 } };
+        return editable ? { type: "group", children: [{ ...diamond, cursor: "grab" }, ...connector(at0[0] + s)] } : diamond;
       }
       const w = Math.max(at1[0] - at0[0], 2);
       if (kind === 1) {
@@ -479,6 +485,7 @@
         children.push(
           { type: "rect", shape: { x: at0[0] - 2, y: top, width: edge + 2, height: bh }, style: { fill: "transparent" }, cursor: "ew-resize" },
           { type: "rect", shape: { x: at0[0] + w - edge, y: top, width: edge + 2, height: bh }, style: { fill: "transparent" }, cursor: "ew-resize" },
+          ...connector(at0[0] + w),
         );
       }
       return { type: "group", children };
@@ -497,17 +504,25 @@
     }
 
     // Arrows from each task in `after` to the task that waits on it.
-    const links = [];
+    const links = [], linkKeys = [], seenLinks = new Set();
     for (const i of g.all) {
       for (const f of afterOf(i)) {
         const from = g.showing(f.key), to = g.showing(i.key);
+        if (!from || !to || from === to || Number.isNaN(from.b) || Number.isNaN(to.a)) continue;
         // A task that starts before the one it waits for ends: its arrow in red.
-        if (from && to && from !== to && !Number.isNaN(from.b) && !Number.isNaN(to.a)) links.push([from.index, from.b, to.index, to.a, i.late.includes(f) ? 1 : 0]);
+        const l = [from.index, from.b, to.index, to.a, i.late.includes(f) ? 1 : 0];
+        if (seenLinks.has(JSON.stringify(l))) continue;
+        seenLinks.add(JSON.stringify(l));
+        links.push(l);
+        // Which link it is, when both ends are shown (not a closed group's).
+        linkKeys.push(from === f && to === i ? [f.key, i.key] : null);
       }
     }
+    g.linkKeys = linkKeys;
     if (links.length) {
       o.series.push({
-        type: "custom", id: "links", silent: true, clip: true, z: 2, tooltip: { show: false }, encode: { x: [1, 3], y: [0, 2] }, data: uniq(links.map((l) => JSON.stringify(l))).map((l) => JSON.parse(l)),
+        // Editable, an arrow is clicked to remove it.
+        type: "custom", id: "links", silent: !editable, clip: true, z: 2, tooltip: { show: false }, encode: { x: [1, 3], y: [0, 2] }, data: links,
         renderItem: (params, api) => {
           const [x1, y1] = api.coord([api.value(1), api.value(0)]), [x2, y2] = api.coord([api.value(3), api.value(2)]);
           const h = api.size([0, 1])[1], gap = 8;
@@ -517,8 +532,10 @@
           return {
             type: "group",
             children: [
-              { type: "polyline", shape: { points }, style: { stroke, fill: "none", lineWidth: 1 } },
+              { type: "polyline", shape: { points }, style: { stroke, fill: "none", lineWidth: 1 }, emphasis: { style: { lineWidth: 2.5 } }, cursor: editable ? "pointer" : "default" },
               { type: "polygon", shape: { points: [[x2, y2], [x2 - 6, y2 - 4], [x2 - 6, y2 + 4]] }, style: { fill: stroke } },
+              // A wider line to hit.
+              ...(editable ? [{ type: "polyline", shape: { points }, style: { stroke: "transparent", fill: "none", lineWidth: 8 }, cursor: "pointer" }] : []),
             ],
           };
         },
@@ -1294,6 +1311,12 @@
     function onClick(e) {
       // The click that ends a drag isn't one.
       if (dragged) return;
+      // An arrow, editable: the link goes.
+      if (e.seriesId === "links" && canEdit()) {
+        const k = level.gantt?.linkKeys?.[e.dataIndex];
+        if (k) relink(k[0], k[1], false);
+        return;
+      }
       // A gantt group's bar opens and closes it.
       const item = e.componentType === "series" ? level.gantt?.shown[e.value?.[0]] : null;
       if (item?.group && e.value?.[4] === 1) toggleGroup(item);
@@ -1494,26 +1517,101 @@
       const a = ms(v.start);
       return { a, b: blank(v.end) ? a : ms(v.end) + (dateOnly(v.end) ? DAY : 0) };
     };
+    const keyOf = (r) => String(at(r, "id") ?? at(r, "name"));
+    const afterKeys = (r) => {
+      const v = at(r, "after");
+      return (blank(v) ? [] : Array.isArray(v) ? v : String(v).split(",")).map((k) => String(k).trim());
+    };
+    // The new dates of task `key` (`v`), and with `cascade` those of the tasks that wait on
+    // it, each moved on as far as it must to start when what it waits for ends.
+    function pushed(list, key, v) {
+      const out = new Map([[key, v]]);
+      if (!current().cascade) return out;
+      const rows = new Map(list.map((r) => [keyOf(r), r]));
+      const now = (k) => out.get(k) ?? { start: at(rows.get(k), "start"), end: at(rows.get(k), "end") };
+      const queue = [key];
+      for (let guard = 0; queue.length && guard < 1000; guard++) {
+        const k = queue.shift(), done = span(now(k));
+        for (const r of list) {
+          if (!afterKeys(r).includes(k)) continue;
+          const rk = keyOf(r), mine = now(rk), a = ms(mine.start);
+          if (Number.isNaN(a) || Number.isNaN(done.b) || a >= done.b) continue;
+          // Whole days (a day changing clocks is an hour short or long).
+          const n = Math.ceil((done.b - a) / DAY - 0.1);
+          out.set(rk, { start: dayShift(mine.start, n), end: blank(mine.end) ? mine.end : dayShift(mine.end, n) });
+          queue.push(rk);
+        }
+      }
+      return out;
+    }
     function commit(item, v) {
       const list = api.state[cfg.bindData];
       if (!Array.isArray(list)) return;
-      const key = (r) => String(at(r, "id") ?? at(r, "name"));
-      const next = list.map((r) => (key(r) === item.key ? { ...r, start: v.start, ...(blank(at(r, "end")) ? {} : { end: v.end }) } : r));
+      const changes = pushed(list, item.key, v);
+      const next = list.map((r) => {
+        const c = changes.get(keyOf(r));
+        return c ? { ...r, start: c.start, ...(blank(at(r, "end")) ? {} : { end: c.end }) } : r;
+      });
       api.set(cfg.bindData, next);
-      api.emit("edit", { id: item.key, start: v.start, end: blank(v.end) ? null : v.end, row: next.find((r) => key(r) === item.key) });
+      const moved = [...changes.keys()].filter((k) => k !== item.key);
+      api.emit("edit", { id: item.key, start: v.start, end: blank(v.end) ? null : v.end, row: next.find((r) => keyOf(r) === item.key), pushed: moved });
       // Said once the chart has the new dates.
       setTimeout(() => {
         const now = level.gantt?.shown.find((i) => i.key === item.key);
-        if (now) say(level.gantt.about(now));
+        if (now) say(level.gantt.about(now) + (moved.length ? ". " + L(["{n} task after it moved too", "{n} tasks after it moved too"], { n: moved.length }) : ""));
       });
     }
+    // Links: `to` waits for `from` (added to its `after`), or no longer does.
+    function relink(from, to, add) {
+      const list = api.state[cfg.bindData];
+      if (!Array.isArray(list)) return;
+      let next = list.map((r) => {
+        if (keyOf(r) !== to) return r;
+        const keys = afterKeys(r).filter((k) => k !== from);
+        if (add) keys.push(from);
+        const { after, ...rest } = r;
+        return keys.length ? { ...r, after: keys.length === 1 ? keys[0] : keys } : rest;
+      });
+      // A new link can push the task that now waits.
+      if (add) {
+        const r = next.find((x) => keyOf(x) === from);
+        const changes = r ? pushed(next, from, { start: at(r, "start"), end: at(r, "end") }) : new Map();
+        changes.delete(from);
+        next = next.map((x) => {
+          const c = changes.get(keyOf(x));
+          return c ? { ...x, start: c.start, ...(blank(at(x, "end")) ? {} : { end: c.end }) } : x;
+        });
+      }
+      api.set(cfg.bindData, next);
+      api.emit("link", { from, to, added: add });
+      const name = (k) => String(at(list.find((x) => keyOf(x) === k), "name") ?? k);
+      say(add ? L("{to} now waits for {from}", { to: name(to), from: name(from) }) : L("{to} no longer waits for {from}", { to: name(to), from: name(from) }));
+    }
+    // Whether `to` waiting for `from` would go round in a circle: `from` waits for `to`.
+    function circular(from, to) {
+      const list = api.state[cfg.bindData] || [];
+      const rows = new Map(list.map((r) => [keyOf(r), r]));
+      const seen = new Set(), stack = [from];
+      while (stack.length) {
+        const k = stack.pop();
+        if (k === to) return true;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        stack.push(...(rows.has(k) ? afterKeys(rows.get(k)) : []));
+      }
+      return false;
+    }
     function onDown(e) {
-      if (!canEdit() || e.componentType !== "series" || !level.gantt) return;
+      // A task's bar (not an arrow, or the rows' lines).
+      if (!canEdit() || e.componentType !== "series" || !level.gantt || e.seriesId === "links" || e.seriesId === "rows") return;
       const v = e.value, ev = e.event?.event;
       if (!Array.isArray(v) || v.length < 5 || v[4] === 1 || !ev) return;
       const item = level.gantt.shown[v[0]];
       if (!item || item.group) return;
       const p0 = chart.convertToPixel({ xAxisIndex: 0 }, v[1]), p1 = chart.convertToPixel({ xAxisIndex: 0 }, v[2]), x = e.event.offsetX;
+      // Past the end of the bar: its connector, to draw a link from.
+      const end = v[4] === 2 ? p0 + 9 : p1;
+      if (x > end + 3) return startLink(item, end + 10, chart.convertToPixel({ yAxisIndex: 0 }, String(v[0])), ev);
       const edge = Math.min(GANTT.edge, (p1 - p0) / 3);
       const how = item.milestone ? "move" : x - p0 <= edge ? "start" : p1 - x <= edge ? "end" : "move";
       const touch = ev.pointerType === "touch" || String(ev.type).startsWith("touch");
@@ -1538,7 +1636,9 @@
       if (!v) return;
       g.n = n;
       g.value = v;
-      drafts.set(g.item.key, span(v));
+      // The tasks it pushes move with it.
+      drafts.clear();
+      for (const [k, x] of pushed(api.state[cfg.bindData] || [], g.item.key, v)) drafts.set(k, span(x));
       chart.dispatchAction({ type: "hideTip" });
       draw();
     }
@@ -1549,7 +1649,7 @@
       removeEventListener("pointercancel", onDragCancel);
       const g = editing;
       editing = null;
-      if (g) drafts.delete(g.item.key);
+      if (g) drafts.clear();
       return g;
     }
     function onDragEnd() {
@@ -1563,9 +1663,56 @@
       const g = stopDrag();
       if (g?.n) draw();
     }
+    // ---- drawing a link: from a bar's connector to the task that waits on it, with a
+    // dashed line following the pointer
+    let linking = null;
+    function startLink(item, x, y, ev) {
+      const box = el.getBoundingClientRect();
+      const line = new ec.graphic.Line({ shape: { x1: x, y1: y, x2: x, y2: y }, style: { stroke: theme.text, lineWidth: 1.5, lineDash: [4, 3] }, z: 1000, silent: true });
+      chart.getZr().add(line);
+      linking = { item, line, box, x0: (ev.touches?.[0] ?? ev).clientX, y0: (ev.touches?.[0] ?? ev).clientY };
+      chart.dispatchAction({ type: "hideTip" });
+      addEventListener("pointermove", onLinkMove);
+      addEventListener("pointerup", onLinkEnd);
+      addEventListener("pointercancel", stopLink);
+    }
+    // The task under a point on the page, if a link can go to it.
+    function linkTarget(clientX, clientY) {
+      const g = level.gantt, x = clientX - linking.box.left, y = clientY - linking.box.top;
+      if (!g || !chart.containPixel({ gridIndex: 0 }, [x, y])) return null;
+      const to = g.shown[Math.round(chart.convertFromPixel({ yAxisIndex: 0 }, y))];
+      return to && !to.group && to.key !== linking.item.key ? to : null;
+    }
+    function onLinkMove(e) {
+      if (!linking) return;
+      linking.line.setShape({ x2: e.clientX - linking.box.left, y2: e.clientY - linking.box.top });
+      const to = linkTarget(e.clientX, e.clientY);
+      linking.line.setStyle({ stroke: to ? (circular(linking.item.key, to.key) ? theme.palette[7] ?? "#dc2626" : theme.palette[0]) : theme.text });
+    }
+    function stopLink() {
+      removeEventListener("pointermove", onLinkMove);
+      removeEventListener("pointerup", onLinkEnd);
+      removeEventListener("pointercancel", stopLink);
+      if (linking) chart.getZr().remove(linking.line);
+      const l = linking;
+      linking = null;
+      return l;
+    }
+    function onLinkEnd(e) {
+      const to = linking && linkTarget(e.clientX, e.clientY), l = stopLink();
+      if (!l || !to) return;
+      dragged = true;
+      setTimeout(() => (dragged = false));
+      // Not already linked, and not round in a circle.
+      const r = (api.state[cfg.bindData] || []).find((x) => keyOf(x) === to.key);
+      if (r && afterKeys(r).includes(l.item.key)) return;
+      if (circular(l.item.key, to.key)) return say(L("{to} can't wait for {from}: {from} waits for it", { to: to.row.name ?? to.key, from: l.item.row.name ?? l.item.key }));
+      relink(l.item.key, to.key, true);
+    }
+
     // While a bar is dragged by touch, the page doesn't scroll; Escape puts it back.
     el.addEventListener("touchmove", (e) => editing?.live && e.cancelable && e.preventDefault(), { passive: false });
-    addEventListener("keydown", (e) => e.key === "Escape" && editing && onDragCancel());
+    addEventListener("keydown", (e) => e.key === "Escape" && (editing ? onDragCancel() : linking && stopLink()));
     // Edits are announced here.
     let status;
     const say = (text) => {

@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: paging inside API groups, or drawing Gantt arrows by dragging.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: paging inside API groups, or `cargo fmt` in CI.
 
 ## Gaps you'd hit in real use
 
@@ -37,7 +37,7 @@ _Last updated: 2026-11-19._
     - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
   - [x] **Gantt chart** (2026-11-19): `ui-chart` `type: gantt`, a table of tasks beside their bars, groups that fold, progress, `after` arrows, milestones, `markers` and today, colours by `series` with a legend, zoom buttons, and a height that follows the rows (block gantt-01, charts gallery). Not done yet:
     - [x] The table is an HTML tree grid over the chart (2026-11-20): rows read out and moved through with the keys, groups opened with Right, Left and Enter, tasks picked with Enter.
-    - [x] Editing (2026-11-20): bars dragged to move or stretch them (a hold first by touch), Alt and the arrows on a row, written back to `bindData`; tasks that start before what they wait for ends are marked. Not done yet: arrows can't be drawn or removed by dragging, moving a task doesn't move the ones after it, and dates snap to whole days only.
+    - [x] Editing (2026-11-20): bars dragged to move or stretch them (a hold first by touch), Alt and the arrows on a row, written back to `bindData`; tasks that start before what they wait for ends are marked. Links drawn from a bar's dot and removed by clicking their arrow, and `cascade` moving the tasks that wait on a moved one (2026-11-20). Not done yet: dates snap to whole days only; links can't be drawn or removed from the keyboard; cascade only pushes later, never pulls tasks earlier.
     - [ ] No scrolling inside the chart: a long plan is as tall as its rows. No critical path, baselines or working days (weekends count).
     - [ ] Dates on the axis are ECharts' English month names, whatever the document's `lang`.
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:

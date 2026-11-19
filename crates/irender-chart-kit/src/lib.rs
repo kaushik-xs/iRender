@@ -137,7 +137,8 @@ const CHART_PROPS: &[PropDef] = &[
     PropDef::new("markers", PropKind::Any, "Gantt: dated lines down the timeline, `[{ at, name, color }]`"),
     PropDef::new("today", PropKind::Bool, "Gantt: a line at today's date when it's on the timeline (default true)"),
     PropDef::new("bindData", PropKind::StateKey, "Gantt: the state key `data` reads; bars dragged (or moved with Alt and the arrows) write their new dates back to it"),
-    PropDef::new("editable", PropKind::Bool, "Gantt: with `bindData`, bars can be moved and stretched (default true)"),
+    PropDef::new("editable", PropKind::Bool, "Gantt: with `bindData`, bars can be moved and stretched, and links drawn and removed (default true)"),
+    PropDef::new("cascade", PropKind::Bool, "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends"),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
     PropDef::new("horizontal", PropKind::Bool, "Bars along the x axis"),
@@ -173,7 +174,7 @@ const SPARKLINE_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "legend", "tooltip", "loading",
-    "columns", "markers", "today", "editable",
+    "columns", "markers", "today", "editable", "cascade",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.

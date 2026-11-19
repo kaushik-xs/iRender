@@ -708,6 +708,10 @@ root: …
 "This is a chart about “{title}”": "This is a chart about “{title}”"
 "This is a chart": "This is a chart"
 "Chart unavailable": "Chart unavailable"
+"{n} tasks after it moved too": { one: "{n} task after it moved too", other: "{n} tasks after it moved too" }
+"{to} now waits for {from}": "{to} now waits for {from}"
+"{to} no longer waits for {from}": "{to} no longer waits for {from}"
+"{to} can't wait for {from}: {from} waits for it": "{to} can't wait for {from}: {from} waits for it"
 "Tasks": "Tasks"
 ```
 
