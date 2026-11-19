@@ -3,7 +3,7 @@
 //! area.
 
 use crate::{
-    BRAND_2_FILL, PRIMARY_FILL, BG_CARD, BORDER, DESTRUCTIVE, MONO, MUTED, ON_BRAND_2, ON_DESTRUCTIVE, ON_PRIMARY, ON_SECONDARY, SECONDARY, SPIN, SUBTLE,
+    BRAND_2_FILL, PRIMARY_FILL, BG_CARD, BG_UNDER, BORDER, MONO, MUTED, ON_BRAND_2, ON_PRIMARY, ON_SECONDARY, SECONDARY, SPIN, SUBTLE,
     TEXT, choice, lit,
 };
 use irender_core::{ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
@@ -58,39 +58,62 @@ const fn info(doc: &'static str, props: &'static [PropDef], parts: &'static [&'s
 
 pub struct Badge;
 
-const BADGE_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline", "brand"];
+const BADGE_VARIANTS: &[&str] = &["default", "secondary", "destructive", "outline", "brand", "info", "success", "warning"];
 const BADGE_PROPS: &[PropDef] = &[
     PropDef::new("text", PropKind::Any, "Badge text").required(),
     PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, before the text"),
-    PropDef::new("variant", PropKind::Enum(BADGE_VARIANTS), "Default `default`"),
+    PropDef::new(
+        "variant",
+        PropKind::Enum(BADGE_VARIANTS),
+        "`default`, `secondary`, `outline` or `brand`, or `info`, `success`, `warning` or `destructive`: a soft wash of that colour",
+    ),
+    PropDef::new("dot", PropKind::Bool, "A dot in the badge's colour before the text, for a status"),
 ];
 
-static BADGE: LazyLock<[StyleBlock; 5]> = LazyLock::new(|| {
+static BADGE: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
     let base = |bg: &str, fg: &str, border: &str| {
         StyleBlock::from_pairs(&[
             // Its direction from its own text: "+4.5%" reads as written on a right-to-left page.
             ("unicode-bidi", "plaintext"),
             ("display", "inline-flex"),
             ("align-items", "center"),
-            ("gap", sp!(4)),
+            ("gap", sp!(6)),
             ("width", "fit-content"),
-            ("padding", sp!(2, 8)),
+            ("padding", sp!(2, 10)),
             ("border", border),
-            ("border-radius", "var(--radius-sm)"),
+            ("border-radius", "999px"),
             ("font-size", fs!(12)),
             ("font-weight", "500"),
-            ("line-height", "1.4"),
+            ("line-height", "16px"),
+            ("font-variant-numeric", "tabular-nums"),
             ("white-space", "nowrap"),
             ("background", bg),
             ("color", fg),
         ])
+        .nest(
+            "& [data-dot]",
+            StyleBlock::from_pairs(&[("width", "6px"), ("height", "6px"), ("border-radius", "50%"), ("background", "currentColor"), ("flex", "none")]),
+        )
     };
-    [
+    // The coloured variants: a wash of the colour, its text and a faint edge.
+    let soft = |tone: &str| {
+        base(
+            &format!("color-mix(in srgb, {tone} 12%, {BG_UNDER})"),
+            &format!("color-mix(in srgb, {tone} 80%, var(--color-text))"),
+            &format!("1px solid color-mix(in srgb, {tone} 22%, transparent)"),
+        )
+        .nest("& [data-dot]", StyleBlock::from_pairs(&[("background", tone)]))
+    };
+    let tone = |name: &str| crate::NOTICES.iter().find(|(n, ..)| *n == name).map(|(_, c, _)| *c).unwrap_or(MUTED);
+    vec![
         base(PRIMARY_FILL, ON_PRIMARY, "1px solid transparent"),
         base(SECONDARY, ON_SECONDARY, "1px solid transparent"),
-        base(DESTRUCTIVE, ON_DESTRUCTIVE, "1px solid transparent"),
-        base("transparent", TEXT, "1px solid var(--color-border)"),
+        soft(tone("destructive")),
+        base("transparent", TEXT, "1px solid var(--color-border)").nest("& [data-dot]", StyleBlock::from_pairs(&[("background", MUTED)])),
         base(BRAND_2_FILL, ON_BRAND_2, "1px solid transparent"),
+        soft(tone("info")),
+        soft(tone("success")),
+        soft(tone("warning")),
     ]
 });
 
@@ -103,11 +126,20 @@ impl Component for Badge {
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let style = &BADGE[choice(cx, node, "variant", BADGE_VARIANTS)];
-        let Some(i) = node.prop("icon") else { return leaf(cx, node, "span", style, node.prop("text")) };
+        let dot = cx.prop(node, "dot").and_then(|v| v.as_bool()).unwrap_or(false);
+        let icon = node.prop("icon");
+        if !dot && icon.is_none() {
+            return leaf(cx, node, "span", style, node.prop("text"));
+        }
         let mut el = cx.element("span", node);
         el.base_style_ref(style);
         cx.open(&el, node)?;
-        crate::icon(cx, node, i, 12)?;
+        if dot {
+            cx.markup(r#"<span aria-hidden="true" data-dot></span>"#);
+        }
+        if let Some(i) = icon {
+            crate::icon(cx, node, i, 12)?;
+        }
         if let Some(t) = node.prop("text") {
             cx.open(Element::new("span").text(t), node)?;
             cx.close("span");

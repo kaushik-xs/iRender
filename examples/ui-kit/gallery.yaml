@@ -1129,6 +1129,15 @@ root:
                         - { type: ui-badge, props: { text: Destructive, variant: destructive } }
                         - { type: ui-badge, props: { text: Outline, variant: outline } }
                         - { type: ui-badge, props: { text: Brand, variant: brand } }
+                    - type: stack
+                      props: { direction: row, gap: 8, wrap: true, align: center }
+                      children:
+                        - { type: ui-badge, props: { text: Info, variant: info } }
+                        - { type: ui-badge, props: { text: Paid, variant: success, dot: true } }
+                        - { type: ui-badge, props: { text: Pending, variant: warning, dot: true } }
+                        - { type: ui-badge, props: { text: Failed, variant: destructive, dot: true } }
+                        - { type: ui-badge, props: { text: Draft, variant: outline, dot: true } }
+                        - { type: ui-badge, props: { text: "+12.5%", variant: success, icon: "↗" } }
                         - { type: ui-separator, props: { orientation: vertical }, style: { height: 20 } }
                         - { type: ui-text, props: { variant: muted, text: "Press" } }
                         - { type: ui-kbd, props: { text: "⌘K" } }

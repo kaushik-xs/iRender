@@ -239,7 +239,8 @@ ui-button: A button in six variants and four sizes. With `href` it is a link tha
 ui-badge: A small status label.
   text         any (required)  Badge text
   icon         any  An icon name (with the icon kit) or a character, before the text
-  variant      one of: default, secondary, destructive, outline, brand  Default `default`
+  variant      one of: default, secondary, destructive, outline, brand, info, success, warning  `default`, `secondary`, `outline` or `brand`, or `info`, `success`, `warning` or `destructive`: a soft wash of that colour
+  dot          bool  A dot in the badge's colour before the text, for a status
   children: no
 ui-card: A bordered panel with an optional title and description. Put a `ui-card-footer` last for actions.
   title        any  Heading in the card's header
@@ -1791,7 +1792,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 |---|---|---|
 | `ui-button` | `label`, `icon`, `variant` (default, secondary, destructive, outline, ghost, link, brand), `size` (default, sm, lg, icon), `href`, `type`, `disabled` | With `href` it renders a link that looks like a button. Children follow the label. A `variant` that reads state follows it. |
 | `ui-code-block` | `code` (required), `language`, `title`, `lineNumbers`, `highlight`, `copy` (default true), `wrap`, `maxHeight`, `label` | Code, highlighted for json, yaml, js (ts), rust, python, bash, html, css or sql, with line numbers, marked lines (`[2, "5-7"]`), a copy button that says when it's copied, and a title bar. `code` can read state, and an object shows as JSON; like any prop, a literal with `{{ }}` in it is a template, so code that shows braces comes from state or a list item. The server draws the lines plain, so it reads without the script. Token colours follow `--code-string`, `--code-keyword` and the like. Parts: `head`, `pre`, `copy`; event `copy` with `{ ok }`. |
-| `ui-badge` | `text`, `icon`, `variant` (default, secondary, destructive, outline, brand) | |
+| `ui-badge` | `text`, `icon`, `variant` (default, secondary, outline, brand, info, success, warning, destructive), `dot` | A pill. `info`, `success`, `warning` and `destructive` are a soft wash of their colour, like `ui-alert`. `dot` puts a dot in the badge's colour before the text, for a status. |
 | `ui-card` | `title`, `description`, `tag` | Parts: `header`, `title`, `description`. |
 | `ui-card-footer` | | A row of actions; put it last in a card. |
 | `ui-alert` | `title`, `description`, `icon`, `variant` (default, info, success, warning, destructive), `dismissible` | `role="alert"`. A wash of the variant's colour, a bar along its leading edge and the variant's icon (`icon: none` hides it). Children (e.g. buttons) go under the description. `dismissible` adds a ✕ that hides it. Parts: `icon`, `title`, `description`, `dismiss`. |

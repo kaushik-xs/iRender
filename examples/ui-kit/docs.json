@@ -164,8 +164,8 @@
    "group": "Data display",
    "title": "Badge, status badge and kbd",
    "nav": "Badges",
-   "summary": "A badge is a small status label; kbd shows a key or shortcut. ui-status-badge shows a status in its colour: Done, Paid and Approved green, In review and Pending amber, Blocked and Overdue red, and so on, with tones for your own.",
-   "usage": "- { type: ui-badge, props: { text: New, variant: secondary } }\n- { type: ui-kbd, props: { text: ⌘K } }",
+   "summary": "A badge is a small status label: solid, outlined, or a soft wash of `info`, `success`, `warning` or `destructive`, with an optional `dot` for a status. kbd shows a key or shortcut. ui-status-badge shows a status in its colour: Done, Paid and Approved green, In review and Pending amber, Blocked and Overdue red, and so on, with tones for your own.",
+   "usage": "- { type: ui-badge, props: { text: New, variant: secondary } }\n- { type: ui-badge, props: { text: Paid, variant: success, dot: true } }\n- { type: ui-kbd, props: { text: ⌘K } }",
    "components": [
     "ui-badge",
     "ui-status-badge",

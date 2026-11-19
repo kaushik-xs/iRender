@@ -73,7 +73,8 @@ ui-button: A button in six variants and four sizes. With `href` it is a link tha
 ui-badge: A small status label.
   text         any (required)  Badge text
   icon         any  An icon name (with the icon kit) or a character, before the text
-  variant      one of: default, secondary, destructive, outline, brand  Default `default`
+  variant      one of: default, secondary, destructive, outline, brand, info, success, warning  `default`, `secondary`, `outline` or `brand`, or `info`, `success`, `warning` or `destructive`: a soft wash of that colour
+  dot          bool  A dot in the badge's colour before the text, for a status
   children: no
 ui-card: A bordered panel with an optional title and description. Put a `ui-card-footer` last for actions.
   title        any  Heading in the card's header

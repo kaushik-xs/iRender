@@ -593,6 +593,8 @@ fn separator_label_button_and_badge_icons() {
     assert!(body.contains("<div>Or continue with</div>"), "{body}");
     assert!(body.contains(r#"<button type="button"><span aria-hidden="true" data-icon>+</span><span>Add</span></button>"#), "{body}");
     assert!(body.contains(r#"<span><span aria-hidden="true" data-icon>↗</span><span>+12%</span></span>"#), "{body}");
+    let body = plain(&render(json!({ "type": "ui-badge", "props": { "text": "Live", "dot": true, "variant": "success" } })));
+    assert_eq!(body, r#"<span><span aria-hidden="true" data-dot></span><span>Live</span></span>"#);
 }
 
 #[test]
