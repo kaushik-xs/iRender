@@ -5075,3 +5075,152 @@ fn right_to_left_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Tiles placed by the server, moved and resized by dragging and with the keys, pushing
+/// the others out of the way (but not a locked one), the layout in state both ways,
+/// Escape putting a dragged tile back, and stacking on a narrow grid.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn dashboard_grid_in_chrome() {
+    let tile = |id: &str, extra: serde_json::Value| {
+        let mut props = serde_json::json!({ "id": id });
+        props.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        serde_json::json!({ "type": "ui-tile", "props": props, "children": [ { "type": "text", "props": { "value": id } } ] })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "layout": null, "moves": 0 },
+        "root": { "type": "element", "style": { "width": "960px" }, "children": [
+            { "type": "ui-dashboard-grid", "attrs": { "id": "g" }, "props": { "bind": "layout", "gap": 0, "rowHeight": 50 },
+              "on": { "layout": { "action": "set_state", "key": "moves", "value": "{{ moves + 1 }}" } },
+              "children": [
+                tile("a", serde_json::json!({ "title": "A", "x": 0, "y": 0, "w": 6, "h": 2 })),
+                tile("b", serde_json::json!({ "title": "B", "x": 6, "y": 0, "w": 6, "h": 2, "maxW": 8 })),
+                tile("c", serde_json::json!({ "x": 0, "y": 2, "w": 12, "h": 1 })),
+                tile("lock", serde_json::json!({ "title": "L", "x": 0, "y": 3, "w": 4, "h": 1, "locked": true })),
+                tile("d", serde_json::json!({ "title": "D", "w": 4, "h": 1 })) ] },
+            { "type": "ui-dashboard-grid", "attrs": { "id": "s" }, "props": { "stackBelow": 2000 }, "children": [
+                tile("one", serde_json::json!({ "title": "One", "x": 6, "y": 0, "w": 6, "h": 2 })),
+                tile("two", serde_json::json!({ "title": "Two", "x": 0, "y": 0, "w": 6, "h": 1 })) ] },
+            { "type": "element", "attrs": { "dir": "rtl" }, "style": { "width": "960px" }, "children": [
+                { "type": "ui-dashboard-grid", "attrs": { "id": "r" }, "props": { "gap": 0 }, "children": [ tile("r1", serde_json::json!({ "title": "R", "x": 0, "y": 0, "w": 4, "h": 1 })) ] } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const G = document.getElementById("g"), T = (id) => G.querySelector(`[data-id=${id}]`);
+      const at = () => G.__x.layout.map((t) => `${t.id}:${t.x},${t.y},${t.w}x${t.h}`).join(" ");
+      // Where the grid puts the tiles, in cells of 80 by 50 px (offsets leave out the
+      // glide, which headless Chrome doesn't run).
+      const seen = () => [...G.querySelectorAll("[data-dg-tile]")].map((n) =>
+        `${n.dataset.id}:${Math.round(n.offsetLeft / 80)},${Math.round(n.offsetTop / 50)},${Math.round(n.offsetWidth / 80)}x${Math.round(n.offsetHeight / 50)}`).join(" ");
+      const key = (n, k, shift) => n.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: !!shift, bubbles: true, cancelable: true }));
+      const ptr = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 7, button: 0, clientX: x, clientY: y }));
+      const drag = (handle, dx, dy, end = "pointerup") => {
+        const r = handle.getBoundingClientRect(), x = r.left + 5, y = r.top + 5;
+        ptr(handle, "pointerdown", x, y); ptr(handle, "pointermove", x + dx / 2, y + dy / 2); ptr(handle, "pointermove", x + dx, y + dy);
+        if (end) ptr(handle, end, x + dx, y + dy);
+      };
+      const head = (id) => T(id).querySelector("[data-dg-handle]");
+      try {
+        await wait(50);
+        log("server", seen());
+        const h = head("a");
+        log("handle", h.tagName, h.getAttribute("role"), h.getAttribute("aria-roledescription"), h.getAttribute("aria-label"), !!document.getElementById(h.getAttribute("aria-describedby")), h.tabIndex);
+        log("grip only", !!T("c").querySelector("[data-dg-grip-only][data-dg-handle]"), "locked", !!T("lock").querySelector("[data-dg-handle], [data-dg-resize]"));
+
+        // c dragged up over a and b: they go under it.
+        drag(T("c").querySelector("[data-dg-handle]"), 0, -100);
+        await wait(250);
+        log("c up", at(), "|", S().moves, JSON.stringify(S().layout[2]));
+        // a dragged down past c: they swap.
+        drag(head("a"), 0, 60);
+        await wait(250);
+        log("a down", at());
+        // Resized from the corner: wider pushes b down; b can't pass its maxW.
+        drag(T("a").querySelector("[data-dg-resize]"), 160, 50);
+        await wait(250);
+        log("a wider", at());
+        // b can't pass its maxW, nor the grid's edge.
+        drag(head("b"), -480, 0);
+        drag(T("b").querySelector("[data-dg-resize]"), 640, 0);
+        await wait(250);
+        log("b max", at());
+        // Escape puts it back.
+        drag(head("b"), 0, -200, null);
+        log("dragging", T("b").hasAttribute("data-dragging"), !G.querySelector("[data-dg-ghost]").hidden);
+        key(head("b"), "Escape");
+        await wait(250);
+        log("escape", at(), T("b").hasAttribute("data-dragging"));
+
+        // The keys: a step, past a tile, and Shift to resize.
+        root.__irender.set("layout", null);
+        await wait(250);
+        log("reset", at(), "|", seen());
+        key(head("a"), "ArrowDown"); await wait(250); log("down", at());
+        key(head("a"), "ArrowUp"); await wait(250); log("up", at());
+        key(head("d"), "ArrowLeft"); await wait(250); log("d left", at());
+        key(head("a"), "ArrowLeft", true); key(head("a"), "ArrowDown", true); await wait(250); log("shift", at());
+        log("said", G.querySelector("[data-dg-live]").textContent);
+
+        // A layout from state.
+        root.__irender.set("layout", [{ id: "b", x: 0, y: 0, w: 12, h: 1 }, { id: "a", x: 0, y: 5, w: 3, h: 1 }]);
+        await wait(250);
+        log("state", at(), "|", seen());
+
+        // Narrow: one column in reading order, nothing to drag.
+        const St = document.getElementById("s"), tiles = [...St.querySelectorAll("[data-dg-tile]")];
+        log("stacked", getComputedStyle(St.querySelector("[data-dg-grid]")).gridTemplateColumns.split(" ").length,
+          tiles.map((n) => n.dataset.id + ":" + getComputedStyle(n).order + ":" + Math.round(n.getBoundingClientRect().height)).join(" "),
+          getComputedStyle(tiles[0].querySelector("[data-dg-resize]")).display);
+        const before = St.__x.layout;
+        drag(tiles[0].querySelector("[data-dg-handle]"), 0, 200);
+        log("stacked drag", JSON.stringify(St.__x.layout) === JSON.stringify(before));
+
+        // Right to left: column 0 is on the right, and Left moves a tile on from it.
+        const R = document.getElementById("r"), r1 = R.querySelector("[data-dg-tile]"), edge = () => Math.round(R.getBoundingClientRect().right - r1.getBoundingClientRect().right);
+        log("rtl", edge());
+        key(r1.querySelector("[data-dg-handle]"), "ArrowLeft"); await wait(250);
+        drag(r1.querySelector("[data-dg-handle]"), -160, 0); await wait(250);
+        log("rtl moved", JSON.stringify(R.__x.layout[0]), Math.round(R.getBoundingClientRect().right - (r1.offsetLeft + r1.offsetWidth + R.querySelector("[data-dg-grid]").getBoundingClientRect().left)));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("dashboard-grid", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "server a:0,0,6x2 b:6,0,6x2 c:0,2,12x1 lock:0,3,4x1 d:4,3,4x1",
+            "handle HEADER button movable tile Move A true 0",
+            "grip only true locked false",
+            "c up a:0,1,6x2 b:6,1,6x2 c:0,0,12x1 lock:0,3,4x1 d:4,3,4x1 | 1 {\"id\":\"c\",\"x\":0,\"y\":0,\"w\":12,\"h\":1}",
+            "a down a:0,4,6x2 b:6,1,6x2 c:0,0,12x1 lock:0,3,4x1 d:4,3,4x1",
+            "a wider a:0,4,8x3 b:6,1,6x2 c:0,0,12x1 lock:0,3,4x1 d:4,3,4x1",
+            "b max a:0,4,8x3 b:0,1,8x2 c:0,0,12x1 lock:0,3,4x1 d:4,3,4x1",
+            "dragging true true",
+            "escape a:0,4,8x3 b:0,1,8x2 c:0,0,12x1 lock:0,3,4x1 d:4,3,4x1 false",
+        // Cleared state: every tile back where its props say.
+            "reset a:0,0,6x2 b:6,0,6x2 c:0,2,12x1 lock:0,3,4x1 d:4,3,4x1 | a:0,0,6x2 b:6,0,6x2 c:0,2,12x1 lock:0,3,4x1 d:4,3,4x1",
+        // A step down goes past the tiles below, and under the locked one.
+            "down a:0,4,6x2 b:6,0,6x2 c:0,6,12x1 lock:0,3,4x1 d:4,2,4x1",
+            "up a:0,0,6x2 b:6,0,6x2 c:0,4,12x1 lock:0,3,4x1 d:4,2,4x1",
+            "d left a:0,0,6x2 b:6,0,6x2 c:0,4,12x1 lock:0,3,4x1 d:3,2,4x1",
+            "shift a:0,0,5x3 b:6,0,6x2 c:0,5,12x1 lock:0,3,4x1 d:3,4,4x1",
+            "said A: column 1, row 1, 5 by 3",
+        // From state: b is cut to its maxW, and a floats up to the locked tile.
+            "state a:0,4,3x1 b:0,0,8x1 c:0,1,12x1 lock:0,3,4x1 d:4,2,4x1 | a:0,4,3x1 b:0,0,8x1 c:0,1,12x1 lock:0,3,4x1 d:4,2,4x1",
+        // One column in reading order, h rows tall (80 + 16 + 80), no resize corner.
+            "stacked 1 one:1:176 two:0:80 none",
+            "stacked drag true",
+            "rtl 0",
+            // One step with the key and two by dragging, both leftward.
+            r#"rtl moved {"id":"r1","x":3,"y":0,"w":4,"h":1} 240"#,
+        ],
+        "\n{result}"
+    );
+}

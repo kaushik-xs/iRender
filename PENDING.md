@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart is in (2026-11-19). Next candidates: a dashboard grid of tiles to drag and resize; named column views, grouping for remote tables and quarter filters in the data table; one pointer-based drag for touch screens (kanban, tree, flow palette).
+1. The Gantt chart and the dashboard grid are in (2026-11-19). Next candidates: pointer-based dragging for touch screens in the kanban board, tree and flow palette (the dashboard grid's way); named column views, grouping for remote tables and quarter filters in the data table.
 
 ## Gaps you'd hit in real use
 
@@ -44,7 +44,10 @@ _Last updated: 2026-11-19._
     - [ ] No custom card content (a template per card), only the built-in fields.
     - [ ] No swimlanes (rows by assignee or epic), and columns can't be reordered.
     - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
-  - [ ] **Dashboard grid:** tiles that can be dragged and resized (react-grid-layout).
+  - [x] **Dashboard grid** (2026-11-19): `ui-dashboard-grid` + `ui-tile`, tiles dragged by their header and resized from their corner (pointer events, so touch too) or with the arrow keys, pushing the others aside and floating up, locked tiles, the layout in `bind`, and one column on a narrow grid (block dashboard-02, gallery section). Not done yet:
+    - [ ] One layout for every width: no separate layouts per breakpoint (react-grid-layout's `ResponsiveGridLayout`); under `stackBelow` the tiles just stack.
+    - [ ] Tiles come from the document, not from a list in state, so a dashboard can't add or remove tiles on its own; show and hide them with `if` around the content.
+    - [ ] Only vertical packing: no horizontal compaction, and tiles can't be dropped in from outside the grid (a palette of widgets).
   - [x] **Activity timeline** (2026-11-18): `ui-timeline` + `ui-timeline-item`, with avatars or initials, field changes (old → new), comments and event dots, from children or state (block ticket-01). No grouping by day, and no "show more" for long histories.
   - [x] **Notification centre** (2026-11-18): `ui-notifications`, a bell with an unread count and a panel (or `inline`) with Unread and All, read toggles, archive and Mark all as read, from state (dashboard-01 header, gallery section). Not done yet:
     - [ ] No notification preferences (which kinds, by email or in the app), and no grouping by day.
@@ -97,7 +100,7 @@ _Last updated: 2026-11-19._
   - [ ] More drawings people ask for: no permission to a file, upload failed, too many requests (429), not found in a list ("no matches" for a person or place), a deleted item, an empty calendar or schedule, welcome / onboarding.
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
-- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01, sidebar-03 and -07, login-03 and -04, and one sign-up.
+- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up.
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** item, and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.

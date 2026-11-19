@@ -101,6 +101,7 @@ state:
   railSection: messages
   railOpen: true
   panes: [25, 75]
+  tiles: null
   hookPayload: { event: order.paid, retries: 3, notify: [ops, finance] }
   hookOk: true
   goal: 350
@@ -2560,6 +2561,43 @@ root:
                 - { type: if, props: { when: "{{ api.resizable.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.resizable }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- dashboard-grid
+            - type: element
+              props: { tag: section }
+              attrs: { id: dashboard-grid, aria-labelledby: dashboard-grid-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.dashboard_grid }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: flex, flex-wrap: wrap, align-items: center, justify-content: space-between, gap: 12 }
+                  children:
+                    - { type: ui-text, props: { variant: muted, text: "Drag a tile by its header or resize it from its corner; the others make way. The first tile is locked." } }
+                    - { type: ui-button, props: { label: Reset, variant: outline, size: sm }, on: { click: { action: set_state, key: tiles, value: null } } }
+                - type: ui-dashboard-grid
+                  props: { bind: tiles, rowHeight: 56, gap: 12, label: Example dashboard }
+                  children:
+                    - { type: ui-tile, props: { id: note, x: 0, y: 0, w: 12, h: 1, locked: true }, children: [ { type: ui-text, props: { variant: muted, text: "A locked tile: no header to drag, and the others go around it." } } ] }
+                    - { type: ui-tile, props: { id: revenue, title: Revenue, x: 0, y: 1, w: 4, h: 2 }, children: [ { type: text, props: { value: "$48,210" }, style: { font-size: 26, font-weight: 700 } } ] }
+                    - { type: ui-tile, props: { id: users, title: Active users, x: 4, y: 1, w: 4, h: 2 }, children: [ { type: text, props: { value: "2,318" }, style: { font-size: 26, font-weight: 700 } } ] }
+                    - { type: ui-tile, props: { id: churn, title: Churn, x: 8, y: 1, w: 4, h: 2, minW: 3 }, children: [ { type: ui-progress, props: { value: 12 } } ] }
+                    - type: ui-tile
+                      props: { id: goals, title: Quarter goals, x: 0, y: 3, w: 12, h: 3, minW: 4, minH: 2 }
+                      children:
+                        - { type: ui-text, props: { variant: muted, text: "New customers · 72%" } }
+                        - { type: ui-progress, props: { value: 72 } }
+                        - { type: ui-text, props: { variant: muted, text: "Renewals · 88%" } }
+                        - { type: ui-progress, props: { value: 88 } }
+                - { type: ui-text, props: { variant: muted, text: "Layout in state: {{ tiles ? tiles.length + ' tiles' : 'the tiles’ own places' }}" } }
+                - { type: if, props: { when: "{{ api.dashboard_grid.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.dashboard_grid }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

@@ -166,6 +166,21 @@ root: …
 "Command palette": "Command palette"
 ```
 
+`dashboard_grid.js`
+
+```yaml
+"{name}: column {column}, row {row}, {width} by {height}": "{name}: column {column}, row {row}, {width} by {height}"
+```
+
+`dashboard_grid.rs`
+
+```yaml
+"Dashboard": "Dashboard"
+"Arrow keys move the tile; Shift and the arrow keys resize it.": "Arrow keys move the tile; Shift and the arrow keys resize it."
+"movable tile": "movable tile"
+"Move {name}": "Move {name}"
+```
+
 `data_table.js`
 
 ```yaml

@@ -522,6 +522,30 @@ ui-password-checklist: A password's rules, ticked as they're met, with a strengt
   meter        bool  A strength bar above the rules (default true)
   label        any  Names the list for screen readers (default `Password requirements`)
   children: no
+ui-dashboard-grid: Tiles (`ui-tile` children) on a grid, to drag by their header and resize from their corner, or move with the arrow keys; the others make way. `bind` keeps the layout in state. On a narrow screen the tiles stack.
+  columns      number  Columns across (default 12)
+  rowHeight    number  Each row's height in px (default 80)
+  gap          number  Space between tiles in px (default 16)
+  bind         statekey  State key for the layout, `[{ id, x, y, w, h }]`: read to place the tiles, written after each move
+  editable     bool  Tiles can be moved and resized (default true)
+  compact      bool  Tiles float up into the space above them (default true)
+  stackBelow   number  Below this width in px the tiles stack in one column, in order (default 640)
+  label        any  Names the grid for screen readers (default `Dashboard`)
+  parts: tile, header
+  children: yes
+ui-tile: One tile of a `ui-dashboard-grid`: its place (`x`, `y`, `w`, `h` in grid cells), a `title` to drag it by, and its children. Read by the grid, never rendered on its own.
+  id           string  Names the tile in the layout (default `tile-1`, `tile-2`, … in order)
+  title        any  Heading in its header, which is what you drag it by
+  x            number  Its column, from 0 (default: the first free place)
+  y            number  Its row, from 0
+  w            number  Its width in columns (default 4)
+  h            number  Its height in rows (default 2)
+  minW         number  The narrowest it can be resized to (default 1)
+  minH         number  The shortest (default 1)
+  maxW         number  The widest
+  maxH         number  The tallest
+  locked       bool  Stays where it is: it can't be moved or resized, and others go around it
+  children: yes
 ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.
   columns      any (required)  The columns, in order: `{ id, title, tone, limit }` (or plain names). `limit` marks a column over it
   cards        any (required)  The cards, in order: `{ id, column, title, description, tags, assignee, due, priority }`, usually from state, e.g. `{{ tasks }}`
@@ -2281,6 +2305,33 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **Keyboard and screen readers.** The cards are one tab stop. Up and Down move between cards in a column, Left and Right to the nearest card in the next column with any, Home and End to a column's ends, and Enter or Space opens the card (`bindCard`, and an `open` event). `bindCard` follows its card as the cards change, and empties when it's removed. Each card's label gives its title, priority, due date and assignee; columns are named with their card count; moves and additions are announced.
 
 **Props.** `columns` and `cards` (required), `bindCards`, `bindCard`, `movable` (default true), `addable`, `collapsible`, `collapsed`, `addLabel`, `emptyText`, `columnWidth` (px, default 280), `label` (default `Board`); part `board`.
+
+## Dashboard grid
+
+`ui-dashboard-grid` lays `ui-tile`s out on a grid of `columns` (default 12) and rows `rowHeight` px tall (default 80), for dashboards people arrange themselves. The block [`dashboard-02`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/dashboard-02.yaml) is an operations dashboard built on it.
+
+```yaml
+- type: ui-dashboard-grid
+  props: { bind: layout, rowHeight: 72 }
+  children:
+    - { type: ui-tile, props: { id: alerts, x: 0, y: 0, w: 12, h: 1, locked: true }, children: [ ... ] }
+    - { type: ui-tile, props: { id: sales, title: Sales, x: 0, y: 1, w: 8, h: 4, minW: 4 }, children: [ { type: ui-chart, props: { …, height: 100% } } ] }
+    - { type: ui-tile, props: { id: goals, title: Goals, w: 4, h: 4 }, children: [ ... ] }
+```
+
+**Places.** A tile's `x` and `y` are its column and row from 0, and `w` and `h` its size in cells (default 4 by 2). A tile without `x` and `y` takes the first free place. Overlapping tiles move down, and with `compact` (the default) every tile floats up into the space above it. The server draws the tiles where they end up, so nothing jumps when the script starts.
+
+**Moving.** Drag a tile by its header (its `title`), or by the grip in its corner when it has none; the tile follows the pointer and a dashed outline shows where it lands. Drag the bottom corner to resize it, within `minW`, `minH`, `maxW` and `maxH`. The tiles in the way move down, or up into the space the tile left when they fit there, as in react-grid-layout. Pointer events, so touch works. Escape during a drag puts the tile back. A `locked` tile has no header handle or corner: it stays put and the others go around it. `editable: false` turns moving off for every tile.
+
+**Keyboard and screen readers.** A tile's header is a button: the arrow keys move the tile a cell (a step down goes past the tile below), and Shift with them resizes it. The new place is announced (`Sales: column 1, row 2, 8 by 4`). The grid is a list of its tiles, named by `label`.
+
+**State.** `bind` holds the layout as `[{ id, x, y, w, h }]`, written after each move and read to place the tiles, on the server and when it changes. Tiles it doesn't name keep their own places, and setting it to null puts every tile back where its props say (a Reset button). Each move also fires `layout` with `{ layout, id, how }` (`move` or `resize`).
+
+**Small screens.** Under `stackBelow` px (default 640, of the grid's own width) the tiles stack in one column in reading order, each `h` rows tall, and can't be moved. A chart in a tile redraws at the tile's size; give it `height: 100%`.
+
+**Right to left.** Column 0 is on the right, and dragging and the arrow keys follow.
+
+**Props.** Grid: `columns`, `rowHeight`, `gap` (px, default 16), `bind`, `editable`, `compact`, `stackBelow`, `label`; parts `tile` and `header`. Tile: `id` (default `tile-1`, `tile-2`, …), `title`, `x`, `y`, `w`, `h`, `minW`, `minH`, `maxW`, `maxH`, `locked`.
 
 ## Tree
 

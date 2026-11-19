@@ -356,6 +356,30 @@ ui-password-checklist: A password's rules, ticked as they're met, with a strengt
   meter        bool  A strength bar above the rules (default true)
   label        any  Names the list for screen readers (default `Password requirements`)
   children: no
+ui-dashboard-grid: Tiles (`ui-tile` children) on a grid, to drag by their header and resize from their corner, or move with the arrow keys; the others make way. `bind` keeps the layout in state. On a narrow screen the tiles stack.
+  columns      number  Columns across (default 12)
+  rowHeight    number  Each row's height in px (default 80)
+  gap          number  Space between tiles in px (default 16)
+  bind         statekey  State key for the layout, `[{ id, x, y, w, h }]`: read to place the tiles, written after each move
+  editable     bool  Tiles can be moved and resized (default true)
+  compact      bool  Tiles float up into the space above them (default true)
+  stackBelow   number  Below this width in px the tiles stack in one column, in order (default 640)
+  label        any  Names the grid for screen readers (default `Dashboard`)
+  parts: tile, header
+  children: yes
+ui-tile: One tile of a `ui-dashboard-grid`: its place (`x`, `y`, `w`, `h` in grid cells), a `title` to drag it by, and its children. Read by the grid, never rendered on its own.
+  id           string  Names the tile in the layout (default `tile-1`, `tile-2`, … in order)
+  title        any  Heading in its header, which is what you drag it by
+  x            number  Its column, from 0 (default: the first free place)
+  y            number  Its row, from 0
+  w            number  Its width in columns (default 4)
+  h            number  Its height in rows (default 2)
+  minW         number  The narrowest it can be resized to (default 1)
+  minH         number  The shortest (default 1)
+  maxW         number  The widest
+  maxH         number  The tallest
+  locked       bool  Stays where it is: it can't be moved or resized, and others go around it
+  children: yes
 ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.
   columns      any (required)  The columns, in order: `{ id, title, tone, limit }` (or plain names). `limit` marks a column over it
   cards        any (required)  The cards, in order: `{ id, column, title, description, tags, assignee, due, priority }`, usually from state, e.g. `{{ tasks }}`

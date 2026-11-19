@@ -109,6 +109,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-filter" => root = json!({ "type": "ui-filters", "props": { "bind": "k" }, "children": [{ "type": "ui-filter", "props": { "field": "a" } }] }),
             "ui-resizable" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
             "ui-resizable-panel" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
+            "ui-tile" => root = json!({ "type": "ui-dashboard-grid", "children": [root] }),
             "ui-rail-panel" => root = json!({ "type": "ui-rail-layout", "props": { "bind": "k", "items": [{ "id": "a", "label": "A" }] }, "children": [{ "type": "ui-rail-panel", "props": { "for": "a" } }] }),
             _ => {}
         }
@@ -122,7 +123,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 114);
+    assert_eq!(kit, 116);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1623,4 +1624,42 @@ fn right_to_left_languages_set_dir() {
     let p = page("de");
     assert_eq!(p.dir, "ltr");
     assert!(p.document("t").contains(r#"<html lang="de">"#) && p.fragment().contains("<div data-i-root style"));
+}
+
+#[test]
+fn dashboard_grid_places_tiles_and_mistakes() {
+    let tile = |p: Json| json!({ "type": "ui-tile", "props": p, "children": [ { "type": "text", "props": { "value": "x" } } ] });
+    let grid = |props: Json, kids: Vec<Json>| json!({ "type": "ui-dashboard-grid", "props": props, "children": kids });
+    let kids = || vec![
+        tile(json!({ "id": "a", "title": "Sales", "x": 0, "y": 3, "w": 8, "h": 2 })),
+        tile(json!({ "id": "b", "x": 8, "y": 0, "w": 4, "h": 2, "locked": true })),
+        tile(json!({ "title": "New" })),
+    ];
+    let page = render_with(grid(json!({ "columns": 12, "gap": 8 }), kids()), json!({}), json!({})).unwrap();
+    let body = plain(&page.body);
+    // a floats up to the top; the third takes the first free place, under a.
+    assert!(page.css.contains("grid-column: 1 / span 8;\n  grid-row: 1 / span 2;"), "{}", page.css);
+    assert!(page.css.contains("grid-column: 9 / span 4;\n  grid-row: 1 / span 2;"), "{}", page.css);
+    assert!(page.css.contains("grid-column: 1 / span 4;\n  grid-row: 3 / span 2;"), "{}", page.css);
+    assert!(page.css.contains("--dg-gap: 8px;") && page.css.contains("@container (max-width: 639.98px)"), "{}", page.css);
+    assert!(body.contains(r#"data-dg-grid role="list" aria-label="Dashboard""#), "{body}");
+    assert!(body.contains(r#"data-dg-tile data-id="a" role="listitem" aria-label="Sales""#), "{body}");
+    assert!(body.contains(r#"data-dg-handle tabindex="0" role="button" aria-roledescription="movable tile" aria-label="Move Sales""#), "{body}");
+    assert!(body.contains(r#"data-id="tile-3""#), "{body}");
+    // The locked tile has nothing to drag or resize.
+    let locked = &body[body.find(r#"data-id="b""#).unwrap()..body.find(r#"data-id="tile-3""#).unwrap()];
+    assert!(!locked.contains("data-dg-handle") && !locked.contains("data-dg-resize"), "{locked}");
+
+    // From state: the layout it names, the rest from props.
+    let page = render_with(grid(json!({ "bind": "layout" }), kids()), json!({ "layout": [{ "id": "a", "x": 4, "y": 0, "w": 4, "h": 1 }] }), json!({})).unwrap();
+    assert!(page.css.contains("grid-column: 5 / span 4;\n  grid-row: 1 / span 1;"), "{}", page.css);
+    // Not editable: no handles at all.
+    let body = plain(&render_with(grid(json!({ "editable": false }), kids()), json!({}), json!({})).unwrap().body);
+    assert!(!body.contains("data-dg-handle") && !body.contains("data-dg-help"), "{body}");
+
+    let err = |root: Json| render_with(root, json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(grid(json!({}), vec![json!({ "type": "text", "props": { "value": "x" } })])).contains("takes only `ui-tile` children"));
+    assert!(err(grid(json!({}), vec![tile(json!({ "id": "a" })), tile(json!({ "id": "a" }))])).contains("two tiles have the id `a`"));
+    assert!(err(grid(json!({ "columns": 0 }), vec![tile(json!({}))])).contains("`columns` must be from 1 to 48"));
+    assert!(err(tile(json!({}))).contains("must be a direct child of `ui-dashboard-grid`"));
 }

@@ -519,6 +519,18 @@
    ]
   },
   {
+   "id": "dashboard-grid",
+   "group": "Navigation",
+   "title": "Dashboard grid",
+   "nav": "Dashboard grid",
+   "summary": "Tiles on a grid of columns and rows, to drag by their header and resize from their corner, or move with the arrow keys on a focused header (Shift with them resizes). The tiles in the way move down, and the rest float up. The layout is kept in state with bind, a locked tile stays put, and on a narrow screen the tiles stack in one column.",
+   "usage": "- type: ui-dashboard-grid\n  props: { bind: layout, rowHeight: 80 }\n  children:\n    - { type: ui-tile, props: { id: sales, title: Sales, x: 0, y: 0, w: 8, h: 4 }, children: [ ... ] }\n    - { type: ui-tile, props: { id: goals, title: Goals, x: 8, y: 0, w: 4, h: 4, minW: 3 }, children: [ ... ] }",
+   "components": [
+    "ui-dashboard-grid",
+    "ui-tile"
+   ]
+  },
+  {
    "id": "scroll-spy",
    "group": "Navigation",
    "title": "Scroll spy",

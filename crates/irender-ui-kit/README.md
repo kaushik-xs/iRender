@@ -592,6 +592,33 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Props.** `columns` and `cards` (required), `bindCards`, `bindCard`, `movable` (default true), `addable`, `collapsible`, `collapsed`, `addLabel`, `emptyText`, `columnWidth` (px, default 280), `label` (default `Board`); part `board`.
 
+## Dashboard grid
+
+`ui-dashboard-grid` lays `ui-tile`s out on a grid of `columns` (default 12) and rows `rowHeight` px tall (default 80), for dashboards people arrange themselves. The block [`dashboard-02`](../../examples/blocks/dashboard-02.yaml) is an operations dashboard built on it.
+
+```yaml
+- type: ui-dashboard-grid
+  props: { bind: layout, rowHeight: 72 }
+  children:
+    - { type: ui-tile, props: { id: alerts, x: 0, y: 0, w: 12, h: 1, locked: true }, children: [ ... ] }
+    - { type: ui-tile, props: { id: sales, title: Sales, x: 0, y: 1, w: 8, h: 4, minW: 4 }, children: [ { type: ui-chart, props: { …, height: 100% } } ] }
+    - { type: ui-tile, props: { id: goals, title: Goals, w: 4, h: 4 }, children: [ ... ] }
+```
+
+**Places.** A tile's `x` and `y` are its column and row from 0, and `w` and `h` its size in cells (default 4 by 2). A tile without `x` and `y` takes the first free place. Overlapping tiles move down, and with `compact` (the default) every tile floats up into the space above it. The server draws the tiles where they end up, so nothing jumps when the script starts.
+
+**Moving.** Drag a tile by its header (its `title`), or by the grip in its corner when it has none; the tile follows the pointer and a dashed outline shows where it lands. Drag the bottom corner to resize it, within `minW`, `minH`, `maxW` and `maxH`. The tiles in the way move down, or up into the space the tile left when they fit there, as in react-grid-layout. Pointer events, so touch works. Escape during a drag puts the tile back. A `locked` tile has no header handle or corner: it stays put and the others go around it. `editable: false` turns moving off for every tile.
+
+**Keyboard and screen readers.** A tile's header is a button: the arrow keys move the tile a cell (a step down goes past the tile below), and Shift with them resizes it. The new place is announced (`Sales: column 1, row 2, 8 by 4`). The grid is a list of its tiles, named by `label`.
+
+**State.** `bind` holds the layout as `[{ id, x, y, w, h }]`, written after each move and read to place the tiles, on the server and when it changes. Tiles it doesn't name keep their own places, and setting it to null puts every tile back where its props say (a Reset button). Each move also fires `layout` with `{ layout, id, how }` (`move` or `resize`).
+
+**Small screens.** Under `stackBelow` px (default 640, of the grid's own width) the tiles stack in one column in reading order, each `h` rows tall, and can't be moved. A chart in a tile redraws at the tile's size; give it `height: 100%`.
+
+**Right to left.** Column 0 is on the right, and dragging and the arrow keys follow.
+
+**Props.** Grid: `columns`, `rowHeight`, `gap` (px, default 16), `bind`, `editable`, `compact`, `stackBelow`, `label`; parts `tile` and `header`. Tile: `id` (default `tile-1`, `tile-2`, …), `title`, `x`, `y`, `w`, `h`, `minW`, `minH`, `maxW`, `maxH`, `locked`.
+
 ## Tree
 
 `ui-tree` shows nodes `{ id, label, children }` (`name` works as the label too) as a tree to browse, select, check, search, add to, delete from and rearrange. The block [`tree-01`](../../examples/blocks/tree-01.yaml) has all of it.

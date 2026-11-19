@@ -40,6 +40,7 @@ root:
         as: block
         items:
           - { id: dashboard-01, category: dashboard, title: "A dashboard with sidebar, charts, data table and a ⌘K palette", kits: [ui-kit, chart-kit, icon-kit], height: 860 }
+          - { id: dashboard-02, category: dashboard, title: "An operations dashboard to arrange: drag tiles by their header, resize them from the corner or use the arrow keys, with the layout in state and a locked alerts strip", kits: [ui-kit, chart-kit, icon-kit], height: 1080 }
           - { id: data-table-01, category: table, title: "Tasks: search, faceted filters, sorting, paging, a View menu and bulk actions on selected rows", kits: [ui-kit, icon-kit], height: 860 }
           - { id: data-table-02, category: table, title: "Orders wired to charts both ways: the charts draw the filtered rows, a bar click filters the table, sparklines in cells and a chart in each row's details", kits: [ui-kit, chart-kit, icon-kit], height: 1180 }
           - { id: data-table-03, category: table, title: "Inventory from plain column objects: rows from state, a filter from a toggle, a sticky header and a clicked row's chart", kits: [ui-kit, chart-kit, icon-kit], height: 760 }

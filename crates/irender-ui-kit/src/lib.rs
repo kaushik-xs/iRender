@@ -46,6 +46,7 @@ mod chat;
 mod code;
 mod combobox;
 mod command;
+mod dashboard_grid;
 mod data_table;
 mod disclosure;
 mod display;
@@ -126,6 +127,8 @@ pub fn register(registry: &mut Registry) {
         .register(status::TimelineItem)
         .register(rating::Rating)
         .register(rating::PasswordChecklist)
+        .register(dashboard_grid::DashboardGrid)
+        .register(dashboard_grid::Tile)
         .register(kanban::Kanban)
         .register(events::EventCalendar)
         .register(number::NumberInput)
