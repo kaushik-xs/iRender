@@ -143,6 +143,9 @@ const CHART_PROPS: &[PropDef] = &[
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
     PropDef::new("horizontal", PropKind::Bool, "Bars along the x axis"),
     PropDef::new("labels", PropKind::Bool, "Show value labels on the marks"),
+    PropDef::new("format", PropKind::Enum(&["number", "currency", "percent"]), "How values show in labels, tooltips and the value axis, in the document's language"),
+    PropDef::new("currency", PropKind::String, "With `format: currency`, e.g. `EUR` (default `USD`)"),
+    PropDef::new("decimals", PropKind::Number, "Digits after the point in labels and tooltips (default: up to 2)"),
     PropDef::new("legend", PropKind::Bool, "Show the legend (default: with two or more series)"),
     PropDef::new("tooltip", PropKind::Bool, "Show a tooltip on hover (default true)"),
     PropDef::new("height", PropKind::Any, "Number (px) or CSS length; default 320"),
@@ -173,7 +176,7 @@ const SPARKLINE_PROPS: &[PropDef] = &[
 /// Props the browser resolves against state; the rest are read once on the server.
 const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
-    "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "legend", "tooltip", "loading",
+    "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "format", "currency", "decimals", "legend", "tooltip", "loading",
     "columns", "markers", "today", "editable", "cascade",
 ];
 

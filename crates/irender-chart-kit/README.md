@@ -61,6 +61,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `live` | Live data for this chart; see [Live data](#live-data). |
 | `option` | An [ECharts option](https://echarts.apache.org/en/option.html), merged over the shorthand's. Arrays of objects (`series`, `xAxis`, …) merge by position, like ECharts' own merge. Data arrays are replaced. |
 | `stack`, `smooth`, `horizontal`, `labels` | Shorthand switches. |
+| `format`, `currency`, `decimals` | How values show in labels, tooltips and the value axis, in the document's `lang`: `number` (the default), `currency` (`currency`, default `USD`) or `percent` (of 1), with `decimals` digits after the point. Without them, labels and tooltips show at most two decimals; with a `format`, big axis values stay short (`$1.5M`). |
 | `legend`, `tooltip` | On or off. Default: a legend with two or more series, and a tooltip always. |
 | `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows. The width is the container's. |
 | `columns`, `markers`, `today` | For a gantt; see [Gantt](#gantt). |

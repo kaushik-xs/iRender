@@ -607,6 +607,44 @@
     });
   }
 
+  // How wide `text` is in the charts' 12px labels.
+  let ruler;
+  const textWidth = (text) => {
+    ruler ??= document.createElement("canvas").getContext("2d");
+    ruler.font = `12px ${getComputedStyle(document.body).fontFamily}`;
+    return ruler.measureText(text).width;
+  };
+
+  // Values in value labels, tooltips and (with a `format`) the value axis, written as
+  // `format` says in the document's language: `number` (the default), `currency` (in
+  // `currency`) or `percent` (of 1), with `decimals` digits after the point (default: up
+  // to 2, so an average doesn't show ten).
+  function numbers(o, p) {
+    if (!o || p.type === "gantt") return;
+    const lang = document.documentElement.lang || undefined;
+    const style = p.format === "currency" ? { style: "currency", currency: p.currency || "USD" } : p.format === "percent" ? { style: "percent" } : {};
+    const digits = isNum(p.decimals) ? Math.max(0, Math.min(20, Number(p.decimals))) : null;
+    const exact = new Intl.NumberFormat(lang, { ...style, ...(digits !== null ? { minimumFractionDigits: digits, maximumFractionDigits: digits } : { maximumFractionDigits: 2 }) });
+    const fmt = (v) => (isNum(v) ? exact.format(Number(v)) : v);
+    // A label's value: the number, or the value in an [x, y] pair.
+    const valueOf = (v) => (Array.isArray(v) ? v[1] : v?.value ?? v);
+    if (o.tooltip && o.tooltip.show !== false && !o.tooltip.formatter) o.tooltip.valueFormatter ??= (v) => (Array.isArray(v) ? v.map(fmt).join(", ") : fmt(v));
+    let past = 0;
+    for (const s of [o.series ?? []].flat()) {
+      if (!s?.label?.show || s.label.formatter || !["bar", "line", "pictorialBar", "scatter", "effectScatter"].includes(s.type)) continue;
+      s.label.formatter = (e) => String(fmt(valueOf(e.value)) ?? "");
+      // Labels after the ends of bars along x: room for the longest on the right.
+      if (s.label.position === "right") for (const v of s.data ?? []) past = Math.max(past, textWidth(String(fmt(valueOf(v)) ?? "")));
+    }
+    if (past) o.grid = { ...o.grid, right: Math.max(o.grid?.right ?? 0, Math.ceil(past) + 12) };
+    // The value axis follows a `format`; big values stay short (12K, $1.5M).
+    if (!p.format && digits === null) return;
+    const short = new Intl.NumberFormat(lang, { ...style, notation: "compact", maximumFractionDigits: 1 });
+    for (const a of [o.xAxis, o.yAxis].flat()) {
+      if (a && a.type === "value" && !a.axisLabel?.formatter) a.axisLabel = { ...a.axisLabel, formatter: (v) => (Math.abs(v) >= 1e4 ? short.format(v) : exact.format(v)) };
+    }
+  }
+
   // An ECharts option from the shorthand props and the rows `prepare` gave (`d`),
   // with `x` naming the category (or name) field and `y` the value field(s). The
   // rows behind each series' data go in `d.rowsBy`, so clicks can find them.
@@ -1199,6 +1237,7 @@
       d.selectable = !!(cfg.bind || cfg.bindRow);
       Object.assign(d, { collapsed, seen, width: el.clientWidth, drafts, editable: canEdit() });
       let o = build(p, theme, cfg.sparkline, d);
+      numbers(o, p);
       rowsBy = d.rowsBy;
       level = d;
       xField = d.x;

@@ -748,3 +748,43 @@ fn drill_filters_and_live_data_in_chrome() {
     ];
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
+
+/// Value labels, tooltips and the value axis written as `format`, `currency` and
+/// `decimals` say, in the document's language; without them, at most two decimals.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn value_formats_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let rows = json!([{ "d": "a", "v": 3580.045454545 }, { "d": "b", "v": 12500 }]);
+    let doc = json!({ "version": 1, "lang": "de", "root": { "type": "stack", "children": [
+        { "type": "ui-chart", "attrs": { "id": "plain" }, "props": { "type": "bar", "data": rows, "labels": true } },
+        { "type": "ui-chart", "attrs": { "id": "money" }, "props": { "type": "bar", "data": rows, "labels": true, "format": "currency", "currency": "EUR", "decimals": 0 } },
+        { "type": "ui-chart", "attrs": { "id": "share" }, "props": { "type": "line", "data": [{ "d": "a", "v": 0.256 }], "labels": true, "format": "percent", "decimals": 1 } },
+        { "type": "ui-chart", "attrs": { "id": "pie" }, "props": { "type": "pie", "data": [{ "name": "a", "value": 1.23456 }], "decimals": 2 } } ] } });
+    let body = r##"
+    await ready(["plain", "money", "share", "pie"]);
+    const label = (id, v) => opt(id).series[0].label.formatter({ value: v });
+    const tip = (id, v) => opt(id).tooltip[0].valueFormatter(v);
+    const axis = (id, v) => opt(id).yAxis[0].axisLabel.formatter(v);
+    log("plain", label("plain", 3580.045454545), tip("plain", 3580.045454545), typeof opt("plain").yAxis[0].axisLabel.formatter);
+    log("money", label("money", 3580.4), tip("money", 12500), axis("money", 2000), axis("money", 1500000));
+    log("share", label("share", ["a", 0.256]), axis("share", 0.5));
+    log("pie", tip("pie", 1.23456), tip("pie", 2));
+"##;
+    let Some(lines) = run("formats", &engine, doc, &driver(body)) else { return };
+    // `&nbsp;`: the no-break spaces Intl puts before units, as the DOM dump writes them.
+    assert_eq!(
+        lines,
+        [
+            // No format: grouped in German, two decimals at most; the axis keeps its own.
+            "plain 3.580,05 3.580,05 function",
+            "money 3.580&nbsp;€ 12.500&nbsp;€ 2.000&nbsp;€ 1,5&nbsp;Mio.&nbsp;€",
+            "share 25,6&nbsp;% 50,0&nbsp;%",
+            "pie 1,23 2,00",
+        ],
+        "\n{}",
+        lines.join("\n")
+    );
+}

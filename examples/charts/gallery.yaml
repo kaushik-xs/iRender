@@ -229,13 +229,15 @@ root:
                     filter: { product: "{{ products }}", channel: "{{ channel }}", date: "{{ range }}" }
                     title: Revenue by region
             - type: ui-card
-              props: { title: Top cities, description: "`sort` and `limit`: the five biggest." }
+              props: { title: Top cities, description: "`sort` and `limit`: the five biggest, in dollars (`format: currency`)." }
               children:
                 - type: ui-chart
                   props:
                     type: bar
                     horizontal: true
                     labels: true
+                    format: currency
+                    decimals: 0
                     data: "{{ orders }}"
                     x: city
                     y: amount

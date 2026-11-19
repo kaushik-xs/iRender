@@ -1057,6 +1057,9 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis
   labels       bool  Show value labels on the marks
+  format       one of: number, currency, percent  How values show in labels, tooltips and the value axis, in the document's language
+  currency     string  With `format: currency`, e.g. `EUR` (default `USD`)
+  decimals     number  Digits after the point in labels and tooltips (default: up to 2)
   legend       bool  Show the legend (default: with two or more series)
   tooltip      bool  Show a tooltip on hover (default true)
   height       any  Number (px) or CSS length; default 320
