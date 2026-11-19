@@ -5973,3 +5973,78 @@ fn command_palette_ranking_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A submenu's grace triangle: heading from its item towards it across another item
+/// keeps it open; moving away, or lingering past the moment, lets the other item act.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn submenu_grace_triangle_in_chrome() {
+    let item = |l: &str| serde_json::json!({ "type": "ui-menu-item", "props": { "label": l } });
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "element", "style": { "padding": "40px" }, "children": [
+        { "type": "ui-dropdown-menu", "props": { "id": "m", "trigger": "Actions", "align": "start" }, "children": [
+            { "type": "ui-menu-sub", "props": { "label": "Share" }, "children": [ item("Email"), item("Link"), item("Embed") ] },
+            item("Rename"), item("Archive"), item("Delete") ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const M = document.getElementById("m");
+      const item = (l) => [...M.querySelectorAll("[role=menuitem]")].find((i) => i.textContent.trim() === l);
+      const sub = () => document.getElementById(item("Share").getAttribute("aria-controls"));
+      const open = () => sub().matches(":popover-open");
+      const mouse = (type, t, x, y, related) => t.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, relatedTarget: related ?? null }));
+      // From Share's right half down onto Rename, `dx` across and `dy` down.
+      const leave = (dx, dy) => {
+        const s = item("Share").getBoundingClientRect(), r = item("Rename").getBoundingClientRect();
+        const x0 = s.right - 10, y0 = s.bottom - 2, x = x0 + dx, y = r.top + dy;
+        mouse("mouseout", item("Share"), x0, y0, item("Rename"));
+        mouse("mouseover", item("Rename"), x, y, item("Share"));
+        return [x, y];
+      };
+      const reopen = async () => { mouse("mouseover", item("Share"), item("Share").getBoundingClientRect().left + 20, item("Share").getBoundingClientRect().top + 8); await wait(10); };
+      try {
+        document.querySelector('[popovertarget="m"]').click(); await wait(20);
+        await reopen();
+        log("hovered Share", open(), sub().getBoundingClientRect().left >= item("Share").getBoundingClientRect().right - 8);
+        // Heading right towards it, across Rename: it stays open.
+        leave(6, 3); await wait(50);
+        log("towards it", open());
+        // Into the submenu: still open, and Rename never acts.
+        mouse("mouseover", sub().querySelector("[role=menuitem]"), sub().getBoundingClientRect().left + 10, sub().getBoundingClientRect().top + 10); await wait(450);
+        log("reached it", open());
+        // Straight down (or left), away from it: Rename acts at once and it closes.
+        await reopen();
+        const [x, y] = leave(-60, 3);
+        log("away", open());
+        await reopen();
+        // Lingering on Rename: after the moment, it closes.
+        leave(6, 3); await wait(50);
+        log("lingering", open());
+        await wait(450);
+        log("after", open());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("submenu-grace", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "hovered Share true true",
+            // Crossing Rename on the way to the submenu: it stays open.
+            "towards it true",
+            "reached it true",
+            // Away from it: Rename closes it at once.
+            "away false",
+            // Stopping on Rename: open for the moment, then closed.
+            "lingering true",
+            "after false",
+        ],
+        "\n{result}"
+    );
+}

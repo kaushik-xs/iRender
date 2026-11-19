@@ -6,7 +6,8 @@
 // Popover API, which puts focus back on the button.
 //
 // Submenus open beside their item on hover, Enter, Space or Right, and close on Left
-// or Escape, focus going back to the item. Checkbox items flip their state key and radio
+// or Escape, focus going back to the item. Heading for an open submenu across other
+// items doesn't close it. Checkbox items flip their state key and radio
 // items write their value.
 (window.__irenderBehaviors ||= {})["ui-dropdown-menu"] = (el, api) => {
   // Right to left, Left and Right swap: the next one is on the left.
@@ -95,11 +96,64 @@
   });
 
   // Hovering an item opens its submenu, or closes the one open beside another item.
-  el.addEventListener("mouseover", (e) => {
-    const item = e.target.closest?.(ITEMS);
-    if (!item || item.closest("[role=menu]") !== el) return;
+  function hover(item) {
     if (item.hasAttribute("data-ui-sub-trigger")) openSub(item, false);
     else for (const other of items()) if (other.hasAttribute("data-ui-sub-trigger") && sub(other)?.matches(":popover-open")) sub(other).hidePopover();
+  }
+  // The way to an open submenu: leaving its item, the pointer gets a triangle from where
+  // it left to the submenu's near edge. While it moves inside, the items it crosses wait
+  // (up to 400ms) before acting, so heading for the submenu diagonally doesn't close it.
+  let grace = null, waiting = null, timer = 0, over = null;
+  const inside = ([a, b, c], x, y) => {
+    const side = (p, q) => (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]);
+    const d1 = side(a, b), d2 = side(b, c), d3 = side(c, a);
+    return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0));
+  };
+  function settle() {
+    clearTimeout(timer);
+    const item = waiting;
+    grace = waiting = null;
+    // The item the pointer is on now acts.
+    if (item && item === over) hover(item);
+  }
+  el.addEventListener("mouseout", (e) => {
+    if (e.relatedTarget?.closest?.(ITEMS)?.closest("[role=menu]") !== el) over = null;
+    const item = e.target.closest?.("[data-ui-sub-trigger]");
+    const m = item && item.closest("[role=menu]") === el ? sub(item) : null;
+    if (!m?.matches(":popover-open") || item.contains(e.relatedTarget) || m.contains(e.relatedTarget)) return;
+    const r = m.getBoundingClientRect(), x = e.clientX, y = e.clientY;
+    const edge = r.left >= x ? r.left : r.right, back = r.left >= x ? -4 : 4;
+    grace = { m, triangle: [[x + back, y], [edge, r.top - 8], [edge, r.bottom + 8]], until: e.timeStamp + 400 };
+  });
+  el.addEventListener("mouseover", (e) => {
+    // Reached the submenu: nothing else acts.
+    if (grace?.m.contains(e.target)) {
+      grace = waiting = over = null;
+      return clearTimeout(timer);
+    }
+    const item = e.target.closest?.(ITEMS);
+    if (!item || item.closest("[role=menu]") !== el) return;
+    over = item;
+    if (grace) {
+      if (e.timeStamp < grace.until && inside(grace.triangle, e.clientX, e.clientY)) {
+        waiting = item;
+        clearTimeout(timer);
+        timer = setTimeout(settle, Math.max(0, grace.until - e.timeStamp));
+        return;
+      }
+      grace = waiting = null;
+      clearTimeout(timer);
+    }
+    hover(item);
+  });
+  // Out of the triangle (or into the submenu): what's under the pointer acts at once.
+  el.addEventListener("mousemove", (e) => {
+    if (!grace) return;
+    if (grace.m.contains(e.target)) {
+      grace = waiting = null;
+      return clearTimeout(timer);
+    }
+    if (!inside(grace.triangle, e.clientX, e.clientY)) settle();
   });
 
   // The button that opens it, found when a key is pressed: the menu's id can change

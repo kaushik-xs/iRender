@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: the submenu safe triangle, or announcing part-picked nested rows.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: `cargo fmt` in CI (one reformatting commit), or keyboard links in the Gantt chart.
 
 ## Gaps you'd hit in real use
 
@@ -84,7 +84,7 @@ _Last updated: 2026-11-19._
   - [x] Quarter presets (2026-11-20): `quarters` (the last four, named by their financial year), `lastQuarter`, `lastYear` and `yearToDate` in the calendar, the filters panel (with its own `fiscalStart`) and the data table's date filter (with the column's `presets` and `fiscalStart`).
 - [ ] **Menus** (`ui-menubar`, `ui-navigation-menu`, submenus, checkbox and radio items shipped 2026-11-18):
   - [ ] The navigation menu's panels don't share one animated viewport that morphs between items, as Radix's does; each panel opens on its own.
-  - [ ] Submenus open on hover without the "safe triangle", so moving diagonally toward a submenu over another item can close it.
+  - [x] Submenus keep a "safe triangle" (2026-11-20): heading diagonally for an open submenu across other items doesn't close it; stopping on another item does, after 400ms.
   - [ ] Checkbox and radio items close the menu when chosen; there's no option to keep it open.
 - [ ] **`ui-context-menu` gaps** (shipped 2026-11-18):
   - [x] Submenus, checkbox and radio items (2026-11-18), in every menu.
