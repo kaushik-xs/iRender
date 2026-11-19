@@ -473,12 +473,23 @@
     e.dataTransfer.setData("text/plain", labelOf(index.get(id).node));
     item(id).setAttribute("data-dragging", "");
   });
+  // The node a dragged one would drop on from over `target`: not itself or inside it.
+  const dropOn = (target) => {
+    const li = target?.closest?.("[role=treeitem]");
+    const id = li && list.contains(li) ? idAt(li) : null;
+    return id && id !== dragId && !path(id).includes(dragId) ? li : null;
+  };
+  // Drops the dragged node at height `y` on `li`: before it, after it or inside it.
+  function dropAt(li, y) {
+    const id = idAt(li), where = zone(li, y), t = index.get(id);
+    if (where === "inside") move(dragId, id, kids(t.node).length);
+    else move(dragId, t.parent, where === "before" ? t.i : t.i + 1);
+  }
   list.addEventListener("dragover", (e) => {
     if (dragId === null) return;
-    const li = e.target.closest?.("[role=treeitem]");
-    const id = idAt(li);
+    const li = dropOn(e.target);
     clear();
-    if (!li || id === dragId || path(id).includes(dragId)) return;
+    if (!li) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     li.setAttribute("data-drop", zone(li, e.clientY));
@@ -487,19 +498,37 @@
   list.addEventListener("drop", (e) => {
     if (dragId === null) return;
     e.preventDefault();
-    const li = e.target.closest?.("[role=treeitem]");
-    const id = idAt(li);
-    const where = li && zone(li, e.clientY);
+    const li = dropOn(e.target);
     clear();
-    if (!li || id === dragId || path(id).includes(dragId)) return;
-    const t = index.get(id);
-    if (where === "inside") move(dragId, id, kids(t.node).length);
-    else move(dragId, t.parent, where === "before" ? t.i : t.i + 1);
+    if (li) dropAt(li, e.clientY);
   });
-  list.addEventListener("dragend", () => {
+  const endDrag = () => {
     clear();
     if (dragId !== null) item(dragId)?.removeAttribute("data-dragging");
     dragId = null;
+  };
+  list.addEventListener("dragend", endDrag);
+  // By touch: hold a node's row, then drag it.
+  window.__irenderTouchDrag(list, {
+    pick: (t) => {
+      const row = cfg.movable && !t.closest("button, input, a[href]") ? t.closest("[data-tree-row]") : null;
+      return row && row.draggable ? row : null;
+    },
+    start(row) {
+      dragId = idAt(row);
+      item(dragId)?.setAttribute("data-dragging", "");
+    },
+    over(x, y, under) {
+      const li = dropOn(under);
+      clear();
+      if (li) li.setAttribute("data-drop", zone(li, y));
+    },
+    drop(x, y, under) {
+      const li = dropOn(under);
+      clear();
+      if (li && dragId !== null) dropAt(li, y);
+    },
+    end: endDrag,
   });
 
   // `bindNode`: the selected node itself, kept in step as the nodes change.

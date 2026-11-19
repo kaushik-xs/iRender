@@ -71,6 +71,8 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("transition", "background .15s, box-shadow .15s"),
             ]),
         )
+        // A long press picks a card up, rather than selecting its text.
+        .nest("@media (pointer: coarse)", pairs(&[]).nest("& [data-kb-card]", pairs(&[("user-select", "none"), ("-webkit-touch-callout", "none")])))
         .nest("& [data-kb-column][data-over-drop]", pairs(&[("box-shadow", "inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 45%, transparent)")]))
         .nest("& [data-kb-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(2, 4))]))
         .nest("& [data-kb-head] h3", pairs(&[("margin", "0"), ("font-size", fs!(13)), ("font-weight", "600"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
@@ -229,6 +231,7 @@ impl Component for Kanban {
         }
         let width = cx.prop(node, "columnWidth").map_or(280.0, |v| expr::to_num(&v));
 
+        crate::touch_drag(cx);
         cx.global_js("ui-kanban", SCRIPT);
         let config = json!({
             "columns": dynamic(cx, node, "columns", node.prop("columns").expect("required"))?,

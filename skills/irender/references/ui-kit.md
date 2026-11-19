@@ -586,7 +586,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **Columns** are `{ id, title, tone, limit }`, or plain names. A column with more cards than its `limit` shows its count in red (`4 / 3`). With `collapsible`, a button folds a column to a narrow strip; `collapsed` lists those folded to start with.
 
-**Moving.** Drag a card into a column, between cards: a line shows where it lands. From the keyboard, Alt with Up and Down moves the focused card within its column, and Alt with Left and Right moves it to the next column, keeping its place as near as it can. Each move rewrites `bindCards` (the card's `column`, and the order) and fires `move` with `{ id, from, to, index }`. Without `bindCards` nothing moves, but the event still fires, for a host that saves first.
+**Moving.** Drag a card into a column, between cards: a line shows where it lands. On a touch screen, hold a card still for a moment to pick it up, then drag it; a quick swipe still scrolls, and the board scrolls when the card nears its edge. From the keyboard, Alt with Up and Down moves the focused card within its column, and Alt with Left and Right moves it to the next column, keeping its place as near as it can. Each move rewrites `bindCards` (the card's `column`, and the order) and fires `move` with `{ id, from, to, index }`. Without `bindCards` nothing moves, but the event still fires, for a host that saves first.
 
 **Adding.** With `addable` (and `bindCards`), Add card under a column asks for a title: Enter adds the card at the column's end with a new id and fires `add` with `{ card }`, and Escape cancels.
 
@@ -649,7 +649,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **Deleting.** With `deletable`, a bin on each row and Delete on the keyboard; with `checkable` too, a bar above the tree deletes the checked nodes. A node goes with everything under it. Deleting fires `delete` with the top ids, and with `bindNodes` removes them from state, along with the selection and checks.
 
-**Moving.** With `movable`, drag a node onto another to put it inside, or near its top or bottom edge to put it before or after. From the keyboard, Alt with Up and Down moves the focused node among its siblings, Alt+Right puts it inside the node above, and Alt+Left moves it out to after its parent. A node can't go inside itself. Moving fires `move` with `{ id, parent, index }` and, with `bindNodes`, writes the new tree. Dragging is off while searching.
+**Moving.** With `movable`, drag a node onto another to put it inside, or near its top or bottom edge to put it before or after. On a touch screen, hold a node still for a moment to pick it up, then drag it. From the keyboard, Alt with Up and Down moves the focused node among its siblings, Alt+Right puts it inside the node above, and Alt+Left moves it out to after its parent. A node can't go inside itself. Moving fires `move` with `{ id, parent, index }` and, with `bindNodes`, writes the new tree. Dragging is off while searching.
 
 **Search.** `search` adds a box above the tree that shows the matches with the nodes above them and marks the match, ignoring case and accents. Down moves from the box into the tree, and Escape clears it.
 

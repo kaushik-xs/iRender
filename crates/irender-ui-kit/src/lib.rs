@@ -280,6 +280,12 @@ fn lit(v: impl Into<Json>) -> Val {
 /// offsets along the line (`translateX(calc(16px * var(--ui-dir, 1)))`).
 const RTL: &str = ":dir(rtl) { --ui-dir: -1; }\nsvg[data-flip]:dir(rtl) { scale: -1 1; }";
 
+/// Dragging by touch, for components that drag with the browser's drag and drop
+/// (`window.__irenderTouchDrag`). Added before the component's own script.
+fn touch_drag(cx: &mut RenderCx<'_>) {
+    cx.global_js("ui-touch-drag", include_str!("touch_drag.js"));
+}
+
 /// Adds the right-to-left rules, for components that use them.
 fn flips(cx: &mut RenderCx<'_>) {
     cx.global_css("ui-rtl", RTL);

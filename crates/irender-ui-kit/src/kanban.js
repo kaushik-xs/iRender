@@ -265,18 +265,27 @@
     e.dataTransfer.setData("text/plain", c.querySelector("[data-kb-title]").textContent);
     requestAnimationFrame(() => c.setAttribute("data-dragging", ""));
   });
-  board.addEventListener("dragover", (e) => {
-    if (dragId === null) return;
-    const col = e.target.closest?.("[data-kb-column]");
-    if (!col || col.hasAttribute("data-collapsed")) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+  // The column a card would drop into from over `target`, if it takes cards.
+  const columnAt = (target) => {
+    const col = target?.closest?.("[data-kb-column]");
+    return col && board.contains(col) && !col.hasAttribute("data-collapsed") ? col : null;
+  };
+  // Shows where a card dropped at height `y` in `col` lands.
+  function showDrop(col, y) {
     const list = $("[data-kb-cards]", col);
-    const { items, at } = slot(list, e.clientY);
+    const { items, at } = slot(list, y);
     clear();
     col.setAttribute("data-over-drop", "");
     const line = make("div", { "data-kb-drop": "", "aria-hidden": "true" });
     items[at] ? list.insertBefore(line, items[at]) : list.append(line);
+  }
+  board.addEventListener("dragover", (e) => {
+    if (dragId === null) return;
+    const col = columnAt(e.target);
+    if (!col) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    showDrop(col, e.clientY);
   });
   board.addEventListener("dragleave", (e) => !board.contains(e.relatedTarget) && clear());
   board.addEventListener("drop", (e) => {
@@ -288,10 +297,29 @@
     clear();
     move(dragId, col.getAttribute("data-kb-column"), at);
   });
-  board.addEventListener("dragend", () => {
+  const endDrag = () => {
     clear();
     $$("[data-dragging]").forEach((x) => x.removeAttribute("data-dragging"));
     dragId = null;
+  };
+  board.addEventListener("dragend", endDrag);
+  // By touch: hold a card, then drag it.
+  window.__irenderTouchDrag(board, {
+    scroller: board,
+    pick: (t) => (cfg.movable && !t.closest("button, input, textarea, a[href]") ? t.closest("[data-kb-card]") : null),
+    start(c) {
+      dragId = c.getAttribute("data-kb-card");
+      c.setAttribute("data-dragging", "");
+    },
+    over(x, y, under) {
+      const col = columnAt(under);
+      col ? showDrop(col, y) : clear();
+    },
+    drop(x, y, under) {
+      const col = columnAt(under);
+      if (col && dragId !== null) move(dragId, col.getAttribute("data-kb-column"), slot($("[data-kb-cards]", col), y).at);
+    },
+    end: endDrag,
   });
 
   // `bindCard` follows its card as the cards change (moved, edited), or empties if it goes.

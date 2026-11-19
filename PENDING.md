@@ -6,11 +6,12 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart and the dashboard grid are in (2026-11-19). Next candidates: pointer-based dragging for touch screens in the kanban board, tree and flow palette (the dashboard grid's way); named column views, grouping for remote tables and quarter filters in the data table.
+1. The Gantt chart, the dashboard grid and touch dragging (kanban, tree, flow palette) are in (2026-11-19). Next candidates: named column views, grouping for remote tables and quarter filters in the data table; keyboard access to the Gantt chart's table.
 
 ## Gaps you'd hit in real use
 
 - [ ] **CSS-wide keywords in conditional dynamic styles.** A dynamic `inherit`, `initial`, `unset` or `revert` works in a plain declaration (it's set on the property inline), but under `:hover`, a media query or a nested selector it can't reach the property and counts as no value. Idea: for those, compile one rule per keyword keyed on a data attribute.
+- [ ] **Touch dragging isn't tried on real phones.** The kanban board, tree and flow palette pick an item up after a 300 ms hold (2026-11-19); that's tested with Chrome's emulated touch input and with touch pointer events in Chrome, WebKit and Firefox, not on an iPhone or an Android phone.
 - [ ] **Older browsers aren't tested.** The browser tests run in Chrome, and in Playwright's WebKit and Firefox (CI, and `tools/playwright/dump-dom.js` locally), which are recent builds (Safari 27.2, Firefox 159 on 2026-11-17). Safari releases and Firefox ESR without anchor positioning, the Popover API, invoker commands, `closedby` or `<details name>` aren't covered; without anchor positioning, popovers open in the middle of the screen.
   - Idea: run the tests in the installed Safari through `safaridriver`.
 
@@ -25,7 +26,6 @@ _Last updated: 2026-11-19._
   - [x] **Tree view** (2026-11-18): `ui-tree` selects, checks (with partial parents), searches, adds by name, deletes one or the checked, and moves nodes by dragging or Alt and the arrow keys, writing to `bindNodes` and firing events (block tree-01, gallery section). Not done yet:
     - [ ] No renaming in place (F2), and no icons per node.
     - [ ] Children can't load from an API when a node opens, as the data table's nested rows can; very large trees draw every node.
-    - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [x] **Calendar views** (2026-11-18): `ui-event-calendar`, events in month, week (hours, overlaps side by side) and list views, coloured by category, with `bindEvent`, `bindDay` and the keyboard (block calendar-01, gallery section). Not done yet:
     - [x] Year and day views (2026-11-19).
     - [x] Events move by dragging (to another day, or time in the week and day views, and resized by their foot) or with Alt and the arrow keys, written back with `bindEvents` (2026-11-19). Adding is still up to the page (`bindDay`), and the year and list views don't move events.
@@ -43,7 +43,6 @@ _Last updated: 2026-11-19._
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
     - [ ] No custom card content (a template per card), only the built-in fields.
     - [ ] No swimlanes (rows by assignee or epic), and columns can't be reordered.
-    - [ ] Dragging uses the browser's drag and drop, which touch screens don't start; on a phone, moves need a keyboard or the host.
   - [x] **Dashboard grid** (2026-11-19): `ui-dashboard-grid` + `ui-tile`, tiles dragged by their header and resized from their corner (pointer events, so touch too) or with the arrow keys, pushing the others aside and floating up, locked tiles, the layout in `bind`, and one column on a narrow grid (block dashboard-02, gallery section). Not done yet:
     - [ ] One layout for every width: no separate layouts per breakpoint (react-grid-layout's `ResponsiveGridLayout`); under `stackBelow` the tiles just stack.
     - [ ] Tiles come from the document, not from a list in state, so a dashboard can't add or remove tiles on its own; show and hide them with `if` around the content.
@@ -159,7 +158,6 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - search with dimming and stepping through matches
 
 - [ ] **Reconnecting an edge** by dragging its end to another port isn't supported; delete it and connect again.
-- [ ] **The palette's drag uses HTML drag and drop**, which touch screens don't support. A tap adds the node in the middle of the view instead.
 - [ ] **Edges are drawn only by the script.** Nodes have server positions, but a page without JS shows no edges. Idea: draw straight edges on the server when the positions are known.
 - [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`. With `layout: layered`, an added node's position is replaced by the layout.
 - [ ] **Undo records only the flow's own edits.** Changes made to the state outside the flow aren't recorded, and an undo puts back the arrays as the flow last saw them.

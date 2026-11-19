@@ -88,6 +88,8 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [role=treeitem]", pairs(&[("outline", "none")]))
         .nest("& [data-tree-row]", row)
         .nest("& [data-tree-row]:hover", pairs(&[("background", ACCENT)]))
+        // A long press picks a node up, rather than selecting its text.
+        .nest("@media (pointer: coarse)", pairs(&[]).nest("& [data-tree-row][draggable=true]", pairs(&[("user-select", "none"), ("-webkit-touch-callout", "none")])))
         .nest("& [aria-selected=true] > [data-tree-row]", pairs(&[("background", ACCENT), ("color", PRIMARY), ("font-weight", "500")]))
         .nest("& [role=treeitem]:focus-visible > [data-tree-row]", forms::focus_ring().set("outline-offset", "-2px"))
         .nest(
@@ -356,6 +358,7 @@ impl Component for Tree {
         };
         let title = node.prop("title").cloned();
 
+        crate::touch_drag(cx);
         cx.global_js("ui-tree", SCRIPT);
         let config = json!({
             "nodes": dynamic(cx, node, "nodes", node.prop("nodes").expect("required"))?,

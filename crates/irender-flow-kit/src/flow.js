@@ -1710,6 +1710,14 @@
     return {
       // For `ui-flow-item` and host code: adds a node in the middle of the view.
       add: (template, position) => addAtCentre(template, position),
+      // For `ui-flow-item` dragged by touch: adds a node where it was let go, in page
+      // coordinates, as a drop does.
+      drop(template, x, y) {
+        if (!cfg.bindNodes) return null;
+        const node = addNode(template, toFlow({ clientX: x, clientY: y }));
+        if (node) selectNode(str(node.id));
+        return node;
+      },
       command: (name, args) => command(name, args || {}),
       update(state) {
         if (cfg.reactive) props = resolve(cfg.props);
@@ -1744,7 +1752,9 @@
 
   // ----------------------------------------------------------- ui-flow-item
   // A palette entry: drag it onto a flow, or click it (Enter, Space) to add its
-  // node in the middle of the view.
+  // node in the middle of the view. By touch (or pen), where the browser's drag and
+  // drop doesn't start, a press held still for 300ms picks it up, a copy follows the
+  // finger, and letting go over a flow adds the node there.
   window.__irenderBehaviors["ui-flow-item"] = (el, api) => {
     const resolve = resolver(api);
     const node = () => resolve(api.config.node);
@@ -1759,7 +1769,69 @@
       e.dataTransfer.effectAllowed = "copy";
     });
     const add = () => target()?.__x?.add?.(node());
-    el.addEventListener("click", add);
+    el.addEventListener("click", (e) => {
+      if (dragged) {
+        dragged = false;
+        return e.preventDefault();
+      }
+      add();
+    });
+
+    let press = null, ghost = null, dragged = false;
+    const flowAt = (x, y) => {
+      const f = document.elementFromPoint(x, y)?.closest('[data-i-x="ui-flow"]');
+      return f && (!api.config.flow || f.id === api.config.flow) ? f : null;
+    };
+    const finish = (drop) => {
+      clearTimeout(press?.timer);
+      if (ghost) {
+        ghost.remove();
+        ghost = null;
+        el.removeAttribute("data-touch-dragging");
+        dragged = true;
+        setTimeout(() => (dragged = false), 100);
+        if (drop) flowAt(press.x, press.y)?.__x?.drop?.(node(), press.x, press.y);
+      }
+      press = null;
+    };
+    el.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" || !e.isPrimary || ghost) return;
+      clearTimeout(press?.timer);
+      press = {
+        id: e.pointerId, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY,
+        timer: setTimeout(() => {
+          const r = el.getBoundingClientRect();
+          ghost = el.cloneNode(true);
+          ghost.removeAttribute("id");
+          ghost.setAttribute("aria-hidden", "true");
+          Object.assign(ghost.style, {
+            position: "fixed", left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, margin: "0", zIndex: "2147483000",
+            pointerEvents: "none", opacity: "0.92", boxShadow: "0 12px 28px rgb(0 0 0 / 0.2)",
+          });
+          press.dx = press.x0 - r.left;
+          press.dy = press.y0 - r.top;
+          el.after(ghost);
+          el.setAttribute("data-touch-dragging", "");
+          navigator.vibrate?.(8);
+        }, 300),
+      };
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!press || e.pointerId !== press.id) return;
+      press.x = e.clientX;
+      press.y = e.clientY;
+      if (ghost) {
+        ghost.style.left = `${press.x - press.dx}px`;
+        ghost.style.top = `${press.y - press.dy}px`;
+      } else if (Math.hypot(press.x - press.x0, press.y - press.y0) > 8) finish(false);
+    });
+    el.addEventListener("pointerup", (e) => press && e.pointerId === press.id && finish(true));
+    el.addEventListener("pointercancel", (e) => press && e.pointerId === press.id && finish(false));
+    el.addEventListener("touchmove", (e) => ghost && e.cancelable && e.preventDefault(), { passive: false });
+    el.addEventListener("contextmenu", (e) => press && e.preventDefault());
+    // A touch press isn't a mouse drag: the browser's own drag doesn't start.
+    el.addEventListener("dragstart", (e) => press && e.preventDefault(), { capture: true });
+    addEventListener("keydown", (e) => e.key === "Escape" && ghost && finish(false));
     el.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();

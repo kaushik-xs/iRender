@@ -276,7 +276,7 @@ The kit makes every edit itself and writes the result to `bindNodes` / `bindEdge
           - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: wf } } } }
           - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: wf } } } }
   ```
-- **Adding:** `ui-flow-item` takes a `node` (`{ type, data }`, and an `id` to keep). Dragging it onto the flow adds the node where it's dropped; clicking it, or pressing Enter or Space, adds it in the middle of the view. Its `flow` is the flow's element id. It can be left out when the item is inside the flow, or the page has one flow. New ids are the type in snake_case plus a number, such as `step_3` or `service_call_1`.
+- **Adding:** `ui-flow-item` takes a `node` (`{ type, data }`, and an `id` to keep). Dragging it onto the flow adds the node where it's dropped (on a touch screen, hold it still for a moment first, then drag); clicking it, or pressing Enter or Space, adds it in the middle of the view. Its `flow` is the flow's element id. It can be left out when the item is inside the flow, or the page has one flow. New ids are the type in snake_case plus a number, such as `step_3` or `service_call_1`.
 
 ### Commands
 
@@ -318,6 +318,7 @@ Commands from inside the flow, such as a panel button, a node, or a dialog in ei
 | Drag from a port | Connects, when `connectable` is on |
 | Drag a node onto a container | Moves it inside; dragging it out moves it out |
 | Drag a node's corner handle | Resizes it, when it is `resizable` |
+| Hold a palette entry, then drag (touch) | Adds its node where it's let go |
 
 Controls inside nodes (buttons, inputs, links) work as usual and don't start a drag. Add `data-flow-nodrag` to any other element that should behave the same way.
 

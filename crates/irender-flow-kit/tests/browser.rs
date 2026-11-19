@@ -372,6 +372,20 @@ fn editing() {
         pane.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientX: r.left + 120, clientY: r.top + 300 }));
         const dropped = S().nodes.at(-1);
         log("paletteDrop", over.defaultPrevented, dropped.position.x, dropped.position.y);
+        // By touch: held still, it's picked up and dropped where the finger lifts; the
+        // tap's click adds nothing more. A quick swipe is a scroll.
+        document.getElementById("ask").close();
+        const pal = document.getElementById("palette"), [px, py] = centre(pal);
+        const touch = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 9, pointerType: "touch", isPrimary: true, clientX: x, clientY: y }));
+        const n0 = S().nodes.length;
+        touch(pal, "pointerdown", px, py); await wait(350);
+        const ghosted = !!pal.nextElementSibling?.hasAttribute("aria-hidden") && pal.hasAttribute("data-touch-dragging");
+        touch(pal, "pointermove", r.left + 200, r.top + 150); touch(pal, "pointermove", r.left + 300, r.top + 120);
+        touch(pal, "pointerup", r.left + 300, r.top + 120); pal.click();
+        const t = S().nodes.at(-1);
+        log("paletteTouch", ghosted, S().nodes.length - n0, t.position.x, t.position.y, pal.hasAttribute("data-touch-dragging"));
+        touch(pal, "pointerdown", px, py); touch(pal, "pointermove", px, py + 40); await wait(350); touch(pal, "pointerup", px, py + 40);
+        log("paletteSwipe", S().nodes.length - n0);
 
         // A command from a panel button.
         const z0 = flow(f).querySelector("[data-flow-pane]").style.transform;
@@ -401,6 +415,8 @@ fn editing() {
             "confirmed false false null",
             "paletteClick 1 From palette step_2",
             "paletteDrop true 100 280",
+            "paletteTouch true 1 280 100 false",
+            "paletteSwipe 1",
             "command true",
         ],
     );

@@ -3266,6 +3266,22 @@ fn tree_in_chrome() {
         const before = tree();
         drag(li("in"), li("mumbai"), 0.5); await wait(0);
         log("own child", tree() === before);
+        // By touch: held still, a row is picked up, then dropped into Germany, and back
+        // before India.
+        const touch = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 5, pointerType: "touch", isPrimary: true, clientX: x, clientY: y }));
+        const tdrag = async (from, to, where) => {
+          const a = from.querySelector("[data-tree-row]"), r = a.getBoundingClientRect(), t = to.querySelector("[data-tree-row]").getBoundingClientRect();
+          touch(a, "pointerdown", r.left + 40, r.top + 5); await wait(350);
+          const held = a.hasAttribute("data-touch-dragging");
+          touch(a, "pointermove", t.left + 60, t.top + t.height * where);
+          const shown = to.getAttribute("data-drop");
+          touch(a, "pointerup", t.left + 60, t.top + t.height * where); await wait(0);
+          return `${held} ${shown}`;
+        };
+        log("touch inside", await tdrag(li("munich"), li("de"), 0.5), tree());
+        log("touch before", await tdrag(li("munich"), li("in"), 0.1), tree());
+        // The tap that ended the drag isn't a click; a later one is.
+        await wait(150);
         // Delete: a node's button, then the Delete key on the focused node.
         li("jp").querySelector("[data-tree-delete]").click(); await wait(0);
         log("deleted", tree(), events.at(-1), "focus", focused());
@@ -3329,6 +3345,8 @@ fn tree_in_chrome() {
             "drag before before",
             "dragged munich,in(mh(mumbai,pune),ka(blr,berlin)),de,jp",
             "own child true",
+            "touch inside true inside in(mh(mumbai,pune),ka(blr,berlin)),de(munich),jp",
+            "touch before true before munich,in(mh(mumbai,pune),ka(blr,berlin)),de,jp",
             // Focus goes to the next node shown, or the one before.
             "deleted munich,in(mh(mumbai,pune),ka(blr,berlin)),de delete {\"ids\":[\"jp\"]} focus de",
             "delete key munich,in(mh(mumbai,pune),ka(berlin)),de berlin",
@@ -3672,6 +3690,20 @@ fn kanban_in_chrome() {
         K.querySelector("[data-kb-board]").dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
         await wait(0);
         log("dragged", board(), tasks(), events.at(-1), !!$("[data-kb-drop]"));
+        // By touch: held still, b is picked up; over Charlie's lower half it goes after it.
+        const touch = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 5, pointerType: "touch", isPrimary: true, clientX: x, clientY: y }));
+        const b = card("b").getBoundingClientRect(), c = card("c").getBoundingClientRect();
+        touch(card("b"), "pointerdown", b.left + 20, b.top + 10); await wait(350);
+        log("held", card("b").hasAttribute("data-dragging"), $$("[data-touch-ghost]").length);
+        touch(card("b"), "pointermove", c.left + 20, c.top + 5); touch(card("b"), "pointermove", c.left + 20, c.bottom - 4);
+        log("touch line", !!$("[data-kb-column=doing] [data-kb-drop]"), $("[data-kb-column=doing] [data-kb-drop]")?.previousElementSibling?.getAttribute("data-kb-card"));
+        touch(card("b"), "pointerup", c.left + 20, c.bottom - 4); await wait(0);
+        log("touched", board(), events.at(-1), $$("[data-touch-ghost], [data-dragging], [data-kb-drop]").length);
+        // A quick swipe scrolls: nothing moves.
+        const c2 = card("c").getBoundingClientRect();
+        touch(card("c"), "pointerdown", c2.left + 20, c2.top + 10); touch(card("c"), "pointermove", c2.left + 60, c2.top + 10); await wait(350);
+        touch(card("c"), "pointerup", c2.left + 60, c2.top + 10); await wait(0);
+        log("swiped", board(), $$("[data-touch-ghost]").length);
         // Adding: a name box, Enter adds at the column's end; Escape cancels.
         $("[data-kb-column=todo] [data-kb-add]").click(); await wait(0);
         const box = $("[data-kb-name]");
@@ -3718,12 +3750,16 @@ fn kanban_in_chrome() {
             "drop line true true",
             // Dropped near Delta's top edge: before it.
             "dragged todo:b doing:c done:ad bt,cd,ad,dd move {\"id\":\"a\",\"from\":\"done\",\"to\":\"done\",\"index\":0} false",
+            "held true 1",
+            "touch line true c",
+            "touched todo: doing:cb done:ad move {\"id\":\"b\",\"from\":\"todo\",\"to\":\"doing\",\"index\":1} 0",
+            "swiped todo: doing:cb done:ad 0",
             "box true New card in To do",
             // Enter adds at the column's end; Escape puts focus back on the button.
-            "added todo 1 true true",
+            "added todo 4 true true",
             "cancel true true",
             "folded true false",
-            "state todo:b+ doing:c done: No cards",
+            "state todo:+ doing:cb done: No cards",
             "live polite",
         ],
         "\n{result}"
