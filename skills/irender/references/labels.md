@@ -701,6 +701,7 @@ root: …
 "Task": "Task"
 "{count} days": { one: "{count} day", other: "{count} days" }
 "{percent}% done": "{percent}% done"
+"Starts before {name} ends": "Starts before {name} ends"
 "Groups": "Groups"
 "Today": "Today"
 "All": "All"

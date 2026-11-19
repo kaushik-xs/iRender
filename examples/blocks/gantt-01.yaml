@@ -2,7 +2,10 @@
 # name or their bar), tasks show how far along they are, arrows join each task to the
 # ones waiting on it, and dashed lines mark the beta freeze and the launch. Zoom with
 # the buttons or ⌘/Ctrl and the wheel, and drag to pan. Click a task to see it beside
-# the chart; the bars are coloured by team, and the legend hides a team's tasks.
+# the chart; the bars are coloured by team, and the legend hides a team's tasks. Drag
+# a bar to move its task, or an end to stretch it (on a phone, hold it first); on a
+# focused row, Alt with Left or Right moves the task a day, and with Shift its end. A
+# task that starts before the one it waits for ends gets a red arrow.
 #
 #   cargo run -p irender-cli -- render examples/blocks/gantt-01.yaml --ui-kit --chart-kit --icon-kit -o gantt-01.html
 version: 1
@@ -60,6 +63,7 @@ root:
                       - { at: "2027-01-20", name: Launch, color: "#16a34a" }
                     zoom: true
                     bindRow: task
+                    bindData: tasks
             - type: ui-card
               props: { title: "{{ task ? task.name : 'No task picked' }}", description: "{{ task ? (task.team ? task.team : 'Milestone') : 'Click a bar to see the task here.' }}" }
               children:

@@ -296,7 +296,7 @@
   // A row whose `id` is another's `group` is a group: its bar spans its tasks, and
   // its line in the table opens and closes. The table on the left is drawn as the
   // category axis' labels, one `columns` entry per column.
-  const GANTT = { row: 34, head: 44, band: 30, foot: 12, marks: 28, slider: 36, indent: 16 };
+  const GANTT = { row: 34, head: 44, band: 30, foot: 12, marks: 28, slider: 36, indent: 16, edge: 7 };
   const DAY = 864e5;
   const dateOnly = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
   // Epoch ms; a plain day is local midnight, as ECharts reads it.
@@ -313,7 +313,7 @@
   // The rows a gantt shows, in order, with their depth and span. `collapsed` holds
   // the ids of closed groups; a group's own `collapsed: true` closes it the first time
   // it's seen.
-  function ganttRows(rows, collapsed, seen) {
+  function ganttRows(rows, collapsed, seen, drafts) {
     const key = (r) => String(at(r, "id") ?? at(r, "name"));
     const byId = new Map(rows.map((r) => [key(r), r]));
     const kids = new Map(), tops = [];
@@ -336,6 +336,9 @@
       // A plain day as the end means the whole of that day.
       if (dateOnly(at(r, "end"))) b += DAY;
       if (milestone) b = a;
+      // A task being dragged: where it would go.
+      const draft = drafts?.get(k);
+      if (draft) [a, b] = [draft.a, milestone ? draft.a : draft.b];
       let done = isNum(at(r, "progress")) ? Math.max(0, Math.min(100, Number(at(r, "progress")))) / 100 : null;
       const children = kids.get(k) || [];
       if (children.length) {
@@ -384,7 +387,15 @@
   }
 
   function gantt(p, t, d, o, rows) {
-    const g = ganttRows(rows, d.collapsed || new Set(), d.seen || new Set());
+    const g = ganttRows(rows, d.collapsed || new Set(), d.seen || new Set(), d.drafts);
+    const editable = !!d.editable;
+    // Each task's `after`: the tasks it waits for, and those it starts before the end of.
+    const byKey = new Map(g.all.map((i) => [i.key, i]));
+    const afterOf = (i) => {
+      const v = at(i.row, "after");
+      return (blank(v) ? [] : Array.isArray(v) ? v : String(v).split(",")).map((k) => byKey.get(String(k).trim())).filter(Boolean);
+    };
+    for (const i of g.all) i.late = afterOf(i).filter((f) => f !== i && !Number.isNaN(f.b) && !Number.isNaN(i.a) && i.a < f.b);
     const { shown } = g;
     d.gantt = g;
     const lang = document.documentElement.lang || undefined;
@@ -423,6 +434,7 @@
       }
       if (i.done !== null) lines.push(L("{percent}% done", { percent: Math.round(i.done * 100) }));
       if (split && !i.group && !blank(at(r, split))) lines.push(String(at(r, split)));
+      for (const f of i.late ?? []) lines.push(L("Starts before {name} ends", { name: nameOf(f) }));
       return lines;
     };
     const tip = (i) => about(i).map((l, n) => (n ? escapeHtml(l) : `<b>${escapeHtml(l)}</b>`)).join("<br/>");
@@ -454,14 +466,22 @@
       }
       const bh = Math.max(10, h * 0.56), top = y - bh / 2;
       const r = Math.min(4, bh / 2, w / 2);
-      if (done < 0) return { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: color } };
-      return {
-        type: "group",
-        children: [
-          { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: fade(rgba(color), 0.35) } },
-          { type: "rect", shape: { x: at0[0], y: top, width: w * done, height: bh, r }, style: { fill: color } },
-        ],
-      };
+      const children = done < 0
+        ? [{ type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: color } }]
+        : [
+            { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: fade(rgba(color), 0.35) } },
+            { type: "rect", shape: { x: at0[0], y: top, width: w * done, height: bh, r }, style: { fill: color } },
+          ];
+      // Editable: the bar is grabbed to move it, its ends to stretch it.
+      if (editable) {
+        for (const c of children) c.cursor = "grab";
+        const edge = Math.min(GANTT.edge, w / 3);
+        children.push(
+          { type: "rect", shape: { x: at0[0] - 2, y: top, width: edge + 2, height: bh }, style: { fill: "transparent" }, cursor: "ew-resize" },
+          { type: "rect", shape: { x: at0[0] + w - edge, y: top, width: edge + 2, height: bh }, style: { fill: "transparent" }, cursor: "ew-resize" },
+        );
+      }
+      return { type: "group", children };
     };
     const custom = (name, items, extra) => ({ type: "custom", name, renderItem: bar, encode: { x: [1, 2], y: 0 }, data: items, clip: true, z: 3, ...extra });
     const tasks = drawn.filter((i) => !i.group);
@@ -479,10 +499,10 @@
     // Arrows from each task in `after` to the task that waits on it.
     const links = [];
     for (const i of g.all) {
-      const after = at(i.row, "after");
-      for (const k of blank(after) ? [] : Array.isArray(after) ? after : String(after).split(",")) {
-        const from = g.showing(String(k).trim()), to = g.showing(i.key);
-        if (from && to && from !== to && !Number.isNaN(from.b) && !Number.isNaN(to.a)) links.push([from.index, from.b, to.index, to.a]);
+      for (const f of afterOf(i)) {
+        const from = g.showing(f.key), to = g.showing(i.key);
+        // A task that starts before the one it waits for ends: its arrow in red.
+        if (from && to && from !== to && !Number.isNaN(from.b) && !Number.isNaN(to.a)) links.push([from.index, from.b, to.index, to.a, i.late.includes(f) ? 1 : 0]);
       }
     }
     if (links.length) {
@@ -493,7 +513,7 @@
           const h = api.size([0, 1])[1], gap = 8;
           const ym = y1 + (y2 >= y1 ? h / 2 : -h / 2);
           const points = x2 - gap >= x1 + gap ? [[x1, y1], [x2 - gap, y1], [x2 - gap, y2], [x2 - 5, y2]] : [[x1, y1], [x1 + gap, y1], [x1 + gap, ym], [x2 - gap, ym], [x2 - gap, y2], [x2 - 5, y2]];
-          const stroke = t.muted;
+          const stroke = api.value(4) ? (t.palette[7] ?? "#dc2626") : t.muted;
           return {
             type: "group",
             children: [
@@ -1149,7 +1169,7 @@
       const d = prepare(p, path());
       d.rowsBy = [];
       d.selectable = !!(cfg.bind || cfg.bindRow);
-      Object.assign(d, { collapsed, seen, width: el.clientWidth });
+      Object.assign(d, { collapsed, seen, width: el.clientWidth, drafts, editable: canEdit() });
       let o = build(p, theme, cfg.sparkline, d);
       rowsBy = d.rowsBy;
       level = d;
@@ -1163,7 +1183,8 @@
         // Time zooms with ⌘/Ctrl and the wheel or the buttons, and pans by dragging,
         // so the wheel still scrolls the page.
         const along = { xAxisIndex: 0, filterMode: "none" };
-        o.dataZoom = [{ type: "inside", ...along, zoomOnMouseWheel: "ctrl", moveOnMouseWheel: "shift", moveOnMouseMove: !!z }];
+        // Editable, dragging moves bars: Shift and the wheel pan instead.
+        o.dataZoom = [{ type: "inside", ...along, zoomOnMouseWheel: "ctrl", moveOnMouseWheel: "shift", moveOnMouseMove: !!z && !canEdit() }];
         if (p.zoom === "slider" || p.zoom === "both") o.dataZoom.push({ type: "slider", ...along, height: 20, bottom: 8 });
         if (z) o.graphic = [...(o.graphic || []), ...zoomButtons()];
       } else if (zoomAxis && !cfg.sparkline && (z || cfg.bindZoom)) {
@@ -1271,6 +1292,8 @@
       api.emit("toggle", { id: item.key, open: !collapsed.has(item.key), row: item.row });
     }
     function onClick(e) {
+      // The click that ends a drag isn't one.
+      if (dragged) return;
       // A gantt group's bar opens and closes it.
       const item = e.componentType === "series" ? level.gantt?.shown[e.value?.[0]] : null;
       if (item?.group && e.value?.[4] === 1) toggleGroup(item);
@@ -1405,6 +1428,7 @@
         ec.connect(cfg.group);
       }
       chart.on("click", onClick);
+      chart.on("mousedown", onDown);
       chart.on("datazoom", onZoom);
       chart.on("legendselectchanged", onLegend);
       chart.on("brushselected", onBrush);
@@ -1439,6 +1463,121 @@
       chart.dispose();
       init();
     }
+
+    // ---- editing a gantt (with `bindData`): drag a bar to move its task, or an end to
+    // stretch it, a day at a time; by touch, hold it first. On its row in the table,
+    // Alt with Left or Right moves it a day, and with Shift too moves its end. The new
+    // dates go back to the tasks in `bindData`, written as they were (a day stays a day).
+    const drafts = new Map();
+    let editing = null, dragged = false;
+    const canEdit = () => !!cfg.bindData && current().type === "gantt" && current().editable !== false;
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const dayShift = (v, n) => {
+      if (blank(v) || !n) return v;
+      if (typeof v === "number") return v + n * DAY;
+      if (dateOnly(v)) {
+        const [y, m, dd] = v.split("-").map(Number), x = new Date(y, m - 1, dd + n);
+        return `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}`;
+      }
+      const t = Date.parse(v);
+      return Number.isNaN(t) ? v : new Date(t + n * DAY).toISOString();
+    };
+    // A task's start and end after moving it (`move`) or its start or end `n` days, or
+    // null when that would turn it inside out.
+    function shifted(item, how, n) {
+      const s0 = at(item.row, "start"), e0 = at(item.row, "end");
+      const start = how === "end" ? s0 : dayShift(s0, n);
+      const end = how === "start" || blank(e0) ? e0 : dayShift(e0, n);
+      return !blank(end) && ms(end) < ms(start) ? null : { start, end };
+    }
+    const span = (v) => {
+      const a = ms(v.start);
+      return { a, b: blank(v.end) ? a : ms(v.end) + (dateOnly(v.end) ? DAY : 0) };
+    };
+    function commit(item, v) {
+      const list = api.state[cfg.bindData];
+      if (!Array.isArray(list)) return;
+      const key = (r) => String(at(r, "id") ?? at(r, "name"));
+      const next = list.map((r) => (key(r) === item.key ? { ...r, start: v.start, ...(blank(at(r, "end")) ? {} : { end: v.end }) } : r));
+      api.set(cfg.bindData, next);
+      api.emit("edit", { id: item.key, start: v.start, end: blank(v.end) ? null : v.end, row: next.find((r) => key(r) === item.key) });
+      // Said once the chart has the new dates.
+      setTimeout(() => {
+        const now = level.gantt?.shown.find((i) => i.key === item.key);
+        if (now) say(level.gantt.about(now));
+      });
+    }
+    function onDown(e) {
+      if (!canEdit() || e.componentType !== "series" || !level.gantt) return;
+      const v = e.value, ev = e.event?.event;
+      if (!Array.isArray(v) || v.length < 5 || v[4] === 1 || !ev) return;
+      const item = level.gantt.shown[v[0]];
+      if (!item || item.group) return;
+      const p0 = chart.convertToPixel({ xAxisIndex: 0 }, v[1]), p1 = chart.convertToPixel({ xAxisIndex: 0 }, v[2]), x = e.event.offsetX;
+      const edge = Math.min(GANTT.edge, (p1 - p0) / 3);
+      const how = item.milestone ? "move" : x - p0 <= edge ? "start" : p1 - x <= edge ? "end" : "move";
+      const touch = ev.pointerType === "touch" || String(ev.type).startsWith("touch");
+      const pt = ev.touches?.[0] ?? ev;
+      editing = { item, how, x0: pt.clientX, y0: pt.clientY, perDay: chart.convertToPixel({ xAxisIndex: 0 }, v[1] + DAY) - p0, n: 0, live: !touch };
+      if (touch) editing.timer = setTimeout(() => editing && ((editing.live = true), navigator.vibrate?.(8)), 300);
+      addEventListener("pointermove", onDragMove);
+      addEventListener("pointerup", onDragEnd);
+      addEventListener("pointercancel", onDragCancel);
+    }
+    function onDragMove(e) {
+      const g = editing;
+      if (!g) return;
+      if (!g.live) {
+        // Moved before the hold: a scroll, not a drag.
+        if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 8) onDragCancel();
+        return;
+      }
+      const n = Math.round((e.clientX - g.x0) / (g.perDay || 1));
+      if (n === g.n) return;
+      const v = shifted(g.item, g.how, n);
+      if (!v) return;
+      g.n = n;
+      g.value = v;
+      drafts.set(g.item.key, span(v));
+      chart.dispatchAction({ type: "hideTip" });
+      draw();
+    }
+    function stopDrag() {
+      clearTimeout(editing?.timer);
+      removeEventListener("pointermove", onDragMove);
+      removeEventListener("pointerup", onDragEnd);
+      removeEventListener("pointercancel", onDragCancel);
+      const g = editing;
+      editing = null;
+      if (g) drafts.delete(g.item.key);
+      return g;
+    }
+    function onDragEnd() {
+      const g = stopDrag();
+      if (!g?.n || !g.value) return;
+      dragged = true;
+      setTimeout(() => (dragged = false));
+      commit(g.item, g.value);
+    }
+    function onDragCancel() {
+      const g = stopDrag();
+      if (g?.n) draw();
+    }
+    // While a bar is dragged by touch, the page doesn't scroll; Escape puts it back.
+    el.addEventListener("touchmove", (e) => editing?.live && e.cancelable && e.preventDefault(), { passive: false });
+    addEventListener("keydown", (e) => e.key === "Escape" && editing && onDragCancel());
+    // Edits are announced here.
+    let status;
+    const say = (text) => {
+      if (!status) {
+        status = document.createElement("div");
+        status.setAttribute("role", "status");
+        status.style.cssText = "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap";
+        el.append(status);
+      }
+      status.textContent = "";
+      setTimeout(() => (status.textContent = text), 30);
+    };
 
     // ---- a gantt's table: HTML laid over the space left of the bars, a row per task, so
     // it can be read and used from the keyboard. Up and Down move between rows, Right
@@ -1543,6 +1682,13 @@
         for (const x of rows) x.tabIndex = x === r ? 0 : -1;
         r.focus();
       };
+      // Alt with Left or Right moves the task a day; with Shift too, its end.
+      if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && canEdit() && !item.group && !(e.shiftKey && item.milestone)) {
+        e.preventDefault();
+        const v = shifted(item, e.shiftKey ? "end" : "move", e.key === "ArrowRight" ? 1 : -1);
+        if (v) commit(item, v);
+        return;
+      }
       switch (e.key) {
         case "ArrowDown": return go(k + 1);
         case "ArrowUp": return go(k - 1);

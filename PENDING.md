@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: dragging Gantt bars to move and stretch them, or a separate layout per screen width for the dashboard grid.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: a separate layout per screen width for the dashboard grid, or paging inside API groups.
 
 ## Gaps you'd hit in real use
 
@@ -37,7 +37,7 @@ _Last updated: 2026-11-19._
     - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
   - [x] **Gantt chart** (2026-11-19): `ui-chart` `type: gantt`, a table of tasks beside their bars, groups that fold, progress, `after` arrows, milestones, `markers` and today, colours by `series` with a legend, zoom buttons, and a height that follows the rows (block gantt-01, charts gallery). Not done yet:
     - [x] The table is an HTML tree grid over the chart (2026-11-20): rows read out and moved through with the keys, groups opened with Right, Left and Enter, tasks picked with Enter.
-    - [ ] No editing: bars can't be dragged to move or stretch them, and arrows can't be drawn.
+    - [x] Editing (2026-11-20): bars dragged to move or stretch them (a hold first by touch), Alt and the arrows on a row, written back to `bindData`; tasks that start before what they wait for ends are marked. Not done yet: arrows can't be drawn or removed by dragging, moving a task doesn't move the ones after it, and dates snap to whole days only.
     - [ ] No scrolling inside the chart: a long plan is as tall as its rows. No critical path, baselines or working days (weekends count).
     - [ ] Dates on the axis are ECharts' English month names, whatever the document's `lang`.
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:

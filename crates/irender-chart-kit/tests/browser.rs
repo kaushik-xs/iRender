@@ -335,6 +335,93 @@ fn gantt_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// Editing a gantt: dragging a bar moves its task and an end stretches it, a day at a
+/// time, written back to `bindData` in the dates' own form; Escape puts a drag back; a
+/// task that starts before the one it waits for ends is marked; Alt and the arrows on
+/// a row move it and its end.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_editing_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1,
+        "state": { "row": null, "edits": 0, "tasks": [
+            { "id": "a", "name": "A", "start": "2026-03-02", "end": "2026-03-06" },
+            { "id": "b", "name": "B", "start": "2026-03-09", "end": "2026-03-13", "after": "a" },
+            { "id": "m", "name": "M", "start": "2026-03-20T09:00:00.000Z", "milestone": true, "after": "b" } ] },
+        "root": { "type": "ui-chart", "attrs": { "id": "g" },
+            "props": { "type": "gantt", "data": "{{ tasks }}", "bindData": "tasks", "bindRow": "row", "today": false },
+            "on": { "edit": { "action": "set_state", "key": "edits", "value": "{{ edits + 1 }}" } } } });
+    let body = r##"
+    await ready(["g"]);
+    const g = chart("g"), canvas = el("g").querySelector("canvas");
+    const tasks = () => S().tasks.map((t) => `${t.id}:${t.start.slice(5, 16)}${t.end ? ".." + t.end.slice(5) : ""}`).join(" ");
+    const ms = (v) => { const [y, m, d] = v.split("-").map(Number); return new Date(y, m - 1, d).getTime(); };
+    const x = (t) => g.convertToPixel({ xAxisIndex: 0 }, t), row = (i) => g.convertToPixel({ yAxisIndex: 0 }, String(i));
+    const day = x(ms("2026-03-03")) - x(ms("2026-03-02"));
+    const ptr = (target, type, px, py) => {
+      const r = canvas.getBoundingClientRect(), o = { bubbles: true, cancelable: true, pointerId: 3, pointerType: "mouse", isPrimary: true, button: 0, clientX: r.left + px, clientY: r.top + py };
+      target.dispatchEvent(new PointerEvent(type, o));
+      target.dispatchEvent(new MouseEvent(type.replace("pointer", "mouse"), o));
+    };
+    const drag = async (px, py, dx, end = "pointerup") => {
+      ptr(canvas, "pointermove", px, py); ptr(canvas, "pointerdown", px, py);
+      ptr(window, "pointermove", px + dx / 2, py); ptr(window, "pointermove", px + dx, py);
+      if (end) { ptr(window, end, px + dx, py); canvas.dispatchEvent(new MouseEvent("click", { bubbles: true })); }
+      await wait(50);
+    };
+    log("start", tasks());
+    // B's middle, two days on.
+    await drag((x(ms("2026-03-09")) + x(ms("2026-03-14"))) / 2, row(1), day * 2);
+    log("moved", tasks(), S().edits, String(S().row));
+    // A's end, six days on: B now starts before A ends.
+    await drag(x(ms("2026-03-07")) - 2, row(0), day * 6);
+    const links = g.getOption().series.find((s) => s.id === "links").data;
+    log("stretched", tasks(), JSON.stringify(links.map((l) => l[4])));
+    const rowB = el("g").querySelector('[data-gantt-table] [data-key="b"]');
+    log("late", rowB.getAttribute("aria-label"));
+    // A's start can't pass its end.
+    await drag(x(ms("2026-03-02")) + 2, row(0), day * 30);
+    log("not inside out", tasks());
+    // Escape puts a drag back.
+    await drag((x(ms("2026-03-11")) + x(ms("2026-03-16"))) / 2, row(1), day * 3, null);
+    const mid = tasks();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); await wait(20);
+    ptr(window, "pointerup", 0, 0); await wait(20);
+    log("escape", mid, "|", tasks(), S().edits);
+    // The milestone moves its start, a timestamp stays one.
+    await drag(x(Date.parse("2026-03-20T09:00:00.000Z")), row(2), -day);
+    log("milestone", tasks());
+    // The keys on a row: Alt+Left moves B a day back, Alt+Shift+Right its end a day on.
+    el("g").querySelector('[data-gantt-table] [data-key="b"]').focus();
+    const key = (k, shift) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, altKey: true, shiftKey: !!shift, bubbles: true, cancelable: true }));
+    key("ArrowLeft"); await wait(20); key("ArrowRight", true); await wait(60);
+    log("keys", tasks(), document.activeElement.getAttribute("data-key"));
+    await wait(100);
+    log("said", el("g").querySelector("[role=status]").textContent);
+"##;
+    let Some(lines) = run("gantt-editing", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        "start a:03-02..03-06 b:03-09..03-13 m:03-20T09:00",
+        // Two days on; the click that ended the drag picked nothing.
+        "moved a:03-02..03-06 b:03-11..03-15 m:03-20T09:00 1 null",
+        // A ends after B starts: B's arrow is red, and its row says so.
+        "stretched a:03-02..03-12 b:03-11..03-15 m:03-20T09:00 [1,0]",
+        "late B, Mar 11, 2026 – Mar 15, 2026 · 5 days, Starts before A ends",
+        // A's start can't go past its end.
+        "not inside out a:03-02..03-12 b:03-11..03-15 m:03-20T09:00",
+        // While dragging, only the chart moved; Escape left the tasks as they were.
+        "escape a:03-02..03-12 b:03-11..03-15 m:03-20T09:00 | a:03-02..03-12 b:03-11..03-15 m:03-20T09:00 2",
+        // A timestamp stays a timestamp.
+        "milestone a:03-02..03-12 b:03-11..03-15 m:03-19T09:00",
+        // Alt+Left: B a day back; Alt+Shift+Right: its end a day on.
+        "keys a:03-02..03-12 b:03-10..03-15 m:03-19T09:00 b",
+        "said B, Mar 10, 2026 – Mar 15, 2026 · 6 days, Starts before A ends",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// Picking a chart colour scheme (the `chart` theme option) recolours the charts on
 /// the page; picking the default goes back to the kit's hues.
 #[test]
