@@ -302,8 +302,8 @@
    "id": "alert",
    "group": "Feedback",
    "title": "Alert",
-   "summary": "A callout for a short, important message, with an icon, a title and a description. The destructive variant is for errors.",
-   "usage": "- { type: ui-alert, props: { title: Heads up!, description: You can add components with the CLI., icon: \"ℹ\" } }",
+   "summary": "A callout for a short, important message, with an icon, a title and a description. `info`, `success`, `warning` and `destructive` each bring their colour and icon; children such as buttons go under the description, and `dismissible` adds a ✕.",
+   "usage": "- { type: ui-alert, props: { variant: warning, title: Your trial ends soon, description: Add a payment method to keep your projects., dismissible: true } }",
    "components": [
     "ui-alert"
    ]

@@ -196,7 +196,13 @@ fn card_alert_and_typography_structure() {
     assert_eq!(body, r#"<div><div><h3 id="t">T</h3><p>D</p></div><div><button type="button">OK</button></div></div>"#);
 
     let body = plain(&render(json!({ "type": "ui-alert", "props": { "icon": "⚠", "title": "Oops", "variant": "destructive" } })));
-    assert_eq!(body, r#"<div role="alert"><span aria-hidden="true">⚠</span><div>Oops</div></div>"#);
+    assert_eq!(body, r#"<div role="alert"><span aria-hidden="true" data-icon>⚠</span><div>Oops</div></div>"#);
+    let body = plain(&render(json!({ "type": "ui-alert", "props": { "icon": "none", "title": "Done", "variant": "success" } })));
+    assert_eq!(body, r#"<div role="alert"><div>Done</div></div>"#);
+    let body = plain(&render(json!({ "type": "ui-alert", "props": { "title": "Note", "variant": "info" } })));
+    assert!(body.starts_with(r#"<div role="alert"><span aria-hidden="true" data-icon><svg "#), "a variant brings its own icon: {body}");
+    let body = render(json!({ "type": "ui-alert", "props": { "title": "Saved", "variant": "success", "dismissible": true } }));
+    assert!(body.contains("data-dismissible") && body.contains(r#"aria-label="Dismiss" data-dismiss>✕</button>"#), "{body}");
 
     let body = plain(&render(json!({ "type": "element", "children": [
         { "type": "ui-heading", "props": { "text": "H", "level": 3 } },

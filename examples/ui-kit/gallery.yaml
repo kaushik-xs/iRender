@@ -1651,9 +1651,22 @@ root:
                   props: { gap: 16 }
                   children:
                     - type: ui-alert
-                      props: { icon: "ℹ", title: Heads up!, description: You can add components to your app using the CLI. }
+                      props: { icon: "✦", title: Heads up!, description: You can add components to your app using the CLI. }
                     - type: ui-alert
-                      props: { variant: destructive, icon: "⚠", title: Error, description: Your session has expired. Please log in again. }
+                      props: { variant: info, title: A new version is available, description: Reload the page to get the latest features and fixes. }
+                    - type: ui-alert
+                      props: { variant: success, title: Payment received, description: "Invoice #1042 was paid in full. A receipt is on its way.", dismissible: true }
+                    - type: ui-alert
+                      props: { variant: warning, title: Your trial ends in 3 days, description: Add a payment method to keep your projects running. }
+                      children:
+                        - type: stack
+                          props: { direction: row, gap: 8 }
+                          style: { margin-top: 8 }
+                          children:
+                            - { type: ui-button, props: { label: Upgrade, size: sm } }
+                            - { type: ui-button, props: { label: Later, size: sm, variant: ghost } }
+                    - type: ui-alert
+                      props: { variant: destructive, title: Error, description: Your session has expired. Please log in again. }
 
                 - { type: if, props: { when: "{{ api.alert.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list

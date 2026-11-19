@@ -86,9 +86,10 @@ ui-card-footer: A row of actions at the bottom of a `ui-card`.
 ui-alert: A callout for important messages.
   title        any  Bold first line
   description  any  Body text
-  icon         any  An icon name (with the icon kit) or a character, shown on the left, e.g. `warning` or `⚠`
-  variant      one of: default, destructive  Default `default`
-  parts: icon, title, description
+  icon         any  An icon name (with the icon kit) or a character, shown on the left, e.g. `bell` or `🔔`. Each variant but `default` has its own already; `none` hides it
+  variant      one of: default, info, success, warning, destructive  `default`, `info`, `success`, `warning` or `destructive`
+  dismissible  bool  Shows a ✕ that hides the alert
+  parts: icon, title, description, dismiss
   children: yes
 ui-avatar: A round image, or initials when there is none.
   src          any  Image URL

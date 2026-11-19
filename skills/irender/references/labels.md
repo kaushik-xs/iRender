@@ -302,6 +302,7 @@ root: …
 `display.rs`
 
 ```yaml
+"Dismiss": "Dismiss"
 "Loading": "Loading"
 ```
 

@@ -214,66 +214,141 @@ impl Component for CardFooter {
 
 pub struct Alert;
 
-const ALERT_VARIANTS: &[&str] = &["default", "destructive"];
+const ALERT_SCRIPT: &str = include_str!("alert.js");
+const ALERT_VARIANTS: &[&str] = &["default", "info", "success", "warning", "destructive"];
 const ALERT_PROPS: &[PropDef] = &[
     PropDef::new("title", PropKind::Any, "Bold first line"),
     PropDef::new("description", PropKind::Any, "Body text"),
-    PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, shown on the left, e.g. `warning` or `⚠`"),
-    PropDef::new("variant", PropKind::Enum(ALERT_VARIANTS), "Default `default`"),
+    PropDef::new(
+        "icon",
+        PropKind::Any,
+        "An icon name (with the icon kit) or a character, shown on the left, e.g. `bell` or `🔔`. Each variant but \
+         `default` has its own already; `none` hides it",
+    ),
+    PropDef::new("variant", PropKind::Enum(ALERT_VARIANTS), "`default`, `info`, `success`, `warning` or `destructive`"),
+    PropDef::new("dismissible", PropKind::Bool, "Shows a ✕ that hides the alert"),
 ];
 
-static ALERT: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
-    let base = |color: &str, border: &str| {
-        StyleBlock::from_pairs(&[
-            ("display", "grid"),
-            ("grid-template-columns", "auto 1fr"),
-            ("column-gap", sp!(12)),
-            ("row-gap", sp!(2)),
-            ("align-items", "start"),
-            ("padding", sp!(12, 16)),
-            ("border", border),
-            ("border-radius", "var(--radius-lg)"),
-            ("--ui-bg", BG_CARD),
-            ("background", BG_CARD),
-            ("color", color),
-            ("font-size", fs!(14)),
-        ])
-    };
-    [
-        base(TEXT, "1px solid var(--color-border)"),
-        base(DESTRUCTIVE, "1px solid color-mix(in srgb, var(--color-destructive, #dc2626) 40%, transparent)"),
-    ]
+/// Each variant's colour, and the icon shown when the alert names none.
+const ALERT_TONES: &[(&str, Option<&str>)] = &[
+    (MUTED, None),
+    ("var(--color-info, #2563eb)", Some(r#"<circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5M12 8h.01"/>"#)),
+    ("var(--color-success, #16a34a)", Some(r#"<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>"#)),
+    ("var(--color-warning, #d97706)", Some(r#"<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 17h.01"/>"#)),
+    (DESTRUCTIVE, Some(r#"<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/>"#)),
+];
+
+static ALERT: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
+    ALERT_TONES
+        .iter()
+        .enumerate()
+        .map(|(i, (tone, _))| {
+            // The default alert keeps the card's own colours; the others take a wash of theirs.
+            let (wash, edge) = if i == 0 { ("0%", "0%") } else { ("8%", "30%") };
+            StyleBlock::from_pairs(&[
+                ("--tone", tone),
+                ("position", "relative"),
+                ("display", "grid"),
+                ("grid-template-columns", "auto 1fr"),
+                ("column-gap", sp!(12)),
+                ("row-gap", sp!(4)),
+                ("align-items", "start"),
+                ("padding", sp!(14, 16)),
+                ("border", &format!("1px solid color-mix(in srgb, var(--tone) {edge}, var(--color-border))")),
+                ("border-inline-start", "3px solid var(--tone)"),
+                ("border-radius", "var(--radius-lg)"),
+                ("--ui-bg", &format!("color-mix(in srgb, var(--tone) {wash}, {BG_CARD})")),
+                ("background", "var(--ui-bg)"),
+                ("color", TEXT),
+                ("font-size", fs!(14)),
+                ("line-height", "20px"),
+            ])
+            // Without an icon the text takes the whole width; title, description and
+            // children always sit in the last column.
+            .nest("&:not(:has(> [data-icon]))", StyleBlock::from_pairs(&[("grid-template-columns", "1fr")]))
+            .nest("& > :not([data-icon], [data-dismiss])", StyleBlock::from_pairs(&[("grid-column", "-2")]))
+            .nest("&[data-dismissible]", StyleBlock::from_pairs(&[("padding-inline-end", sp!(40))]))
+            .nest("&[hidden]", StyleBlock::from_pairs(&[("display", "none")]))
+        })
+        .collect()
 });
-static ALERT_ICON: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("grid-row", "span 2"), ("line-height", "1.4")]));
-static ALERT_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("grid-column", "2"), ("font-weight", "500"), ("line-height", "1.4")])
+static ALERT_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("grid-row", "span 2"),
+        ("display", "flex"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("min-width", "20px"),
+        ("height", "20px"),
+        ("color", "var(--tone)"),
+        ("font-size", fs!(16)),
+    ])
 });
-static ALERT_DESCRIPTION: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("grid-column", "2"), ("margin", "0"), ("opacity", "0.85")]));
+static ALERT_TITLE: LazyLock<StyleBlock> =
+    LazyLock::new(|| StyleBlock::from_pairs(&[("font-weight", "600"), ("color", "color-mix(in srgb, var(--tone) 35%, var(--color-text))")]));
+static ALERT_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("margin", "0"), ("color", "color-mix(in srgb, var(--color-text) 78%, var(--ui-bg))")])
+});
+static ALERT_DISMISS: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[
+        ("position", "absolute"),
+        ("top", "10px"),
+        ("inset-inline-end", "10px"),
+        ("width", "24px"),
+        ("height", "24px"),
+        ("display", "inline-flex"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("padding", "0"),
+        ("border", "0"),
+        ("border-radius", "var(--radius-sm)"),
+        ("background", "transparent"),
+        ("color", "inherit"),
+        ("font-size", fs!(12)),
+        ("opacity", "0.6"),
+        ("cursor", "pointer"),
+    ])
+    .nest(":hover", StyleBlock::from_pairs(&[("opacity", "1"), ("background", "color-mix(in srgb, var(--tone) 14%, transparent)")]))
+    .nest(":focus-visible", StyleBlock::from_pairs(&[("opacity", "1"), ("outline", "2px solid var(--color-ring)"), ("outline-offset", "1px")]))
+});
 
 impl Component for Alert {
     fn name(&self) -> &'static str {
         "ui-alert"
     }
     fn info(&self) -> ComponentInfo {
-        info("A callout for important messages.", ALERT_PROPS, &["icon", "title", "description"], true)
+        info("A callout for important messages.", ALERT_PROPS, &["icon", "title", "description", "dismiss"], true)
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let variant = choice(cx, node, "variant", ALERT_VARIANTS);
+        let dismissible = cx.prop(node, "dismissible").and_then(|v| v.as_bool()).unwrap_or(false);
         let mut el = cx.element("div", node);
-        el.base_style_ref(&ALERT[choice(cx, node, "variant", ALERT_VARIANTS)]);
+        el.base_style_ref(&ALERT[variant]);
         el.attr("role", "alert");
+        if dismissible {
+            cx.global_js("ui-alert", ALERT_SCRIPT);
+            el.attr("data-dismissible", true).behavior("ui-alert", serde_json::json!({}));
+        }
         cx.open(&el, node)?;
-        if let Some(icon) = node.prop("icon") {
+        let own = match node.prop("icon") {
+            Some(_) if cx.prop_string(node, "icon").as_deref() == Some("none") => None,
+            Some(v) => Some(Ok(v)),
+            None => ALERT_TONES[variant].1.map(Err),
+        };
+        if let Some(icon) = own {
             let mut part = cx.part("span", node, "icon");
-            part.base_style_ref(&ALERT_ICON).attr("aria-hidden", "true");
-            let name = crate::icon_name(cx, icon);
-            if name.is_none() {
-                part.text(icon);
+            part.base_style_ref(&ALERT_ICON).attr("aria-hidden", "true").attr("data-icon", true);
+            let name = icon.ok().and_then(|v| crate::icon_name(cx, v));
+            if let (Ok(v), None) = (icon, &name) {
+                part.text(v.clone());
             }
             cx.open(&part, node)?;
-            if let Some(n) = name {
-                crate::icon_kit(cx, node, &n, 16)?;
+            match (icon, name) {
+                (_, Some(n)) => crate::icon_kit(cx, node, &n, 18)?,
+                (Err(paths), _) => cx.markup(&format!(
+                    r#"<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{paths}</svg>"#
+                )),
+                _ => {}
             }
             cx.close("span");
         }
@@ -284,6 +359,17 @@ impl Component for Alert {
             part_text(cx, node, "p", "description", &ALERT_DESCRIPTION, d)?;
         }
         cx.children(node)?;
+        if dismissible {
+            let mut close = cx.part("button", node, "dismiss");
+            close
+                .base_style_ref(&ALERT_DISMISS)
+                .attr("type", "button")
+                .attr("aria-label", cx.label("Dismiss"))
+                .attr("data-dismiss", true)
+                .text(lit("✕"));
+            cx.open(&close, node)?;
+            cx.close("button");
+        }
         cx.close("div");
         Ok(())
     }

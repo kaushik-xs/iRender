@@ -252,9 +252,10 @@ ui-card-footer: A row of actions at the bottom of a `ui-card`.
 ui-alert: A callout for important messages.
   title        any  Bold first line
   description  any  Body text
-  icon         any  An icon name (with the icon kit) or a character, shown on the left, e.g. `warning` or `⚠`
-  variant      one of: default, destructive  Default `default`
-  parts: icon, title, description
+  icon         any  An icon name (with the icon kit) or a character, shown on the left, e.g. `bell` or `🔔`. Each variant but `default` has its own already; `none` hides it
+  variant      one of: default, info, success, warning, destructive  `default`, `info`, `success`, `warning` or `destructive`
+  dismissible  bool  Shows a ✕ that hides the alert
+  parts: icon, title, description, dismiss
   children: yes
 ui-avatar: A round image, or initials when there is none.
   src          any  Image URL
@@ -1793,7 +1794,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-badge` | `text`, `icon`, `variant` (default, secondary, destructive, outline, brand) | |
 | `ui-card` | `title`, `description`, `tag` | Parts: `header`, `title`, `description`. |
 | `ui-card-footer` | | A row of actions; put it last in a card. |
-| `ui-alert` | `title`, `description`, `icon`, `variant` (default, destructive) | `role="alert"`. Parts: `icon`, `title`, `description`. |
+| `ui-alert` | `title`, `description`, `icon`, `variant` (default, info, success, warning, destructive), `dismissible` | `role="alert"`. A wash of the variant's colour, a bar along its leading edge and the variant's icon (`icon: none` hides it). Children (e.g. buttons) go under the description. `dismissible` adds a ✕ that hides it. Parts: `icon`, `title`, `description`, `dismiss`. |
 | `ui-illustration` | `name` (not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done), `size` (default 240), `primary`, `secondary`, `label` | An original, flat drawing for an error page or an empty state, 4 : 3. It's coloured by the theme: the primary colour, a secondary one (`color.brand-2`, else `color.chart-2`, else amber), light tints of both, and neutrals mixed from the text and background colours, so it follows a palette, the custom colours picked with `ui-theme-colors`, and dark mode. `primary` and `secondary` set its own colours (and may use state; null goes back to the theme's). Decorative unless it has a `label`. The blocks have whole error pages (404, 500, 403, 503, offline, an expired session) and a page of empty states. |
 | `ui-empty` | `title`, `description`, `icon`, `illustration`, `illustrationSize` (default 200) | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
