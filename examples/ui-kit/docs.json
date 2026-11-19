@@ -312,8 +312,8 @@
    "id": "toast",
    "group": "Feedback",
    "title": "Toast",
-   "summary": "A message that shows for a few seconds at the bottom of the screen. Put one toaster on the page, bound to a state key; setting that key to a title and description shows a toast.",
-   "usage": "- { type: ui-toaster, props: { bind: toast } }\n- type: ui-button\n  props: { label: Save }\n  on: { click: { action: set_state, key: toast, value: { title: Saved, description: Your changes are live. } } }",
+   "summary": "A message that shows for a few seconds at the bottom of the screen. Put one toaster on the page, bound to a state key; setting that key to a title and description shows a toast. `variant` (`info`, `success`, `warning`, `destructive`) gives it a colour and an icon, and a bar counts down its time.",
+   "usage": "- { type: ui-toaster, props: { bind: toast } }\n- type: ui-button\n  props: { label: Save }\n  on: { click: { action: set_state, key: toast, value: { title: Saved, description: Your changes are live., variant: success } } }",
    "components": [
     "ui-toaster"
    ]

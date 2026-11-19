@@ -29,7 +29,7 @@ window.addEventListener("load", async () => {
   const root = $("[data-i-root]"), S = () => root.__irender.state;
   const calls = []; root.addEventListener("irender:call", (e) => calls.push(e.detail));
   const btn = (t) => $$("button").find((b) => b.textContent === t);
-  const toast = () => $$("[role=status] > div").map((t) => t.firstElementChild.textContent).join(",") || "hidden";
+  const toast = () => $$("[role=status] > div:not([data-leaving])").map((t) => t.firstElementChild.textContent).join(",") || "hidden";
   const rect = (el) => el.getBoundingClientRect();
   try {
     const edit = $("#edit-profile");
@@ -539,7 +539,7 @@ fn toasts_queue_with_their_own_timers_in_chrome() {
       const root = document.querySelector("[data-i-root]");
       const region = document.querySelector("[role=status]");
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-      const toasts = () => [...region.querySelectorAll(":scope > div")]
+      const toasts = () => [...region.querySelectorAll(":scope > div:not([data-leaving])")]
         .map((t) => [...t.children].filter((c) => c.tagName === "DIV").map((c) => c.textContent).join(":") + (t.dataset.variant ? "!" : "")).join(",") || "-";
       const add = async (toast) => { root.__irender.set("toast", toast); await wait(0); };
       await add({ title: "A", description: "first" });
@@ -558,7 +558,7 @@ fn toasts_queue_with_their_own_timers_in_chrome() {
       region.dispatchEvent(new PointerEvent("pointerleave"));
       await wait(1100);
       out.push("left " + toasts());
-      region.querySelector("[data-dismiss]").click();
+      region.querySelector(":scope > div:not([data-leaving]) [data-dismiss]").click();
       out.push("dismissed " + toasts());
       await add({ title: "A", description: "first" });
       out.push("again " + toasts());

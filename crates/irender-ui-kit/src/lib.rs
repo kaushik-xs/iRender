@@ -241,6 +241,26 @@ const BG_SHEET: &str = "var(--color-sheet, var(--color-dialog, var(--color-surfa
 const BG_UNDER: &str = "var(--ui-bg, var(--color-background, var(--color-surface)))";
 const DESTRUCTIVE: &str = "var(--color-destructive, #dc2626)";
 const ON_DESTRUCTIVE: &str = "var(--color-on-destructive, #ffffff)";
+/// The message variants alerts and toasts share: name, colour and icon (the inside of
+/// a 24×24 stroked SVG, drawn by `notice_icon`).
+const NOTICES: &[(&str, &str, &str)] = &[
+    ("info", "var(--color-info, #2563eb)", r#"<circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5M12 8h.01"/>"#),
+    ("success", "var(--color-success, #16a34a)", r#"<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>"#),
+    (
+        "warning",
+        "var(--color-warning, #d97706)",
+        r#"<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 17h.01"/>"#,
+    ),
+    ("destructive", DESTRUCTIVE, r#"<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/>"#),
+];
+
+/// One of `NOTICES`' icons as an SVG, `attrs` going on the `<svg>`.
+fn notice_icon(paths: &str, attrs: &str) -> String {
+    format!(
+        r#"<svg{attrs} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{paths}</svg>"#
+    )
+}
+
 const RING: &str = "var(--color-ring, var(--color-muted))";
 const MONO: &str = "ui-monospace, SFMono-Regular, Menlo, monospace";
 

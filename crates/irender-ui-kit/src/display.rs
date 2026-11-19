@@ -230,13 +230,8 @@ const ALERT_PROPS: &[PropDef] = &[
 ];
 
 /// Each variant's colour, and the icon shown when the alert names none.
-const ALERT_TONES: &[(&str, Option<&str>)] = &[
-    (MUTED, None),
-    ("var(--color-info, #2563eb)", Some(r#"<circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5M12 8h.01"/>"#)),
-    ("var(--color-success, #16a34a)", Some(r#"<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>"#)),
-    ("var(--color-warning, #d97706)", Some(r#"<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 17h.01"/>"#)),
-    (DESTRUCTIVE, Some(r#"<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16h.01"/>"#)),
-];
+static ALERT_TONES: LazyLock<Vec<(&str, Option<&str>)>> =
+    LazyLock::new(|| std::iter::once((MUTED, None)).chain(crate::NOTICES.iter().map(|(_, c, i)| (*c, Some(*i)))).collect());
 
 static ALERT: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
     ALERT_TONES
@@ -345,9 +340,7 @@ impl Component for Alert {
             cx.open(&part, node)?;
             match (icon, name) {
                 (_, Some(n)) => crate::icon_kit(cx, node, &n, 18)?,
-                (Err(paths), _) => cx.markup(&format!(
-                    r#"<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{paths}</svg>"#
-                )),
+                (Err(paths), _) => cx.markup(&crate::notice_icon(paths, "")),
                 _ => {}
             }
             cx.close("span");

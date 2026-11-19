@@ -1692,8 +1692,20 @@ root:
                       props: { label: Show a toast, variant: outline }
                       on: { click: { action: set_state, key: toast, value: { title: Event created, description: "Sunday, December 3 at 9:00 AM" } } }
                     - type: ui-button
-                      props: { label: Show an error, variant: outline }
+                      props: { label: Info, variant: outline }
+                      on: { click: { action: set_state, key: toast, value: { title: Update available, description: Version 2.4 is ready to install., variant: info } } }
+                    - type: ui-button
+                      props: { label: Success, variant: outline }
+                      on: { click: { action: set_state, key: toast, value: { title: Changes saved, description: Your profile is up to date., variant: success } } }
+                    - type: ui-button
+                      props: { label: Warning, variant: outline }
+                      on: { click: { action: set_state, key: toast, value: { title: Storage almost full, description: You have used 92% of your space., variant: warning } } }
+                    - type: ui-button
+                      props: { label: Error, variant: outline }
                       on: { click: { action: set_state, key: toast, value: { title: Something went wrong, description: There was a problem with your request., variant: destructive } } }
+                    - type: ui-button
+                      props: { label: Stays until closed, variant: outline }
+                      on: { click: { action: set_state, key: toast, value: { title: Upload paused, description: Reconnect to carry on., variant: warning, duration: 0 } } }
                 - { type: if, props: { when: "{{ api.toast.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.toast }}", as: c }

@@ -1,7 +1,7 @@
 //! The toaster: a stack of notifications, each hiding on its own timer. Setting the
 //! bound state key adds one; a client behaviour (toaster.js) does the rest.
 
-use crate::{BG_POPOVER, ACCENT, DESTRUCTIVE, MUTED, TEXT, lit};
+use crate::{BG_POPOVER, MUTED, TEXT, lit};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock};
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::json;
@@ -30,43 +30,95 @@ static REGION: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("gap", sp!(8)),
     ])
 });
+const TOAST_IN: &str = "@keyframes ui-toast-in {\n  from { opacity: 0; transform: translateY(8px) scale(0.98); }\n}";
+
 static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[
+    let mut b = StyleBlock::from_pairs(&[
+        ("--tone", MUTED),
+        ("--wash", "0%"),
+        ("--tint", "0%"),
         ("box-sizing", "border-box"),
         ("position", "relative"),
+        ("overflow", "hidden"),
         ("display", "grid"),
-        ("gap", sp!(4)),
-        ("padding-block", sp!(16, 16)), ("padding-inline", sp!(16, 40)),
-        ("border", "1px solid var(--color-border)"),
+        ("grid-template-columns", "1fr"),
+        ("column-gap", sp!(12)),
+        ("row-gap", sp!(2)),
+        ("align-items", "start"),
+        ("padding-block", sp!(14, 14)), ("padding-inline", sp!(16, 40)),
+        ("border", "1px solid color-mix(in srgb, var(--tone) var(--tint), var(--color-border))"),
         ("border-radius", "var(--radius-lg)"),
-        ("--ui-bg", BG_POPOVER),
-        ("background", BG_POPOVER),
+        ("--ui-bg", &format!("color-mix(in srgb, var(--tone) var(--wash), {BG_POPOVER})")),
+        ("background", "var(--ui-bg)"),
         ("color", TEXT),
         ("font-size", fs!(14)),
-        ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.15)"),
+        ("line-height", "20px"),
+        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.06), 0 12px 32px -8px rgb(0 0 0 / 0.25)"),
+        ("animation", "ui-toast-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1)"),
     ])
+    // The text sits in the last column, beside the variant's icon when it has one.
+    .nest("& > div", StyleBlock::from_pairs(&[("grid-column", "-2")]))
     .nest(
-        "&[data-variant=destructive]",
-        StyleBlock::from_pairs(&[("background", DESTRUCTIVE), ("color", "var(--color-on-destructive, #fff)"), ("border-color", DESTRUCTIVE)]),
+        "& [data-icon]",
+        StyleBlock::from_pairs(&[
+            ("display", "none"),
+            ("grid-column", "1"),
+            ("grid-row", "1 / span 2"),
+            ("height", "20px"),
+            ("align-items", "center"),
+            ("color", "var(--tone)"),
+        ]),
     )
+    .nest(
+        "& [data-progress]",
+        StyleBlock::from_pairs(&[
+            ("position", "absolute"),
+            ("inset-inline", "0"),
+            ("bottom", "0"),
+            ("height", "3px"),
+            ("background", "var(--tone)"),
+            ("opacity", "0.45"),
+            ("transform-origin", "left"),
+        ]),
+    )
+    .nest(":dir(rtl) [data-progress]", StyleBlock::from_pairs(&[("transform-origin", "right")]))
+    .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::from_pairs(&[("animation", "none")]));
+    for (name, color, _) in crate::NOTICES {
+        b = b
+            .nest(
+                format!("&[data-variant={name}]"),
+                StyleBlock::from_pairs(&[("--tone", color), ("--wash", "6%"), ("--tint", "30%"), ("grid-template-columns", "auto 1fr")]),
+            )
+            .nest(format!("&[data-variant={name}] [data-icon={name}]"), StyleBlock::from_pairs(&[("display", "flex")]));
+    }
+    b
 });
-static TITLE: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("font-weight", "600")]));
-static DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("opacity", "0.9"), ("color", "inherit")]));
+static TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("font-weight", "600"), ("color", "color-mix(in srgb, var(--tone) calc(var(--tint) + 5%), var(--color-text))")])
+});
+static DESCRIPTION: LazyLock<StyleBlock> =
+    LazyLock::new(|| StyleBlock::from_pairs(&[("color", "color-mix(in srgb, var(--color-text) 78%, var(--ui-bg))")]));
 static CLOSE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
-        ("top", "8px"),
-        ("inset-inline-end", "8px"),
+        ("top", "12px"),
+        ("inset-inline-end", "10px"),
         ("width", "24px"),
         ("height", sp!(24)),
+        ("display", "inline-flex"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("padding", "0"),
         ("border", "0"),
         ("border-radius", "var(--radius-sm)"),
         ("background", "transparent"),
         ("color", "inherit"),
+        ("font-size", fs!(12)),
         ("opacity", "0.6"),
         ("cursor", "pointer"),
     ])
-    .nest(":hover", StyleBlock::from_pairs(&[("opacity", "1"), ("background", ACCENT), ("color", MUTED)]))
+    .nest(":hover", StyleBlock::from_pairs(&[("opacity", "1"), ("background", "color-mix(in srgb, var(--tone) 14%, transparent)")]))
+    .nest(":focus-visible", StyleBlock::from_pairs(&[("opacity", "1"), ("outline", "2px solid var(--color-ring)"), ("outline-offset", "1px")]))
 });
 
 impl Component for Toaster {
@@ -88,6 +140,7 @@ impl Component for Toaster {
         let number = |name: &str, default: f64| cx.prop(node, name).and_then(|v| v.as_f64()).filter(|n| *n >= 0.0).unwrap_or(default);
         let config = json!({ "key": key, "duration": number("duration", 4000.0), "max": number("max", 3.0).max(1.0) });
         cx.global_js("ui-toaster", SCRIPT);
+        cx.global_css("ui-toast-in", TOAST_IN);
         let mut region = cx.element("div", node);
         region.base_style_ref(&REGION).attr("role", "status").attr("aria-live", "polite").behavior("ui-toaster", config);
         cx.open(&region, node)?;
@@ -103,6 +156,12 @@ impl Component for Toaster {
             cx.open(&el, node)?;
             cx.close("div");
         }
+        // Each variant's icon, shown by the toast's `data-variant`, then the bar that
+        // counts down its time.
+        for (name, _, paths) in crate::NOTICES {
+            cx.markup(&format!(r#"<span aria-hidden="true" data-icon="{name}">{}</span>"#, crate::notice_icon(paths, "")));
+        }
+        cx.markup(r#"<span aria-hidden="true" data-progress></span>"#);
         let mut close = Element::new("button");
         close
             .base_style_ref(&CLOSE)
