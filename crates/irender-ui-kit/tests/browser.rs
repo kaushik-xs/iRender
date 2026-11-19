@@ -196,6 +196,11 @@ const COMBO_DRIVER: &str = r##"<style>* { transition: none !important; }</style>
 window.addEventListener("load", async () => {
   const out = [], log = (...a) => out.push(a.join(" "));
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Waits for a server's answer rather than a fixed time. Mostly message-channel turns,
+  // which hold Chrome's virtual time still (it runs ahead of a real server), with a
+  // little of it now and then for the page's own timers.
+  const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+  const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
   const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
   const box = (label) => [...document.querySelectorAll("[data-ui-input]")].find((i) => i.getAttribute("aria-label") === label).closest("[data-i-x]");
   const inp = (b) => b.querySelector("[data-ui-input]");
@@ -225,11 +230,11 @@ window.addEventListener("load", async () => {
 
     const fruit = box("Fruit"); inp(fruit).focus();
     type(fruit, "man"); log("loading", fruit.hasAttribute("data-loading"), fruit.querySelector("[data-ui-message]").textContent);
-    await wait(800);
+    await until(() => !fruit.hasAttribute("data-loading") && opts(fruit).length);
     log("loaded", opts(fruit).join(","), fruit.hasAttribute("data-loading"));
     key(fruit, "ArrowDown"); key(fruit, "Enter");
     log("fruit", S().fruit);
-    type(fruit, "man"); await wait(800);
+    type(fruit, "man"); await wait(150); await until(() => !fruit.hasAttribute("data-loading") && opts(fruit).length);
     log("cached", opts(fruit).join(","));
     inp(fruit).blur();
   } catch (e) {
@@ -451,9 +456,19 @@ fn stored_theme_applies_on_pages_without_a_toggle_in_chrome() {
     let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
     let ir = engine.resolve(&doc).unwrap();
     let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
-    let report = r#"<script>window.addEventListener("load", () => {
+    // Read once the colour has stopped changing: with transitions off, and after a few
+    // reads that agree (a loaded machine can run the load event before styles settle).
+    let report = r#"<style>*, *::before, *::after { transition: none !important; }</style><script>window.addEventListener("load", async () => {
+      const color = () => getComputedStyle(document.getElementById("marked")).color;
+      let last = color();
+      for (let same = 0, i = 0; same < 3 && i < 100; i++) {
+        await new Promise((r) => setTimeout(r, 20));
+        const now = color();
+        same = now === last ? same + 1 : 0;
+        last = now;
+      }
       const pre = document.createElement("pre"); pre.id = "result";
-      pre.textContent = getComputedStyle(document.getElementById("marked")).color + " " + document.documentElement.dataset.theme;
+      pre.textContent = last + " " + document.documentElement.dataset.theme;
       document.body.append(pre);
     });</script>"#;
     let html = html
@@ -2238,6 +2253,16 @@ fn data_table_tree_and_pinned_columns_in_chrome() {
     window.addEventListener("load", async () => {
       const out = []; const log = (...a) => out.push(a.join(" "));
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Waits until the page stops changing (40 ms without a DOM change, at most 2 s):
+      // as quick as a fixed wait on an idle machine, and patient on a loaded one.
+      const settle = (quiet = 40, most = 2000) => new Promise((done) => {
+        let t;
+        const end = () => { obs.disconnect(); clearTimeout(t); clearTimeout(cap); done(); };
+        const obs = new MutationObserver(() => { clearTimeout(t); t = setTimeout(end, quiet); });
+        obs.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+        t = setTimeout(end, quiet);
+        const cap = setTimeout(end, most);
+      });
       const T = (id) => document.getElementById(id);
       const rows = (t) => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
       const view = (t) => rows(t).map((r) => "  ".repeat(Number(r.getAttribute("aria-level")) - 1) + r.querySelector("[data-dt-col=name]").textContent.trim() + (r.getAttribute("aria-expanded") === "true" ? "-" : r.hasAttribute("aria-expanded") ? "+" : "")).join(" | ");
@@ -2247,19 +2272,22 @@ fn data_table_tree_and_pinned_columns_in_chrome() {
         const t = T("tree");
         log("roles", t.querySelector("table").getAttribute("role"));
         log("start", view(t));
-        rows(t)[0].querySelector("[data-dt-twisty]").click(); await wait(10);
+        rows(t)[0].querySelector("[data-dt-twisty]").click(); await settle();
         log("open alpha", view(t));
         const two = rows(t).find((r) => r.textContent.includes("Alpha two"));
-        two.focus(); key(two, "ArrowRight"); await wait(10);
+        two.focus(); key(two, "ArrowRight"); await settle();
         log("right", view(t), document.activeElement.textContent.includes("Alpha two"));
-        key(document.activeElement, "ArrowRight"); await wait(10);
+        key(document.activeElement, "ArrowRight"); await settle();
         log("into", document.activeElement.querySelector("[data-dt-col=name]").textContent.trim());
-        key(document.activeElement, "ArrowLeft"); await wait(10);
+        key(document.activeElement, "ArrowLeft"); await settle();
         log("to parent", document.activeElement.querySelector("[data-dt-col=name]").textContent.trim());
-        t.querySelector("[data-dt-sort=name]").click(); t.querySelector("[data-dt-sort=name]").click(); await wait(10);
+        t.querySelector("[data-dt-sort=name]").click(); t.querySelector("[data-dt-sort=name]").click(); await settle();
         log("desc", view(t));
         rows(t).find((r) => r.textContent.includes("Beta")).querySelector("[data-dt-twisty]").click();
-        await wait(300);
+        // Its children come from the server: wait for them (virtual time held still).
+        const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+        for (let i = 0; i < 2e6 && !view(t).includes("Loaded 1"); i++) await (i % 50 ? tick() : wait(10));
+        await settle();
         log("lazy", view(t));
         log("sum", t.querySelector("[data-dt-sum]").textContent);
         // Pinned columns: scroll sideways; Name stays at the left edge, Total at the right.
@@ -2268,7 +2296,7 @@ fn data_table_tree_and_pinned_columns_in_chrome() {
         const total = () => t.querySelector("[data-dt-body] [data-dt-col=v]").getBoundingClientRect();
         const box = t.querySelector("[data-dt-body] [data-dt-box]").getBoundingClientRect();
         const before = [name().left, total().right];
-        sc.scrollLeft = 400; await wait(30);
+        sc.scrollLeft = 400; await settle();
         const edge = sc.getBoundingClientRect();
         log("pinned", sc.scrollWidth > sc.clientWidth, name().left === before[0], Math.round(name().left - box.right) === 0, Math.abs(total().right - (edge.left + sc.clientWidth + 1)) <= 2,
           t.querySelector("[data-dt-body] [data-dt-col=name]").getAttribute("data-pin-edge"), t.querySelector("[data-dt-body] [data-dt-col=v]").getAttribute("data-pin-edge"));
@@ -2276,10 +2304,10 @@ fn data_table_tree_and_pinned_columns_in_chrome() {
 
         const f = T("flat");
         log("flat", view(f));
-        const s = f.querySelector("[data-dt-search]"); s.value = "account"; s.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        const s = f.querySelector("[data-dt-search]"); s.value = "account"; s.dispatchEvent(new Event("input", { bubbles: true })); await settle();
         log("search", view(f));
-        s.value = ""; s.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
-        rows(f)[0].querySelector("[data-dt-twisty]").click(); await wait(10);
+        s.value = ""; s.dispatchEvent(new Event("input", { bubbles: true })); await settle();
+        rows(f)[0].querySelector("[data-dt-twisty]").click(); await settle();
         log("closed", view(f));
       } catch (e) { log("EXCEPTION", e.stack); }
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
@@ -2754,8 +2782,18 @@ fn menubar_and_navigation_menu_in_chrome() {
     window.addEventListener("load", async () => {
       const out = []; const log = (...a) => out.push(a.join(" "));
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Waits until the page stops changing (40 ms without a DOM change, at most 2 s):
+      // as quick as a fixed wait on an idle machine, and patient on a loaded one.
+      const settle = (quiet = 40, most = 2000) => new Promise((done) => {
+        let t;
+        const end = () => { obs.disconnect(); clearTimeout(t); clearTimeout(cap); done(); };
+        const obs = new MutationObserver(() => { clearTimeout(t); t = setTimeout(end, quiet); });
+        obs.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+        t = setTimeout(end, quiet);
+        const cap = setTimeout(end, most);
+      });
       const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
-      const key = async (k) => { document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); await wait(10); };
+      const key = async (k) => { document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); await settle(); };
       const name = () => (document.activeElement.textContent || "").trim();
       const bar = document.querySelector("[role=menubar]");
       const [file, edit, view] = bar.querySelectorAll(":scope > [role=menuitem]");
@@ -2769,13 +2807,13 @@ fn menubar_and_navigation_menu_in_chrome() {
         log("down", isOpen(edit), name(), edit.getAttribute("aria-expanded"));
         await key("ArrowRight");
         log("menu right", isOpen(edit), isOpen(view), name(), document.activeElement.getAttribute("role"), document.activeElement.getAttribute("aria-checked"));
-        document.activeElement.click(); await wait(20);
+        document.activeElement.click(); await settle();
         log("checkbox", S().bar, isOpen(view), document.activeElement === view);
         await key("Enter");
         log("enter opens", isOpen(view), name());
         await key("ArrowDown"); await key("ArrowDown");
         log("radio", name(), document.activeElement.getAttribute("aria-checked"));
-        document.activeElement.click(); await wait(20);
+        document.activeElement.click(); await settle();
         log("picked", S().zoom);
         view.focus(); await key("ArrowRight");
         log("wraps", name());
@@ -2787,24 +2825,24 @@ fn menubar_and_navigation_menu_in_chrome() {
         log("sub open", subMenu.matches(":popover-open"), name(), share.getAttribute("aria-expanded"), isOpen(file));
         await key("ArrowLeft");
         log("sub closed", subMenu.matches(":popover-open"), name(), isOpen(file));
-        share.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await wait(10);
+        share.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await settle();
         log("hover", subMenu.matches(":popover-open"), name());
-        [...subMenu.querySelectorAll("[role=menuitem]")][1].click(); await wait(20);
+        [...subMenu.querySelectorAll("[role=menuitem]")][1].click(); await settle();
         log("sub chose", S().ran, isOpen(file), subMenu.matches(":popover-open"));
-        file.click(); await wait(10);
-        edit.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await wait(10);
+        file.click(); await settle();
+        edit.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); await settle();
         log("hover bar", isOpen(file), isOpen(edit));
-        menu(edit).hidePopover(); await wait(20);
+        menu(edit).hidePopover(); await settle();
 
         const nav = document.querySelector("nav[aria-label=Main]");
         const prod = nav.querySelector("[data-ui-nav-trigger]"), panel = document.getElementById(prod.getAttribute("aria-controls"));
         log("nav", prod.getAttribute("aria-expanded"), nav.querySelector("a[aria-current=page]")?.textContent);
-        prod.click(); await wait(10);
+        prod.click(); await settle();
         log("click", panel.matches(":popover-open"), prod.getAttribute("aria-expanded"), [...panel.querySelectorAll("a")].map((a) => a.textContent).join(" / "));
-        prod.click(); await wait(10);
+        prod.click(); await settle();
         prod.focus(); await key("ArrowDown");
         log("down", panel.matches(":popover-open"), name());
-        await key("Escape"); await wait(20);
+        await key("Escape"); await settle();
         log("escape", panel.matches(":popover-open"), document.activeElement === prod);
         await key("ArrowRight");
         log("along", name());
