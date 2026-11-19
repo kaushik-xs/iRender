@@ -396,6 +396,12 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   emptyText    string  In a column with no cards (default `No cards`)
   columnWidth  number  Each column's width in px (default 280)
   label        any  Names the board for screen readers (default `Board`)
+  swimlanes    string  A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it
+  lanes        any  With `swimlanes`, the lanes in order: values or `{ value, label }` (default: the values as cards have them)
+  fields       any  More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`
+  reorderable  bool  A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)
+  bindColumns  statekey  State key the columns are in: a moved column's new order is written back to it
+  locale       string  Locale for `date` fields (default: the document's `lang`)
   parts: board
   children: no
 ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
@@ -663,17 +669,19 @@ ui-menu-sub: An item that opens a submenu beside it, on hover, Enter, Space or R
   id           any  The submenu's element id (default: derived from the document)
   parts: trigger, menu
   children: yes
-ui-menu-checkbox: A menu item that turns a setting on and off (`role=menuitemcheckbox`), with a check while it's on. Choosing it flips `bind` and closes the menu.
+ui-menu-checkbox: A menu item that turns a setting on and off (`role=menuitemcheckbox`), with a check while it's on. Choosing it flips `bind` and closes the menu (unless `keepOpen`).
   label        any (required)  Item text
   bind         statekey (required)  State key holding `true` / `false`; choosing the item flips it
   shortcut     any  Keyboard hint shown on the right
   disabled     any  Boolean or expression
+  keepOpen     bool  The menu stays open when it's chosen, for flipping several settings in a row
   parts: shortcut
   children: no
-ui-menu-radio-group: Menu items that pick one of several values (`role=menuitemradio`), with a dot by the chosen one. Choosing one writes its value to `bind` and closes the menu.
+ui-menu-radio-group: Menu items that pick one of several values (`role=menuitemradio`), with a dot by the chosen one. Choosing one writes its value to `bind` and closes the menu (unless `keepOpen`).
   bind         statekey (required)  State key holding the chosen value
   options      any (required)  Values, or `{ value, label, shortcut, disabled }`
   label        any  Accessible name of the group
+  keepOpen     bool  The menu stays open when one is chosen
   children: no
 ui-menubar: A bar of menus, as at the top of an application: `ui-menubar-menu` children. Left and Right move along the bar (an open menu follows), Down opens a menu, and hovering moves between open menus.
   label        any  Accessible name (default `Menu bar`)
@@ -796,6 +804,7 @@ ui-command: A search box over a list of actions, filtered as you type; Up and Do
   empty        any  Shown when nothing matches (default `No results found.`)
   id           any  Element id (default: derived from the document)
   rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
+  bindSearch   statekey  State key that holds the search text, both ways: to fetch items for it, say
   parts: search, input, list, empty
   children: yes
 ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut`, or a button with `commandfor` its id. Running an item closes it.
@@ -804,6 +813,7 @@ ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut
   empty        any  Shown when nothing matches (default `No results found.`)
   id           any  Element id (default: derived from the document)
   rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
+  bindSearch   statekey  State key that holds the search text, both ways: to fetch items for it, say
   trigger      any  Text of a button that opens it
   triggerVariant one of: default, secondary, destructive, outline, ghost, link, brand  The trigger button's variant (default `outline`)
   shortcut     string  Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)
@@ -822,8 +832,13 @@ ui-command-item: An action in a command palette: clicking it, or Enter while it 
   shortcut     any  Keyboard hint shown on the right, e.g. `⌘P`
   href         any  Make it a link
   disabled     any  Boolean or expression
+  page         string  Opens the `ui-command-page` with this `id`, and the palette stays open (Backspace in the empty search box goes back)
   parts: shortcut
   children: no
+ui-command-page: A page of a command palette: items (and groups) shown in place of the rest when an item with its `page` is chosen. Backspace in the empty search box goes back.
+  id           string (required)  What an item's `page` opens it by
+  title        any  Shown in the search box while it's open (default: the id)
+  children: yes
 ui-command-separator: A line between groups in a command palette, hidden while searching.
   children: no
 ui-conversation: A scrolling chat log that keeps to its latest message as messages arrive, unless you've scrolled up to read; then a button jumps back down. Children are `ui-message`s, followed by `messages`. Its `parts.bubble`, `parts.avatar` and so on style the messages drawn from `messages`.
@@ -873,7 +888,10 @@ ui-carousel: Slides in a row that scrolls sideways and snaps to each one: images
   label        any  Names the carousel for screen readers (default `Carousel`)
   size         any  Each slide's width: number (px) or CSS length; default `min(280px, 85%)`
   gap          any  Space between slides: number (px) or CSS length; default 12
-  parts: track, previous, next
+  dots         bool  A dot per slide under it, the current one marked; each goes to its slide
+  loop         bool  Next at the end goes to the first slide, previous at the start to the last
+  autoplay     number  Move on every this many ms, round and round, with a pause button; it waits while hovered or focused
+  parts: track, previous, next, dots, play
   children: yes
 ui-calendar: An inline calendar: days (with a time), months, quarters or years; one, a range or several; limits, presets, financial years and full keyboard support.
   bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`

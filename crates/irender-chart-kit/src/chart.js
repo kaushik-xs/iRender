@@ -402,6 +402,16 @@
     const day = new Intl.DateTimeFormat(lang, { dateStyle: "medium" });
     const stamp = new Intl.DateTimeFormat(lang, { dateStyle: "medium", timeStyle: "short" });
     const when = (v) => (blank(v) ? "" : dateOnly(v) ? day.format(ms(v)) : Number.isNaN(ms(v)) ? String(v) : stamp.format(ms(v)));
+    // The axis's dates in the document's language: a year at its start, a month at its
+    // first day, else the day and month; times of day when zoomed in that far.
+    const yearF = new Intl.DateTimeFormat(lang, { year: "numeric" }), monthF = new Intl.DateTimeFormat(lang, { month: "short" });
+    const dayF = new Intl.DateTimeFormat(lang, { day: "numeric", month: "short" }), timeF = new Intl.DateTimeFormat(lang, { hour: "numeric", minute: "2-digit" });
+    const axisDate = (v) => {
+      const d = new Date(v);
+      if (d.getHours() || d.getMinutes()) return timeF.format(d);
+      if (d.getDate() === 1 && d.getMonth() === 0) return yearF.format(d);
+      return d.getDate() === 1 ? monthF.format(d) : dayF.format(d);
+    };
 
     // The table: the first column is the tree of names.
     const all = (Array.isArray(p.columns) && p.columns.length ? p.columns : ["name"]).map((c, i) => {
@@ -571,7 +581,7 @@
     const pad = Number.isFinite(hi - lo) ? Math.max(DAY / 2, (hi - lo) * 0.02) : 0;
     o.xAxis = {
       type: "time", position: "top", min: Number.isFinite(lo) ? lo - pad : undefined, max: Number.isFinite(hi) ? hi + pad : undefined,
-      axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: t.muted, hideOverlap: true, fontSize: 11, formatter: { year: "{yyyy}", month: "{MMM}", day: "{d} {MMM}", hour: "{HH}:{mm}", minute: "{HH}:{mm}" } },
+      axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: t.muted, hideOverlap: true, fontSize: 11, formatter: axisDate },
       splitLine: { show: true, lineStyle: { color: fade(t.border, 0.6) } },
     };
     o.yAxis = {
@@ -1111,6 +1121,7 @@
       "[data-gantt-table] [role=row][data-key]:hover { background: color-mix(in srgb, currentColor 5%, transparent); }",
       "[data-gantt-table] [role=row][aria-selected=true] { background: color-mix(in srgb, currentColor 9%, transparent); }",
       "[data-gantt-table] [role=row]:focus-visible { box-shadow: inset 0 0 0 2px var(--color-ring, currentColor); }",
+      "[data-gantt-table] [role=row][data-linking] { box-shadow: inset 0 0 0 2px var(--color-primary, currentColor); background: color-mix(in srgb, currentColor 6%, transparent); }",
       "[data-gantt-table] :is([role=gridcell], [role=columnheader]) { flex: none; box-sizing: border-box; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ].join("\n");
     document.head.append(css);
@@ -1730,7 +1741,12 @@
     // it can be read and used from the keyboard. Up and Down move between rows, Right
     // and Left open and close a group (or step into and out of it), and Enter or Space
     // opens a group or picks a task, as a click does. A focused task shows its tooltip.
-    let table = null, focusKey = null, pickedKey = null;
+    let table = null, focusKey = null, pickedKey = null, linkFrom = null;
+    function stopKeyLink(announce) {
+      linkFrom = null;
+      table?.querySelectorAll("[data-linking]").forEach((r) => r.removeAttribute("data-linking"));
+      if (announce) say(L("Stopped linking"));
+    }
     // The picked task follows `bindRow`, so a click on a bar marks its row too.
     function syncPicked() {
       const g = level.gantt;
@@ -1790,7 +1806,7 @@
         const r = make("row", {
           "data-key": i.key, "aria-level": String(i.depth + 1), "aria-expanded": i.group ? String(i.open) : null,
           "aria-selected": String(i.key === pickedKey), "aria-label": g.about(i), tabindex: i.key === focusKey ? "0" : "-1",
-          "data-group": i.group ? "" : null,
+          "data-group": i.group ? "" : null, "data-linking": i.key === linkFrom ? "" : null,
         }, { top: `${g.head + k * h}px`, height: `${h}px` });
         r.append(...cellsOf(g.cells(i), false, i.depth, i.group ? (i.open ? "▾ " : "▸ ") : ""));
         return r;
@@ -1829,6 +1845,32 @@
         for (const x of rows) x.tabIndex = x === r ? 0 : -1;
         r.focus();
       };
+      // Links from the keyboard: L on a task starts one, Enter on another makes it wait
+      // for the first (or, if it already does, no longer), Escape stops.
+      if (canEdit() && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        if ((e.key === "l" || e.key === "L") && !item.group) {
+          e.preventDefault();
+          if (linkFrom === item.key) return stopKeyLink(true);
+          linkFrom = item.key;
+          table.querySelectorAll("[data-linking]").forEach((r) => r.removeAttribute("data-linking"));
+          row.setAttribute("data-linking", "");
+          return say(L("Linking from {name}: go to the task that waits for it and press Enter, or Escape to stop", { name: String(at(item.row, "name") ?? item.key) }));
+        }
+        if (linkFrom && e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          return stopKeyLink(true);
+        }
+        if (linkFrom && (e.key === "Enter" || e.key === " ") && !item.group && item.key !== linkFrom) {
+          e.preventDefault();
+          const from = linkFrom, r = (api.state[cfg.bindData] || []).find((x) => keyOf(x) === item.key);
+          stopKeyLink(false);
+          if (r && afterKeys(r).includes(from)) return relink(from, item.key, false);
+          const fromRow = (api.state[cfg.bindData] || []).find((x) => keyOf(x) === from);
+          if (circular(from, item.key)) return say(L("{to} can't wait for {from}: {from} waits for it", { to: String(at(item.row, "name") ?? item.key), from: String(at(fromRow, "name") ?? from) }));
+          return relink(from, item.key, true);
+        }
+      }
       // Alt with Left or Right moves the task a day; with Shift too, its end.
       if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && canEdit() && !item.group && !(e.shiftKey && item.milestone)) {
         e.preventDefault();

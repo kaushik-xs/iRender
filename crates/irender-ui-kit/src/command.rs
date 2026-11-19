@@ -21,12 +21,13 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-const SEARCH_PROPS: [PropDef; 5] = [
+const SEARCH_PROPS: [PropDef; 6] = [
     PropDef::new("placeholder", PropKind::Any, "The search box's placeholder (default `Type a command or search…`)"),
     PropDef::new("label", PropKind::Any, "The search box's accessible name (default: the placeholder)"),
     PropDef::new("empty", PropKind::Any, "Shown when nothing matches (default `No results found.`)"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
     PropDef::new("rank", PropKind::Bool, "Put the best matches first, in each group and of the groups (default true); false keeps the items' order"),
+    PropDef::new("bindSearch", PropKind::StateKey, "State key that holds the search text, both ways: to fetch items for it, say"),
 ];
 const COMMAND_PROPS: &[PropDef] = &SEARCH_PROPS;
 const DIALOG_PROPS: &[PropDef] = &[
@@ -35,6 +36,7 @@ const DIALOG_PROPS: &[PropDef] = &[
     SEARCH_PROPS[2],
     SEARCH_PROPS[3],
     SEARCH_PROPS[4],
+    SEARCH_PROPS[5],
     PropDef::new("trigger", PropKind::Any, "Text of a button that opens it"),
     PropDef::new("triggerVariant", PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link", "brand"]), "The trigger button's variant (default `outline`)"),
     PropDef::new("shortcut", PropKind::String, "Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)"),
@@ -81,6 +83,12 @@ fn palette_style(framed: bool) -> StyleBlock {
                 ("font", "inherit"),
             ]),
         )
+        // The open page's crumb: its title, a click (or Backspace) going back.
+        .nest(
+            "& [data-ui-crumb]",
+            pairs(&[("flex", "none"), ("padding", sp!(2, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", ACCENT), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("font-weight", "500"), ("cursor", "pointer"), ("white-space", "nowrap")]),
+        )
+        .nest("& [data-ui-crumb]::before", pairs(&[("content", "'‹ '"), ("color", MUTED)]))
         .nest("& [data-ui-command-input]::placeholder", pairs(&[("color", MUTED)]))
         .nest("& [role=listbox]", pairs(&[("position", "relative"), ("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", sp!(4))]))
         .nest("& [data-ui-heading]", pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(12)), ("font-weight", "500"), ("color", MUTED)]))
@@ -148,7 +156,7 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
 fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, shortcut: Option<String>, dialog: bool) -> Result<(), RenderError> {
     cx.global_js("ui-command", SCRIPT);
     let rank = cx.prop(node, "rank").is_none_or(|v| irender_core::expr::truthy(&v));
-    el.attr("data-ui-command", true).behavior("ui-command", json!({ "shortcut": shortcut, "rank": rank }));
+    el.attr("data-ui-command", true).behavior("ui-command", json!({ "shortcut": shortcut, "rank": rank, "bindSearch": cx.prop_string(node, "bindSearch") }));
     cx.global_css("ui-command-match", MATCH_CSS);
     cx.open(&el, node)?;
 
@@ -158,6 +166,11 @@ fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, sh
     search.attr("data-ui-search", true);
     cx.open(&search, node)?;
     cx.markup(SEARCH_ICON);
+    // The page shown (an item's `page`), and the way back from it.
+    let mut crumb = Element::new("button");
+    crumb.attr("type", "button").attr("data-ui-crumb", true).attr("hidden", true);
+    cx.open(&crumb, node)?;
+    cx.close("button");
     let mut input = cx.part("input", node, "input");
     input
         .attr("data-ui-command-input", true)
@@ -299,6 +312,41 @@ impl Component for CommandGroup {
     }
 }
 
+pub struct CommandPage;
+
+const PAGE_PROPS: &[PropDef] = &[
+    PropDef::new("id", PropKind::String, "What an item's `page` opens it by").required(),
+    PropDef::new("title", PropKind::Any, "Shown in the search box while it's open (default: the id)"),
+];
+
+impl Component for CommandPage {
+    fn name(&self) -> &'static str {
+        "ui-command-page"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "A page of a command palette: items (and groups) shown in place of the rest when an item with its `page` is chosen. \
+                  Backspace in the empty search box goes back.",
+            props: PAGE_PROPS,
+            parts: &[],
+            children: true,
+            open_props: false,
+        }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        if context(cx, "ui-command").is_none() {
+            return Err(RenderError::new(node, "`ui-command-page` must be inside a `ui-command` or `ui-command-dialog`"));
+        }
+        let id = cx.prop_string(node, "id").unwrap_or_default();
+        let mut el = Element::new("div");
+        el.attr("data-ui-page", id.clone()).attr("data-ui-page-title", cx.prop_string(node, "title").unwrap_or(id)).attr("hidden", true);
+        cx.open(&el, node)?;
+        cx.children(node)?;
+        cx.close("div");
+        Ok(())
+    }
+}
+
 pub struct CommandItem;
 
 const ITEM_PROPS: &[PropDef] = &[
@@ -308,6 +356,7 @@ const ITEM_PROPS: &[PropDef] = &[
     PropDef::new("shortcut", PropKind::Any, "Keyboard hint shown on the right, e.g. `⌘P`"),
     PropDef::new("href", PropKind::Any, "Make it a link"),
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
+    PropDef::new("page", PropKind::String, "Opens the `ui-command-page` with this `id`, and the palette stays open (Backspace in the empty search box goes back)"),
 ];
 
 impl Component for CommandItem {
@@ -351,6 +400,9 @@ impl Component for CommandItem {
                     el.attr("disabled", d.clone());
                 }
             }
+        }
+        if let Some(p) = cx.prop_string(node, "page") {
+            el.attr("data-ui-open-page", p).attr("aria-haspopup", "true");
         }
         cx.open(&el, node)?;
         if let Some(i) = node.prop("icon") {

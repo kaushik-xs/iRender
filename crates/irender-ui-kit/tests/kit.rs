@@ -99,6 +99,9 @@ fn every_component_is_prefixed_documented_and_renders() {
         if c.name() == "ui-dialog-close" {
             root = json!({ "type": "ui-dialog", "children": [root] });
         }
+        if c.name() == "ui-command-page" {
+            root = json!({ "type": "ui-command", "children": [{ "type": "ui-command-page", "props": { "id": "p" } }] });
+        }
         if c.name() == "ui-command-item" {
             root = json!({ "type": "ui-command", "children": [root] });
         }
@@ -151,7 +154,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 116);
+    assert_eq!(kit, 117);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");

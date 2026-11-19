@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: `cargo fmt` in CI (one reformatting commit), or keyboard links in the Gantt chart.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
 
@@ -37,12 +37,11 @@ _Last updated: 2026-11-19._
     - [ ] Download all stores files without compressing them, and holds the zip in memory, so very large sets are slow.
   - [x] **Gantt chart** (2026-11-19): `ui-chart` `type: gantt`, a table of tasks beside their bars, groups that fold, progress, `after` arrows, milestones, `markers` and today, colours by `series` with a legend, zoom buttons, and a height that follows the rows (block gantt-01, charts gallery). Not done yet:
     - [x] The table is an HTML tree grid over the chart (2026-11-20): rows read out and moved through with the keys, groups opened with Right, Left and Enter, tasks picked with Enter.
-    - [x] Editing (2026-11-20): bars dragged to move or stretch them (a hold first by touch), Alt and the arrows on a row, written back to `bindData`; tasks that start before what they wait for ends are marked. Links drawn from a bar's dot and removed by clicking their arrow, and `cascade` moving the tasks that wait on a moved one (2026-11-20). Not done yet: dates snap to whole days only; links can't be drawn or removed from the keyboard; cascade only pushes later, never pulls tasks earlier.
+    - [x] Editing (2026-11-20): bars dragged to move or stretch them (a hold first by touch), Alt and the arrows on a row, written back to `bindData`; tasks that start before what they wait for ends are marked. Links drawn from a bar's dot and removed by clicking their arrow, and `cascade` moving the tasks that wait on a moved one (2026-11-20). Not done yet: dates snap to whole days only; cascade only pushes later, never pulls tasks earlier.
     - [ ] No scrolling inside the chart: a long plan is as tall as its rows. No critical path, baselines or working days (weekends count).
-    - [ ] Dates on the axis are ECharts' English month names, whatever the document's `lang`.
+    - [x] The axis's dates are in the document's `lang` (2026-11-20).
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
-    - [ ] No custom card content (a template per card), only the built-in fields.
-    - [ ] No swimlanes (rows by assignee or epic), and columns can't be reordered.
+    - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved; moving a column has no touch drag (the grip's keys work).
   - [x] **Dashboard grid** (2026-11-19): `ui-dashboard-grid` + `ui-tile`, tiles dragged by their header and resized from their corner (pointer events, so touch too) or with the arrow keys, pushing the others aside and floating up, locked tiles, the layout in `bind`, and one column on a narrow grid (block dashboard-02, gallery section). Not done yet:
     - [x] A layout per width (2026-11-20): `breakpoints` with each size's columns, tiles' `layouts` per size, the rest worked out from the widest, all in the page's CSS, and `bind` keeping each size's (block dashboard-02's tablet layout).
     - [ ] Tiles come from the document, not from a list in state, so a dashboard can't add or remove tiles on its own; show and hide them with `if` around the content.
@@ -85,15 +84,14 @@ _Last updated: 2026-11-19._
 - [ ] **Menus** (`ui-menubar`, `ui-navigation-menu`, submenus, checkbox and radio items shipped 2026-11-18):
   - [ ] The navigation menu's panels don't share one animated viewport that morphs between items, as Radix's does; each panel opens on its own.
   - [x] Submenus keep a "safe triangle" (2026-11-20): heading diagonally for an open submenu across other items doesn't close it; stopping on another item does, after 400ms.
-  - [ ] Checkbox and radio items close the menu when chosen; there's no option to keep it open.
+  - [x] Checkbox and radio items can keep the menu open (`keepOpen`, 2026-11-20).
 - [ ] **`ui-context-menu` gaps** (shipped 2026-11-18):
   - [x] Submenus, checkbox and radio items (2026-11-18), in every menu.
-  - [ ] iOS Safari sends no `contextmenu` on a long press, so touch users there can't open it. Idea: open after a 500 ms press.
+  - [x] A long press (500ms) by touch opens it, for iOS Safari, which sends no `contextmenu` (2026-11-20).
   - [ ] Right-clicking a data table row doesn't select it; items act on `bind`'s row, and the selection is separate.
 - [ ] **`ui-command` gaps:**
   - [x] Ranked, fuzzy matching (2026-11-20): best match first in each group and of the groups, letters in order, keywords, matched letters marked; `rank: false` for document order.
-  - [ ] No nested pages (cmdk's pattern of an item opening a sub-list, with Backspace going back), and no loading state for items fetched as you type.
-  - [ ] No way to read the search text from state, e.g. to fetch items for it. Idea: a `bind` for the query.
+  - [x] Pages (`ui-command-page`, an item's `page`, Backspace back) and `bindSearch` (2026-11-20). Not done yet: no loading state for items fetched as you type.
 - [ ] **`ui-sidebar` gaps:**
   - [ ] No remembered state: a reload opens it as `state` says (shadcn keeps it in a cookie).
   - [ ] No group actions or per-item action buttons (shadcn's `SidebarGroupAction`, `SidebarMenuAction`); put a `ui-dropdown-menu` beside the item instead.
@@ -123,7 +121,7 @@ _Last updated: 2026-11-19._
   - [ ] The conversation list in a sidebar can't star, rename or delete a thread on its own; the chat block hands those to the host with `call`.
   - [ ] No message actions (copy, retry, thumbs up/down) or edit-and-resend; put buttons in a `ui-message`'s children for messages written in the document.
   - [ ] No attachments or images in the input, and no tool-call or reasoning ("trace") blocks.
-- [ ] **`ui-carousel` gaps:** no slide indicators (dots), autoplay or looping, and the arrows scroll by the first slide's width, so slides of mixed widths step unevenly.
+- [x] **`ui-carousel`** (2026-11-20): dots, `loop`, `autoplay` with a pause button, and stepping to each slide's own start. Not done yet: no fade transition (it always scrolls).
   - [ ] The endpoint gets `{ messages }` only: no extra body fields or headers (auth), and no retry after a failure.
   - [ ] Replies in a thread don't nest further, and a reply can't be sent into a thread from the input.
   - [ ] A streamed reply rebuilds its message on each chunk, so screen readers may announce it more than once.

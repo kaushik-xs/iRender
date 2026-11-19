@@ -6048,3 +6048,318 @@ fn submenu_grace_triangle_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Kanban swimlanes, card fields and moving columns: a row of cells per assignee, cards
+/// moved within and across lanes (writing the field) by keys and by dragging, focus going
+/// on into the next lane, lanes folding, and columns moved by their grip.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn kanban_lanes_fields_and_columns_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": {
+            "cols": [ { "id": "todo", "title": "To do" }, { "id": "doing", "title": "Doing" }, { "id": "done", "title": "Done" } ],
+            "tasks": [
+                { "id": "a", "column": "todo", "title": "Alpha", "assignee": "Asha", "points": 3, "progress": 20, "risk": "High" },
+                { "id": "b", "column": "todo", "title": "Bravo", "assignee": "Asha" },
+                { "id": "c", "column": "doing", "title": "Charlie", "assignee": "Ravi" },
+                { "id": "d", "column": "done", "title": "Delta" } ] },
+        "root": { "type": "ui-kanban", "props": { "columns": "{{ cols }}", "cards": "{{ tasks }}", "bindCards": "tasks", "bindColumns": "cols",
+            "swimlanes": "assignee", "reorderable": true, "collapsible": true,
+            "fields": [ { "field": "points", "label": "Points" }, { "field": "progress", "label": "Done", "cell": "progress" }, { "field": "risk", "cell": "badge", "tones": { "High": "danger" } } ] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const K = document.querySelector("[data-i-x=ui-kanban]"), $ = (s) => K.querySelector(s), $$ = (s) => [...K.querySelectorAll(s)];
+      const card = (id) => $(`[data-kb-card="${id}"]`);
+      // Each lane: its name and count, then each cell's cards.
+      const board = () => $$("[data-kb-lane-row]").map((r) => r.querySelector("[data-kb-lane-fold]").textContent + "(" + r.querySelector("[data-kb-lane-head] [data-kb-count]").textContent + "):" +
+        [...r.querySelectorAll("[data-kb-column]")].map((c) => [...c.querySelectorAll("[data-kb-card]")].map((x) => x.getAttribute("data-kb-card")).join("")).join("/")).join(" ");
+      const heads = () => $$("[data-kb-colhead] h3").map((h) => h.textContent + " " + h.parentElement.querySelector("[data-kb-count]").textContent).join(", ");
+      const key = (k, o = {}) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...o }));
+      const focused = () => document.activeElement.getAttribute("data-kb-card");
+      const who = () => S().tasks.map((t) => t.id + ":" + (t.assignee ?? "-") + "@" + t.column).join(" ");
+      try {
+        log("lanes", board(), "|", heads());
+        log("fields", [...card("a").querySelectorAll("[data-kb-field]")].map((f) => f.textContent).join(" · "), card("a").querySelector("[data-kb-badge]").getAttribute("data-tone"), card("a").querySelector("[data-kb-progress]").getAttribute("aria-valuenow"));
+        // Down at the end of a cell: on into the next lane's cell in that column, if it has cards.
+        card("b").focus(); key("ArrowDown"); log("down at the end", focused());
+        // Alt+Down at the end of the cell: into the next lane, writing its assignee.
+        key("ArrowDown", { altKey: true }); await wait(0);
+        log("alt down", board(), "|", who());
+        // Dragging Alpha into Doing in Ravi's lane.
+        const dt = new DataTransfer(), cell = $('[data-kb-lane="Ravi"][data-kb-column="doing"] [data-kb-cards]'), r = cell.getBoundingClientRect();
+        card("a").dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+        cell.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+        cell.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+        $("[data-kb-board]").dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt })); await wait(0);
+        log("dragged", board(), "|", who());
+        // Folding a lane hides its cells.
+        $('[data-kb-lane-fold="Ravi"]').click(); await wait(0);
+        log("folded", $$('[data-kb-lane-row="Ravi"] [data-kb-column]').length, $('[data-kb-lane-fold="Ravi"]').getAttribute("aria-expanded"));
+        $('[data-kb-lane-fold="Ravi"]').click(); await wait(0);
+        // Columns: Right on To do's grip moves it after Doing.
+        $('[data-kb-grip="todo"]').focus(); key("ArrowRight"); await wait(0);
+        log("column right", S().cols.map((c) => c.id).join(","), heads(), document.activeElement.getAttribute("data-kb-grip"));
+        // Dragging Done's grip onto the first header (its left half): Done goes first.
+        const g = new DataTransfer(), first = $$("[data-kb-colhead]")[0], fr = first.getBoundingClientRect();
+        $('[data-kb-grip="done"]').dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: g }));
+        first.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: g, clientX: fr.left + 5, clientY: fr.top + 5 }));
+        first.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: g, clientX: fr.left + 5, clientY: fr.top + 5 }));
+        $("[data-kb-board]").dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: g })); await wait(0);
+        log("column dragged", S().cols.map((c) => c.id).join(","));
+        await wait(60);
+        log("said", $("[data-kb-live]").textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("kanban-lanes", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // A row per assignee, cards without one last; each lane's cells To do / Doing / Done.
+            "lanes Asha(2):ab// Ravi(1):/c/ No assignee(1)://d | To do 2, Doing 1, Done 1",
+            "fields Points3 · Done20% · High danger 20",
+            // Ravi's To do cell is empty, so Down stays on Bravo.
+            "down at the end b",
+            // Alt+Down at the end of the cell: into Ravi's lane, and Bravo's assignee is Ravi.
+            "alt down Asha(1):a// Ravi(2):b/c/ No assignee(1)://d | a:Asha@todo c:Ravi@doing d:-@done b:Ravi@todo",
+            // Dragged into Ravi's Doing; Asha's lane, now empty, goes (`lanes` would keep it).
+            "dragged Ravi(3):b/ca/ No assignee(1)://d | c:Ravi@doing a:Ravi@doing d:-@done b:Ravi@todo",
+            "folded 0 false",
+            "column right doing,todo,done Doing 2, To do 1, Done 1 todo",
+            "column dragged done,doing,todo",
+            "said Done moved to position 1 of 3",
+        ],
+        "\n{result}"
+    );
+}
+
+/// The carousel: slides of different widths stepped one at a time, dots marking and
+/// going to slides, `loop` going round at the ends, and `autoplay` moving on by itself
+/// while it isn't held by the pointer or paused.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn carousel_dots_loop_and_autoplay_in_chrome() {
+    let slide = |w: u32, t: &str| serde_json::json!({ "type": "element", "style": { "width": format!("{w}px"), "height": "60px", "background": "#ddd" }, "children": [ { "type": "text", "props": { "value": t } } ] });
+    let slides = || vec![slide(200, "A"), slide(380, "B"), slide(150, "C"), slide(300, "D"), slide(260, "E")];
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "stack", "style": { "width": "500px" }, "children": [
+        { "type": "ui-carousel", "attrs": { "id": "c" }, "props": { "size": "max-content", "gap": 10, "dots": true, "loop": true }, "children": slides() },
+        { "type": "ui-carousel", "attrs": { "id": "p" }, "props": { "size": "max-content", "gap": 10, "autoplay": 400 }, "children": slides() } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Headless Chrome doesn't animate smooth scrolling: scroll at once.
+      const scrollBy = Element.prototype.scrollBy;
+      Element.prototype.scrollBy = function (o) { return scrollBy.call(this, { ...o, behavior: "instant" }); };
+      const C = document.getElementById("c"), P = document.getElementById("p");
+      const track = (el) => el.querySelector("[data-track]");
+      // The slide at the start of the view, by its text.
+      const at = (el) => { const t = track(el), x = t.getBoundingClientRect().left; return [...t.children].find((s) => Math.abs(s.getBoundingClientRect().left - x) < 2)?.textContent ?? "?"; };
+      const dot = () => [...C.querySelectorAll("[data-dot]")].findIndex((d) => d.hasAttribute("aria-current"));
+      const settle = () => wait(60);
+      try {
+        log("start", at(C), C.querySelectorAll("[data-dot]").length, dot(), C.querySelector("[data-prev]").disabled, track(C).children[1].getAttribute("aria-label"));
+        for (const n of [1, 2, 3]) { C.querySelector("[data-next]").click(); await settle(); log("next", at(C), dot()); }
+        C.querySelectorAll("[data-dot]")[1].click(); await settle();
+        log("dot 2", at(C), dot());
+        C.querySelector("[data-prev]").click(); await settle(); C.querySelector("[data-prev]").click(); await settle();
+        log("looped back", at(C) === "E" || Math.abs(track(C).scrollLeft) + track(C).clientWidth >= track(C).scrollWidth - 2, dot());
+        // Autoplay: it moves on by itself (every 400ms).
+        const s0 = track(P).scrollLeft; await wait(450);
+        log("autoplay moved", track(P).scrollLeft !== s0);
+        // Paused: it stays.
+        P.querySelector("[data-play]").click();
+        const s1 = track(P).scrollLeft; await wait(900);
+        log("paused", track(P).scrollLeft === s1, P.querySelector("[data-play]").getAttribute("aria-pressed"), P.querySelector("[data-play]").getAttribute("aria-label"));
+        // Held by the pointer: it stays too.
+        P.querySelector("[data-play]").click();
+        P.dispatchEvent(new PointerEvent("pointerenter"));
+        const s2 = track(P).scrollLeft; await wait(900);
+        log("hovered", track(P).scrollLeft === s2);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("carousel", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Five dots, the first marked; with `loop`, Previous is never disabled.
+            "start A 5 0 false 2 of 5",
+            // A slide at a time, whatever their widths.
+            "next B 1",
+            "next C 2",
+            "next D 3",
+            "dot 2 B 1",
+            // Previous from the first goes round to the end.
+            "looped back true 4",
+            "autoplay moved true",
+            "paused true true Play slides",
+            "hovered true",
+        ],
+        "\n{result}"
+    );
+}
+
+/// Command palette pages and `bindSearch`: an item with `page` opens a page in place of
+/// the rest (its title as a crumb), pages nest, Backspace in the empty box and the crumb
+/// go back, and the search text is in state both ways.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn command_palette_pages_in_chrome() {
+    let item = |label: &str, extra: serde_json::Value| {
+        let mut props = serde_json::json!({ "label": label });
+        props.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        serde_json::json!({ "type": "ui-command-item", "props": props, "on": { "click": { "action": "set_state", "key": "ran", "value": label } } })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "ran": "", "q": "" },
+        "root": { "type": "ui-command", "props": { "id": "cmd", "bindSearch": "q" }, "children": [
+            item("New file", serde_json::json!({})),
+            item("Change theme…", serde_json::json!({ "page": "theme" })),
+            item("Teams…", serde_json::json!({ "page": "teams" })),
+            { "type": "ui-command-page", "props": { "id": "theme", "title": "Theme" }, "children": [ item("Light", serde_json::json!({})), item("Dark", serde_json::json!({})) ] },
+            { "type": "ui-command-page", "props": { "id": "teams", "title": "Teams" }, "children": [
+                item("Design", serde_json::json!({})), item("Engineering…", serde_json::json!({ "page": "eng" })) ] },
+            { "type": "ui-command-page", "props": { "id": "eng", "title": "Engineering" }, "children": [ item("Ravi", serde_json::json!({})), item("Asha", serde_json::json!({})) ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const P = document.getElementById("cmd"), input = P.querySelector("input"), crumb = P.querySelector("[data-ui-crumb]");
+      const view = () => [...P.querySelectorAll("[role=option]")].filter((i) => i.getClientRects().length).map((i) => i.querySelector("[data-ui-label]").textContent + (i.getAttribute("aria-selected") === "true" ? "*" : "")).join(", ") + (crumb.hidden ? "" : ` [${crumb.textContent}]`);
+      const key = async (k) => { input.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); await wait(0); };
+      const type = async (t) => { input.value = t; input.dispatchEvent(new Event("input", { bubbles: true })); await wait(0); };
+      const pick = async (label) => { [...P.querySelectorAll("[role=option]")].find((i) => i.textContent.includes(label)).click(); await wait(0); };
+      try {
+        log("top", view());
+        await pick("Change theme"); log("theme", view(), "| ran", S().ran);
+        await key("Backspace"); log("back", view());
+        await type("tea"); log("typed", view(), "| q", S().q);
+        await key("Enter"); log("enter on a page item", view(), "| q", JSON.stringify(S().q));
+        await pick("Engineering"); log("nested", view());
+        await key("Enter"); log("ran", S().ran, view());
+        await key("Backspace"); await key("Backspace"); log("back twice", view());
+        await pick("Teams"); crumb.click(); await wait(0); log("crumb", view());
+        // From state: the search box follows.
+        input.blur(); root.__irender.set("q", "dark"); await wait(0);
+        log("from state", input.value, view());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("command-pages", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "top New file*, Change theme…, Teams…",
+            // Its page in place of the rest, its title as a crumb; its own `on.click` runs too.
+            "theme Light*, Dark [Theme] | ran Change theme…",
+            "back New file*, Change theme…, Teams…",
+            "typed Teams…* | q tea",
+            // Enter on a page's item opens it, and the search starts afresh.
+            "enter on a page item Design*, Engineering… [Teams] | q \"\"",
+            "nested Ravi*, Asha [Engineering]",
+            "ran Ravi Ravi*, Asha [Engineering]",
+            "back twice New file*, Change theme…, Teams…",
+            "crumb New file*, Change theme…, Teams…",
+            // From state; Dark is in the Theme page, not the top, so nothing matches.
+            "from state dark ",
+        ],
+        "\n{result}"
+    );
+}
+
+/// A long press by touch opens a context menu (iOS sends no `contextmenu`), moving first
+/// doesn't, and the press's own `contextmenu` and click don't act again; menu checkbox and
+/// radio items with `keepOpen` leave the menu open.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn long_press_and_keep_open_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "row": null, "grid": false, "size": "m", "clicks": 0 },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-context-menu", "attrs": { "id": "ctx" }, "props": { "bind": "row" }, "children": [
+                { "type": "element", "attrs": { "id": "area", "data-context": "\"area\"" }, "style": { "height": "120px" },
+                  "on": { "click": { "action": "set_state", "key": "clicks", "value": "{{ clicks + 1 }}" } },
+                  "children": [ { "type": "text", "props": { "value": "Press here" } } ] },
+                { "type": "ui-menu-item", "props": { "label": "Copy" } } ] },
+            { "type": "ui-dropdown-menu", "props": { "id": "view", "trigger": "View" }, "children": [
+                { "type": "ui-menu-checkbox", "props": { "label": "Grid", "bind": "grid", "keepOpen": true } },
+                { "type": "ui-menu-radio-group", "props": { "bind": "size", "options": ["s", "m", "l"], "keepOpen": true } },
+                { "type": "ui-menu-checkbox", "props": { "label": "Closes", "bind": "grid" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const area = document.getElementById("area"), menu = document.querySelector("#ctx [role=menu]");
+      const touch = (type, x, y) => area.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, pointerType: "touch", isPrimary: true, clientX: x, clientY: y }));
+      const r = area.getBoundingClientRect(), x = r.left + 30, y = r.top + 30;
+      try {
+        // Moving first: a scroll, no menu.
+        touch("pointerdown", x, y); touch("pointermove", x, y + 30); await wait(600); touch("pointerup", x, y + 30);
+        log("moved", menu.matches(":popover-open"));
+        // Held still: open at the finger, with what was pressed.
+        touch("pointerdown", x, y); await wait(600);
+        log("held", menu.matches(":popover-open"), Math.round(menu.getBoundingClientRect().left - x), Math.round(menu.getBoundingClientRect().top - y), JSON.stringify(S().row));
+        touch("pointerup", x, y);
+        // Android's own contextmenu for the same press, and the tap's click: nothing more.
+        area.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        area.click(); await wait(0);
+        log("after", menu.matches(":popover-open"), S().clicks);
+        menu.hidePopover(); await wait(800);
+        area.click(); await wait(0);
+        log("later click", S().clicks);
+        // keepOpen: the menu stays as items are chosen; an item without it closes it.
+        const view = document.getElementById("view"), item = (l) => [...view.querySelectorAll("[role^=menuitem]")].find((i) => i.textContent.includes(l));
+        document.querySelector('[popovertarget="view"]').click(); await wait(20);
+        item("Grid").click(); await wait(20);
+        log("checkbox", view.matches(":popover-open"), S().grid);
+        item("l").click(); await wait(20);
+        log("radio", view.matches(":popover-open"), S().size);
+        item("Closes").click(); await wait(20);
+        log("closes", view.matches(":popover-open"), S().grid);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("long-press", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "moved false",
+            // At the finger, with the pressed element's context.
+            "held true 0 0 \"area\"",
+            // The same press's `contextmenu` and click do nothing more.
+            "after true 0",
+            "later click 1",
+            "checkbox true true",
+            "radio true l",
+            "closes false false",
+        ],
+        "\n{result}"
+    );
+}

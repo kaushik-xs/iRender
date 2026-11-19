@@ -54,6 +54,11 @@ fn item_text(cx: &mut RenderCx<'_>, node: &Node) -> Result<(), RenderError> {
     Ok(())
 }
 
+/// `keepOpen`: choosing the item leaves the menu open.
+fn keep_open(cx: &RenderCx<'_>, node: &Node) -> bool {
+    cx.prop(node, "keepOpen").is_some_and(|v| expr::truthy(&v))
+}
+
 /// The menu the item is in closes when it's chosen.
 fn closes_menu(cx: &RenderCx<'_>, el: &mut Element<'_>) {
     if let Some(menu) = context(cx, "ui-popover") {
@@ -149,6 +154,7 @@ const CHECKBOX_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding `true` / `false`; choosing the item flips it").required(),
     PropDef::new("shortcut", PropKind::Any, "Keyboard hint shown on the right"),
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
+    PropDef::new("keepOpen", PropKind::Bool, "The menu stays open when it's chosen, for flipping several settings in a row"),
 ];
 
 impl Component for MenuCheckbox {
@@ -158,7 +164,7 @@ impl Component for MenuCheckbox {
 
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
-            doc: "A menu item that turns a setting on and off (`role=menuitemcheckbox`), with a check while it's on. Choosing it flips `bind` and closes the menu.",
+            doc: "A menu item that turns a setting on and off (`role=menuitemcheckbox`), with a check while it's on. Choosing it flips `bind` and closes the menu (unless `keepOpen`).",
             props: CHECKBOX_PROPS,
             parts: &["shortcut"],
             children: false,
@@ -181,7 +187,9 @@ impl Component for MenuCheckbox {
         if let Some(d) = node.prop("disabled") {
             el.attr("disabled", d.clone());
         }
-        closes_menu(cx, &mut el);
+        if !keep_open(cx, node) {
+            closes_menu(cx, &mut el);
+        }
         cx.open(&el, node)?;
         let mut mark = Element::new("span");
         mark.base_style_ref(&INDICATOR).attr("data-ui-indicator", true).attr("aria-hidden", "true");
@@ -199,6 +207,7 @@ const RADIO_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the chosen value").required(),
     PropDef::new("options", PropKind::Any, "Values, or `{ value, label, shortcut, disabled }`").required(),
     PropDef::new("label", PropKind::Any, "Accessible name of the group"),
+    PropDef::new("keepOpen", PropKind::Bool, "The menu stays open when one is chosen"),
 ];
 
 impl Component for MenuRadioGroup {
@@ -208,7 +217,7 @@ impl Component for MenuRadioGroup {
 
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
-            doc: "Menu items that pick one of several values (`role=menuitemradio`), with a dot by the chosen one. Choosing one writes its value to `bind` and closes the menu.",
+            doc: "Menu items that pick one of several values (`role=menuitemradio`), with a dot by the chosen one. Choosing one writes its value to `bind` and closes the menu (unless `keepOpen`).",
             props: RADIO_PROPS,
             parts: &[],
             children: false,
@@ -247,7 +256,9 @@ impl Component for MenuRadioGroup {
                 .attr("data-ui-pick", key.clone())
                 .attr("data-ui-value", value.to_string())
                 .attr("disabled", disabled);
-            closes_menu(cx, &mut el);
+            if !keep_open(cx, node) {
+                closes_menu(cx, &mut el);
+            }
             cx.open(&el, node)?;
             let mut mark = Element::new("span");
             mark.base_style_ref(&INDICATOR).attr("data-ui-indicator", true).attr("aria-hidden", "true");

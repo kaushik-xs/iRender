@@ -474,6 +474,21 @@ fn gantt_links_in_chrome() {
     canvas.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: canvas.getBoundingClientRect().left + bStart - 6, clientY: canvas.getBoundingClientRect().top + row(1) }));
     await wait(60);
     log("unlinked", tasks(), S().links);
+    // From the keyboard: L on D, then Enter on B: B waits for D. Again: it no longer does.
+    const row_ = (k) => el("g").querySelector(`[data-gantt-table] [data-key="${k}"]`);
+    const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+    const said = async () => { await wait(60); return el("g").querySelector("[role=status]").textContent; };
+    row_("d").focus(); key("l");
+    log("linking", row_("d").hasAttribute("data-linking"), await said());
+    row_("b").focus(); key("Enter"); await wait(60);
+    log("key linked", tasks(), S().links, await said());
+    row_("d").focus(); key("L"); row_("b").focus(); key("Enter"); await wait(60);
+    log("key unlinked", tasks(), S().links);
+    // A circle is refused (C waits for B, so B can't wait for C); Escape stops.
+    row_("c").focus(); key("l"); row_("b").focus(); key("Enter"); await wait(60);
+    log("key circle", tasks(), await said());
+    row_("a").focus(); key("l"); key("Escape");
+    log("escape", !!el("g").querySelector("[data-linking]"), await said());
 "##;
     let Some(lines) = run("gantt-links", &engine, doc, &driver(body)) else { return };
     let expected = [
@@ -483,6 +498,12 @@ fn gantt_links_in_chrome() {
         "linked a:03-02..03-12 b:03-13..03-17<a c:03-18..03-22<b+d d:03-02..03-04 1",
         "circle a:03-02..03-12 b:03-13..03-17<a c:03-18..03-22<b+d d:03-02..03-04 1 A can't wait for C: C waits for it",
         "unlinked a:03-02..03-12 b:03-13..03-17 c:03-18..03-22<b+d d:03-02..03-04 2",
+        // The keyboard: L on D, Enter on B.
+        "linking true Linking from D: go to the task that waits for it and press Enter, or Escape to stop",
+        "key linked a:03-02..03-12 b:03-13..03-17<d c:03-18..03-22<b+d d:03-02..03-04 3 B now waits for D",
+        "key unlinked a:03-02..03-12 b:03-13..03-17 c:03-18..03-22<b+d d:03-02..03-04 4",
+        "key circle a:03-02..03-12 b:03-13..03-17 c:03-18..03-22<b+d d:03-02..03-04 B can't wait for C: C waits for it",
+        "escape false Stopped linking",
     ];
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }

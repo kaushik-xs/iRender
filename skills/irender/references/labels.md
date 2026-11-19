@@ -81,11 +81,25 @@ root: …
 "{n} dates": "{n} dates"
 ```
 
+`carousel.js`
+
+```yaml
+"slide": "slide"
+"{n} of {count}": "{n} of {count}"
+"Go to slide {n}": "Go to slide {n}"
+"Play slides": "Play slides"
+"Pause slides": "Pause slides"
+```
+
 `carousel.rs`
 
 ```yaml
+"Previous slide": "Previous slide"
+"Next slide": "Next slide"
 "carousel": "carousel"
 "Carousel": "Carousel"
+"Pause slides": "Pause slides"
+"Slides": "Slides"
 ```
 
 `chat.rs`
@@ -156,6 +170,8 @@ root: …
 `command.js`
 
 ```yaml
+"Back from {page}": "Back from {page}"
+"{page}: {n} items": "{page}: {n} items"
 "{n} results available.": { one: "{n} result available.", other: "{n} results available." }
 ```
 
@@ -407,12 +423,15 @@ root: …
 `kanban.js`
 
 ```yaml
+"No {field}": "No {field}"
 "card": "card"
 "{priority} priority": "{priority} priority"
 "due {date}": "due {date}"
 "assigned to {name}": "assigned to {name}"
-"{n} cards": { one: "{n} card", other: "{n} cards" }
+"Move column {name}": "Move column {name}"
+"Drag, or press Left or Right, to move the column": "Drag, or press Left or Right, to move the column"
 "Limit {limit}": "Limit {limit}"
+"{n} cards": { one: "{n} card", other: "{n} cards" }
 "No cards": "No cards"
 "Card title, then Enter": "Card title, then Enter"
 "New card in {name}": "New card in {name}"
@@ -420,6 +439,7 @@ root: …
 "{title} moved to position {n} in {column}": "{title} moved to position {n} in {column}"
 "{title} moved to {column}, position {n}": "{title} moved to {column}, position {n}"
 "Added {title} to {column}": "Added {title} to {column}"
+"{name} moved to position {n} of {count}": "{name} moved to position {n} of {count}"
 ```
 
 `kanban.rs`
@@ -428,8 +448,11 @@ root: …
 "Board": "Board"
 "board": "board"
 "No cards": "No cards"
-"{n} cards": { one: "{n} card", other: "{n} cards" }
 "Add card": "Add card"
+"{n} cards": { one: "{n} card", other: "{n} cards" }
+"No {field}": "No {field}"
+"Move column {name}": "Move column {name}"
+"Drag, or press Left or Right, to move the column": "Drag, or press Left or Right, to move the column"
 "{priority} priority": "{priority} priority"
 "due {date}": "due {date}"
 "assigned to {name}": "assigned to {name}"
@@ -721,7 +744,9 @@ root: …
 "{to} now waits for {from}": "{to} now waits for {from}"
 "{to} no longer waits for {from}": "{to} no longer waits for {from}"
 "{to} can't wait for {from}: {from} waits for it": "{to} can't wait for {from}: {from} waits for it"
+"Stopped linking": "Stopped linking"
 "Tasks": "Tasks"
+"Linking from {name}: go to the task that waits for it and press Enter, or Escape to stop": "Linking from {name}: go to the task that waits for it and press Enter, or Escape to stop"
 ```
 
 ## Flow kit

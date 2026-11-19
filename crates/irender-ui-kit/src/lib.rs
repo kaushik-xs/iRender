@@ -190,6 +190,7 @@ pub fn register(registry: &mut Registry) {
         .register(command::CommandDialog)
         .register(command::CommandGroup)
         .register(command::CommandItem)
+        .register(command::CommandPage)
         .register(command::CommandSeparator)
         .register(chat::Conversation)
         .register(chat::Message)

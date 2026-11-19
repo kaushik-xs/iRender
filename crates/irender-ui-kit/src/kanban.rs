@@ -33,6 +33,16 @@ const PROPS: &[PropDef] = &[
     PropDef::new("emptyText", PropKind::String, "In a column with no cards (default `No cards`)"),
     PropDef::new("columnWidth", PropKind::Number, "Each column's width in px (default 280)"),
     PropDef::new("label", PropKind::Any, "Names the board for screen readers (default `Board`)"),
+    PropDef::new("swimlanes", PropKind::String, "A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it"),
+    PropDef::new("lanes", PropKind::Any, "With `swimlanes`, the lanes in order: values or `{ value, label }` (default: the values as cards have them)"),
+    PropDef::new(
+        "fields",
+        PropKind::Any,
+        "More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`",
+    ),
+    PropDef::new("reorderable", PropKind::Bool, "A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)"),
+    PropDef::new("bindColumns", PropKind::StateKey, "State key the columns are in: a moved column's new order is written back to it"),
+    PropDef::new("locale", PropKind::String, "Locale for `date` fields (default: the document's `lang`)"),
 ];
 
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
@@ -91,6 +101,65 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kb-fold]:focus-visible", forms::focus_ring())
         // Folded: a narrow strip with the title down its side.
         .nest("& [data-kb-column][data-collapsed]", pairs(&[("flex-basis", "44px"), ("align-items", "center")]))
+        // Swimlanes: the columns' headers in a row, then a row of cells per lane.
+        .nest("& [data-kb-board][data-kb-lanes]", pairs(&[("flex-direction", "column"), ("align-items", "stretch"), ("gap", sp!(8))]))
+        .nest("& :is([data-kb-heads], [data-kb-cells])", pairs(&[("display", "flex"), ("align-items", "stretch"), ("gap", sp!(12)), ("width", "max-content")]))
+        .nest(
+            "& [data-kb-colhead]",
+            pairs(&[
+                ("--tone", MUTED),
+                ("flex", "0 0 var(--kb-width, 280px)"),
+                ("box-sizing", "border-box"),
+                ("padding", sp!(6, 10)),
+                ("border-radius", "var(--radius-lg)"),
+                ("background", "color-mix(in srgb, var(--color-text) 3.5%, var(--color-surface, #fff))"),
+            ]),
+        )
+        .nest("& [data-kb-colhead][data-collapsed]", pairs(&[("flex-basis", "44px")]))
+        .nest("& [data-kb-lanes] [data-kb-column]", pairs(&[("border-radius", "var(--radius-md)"), ("min-height", "56px")]))
+        .nest(
+            "& [data-kb-lane-head]",
+            pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("width", "fit-content"), ("padding", sp!(6, 2, 4))]),
+        )
+        .nest(
+            "& [data-kb-lane-fold]",
+            pairs(&[
+                ("display", "inline-flex"),
+                ("align-items", "center"),
+                ("gap", sp!(6)),
+                ("padding", sp!(2, 6)),
+                ("border", "0"),
+                ("border-radius", "var(--radius-sm)"),
+                ("background", "none"),
+                ("color", TEXT),
+                ("font", "inherit"),
+                ("font-weight", "600"),
+                ("cursor", "pointer"),
+            ]),
+        )
+        .nest("& [data-kb-lane-fold]:hover", pairs(&[("background", ACCENT)]))
+        .nest("& [data-kb-lane-fold]:focus-visible", forms::focus_ring())
+        .nest("& [data-kb-lane-row][data-collapsed] [data-kb-lane-fold] svg", pairs(&[("transform", "rotate(-90deg)")]))
+        .nest("&:dir(rtl) [data-kb-lane-row][data-collapsed] [data-kb-lane-fold] svg", pairs(&[("transform", "rotate(90deg)")]))
+        .nest("& [data-kb-lane-head] [data-kb-count]", pairs(&[("color", MUTED), ("font-size", fs!(12))]))
+        // A column's grip, to move it.
+        .nest(
+            "& [data-kb-grip]",
+            pairs(&[("flex", "none"), ("display", "grid"), ("place-items", "center"), ("width", "18px"), ("height", "22px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", MUTED), ("cursor", "grab"), ("opacity", ".7")]),
+        )
+        .nest("& [data-kb-grip]:hover", pairs(&[("background", ACCENT), ("opacity", "1")]))
+        .nest("& [data-kb-grip]:focus-visible", forms::focus_ring())
+        .nest("& [data-kb-head][data-over-drop]", pairs(&[("box-shadow", "inset 3px 0 0 var(--color-primary)"), ("border-radius", "var(--radius-sm)")]))
+        // `fields`: a line each.
+        .nest("& [data-kb-fields]", pairs(&[("display", "grid"), ("gap", sp!(4)), ("font-size", fs!(12))]))
+        .nest("& [data-kb-field]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(6)), ("min-width", "0")]))
+        .nest("& [data-kb-field-label]", pairs(&[("color", MUTED)]))
+        .nest("& [data-kb-field-value]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest(
+            "& [data-kb-progress]",
+            pairs(&[("flex", "1"), ("height", "6px"), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 10%, transparent)"), ("overflow", "hidden")]),
+        )
+        .nest("& [data-kb-progress] > span", pairs(&[("display", "block"), ("height", "100%"), ("background", "var(--color-primary)")]))
         .nest("& [data-collapsed] [data-kb-head]", pairs(&[("flex-direction", "column"), ("padding", "2px 0")]))
         .nest("& [data-collapsed] [data-kb-head] h3", pairs(&[("writing-mode", "vertical-rl"), ("overflow", "visible")]))
         .nest("& [data-collapsed] [data-kb-fold]", pairs(&[("margin", "0"), ("order", "-1"), ("transform", "rotate(180deg)")]))
@@ -123,7 +192,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("margin", "0"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
         )
         .nest("& [data-kb-tags]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", "4px")]))
-        .nest("& [data-kb-tags] span, & [data-kb-priority]", tag)
+        .nest("& [data-kb-tags] span, & [data-kb-priority], & [data-kb-badge]", tag)
         .nest("& [data-kb-foot]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(12))]))
         .nest(
             "& [data-kb-avatar]",
@@ -182,7 +251,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& *", pairs(&[("transition", "none !important")])));
     // Column dots, tags and priorities take their tone.
-    tone_rules(tone_rules(b, "& [data-kb-column]"), "& :is([data-kb-tags] span, [data-kb-priority])")
+    tone_rules(tone_rules(tone_rules(b, "& [data-kb-column]"), "& [data-kb-colhead]"), "& :is([data-kb-tags] span, [data-kb-priority], [data-kb-badge])")
 });
 
 const PRIORITY: &[(&str, &str)] = &[("urgent", "danger"), ("critical", "danger"), ("high", "warning"), ("medium", "info"), ("normal", "info"), ("low", "neutral")];
@@ -230,6 +299,26 @@ impl Component for Kanban {
             return Err(RenderError::new(node, "`addable` needs `bindCards`, to add the new card to"));
         }
         let width = cx.prop(node, "columnWidth").map_or(280.0, |v| expr::to_num(&v));
+        let lane_field = cx.prop_string(node, "swimlanes").filter(|f| !f.is_empty());
+        let reorderable = flag(cx, "reorderable", false);
+        let fields: Vec<Json> = match cx.prop(node, "fields") {
+            None | Some(Json::Null) => Vec::new(),
+            Some(Json::Array(a)) => a
+                .into_iter()
+                .map(|f| match f {
+                    Json::String(name) => Ok(json!({ "field": name })),
+                    Json::Object(ref m) if m.contains_key("field") => {
+                        let cell = m.get("cell").map(expr::stringify).unwrap_or_else(|| "text".into());
+                        if !["text", "badge", "progress", "date"].contains(&cell.as_str()) {
+                            return Err(RenderError::new(node, format!("a field's `cell` is text, badge, progress or date, not `{cell}`")));
+                        }
+                        Ok(f)
+                    }
+                    _ => Err(RenderError::new(node, "each of `fields` is a field name or `{ field, label, cell }`")),
+                })
+                .collect::<Result<_, _>>()?,
+            Some(_) => return Err(RenderError::new(node, "`fields` must be a list")),
+        };
 
         crate::touch_drag(cx);
         cx.global_js("ui-kanban", SCRIPT);
@@ -240,6 +329,12 @@ impl Component for Kanban {
             "movable": movable, "addable": addable, "collapsible": collapsible, "collapsed": collapsed,
             "addLabel": node.prop("addLabel").map(|v| expr::stringify(&cx.eval(v))),
             "emptyText": cx.prop_string(node, "emptyText"),
+            "swimlanes": lane_field,
+            "lanes": node.prop("lanes").map(|l| dynamic(cx, node, "lanes", l)).transpose()?,
+            "fields": fields,
+            "reorderable": reorderable,
+            "bindColumns": cx.prop_string(node, "bindColumns"),
+            "locale": crate::locale(cx, node),
         });
         let mut root = cx.element("div", node);
         root.base_style_ref(&BOARD)
@@ -251,86 +346,83 @@ impl Component for Kanban {
         cx.open(&root, node)?;
         let mut board = cx.part("div", node, "board");
         board.attr("data-kb-board", true);
+        if lane_field.is_some() {
+            board.attr("data-kb-lanes", true);
+        }
         cx.open(&board, node)?;
-        let empty = cx.prop_string(node, "emptyText").unwrap_or_else(|| cx.label("No cards"));
+        let look = Look {
+            empty: cx.prop_string(node, "emptyText").unwrap_or_else(|| cx.label("No cards")),
+            add: node.prop("addLabel").cloned().unwrap_or_else(|| lit(cx.label("Add card"))),
+            movable,
+            addable,
+            collapsible,
+            reorderable,
+            fields: &fields,
+        };
         let mut first = true;
-        for col in &columns {
-            let (id, title) = match col {
-                Json::Object(m) => (text(m.get("id")), m.get("title").map(expr::stringify).unwrap_or_else(|| text(m.get("id")))),
-                other => (expr::stringify(other), expr::stringify(other)),
-            };
-            let mine: Vec<&Json> = cards.iter().filter(|c| text(c.get("column")) == id).collect();
-            let limit = col.get("limit").filter(|l| !l.is_null()).map(expr::to_num);
-            let folded = collapsed.contains(&id);
-            let mut section = Element::new("section");
-            section
-                .attr("data-kb-column", id.clone())
-                .attr("aria-label", format!("{title}, {}", cx.label_count("{n} card", "{n} cards", mine.len() as f64)));
-            if let Some(t) = col.get("tone").filter(|t| !t.is_null()) {
-                section.attr("data-tone", expr::stringify(t));
+        let column_cards = |id: &str| cards.iter().filter(|c| text(c.get("column")) == id).collect::<Vec<_>>();
+        match &lane_field {
+            None => {
+                for col in &columns {
+                    let id = col_id(col);
+                    let mine = column_cards(&id);
+                    column_cell(cx, node, &look, col, None, &mine, mine.len(), &collapsed, true, &mut first)?;
+                }
             }
-            if limit.is_some_and(|l| mine.len() as f64 > l) {
-                section.attr("data-over", true);
+            Some(field) => {
+                // A row of the columns' headers, then a row of cells per lane under its header.
+                let mut heads = Element::new("div");
+                heads.attr("data-kb-heads", true);
+                cx.open(&heads, node)?;
+                for col in &columns {
+                    let id = col_id(col);
+                    let mut h = Element::new("div");
+                    h.attr("data-kb-colhead", id.clone());
+                    if let Some(t) = col.get("tone").filter(|t| !t.is_null()) {
+                        h.attr("data-tone", expr::stringify(t));
+                    }
+                    if collapsed.contains(&id) {
+                        h.attr("data-collapsed", true);
+                    }
+                    cx.open(&h, node)?;
+                    column_head(cx, node, &look, col, column_cards(&id).len(), &collapsed)?;
+                    cx.close("div");
+                }
+                cx.close("div");
+                for (key, name) in lanes_of(cx, node, field, &cards)? {
+                    let mine: Vec<&Json> = cards.iter().filter(|c| lane_key(lookup(c, field)) == key).collect();
+                    let mut row = Element::new("section");
+                    row.attr("data-kb-lane-row", key.clone()).attr("aria-label", format!("{name}, {}", cx.label_count("{n} card", "{n} cards", mine.len() as f64)));
+                    cx.open(&row, node)?;
+                    let mut head = Element::new("header");
+                    head.attr("data-kb-lane-head", true);
+                    cx.open(&head, node)?;
+                    let mut b = Element::new("button");
+                    b.attr("type", "button").attr("data-kb-lane-fold", key.clone()).attr("aria-expanded", "true");
+                    cx.open(&b, node)?;
+                    cx.markup(LANE_ICON);
+                    let mut l = Element::new("span");
+                    l.text(lit(name.clone()));
+                    cx.open(&l, node)?;
+                    cx.close("span");
+                    cx.close("button");
+                    let mut n = Element::new("span");
+                    n.attr("data-kb-count", true).text(lit(mine.len().to_string()));
+                    cx.open(&n, node)?;
+                    cx.close("span");
+                    cx.close("header");
+                    let mut cells = Element::new("div");
+                    cells.attr("data-kb-cells", true);
+                    cx.open(&cells, node)?;
+                    for col in &columns {
+                        let id = col_id(col);
+                        let here: Vec<&Json> = mine.iter().copied().filter(|c| text(c.get("column")) == id).collect();
+                        column_cell(cx, node, &look, col, Some((&key, &name)), &here, column_cards(&id).len(), &collapsed, false, &mut first)?;
+                    }
+                    cx.close("div");
+                    cx.close("section");
+                }
             }
-            if folded {
-                section.attr("data-collapsed", true);
-            }
-            cx.open(&section, node)?;
-            let mut head = Element::new("header");
-            head.attr("data-kb-head", true);
-            cx.open(&head, node)?;
-            let mut dot = Element::new("span");
-            dot.attr("data-kb-dot", true).attr("aria-hidden", "true");
-            cx.open(&dot, node)?;
-            cx.close("span");
-            let mut h = Element::new("h3");
-            h.text(lit(title.clone()));
-            cx.open(&h, node)?;
-            cx.close("h3");
-            let mut count = Element::new("span");
-            count.attr("data-kb-count", true).text(lit(match limit {
-                Some(l) => format!("{} / {}", mine.len(), l),
-                None => mine.len().to_string(),
-            }));
-            cx.open(&count, node)?;
-            cx.close("span");
-            if collapsible {
-                let mut b = Element::new("button");
-                b.attr("type", "button")
-                    .attr("data-kb-fold", true)
-                    .attr("aria-expanded", if folded { "false" } else { "true" })
-                    .attr("aria-label", cx.label_with(if folded { "Show {name}" } else { "Hide {name}" }, &[("name", &title)]));
-                cx.open(&b, node)?;
-                cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#);
-                cx.close("button");
-            }
-            cx.close("header");
-            let mut list = Element::new("div");
-            list.attr("data-kb-cards", true).attr("role", "list");
-            cx.open(&list, node)?;
-            for c in &mine {
-                card(cx, node, c, movable, first)?;
-                first = false;
-            }
-            if mine.is_empty() {
-                let mut p = Element::new("p");
-                p.attr("data-kb-empty", true).text(lit(empty.clone()));
-                cx.open(&p, node)?;
-                cx.close("p");
-            }
-            cx.close("div");
-            if addable {
-                let mut b = Element::new("button");
-                b.attr("type", "button").attr("data-kb-add", true);
-                cx.open(&b, node)?;
-                cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#);
-                let mut l = Element::new("span");
-                l.text(node.prop("addLabel").cloned().unwrap_or_else(|| lit(cx.label("Add card"))));
-                cx.open(&l, node)?;
-                cx.close("span");
-                cx.close("button");
-            }
-            cx.close("section");
         }
         cx.close("div");
         let mut live = Element::new("div");
@@ -342,8 +434,200 @@ impl Component for Kanban {
     }
 }
 
+const LANE_ICON: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>"#;
+const GRIP: &str = r#"<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="2.5" cy="2.5" r="1.2"/><circle cx="7.5" cy="2.5" r="1.2"/><circle cx="2.5" cy="7" r="1.2"/><circle cx="7.5" cy="7" r="1.2"/><circle cx="2.5" cy="11.5" r="1.2"/><circle cx="7.5" cy="11.5" r="1.2"/></svg>"#;
+
+/// How the board draws its columns and cards.
+struct Look<'a> {
+    empty: String,
+    add: irender_core::Val,
+    movable: bool,
+    addable: bool,
+    collapsible: bool,
+    reorderable: bool,
+    fields: &'a [Json],
+}
+
+fn col_id(col: &Json) -> String {
+    match col {
+        Json::Object(m) => text(m.get("id")),
+        other => expr::stringify(other),
+    }
+}
+fn col_title(col: &Json) -> String {
+    match col {
+        Json::Object(m) => m.get("title").map(expr::stringify).unwrap_or_else(|| text(m.get("id"))),
+        other => expr::stringify(other),
+    }
+}
+/// A dotted field of a card.
+fn lookup<'a>(c: &'a Json, field: &str) -> Option<&'a Json> {
+    field.split('.').try_fold(c, |v, k| v.get(k))
+}
+/// A lane's key from a card's value: a name (or label, id) for an object, else the text.
+fn lane_key(v: Option<&Json>) -> String {
+    match v {
+        None | Some(Json::Null) => String::new(),
+        Some(Json::Object(m)) => text(m.get("name").or(m.get("label")).or(m.get("id"))),
+        Some(other) => expr::stringify(other),
+    }
+}
+/// The lanes, as `kanban.js` finds them: `lanes` in order, then the cards' values as they
+/// come, the cards without a value last. Each is its key and its name.
+fn lanes_of(cx: &RenderCx<'_>, node: &Node, field: &str, cards: &[Json]) -> Result<Vec<(String, String)>, RenderError> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let named = |k: &str, v: Option<&Json>| -> String {
+        if k.is_empty() {
+            return cx.label_with("No {field}", &[("field", field)]);
+        }
+        match v {
+            Some(Json::Object(m)) => text(m.get("name").or(m.get("label")).or(m.get("id"))),
+            _ => k.to_string(),
+        }
+    };
+    match cx.prop(node, "lanes") {
+        None | Some(Json::Null) => {}
+        Some(Json::Array(a)) => {
+            for l in &a {
+                let (v, label) = match l {
+                    Json::Object(m) if m.contains_key("value") => (m.get("value"), m.get("label").map(expr::stringify)),
+                    other => (Some(other), None),
+                };
+                let k = lane_key(v);
+                if !out.iter().any(|(x, _)| *x == k) {
+                    out.push((k.clone(), label.unwrap_or_else(|| named(&k, v))));
+                }
+            }
+        }
+        Some(_) => return Err(RenderError::new(node, "`lanes` must be a list")),
+    }
+    for c in cards {
+        let v = lookup(c, field);
+        let k = lane_key(v);
+        if !out.iter().any(|(x, _)| *x == k) {
+            out.push((k.clone(), named(&k, v)));
+        }
+    }
+    let (some, none): (Vec<_>, Vec<_>) = out.into_iter().partition(|(k, _)| !k.is_empty());
+    Ok(some.into_iter().chain(none).collect())
+}
+
+/// A column's header: its grip (`reorderable`), dot, title, count of every card in it,
+/// and fold button.
+fn column_head(cx: &mut RenderCx<'_>, node: &Node, look: &Look<'_>, col: &Json, count: usize, collapsed: &[String]) -> Result<(), RenderError> {
+    let (id, title) = (col_id(col), col_title(col));
+    let limit = col.get("limit").filter(|l| !l.is_null()).map(expr::to_num);
+    let folded = collapsed.contains(&id);
+    let mut head = Element::new("header");
+    head.attr("data-kb-head", true);
+    cx.open(&head, node)?;
+    if look.reorderable {
+        let mut g = Element::new("button");
+        g.attr("type", "button")
+            .attr("data-kb-grip", id.clone())
+            .attr("draggable", "true")
+            .attr("aria-label", cx.label_with("Move column {name}", &[("name", &title)]))
+            .attr("title", cx.label("Drag, or press Left or Right, to move the column"));
+        cx.open(&g, node)?;
+        cx.markup(GRIP);
+        cx.close("button");
+    }
+    let mut dot = Element::new("span");
+    dot.attr("data-kb-dot", true).attr("aria-hidden", "true");
+    cx.open(&dot, node)?;
+    cx.close("span");
+    let mut h = Element::new("h3");
+    h.text(lit(title.clone()));
+    cx.open(&h, node)?;
+    cx.close("h3");
+    let mut n = Element::new("span");
+    n.attr("data-kb-count", true).text(lit(match limit {
+        Some(l) => format!("{count} / {l}"),
+        None => count.to_string(),
+    }));
+    cx.open(&n, node)?;
+    cx.close("span");
+    if look.collapsible {
+        let mut b = Element::new("button");
+        b.attr("type", "button")
+            .attr("data-kb-fold", true)
+            .attr("aria-expanded", if folded { "false" } else { "true" })
+            .attr("aria-label", cx.label_with(if folded { "Show {name}" } else { "Hide {name}" }, &[("name", &title)]));
+        cx.open(&b, node)?;
+        cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#);
+        cx.close("button");
+    }
+    cx.close("header");
+    Ok(())
+}
+
+/// A column's cards in one lane (or all of them, `lane` none): its header too when
+/// `with_head`, the list, the empty note and Add card.
+#[allow(clippy::too_many_arguments)]
+fn column_cell(
+    cx: &mut RenderCx<'_>,
+    node: &Node,
+    look: &Look<'_>,
+    col: &Json,
+    lane: Option<(&String, &String)>,
+    mine: &[&Json],
+    in_column: usize,
+    collapsed: &[String],
+    with_head: bool,
+    first: &mut bool,
+) -> Result<(), RenderError> {
+    let (id, title) = (col_id(col), col_title(col));
+    let limit = col.get("limit").filter(|l| !l.is_null()).map(expr::to_num);
+    let name = lane.map_or(title.clone(), |(_, n)| format!("{title}, {n}"));
+    let mut section = Element::new("section");
+    section.attr("data-kb-column", id.clone()).attr("aria-label", format!("{name}, {}", cx.label_count("{n} card", "{n} cards", mine.len() as f64)));
+    if let Some((k, _)) = lane {
+        section.attr("data-kb-lane", k.clone());
+    }
+    if let Some(t) = col.get("tone").filter(|t| !t.is_null()) {
+        section.attr("data-tone", expr::stringify(t));
+    }
+    if limit.is_some_and(|l| in_column as f64 > l) {
+        section.attr("data-over", true);
+    }
+    if collapsed.contains(&id) {
+        section.attr("data-collapsed", true);
+    }
+    cx.open(&section, node)?;
+    if with_head {
+        column_head(cx, node, look, col, in_column, collapsed)?;
+    }
+    let mut list = Element::new("div");
+    list.attr("data-kb-cards", true).attr("role", "list");
+    cx.open(&list, node)?;
+    for c in mine {
+        card(cx, node, c, look.movable, *first, look.fields)?;
+        *first = false;
+    }
+    if mine.is_empty() {
+        let mut p = Element::new("p");
+        p.attr("data-kb-empty", true).text(lit(look.empty.clone()));
+        cx.open(&p, node)?;
+        cx.close("p");
+    }
+    cx.close("div");
+    if look.addable {
+        let mut b = Element::new("button");
+        b.attr("type", "button").attr("data-kb-add", true);
+        cx.open(&b, node)?;
+        cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#);
+        let mut l = Element::new("span");
+        l.text(look.add.clone());
+        cx.open(&l, node)?;
+        cx.close("span");
+        cx.close("button");
+    }
+    cx.close("section");
+    Ok(())
+}
+
 /// One card, as `kanban.js` draws it.
-fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool) -> Result<(), RenderError> {
+fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool, fields: &[Json]) -> Result<(), RenderError> {
     let title = text(c.get("title"));
     let who = c.get("assignee").filter(|a| !a.is_null() && *a != &json!(""));
     let who_name = who.map(|w| if w.is_object() { text(w.get("name")) } else { expr::stringify(w) });
@@ -377,6 +661,63 @@ fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool
         p.attr("data-kb-desc", true).text(lit(expr::stringify(d)));
         cx.open(&p, node)?;
         cx.close("p");
+    }
+    // `fields`: a line each (dates as written; the script writes them in the locale).
+    let shown: Vec<(&Json, &Json)> = fields.iter().filter_map(|f| lookup(c, &text(f.get("field"))).filter(|v| !v.is_null() && **v != json!("")).map(|v| (f, v))).collect();
+    if !shown.is_empty() {
+        let mut box_ = Element::new("div");
+        box_.attr("data-kb-fields", true);
+        cx.open(&box_, node)?;
+        for (f, v) in shown {
+            let field = text(f.get("field"));
+            let mut row = Element::new("div");
+            row.attr("data-kb-field", field.clone());
+            cx.open(&row, node)?;
+            if let Some(l) = f.get("label").filter(|l| !l.is_null()) {
+                let mut s = Element::new("span");
+                s.attr("data-kb-field-label", true).text(lit(expr::stringify(l)));
+                cx.open(&s, node)?;
+                cx.close("span");
+            }
+            let value = expr::stringify(v);
+            match f.get("cell").map(expr::stringify).as_deref() {
+                Some("badge") => {
+                    let tone = f.get("tones").and_then(|t| t.get(&value)).map(expr::stringify).unwrap_or_else(|| "neutral".into());
+                    let mut s = Element::new("span");
+                    s.attr("data-kb-badge", true).attr("data-tone", tone).text(lit(value));
+                    cx.open(&s, node)?;
+                    cx.close("span");
+                }
+                Some("progress") => {
+                    let n = expr::to_num(v).clamp(0.0, 100.0);
+                    let mut bar = Element::new("span");
+                    bar.attr("data-kb-progress", true)
+                        .attr("role", "progressbar")
+                        .attr("aria-valuenow", lit(n))
+                        .attr("aria-valuemin", "0")
+                        .attr("aria-valuemax", "100")
+                        .attr("aria-label", f.get("label").map(expr::stringify).unwrap_or_else(|| field.clone()));
+                    cx.open(&bar, node)?;
+                    let mut fill = Element::new("span");
+                    fill.attr("style", format!("width: {n}%"));
+                    cx.open(&fill, node)?;
+                    cx.close("span");
+                    cx.close("span");
+                    let mut s = Element::new("span");
+                    s.attr("data-kb-field-value", true).text(lit(format!("{n}%")));
+                    cx.open(&s, node)?;
+                    cx.close("span");
+                }
+                _ => {
+                    let mut s = Element::new("span");
+                    s.attr("data-kb-field-value", true).text(lit(value));
+                    cx.open(&s, node)?;
+                    cx.close("span");
+                }
+            }
+            cx.close("div");
+        }
+        cx.close("div");
     }
     if let Some(Json::Array(tags)) = c.get("tags").filter(|t| t.as_array().is_some_and(|a| !a.is_empty())) {
         let mut box_ = Element::new("div");

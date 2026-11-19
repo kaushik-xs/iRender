@@ -7,6 +7,37 @@
   const list = el.querySelector("[role=listbox]");
   const empty = el.querySelector("[data-ui-empty]");
   const live = el.querySelector("[data-ui-live]");
+  const crumb = el.querySelector("[data-ui-crumb]");
+  // Pages: an item's `page` opens a `ui-command-page`, shown in place of the rest.
+  const pages = [];
+  const pageOf = (n) => n.parentElement?.closest("[data-ui-page]")?.getAttribute("data-ui-page") ?? null;
+  const here = () => pages.at(-1) ?? null;
+  function openPage(id) {
+    const p = list.querySelector(`[data-ui-page="${CSS.escape(id)}"]`);
+    if (!p) return;
+    pages.push(id);
+    showPage();
+  }
+  function back() {
+    pages.pop();
+    showPage();
+  }
+  function showPage(focus = true) {
+    const id = here();
+    for (const p of list.querySelectorAll("[data-ui-page]")) p.hidden = p.getAttribute("data-ui-page") !== id;
+    crumb.hidden = id === null;
+    if (id !== null) {
+      const title = list.querySelector(`[data-ui-page="${CSS.escape(id)}"]`).getAttribute("data-ui-page-title");
+      crumb.textContent = title;
+      crumb.setAttribute("aria-label", L("Back from {page}", { page: title }));
+    }
+    input.value = "";
+    if (api.config.bindSearch) api.set(api.config.bindSearch, "");
+    active = null;
+    filter();
+    live.textContent = id === null ? "" : L("{page}: {n} items", { page: crumb.textContent, n: usable().length });
+    if (focus) input.focus();
+  }
   // Interface text in the document's words (its `labels`), by the English.
   const L = (text, vars) => window.__irender.label(text, vars);
   const dialog = el.closest("dialog");
@@ -103,7 +134,8 @@
     const found = [], scores = new Map();
     for (const i of items()) {
       if (!i.id) i.id = `${list.id}-${ids++}`;
-      const m = words.length ? match(i, words, typed) : { s: 0, at: [] };
+      // Only the open page's items (or, at the top, those in no page).
+      const m = pageOf(i) !== here() ? null : words.length ? match(i, words, typed) : { s: 0, at: [] };
       i.hidden = !m;
       if (!m) continue;
       shown++;
@@ -120,7 +152,7 @@
     }
     mark(found);
     for (const g of list.querySelectorAll("[role=group]")) g.hidden = !g.querySelector("[role=option]:not([hidden])");
-    for (const s of list.querySelectorAll("[role=separator]")) s.hidden = words.length > 0;
+    for (const s of list.querySelectorAll("[role=separator]")) s.hidden = words.length > 0 || pageOf(s) !== here();
     empty.hidden = shown > 0;
     // Typing again starts from the best match.
     const can = usable();
@@ -133,7 +165,9 @@
     active = null;
     const n = filter();
     live.textContent = L(["{n} result available.", "{n} results available."], { n });
+    if (api.config.bindSearch) api.set(api.config.bindSearch, input.value);
   });
+  crumb.addEventListener("click", back);
 
   input.addEventListener("keydown", (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
@@ -152,7 +186,12 @@
       // The first Escape clears the search; only the next one reaches the dialog.
       e.preventDefault();
       input.value = "";
+      if (api.config.bindSearch) api.set(api.config.bindSearch, "");
       filter();
+    } else if ((e.key === "Backspace" || e.key === "Escape") && !input.value && pages.length) {
+      // In a page, with nothing typed: back a page.
+      e.preventDefault();
+      back();
     }
   });
 
@@ -164,14 +203,19 @@
   });
   // Bubbles here after the item's own `on.click` has run.
   list.addEventListener("click", (e) => {
-    if (dialog && e.target.closest("[role=option]")) shut();
+    const item = e.target.closest("[role=option]");
+    // An item with a `page` opens it, and the palette stays.
+    const page = item?.getAttribute("data-ui-open-page");
+    if (page) return openPage(page);
+    if (dialog && item) shut();
   });
 
   // Each opening starts afresh, even one right after closing.
   function reset() {
     input.value = "";
     active = null;
-    filter();
+    pages.length = 0;
+    showPage(false);
   }
   function shut() {
     dialog.close();
@@ -205,4 +249,16 @@
   // Items from state are rebuilt by the runtime: filter the new ones too.
   new MutationObserver(() => filter()).observe(list, { childList: true, subtree: true });
   filter();
+  return {
+    // The search text from `bindSearch`, when it's changed from outside.
+    update() {
+      const key = api.config.bindSearch;
+      if (!key || document.activeElement === input) return;
+      const v = String(api.state[key] ?? "");
+      if (v !== input.value) {
+        input.value = v;
+        filter();
+      }
+    },
+  };
 };

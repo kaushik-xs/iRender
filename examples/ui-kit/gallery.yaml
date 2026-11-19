@@ -2170,6 +2170,16 @@ root:
                                 - type: ui-command-item
                                   props: { label: Settings, icon: "⚙️", shortcut: "⌘S", keywords: preferences }
                                   on: { click: { action: set_state, key: toast, value: { title: Settings } } }
+                                - { type: ui-command-item, props: { label: Change theme…, icon: "🎨", page: theme } }
+                            - type: ui-command-page
+                              props: { id: theme, title: Theme }
+                              children:
+                                - type: ui-command-item
+                                  props: { label: Light, icon: "☀️" }
+                                  on: { click: { action: set_state, key: toast, value: { title: Light theme } } }
+                                - type: ui-command-item
+                                  props: { label: Dark, icon: "🌙" }
+                                  on: { click: { action: set_state, key: toast, value: { title: Dark theme } } }
                         - type: stack
                           props: { gap: 8 }
                           children:
@@ -2685,7 +2695,7 @@ root:
                   children: *head
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
                 - type: ui-carousel
-                  props: { label: Plans, size: 240 }
+                  props: { label: Plans, size: 240, dots: true, loop: true }
                   children:
                     - { type: ui-card, props: { title: Starter, description: For side projects. }, children: [ { type: ui-heading, props: { level: 3, text: Free } } ] }
                     - { type: ui-card, props: { title: Pro, description: For growing teams. }, children: [ { type: ui-heading, props: { level: 3, text: $12 / month } } ] }

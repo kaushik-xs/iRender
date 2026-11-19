@@ -1,5 +1,5 @@
 // irender-ui-kit: the `ui-context-menu` behaviour. A right-click on the area (or Shift+F10,
-// or the menu key, on something focused in it) writes what was clicked to `bind` and
+// or the menu key, on something focused in it, or a long press by touch) writes what was clicked to `bind` and
 // opens the menu at the pointer, kept on screen. The menu is a `ui-dropdown-menu`'s, so
 // it focuses its first item and handles the keys; closing puts focus back where it was.
 (window.__irenderBehaviors ||= {})["ui-context-menu"] = (el, api) => {
@@ -41,8 +41,37 @@
     return true;
   }
 
+  // A long press (500ms) by touch opens it too: iOS sends no `contextmenu` for one.
+  // Moving first is a scroll; the browser's own event after it opens nothing more.
+  let press = null, pressed = -Infinity;
+  el.addEventListener("pointerdown", (e) => {
+    if (e.pointerType !== "touch" || !e.isPrimary || menu.contains(e.target)) return;
+    clearTimeout(press?.timer);
+    press = { x: e.clientX, y: e.clientY, target: e.target, id: e.pointerId };
+    press.timer = setTimeout(() => {
+      if (press && open(press.x, press.y, press.target)) {
+        pressed = performance.now();
+        navigator.vibrate?.(8);
+      }
+      press = null;
+    }, 500);
+  });
+  const unpress = (e) => {
+    if (!press || e.pointerId !== press.id) return;
+    if (e.type !== "pointermove" || Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) {
+      clearTimeout(press.timer);
+      press = null;
+    }
+  };
+  for (const t of ["pointermove", "pointerup", "pointercancel"]) el.addEventListener(t, unpress);
+  // The tap that ends a long press isn't a click on what was under it.
+  el.addEventListener("click", (e) => performance.now() - pressed < 700 && !menu.contains(e.target) && (e.preventDefault(), e.stopPropagation()), true);
   el.addEventListener("contextmenu", (e) => {
     if (menu.contains(e.target)) return e.preventDefault();
+    // Opened by a long press just now: this one (Android sends it) is the same press.
+    if (performance.now() - pressed < 1000) return e.preventDefault();
+    clearTimeout(press?.timer);
+    press = null;
     // Shift+F10 was handled as a key; some browsers follow it with this event, once.
     if (keyed && keyed.target === e.target && e.timeStamp - keyed.at < 500) {
       keyed = null;
