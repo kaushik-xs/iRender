@@ -8,13 +8,14 @@
   // Interface text in the document's words (the Rust side is irender-core's labels.rs).
   // `text` is the English, or `[one, other]` for a count in `vars.n`; the label is found
   // by the English (the `other` form), and may be plural forms picked by the document's
-  // `lang`. `{name}`s are filled from `vars`, numbers written in the `lang`'s way.
+  // `lang`. `{name}`s are filled from `vars`, numbers written in the `lang`'s way (English
+  // without one, as the server writes them).
   const labelSets = [];
   const rules = {}, numbers = {};
   window.__irender.label = (text, vars = {}) => {
     const [one, other] = Array.isArray(text) ? text : [text, text];
     let set = labelSets.find((x) => x.labels && Object.hasOwn(x.labels, other));
-    const lang = (set ?? labelSets.find((x) => x.lang))?.lang || undefined;
+    const lang = (set ?? labelSets.find((x) => x.lang))?.lang || "en";
     const l = set?.labels[other], n = vars.n;
     let s;
     if (typeof l === "string") s = l;

@@ -40,7 +40,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("weekStart", PropKind::Number, "0 for Sunday, 1 for Monday (default)"),
     PropDef::new("maxPerDay", PropKind::Number, "Events shown in a month's day before `+N more` (default 3)"),
     PropDef::new("today", PropKind::String, "The date to treat as today (default: the real one)"),
-    PropDef::new("locale", PropKind::String, "Locale for dates and times (default: the browser's)"),
+    PropDef::new("locale", PropKind::String, "Locale for dates and times (default: the document's `lang`, else the browser's)"),
     PropDef::new("emptyText", PropKind::Any, "The list view's text for a month with nothing in it"),
     PropDef::new("label", PropKind::Any, "Names it for screen readers (default `Calendar`)"),
 ];
@@ -287,7 +287,7 @@ impl Component for EventCalendar {
             "weekStart": week_start as i64,
             "maxPerDay": cx.prop(node, "maxPerDay").map(|v| expr::to_num(&v).max(1.0) as i64),
             "today": cx.prop_string(node, "today"),
-            "locale": cx.prop_string(node, "locale"),
+            "locale": crate::locale(cx, node),
             "emptyText": node.prop("emptyText").map(|v| expr::stringify(&cx.eval(v))),
         });
         let mut root = cx.element("div", node);

@@ -18,7 +18,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("currency", PropKind::String, "An ISO currency code, e.g. `INR`: its symbol goes before the number, and its decimals apply"),
     PropDef::new("prefix", PropKind::Any, "Text before the number, e.g. `~` (instead of a currency's symbol)"),
     PropDef::new("suffix", PropKind::Any, "Text after the number, e.g. `kg` or `%`"),
-    PropDef::new("locale", PropKind::String, "How the number is written, e.g. `en-IN` (default: the browser's)"),
+    PropDef::new("locale", PropKind::String, "How the number is written, e.g. `en-IN` (default: the document's `lang`, else the browser's)"),
     PropDef::new("min", PropKind::Number, "The smallest it can be; leaving the field raises it to this"),
     PropDef::new("max", PropKind::Number, "The largest it can be"),
     PropDef::new("step", PropKind::Number, "How much Up, Down and the buttons change it (default 1)"),
@@ -157,7 +157,7 @@ impl Component for NumberInput {
         let current = cx.lookup(std::slice::from_ref(&key));
         cx.global_js("ui-number-input", SCRIPT);
         let config = json!({
-            "bind": key, "currency": currency, "locale": cx.prop_string(node, "locale"),
+            "bind": key, "currency": currency, "locale": crate::locale(cx, node),
             "min": min, "max": max, "step": step, "decimals": decimals.map(|d| d as i64),
         });
         let mut root = cx.element("div", node);

@@ -4,8 +4,9 @@
 //!
 //! A label's key is the English text, with `{name}` where a value goes. A value is the
 //! text to use, or for a count (`{n}`), its plural forms: `{ one, other }`, and `zero`,
-//! `two`, `few` or `many` where the language has them (the browser picks with
-//! `Intl.PluralRules` for `lang`; the server knows only `one` and `other`).
+//! `two`, `few` or `many` where the language has them. The browser picks with
+//! `Intl.PluralRules` for `lang`; the server follows the same rules for common languages
+//! ([`plural`]) and writes the count as the browser would ([`number`]).
 
 use crate::Diagnostics;
 use indexmap::IndexMap;
@@ -82,16 +83,16 @@ impl Labels {
     }
 
     /// A count: `one` or `other` in English (`{n} row`, `{n} rows`), looked up by the
-    /// `other` form, with `{n}` and any `vars` filled in.
+    /// `other` form, with `{n}` (written in the language's way) and any `vars` filled in.
     pub fn count(&self, one: &str, other: &str, n: f64, vars: &[(&str, &str)]) -> String {
-        let category = if n == 1.0 { "one" } else { "other" };
+        let category = plural(self.lang.as_deref(), n);
         let s = match self.map.get(other) {
             Some(Label::Plural(forms)) => forms.get(category).or_else(|| forms.get("other")).map_or(other, String::as_str),
             Some(Label::Text(s)) => s.as_str(),
             None if n == 1.0 => one,
             None => other,
         };
-        let n = if n.fract() == 0.0 { format!("{}", n as i64) } else { n.to_string() };
+        let n = number(self.lang.as_deref(), n);
         let mut all = vec![("n", n.as_str())];
         all.extend_from_slice(vars);
         fill(s, &all)
@@ -111,6 +112,131 @@ impl Labels {
             .collect();
         json!({ "lang": self.lang, "labels": labels })
     }
+}
+
+/// The language part of a tag: `pt` for `pt-BR`.
+fn base(lang: Option<&str>) -> String {
+    lang.unwrap_or("en").split('-').next().unwrap_or("en").to_ascii_lowercase()
+}
+
+/// The plural category of `n` in `lang`, as `Intl.PluralRules` gives it, for the
+/// languages people most often write documents in; others use English's `one` and
+/// `other`. Fractions are `other`, except where a language says otherwise.
+pub fn plural(lang: Option<&str>, n: f64) -> &'static str {
+    let whole = n.fract() == 0.0 && n >= 0.0;
+    let i = n.abs().trunc() as u64;
+    let (m10, m100) = (i % 10, i % 100);
+    let few = whole && (2..=4).contains(&m10) && !(12..=14).contains(&m100);
+    match base(lang).as_str() {
+        // No plural forms.
+        "ja" | "zh" | "ko" | "th" | "vi" | "id" | "ms" => "other",
+        // 0 and 1 (and what's between) are one.
+        "fr" | "hi" | "bn" | "fa" | "pa" | "gu" | "mr" | "kn" | "am" | "zu" => {
+            if n.abs() < 2.0 {
+                "one"
+            } else {
+                "other"
+            }
+        }
+        "pt" if lang.is_some_and(|l| !l.eq_ignore_ascii_case("pt-PT")) => {
+            if n.abs() < 2.0 {
+                "one"
+            } else {
+                "other"
+            }
+        }
+        "ru" | "uk" | "be" => match () {
+            _ if !whole => "other",
+            _ if m10 == 1 && m100 != 11 => "one",
+            _ if few => "few",
+            _ => "many",
+        },
+        "pl" => match () {
+            _ if !whole => "other",
+            _ if i == 1 => "one",
+            _ if few => "few",
+            _ => "many",
+        },
+        "cs" | "sk" => match () {
+            _ if !whole => "many",
+            _ if i == 1 => "one",
+            _ if (2..=4).contains(&i) => "few",
+            _ => "other",
+        },
+        "ar" => match () {
+            _ if !whole => "other",
+            _ if i == 0 => "zero",
+            _ if i == 1 => "one",
+            _ if i == 2 => "two",
+            _ if (3..=10).contains(&m100) => "few",
+            _ if (11..=99).contains(&m100) => "many",
+            _ => "other",
+        },
+        "he" => match () {
+            _ if whole && i == 1 => "one",
+            _ if whole && i == 2 => "two",
+            _ => "other",
+        },
+        _ => {
+            if whole && i == 1 {
+                "one"
+            } else {
+                "other"
+            }
+        }
+    }
+}
+
+/// `n` as `Intl.NumberFormat` writes it in `lang` (at most three decimals), for the
+/// languages [`plural`] knows; others group with a comma, as English does.
+pub fn number(lang: Option<&str>, n: f64) -> String {
+    // Group separator, decimal mark, and the fewest digits before a group is made.
+    let (group, decimal, min) = match base(lang).as_str() {
+        "de" | "nl" | "id" | "tr" | "da" | "el" => (".", ",", 4),
+        "it" => (".", ",", 5),
+        "pt" if lang.is_some_and(|l| !l.eq_ignore_ascii_case("pt-PT")) => (".", ",", 4),
+        "es" => (".", ",", 5),
+        "pt" => ("\u{a0}", ",", 5),
+        "pl" => ("\u{a0}", ",", 5),
+        "fr" => ("\u{202f}", ",", 4),
+        "ru" | "uk" | "cs" | "sk" | "sv" | "nb" | "no" | "fi" => ("\u{a0}", ",", 4),
+        "be" | "hu" => ("\u{a0}", ",", 5),
+        _ => (",", ".", 4),
+    };
+    let neg = n < 0.0;
+    let s = format!("{:.3}", n.abs());
+    let (int, frac) = s.split_once('.').unwrap_or((&s, ""));
+    let frac = frac.trim_end_matches('0');
+    let indian = matches!(base(lang).as_str(), "hi" | "bn" | "mr" | "gu" | "pa" | "kn") || lang.is_some_and(|l| l.eq_ignore_ascii_case("en-IN"));
+    let grouped = if int.len() < min {
+        int.to_string()
+    } else if indian {
+        // 12,34,567: three digits, then twos.
+        let (head, last3) = int.split_at(int.len() - 3);
+        let mut parts: Vec<&str> = Vec::new();
+        let mut rest = head;
+        while rest.len() > 2 {
+            let (a, b) = rest.split_at(rest.len() - 2);
+            parts.insert(0, b);
+            rest = a;
+        }
+        if !rest.is_empty() {
+            parts.insert(0, rest);
+        }
+        parts.push(last3);
+        parts.join(group)
+    } else {
+        let bytes: Vec<char> = int.chars().collect();
+        let mut out = String::new();
+        for (k, c) in bytes.iter().enumerate() {
+            if k > 0 && (bytes.len() - k).is_multiple_of(3) {
+                out.push_str(group);
+            }
+            out.push(*c);
+        }
+        out
+    };
+    format!("{}{grouped}{}{}", if neg { "-" } else { "" }, if frac.is_empty() { "" } else { decimal }, frac)
 }
 
 /// `{name}` replaced by its value; a `{name}` without one stays.
@@ -146,7 +272,35 @@ mod tests {
         assert_eq!(l.count("{n} row", "{n} rows", 1.0, &[]), "1 fila");
         assert_eq!(l.count("{n} row", "{n} rows", 3.0, &[]), "3 filas");
         assert_eq!(l.count("{n} item", "{n} items", 1.0, &[]), "1 item");
-        assert_eq!(l.count("{n} item", "{n} items", 2.5, &[]), "2.5 items");
+        assert_eq!(l.count("{n} item", "{n} items", 2.5, &[]), "2,5 items", "es writes a decimal comma");
+    }
+
+    #[test]
+    fn plural_rules_and_numbers_match_the_browsers() {
+        let cats = |lang: &str, ns: &[f64]| ns.iter().map(|n| plural(Some(lang), *n)).collect::<Vec<_>>().join(" ");
+        assert_eq!(cats("en", &[0.0, 1.0, 2.0, 1.5]), "other one other other");
+        assert_eq!(cats("fr", &[0.0, 1.0, 1.5, 2.0]), "one one one other");
+        assert_eq!(cats("pl", &[1.0, 2.0, 5.0, 12.0, 22.0, 25.0, 1.5]), "one few many many few many other");
+        assert_eq!(cats("ru", &[1.0, 21.0, 11.0, 3.0, 13.0, 5.0]), "one one many few many many");
+        assert_eq!(cats("cs", &[1.0, 3.0, 5.0, 1.5]), "one few other many");
+        assert_eq!(cats("ar", &[0.0, 1.0, 2.0, 3.0, 11.0, 100.0]), "zero one two few many other");
+        assert_eq!(cats("ja", &[1.0, 2.0]), "other other");
+        assert_eq!(cats("pt-BR", &[0.0, 1.0, 2.0]), "one one other");
+        assert_eq!(cats("pt-PT", &[0.0, 1.0, 2.0]), "other one other");
+        let num = |lang: Option<&str>, n: f64| number(lang, n);
+        assert_eq!(num(None, 1234567.5), "1,234,567.5");
+        assert_eq!(num(Some("en"), 999.0), "999");
+        assert_eq!(num(Some("de"), 1234.25), "1.234,25");
+        assert_eq!(num(Some("es"), 1234.0), "1234", "Spanish groups from five digits");
+        assert_eq!(num(Some("es"), 12345.0), "12.345");
+        assert_eq!(num(Some("fr"), 1234.0), "1\u{202f}234");
+        assert_eq!(num(Some("pl"), 1234.0), "1234");
+        assert_eq!(num(Some("ru"), 1234.0), "1\u{a0}234");
+        assert_eq!(num(Some("hi"), 1234567.0), "12,34,567");
+        assert_eq!(num(Some("en-IN"), 12345.0), "12,345");
+        assert_eq!(num(Some("en"), -0.125), "-0.125");
+        assert_eq!(num(Some("it"), 1234.0), "1234");
+        assert_eq!(num(Some("hu"), 12345.0), "12\u{a0}345");
     }
 
     #[test]

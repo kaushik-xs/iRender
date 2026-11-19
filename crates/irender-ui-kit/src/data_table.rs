@@ -87,7 +87,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("export", PropKind::Any, "An Export button that downloads the rows that pass the filters as CSV: `true`, or the file's name"),
     PropDef::new("title", PropKind::Any, "Accessible name of the table"),
     PropDef::new("emptyText", PropKind::Any, "Shown when no row matches (default `No results.`)"),
-    PropDef::new("locale", PropKind::String, "Locale for formatted numbers and dates (default: the browser's)"),
+    PropDef::new("locale", PropKind::String, "Locale for formatted numbers and dates (default: the document's `lang`, else the browser's)"),
     PropDef::new("height", PropKind::Any, "Most the table grows to before it scrolls, with the header kept in view"),
     PropDef::new("striped", PropKind::Bool, "Shade every other row"),
     PropDef::new("loading", PropKind::Any, "Dim the rows and mark the table busy, e.g. `{{ fetching }}`"),
@@ -950,7 +950,7 @@ impl Component for DataTable {
             "sort": sort,
             "filter": node.prop("filter").map(|f| dynamic(cx, node, "filter", f)).transpose()?,
             "pageSize": page_size,
-            "locale": cx.prop_string(node, "locale"),
+            "locale": crate::locale(cx, node),
             "detail": parts.detail.is_some(),
             "bind": {
                 "selection": bind("bindSelection"), "sort": bind("bindSort"), "filters": bind("bindFilters"),
@@ -961,7 +961,7 @@ impl Component for DataTable {
             "searchText": state_of(bind("bindSearch")),
         });
         let clickable = bind("bindRow").is_some();
-        let locale = cx.prop_string(node, "locale");
+        let locale = crate::locale(cx, node);
         let search_text = state_of(bind("bindSearch")).map(|v| expr::stringify(&v)).unwrap_or_default();
         cx.global_js("ui-data-table", SCRIPT);
 

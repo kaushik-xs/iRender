@@ -41,7 +41,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("live", PropKind::Bool, "Apply each change at once, with no Apply button"),
     PropDef::new("chips", PropKind::Bool, "Show the applied filters as chips beside the button (default true)"),
     PropDef::new("currency", PropKind::String, "Currency code for `currency` filters, e.g. `INR` (default `USD`)"),
-    PropDef::new("locale", PropKind::String, "Locale for numbers and dates in chips (default: the browser's)"),
+    PropDef::new("locale", PropKind::String, "Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)"),
     PropDef::new("bindViews", PropKind::StateKey, "State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them"),
     PropDef::new("today", PropKind::String, "The date date presets count from (default: today)"),
     PropDef::new("id", PropKind::Any, "The panel's element id (default: derived from the document)"),
@@ -424,7 +424,7 @@ impl Component for Filters {
             "live": live,
             "rows": node.prop("rows").map(|r| dynamic(cx, node, "rows", r)).transpose()?,
             "currency": cx.prop_string(node, "currency"),
-            "locale": cx.prop_string(node, "locale"),
+            "locale": crate::locale(cx, node),
             "bindViews": cx.prop_string(node, "bindViews"),
             "today": cx.prop_string(node, "today"),
             "defs": defs.iter().map(|d| json!({
@@ -515,7 +515,7 @@ impl Component for Filters {
         cx.close("div");
 
         for (i, d) in defs.iter().enumerate() {
-            pane(cx, node, &id, i, d, cx.prop_string(node, "currency").as_deref(), cx.prop_string(node, "locale").as_deref())?;
+            pane(cx, node, &id, i, d, cx.prop_string(node, "currency").as_deref(), crate::locale(cx, node).as_deref())?;
         }
         cx.close("div");
 

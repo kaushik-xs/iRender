@@ -111,9 +111,9 @@ root: …
 ```
 
 - `{name}` marks a value filled in; keep it in your text, anywhere in it.
-- A count's key (one with `{n}`) takes plural forms, `{ one, other }`, plus `zero`, `two`, `few` or `many` where the language has them. The browser picks with `Intl.PluralRules` for `lang`, and the server, which only draws the first view, knows `one` and `other`. A single text is used for every count.
+- A count's key (one with `{n}`) takes plural forms, `{ one, other }`, plus `zero`, `two`, `few` or `many` where the language has them. The browser picks with `Intl.PluralRules` for `lang`, and the server follows the same rules for the common languages (English, French, Spanish, Portuguese, German, Italian, Dutch, Polish, Russian, Ukrainian, Czech, Arabic, Hebrew, Hindi, Japanese, Chinese, Korean and others; the rest as English). A single text is used for every count. The count is written in the language's way (`1.234` in German), on the server and in the browser alike.
 - Every key, by kit and component, is in [the labels reference](https://github.com/kaushik-xs/iRender/blob/main/skills/irender/references/labels.md), generated from the source by `tools/labels.py`.
-- Dates and numbers aren't labels: they follow each component's `locale` (default: the browser's).
+- Dates and numbers aren't labels: they follow each component's `locale`, which defaults to `lang` (and without either, to the browser's).
 - A component reads a label with `cx.label("…")`, `cx.label_with("…", &[(name, value)])` or `cx.label_count(one, other, n)` on the server, and `window.__irender.label(text, vars)` in the browser (`[one, other]` for a count).
 
 ## Form controls

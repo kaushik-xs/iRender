@@ -253,7 +253,7 @@ ui-filters: Filters for a list: a button that opens a side panel of fields, each
   live         bool  Apply each change at once, with no Apply button
   chips        bool  Show the applied filters as chips beside the button (default true)
   currency     string  Currency code for `currency` filters, e.g. `INR` (default `USD`)
-  locale       string  Locale for numbers and dates in chips (default: the browser's)
+  locale       string  Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)
   bindViews    statekey  State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them
   today        string  The date date presets count from (default: today)
   id           any  The panel's element id (default: derived from the document)
@@ -386,7 +386,7 @@ ui-event-calendar: Events in a month grid, a week of hours, or a list by day, co
   weekStart    number  0 for Sunday, 1 for Monday (default)
   maxPerDay    number  Events shown in a month's day before `+N more` (default 3)
   today        string  The date to treat as today (default: the real one)
-  locale       string  Locale for dates and times (default: the browser's)
+  locale       string  Locale for dates and times (default: the document's `lang`, else the browser's)
   emptyText    any  The list view's text for a month with nothing in it
   label        any  Names it for screen readers (default `Calendar`)
   parts: toolbar
@@ -396,7 +396,7 @@ ui-number-input: A number or an amount, grouped as it's typed (`1,25,000`), with
   currency     string  An ISO currency code, e.g. `INR`: its symbol goes before the number, and its decimals apply
   prefix       any  Text before the number, e.g. `~` (instead of a currency's symbol)
   suffix       any  Text after the number, e.g. `kg` or `%`
-  locale       string  How the number is written, e.g. `en-IN` (default: the browser's)
+  locale       string  How the number is written, e.g. `en-IN` (default: the document's `lang`, else the browser's)
   min          number  The smallest it can be; leaving the field raises it to this
   max          number  The largest it can be
   step         number  How much Up, Down and the buttons change it (default 1)
@@ -864,7 +864,7 @@ ui-calendar: An inline calendar: days (with a time), months, quarters or years; 
   dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
   bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
   name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
-  locale       string  Locale for names and formats (default: the browser's)
+  locale       string  Locale for names and formats (default: the document's `lang`, else the browser's)
   label        any  Accessible name
   id           any  Element id (default: derived from the document)
   clearable    bool  A Clear button under the calendar
@@ -887,7 +887,7 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
   dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
   bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
   name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
-  locale       string  Locale for names and formats (default: the browser's)
+  locale       string  Locale for names and formats (default: the document's `lang`, else the browser's)
   label        any  Accessible name
   id           any  Element id (default: derived from the document)
   input        bool  A text field to type the value in (`15/03/2026`, `Mar 15`, `today`), with a button beside it for the calendar
@@ -928,7 +928,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   export       any  An Export button that downloads the rows that pass the filters as CSV: `true`, or the file's name
   title        any  Accessible name of the table
   emptyText    any  Shown when no row matches (default `No results.`)
-  locale       string  Locale for formatted numbers and dates (default: the browser's)
+  locale       string  Locale for formatted numbers and dates (default: the document's `lang`, else the browser's)
   height       any  Most the table grows to before it scrolls, with the header kept in view
   striped      bool  Shade every other row
   loading      any  Dim the rows and mark the table busy, e.g. `{{ fetching }}`

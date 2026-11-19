@@ -39,7 +39,7 @@ macro_rules! calendar_props {
             PropDef::new("dropdowns", PropKind::Bool, "Month and year menus in place of the caption, for dates far away such as birthdays"),
             PropDef::new("bindRange", PropKind::StateKey, "State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter"),
             PropDef::new("name", PropKind::String, "Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)"),
-            PropDef::new("locale", PropKind::String, "Locale for names and formats (default: the browser's)"),
+            PropDef::new("locale", PropKind::String, "Locale for names and formats (default: the document's `lang`, else the browser's)"),
             PropDef::new("label", PropKind::Any, "Accessible name"),
             PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
             $($extra),*
@@ -418,7 +418,7 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
         "clearable": flag("clearable").unwrap_or(false),
         "closeOnSelect": flag("closeOnSelect").unwrap_or(!time && mode != "multiple"),
         "name": s("name"),
-        "locale": s("locale"),
+        "locale": crate::locale(cx, node),
         "popover": picker,
         "input": picker && flag("input").unwrap_or(false),
         "bindError": s("bindError"),

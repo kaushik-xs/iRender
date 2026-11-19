@@ -271,6 +271,12 @@ fn lit(v: impl Into<Json>) -> Val {
     Val::Lit(v.into())
 }
 
+/// The `locale` for a component's numbers and dates: its own, else the document's `lang`
+/// (else the browser's, decided there).
+fn locale(cx: &RenderCx<'_>, node: &Node) -> Option<String> {
+    cx.prop_string(node, "locale").filter(|l| !l.is_empty()).or_else(|| cx.labels().lang.clone())
+}
+
 /// The element id for this instance of a component: the `id` prop if given
 /// (templates allowed, e.g. `confirm-{{ item.id }}` inside a list), otherwise one
 /// derived from the node's place in the document and the list item it is in.

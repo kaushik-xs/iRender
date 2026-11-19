@@ -302,7 +302,7 @@ Not replicated:
 | `min`, `max` | The earliest and latest dates: `2026-01-01`, or `today`, `today-30d`, `today+2w`, `today+1m`, `today+1y`. They may use state, and the arrows don't page past them. |
 | `disabledDates`, `disabledDays` | Dates that can't be picked (`2026-12-25`, or `{ from, to }`), and weekdays (0 Sunday … 6 Saturday). |
 | `months` | Months side by side (default 1); two suit ranges. |
-| `weekStart`, `locale` | The first day of the week (default: the locale's) and the locale for names and formats (default: the browser's). |
+| `weekStart`, `locale` | The first day of the week (default: the locale's) and the locale for names and formats (default: the document's `lang`, else the browser's). |
 | `fiscalStart` | The month a financial year starts (1–12, default 1). Quarters and years follow it: with `fiscalStart: 4`, `2026-Q1` is April to June 2026 and shows as `Q1 FY2026–27`, and the year `2026` is April 2026 to March 2027. |
 | `presets` | Shortcuts beside the calendar: `today`, `yesterday`, `tomorrow`, `last7`, `last30`, `last90`, `next7`, `next30`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `thisYear`, `lastYear`, `yearToDate`, `monthToDate`, or `{ label, from, to }` with dates or `today±N`. Quarters and years follow `fiscalStart`; the preset that matches the value shows pressed. |
 | `dropdowns` | Month and year menus in place of the caption, for dates far away such as a birthday. |

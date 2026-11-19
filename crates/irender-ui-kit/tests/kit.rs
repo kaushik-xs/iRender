@@ -1584,3 +1584,23 @@ fn data_table_bands_resizers_export_and_group_by() {
     let err = render_with(remote, json!({}), json!({})).unwrap_err().to_string();
     assert!(err.contains("grouping rows needs the rows in the page"), "{err}");
 }
+
+#[test]
+fn locale_defaults_to_the_documents_lang() {
+    let page = |lang: Option<&str>, locale: Option<&str>| {
+        let mut table = json!({ "type": "ui-data-table", "props": { "rows": [ { "a": 1 } ] }, "children": [ { "type": "ui-data-table-column", "props": { "field": "a" } } ] });
+        if let Some(l) = locale {
+            table["props"]["locale"] = json!(l);
+        }
+        let mut doc = json!({ "version": 1, "root": table });
+        if let Some(l) = lang {
+            doc["lang"] = json!(l);
+        }
+        let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+        let engine = engine();
+        engine.render(&engine.resolve(&doc).unwrap(), &json!({})).unwrap().body
+    };
+    assert!(page(Some("de"), None).contains("&quot;locale&quot;:&quot;de&quot;"), "the document's language");
+    assert!(page(Some("de"), Some("en-IN")).contains("&quot;locale&quot;:&quot;en-IN&quot;"), "the component's own wins");
+    assert!(page(None, None).contains("&quot;locale&quot;:null"), "without either, the browser's");
+}
