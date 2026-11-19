@@ -16,6 +16,7 @@ An iRender document is JSON or YAML: `version`, optional `theme`, `state` and `f
    - **Kit features:** for behaviour beyond props, read that kit's file: [ui-kit.md](references/ui-kit.md) (theme options, sidebar, combobox, dialogs), [chart-kit.md](references/chart-kit.md) (filters, grouping, drill-downs, live data), [flow-kit.md](references/flow-kit.md) (node templates, ports, editing) or [icon-kit.md](references/icon-kit.md).
    - **Core features:** [core.md](references/core.md) covers `include` parameters, list keys, theme options and the untrusted policy.
    - **Icon names:** they are in [references/icons.md](references/icons.md). Search it, since names are packed per line.
+   - **Another language:** [references/labels.md](references/labels.md) lists the kits' interface text a document's `labels` can translate.
 4. **Copy patterns:** for a whole page, start from the closest example in [examples/](examples/):
    - `counter.yaml`: state and actions
    - `wizard.yaml`: a multi-step form with validation

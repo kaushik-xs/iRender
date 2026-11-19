@@ -315,10 +315,14 @@ impl Component for Message {
 fn thread(cx: &mut RenderCx<'_>, node: &Node) -> Result<(), RenderError> {
     let replies = items(cx, node, "replies")?;
     let count = length(node, "replies", replies.0.len(), replies.1)?;
+    // The count follows state: its text, split around `{n}`, stays fixed. The server knows
+    // only one and other, so a language's other forms show as `other`.
+    let many = cx.label("{n} replies");
+    let (before, after) = many.split_once("{n}").unwrap_or((&many, ""));
     let summary = expr_val(cond(
         bin(BinOp::Eq, count.clone(), num(1)),
-        Expr::Lit(json!("1 reply")),
-        bin(BinOp::Add, count.clone(), Expr::Lit(json!(" replies"))),
+        Expr::Lit(json!(cx.label_count("{n} reply", "{n} replies", 1.0))),
+        bin(BinOp::Add, bin(BinOp::Add, Expr::Lit(json!(before)), count.clone()), Expr::Lit(json!(after))),
     ));
     let any = expr_val(bin(BinOp::Gt, count, num(0)));
     let open = cx.prop(node, "open").is_some_and(|o| irender_core::expr::truthy(&o));
@@ -385,7 +389,7 @@ impl Component for TypingIndicator {
         cx.global_css("ui-typing", BOUNCE);
         let mut el = cx.element("span", node);
         el.base_style_ref(&TYPING).attr("role", "status");
-        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Typing")));
+        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Typing"))));
         cx.open(&el, node)?;
         for _ in 0..3 {
             cx.open(&Element::new("span"), node)?;
@@ -489,7 +493,7 @@ impl Component for Conversation {
         let mut log = cx.part("div", node, "log");
         log.base_style_ref(&LOG)
             .attr("role", "log")
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Conversation")))
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Conversation"))))
             .attr("tabindex", "0")
             .attr("data-log", lit(""));
         cx.open(&log, node)?;
@@ -531,7 +535,7 @@ impl Component for Conversation {
         latest
             .base_style_ref(&LATEST)
             .attr("type", "button")
-            .attr("aria-label", "Scroll to the latest message")
+            .attr("aria-label", cx.label("Scroll to the latest message"))
             .attr("hidden", lit(true))
             .attr("data-latest", lit(""))
             .text(lit("↓"));
@@ -716,8 +720,8 @@ impl Component for ChatInput {
         input
             .base_style_ref(&TEXTBOX)
             .attr("rows", lit(1))
-            .attr("placeholder", node.prop("placeholder").cloned().unwrap_or_else(|| lit("Send a message…")))
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Message")))
+            .attr("placeholder", node.prop("placeholder").cloned().unwrap_or_else(|| lit(cx.label("Send a message…"))))
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Message"))))
             .attr("data-input", lit(""));
         if let Some(d) = node.prop("disabled") {
             input.attr("disabled", d.clone());
@@ -735,7 +739,7 @@ impl Component for ChatInput {
         cx.open(&toolbar, node)?;
         cx.children(node)?;
         let mut send = cx.part("button", node, "send");
-        send.base_style_ref(&SEND).attr("type", "submit").attr("aria-label", "Send").attr("data-send-button", lit(""));
+        send.base_style_ref(&SEND).attr("type", "submit").attr("aria-label", cx.label("Send")).attr("data-send-button", lit(""));
         if let Some(d) = node.prop("disabled") {
             send.attr("disabled", d.clone());
         }

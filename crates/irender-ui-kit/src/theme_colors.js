@@ -40,7 +40,7 @@
       r.text.removeAttribute("aria-invalid");
     }
     const mode = el.querySelector("[data-mode]");
-    if (mode) mode.textContent = theme.scheme() === "dark" ? "dark mode" : "light mode";
+    if (mode) mode.textContent = window.__irender.label(theme.scheme() === "dark" ? "dark mode" : "light mode");
   };
   const choose = (r, value) => {
     if (!theme.setCustom(key(r), value)) return;

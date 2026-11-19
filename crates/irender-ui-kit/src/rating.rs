@@ -85,7 +85,7 @@ impl Component for Rating {
         if key.is_some() == shown.is_some() {
             return Err(RenderError::new(node, "a rating takes `bind` (to pick one) or `value` (to show one)"));
         }
-        let label = node.prop("label").cloned().unwrap_or_else(|| lit("Rating"));
+        let label = node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Rating")));
         let mut style = StyleBlock::new();
         style.push("--star", StyleValue::Static(format!("{size}px")));
 
@@ -101,7 +101,7 @@ impl Component for Rating {
             style.push("--ui-value", percent);
             let mut el = cx.element("span", node);
             el.base_style_ref(&RATING).base_style(style).attr("data-ro", true).attr("role", "img");
-            el.attr("aria-label", aria_value(v, max, &label));
+            el.attr("aria-label", aria_value(cx, v, max, &label));
             cx.open(&el, node)?;
             let mut stars = Element::new("span");
             stars.attr("data-stars", true);
@@ -172,19 +172,23 @@ fn percent_tpl(t: &irender_core::Template, max: usize) -> irender_core::Template
 }
 
 /// "4.5 out of 5 stars", following state when the value does.
-fn aria_value(v: &Val, max: usize, label: &Val) -> Val {
+fn aria_value(cx: &RenderCx<'_>, v: &Val, max: usize, label: &Val) -> Val {
     let label_text = match label {
         Val::Lit(j) => expr::stringify(j),
-        _ => "Rating".into(),
+        _ => cx.label("Rating"),
     };
+    let text = |value: &str| cx.label_with("{label}: {value} out of {max}", &[("label", &label_text), ("value", value), ("max", &max.to_string())]);
     match v {
         Val::Tpl(t) => {
+            // The value follows state: the text around it stays.
+            let whole = text("\u{0}");
+            let (before, after) = whole.split_once('\u{0}').unwrap_or((&whole, ""));
             let mut t = t.clone();
-            t.parts.insert(0, irender_core::Part::Lit(format!("{label_text}: ")));
-            t.parts.push(irender_core::Part::Lit(format!(" out of {max}")));
+            t.parts.insert(0, irender_core::Part::Lit(before.to_string()));
+            t.parts.push(irender_core::Part::Lit(after.to_string()));
             Val::Tpl(t)
         }
-        Val::Lit(j) => lit(format!("{label_text}: {} out of {max}", (expr::to_num(j) * 10.0).round() / 10.0)),
+        Val::Lit(j) => lit(text(&((expr::to_num(j) * 10.0).round() / 10.0).to_string())),
     }
 }
 
@@ -235,14 +239,14 @@ static CHECKLIST: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 /// A rule as `password.js` takes it: `{ label, min }` or `{ label, pattern }`.
-fn rule(node: &Node, r: &Json) -> Result<Json, RenderError> {
+fn rule(cx: &RenderCx<'_>, node: &Node, r: &Json) -> Result<Json, RenderError> {
     let preset = |name: &str, n: f64| -> Option<Json> {
         Some(match name {
-            "length" => json!({ "label": format!("At least {n} characters"), "min": n }),
-            "lower" => json!({ "label": "A lowercase letter", "pattern": "\\p{Ll}" }),
-            "upper" => json!({ "label": "An uppercase letter", "pattern": "\\p{Lu}" }),
-            "number" => json!({ "label": "A number", "pattern": "\\d" }),
-            "symbol" => json!({ "label": "A symbol, like ! or #", "pattern": "[^\\p{L}\\p{N}\\s]" }),
+            "length" => json!({ "label": cx.label_with("At least {n} characters", &[("n", &n.to_string())]), "min": n }),
+            "lower" => json!({ "label": cx.label("A lowercase letter"), "pattern": "\\p{Ll}" }),
+            "upper" => json!({ "label": cx.label("An uppercase letter"), "pattern": "\\p{Lu}" }),
+            "number" => json!({ "label": cx.label("A number"), "pattern": "\\d" }),
+            "symbol" => json!({ "label": cx.label("A symbol, like ! or #"), "pattern": "[^\\p{L}\\p{N}\\s]" }),
             _ => return None,
         })
     };
@@ -279,8 +283,8 @@ impl Component for PasswordChecklist {
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let rules: Vec<Json> = match cx.prop(node, "rules") {
-            None | Some(Json::Null) => ["length", "lower", "upper", "number", "symbol"].iter().map(|r| rule(node, &json!(r))).collect::<Result<_, _>>()?,
-            Some(Json::Array(rs)) if !rs.is_empty() => rs.iter().map(|r| rule(node, r)).collect::<Result<_, _>>()?,
+            None | Some(Json::Null) => ["length", "lower", "upper", "number", "symbol"].iter().map(|r| rule(cx, node, &json!(r))).collect::<Result<_, _>>()?,
+            Some(Json::Array(rs)) if !rs.is_empty() => rs.iter().map(|r| rule(cx, node, r)).collect::<Result<_, _>>()?,
             Some(_) => return Err(RenderError::new(node, "`rules` must be a list")),
         };
         let value = node.prop("value").cloned().unwrap_or_else(|| lit(""));
@@ -304,12 +308,12 @@ impl Component for PasswordChecklist {
             }
             cx.close("div");
             let mut t = Element::new("div");
-            t.attr("data-strength-text", true).attr("aria-live", "polite").text(lit("Enter a password"));
+            t.attr("data-strength-text", true).attr("aria-live", "polite").text(lit(cx.label("Enter a password")));
             cx.open(&t, node)?;
             cx.close("div");
         }
         let mut ul = Element::new("ul");
-        ul.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Password requirements")));
+        ul.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Password requirements"))));
         cx.open(&ul, node)?;
         for r in &rules {
             let mut li = Element::new("li");

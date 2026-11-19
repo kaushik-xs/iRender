@@ -7,6 +7,8 @@
   const { page, pages, siblings, href } = api.config;
   const [link, gap] = el.querySelectorAll(":scope > template");
   const evaluate = window.__irender.evaluate;
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
 
   // As the server reads the props: a whole number, at least 0, or the default.
   const count = (js, state, fallback) => {
@@ -39,9 +41,9 @@
       return v == null ? null : String(v);
     };
     return [
-      ["‹ Previous", at > 1 ? to(at - 1) : null, "Go to previous page", false, at <= 1],
+      [`‹ ${L("Previous")}`, at > 1 ? to(at - 1) : null, L("Go to previous page"), false, at <= 1],
       ...pageWindow(at, total, around).map((p) => (p === null ? null : [String(p), to(p), null, p === at, false])),
-      ["Next ›", at < total ? to(at + 1) : null, "Go to next page", false, at >= total],
+      [`${L("Next")} ›`, at < total ? to(at + 1) : null, L("Go to next page"), false, at >= total],
     ];
   };
 

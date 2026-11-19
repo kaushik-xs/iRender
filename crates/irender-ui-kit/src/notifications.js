@@ -9,6 +9,8 @@
   const $$ = (s, from = el) => [...from.querySelectorAll(s)];
   const list = $("[data-nt-list]");
   const live = $("[data-nt-live]");
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
   const resolve = (v) => (isObj(v) && "$irender" in v && Object.keys(v).length === 1 ? window.__irender.evaluate(v.$irender, api.state) : v);
   const items = () => (Array.isArray(resolve(cfg.items)) ? resolve(cfg.items) : []);
@@ -40,18 +42,18 @@
       count.textContent = unread > 99 ? "99+" : unread;
     }
     const bell = $("[data-nt-bell]");
-    if (bell) bell.setAttribute("aria-label", `${cfg.label ?? "Notifications"}${unread ? `, ${unread} unread` : ""}`);
+    if (bell) bell.setAttribute("aria-label", unread ? L("{label}, {n} unread", { label: cfg.label ?? L("Notifications"), n: unread }) : cfg.label ?? L("Notifications"));
     $("[data-nt-mark-all]").disabled = !unread;
     for (const b of $$("[data-nt-tab]")) {
       b.setAttribute("aria-pressed", b.getAttribute("data-nt-tab") === tab ? "true" : "false");
-      if (b.getAttribute("data-nt-tab") === "unread") b.textContent = unread ? `Unread (${unread})` : "Unread";
+      if (b.getAttribute("data-nt-tab") === "unread") b.textContent = unread ? L("Unread ({n})", { n: unread }) : L("Unread");
     }
     const focused = document.activeElement?.closest?.("[data-nt-item]")?.getAttribute("data-nt-item");
     list.replaceChildren(
       ...shown.map(([n, i]) => {
         const id = key(n, i), w = who(n);
         const li = make("li", { "data-nt-item": id, "data-unread": !n.read, "data-tone": n.tone ?? null });
-        const open = make("button", { type: "button", "data-nt-open": "", "aria-label": [n.read ? null : "Unread", n.title, n.body, n.when].filter(Boolean).join(". ") });
+        const open = make("button", { type: "button", "data-nt-open": "", "aria-label": [n.read ? null : L("Unread"), n.title, n.body, n.when].filter(Boolean).join(". ") });
         const mark = make("span", { "data-nt-mark": "", "aria-hidden": "true" });
         if (w?.avatar) mark.append(make("img", { src: w.avatar, alt: "" }));
         else if (w) mark.textContent = w.initials || initialsOf(w.name);
@@ -63,9 +65,9 @@
         open.append(mark, text);
         li.append(open);
         const actions = make("span", { "data-nt-actions": "" });
-        const toggle = make("button", { type: "button", "data-nt-toggle": "", "aria-label": n.read ? `Mark ${n.title} as unread` : `Mark ${n.title} as read`, title: n.read ? "Mark as unread" : "Mark as read" });
+        const toggle = make("button", { type: "button", "data-nt-toggle": "", "aria-label": n.read ? L("Mark {name} as unread", { name: n.title }) : L("Mark {name} as read", { name: n.title }), title: n.read ? L("Mark as unread") : L("Mark as read") });
         toggle.append(make("span", { "aria-hidden": "true" }));
-        const arch = make("button", { type: "button", "data-nt-archive": "", "aria-label": `Archive ${n.title}`, title: "Archive" });
+        const arch = make("button", { type: "button", "data-nt-archive": "", "aria-label": L("Archive {name}", { name: n.title }), title: L("Archive") });
         arch.innerHTML = svg.archive;
         actions.append(toggle, arch);
         li.append(actions);
@@ -74,7 +76,7 @@
     );
     const empty = $("[data-nt-empty]");
     empty.hidden = !!shown.length;
-    empty.textContent = tab === "unread" && all.some((n) => !n.archived) ? (cfg.caughtUp ?? "You're all caught up.") : (cfg.emptyText ?? "No notifications.");
+    empty.textContent = tab === "unread" && all.some((n) => !n.archived) ? (cfg.caughtUp ?? L("You're all caught up.")) : (cfg.emptyText ?? L("No notifications."));
     if (focused) ($(`[data-nt-item="${CSS.escape(focused)}"] [data-nt-open]`) ?? $("[data-nt-open]"))?.focus();
   }
 
@@ -100,7 +102,7 @@
       const ids = items().map((n, i) => [n, key(n, i)]).filter(([n]) => !n.read && !n.archived).map(([, id]) => id);
       const changed = update(ids, { read: true });
       if (changed.length) api.emit("read", { items: changed, read: true });
-      say("All marked as read");
+      say(L("All marked as read"));
       return;
     }
     const li = t.closest("[data-nt-item]");
@@ -116,13 +118,13 @@
       const after = next();
       update([id], { read: !n.read });
       api.emit("read", { items: [n], read: !n.read });
-      say(n.read ? "Marked as unread" : "Marked as read");
+      say(n.read ? L("Marked as unread") : L("Marked as read"));
       queueMicrotask(() => ($(`[data-nt-item="${CSS.escape(id)}"] [data-nt-toggle]`) ?? (after && $(`[data-nt-item="${CSS.escape(after)}"] [data-nt-open]`)) ?? $("[data-nt-mark-all]"))?.focus());
     } else if (t.closest("[data-nt-archive]")) {
       const after = next();
       update([id], { archived: true });
       api.emit("archive", { item: n });
-      say(`${n.title} archived`);
+      say(L("{name} archived", { name: n.title }));
       queueMicrotask(() => ((after && $(`[data-nt-item="${CSS.escape(after)}"] [data-nt-open]`)) ?? $("[data-nt-mark-all]"))?.focus());
     } else if (t.closest("[data-nt-open]")) {
       if (!n.read) update([id], { read: true });

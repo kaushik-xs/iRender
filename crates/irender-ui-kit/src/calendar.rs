@@ -491,7 +491,7 @@ impl Component for Calendar {
             .attr("id", id)
             .attr("role", "group")
             .attr("data-picker", config["picker"].as_str().unwrap_or("day").to_string())
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Calendar")));
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Calendar"))));
         cx.open(&root, node)?;
         let mut body = Element::new("div");
         body.attr("data-cal", true);
@@ -538,12 +538,12 @@ impl Component for DatePicker {
         let placeholder = match cx.prop_string(node, "placeholder") {
             Some(p) => p,
             None => match (config["mode"].as_str(), config["picker"].as_str()) {
-                (Some("range"), _) => "Pick a range".into(),
-                (Some("multiple"), _) => "Pick dates".into(),
-                (_, Some("month")) => "Pick a month".into(),
-                (_, Some("quarter")) => "Pick a quarter".into(),
-                (_, Some("year")) => "Pick a year".into(),
-                _ => "Pick a date".into(),
+                (Some("range"), _) => cx.label("Pick a range"),
+                (Some("multiple"), _) => cx.label("Pick dates"),
+                (_, Some("month")) => cx.label("Pick a month"),
+                (_, Some("quarter")) => cx.label("Pick a quarter"),
+                (_, Some("year")) => cx.label("Pick a year"),
+                _ => cx.label("Pick a date"),
             },
         };
 
@@ -584,7 +584,7 @@ impl Component for DatePicker {
             cx.open(&input, node)?;
             if config["clearable"] == json!(true) {
                 let mut x = Element::new("button");
-                x.attr("type", "button").attr("data-cal-x", true).attr("aria-label", "Clear").attr("hidden", empty).text(lit("✕"));
+                x.attr("type", "button").attr("data-cal-x", true).attr("aria-label", cx.label("Clear")).attr("hidden", empty).text(lit("✕"));
                 cx.open(&x, node)?;
                 cx.close("button");
             }
@@ -593,7 +593,8 @@ impl Component for DatePicker {
                 .attr("data-cal-trigger", true)
                 .attr("popovertarget", pop.clone())
                 .attr("aria-haspopup", "dialog")
-                .attr("aria-label", if config["mode"] == "range" { "Choose dates" } else { "Choose a date" });
+                // Labels: "Choose dates", "Choose a date"
+                .attr("aria-label", cx.label(if config["mode"] == "range" { "Choose dates" } else { "Choose a date" }));
             if let Some(d) = node.prop("disabled") {
                 b.attr("disabled", d.clone());
             }
@@ -625,7 +626,7 @@ impl Component for DatePicker {
         } else {
             match &value {
                 Json::Object(o) => format!("{} – {}", expr::stringify(o.get("from").unwrap_or(&Json::Null)), o.get("to").map(expr::stringify).unwrap_or_default()),
-                Json::Array(a) => format!("{} dates", a.len()),
+                Json::Array(a) => cx.label_with("{n} dates", &[("n", &a.len().to_string())]),
                 v => expr::stringify(v),
             }
         };
@@ -635,7 +636,7 @@ impl Component for DatePicker {
         cx.close("button");
         if config["clearable"] == json!(true) {
             let mut x = Element::new("button");
-            x.attr("type", "button").attr("data-cal-x", true).attr("aria-label", "Clear").attr("hidden", empty).text(lit("✕"));
+            x.attr("type", "button").attr("data-cal-x", true).attr("aria-label", cx.label("Clear")).attr("hidden", empty).text(lit("✕"));
             cx.open(&x, node)?;
             cx.close("button");
         }
@@ -656,7 +657,7 @@ fn finish(cx: &mut RenderCx<'_>, node: &Node, config: Json, pop: &Val, anchor: &
         .attr("id", pop.clone())
         .attr("role", "dialog")
         .attr("data-cal-pop", true)
-        .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(if config["mode"] == "range" { "Choose dates" } else { "Choose a date" })));
+        .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label(if config["mode"] == "range" { "Choose dates" } else { "Choose a date" }))));
     cx.open(&popover, node)?;
     let mut body = Element::new("div");
     body.attr("data-cal", true);

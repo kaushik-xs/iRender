@@ -339,7 +339,7 @@ impl Component for Menubar {
         let mut root = cx.element("div", node);
         root.base_style_ref(&MENUBAR)
             .attr("role", "menubar")
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Menu bar")))
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Menu bar"))))
             .behavior("ui-menubar", json!({}));
         cx.open(&root, node)?;
         for (i, menu) in node.children.iter().enumerate() {
@@ -504,7 +504,7 @@ impl Component for NavigationMenu {
             _ => "bottom span-right",
         };
         let mut root = cx.element("nav", node);
-        root.base_style_ref(&NAV).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Main"))).behavior("ui-navigation-menu", json!({}));
+        root.base_style_ref(&NAV).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Main")))).behavior("ui-navigation-menu", json!({}));
         cx.open(&root, node)?;
         cx.open(&Element::new("ul"), node)?;
         for child in &node.children {

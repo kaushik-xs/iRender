@@ -244,7 +244,7 @@ impl Component for Sidebar {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let mut el = cx.element("aside", node);
         el.base_style_ref(&PANEL).attr("data-sidebar", true);
-        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Sidebar")));
+        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Sidebar"))));
         cx.open(&el, node)?;
         let mut inner = cx.part("div", node, "inner");
         inner.base_style_ref(&INNER);
@@ -618,7 +618,7 @@ impl Component for SidebarTrigger {
         crate::disclosure::merge_node(&mut merged, node);
         let mut el = cx.element("button", &merged);
         el.base_style_ref(&TRIGGER)
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Toggle sidebar")))
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Toggle sidebar"))))
             .attr("data-sidebar-trigger", true);
         cx.open(&el, &merged)?;
         cx.markup(PANEL_SVG);

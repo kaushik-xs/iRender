@@ -4,6 +4,8 @@
 (window.__irenderBehaviors ||= {})["ui-combobox"] = (el, api) => {
   const cfg = api.config;
   const T = cfg.text;
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const $ = (s) => el.querySelector(s);
   const control = $("[data-ui-control]"), values = $("[data-ui-values]"), input = $("[data-ui-input]");
   const menu = $("[data-ui-menu]"), live = $("[data-ui-live]"), hidden = $("[data-ui-hidden]"), clear = $("[data-ui-clear]");
@@ -209,7 +211,7 @@
       activeKey = null;
       renderMenu();
       try { menu.showPopover(); } catch {}
-      announce(`${shown.length} result${shown.length === 1 ? "" : "s"} available.`);
+      announce(L(["{n} result available.", "{n} results available."], { n: shown.length }));
     } else {
       try { menu.hidePopover(); } catch {}
       menu.replaceChildren();
@@ -233,7 +235,7 @@
     else list = [value];
     resetInput();
     commit(list);
-    announce(`${labelOf(value)}, ${isSelected(value) || !cfg.multiple ? "selected" : "removed"}.`);
+    announce(isSelected(value) || !cfg.multiple ? L("{label}, selected.", { label: labelOf(value) }) : L("{label}, removed.", { label: labelOf(value) }));
     if (cfg.closeOnSelect) setOpen(false);
     else renderMenu();
   }
@@ -241,7 +243,7 @@
   function remove(v) {
     if (fixed(v)) return;
     commit(selected().filter((x) => !same(x, v)));
-    announce(`${labelOf(v)}, removed.`);
+    announce(L("{label}, removed.", { label: labelOf(v) }));
   }
 
   // ---- the control
@@ -304,7 +306,7 @@
     activeKey = null;
     if (!open) setOpen(true);
     else renderMenu();
-    if (!loading) announce(`${shown.length} result${shown.length === 1 ? "" : "s"} available.`);
+    if (!loading) announce(L(["{n} result available.", "{n} results available."], { n: shown.length }));
   });
 
   input.addEventListener("keydown", (e) => {
@@ -368,7 +370,7 @@
     if (disabled()) return;
     resetInput();
     commit(selected().filter(fixed));
-    announce("All selected options cleared.");
+    announce(L("All selected options cleared."));
     input.focus();
   });
 

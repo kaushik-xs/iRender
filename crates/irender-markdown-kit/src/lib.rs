@@ -210,6 +210,7 @@ const EDITOR_PROPS: &[PropDef] = &[
 ];
 
 /// The toolbar: command, its name, what it shows, and its shortcut.
+// Labels (looked up where they're used): "Heading", "Bold", "Italic", "Strikethrough", "Quote", "Code", "Link", "Bulleted list", "Numbered list", "Task list"
 const TOOLS: &[(&str, &str, &str, &str)] = &[
     ("heading", "Heading", "H", ""),
     ("bold", "Bold", "B", "⌘B"),
@@ -410,6 +411,7 @@ impl Component for MarkdownEditor {
         root.base_style_ref(&EDITOR_ROOT).attr("data-md-editor", true).behavior("ui-markdown-editor", json!({ "key": key, "max": max }));
         cx.open(&root, node)?;
 
+        // Labels: "Rich text", "Markdown", "Write", "Preview"
         let views: &[(&str, &str)] = match mode.as_str() {
             "rich" => &[("rich", "Rich text"), ("source", "Markdown")],
             "tabs" => &[("write", "Write"), ("preview", "Preview")],
@@ -417,7 +419,7 @@ impl Component for MarkdownEditor {
         };
         if toolbar || !views.is_empty() {
             let mut bar = cx.part("div", node, "toolbar");
-            bar.base_style_ref(&BAR).attr("role", "toolbar").attr("aria-label", "Formatting");
+            bar.base_style_ref(&BAR).attr("role", "toolbar").attr("aria-label", cx.label("Formatting"));
             cx.open(&bar, node)?;
             if toolbar {
                 for (cmd, name, shown, keys) in TOOLS {
@@ -428,12 +430,13 @@ impl Component for MarkdownEditor {
                         cx.close("span");
                         continue;
                     }
-                    let title = if keys.is_empty() { name.to_string() } else { format!("{name} ({keys})") };
+                    let name = cx.label(name);
+                    let title = if keys.is_empty() { name.clone() } else { format!("{name} ({keys})") };
                     let mut b = Element::new("button");
                     b.base_style_ref(&TOOL)
                         .attr("type", "button")
                         .attr("data-md", *cmd)
-                        .attr("aria-label", *name)
+                        .attr("aria-label", name.as_str())
                         .attr("title", title.as_str())
                         .text(Val::Lit(json!(shown)));
                     if let Some(d) = node.prop("disabled") {
@@ -445,7 +448,7 @@ impl Component for MarkdownEditor {
             }
             if !views.is_empty() {
                 let mut tabs = Element::new("div");
-                tabs.base_style_ref(&TABS).attr("role", "tablist").attr("aria-label", "View");
+                tabs.base_style_ref(&TABS).attr("role", "tablist").attr("aria-label", cx.label("View"));
                 cx.open(&tabs, node)?;
                 for (i, (view, label)) in views.iter().enumerate() {
                     let mut t = Element::new("button");
@@ -454,7 +457,7 @@ impl Component for MarkdownEditor {
                         .attr("role", "tab")
                         .attr("data-md-view", *view)
                         .attr("aria-selected", if i == 0 { "true" } else { "false" })
-                        .text(Val::Lit(json!(label)));
+                        .text(Val::Lit(json!(cx.label(label))));
                     cx.open(&t, node)?;
                     cx.close("button");
                 }
@@ -468,11 +471,12 @@ impl Component for MarkdownEditor {
             bar.base_style_ref(&LINKBAR).attr("data-md-linkbar", true).attr("hidden", true);
             cx.open(&bar, node)?;
             let mut url = Element::new("input");
-            url.attr("type", "url").attr("aria-label", "Link address").attr("placeholder", "Paste or type a link");
+            url.attr("type", "url").attr("aria-label", cx.label("Link address")).attr("placeholder", cx.label("Paste or type a link"));
             cx.open(&url, node)?;
+            // Labels: "Apply", "Remove link", "Cancel"
             for (act, label) in [("apply", "Apply"), ("remove", "Remove link"), ("cancel", "Cancel")] {
                 let mut b = Element::new("button");
-                b.base_style_ref(&TOOL).attr("type", "button").attr("data-md-link", act).text(Val::Lit(json!(label)));
+                b.base_style_ref(&TOOL).attr("type", "button").attr("data-md-link", act).text(Val::Lit(json!(cx.label(label))));
                 cx.open(&b, node)?;
                 cx.close("button");
             }
@@ -491,7 +495,7 @@ impl Component for MarkdownEditor {
             }
         }
         let mut attrs: Vec<(&str, Val)> = vec![
-            ("aria-label", node.prop("label").cloned().unwrap_or(Val::Lit(json!("Markdown")))),
+            ("aria-label", node.prop("label").cloned().unwrap_or_else(|| Val::Lit(json!(cx.label("Markdown"))))),
             ("spellcheck", Val::Lit(json!("true"))),
         ];
         if let Some(m) = max {
@@ -519,7 +523,7 @@ impl Component for MarkdownEditor {
                 .attr("contenteditable", if disabled { "false" } else { "true" })
                 .attr("role", "textbox")
                 .attr("aria-multiline", "true")
-                .attr("aria-label", node.prop("label").cloned().unwrap_or(Val::Lit(json!("Text"))))
+                .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| Val::Lit(json!(cx.label("Text")))))
                 .attr("spellcheck", "true");
             if let Some(p) = node.prop("placeholder") {
                 editor.attr("data-placeholder", p.clone());
@@ -542,7 +546,7 @@ impl Component for MarkdownEditor {
         cx.open(&preview, node)?;
         if text.trim().is_empty() {
             let mut e = Element::new("p");
-            e.base_style_ref(&EMPTY).text(Val::Lit(json!("Nothing to preview")));
+            e.base_style_ref(&EMPTY).text(Val::Lit(json!(cx.label("Nothing to preview"))));
             cx.open(&e, node)?;
             cx.close("p");
         } else {
@@ -557,7 +561,7 @@ impl Component for MarkdownEditor {
 impl MarkdownEditor {
     /// The note under the editor, and the count when there's a limit; closes the editor.
     fn footer(&self, node: &Node, cx: &mut RenderCx<'_>, text: &str, max: Option<u64>, mode: &str) -> Result<(), RenderError> {
-        let note = if mode == "rich" { "Start a line with #, - or > to format it" } else { "Markdown supported" };
+        let note = if mode == "rich" { cx.label("Start a line with #, - or > to format it") } else { cx.label("Markdown supported") };
         let mut foot = cx.part("div", node, "footer");
         foot.base_style_ref(&FOOT);
         cx.open(&foot, node)?;

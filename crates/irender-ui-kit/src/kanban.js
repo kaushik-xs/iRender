@@ -8,6 +8,8 @@
 // "Add card" puts a name box at the bottom of a column: Enter adds the card.
 (window.__irenderBehaviors ||= {})["ui-kanban"] = (el, api) => {
   const cfg = api.config;
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const $ = (s, from = el) => from.querySelector(s);
   const $$ = (s, from = el) => [...from.querySelectorAll(s)];
   const board = $("[data-kb-board]");
@@ -41,8 +43,8 @@
     fold: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>',
   };
   function card(c) {
-    const a = make("article", { "data-kb-card": key(c.id), tabindex: -1, draggable: cfg.movable ? "true" : null, "aria-roledescription": "card" });
-    const label = [c.title, c.priority && `${c.priority} priority`, c.due && `due ${c.due}`, assignee(c)?.name && `assigned to ${assignee(c).name}`].filter(Boolean).join(", ");
+    const a = make("article", { "data-kb-card": key(c.id), tabindex: -1, draggable: cfg.movable ? "true" : null, "aria-roledescription": L("card") });
+    const label = [c.title, c.priority && L("{priority} priority", { priority: String(c.priority) }), c.due && L("due {date}", { date: String(c.due) }), assignee(c)?.name && L("assigned to {name}", { name: assignee(c).name })].filter(Boolean).join(", ");
     a.setAttribute("aria-label", label);
     a.append(make("div", { "data-kb-title": "" }, String(c.title ?? "")));
     if (c.description) a.append(make("p", { "data-kb-desc": "" }, String(c.description)));
@@ -78,12 +80,12 @@
         const id = key(col.id);
         const mine = all.filter((c) => key(c.column) === id);
         const over = col.limit != null && mine.length > Number(col.limit);
-        const section = make("section", { "data-kb-column": id, "data-tone": col.tone ?? null, "data-over": over, "data-collapsed": collapsed.has(id), "aria-label": `${col.title ?? id}, ${mine.length} ${mine.length === 1 ? "card" : "cards"}` });
+        const section = make("section", { "data-kb-column": id, "data-tone": col.tone ?? null, "data-over": over, "data-collapsed": collapsed.has(id), "aria-label": `${col.title ?? id}, ${L(["{n} card", "{n} cards"], { n: mine.length })}` });
         const head = make("header", { "data-kb-head": "" });
         head.append(make("span", { "data-kb-dot": "", "aria-hidden": "true" }), make("h3", {}, String(col.title ?? id)));
-        head.append(make("span", { "data-kb-count": "", title: col.limit != null ? `Limit ${col.limit}` : null }, col.limit != null ? `${mine.length} / ${col.limit}` : String(mine.length)));
+        head.append(make("span", { "data-kb-count": "", title: col.limit != null ? L("Limit {limit}", { limit: String(col.limit) }) : null }, col.limit != null ? `${mine.length} / ${col.limit}` : String(mine.length)));
         if (cfg.collapsible) {
-          const b = make("button", { type: "button", "data-kb-fold": "", "aria-expanded": collapsed.has(id) ? "false" : "true", "aria-label": `${collapsed.has(id) ? "Show" : "Hide"} ${col.title ?? id}` });
+          const b = make("button", { type: "button", "data-kb-fold": "", "aria-expanded": collapsed.has(id) ? "false" : "true", "aria-label": L(collapsed.has(id) ? "Show {name}" : "Hide {name}", { name: String(col.title ?? id) }) });
           b.innerHTML = svg.fold;
           head.append(b);
         }
@@ -94,16 +96,16 @@
           item.setAttribute("role", "listitem");
           list.append(item);
         }
-        if (!mine.length && adding !== id) list.append(make("p", { "data-kb-empty": "" }, cfg.emptyText ?? "No cards"));
+        if (!mine.length && adding !== id) list.append(make("p", { "data-kb-empty": "" }, cfg.emptyText ?? L("No cards")));
         section.append(list);
         if (cfg.addable) {
           if (adding === id) {
-            const box = make("textarea", { "data-kb-name": "", rows: 2, placeholder: "Card title, then Enter", "aria-label": `New card in ${col.title ?? id}` });
+            const box = make("textarea", { "data-kb-name": "", rows: 2, placeholder: L("Card title, then Enter"), "aria-label": L("New card in {name}", { name: String(col.title ?? id) }) });
             section.append(box);
           } else {
             const b = make("button", { type: "button", "data-kb-add": "" });
             b.innerHTML = svg.plus;
-            b.append(make("span", {}, cfg.addLabel ?? "Add card"));
+            b.append(make("span", {}, cfg.addLabel ?? L("Add card")));
             section.append(b);
           }
         }
@@ -141,7 +143,7 @@
     focusId = id;
     if (cfg.bindCards) api.set(cfg.bindCards, rest);
     api.emit("move", { id: c.id, from: c.column, to: moved.column, index: at });
-    say(from === to ? `${c.title} moved to position ${at + 1} in ${titleOf(to)}` : `${c.title} moved to ${titleOf(to)}, position ${at + 1}`);
+    say(from === to ? L("{title} moved to position {n} in {column}", { title: String(c.title), n: at + 1, column: titleOf(to) }) : L("{title} moved to {column}, position {n}", { title: String(c.title), column: titleOf(to), n: at + 1 }));
     queueMicrotask(() => cardEl(id)?.focus());
     return true;
   }
@@ -163,7 +165,7 @@
     focusId = id;
     api.set(cfg.bindCards, [...all.slice(0, i), c, ...all.slice(i)]);
     api.emit("add", { card: c });
-    say(`Added ${text} to ${titleOf(col)}`);
+    say(L("Added {title} to {column}", { title: text, column: titleOf(col) }));
     queueMicrotask(() => cardEl(id)?.focus());
   }
 

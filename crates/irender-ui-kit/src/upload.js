@@ -13,6 +13,8 @@
   const list = $("[data-up-files]");
   const dialog = $("[data-up-preview]");
   const live = $("[data-up-live]");
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
   const resolve = (v) => {
     if (Array.isArray(v)) return v.map(resolve);
@@ -69,9 +71,9 @@
     if (!cfg.multiple) chosen = chosen.slice(0, 1);
     const fresh = [];
     for (const file of chosen) {
-      if (!accepted(file)) problems.push(`${file.name} isn't a type that can be added.`);
-      else if (cfg.maxSize && file.size > cfg.maxSize) problems.push(`${file.name} is over the ${size(cfg.maxSize)} limit.`);
-      else if (fresh.length >= room) problems.push(`${file.name} wasn't added: at most ${cfg.maxFiles} files.`);
+      if (!accepted(file)) problems.push(L("{name} isn't a type that can be added.", { name: file.name }));
+      else if (cfg.maxSize && file.size > cfg.maxSize) problems.push(L("{name} is over the {size} limit.", { name: file.name, size: size(cfg.maxSize) }));
+      else if (fresh.length >= room) problems.push(L("{name} wasn't added: at most {max} files.", { name: file.name, max: cfg.maxFiles }));
       else fresh.push(file);
     }
     const errors = $("[data-up-errors]");
@@ -89,7 +91,7 @@
     const kept = cfg.multiple ? files() : [];
     if (!cfg.multiple) files().forEach((f) => forget(f.id));
     write([...kept, ...entries]);
-    say(`${entries.length === 1 ? entries[0].name : `${entries.length} files`} added`);
+    say(entries.length === 1 ? L("{name} added", { name: entries[0].name }) : L(["{n} file added", "{n} files added"], { n: entries.length }));
     api.emit("add", { files: entries });
     if (url) entries.forEach((e) => send(e.id));
   }
@@ -130,7 +132,7 @@
         patch(id, change);
         const f = files().find((x) => String(x.id) === now);
         api.emit(event, { file: f });
-        say(event === "uploaded" ? `${f.name} uploaded` : `${f.name} failed: ${f.error}`);
+        say(event === "uploaded" ? L("{name} uploaded", { name: f.name }) : L("{name} failed: {error}", { name: f.name, error: f.error }));
       }
       pump();
     };
@@ -147,10 +149,10 @@
           const a = JSON.parse(xhr.responseText);
           why = a.error || a.message || why;
         } catch {}
-        done({ status: "error", error: why || "Upload failed" }, "error");
+        done({ status: "error", error: why || L("Upload failed") }, "error");
       }
     };
-    xhr.onerror = () => done({ status: "error", error: "Couldn't reach the server" }, "error");
+    xhr.onerror = () => done({ status: "error", error: L("Couldn't reach the server") }, "error");
     xhr.open("POST", url);
     xhr.setRequestHeader("accept", "application/json");
     xhr.send(form);
@@ -172,7 +174,7 @@
     forget(id);
     write(files().filter((x) => String(x.id) !== id));
     api.emit("remove", { file: f });
-    say(`${f.name} removed`);
+    say(L("{name} removed", { name: f.name }));
     // Focus to the next file, the one before, or the drop zone.
     const next = shown[at + 1] ?? shown[at - 1];
     queueMicrotask(() => (next ? list.querySelector(`[data-up-file="${CSS.escape(next)}"] [data-up-open]`)?.focus() : input?.focus()));
@@ -192,7 +194,7 @@
   };
   function card(f) {
     const k = kind(f), li = make("li", { "data-up-file": f.id, "data-kind": k, "data-status": f.status ?? "done" });
-    const open = make("button", { type: "button", "data-up-open": "", "aria-label": `Preview ${f.name}` });
+    const open = make("button", { type: "button", "data-up-open": "", "aria-label": L("Preview {name}", { name: f.name }) });
     const thumb = make("span", { "data-up-thumb": "" });
     const src = href(f);
     if (k === "image" && src) thumb.append(make("img", { src, alt: "", loading: "lazy" }));
@@ -205,20 +207,20 @@
     const meta = make("span", { "data-up-meta": "" });
     meta.append(make("span", { "data-up-name": "", title: f.name }, f.name));
     if (f.status === "uploading") {
-      const p = make("progress", { max: 100, value: f.progress ?? 0, "aria-label": `Uploading ${f.name}` });
-      meta.append(make("span", { "data-up-size": "" }, `Uploading… ${f.progress ?? 0}%`), p);
-    } else if (f.status === "error") meta.append(make("span", { "data-up-error": "" }, f.error || "Upload failed"));
+      const p = make("progress", { max: 100, value: f.progress ?? 0, "aria-label": L("Uploading {name}", { name: f.name }) });
+      meta.append(make("span", { "data-up-size": "" }, L("Uploading… {progress}%", { progress: String(f.progress ?? 0) })), p);
+    } else if (f.status === "error") meta.append(make("span", { "data-up-error": "" }, f.error || L("Upload failed")));
     else meta.append(make("span", { "data-up-size": "" }, size(f.size)));
     open.append(thumb, meta);
     li.append(open);
     const actions = make("span", { "data-up-actions": "" });
     if (f.status === "error" && local.has(String(f.id))) {
-      const b = make("button", { type: "button", "data-up-retry": "", "aria-label": `Try ${f.name} again`, title: "Try again" });
+      const b = make("button", { type: "button", "data-up-retry": "", "aria-label": L("Try {name} again", { name: f.name }), title: L("Try again") });
       b.innerHTML = svgs.retry;
       actions.append(b);
     }
     if (cfg.removable) {
-      const b = make("button", { type: "button", "data-up-remove": "", "aria-label": `Remove ${f.name}`, title: "Remove" });
+      const b = make("button", { type: "button", "data-up-remove": "", "aria-label": L("Remove {name}", { name: f.name }), title: L("Remove") });
       b.innerHTML = svgs.remove;
       actions.append(b);
     }
@@ -236,7 +238,7 @@
     const bar = $("[data-up-bar]");
     bar.hidden = !all.length;
     const bytes = all.reduce((s, f) => s + (Number(f.size) || 0), 0);
-    $("[data-up-total]").textContent = `${all.length} ${all.length === 1 ? "file" : "files"}${bytes ? `, ${size(bytes)}` : ""}`;
+    $("[data-up-total]").textContent = bytes ? L(["{n} file, {size}", "{n} files, {size}"], { n: all.length, size: size(bytes) }) : L(["{n} file", "{n} files"], { n: all.length });
     const zip = $("[data-up-zip]");
     if (zip) zip.disabled = !all.some(href) || all.some((f) => f.status === "uploading");
     if (input) {
@@ -260,16 +262,16 @@
       n.append(icon, make("span", {}, why));
       return n;
     };
-    if (!src) return box.append(none("Not uploaded yet, so there's nothing to show.")), box;
+    if (!src) return box.append(none(L("Not uploaded yet, so there's nothing to show."))), box;
     try {
       if (k === "image") box.append(make("img", { src, alt: f.name }));
       else if (k === "pdf") box.append(make("iframe", { src, title: f.name }));
       else if (["csv", "tsv"].includes(e)) box.append(table(splitCsv(await (await fetch(src)).text(), e === "tsv" ? "\t" : ","), f.name));
       else if (e === "xlsx") box.append(table(await readXlsx(await (await fetch(src)).arrayBuffer()), f.name));
       else if (k === "text") box.append(make("pre", {}, (await (await fetch(src)).text()).slice(0, 200000)));
-      else box.append(none("No preview for this kind of file. Download it to open it."));
+      else box.append(none(L("No preview for this kind of file. Download it to open it.")));
     } catch (err) {
-      box.replaceChildren(none(`Couldn't show this file (${err.message}).`));
+      box.replaceChildren(none(L("Couldn't show this file ({error}).", { error: err.message })));
     }
     return box;
   }
@@ -280,7 +282,7 @@
     current = (i + all.length) % all.length;
     const f = all[current];
     $("[data-up-title]", dialog).textContent = f.name;
-    $("[data-up-count]", dialog).textContent = `${current + 1} of ${all.length}`;
+    $("[data-up-count]", dialog).textContent = L("{n} of {count}", { n: current + 1, count: all.length });
     for (const b of dialog.querySelectorAll("[data-up-prev], [data-up-next]")) b.hidden = all.length < 2;
     const save = $("[data-up-save]", dialog);
     const src = href(f);
@@ -420,7 +422,7 @@
   async function downloadAll() {
     const button = $("[data-up-zip]");
     button.disabled = true;
-    say("Preparing the zip");
+    say(L("Preparing the zip"));
     try {
       const used = new Map(), entries = [];
       for (const f of files()) {
@@ -440,9 +442,9 @@
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
       api.emit("download", { count: entries.length });
-      say(`Downloaded ${entries.length} ${entries.length === 1 ? "file" : "files"}`);
+      say(L(["Downloaded {n} file", "Downloaded {n} files"], { n: entries.length }));
     } catch (err) {
-      say(`Couldn't make the zip: ${err.message}`);
+      say(L("Couldn't make the zip: {error}", { error: err.message }));
     } finally {
       button.disabled = false;
     }
@@ -456,7 +458,7 @@
   zone?.addEventListener("click", (e) => {
     if (input.hasAttribute("data-full")) {
       e.preventDefault();
-      say(`At most ${cfg.maxFiles} files`);
+      say(L("At most {max} files", { max: cfg.maxFiles }));
     }
   });
   if (zone) {

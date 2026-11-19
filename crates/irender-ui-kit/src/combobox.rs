@@ -363,7 +363,9 @@ impl Component for Combobox {
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let flag = |cx: &RenderCx<'_>, name: &str, default: bool| cx.prop(node, name).map_or(default, |v| expr::truthy(&v));
-        let text = |cx: &RenderCx<'_>, name: &str, default: &str| cx.prop_string(node, name).unwrap_or_else(|| default.into());
+        // A prop's text, or the default's label.
+        // Labels: "Select…", "No options", "Loading…", "Create “{input}”"
+        let text = |cx: &RenderCx<'_>, name: &str, default: &str| cx.prop_string(node, name).unwrap_or_else(|| cx.label(default));
         let multiple = flag(cx, "multiple", false);
         let key = cx.prop_string(node, "bind");
 
@@ -435,8 +437,8 @@ impl Component for Combobox {
                 "noOptions": text(cx, "noOptionsText", "No options"),
                 "loading": text(cx, "loadingText", "Loading…"),
                 "create": text(cx, "createText", "Create \u{201c}{input}\u{201d}"),
-                "error": "Couldn't load options",
-                "remove": "Remove {label}",
+                "error": cx.label("Couldn't load options"),
+                "remove": cx.label("Remove {label}"),
             },
         });
         cx.global_js("ui-combobox", SCRIPT);
@@ -478,7 +480,7 @@ impl Component for Combobox {
                 if !is_fixed {
                     let mut x = Element::new("button");
                     x.attr("type", "button").attr("tabindex", lit(-1)).attr("data-ui-remove", true);
-                    x.attr("aria-label", format!("Remove {label}")).text(lit("✕"));
+                    x.attr("aria-label", cx.label_with("Remove {label}", &[("label", &label)])).text(lit("✕"));
                     cx.open(&x, node)?;
                     cx.close("button");
                 }
@@ -525,7 +527,7 @@ impl Component for Combobox {
         cx.open(&spinner, node)?;
         cx.close("span");
         let mut clear = Element::new("button");
-        clear.attr("type", "button").attr("tabindex", lit(-1)).attr("data-ui-clear", true).attr("aria-label", "Clear");
+        clear.attr("type", "button").attr("tabindex", lit(-1)).attr("data-ui-clear", true).attr("aria-label", cx.label("Clear"));
         let clearable = flag(cx, "clearable", false) && selected.iter().any(|v| !fixed.contains(v));
         if !clearable {
             clear.attr("hidden", true);

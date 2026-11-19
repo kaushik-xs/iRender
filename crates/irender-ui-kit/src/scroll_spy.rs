@@ -46,7 +46,7 @@ impl Component for ScrollSpy {
         let mut el = cx.element(&tag, node);
         el.base_style_ref(&STYLE)
             .behavior("ui-scroll-spy", json!({ "offset": offset }))
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("On this page")));
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("On this page"))));
         cx.open(&el, node)?;
         cx.children(node)?;
         cx.close(&tag);

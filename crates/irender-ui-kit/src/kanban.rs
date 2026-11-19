@@ -241,13 +241,13 @@ impl Component for Kanban {
             .base_style(StyleBlock::new().set("--kb-width", format!("{width}px")))
             .behavior("ui-kanban", config)
             .attr("role", "region")
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Board")))
-            .attr("aria-roledescription", "board");
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Board"))))
+            .attr("aria-roledescription", cx.label("board"));
         cx.open(&root, node)?;
         let mut board = cx.part("div", node, "board");
         board.attr("data-kb-board", true);
         cx.open(&board, node)?;
-        let empty = cx.prop_string(node, "emptyText").unwrap_or_else(|| "No cards".into());
+        let empty = cx.prop_string(node, "emptyText").unwrap_or_else(|| cx.label("No cards"));
         let mut first = true;
         for col in &columns {
             let (id, title) = match col {
@@ -260,7 +260,7 @@ impl Component for Kanban {
             let mut section = Element::new("section");
             section
                 .attr("data-kb-column", id.clone())
-                .attr("aria-label", format!("{title}, {} {}", mine.len(), if mine.len() == 1 { "card" } else { "cards" }));
+                .attr("aria-label", format!("{title}, {}", cx.label_count("{n} card", "{n} cards", mine.len() as f64)));
             if let Some(t) = col.get("tone").filter(|t| !t.is_null()) {
                 section.attr("data-tone", expr::stringify(t));
             }
@@ -294,7 +294,7 @@ impl Component for Kanban {
                 b.attr("type", "button")
                     .attr("data-kb-fold", true)
                     .attr("aria-expanded", if folded { "false" } else { "true" })
-                    .attr("aria-label", format!("{} {title}", if folded { "Show" } else { "Hide" }));
+                    .attr("aria-label", cx.label_with(if folded { "Show {name}" } else { "Hide {name}" }, &[("name", &title)]));
                 cx.open(&b, node)?;
                 cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#);
                 cx.close("button");
@@ -320,7 +320,7 @@ impl Component for Kanban {
                 cx.open(&b, node)?;
                 cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#);
                 let mut l = Element::new("span");
-                l.text(node.prop("addLabel").cloned().unwrap_or_else(|| lit("Add card")));
+                l.text(node.prop("addLabel").cloned().unwrap_or_else(|| lit(cx.label("Add card"))));
                 cx.open(&l, node)?;
                 cx.close("span");
                 cx.close("button");
@@ -346,9 +346,9 @@ fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool
     let due = c.get("due").filter(|p| !p.is_null()).map(expr::stringify);
     let label: Vec<String> = [
         Some(title.clone()),
-        priority.as_ref().map(|p| format!("{p} priority")),
-        due.as_ref().map(|d| format!("due {d}")),
-        who_name.as_ref().filter(|n| !n.is_empty()).map(|n| format!("assigned to {n}")),
+        priority.as_ref().map(|p| cx.label_with("{priority} priority", &[("priority", p)])),
+        due.as_ref().map(|d| cx.label_with("due {date}", &[("date", d)])),
+        who_name.as_ref().filter(|n| !n.is_empty()).map(|n| cx.label_with("assigned to {name}", &[("name", n)])),
     ]
     .into_iter()
     .flatten()
@@ -356,7 +356,7 @@ fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool
     let mut a = Element::new("article");
     a.attr("data-kb-card", text(c.get("id")))
         .attr("tabindex", lit(if first { 0 } else { -1 }))
-        .attr("aria-roledescription", "card")
+        .attr("aria-roledescription", cx.label("card"))
         .attr("aria-label", label.join(", "))
         .attr("role", "listitem");
     if movable {

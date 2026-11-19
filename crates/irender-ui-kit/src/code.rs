@@ -276,7 +276,7 @@ impl Component for CodeBlock {
 
         let copy_button = |cx: &mut RenderCx<'_>| -> Result<(), RenderError> {
             let mut b = cx.part("button", node, "copy");
-            b.attr("type", "button").attr("data-code-copy", true).attr("aria-label", "Copy code").attr("title", "Copy");
+            b.attr("type", "button").attr("data-code-copy", true).attr("aria-label", cx.label("Copy code")).attr("title", cx.label("Copy"));
             cx.open(&b, node)?;
             cx.markup(COPY);
             cx.close("button");
@@ -307,7 +307,7 @@ impl Component for CodeBlock {
 
         // A scrolling region, so it takes focus to scroll with the keys.
         let mut pre = cx.part("pre", node, "pre");
-        let label = node.prop("label").cloned().or(title).unwrap_or_else(|| lit("Code"));
+        let label = node.prop("label").cloned().or(title).unwrap_or_else(|| lit(cx.label("Code")));
         pre.attr("tabindex", "0").attr("aria-label", label);
         cx.open(&pre, node)?;
         let mut c = Element::new("code");
@@ -399,13 +399,13 @@ impl Component for JsonEditor {
         bar.attr("data-je-bar", true);
         cx.open(&bar, node)?;
         let mut st = Element::new("span");
-        st.attr("data-je-status", true).text(lit("JSON"));
+        st.attr("data-je-status", true).text(lit(cx.label("JSON")));
         cx.open(&st, node)?;
         cx.close("span");
         if cx.prop(node, "format").is_none_or(|v| expr::truthy(&v)) {
             let mut f = Element::new("button");
             forms::button_look(&mut f, "ghost", "sm");
-            f.attr("type", "button").attr("data-je-format", true).text(lit("Format"));
+            f.attr("type", "button").attr("data-je-format", true).text(lit(cx.label("Format")));
             cx.open(&f, node)?;
             cx.close("button");
         }
@@ -459,13 +459,13 @@ impl Component for JsonEditor {
         // A `ui-field` names it (a `<label for>` this part's id, or `aria-labelledby`);
         // otherwise `label` does.
         if !node.parts.get("textarea").is_some_and(|p| p.attrs.contains_key("id") || p.attrs.contains_key("aria-labelledby")) {
-            ta.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("JSON")));
+            ta.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("JSON"))));
         }
         cx.open(&ta, node)?;
         cx.close("textarea");
         cx.close("div");
         let mut hint = Element::new("span");
-        hint.attr("data-je-hint", true).attr("id", id_with(&id, "-hint")).text(lit("Tab indents. Press Escape, then Tab, to leave the editor."));
+        hint.attr("data-je-hint", true).attr("id", id_with(&id, "-hint")).text(lit(cx.label("Tab indents. Press Escape, then Tab, to leave the editor.")));
         cx.open(&hint, node)?;
         cx.close("span");
         cx.close("div");

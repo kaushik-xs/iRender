@@ -1,6 +1,6 @@
 //! The validated tree renderers consume.
 
-use crate::{Diagnostics, StyleBlock, Theme, Val};
+use crate::{Diagnostics, Labels, StyleBlock, Theme, Val};
 use indexmap::IndexMap;
 use serde_json::Value as Json;
 
@@ -8,6 +8,8 @@ use serde_json::Value as Json;
 pub struct Ir {
     pub version: u32,
     pub theme: Theme,
+    /// The document's `lang` and `labels`.
+    pub labels: Labels,
     pub state: IndexMap<String, Json>,
     pub root: Node,
     /// Non-fatal problems found while loading.

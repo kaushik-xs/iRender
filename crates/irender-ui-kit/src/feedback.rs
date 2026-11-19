@@ -107,7 +107,7 @@ impl Component for Toaster {
         close
             .base_style_ref(&CLOSE)
             .attr("type", "button")
-            .attr("aria-label", "Dismiss")
+            .attr("aria-label", cx.label("Dismiss"))
             .attr("data-dismiss", lit(""))
             .text(lit("✕"));
         cx.open(&close, node)?;

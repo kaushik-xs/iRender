@@ -8,6 +8,11 @@
 // each line can be its own element (for line numbers and marked lines).
 (() => {
   if (window.__irenderCode) return;
+  // Interface text in the document's words (its `labels`), by the English; the plain
+  // English where the runtime isn't on the page.
+  const L = (text, vars = {}) =>
+    window.__irender?.label ? window.__irender.label(text, vars)
+    : String(Array.isArray(text) ? text[vars.n === 1 ? 0 : 1] : text).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
   const words = (s) => `\\b(?:${s.trim().split(/\s+/).join("|")})\\b`;
   const STR = `"(?:[^"\\\\\\n]|\\\\.)*"|'(?:[^'\\\\\\n]|\\\\.)*'`;
   const NUM = `\\b(?:0x[\\da-fA-F_]+|\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?)\\b`;
@@ -125,7 +130,7 @@
     const ws = () => {
       while (i < text.length && " \t\n\r".includes(text[i])) i++;
     };
-    const show = (c) => (c === undefined ? "the end" : c === "\n" ? "a new line" : `'${c}'`);
+    const show = (c) => (c === undefined ? L("the end") : c === "\n" ? L("a new line") : `'${c}'`);
     const value = () => {
       ws();
       const c = text[i];
@@ -134,11 +139,11 @@
       if (c === '"') return string();
       if (c === "-" || (c >= "0" && c <= "9")) return number();
       for (const w of ["true", "false", "null"]) if (text.startsWith(w, i)) return void (i += w.length);
-      if (c === undefined) fail("Expected a value, found the end");
-      if (c === "'") fail("Strings take double quotes");
+      if (c === undefined) fail(L("Expected a value, found the end"));
+      if (c === "'") fail(L("Strings take double quotes"));
       const word = /^[A-Za-z_$][\w$]*/.exec(text.slice(i));
-      if (word) fail(`Unknown value '${word[0]}': text takes double quotes`);
-      fail(`Unexpected ${show(c)}`);
+      if (word) fail(L("Unknown value '{word}': text takes double quotes", { word: word[0] }));
+      fail(L("Unexpected {what}", { what: show(c) }));
     };
     const string = () => {
       const start = i++;
@@ -149,24 +154,24 @@
         if (c === "\\") {
           const e = text[i + 1];
           if (e === "u") {
-            if (!/^[\da-fA-F]{4}$/.test(text.slice(i + 2, i + 6))) fail("Bad \\u escape: it takes four hex digits");
+            if (!/^[\da-fA-F]{4}$/.test(text.slice(i + 2, i + 6))) fail(L("Bad \\u escape: it takes four hex digits"));
             i += 6;
             continue;
           }
-          if (!'"\\/bfnrt'.includes(e) || e === undefined) fail(`Bad escape \\${e ?? ""}`);
+          if (!'"\\/bfnrt'.includes(e) || e === undefined) fail(L("Bad escape \\{char}", { char: e ?? "" }));
           i += 2;
           continue;
         }
-        if (c < " ") fail("Control character in a string");
+        if (c < " ") fail(L("Control character in a string"));
         i++;
       }
-      fail("Unterminated string", start);
+      fail(L("Unterminated string"), start);
     };
     const number = () => {
       const m = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(text.slice(i));
-      if (!m) fail("Invalid number");
+      if (!m) fail(L("Invalid number"));
       i += m[0].length;
-      if (/[\d.eE]/.test(text[i] ?? "")) fail("Invalid number");
+      if (/[\d.eE]/.test(text[i] ?? "")) fail(L("Invalid number"));
     };
     const list = (close, item) => {
       i++;
@@ -178,30 +183,30 @@
         if (text[i] === ",") {
           const comma = i++;
           ws();
-          if (text[i] === close) fail(`Trailing comma before '${close}'`, comma);
+          if (text[i] === close) fail(L("Trailing comma before '{close}'", { close }), comma);
           continue;
         }
         if (text[i] === close) return void i++;
-        fail(`Expected ',' or '${close}', found ${show(text[i])}`);
+        fail(L("Expected ',' or '{close}', found {what}", { close, what: show(text[i]) }));
       }
     };
     const object = () =>
       list("}", () => {
         ws();
-        if (text[i] !== '"') fail(text[i] === "'" ? "Keys take double quotes" : /[\w$]/.test(text[i] ?? "") ? "Keys need double quotes" : `Expected a key, found ${show(text[i])}`);
+        if (text[i] !== '"') fail(text[i] === "'" ? L("Keys take double quotes") : /[\w$]/.test(text[i] ?? "") ? L("Keys need double quotes") : L("Expected a key, found {what}", { what: show(text[i]) }));
         string();
         ws();
-        if (text[i] !== ":") fail(`Expected ':' after the key, found ${show(text[i])}`);
+        if (text[i] !== ":") fail(L("Expected ':' after the key, found {what}", { what: show(text[i]) }));
         i++;
         value();
       });
     const array = () => list("]", value);
     try {
       ws();
-      if (i === text.length) fail("Enter a JSON value");
+      if (i === text.length) fail(L("Enter a JSON value"));
       value();
       ws();
-      if (i < text.length) fail(`Unexpected ${show(text[i])} after the value`);
+      if (i < text.length) fail(L("Unexpected {what} after the value", { what: show(text[i]) }));
       return null;
     } catch (e) {
       if (!("at" in e)) throw e;
@@ -231,8 +236,8 @@
       const btn = document.createElement("button");
       btn.type = "button";
       btn.setAttribute("data-fence-copy", "");
-      btn.setAttribute("aria-label", lang ? `Copy ${lang} code` : "Copy code");
-      btn.title = "Copy";
+      btn.setAttribute("aria-label", lang ? L("Copy {lang} code", { lang }) : L("Copy code"));
+      btn.title = L("Copy");
       btn.innerHTML = COPY_ICON;
       const live = document.createElement("span");
       live.setAttribute("aria-live", "polite");
@@ -249,7 +254,7 @@
       const ok = await copy(btn.parentElement.querySelector("code").textContent);
       const live = btn.parentElement.querySelector("[data-fence-live]");
       btn.toggleAttribute("data-copied", ok);
-      live.textContent = ok ? "Copied to the clipboard" : "Couldn't copy: select the code and copy it";
+      live.textContent = ok ? L("Copied to the clipboard") : L("Couldn't copy: select the code and copy it");
       clearTimeout(timer);
       timer = setTimeout(() => {
         btn.removeAttribute("data-copied");

@@ -219,11 +219,16 @@ impl Component for NumberInput {
 
 fn step_button(cx: &mut RenderCx<'_>, node: &Node, dir: i32, label: Option<&str>) -> Result<(), RenderError> {
     let mut b = Element::new("button");
-    let what = label.map(|l| format!(" {l}")).unwrap_or_default();
+    let aria = match (dir < 0, label) {
+        (true, Some(l)) => cx.label_with("Decrease {name}", &[("name", l)]),
+        (false, Some(l)) => cx.label_with("Increase {name}", &[("name", l)]),
+        (true, None) => cx.label("Decrease"),
+        (false, None) => cx.label("Increase"),
+    };
     b.attr("type", "button")
         .attr("data-num-step", dir.to_string())
         .attr("tabindex", lit(-1))
-        .attr("aria-label", if dir < 0 { format!("Decrease{what}") } else { format!("Increase{what}") })
+        .attr("aria-label", aria)
         .text(lit(if dir < 0 { "−" } else { "+" }));
     if let Some(d) = node.prop("disabled") {
         b.attr("disabled", d.clone());

@@ -6,13 +6,15 @@ iRender renders UI from a JSON or YAML document. This page is the compact set of
 
 ```yaml
 version: 1
+lang: es                                                # optional: the page's language
+labels: { "Rows per page": "Filas por página" }         # optional: the kits' interface text, by its English
 theme: { tokens: { color: { primary: "#4f46e5" } } }   # optional
 state: { count: 0, tab: overview, results: [] }         # optional: browser state, every key you read or set
 fragments: { card: { type: stack, children: [] } }      # optional: reusable subtrees
 root: { type: stack, children: [] }                     # required: one node
 ```
 
-Only these five top-level keys exist. Unknown keys are errors.
+Only these seven top-level keys exist. Unknown keys are errors. For a page in another language, set `lang` and give `labels` for the kits' fixed words: [labels.md](labels.md) lists every key, and `{ one, other }` gives a count's plural forms.
 
 ## Node
 

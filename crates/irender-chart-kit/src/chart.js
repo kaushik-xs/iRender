@@ -2,6 +2,9 @@
 // an option from the shorthand props, themes it from the page's CSS tokens, and
 // redraws when the state it reads changes.
 (() => {
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
+
   // ---------------------------------------------------------------- loading
   const loads = {};
   const load = (src) =>
@@ -496,7 +499,7 @@
       } else if (type === "treemap") {
         o.series = [{
           // The name labels the breadcrumb's root, which zooms back out.
-          type, name: "All", data, top: 8, left: 0, right: 0, bottom: 32, roam: false, nodeClick: "zoomToNode",
+          type, name: L("All"), data, top: 8, left: 0, right: 0, bottom: 32, roam: false, nodeClick: "zoomToNode",
           itemStyle: { borderColor: t.surface, borderWidth: 2, gapWidth: 2, borderRadius: 4 },
           breadcrumb: { itemStyle: { color: t.surface, borderColor: t.border, textStyle: { color: t.text } } },
         }];
@@ -888,7 +891,7 @@
       }
       // Below the top level of a drill: a way back up, through each level.
       if (d.levels && d.depth > 0) {
-        const trail = ["All", ...path().slice(0, d.depth)].map(String).join("  ›  ");
+        const trail = [L("All"), ...path().slice(0, d.depth)].map(String).join("  ›  ");
         o.graphic = [{
           type: "text", id: "drill-up", left: 4, top: 2, z: 100, cursor: "pointer",
           style: { text: `‹  ${trail}`, fill: theme.muted, font: `12px ${theme.font}` },
@@ -904,7 +907,7 @@
       if (o.series && !Array.isArray(o.series)) o.series = [o.series];
       // Ids let a redraw match series to the ones on screen, so they animate.
       (o.series || []).forEach((s, i) => isObj(s) && (s.id ??= `s${i}`));
-      const about = cfg.title ? `This is a chart about “${String(cfg.title).replace(/[{}]/g, "")}”` : "This is a chart";
+      const about = cfg.title ? L("This is a chart about “{title}”", { title: String(cfg.title).replace(/[{}]/g, "") }) : L("This is a chart");
       o.aria = merge({ enabled: true, label: { general: { withoutTitle: about } } }, o.aria);
       if (reducedMotion.matches) o.animation = false;
       return o;
@@ -1082,7 +1085,7 @@
       } catch (e) {
         console.error("ui-chart:", e);
         el.setAttribute("data-error", "");
-        box.textContent = "Chart unavailable";
+        box.textContent = L("Chart unavailable");
         box.style.cssText += ";display:grid;place-items:center;font-size:12px;opacity:.6";
         return;
       } finally {

@@ -810,7 +810,7 @@ impl Component for Spinner {
         cx.global_css("ui-spin", SPIN);
         let mut el = cx.element("span", node);
         el.base_style_ref(&SPINNER).base_style(sizing).attr("role", "status");
-        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Loading")));
+        el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Loading"))));
         cx.open(&el, node)?;
         cx.close("span");
         Ok(())

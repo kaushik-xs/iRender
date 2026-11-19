@@ -297,23 +297,24 @@ impl Component for EventCalendar {
         root.base_style_ref(&CALENDAR)
             .behavior("ui-event-calendar", config)
             .attr("role", "region")
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Calendar")));
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Calendar"))));
         cx.open(&root, node)?;
 
         let mut bar = cx.part("div", node, "toolbar");
         bar.attr("data-ev-bar", true);
         cx.open(&bar, node)?;
+        // Labels: "Previous", "Next"
         for (attr, label, icon) in [("data-ev-prev", "Previous", CHEVRON_LEFT), ("data-ev-next", "Next", CHEVRON_RIGHT)] {
             let mut b = Element::new("button");
             forms::button_look(&mut b, "outline", "sm");
-            b.attr("type", "button").attr(attr, true).attr("aria-label", label);
+            b.attr("type", "button").attr(attr, true).attr("aria-label", cx.label(label));
             cx.open(&b, node)?;
             cx.markup(icon);
             cx.close("button");
         }
         let mut today = Element::new("button");
         forms::button_look(&mut today, "outline", "sm");
-        today.attr("type", "button").attr("data-ev-today", true).text(lit("Today"));
+        today.attr("type", "button").attr("data-ev-today", true).text(lit(cx.label("Today")));
         cx.open(&today, node)?;
         cx.close("button");
         let mut title = Element::new("h3");
@@ -322,11 +323,12 @@ impl Component for EventCalendar {
         cx.close("h3");
         if views.len() > 1 {
             let mut group = Element::new("div");
-            group.attr("data-ev-views", true).attr("role", "group").attr("aria-label", "View");
+            group.attr("data-ev-views", true).attr("role", "group").attr("aria-label", cx.label("View"));
             cx.open(&group, node)?;
             for v in &views {
                 let mut b = Element::new("button");
-                let label = v[..1].to_uppercase() + &v[1..];
+                // Labels: "Day", "Week", "Month", "Year", "List"
+                let label = cx.label(&(v[..1].to_uppercase() + &v[1..]));
                 b.attr("type", "button").attr("data-ev-view", v.clone()).attr("aria-pressed", if *v == view { "true" } else { "false" }).text(lit(label));
                 cx.open(&b, node)?;
                 cx.close("button");
@@ -336,7 +338,7 @@ impl Component for EventCalendar {
         cx.close("div");
         if node.prop("categories").is_some() {
             let mut legend = Element::new("div");
-            legend.attr("data-ev-legend", true).attr("aria-label", "Categories");
+            legend.attr("data-ev-legend", true).attr("aria-label", cx.label("Categories"));
             cx.open(&legend, node)?;
             cx.close("div");
         }

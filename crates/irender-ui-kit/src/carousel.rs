@@ -95,8 +95,8 @@ impl Component for Carousel {
         let mut el = cx.element("section", node);
         el.base_style_ref(&CAROUSEL)
             .base_style(sizing)
-            .attr("aria-roledescription", "carousel")
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Carousel")))
+            .attr("aria-roledescription", cx.label("carousel"))
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Carousel"))))
             .behavior("ui-carousel", json!({}));
         cx.open(&el, node)?;
         let mut track = cx.part("div", node, "track");

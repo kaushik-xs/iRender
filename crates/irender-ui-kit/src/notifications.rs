@@ -205,7 +205,7 @@ impl Component for Notifications {
         };
         let unread = items.iter().filter(|n| !n.get("read").is_some_and(expr::truthy) && !n.get("archived").is_some_and(expr::truthy)).count();
         let text = |cx: &RenderCx<'_>, name: &str| node.prop(name).map(|v| expr::stringify(&cx.eval(v)));
-        let label = text(cx, "label").unwrap_or_else(|| "Notifications".into());
+        let label = text(cx, "label").unwrap_or_else(|| cx.label("Notifications"));
         cx.global_js("ui-notifications", SCRIPT);
         let config = json!({
             "items": dynamic(cx, node, "items", node.prop("items").expect("required"))?,
@@ -231,7 +231,7 @@ impl Component for Notifications {
                 .attr("data-nt-bell", true)
                 .attr("popovertarget", id.clone())
                 .attr("aria-haspopup", "dialog")
-                .attr("aria-label", if unread > 0 { format!("{label}, {unread} unread") } else { label.clone() })
+                .attr("aria-label", if unread > 0 { cx.label_with("{label}, {n} unread", &[("label", &label), ("n", &unread.to_string())]) } else { label.clone() })
                 .base_style(StyleBlock::new().set("anchor-name", anchor.clone()));
             cx.open(&bell, node)?;
             cx.markup(BELL);
@@ -254,11 +254,11 @@ impl Component for Notifications {
         head.attr("data-nt-head", true);
         cx.open(&head, node)?;
         let mut h = Element::new("h3");
-        h.attr("id", id_with(&id, "-title")).text(node.prop("title").cloned().unwrap_or_else(|| lit("Notifications")));
+        h.attr("id", id_with(&id, "-title")).text(node.prop("title").cloned().unwrap_or_else(|| lit(cx.label("Notifications"))));
         cx.open(&h, node)?;
         cx.close("h3");
         let mut all = Element::new("button");
-        all.attr("type", "button").attr("data-nt-mark-all", true).text(lit("Mark all as read"));
+        all.attr("type", "button").attr("data-nt-mark-all", true).text(lit(cx.label("Mark all as read")));
         if unread == 0 {
             all.attr("disabled", true);
         }
@@ -266,9 +266,10 @@ impl Component for Notifications {
         cx.close("button");
         cx.close("div");
         let mut tabs = Element::new("div");
-        tabs.attr("data-nt-tabs", true).attr("role", "group").attr("aria-label", "Show");
+        tabs.attr("data-nt-tabs", true).attr("role", "group").attr("aria-label", cx.label("Show"));
         cx.open(&tabs, node)?;
-        for (value, text) in [("unread", if unread > 0 { format!("Unread ({unread})") } else { "Unread".into() }), ("all", "All".into())] {
+        let unread_text = if unread > 0 { cx.label_with("Unread ({n})", &[("n", &unread.to_string())]) } else { cx.label("Unread") };
+        for (value, text) in [("unread", unread_text), ("all", cx.label("All"))] {
             let mut b = Element::new("button");
             b.attr("type", "button").attr("data-nt-tab", value).attr("aria-pressed", if tab == value { "true" } else { "false" }).text(lit(text));
             cx.open(&b, node)?;
@@ -288,7 +289,7 @@ impl Component for Notifications {
             foot.attr("data-nt-foot", true);
             cx.open(&foot, node)?;
             let mut a = Element::new("a");
-            a.attr("href", href.clone()).text(lit("See all notifications"));
+            a.attr("href", href.clone()).text(lit(cx.label("See all notifications")));
             cx.open(&a, node)?;
             cx.close("a");
             cx.close("div");

@@ -17,6 +17,14 @@ pub struct Document {
     pub version: u32,
     #[serde(default)]
     pub theme: ThemeSpec,
+    /// The document's language, e.g. `es` or `pt-BR`: the page's `lang`, and the plural
+    /// rules for `labels`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
+    /// The kits' interface text in the document's words, keyed by the English: `"Rows per
+    /// page": "Filas por página"`, with `{name}` for values, and `{ one, other }` for counts.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub labels: IndexMap<String, Json>,
     /// Initial client-side state. Expressions that reference these keys are reactive.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub state: IndexMap<String, Json>,

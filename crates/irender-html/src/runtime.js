@@ -5,6 +5,28 @@
   // `evaluate` is exposed so tests can check parity with the Rust evaluator.
   window.__irender = { evaluate: (template, state) => tv(template, state) };
 
+  // Interface text in the document's words (the Rust side is irender-core's labels.rs).
+  // `text` is the English, or `[one, other]` for a count in `vars.n`; the label is found
+  // by the English (the `other` form), and may be plural forms picked by the document's
+  // `lang`. `{name}`s are filled from `vars`, numbers written in the `lang`'s way.
+  const labelSets = [];
+  const rules = {}, numbers = {};
+  window.__irender.label = (text, vars = {}) => {
+    const [one, other] = Array.isArray(text) ? text : [text, text];
+    let set = labelSets.find((x) => x.labels && Object.hasOwn(x.labels, other));
+    const lang = (set ?? labelSets.find((x) => x.lang))?.lang || undefined;
+    const l = set?.labels[other], n = vars.n;
+    let s;
+    if (typeof l === "string") s = l;
+    else if (l && typeof l === "object") s = l[typeof n === "number" ? (rules[lang] ||= new Intl.PluralRules(lang)).select(n) : "other"] ?? l.other;
+    else s = n === 1 ? one : other;
+    return String(s).replace(/\{(\w+)\}/g, (m, k) => {
+      if (!(k in vars)) return m;
+      const v = vars[k];
+      return typeof v === "number" ? (numbers[lang] ||= new Intl.NumberFormat(lang)).format(v) : String(v);
+    });
+  };
+
   const CSS_WIDE = /^\s*(inherit|initial|unset|revert|revert-layer)\s*$/i;
   const URL_ATTRS = new Set(["href", "src", "action", "formaction", "poster", "cite", "data", "xlink:href"]);
   const safeUrl = (u) => !/^\s*(javascript|vbscript|data):/i.test(u);
@@ -93,6 +115,8 @@
     if (root.__irender) return;
     const stateEl = [...root.children].find((c) => c.matches("script[data-i-state]"));
     let state = stateEl ? JSON.parse(stateEl.textContent) : {};
+    const labelsEl = [...root.children].find((c) => c.matches("script[data-i-labels]"));
+    if (labelsEl) labelSets.push(JSON.parse(labelsEl.textContent));
 
     // An attribute's JSON, parsed once per element.
     const json = (el, attr, key) => el[key] ?? (el[key] = JSON.parse(el.getAttribute(attr)));

@@ -475,6 +475,7 @@ const THEME_TOGGLE_PROPS: &[PropDef] = &[
     PropDef::new("variant", PropKind::Enum(TOGGLE_VARIANTS), "Default `outline`"),
     PropDef::new("size", PropKind::Enum(TOGGLE_SIZES), "Default `sm`"),
 ];
+// Labels: "System", "Light", "Dark"
 const SCHEMES: [(&str, &str); 3] = [("system", "System"), ("light", "Light"), ("dark", "Dark")];
 
 impl Component for ThemeToggle {
@@ -499,7 +500,7 @@ impl Component for ThemeToggle {
         group
             .base_style_ref(&TOGGLE_GROUP)
             .attr("role", "group")
-            .attr("aria-label", "Colour scheme")
+            .attr("aria-label", cx.label("Colour scheme"))
             .behavior("ui-theme-toggle", json!({}));
         cx.open(&group, node)?;
         // The server can't know the stored choice; the behaviour corrects `aria-pressed`.
@@ -512,7 +513,7 @@ impl Component for ThemeToggle {
                 .attr("type", "button")
                 .attr("data-scheme", scheme)
                 .attr("aria-pressed", if scheme == "system" { "true" } else { "false" })
-                .text(lit(field(&labels, scheme).unwrap_or_else(|| default.into())));
+                .text(lit(field(&labels, scheme).unwrap_or_else(|| cx.label(default))));
             cx.open(&button, node)?;
             cx.close("button");
         }
@@ -791,9 +792,10 @@ impl Component for ThemeColors {
             let mut heading = Element::new("div");
             heading.base_style_ref(&COLORS_HEADING);
             cx.open(&heading, node)?;
-            cx.text("Backgrounds, ");
+            let t = format!("{}, ", cx.label("Backgrounds"));
+            cx.text(&t);
             let mut mode = Element::new("span");
-            mode.attr("data-mode", true).text(lit("light mode"));
+            mode.attr("data-mode", true).text(lit(cx.label("light mode")));
             cx.open(&mode, node)?;
             cx.close("span");
             cx.close("div");
@@ -808,7 +810,7 @@ impl Component for ThemeColors {
             .base_style_ref(&TOGGLE_SIZE_STYLES[1])
             .attr("type", "button")
             .attr("data-reset", true)
-            .text(lit("Reset colours"));
+            .text(lit(cx.label("Reset colours")));
         cx.open(&reset, node)?;
         cx.close("button");
         cx.close("div");

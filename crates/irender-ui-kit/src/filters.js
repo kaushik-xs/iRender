@@ -16,6 +16,8 @@
   const tabs = $$("[data-fl-tab]");
 
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const announcer = $("[data-fl-live]");
   const say = (text) => {
     if (!announcer) return;
@@ -151,7 +153,7 @@
   function problem(d, s) {
     if (s.op !== "between" || blank(s.a) || blank(s.b) || s.a === "" || s.b === "") return "";
     const bad = d.type === "date" ? String(s.a) > String(s.b) : Number(s.a) > Number(s.b);
-    return !bad ? "" : d.type === "date" ? "The start date can't be after the end date." : "The first value can't be more than the second.";
+    return !bad ? "" : d.type === "date" ? L("The start date can't be after the end date.") : L("The first value can't be more than the second.");
   }
   const takesValue = (op) => !["empty", "set", "any", "none"].includes(op);
   const takesList = (op) => op === "any" || op === "none";
@@ -165,19 +167,19 @@
     };
     switch (s.op) {
       case "any": return many(s.picked);
-      case "none": return `not ${many(s.picked)}`;
-      case "empty": return "is empty";
-      case "set": return "is not empty";
-      case "contains": return `contains “${s.a}”`;
+      case "none": return L("not {values}", { values: many(s.picked) });
+      case "empty": return L("is empty");
+      case "set": return L("is not empty");
+      case "contains": return L("contains “{value}”", { value: s.a });
       case "is": return `“${s.a}”`;
       case "eq": case "on": return show(d, s.a);
       case "gt": return `> ${show(d, s.a)}`;
       case "lt": return `< ${show(d, s.a)}`;
-      case "after": return `after ${show(d, s.a)}`;
-      case "before": return `before ${show(d, s.a)}`;
+      case "after": return L("after {value}", { value: show(d, s.a) });
+      case "before": return L("before {value}", { value: show(d, s.a) });
       case "between":
-        if (blank(s.b) || s.b === "") return d.type === "date" ? `from ${show(d, s.a)}` : `≥ ${show(d, s.a)}`;
-        if (blank(s.a) || s.a === "") return d.type === "date" ? `until ${show(d, s.b)}` : `≤ ${show(d, s.b)}`;
+        if (blank(s.b) || s.b === "") return d.type === "date" ? L("from {value}", { value: show(d, s.a) }) : `≥ ${show(d, s.a)}`;
+        if (blank(s.a) || s.a === "") return d.type === "date" ? L("until {value}", { value: show(d, s.b) }) : `≤ ${show(d, s.b)}`;
         return `${show(d, s.a)} – ${show(d, s.b)}`;
     }
     return "";
@@ -222,7 +224,7 @@
     total.hidden = !n;
     total.textContent = n;
     const button = $("[data-fl-open]"), name = $("span:not([data-fl-count])", button).textContent;
-    if (n) button.setAttribute("aria-label", `${name}, ${n} applied`);
+    if (n) button.setAttribute("aria-label", L("{name}, {n} applied", { name, n }));
     else button.removeAttribute("aria-label");
     if (!chips) return;
     clearAll.hidden = !on.length;
@@ -242,7 +244,7 @@
         const x = document.createElement("button");
         x.type = "button";
         x.setAttribute("data-fl-remove", d.field);
-        x.setAttribute("aria-label", `Remove the ${d.label} filter`);
+        x.setAttribute("aria-label", L("Remove the {name} filter", { name: d.label }));
         x.textContent = "✕";
         chip.append(edit, x);
         return chip;
@@ -348,7 +350,7 @@
     if (!shown.length) {
       const none = document.createElement("p");
       none.setAttribute("data-fl-none", "");
-      none.textContent = list.length ? "No matches" : "No values";
+      none.textContent = list.length ? L("No matches") : L("No values");
       box.append(none);
     }
   }
@@ -412,7 +414,7 @@
         const del = document.createElement("button");
         del.type = "button";
         del.setAttribute("data-fl-view-delete", "");
-        del.setAttribute("aria-label", `Delete the ${v.name} view`);
+        del.setAttribute("aria-label", L("Delete the {name} view", { name: v.name }));
         del.textContent = "✕";
         li.append(apply, del);
         return li;
@@ -421,7 +423,7 @@
     if (!vs.length) {
       const li = document.createElement("li");
       li.setAttribute("data-fl-view-empty", "");
-      li.textContent = "No saved views yet.";
+      li.textContent = L("No saved views yet.");
       list.append(li);
     }
   }
@@ -440,14 +442,14 @@
     const rest = views().filter((v) => v.name !== name);
     api.set(cfg.bindViews, [...rest, { name, filters: clone(applied()) }]);
     box.value = "";
-    say(`Saved the ${name} view`);
+    say(L("Saved the {name} view", { name }));
     queueMicrotask(drawViews);
   }
   function applyView(i) {
     const v = views()[i];
     if (!v) return;
     api.set(cfg.bind, clone(v.filters ?? {}));
-    say(`${v.name} applied`);
+    say(L("{name} applied", { name: v.name }));
     toggleViews(false);
     $("[data-fl-views-open]").focus();
   }
@@ -455,7 +457,7 @@
     const v = views()[i];
     if (!v) return;
     api.set(cfg.bindViews, views().filter((_, j) => j !== i));
-    say(`Deleted the ${v.name} view`);
+    say(L("Deleted the {name} view", { name: v.name }));
     queueMicrotask(() => {
       drawViews();
       ($("[data-fl-view-apply]", menu) || $("[data-fl-view-name]", menu)).focus();

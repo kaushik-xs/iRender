@@ -8,6 +8,8 @@
   const code = el.querySelector("[data-code-body]");
   const btn = el.querySelector("[data-code-copy]");
   const live = el.querySelector("[data-code-live]");
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const env = () => {
     const s = api.scope();
     return s ? { ...api.state, ...s } : api.state;
@@ -37,13 +39,13 @@
   btn?.addEventListener("click", async () => {
     const ok = await window.__irenderCode.copy(shown ?? source());
     btn.toggleAttribute("data-copied", ok);
-    btn.setAttribute("aria-label", ok ? "Copied" : "Copy code");
-    live.textContent = ok ? "Copied to the clipboard" : "Couldn't copy: select the code and copy it";
+    btn.setAttribute("aria-label", ok ? L("Copied") : L("Copy code"));
+    live.textContent = ok ? L("Copied to the clipboard") : L("Couldn't copy: select the code and copy it");
     api.emit("copy", { ok });
     clearTimeout(timer);
     timer = setTimeout(() => {
       btn.removeAttribute("data-copied");
-      btn.setAttribute("aria-label", "Copy code");
+      btn.setAttribute("aria-label", L("Copy code"));
       live.textContent = "";
     }, 2000);
   });
@@ -62,6 +64,7 @@
   const err = el.querySelector("[data-je-error]");
   const status = el.querySelector("[data-je-status]");
   const fmt = el.querySelector("[data-je-format]");
+  const L = (text, vars) => window.__irender.label(text, vars);
   const pad = " ".repeat(cfg.indent);
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const kind = (v) => (v === null ? "null" : Array.isArray(v) ? "array" : typeof v);
@@ -73,7 +76,8 @@
     if (e) return { error: e };
     const value = JSON.parse(text);
     if (cfg.type && cfg.type !== "any" && kind(value) !== cfg.type) {
-      return { error: { message: `Expected ${cfg.type === "array" ? "an array" : `an ${cfg.type}`}, found ${kind(value) === "array" || kind(value) === "object" ? "an " + kind(value) : kind(value)}`, line: 1, column: 1, at: 0 } };
+      // The type names stay English JSON words; the sentence around them is a label.
+      return { error: { message: L("Expected {expected}, found {found}", { expected: cfg.type === "array" ? "an array" : `an ${cfg.type}`, found: kind(value) === "array" || kind(value) === "object" ? "an " + kind(value) : kind(value) }), line: 1, column: 1, at: 0 } };
     }
     return { value };
   }
@@ -94,8 +98,8 @@
     problem = p;
     el.toggleAttribute("data-invalid", !!p);
     ta.setAttribute("aria-invalid", p ? "true" : "false");
-    err.textContent = p ? `Line ${p.line}, column ${p.column}: ${p.message}` : "";
-    status.textContent = p ? "Invalid JSON" : "Valid JSON";
+    err.textContent = p ? L("Line {line}, column {column}: {message}", { line: String(p.line), column: String(p.column), message: p.message }) : "";
+    status.textContent = p ? L("Invalid JSON") : L("Valid JSON");
     paint();
   }
   let quiet;

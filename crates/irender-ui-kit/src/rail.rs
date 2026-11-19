@@ -299,7 +299,7 @@ impl Component for RailLayout {
 
         // The rail: a vertical tab list of sections (links for items with `href`).
         let mut rail = cx.part("nav", node, "rail");
-        rail.attr("data-rail", true).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Sections")));
+        rail.attr("data-rail", true).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Sections"))));
         cx.open(&rail, node)?;
         let mut list = Element::new("div");
         list.attr("role", "tablist").attr("aria-orientation", "vertical").attr("data-rail-tabs", true).base_style(pairs(&[("display", "contents")]));
@@ -343,7 +343,7 @@ impl Component for RailLayout {
             cx.close("h2");
             if open_key.is_some() {
                 let mut b = Element::new("button");
-                b.attr("type", "button").attr("data-rail-fold", true).attr("aria-label", format!("Hide {label}")).attr("title", "Hide panel");
+                b.attr("type", "button").attr("data-rail-fold", true).attr("aria-label", cx.label_with("Hide {name}", &[("name", &label)])).attr("title", cx.label("Hide panel"));
                 cx.open(&b, p)?;
                 cx.markup(FOLD);
                 cx.close("button");
@@ -360,7 +360,7 @@ impl Component for RailLayout {
                 .attr("role", "separator")
                 .attr("tabindex", "0")
                 .attr("aria-orientation", "vertical")
-                .attr("aria-label", "Resize the panel")
+                .attr("aria-label", cx.label("Resize the panel"))
                 .attr("aria-controls", id_with(&id, "-panels"))
                 .attr("aria-valuemin", lit(min))
                 .attr("aria-valuemax", lit(max))

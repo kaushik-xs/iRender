@@ -4927,3 +4927,68 @@ fn data_table_groups_columns_and_export_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A document's `lang` and `labels`: the server's text and the browser's in the
+/// document's words, plural forms picked by the language's rules (Polish has `few` and
+/// `many`), English for keys it doesn't give, and numbers in its way.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn labels_in_chrome() {
+    let rows: Vec<_> = (1..=12).map(|i| serde_json::json!({ "id": i, "name": format!("R{i}") })).collect();
+    let doc = serde_json::json!({ "version": 1, "lang": "pl",
+        "labels": {
+            "Rows per page": "Wierszy na stronę",
+            "Page {page} of {pages}": "Strona {page} z {pages}",
+            "{count} of {total} row(s) selected.": "Zaznaczono {count} z {total}",
+            "{n} results": { "one": "{n} wynik", "few": "{n} wyniki", "many": "{n} wyników", "other": "{n} wyniku" } },
+        "state": { "rows": rows, "picked": [] },
+        "root": { "type": "ui-data-table", "props": { "rows": "{{ rows }}", "selectable": true, "bindSelection": "picked", "pageSize": 10, "search": true },
+            "children": [ { "type": "ui-data-table-column", "props": { "field": "name", "label": "Name" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]");
+      const T = document.querySelector("[data-i-x=ui-data-table]");
+      const L = window.__irender.label;
+      try {
+        log("lang", document.documentElement.lang);
+        log("page", T.querySelector("[data-dt-page]").textContent, "|", T.querySelector("[data-dt-footer]").textContent.includes("Wierszy na stronę"));
+        for (const n of [1, 5]) {
+          root.__irender.set("picked", Array.from({ length: n }, (_, i) => i + 1)); await wait(0);
+          log("selected", T.querySelector("[data-dt-status]").textContent);
+        }
+        // Next page: the browser's text.
+        T.querySelector('[data-dt-go="next"]').click(); await wait(0);
+        log("next", T.querySelector("[data-dt-page]").textContent);
+        log("plural", L(["{n} result", "{n} results"], { n: 1 }), "|", L(["{n} result", "{n} results"], { n: 3 }), "|", L(["{n} result", "{n} results"], { n: 7 }), "|", L(["{n} result", "{n} results"], { n: 1.5 }));
+        log("english", L("Clear filter"), "|", L(["{n} row", "{n} rows"], { n: 1 }), "|", L("Select all {n}", { n: 1234.5 }));
+        log("kept", L("{missing} stays", {}));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    assert!(page.document("t").contains(r#"<html lang="pl">"#));
+    assert!(page.body.contains("Strona 1 z 2"), "the server's text is in the document's words");
+    let html = page.document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("labels", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "lang pl",
+            "page Strona 1 z 2 | true",
+            "selected Zaznaczono 1 z 12",
+            "selected Zaznaczono 5 z 12",
+            "next Strona 2 z 2",
+            "plural 1 wynik | 3 wyniki | 7 wyników | 1,5 wyniku",
+            "english Clear filter | 1 row | Select all 1234,5",
+            "kept {missing} stays",
+        ],
+        "\n{result}"
+    );
+}

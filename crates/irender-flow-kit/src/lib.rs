@@ -203,7 +203,7 @@ impl Component for Flow {
             .base_style(sizing)
             .behavior("ui-flow", config)
             .attr("role", "group")
-            .attr("aria-roledescription", "flow")
+            .attr("aria-roledescription", cx.label("flow"))
             .attr("tabindex", "0")
             .attr("data-background", background);
         if let Some(title) = node.prop("title") {
@@ -235,8 +235,9 @@ impl Component for Flow {
             controls.base_style_ref(&CONTROLS).attr("data-flow-controls", "");
             cx.open(&controls, node)?;
             for (action, label, icon) in CONTROL_BUTTONS {
+                let label = cx.label(label);
                 let mut b = Element::new("button");
-                b.base_style_ref(&CONTROL).attr("type", "button").attr("aria-label", *label).attr("title", *label).attr("data-flow-action", *action);
+                b.base_style_ref(&CONTROL).attr("type", "button").attr("aria-label", label.as_str()).attr("title", label.as_str()).attr("data-flow-action", *action);
                 cx.open(&b, node)?;
                 cx.markup(icon);
                 cx.close("button");
@@ -254,6 +255,7 @@ impl Component for Flow {
     }
 }
 
+// Labels (looked up where they're used): "Zoom in", "Zoom out", "Fit view"
 const CONTROL_BUTTONS: &[(&str, &str, &str)] = &[
     ("zoom-in", "Zoom in", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#),
     ("zoom-out", "Zoom out", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 8h10"/></svg>"#),
@@ -375,7 +377,7 @@ fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
     el.attr("data-flow-node", id.clone())
         .attr("data-type", tpl("{{ node.type }}"))
         .attr("role", "group")
-        .attr("aria-roledescription", "node")
+        .attr("aria-roledescription", cx.label("node"))
         .attr("aria-label", tpl("{{ node.data.label }}"));
     // Without the script, nodes at least sit where they were saved.
     if !cx.is_reactive(&id) {

@@ -12,6 +12,8 @@
   const input = el.querySelector("[data-input]");
   const button = el.querySelector("[data-send-button]");
   const suggestions = el.querySelector("[data-suggestions]");
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   let req = null; // the reply in flight: { tid, controller, started }
 
   const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -28,7 +30,7 @@
   const sync = () => {
     const here = !!req && req.tid === active();
     button.toggleAttribute("data-streaming", here);
-    button.setAttribute("aria-label", here ? "Stop" : "Send");
+    button.setAttribute("aria-label", here ? L("Stop") : L("Send"));
     button.disabled = !here && (!!req || input.disabled || input.value.trim() === "");
     if (suggestions) suggestions.hidden = read(active()).length > 0;
     // Waiting for the current thread's reply to start. Set after this update, since a
@@ -117,7 +119,7 @@
       }
     } catch (error) {
       if (error.name !== "AbortError") {
-        write(tid, [...read(tid), { id: id(), role: "system", content: `The reply failed: ${error.message}`, error: true }]);
+        write(tid, [...read(tid), { id: id(), role: "system", content: L("The reply failed: {error}", { error: error.message }), error: true }]);
         api.emit("irender:error", { error: String(error) });
       }
     } finally {

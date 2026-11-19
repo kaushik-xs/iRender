@@ -105,7 +105,7 @@ impl Component for Breadcrumb {
         };
 
         let mut nav = cx.element("nav", node);
-        nav.attr("aria-label", "breadcrumb");
+        nav.attr("aria-label", cx.label("breadcrumb"));
         cx.open(&nav, node)?;
         let mut ol = cx.part("ol", node, "list");
         ol.base_style_ref(&BREADCRUMB_LIST);
@@ -218,7 +218,7 @@ impl Component for Pagination {
         };
 
         let mut nav = cx.element("nav", node);
-        nav.attr("aria-label", "pagination");
+        nav.attr("aria-label", cx.label("pagination"));
         cx.open(&nav, node)?;
         let mut ul = cx.part("ul", node, "list");
         ul.base_style_ref(&PAGINATION_LIST);
@@ -277,7 +277,8 @@ impl Component for Pagination {
             Ok::<(), RenderError>(())
         };
 
-        link(cx, (page > 1).then(|| page - 1), "‹ Previous", Some("Go to previous page"), false)?;
+        let (prev, prev_aria) = (format!("‹ {}", cx.label("Previous")), cx.label("Go to previous page"));
+        link(cx, (page > 1).then(|| page - 1), &prev, Some(&prev_aria), false)?;
         for p in page_window(page, pages, siblings) {
             match p {
                 Some(p) => link(cx, Some(p), &p.to_string(), None, p == page)?,
@@ -291,7 +292,8 @@ impl Component for Pagination {
                 }
             }
         }
-        link(cx, (page < pages).then(|| page + 1), "Next ›", Some("Go to next page"), false)?;
+        let (next, next_aria) = (format!("{} ›", cx.label("Next")), cx.label("Go to next page"));
+        link(cx, (page < pages).then(|| page + 1), &next, Some(&next_aria), false)?;
         cx.close("ul");
         cx.close("nav");
         Ok(())

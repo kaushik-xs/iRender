@@ -270,10 +270,12 @@ fn items(cx: &mut RenderCx<'_>, node: &Node, nodes: &[Json], depth: usize, d: &D
             let mut a = Element::new("span");
             a.attr("data-tree-actions", true);
             cx.open(&a, node)?;
-            for (on, attr, name, icon) in [(d.addable, "data-tree-add", "Add under", PLUS), (d.deletable, "data-tree-delete", "Delete", TRASH)] {
+            // Labels: "Add under {name}", "Delete {name}"
+            for (on, attr, name, icon) in [(d.addable, "data-tree-add", "Add under {name}", PLUS), (d.deletable, "data-tree-delete", "Delete {name}", TRASH)] {
                 if on {
                     let mut b = Element::new("button");
-                    b.attr("type", "button").attr(attr, true).attr("tabindex", lit(-1)).attr("aria-label", format!("{name} {label}")).attr("title", format!("{name} {label}"));
+                    let words = cx.label_with(name, &[("name", &label)]);
+                    b.attr("type", "button").attr(attr, true).attr("tabindex", lit(-1)).attr("aria-label", words.clone()).attr("title", words);
                     cx.open(&b, node)?;
                     cx.markup(icon);
                     cx.close("button");
@@ -346,7 +348,7 @@ impl Component for Tree {
         };
         let search = match cx.prop(node, "search") {
             None | Some(Json::Null) | Some(Json::Bool(false)) => None,
-            Some(Json::Bool(true)) => Some("Search…".to_string()),
+            Some(Json::Bool(true)) => Some(cx.label("Search…")),
             Some(v) => Some(expr::stringify(&v)),
         };
         let title = node.prop("title").cloned();
@@ -392,7 +394,7 @@ impl Component for Tree {
                 cx.open(&b, node)?;
                 cx.markup(PLUS);
                 let mut l = Element::new("span");
-                l.text(node.prop("addLabel").cloned().unwrap_or_else(|| lit("Add")));
+                l.text(node.prop("addLabel").cloned().unwrap_or_else(|| lit(cx.label("Add"))));
                 cx.open(&l, node)?;
                 cx.close("span");
                 cx.close("button");
@@ -407,13 +409,14 @@ impl Component for Tree {
             }
             cx.open(&bulk, node)?;
             let mut n = Element::new("span");
-            n.attr("data-tree-checked", true).text(lit(format!("{} selected", checked.len())));
+            n.attr("data-tree-checked", true).text(lit(cx.label_with("{n} selected", &[("n", &checked.len().to_string())])));
             cx.open(&n, node)?;
             cx.close("span");
+            // Labels: "Delete", "Clear"
             for (attr, text, variant) in [("data-tree-delete-checked", "Delete", "destructive"), ("data-tree-uncheck", "Clear", "ghost")] {
                 let mut b = Element::new("button");
                 forms::button_look(&mut b, variant, "sm");
-                b.attr("type", "button").attr(attr, true).text(lit(text));
+                b.attr("type", "button").attr(attr, true).text(lit(cx.label(text)));
                 cx.open(&b, node)?;
                 cx.close("button");
             }
@@ -427,7 +430,7 @@ impl Component for Tree {
                 ul.attr("aria-label", t.clone());
             }
             None => {
-                ul.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Tree")));
+                ul.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Tree"))));
             }
         }
         if nodes.is_empty() {
@@ -439,7 +442,7 @@ impl Component for Tree {
         cx.close("ul");
 
         let mut empty = Element::new("p");
-        empty.attr("data-tree-empty", true).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit("Nothing here yet.")));
+        empty.attr("data-tree-empty", true).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit(cx.label("Nothing here yet."))));
         if !nodes.is_empty() {
             empty.attr("hidden", true);
         }

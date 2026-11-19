@@ -1,7 +1,7 @@
 //! Document → IR: validation, expression parsing and token resolution.
 
 use crate::{
-    Action, Catalog, ComponentInfo, Diagnostics, Document, Fragments, Ir, NoFragments, Node, PartStyle,
+    Action, Catalog, ComponentInfo, Diagnostics, Document, Fragments, Ir, Labels, NoFragments, Node, PartStyle,
     Policy, PropDef, PropKind, Severity, StyleBlock, StyleValue, Template, Theme, Val,
     expr::{BinOp, Expr, Part, UnOp},
     params::{self, Params},
@@ -37,6 +37,7 @@ pub fn resolve_with(
         diags.push("version", format!("unsupported version {}, expected {VERSION}", doc.version));
     }
     let theme = Theme::resolve(&doc.theme, &mut diags);
+    let labels = Labels::resolve(doc.lang.as_deref(), &doc.labels, &mut diags);
     for key in doc.state.keys() {
         if !is_ident(key) {
             diags.push(format!("state.{key}"), "state keys must be identifiers (letters, digits, `_`)");
@@ -57,7 +58,7 @@ pub fn resolve_with(
     let root = r.node(&doc.root, "root");
     let diags = r.diags;
     let warnings = Diagnostics(diags.iter().filter(|d| d.severity == Severity::Warning).cloned().collect());
-    diags.into_result(Ir { version: doc.version, theme, state: doc.state.clone(), root, warnings })
+    diags.into_result(Ir { version: doc.version, theme, labels, state: doc.state.clone(), root, warnings })
 }
 
 fn is_ident(s: &str) -> bool {

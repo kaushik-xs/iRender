@@ -13,6 +13,8 @@
   const body = $("[data-ev-body]");
   const live = $("[data-ev-live]");
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const resolve = (v) => (isObj(v) && "$irender" in v && Object.keys(v).length === 1 ? window.__irender.evaluate(v.$irender, api.state) : v);
   const say = (text) => {
     live.textContent = "";
@@ -75,7 +77,7 @@
     const continues = e.first < d, goesOn = e.last > d;
     if (continues) b.setAttribute("data-from-before", "");
     if (goesOn) b.setAttribute("data-on-after", "");
-    const when = e.allDay ? "all day" : `${time(e.startAt)}${e.endAt > e.startAt ? `–${time(e.endAt)}` : ""}`;
+    const when = e.allDay ? L("all day") : `${time(e.startAt)}${e.endAt > e.startAt ? `–${time(e.endAt)}` : ""}`;
     b.setAttribute("aria-label", `${e.title}, ${when}${e.category ? `, ${e.category}` : ""}`);
     if (!e.allDay && !continues) b.append(make("time", {}, time(e.startAt)));
     b.append(make("span", {}, String(e.title ?? "")));
@@ -118,13 +120,13 @@
           "data-today": sameDay(d, today()),
           "data-picked": iso(d) === picked(),
           "aria-selected": iso(d) === picked() ? "true" : "false",
-          "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${here.length} ${here.length === 1 ? "event" : "events"}` : ""}`,
+          "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${L(["{n} event", "{n} events"], { n: here.length })}` : ""}`,
         });
         cell.append(make("span", { "data-ev-date": "", "aria-hidden": "true" }, String(d.getDate())));
         const chips = make("div", { "data-ev-chips": "" });
         here.slice(0, here.length > max ? max - 1 : max).forEach((e) => chips.append(chip(e, d)));
         if (here.length > max) {
-          chips.append(make("button", { type: "button", "data-ev-more": iso(d), tabindex: -1, "aria-label": `${here.length - max + 1} more on ${fmt({ day: "numeric", month: "long" }).format(d)}` }, `+${here.length - max + 1} more`));
+          chips.append(make("button", { type: "button", "data-ev-more": iso(d), tabindex: -1, "aria-label": L("{n} more on {date}", { n: here.length - max + 1, date: fmt({ day: "numeric", month: "long" }).format(d) }) }, L("+{n} more", { n: here.length - max + 1 })));
         }
         cell.append(chips);
         row.append(cell);
@@ -148,7 +150,7 @@
     wrap.append(head);
     // All day, and events over more than a day.
     const allDay = make("div", { "data-ev-allday": "" });
-    allDay.append(make("div", { "data-ev-hour": "" }, "All day"));
+    allDay.append(make("div", { "data-ev-hour": "" }, L("All day")));
     for (const d of days) {
       const cell = make("div", { "data-ev-allday-cell": "", "data-ev-cell-date": iso(d) });
       on(list, d).filter((e) => e.allDay || e.first < e.last).forEach((e) => cell.append(chip(e, d)));
@@ -204,8 +206,8 @@
   // An event's time on day `d`: its hours, "All day", or for one running on from the day
   // before, "Until" its end on its last day.
   function when(e, d) {
-    if (e.allDay) return "All day";
-    if (e.first < d) return sameDay(e.last, d) ? `Until ${time(e.endAt)}` : "All day";
+    if (e.allDay) return L("All day");
+    if (e.first < d) return sameDay(e.last, d) ? L("Until {time}", { time: time(e.endAt) }) : L("All day");
     return `${time(e.startAt)}${e.endAt > e.startAt ? ` – ${time(e.endAt)}` : ""}`;
   }
 
@@ -239,7 +241,7 @@
             "data-today": sameDay(d, today()),
             "data-busy": here.length > 0,
             "data-tone": here[0]?.tone ?? null,
-            "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${here.length} ${here.length === 1 ? "event" : "events"}` : ""}`,
+            "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${L(["{n} event", "{n} events"], { n: here.length })}` : ""}`,
           }, String(d.getDate()));
           row.append(cell);
         }
@@ -279,7 +281,7 @@
       group.append(ul);
       box.append(group);
     }
-    if (!box.children.length) box.append(make("p", { "data-ev-empty": "" }, cfg.emptyText ?? `Nothing in ${fmt({ month: "long" }).format(cursor)}.`));
+    if (!box.children.length) box.append(make("p", { "data-ev-empty": "" }, cfg.emptyText ?? L("Nothing in {month}.", { month: fmt({ month: "long" }).format(cursor) })));
     return box;
   }
 
@@ -309,7 +311,8 @@
     view = next;
     if (cfg.bindView) api.set(cfg.bindView, view);
     draw(focus);
-    say(`${next[0].toUpperCase() + next.slice(1)} view, ${title()}`);
+    // Labels: "Day view, {title}", "Week view, {title}", "Month view, {title}", "Year view, {title}", "List view, {title}"
+    say(L(`${next[0].toUpperCase() + next.slice(1)} view, {title}`, { title: title() }));
   }
   // What's on screen, to tell whether a move changed it.
   const page = () => (view === "week" ? iso(startOfWeek(cursor)) : view === "day" ? iso(cursor) : view === "year" ? String(cursor.getFullYear()) : `${cursor.getFullYear()}-${cursor.getMonth()}`);
@@ -414,7 +417,7 @@
     cursor = day(start);
     return moved;
   }
-  const tell = (m) => say(`${m.title} moved to ${fmt({ weekday: "long", day: "numeric", month: "long" }).format(parse(m.start))}${timed(m.start) ? `, ${time(parse(m.start))}` : ""}${m.end && timed(m.end) ? ` to ${time(parse(m.end))}` : ""}`);
+  const tell = (m) => say(`${L("{title} moved to {date}", { title: String(m.title), date: fmt({ weekday: "long", day: "numeric", month: "long" }).format(parse(m.start)) })}${timed(m.start) ? `, ${time(parse(m.start))}` : ""}${m.end && timed(m.end) ? ` ${L("to {time}", { time: time(parse(m.end)) })}` : ""}`);
   const refocus = (key) => {
     draw(false);
     const c = $(`[data-ev-event="${CSS.escape(key)}"]`);

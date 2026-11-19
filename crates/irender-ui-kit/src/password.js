@@ -18,7 +18,8 @@
     const s = v !== null && typeof v === "object" && "$irender" in v ? window.__irender.evaluate(v.$irender, api.state) : v;
     return s == null ? "" : String(s);
   };
-  const words = ["Enter a password", "Weak", "Fair", "Good", "Strong"];
+  const L = (text, vars) => window.__irender.label(text, vars);
+  const words = [L("Enter a password"), L("Weak"), L("Fair"), L("Good"), L("Strong")];
   let last = null;
   function check() {
     const s = read();

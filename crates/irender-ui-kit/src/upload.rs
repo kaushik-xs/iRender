@@ -267,7 +267,7 @@ impl Component for FileUpload {
         let config = json!({
             "bind": key, "url": url, "params": params, "accept": accept, "multiple": multiple,
             "maxFiles": max_files, "maxSize": max_size, "view": view, "removable": removable, "readOnly": read_only,
-            "zipName": cx.prop_string(node, "zipName").unwrap_or_else(|| "attachments".into()),
+            "zipName": cx.prop_string(node, "zipName").unwrap_or_else(|| cx.label("attachments")),
         });
         let mut root = cx.element("div", node);
         root.base_style_ref(&ROOT).behavior("ui-file-upload", config);
@@ -294,7 +294,7 @@ impl Component for FileUpload {
             cx.open(&input, node)?;
             cx.markup(UPLOAD);
             let mut label = Element::new("span");
-            label.attr("data-up-label", true).text(node.prop("label").cloned().unwrap_or_else(|| lit("Drop files here or click to browse")));
+            label.attr("data-up-label", true).text(node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Drop files here or click to browse"))));
             cx.open(&label, node)?;
             cx.close("span");
             if let Some(h) = node.prop("hint") {
@@ -324,7 +324,7 @@ impl Component for FileUpload {
             cx.open(&b, node)?;
             cx.markup(DOWNLOAD);
             let mut t = Element::new("span");
-            t.text(lit("Download all"));
+            t.text(lit(cx.label("Download all")));
             cx.open(&t, node)?;
             cx.close("span");
             cx.close("button");
@@ -332,12 +332,12 @@ impl Component for FileUpload {
         cx.close("div");
 
         let mut files = cx.part("ul", node, "files");
-        files.base_style_ref(&FILES).attr("data-up-files", true).attr("data-view", view).attr("aria-label", "Files");
+        files.base_style_ref(&FILES).attr("data-up-files", true).attr("data-view", view).attr("aria-label", cx.label("Files"));
         cx.open(&files, node)?;
         cx.close("ul");
         if read_only {
             let mut empty = Element::new("p");
-            empty.attr("data-up-empty", true).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit("No files yet.")));
+            empty.attr("data-up-empty", true).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit(cx.label("No files yet."))));
             cx.open(&empty, node)?;
             cx.close("p");
         }
@@ -357,10 +357,11 @@ impl Component for FileUpload {
         n.attr("data-up-count", true);
         cx.open(&n, node)?;
         cx.close("span");
+        // Labels: "Previous file", "Next file"
         for (attr, label, text) in [("data-up-prev", "Previous file", "‹"), ("data-up-next", "Next file", "›")] {
             let mut b = Element::new("button");
             forms::button_look(&mut b, "outline", "sm");
-            b.attr("type", "button").attr(attr, true).attr("aria-label", label).text(lit(text));
+            b.attr("type", "button").attr(attr, true).attr("aria-label", cx.label(label)).text(lit(text));
             cx.open(&b, node)?;
             cx.close("button");
         }
@@ -370,7 +371,7 @@ impl Component for FileUpload {
         cx.open(&save, node)?;
         cx.markup(DOWNLOAD);
         let mut t = Element::new("span");
-        t.text(lit("Download"));
+        t.text(lit(cx.label("Download")));
         cx.open(&t, node)?;
         cx.close("span");
         cx.close("a");
@@ -380,7 +381,7 @@ impl Component for FileUpload {
         cx.open(&body, node)?;
         cx.close("div");
         let mut x = Element::new("button");
-        x.base_style_ref(&DIALOG_X).attr("type", "button").attr("data-up-close", true).attr("aria-label", "Close").text(lit("✕"));
+        x.base_style_ref(&DIALOG_X).attr("type", "button").attr("data-up-close", true).attr("aria-label", cx.label("Close")).text(lit("✕"));
         cx.open(&x, node)?;
         cx.close("button");
         cx.close("dialog");

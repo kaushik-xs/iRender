@@ -1,6 +1,6 @@
 use crate::{Registry, escape};
 use irender_core::{
-    Action, Node, Policy, StyleBlock, StyleValue, Template, Theme, Val,
+    Action, Labels, Node, Policy, StyleBlock, StyleValue, Template, Theme, Val,
     expr::{self, Expr, Part, stringify, write_json_str},
     style,
 };
@@ -170,6 +170,7 @@ pub struct RenderCx<'a> {
     registry: &'a Registry,
     policy: &'a Policy,
     theme: &'a Theme,
+    labels: &'a Labels,
     state: &'a IndexMap<String, Json>,
     data: &'a Json,
     scopes: Vec<Scope>,
@@ -192,6 +193,7 @@ impl<'a> RenderCx<'a> {
         registry: &'a Registry,
         policy: &'a Policy,
         theme: &'a Theme,
+        labels: &'a Labels,
         state: &'a IndexMap<String, Json>,
         data: &'a Json,
         parallel_min_items: Option<usize>,
@@ -200,6 +202,7 @@ impl<'a> RenderCx<'a> {
             registry,
             policy,
             theme,
+            labels,
             state,
             data,
             scopes: Vec::new(),
@@ -223,6 +226,29 @@ impl<'a> RenderCx<'a> {
 
     pub fn theme(&self) -> &Theme {
         self.theme
+    }
+
+    /// The document's `lang` and `labels`.
+    pub fn labels(&self) -> &Labels {
+        self.labels
+    }
+
+    /// Interface text in the document's words: `text` is the English, and the key a
+    /// document's `labels` gives its own text for. The browser has the same lookup as
+    /// `window.__irender.label`.
+    pub fn label(&self, text: &str) -> String {
+        self.labels.get(text, &[])
+    }
+
+    /// [`RenderCx::label`] with `{name}`s filled in: `label_with("Page {page} of {pages}", &[("page", "2"), …])`.
+    pub fn label_with(&self, text: &str, vars: &[(&str, &str)]) -> String {
+        self.labels.get(text, vars)
+    }
+
+    /// A count's text: `label_count("{n} row", "{n} rows", 3.0)`, looked up by the
+    /// `other` form, whose label can give the language's plural forms.
+    pub fn label_count(&self, one: &str, other: &str, n: f64) -> String {
+        self.labels.count(one, other, n, &[])
     }
 
     /// What the document is allowed to do, for components that pass document
@@ -654,7 +680,7 @@ impl<'a> RenderCx<'a> {
         use rayon::prelude::*;
         // `self` holds a non-thread-safe style cache, so workers get the shared,
         // read-only parts and build their own context.
-        let (registry, policy, theme, state, data) = (self.registry, self.policy, self.theme, self.state, self.data);
+        let (registry, policy, theme, labels, state, data) = (self.registry, self.policy, self.theme, self.labels, self.state, self.data);
         let min = self.parallel_min_items;
         let (scopes, contexts) = (&self.scopes, &self.contexts);
         // A few chunks per thread so uneven items still balance across threads.
@@ -663,7 +689,7 @@ impl<'a> RenderCx<'a> {
             .par_chunks(chunk)
             .enumerate()
             .map(|(c, chunk_items)| {
-                let mut cx = RenderCx::new(registry, policy, theme, state, data, min);
+                let mut cx = RenderCx::new(registry, policy, theme, labels, state, data, min);
                 cx.scopes = scopes.clone();
                 cx.contexts = contexts.clone();
                 for (j, value) in chunk_items.iter().enumerate() {

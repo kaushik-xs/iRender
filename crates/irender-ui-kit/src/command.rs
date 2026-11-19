@@ -141,7 +141,7 @@ fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, sh
     el.attr("data-ui-command", true).behavior("ui-command", json!({ "shortcut": shortcut }));
     cx.open(&el, node)?;
 
-    let placeholder = node.prop("placeholder").cloned().unwrap_or_else(|| lit("Type a command or search…"));
+    let placeholder = node.prop("placeholder").cloned().unwrap_or_else(|| lit(cx.label("Type a command or search…")));
     let list = id_with(id, "-list");
     let mut search = cx.part("div", node, "search");
     search.attr("data-ui-search", true);
@@ -173,7 +173,7 @@ fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, sh
     cx.close("div");
 
     let mut empty = cx.part("div", node, "empty");
-    empty.attr("data-ui-empty", true).attr("hidden", true).text(node.prop("empty").cloned().unwrap_or_else(|| lit("No results found.")));
+    empty.attr("data-ui-empty", true).attr("hidden", true).text(node.prop("empty").cloned().unwrap_or_else(|| lit(cx.label("No results found."))));
     cx.open(&empty, node)?;
     cx.close("div");
     let mut live = Element::new("div");
@@ -238,7 +238,7 @@ impl Component for CommandDialog {
             .base_style_ref(&DIALOG)
             .attr("id", id.clone())
             .attr("closedby", "any")
-            .attr("aria-label", node.prop("title").cloned().unwrap_or_else(|| lit("Command palette")));
+            .attr("aria-label", node.prop("title").cloned().unwrap_or_else(|| lit(cx.label("Command palette"))));
         cx.open(&dialog, node)?;
         let mut el = Element::new("div");
         el.base_style_ref(&BARE);

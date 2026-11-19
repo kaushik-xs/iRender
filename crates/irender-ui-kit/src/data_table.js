@@ -12,6 +12,8 @@
   const $ = (s) => $$(s)[0] ?? null;
   const body = $("[data-dt-body]");
   const cols = cfg.columns, byKey = new Map(cols.map((c) => [c.key, c]));
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const lead = (cfg.selectable ? 1 : 0) + (cfg.detail ? 1 : 0);
 
   // ---- values
@@ -479,7 +481,7 @@
         if (twisty) {
           twisty.hidden = !m.has;
           twisty.toggleAttribute("data-loading", m.loading);
-          twisty.title = m.failed ? "Couldn't load the rows under this one" : "";
+          twisty.title = m.failed ? L("Couldn't load the rows under this one") : "";
         }
       }
     }
@@ -498,7 +500,7 @@
     const empty = $("[data-dt-empty]");
     if (empty) {
       empty.hidden = filtered.length > 0;
-      empty.firstElementChild.textContent = remote && R.loading ? "Loading…" : remote && R.error ? "Couldn't load rows." : emptyText;
+      empty.firstElementChild.textContent = remote && R.loading ? L("Loading…") : remote && R.error ? L("Couldn't load rows.") : emptyText;
     }
 
     // Sorting.
@@ -521,7 +523,7 @@
       t.toggleAttribute("data-active", active(c));
       const chips = t.querySelector("[data-dt-chips]");
       const words = !active(c) ? []
-        : Array.isArray(c) ? (c.length > 2 ? [`${c.length} selected`] : c.map(text))
+        : Array.isArray(c) ? (c.length > 2 ? [L("{n} selected", { n: c.length })] : c.map(text))
         : isObj(c) ? [c.contains != null ? `“${c.contains}”` : range(byKey.get(key), c)]
         : [text(c)];
       const now = words.join("\u0000");
@@ -564,26 +566,26 @@
     const bulk = $("[data-dt-bulk]");
     if (bulk) {
       bulk.hidden = count === 0;
-      $("[data-dt-count]").textContent = `${count} selected`;
+      $("[data-dt-count]").textContent = L("{n} selected", { n: count });
       const allOf = $("[data-dt-select-all]");
       const inView = filtered.filter((i) => chosen.has(keyOf(rowKey(data[i], i)))).length;
       allOf.hidden = !(shown.length && onPage === shown.length && inView < filtered.length);
-      allOf.textContent = `Select all ${filtered.length}`;
+      allOf.textContent = L("Select all {n}", { n: filtered.length });
     }
     const status = $("[data-dt-status]");
-    const picked = cfg.selectable ? ` · ${count} selected` : "";
+    const picked = cfg.selectable ? ` · ${L("{n} selected", { n: count })}` : "";
     if (remote) {
       const total = R.total ?? (R.done ? data.length : null);
       const first = mode === "pages" ? (R.page - 1) * size : 0;
-      status.textContent = R.loading && !data.length ? "Loading…"
-        : !data.length ? "0 rows" + picked
-        : mode === "pages" ? `Rows ${num(first + 1)}–${num(first + data.length)}${total != null ? ` of ${num(total)}` : ""}${picked}`
-        : `Showing ${num(data.length)}${total != null ? ` of ${num(total)}` : ""}${picked}`;
+      status.textContent = R.loading && !data.length ? L("Loading…")
+        : !data.length ? L(["{n} row", "{n} rows"], { n: 0 }) + picked
+        : mode === "pages" ? (total != null ? L("Rows {from}–{to} of {total}", { from: num(first + 1), to: num(first + data.length), total: num(total) }) : L("Rows {from}–{to}", { from: num(first + 1), to: num(first + data.length) })) + picked
+        : (total != null ? L("Showing {shown} of {total}", { shown: num(data.length), total: num(total) }) : L("Showing {shown}", { shown: num(data.length) })) + picked;
     } else if (mode === "more" || mode === "scroll") {
-      status.textContent = `Showing ${num(shown.length)} of ${num(filtered.length)}${filtered.length < data.length ? ` (of ${num(data.length)})` : ""}${picked}`;
+      status.textContent = L("Showing {shown} of {total}", { shown: num(shown.length), total: num(filtered.length) }) + (filtered.length < data.length ? " " + L("(of {all})", { all: num(data.length) }) : "") + picked;
     } else {
-      const of = filtered.length === data.length ? num(data.length) : `${num(filtered.length)} (of ${num(data.length)})`;
-      status.textContent = cfg.selectable ? `${count} of ${of} row(s) selected.` : `${of} row(s)`;
+      const of = filtered.length === data.length ? num(data.length) : `${num(filtered.length)} ${L("(of {all})", { all: num(data.length) })}`;
+      status.textContent = cfg.selectable ? L("{count} of {total} row(s) selected.", { count, total: of }) : L("{total} row(s)", { total: of });
     }
     // The next batch: a button, or a note while it loads, or a retry.
     if (more) {
@@ -598,13 +600,13 @@
 
     // Paging.
     const pageText = $("[data-dt-page]");
-    if (pageText) pageText.textContent = `Page ${num(page)} of ${num(pages)}`;
+    if (pageText) pageText.textContent = L("Page {page} of {pages}", { page: num(page), pages: num(pages) });
     for (const b of $$("[data-dt-go]")) {
       const go = b.getAttribute("data-dt-go");
       // Without a total, the last page is known once a short page comes back.
       b.disabled = go === "first" || go === "prev" ? page <= 1 : go === "last" && remote && R.total == null ? true : page >= pages;
     }
-    if (pageText && remote && R.total == null && !R.done) pageText.textContent = `Page ${page}`;
+    if (pageText && remote && R.total == null && !R.done) pageText.textContent = L("Page {page}", { page: num(page) });
     const sizes = $("[data-dt-size]");
     if (sizes) sizes.value = String(size);
 
@@ -622,7 +624,7 @@
     }
 
     // The result count, for screen readers, when the filters change it.
-    if (lastCount !== null && lastCount !== filtered.length) $("[data-dt-footer] [data-dt-live]").textContent = `${filtered.length} result${filtered.length === 1 ? "" : "s"}`;
+    if (lastCount !== null && lastCount !== filtered.length) $("[data-dt-footer] [data-dt-live]").textContent = L(["{n} result", "{n} results"], { n: filtered.length });
     lastCount = filtered.length;
     if (mode === "scroll") setTimeout(nearEnd);
     pinLayout();
@@ -846,7 +848,7 @@
     if (list.__sig === sig) return;
     list.__sig = sig;
     if (!choices.length) {
-      list.replaceChildren(Object.assign(document.createElement("div"), { textContent: "No values" }));
+      list.replaceChildren(Object.assign(document.createElement("div"), { textContent: L("No values") }));
       list.firstChild.setAttribute("data-dt-none", "");
       return;
     }
@@ -911,7 +913,7 @@
     let firstSum = shownCols.findIndex((k) => k.summary);
     if (firstSum < 0) firstSum = shownCols.length;
     const open = !folded.has(x.key);
-    const value = blank(x.value) ? "(none)" : c ? fmt(c, x.value) : text(x.value);
+    const value = blank(x.value) ? L("(none)") : c ? fmt(c, x.value) : text(x.value);
     const sig = JSON.stringify([open, value, x.rows.length, colOrder, [...hidden], firstSum, shownCols.slice(firstSum).map((k) => k.summary ? subtotal(k, x.rows) : "")]);
     if (tr.__sig === sig) return;
     tr.__sig = sig;
@@ -925,7 +927,7 @@
     const label = Object.assign(document.createElement("span"), { textContent: `${c?.label || gf}: ${value}` });
     const count = Object.assign(document.createElement("span"), { textContent: String(x.rows.length) });
     count.setAttribute("data-dt-group-count", "");
-    count.setAttribute("aria-label", `${x.rows.length} row${x.rows.length === 1 ? "" : "s"}`);
+    count.setAttribute("aria-label", L(["{n} row", "{n} rows"], { n: x.rows.length }));
     b.append(label, count);
     td.append(b);
     const cells = [td];
@@ -1087,7 +1089,7 @@
     placeColumns();
     saveColumns();
     apply();
-    sayCols(`${byKey.get(key).label || key} moved to column ${to + 1} of ${list.length}`);
+    sayCols(L("{name} moved to column {n} of {count}", { name: byKey.get(key).label || key, n: to + 1, count: list.length }));
     return true;
   }
   el.addEventListener("pointerdown", (e) => {
@@ -1158,7 +1160,7 @@
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    sayCols(`Exported ${seq.length} row${seq.length === 1 ? "" : "s"}`);
+    sayCols(L(["Exported {n} row", "Exported {n} rows"], { n: seq.length }));
   }
 
   // ---- changes people make

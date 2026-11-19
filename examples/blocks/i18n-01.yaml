@@ -1,0 +1,94 @@
+# Block: the sales ledger in Spanish. The document sets `lang: es` and gives the kits'
+# interface text in `labels`: the toolbar, the footer, the paging buttons, the counts
+# (with their plural forms), the View menu and what screen readers hear. Every key is
+# listed in skills/irender/references/labels.md; keys left out stay English. Dates and
+# amounts follow the table's `locale`.
+#
+#   cargo run -p irender-cli -- render examples/blocks/i18n-01.yaml --ui-kit --icon-kit -o i18n-01.html
+version: 1
+lang: es
+labels:
+  "Search…": "Buscar…"
+  "Reset": "Restablecer"
+  "Export": "Exportar"
+  "Download the rows that pass the filters as CSV": "Descargar como CSV las filas que pasan los filtros"
+  "View": "Vista"
+  "Columns": "Columnas"
+  "Group by": "Agrupar por"
+  "None": "Ninguno"
+  "Filter by {name}": "Filtrar por {name}"
+  "Clear filter": "Quitar filtro"
+  "No values": "Sin valores"
+  "No results.": "Sin resultados."
+  "(none)": "(sin valor)"
+  "Rows per page": "Filas por página"
+  "Page {page} of {pages}": "Página {page} de {pages}"
+  "Go to first page": "Ir a la primera página"
+  "Go to previous page": "Ir a la página anterior"
+  "Go to next page": "Ir a la página siguiente"
+  "Go to last page": "Ir a la última página"
+  "{total} row(s)": "{total} fila(s)"
+  "(of {all})": "(de {all})"
+  "{n} rows": { one: "{n} fila", other: "{n} filas" }
+  "{n} results": { one: "{n} resultado", other: "{n} resultados" }
+  "Exported {n} rows": { one: "Se exportó {n} fila", other: "Se exportaron {n} filas" }
+  "Resize {name}": "Cambiar el ancho de {name}"
+  "{name} moved to column {n} of {count}": "{name} pasó a la columna {n} de {count}"
+state:
+  groupBy: region
+  layout: null
+  orders:
+    - { id: "SO-1002", customer: "Kashmir Crafts", region: "North", rep: "Ravi Kumar", date: "2026-07-03", net: 78500, tax: 14130, total: 92630, status: "Paid" }
+    - { id: "SO-1004", customer: "Delhi Traders", region: "North", rep: "Asha Rao", date: "2026-10-02", net: 109500, tax: 19710, total: 129210, status: "Pending" }
+    - { id: "SO-1015", customer: "Surat Textiles", region: "West", rep: "Asha Rao", date: "2026-07-24", net: 15500, tax: 2790, total: 18290, status: "Overdue" }
+    - { id: "SO-1021", customer: "Odisha Steel", region: "East", rep: "Ravi Kumar", date: "2026-08-03", net: 57000, tax: 10260, total: 67260, status: "Overdue" }
+    - { id: "SO-1018", customer: "Kolkata Paper", region: "East", rep: "Meera Iyer", date: "2026-08-24", net: 18500, tax: 3330, total: 21830, status: "Paid" }
+    - { id: "SO-1009", customer: "Kochi Spices", region: "South", rep: "Meera Iyer", date: "2026-08-26", net: 78500, tax: 14130, total: 92630, status: "Overdue" }
+    - { id: "SO-1011", customer: "Bengaluru Labs", region: "South", rep: "Kaushik Sundar", date: "2026-09-20", net: 67000, tax: 12060, total: 79060, status: "Pending" }
+    - { id: "SO-1007", customer: "Kochi Spices", region: "South", rep: "Asha Rao", date: "2026-07-19", net: 77000, tax: 13860, total: 90860, status: "Pending" }
+    - { id: "SO-1013", customer: "Mumbai Retail", region: "West", rep: "Asha Rao", date: "2026-09-11", net: 57500, tax: 10350, total: 67850, status: "Paid" }
+    - { id: "SO-1017", customer: "Odisha Steel", region: "East", rep: "Meera Iyer", date: "2026-08-20", net: 48000, tax: 8640, total: 56640, status: "Paid" }
+    - { id: "SO-1012", customer: "Pune Tools", region: "West", rep: "Meera Iyer", date: "2026-08-16", net: 19000, tax: 3420, total: 22420, status: "Paid" }
+    - { id: "SO-1020", customer: "Kolkata Paper", region: "East", rep: "Kaushik Sundar", date: "2026-09-23", net: 55000, tax: 9900, total: 64900, status: "Paid" }
+    - { id: "SO-1003", customer: "Delhi Traders", region: "North", rep: "Asha Rao", date: "2026-10-02", net: 59500, tax: 10710, total: 70210, status: "Paid" }
+    - { id: "SO-1010", customer: "Chennai Motors", region: "South", rep: "Asha Rao", date: "2026-09-17", net: 27000, tax: 4860, total: 31860, status: "Pending" }
+    - { id: "SO-1014", customer: "Surat Textiles", region: "West", rep: "Kaushik Sundar", date: "2026-07-27", net: 92500, tax: 16650, total: 109150, status: "Paid" }
+    - { id: "SO-1016", customer: "Odisha Steel", region: "East", rep: "Meera Iyer", date: "2026-10-22", net: 43500, tax: 7830, total: 51330, status: "Pending" }
+    - { id: "SO-1001", customer: "Delhi Traders", region: "North", rep: "Asha Rao", date: "2026-07-12", net: 23000, tax: 4140, total: 27140, status: "Paid" }
+    - { id: "SO-1019", customer: "Odisha Steel", region: "East", rep: "Asha Rao", date: "2026-08-15", net: 35500, tax: 6390, total: 41890, status: "Paid" }
+    - { id: "SO-1008", customer: "Kochi Spices", region: "South", rep: "Kaushik Sundar", date: "2026-09-15", net: 11500, tax: 2070, total: 13570, status: "Pending" }
+    - { id: "SO-1005", customer: "Delhi Traders", region: "North", rep: "Meera Iyer", date: "2026-10-05", net: 32000, tax: 5760, total: 37760, status: "Paid" }
+    - { id: "SO-1006", customer: "Bengaluru Labs", region: "South", rep: "Ravi Kumar", date: "2026-07-19", net: 19000, tax: 3420, total: 22420, status: "Pending" }
+root:
+  type: stack
+  props: { gap: 20 }
+  style: { max-width: 1180px, margin: 0 auto, padding: 32px 24px, font-family: $font.body, color: $color.text, background: $color.surface }
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Libro de ventas } }
+        - { type: ui-text, props: { variant: muted, text: "Pedidos de julio a octubre, por región. La interfaz de la tabla está en español." } }
+    - type: ui-data-table
+      props:
+        rows: "{{ orders }}"
+        title: Libro de ventas
+        search: true
+        bindGroupBy: groupBy
+        resizable: true
+        reorderable: true
+        bindColumns: layout
+        export: libro-de-ventas
+        pageSize: 10
+        sort: -date
+        locale: es-ES
+      children:
+        - { type: ui-data-table-column, props: { field: id, label: Pedido, width: 96 } }
+        - { type: ui-data-table-column, props: { field: customer, label: Cliente, groupable: true } }
+        - { type: ui-data-table-column, props: { field: region, label: Región, groupable: true, filter: select } }
+        - { type: ui-data-table-column, props: { field: rep, label: Comercial, groupable: true } }
+        - { type: ui-data-table-column, props: { field: date, label: Fecha, format: date } }
+        - { type: ui-data-table-column, props: { field: status, label: Estado, cell: badge, groupable: true, filter: select, tones: { Paid: success, Pending: warning, Overdue: destructive } } }
+        - { type: ui-data-table-column, props: { field: net, label: Neto, group: Importes, format: currency, currency: INR, decimals: 0, summary: sum } }
+        - { type: ui-data-table-column, props: { field: tax, label: IVA, group: Importes, format: currency, currency: INR, decimals: 0, summary: sum } }
+        - { type: ui-data-table-column, props: { field: total, label: Total, group: Importes, format: currency, currency: INR, decimals: 0, summary: sum } }

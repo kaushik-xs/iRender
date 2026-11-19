@@ -25,6 +25,8 @@
     return D(n.getFullYear(), n.getMonth() + 1, n.getDate());
   };
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const blank = (v) => v === null || v === undefined || v === "";
 
   // ---- the picker kinds: each has keys (`2026-03-05`, `2026-03`, `2026-Q1`, `2026`),
@@ -187,12 +189,13 @@
         if (!v.to) return `${label(v.from)} – …`;
         return v.from === v.to ? label(v.from) : `${label(v.from)} – ${label(v.to)}`;
       }
-      if (mode === "multiple") return v.length === 0 ? "" : v.length === 1 ? label(v[0]) : `${v.length} selected`;
+      if (mode === "multiple") return v.length === 0 ? "" : v.length === 1 ? label(v[0]) : L("{n} selected", { n: v.length });
       if (!v) return "";
       return cfg.time && time ? `${label(v)}, ${timeText(time)}` : label(v);
     }
 
     // ---- presets: names, or `{ label, from, to }` with dates or `today±N`
+    // Labels: "Today", "Yesterday", "Tomorrow", "Last 7 days", "Last 30 days", "Last 90 days", "Next 7 days", "Next 30 days", "This week", "Last week", "This month", "Last month", "Next month", "This quarter", "Last quarter", "This year", "Last year", "Year to date", "Month to date"
     const NAMES = {
       today: "Today", yesterday: "Yesterday", tomorrow: "Tomorrow", last7: "Last 7 days", last30: "Last 30 days",
       last90: "Last 90 days", next7: "Next 7 days", next30: "Next 30 days", thisWeek: "This week", lastWeek: "Last week",
@@ -219,7 +222,7 @@
         lastYear: span(U.year.start(String(+y(t) - 1)), U.year.end(String(+y(t) - 1))),
         yearToDate: span(U.year.start(y(t)), t), monthToDate: span(U.month.start(U.month.key(t)), t),
       }[p];
-      return { label: NAMES[p], ...r };
+      return { label: NAMES[p] && L(NAMES[p]), ...r };
     }
     function applyPreset(p) {
       const { from, to } = preset(p);
@@ -315,6 +318,7 @@
       return s;
     };
     const uid = el.id || el.querySelector("[id]")?.id || "cal";
+    // Labels: "Previous month", "Next month", "Previous year", "Next year", "Previous 12 years", "Next 12 years"
     const unitWord = { day: "month", month: "year", quarter: "year", year: "12 years" }[kind];
 
     function render(keepFocus) {
@@ -327,7 +331,7 @@
 
       const wrap = h("div", { "data-cal-wrap": true });
       if (cfg.presets?.length) {
-        const list = h("div", { "data-cal-presets": true, role: "group", "aria-label": "Presets" });
+        const list = h("div", { "data-cal-presets": true, role: "group", "aria-label": L("Presets") });
         for (const [i, p] of cfg.presets.entries()) {
           const r = preset(p), keys = r.from && { from: u.key(r.from), to: u.key(r.to || r.from) };
           const on = keys && (mode === "range" ? v.from === keys.from && v.to === keys.to : mode === "single" ? v === keys.from && keys.from === keys.to : false);
@@ -339,7 +343,7 @@
       const shown = pages();
       const head = h("div", { "data-cal-head": true },
         // A page wholly outside the limits can't be reached.
-        h("button", { type: "button", "data-cal-step": "-1", "aria-label": `Previous ${unitWord}`, disabled: lim.min && pageEnd(pageStep(shown[0], -1)) < lim.min ? true : null }, ARROW("prev")),
+        h("button", { type: "button", "data-cal-step": "-1", "aria-label": L(`Previous ${unitWord}`), disabled: lim.min && pageEnd(pageStep(shown[0], -1)) < lim.min ? true : null }, ARROW("prev")),
       );
       const captions = h("div", { "data-cal-captions": true });
       shown.forEach((p, i) => {
@@ -347,14 +351,14 @@
         if (cfg.dropdowns && kind === "day" && i === 0) {
           const ty = Y(today());
           const lo = lim.min ? Y(lim.min) : ty - 100, hi = lim.max ? Y(lim.max) : ty + 10;
-          const month = h("select", { "data-cal-month": true, "aria-label": "Month" });
+          const month = h("select", { "data-cal-month": true, "aria-label": L("Month") });
           for (let m = 1; m <= 12; m++) month.append(h("option", { value: m, selected: m === +p.slice(5, 7) }, fmt("mname", { month: "long" }).format(D(2024, m, 1))));
-          const year = h("select", { "data-cal-year": true, "aria-label": "Year" });
+          const year = h("select", { "data-cal-year": true, "aria-label": L("Year") });
           for (let y = hi; y >= lo; y--) year.append(h("option", { value: y, selected: y === +p.slice(0, 4) }, String(y)));
           captions.append(h("div", { "data-cal-caption": true, id }, month, year));
         } else captions.append(h("div", { "data-cal-caption": true, id, "aria-live": i === 0 ? "polite" : null }, caption(p)));
       });
-      head.append(captions, h("button", { type: "button", "data-cal-step": "1", "aria-label": `Next ${unitWord}`, disabled: lim.max && pageStart(pageStep(shown.at(-1), 1)) > lim.max ? true : null }, ARROW("next")));
+      head.append(captions, h("button", { type: "button", "data-cal-step": "1", "aria-label": L(`Next ${unitWord}`), disabled: lim.max && pageStart(pageStep(shown.at(-1), 1)) > lim.max ? true : null }, ARROW("next")));
       main.append(head);
 
       const grids = h("div", { "data-cal-grids": true });
@@ -404,11 +408,11 @@
       main.append(grids);
 
       if (cfg.time) {
-        const input = h("input", { type: "time", step: String(Math.round(cfg.step * 60)), value: time, "aria-label": "Time", "data-cal-time-input": true });
-        main.append(h("label", { "data-cal-time": true }, "Time", input));
+        const input = h("input", { type: "time", step: String(Math.round(cfg.step * 60)), value: time, "aria-label": L("Time"), "data-cal-time-input": true });
+        main.append(h("label", { "data-cal-time": true }, L("Time"), input));
       }
       const foot = h("div", { "data-cal-foot": true });
-      if (cfg.clearable && !popover) foot.append(h("button", { type: "button", "data-cal-clear": true }, "Clear"));
+      if (cfg.clearable && !popover) foot.append(h("button", { type: "button", "data-cal-clear": true }, L("Clear")));
       main.append(foot);
       wrap.append(main);
       body.replaceChildren(wrap);
@@ -446,19 +450,19 @@
       const v = read();
       if (mode === "single") {
         write(k);
-        say(`${label(k, true)} selected`);
+        say(L("{date} selected", { date: label(k, true) }));
         if (popover && cfg.closeOnSelect) close();
       } else if (mode === "multiple") {
         write(v.includes(k) ? v.filter((x) => x !== k) : [...v, k].sort((x, y) => u.start(x) - u.start(y)));
       } else if (!v.from || v.to) {
         hover = null;
         write({ from: k, to: null });
-        say(`Range starts ${label(k, true)}; pick the end`);
+        say(L("Range starts {date}; pick the end", { date: label(k, true) }));
       } else {
         const [from, to] = [v.from, k].sort((x, y) => u.start(x) - u.start(y));
         hover = null;
         write({ from, to });
-        say(`${label(from, true)} to ${label(to, true)} selected`);
+        say(L("{from} to {to} selected", { from: label(from, true), to: label(to, true) }));
         if (popover && cfg.closeOnSelect) close();
       }
       render(true);
@@ -467,7 +471,7 @@
       hover = null;
       time = "";
       write(mode === "range" ? { from: null, to: null } : mode === "multiple" ? [] : null);
-      say("Cleared");
+      say(L("Cleared"));
     }
 
     // ---- the keyboard, on the grid's buttons
@@ -675,18 +679,19 @@
     // What to type, in error messages: the locale's pattern for days, an example otherwise.
     const example = () => (kind === "day" ? pattern : label(u.key(today())));
     function check(k, lim) {
-      if (lim.min && u.end(k) < lim.min) return `Pick a date on or after ${label(u.key(lim.min))}`;
-      if (lim.max && u.start(k) > lim.max) return `Pick a date on or before ${label(u.key(lim.max))}`;
-      if (disabled(k, lim)) return `${label(k)} can't be picked`;
+      if (lim.min && u.end(k) < lim.min) return L("Pick a date on or after {date}", { date: label(u.key(lim.min)) });
+      if (lim.max && u.start(k) > lim.max) return L("Pick a date on or before {date}", { date: label(u.key(lim.max)) });
+      if (disabled(k, lim)) return L("{date} can't be picked", { date: label(k) });
       return null;
     }
     // The field's text as a value, or an error to show.
     function parseField(text) {
       const lim = limits();
-      const bad = { error: `Enter a ${kind === "day" ? "date" : kind} like ${example()}` };
+      // Labels: "Enter a date like {example}", "Enter a month like {example}", "Enter a quarter like {example}", "Enter a year like {example}"
+      const bad = { error: L(`Enter a ${kind === "day" ? "date" : kind} like {example}`, { example: example() }) };
       if (mode === "range") {
         const parts = text.split(/\s+(?:–|—|-|to|until)\s+|\s*[–—]\s*/i).filter((p) => p.trim());
-        if (parts.length !== 2) return { error: `Enter two dates, like ${example()} – ${example()}` };
+        if (parts.length !== 2) return { error: L("Enter two dates, like {example} – {example}", { example: example() }) };
         const keys = parts.map(parseOne);
         if (keys.some((k) => !k)) return bad;
         const [from, to] = keys.sort((a, b) => u.start(a) - u.start(b));
@@ -696,7 +701,7 @@
       let rest = text, t = null;
       if (cfg.time) {
         [rest, t] = splitTime(text);
-        if (t === "bad") return { error: "Enter a time like 14:30" };
+        if (t === "bad") return { error: L("Enter a time like 14:30") };
       }
       const k = parseOne(rest);
       if (!k) return bad;

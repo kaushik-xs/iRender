@@ -20,6 +20,8 @@
   const live = $("[data-tree-live]");
   const search = $("[data-tree-search]");
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
 
   // ---- the nodes, resolved against state and the list item the tree is in
   const env = () => {
@@ -148,8 +150,8 @@
         }
         if (cfg.addable || cfg.deletable) {
           const a = make("span", { "data-tree-actions": "" });
-          if (cfg.addable) a.append(make("button", { type: "button", "data-tree-add": "", tabindex: -1, "aria-label": `Add under ${label}`, title: `Add under ${label}` }, svg.plus));
-          if (cfg.deletable) a.append(make("button", { type: "button", "data-tree-delete": "", tabindex: -1, "aria-label": `Delete ${label}`, title: `Delete ${label}` }, svg.trash));
+          if (cfg.addable) a.append(make("button", { type: "button", "data-tree-add": "", tabindex: -1, "aria-label": L("Add under {name}", { name: label }), title: L("Add under {name}", { name: label }) }, svg.plus));
+          if (cfg.deletable) a.append(make("button", { type: "button", "data-tree-delete": "", tabindex: -1, "aria-label": L("Delete {name}", { name: label }), title: L("Delete {name}", { name: label }) }, svg.trash));
           row.append(a);
         }
         li.append(row);
@@ -174,7 +176,7 @@
       const li = make("li", { role: "none", "data-tree-new": "" });
       const row = make("div", { "data-tree-row": "", style: `--depth: ${depth}` });
       row.append(make("span", { "data-tree-twisty": "", "aria-hidden": "true" }));
-      const input = make("input", { type: "text", "data-tree-name": "", "aria-label": editing.parent === null ? "New item's name" : `New item under ${labelOf(index.get(editing.parent).node)}`, placeholder: "Name, then Enter" });
+      const input = make("input", { type: "text", "data-tree-name": "", "aria-label": editing.parent === null ? L("New item's name") : L("New item under {name}", { name: labelOf(index.get(editing.parent).node) }), placeholder: L("Name, then Enter") });
       input.className = $("[data-tree-search]")?.className ?? "";
       row.append(input);
       li.append(row);
@@ -185,12 +187,12 @@
     list.hidden = !list.children.length;
     const empty = $("[data-tree-empty]");
     empty.hidden = !!list.children.length;
-    if (q && !list.children.length) empty.textContent = "No matches.";
+    if (q && !list.children.length) empty.textContent = L("No matches.");
     else empty.textContent = empty.dataset.text ?? (empty.dataset.text = empty.textContent);
     const bulk = $("[data-tree-bulk]");
     if (bulk) {
       bulk.hidden = !on.size;
-      $("[data-tree-checked]", bulk).textContent = `${on.size} selected`;
+      $("[data-tree-checked]", bulk).textContent = L("{n} selected", { n: on.size });
     }
     if (hadFocus) item(focusId)?.focus();
   }
@@ -240,7 +242,7 @@
     for (const p of path(id).reverse()) state(p, on) === "true" ? on.add(p) : on.delete(p);
     focusId = id;
     setChecked(on);
-    say(`${labelOf(index.get(id).node)} ${was ? "unchecked" : "checked"}`);
+    say(was ? L("{name} unchecked", { name: labelOf(index.get(id).node) }) : L("{name} checked", { name: labelOf(index.get(id).node) }));
   }
   let editing = null;
   function add(parent) {
@@ -272,7 +274,7 @@
     focusId = node.id;
     write(nodes);
     api.emit("add", { parent: at.parent === null ? null : index.get(at.parent)?.node.id ?? at.parent, node });
-    say(`Added ${text}`);
+    say(L("Added {name}", { name: text }));
     queueMicrotask(() => focus(node.id));
   }
 
@@ -321,7 +323,7 @@
       if (cfg.bind) api.set(cfg.bind, null);
     }
     api.emit("delete", { ids: original });
-    say(`Deleted ${names.join(", ")}`);
+    say(L("Deleted {names}", { names: names.join(", ") }));
     queueMicrotask(() => focusId && focus(focusId));
   }
   // Moves `id` to be child number `at` of `parent` (null: the top).
@@ -344,7 +346,7 @@
     focusId = id;
     const parentNode = parent === null ? null : index.get(parent).node;
     api.emit("move", { id: from.node.id, parent: parentNode ? parentNode.id : null, index: from.parent === parent && at > from.i ? at - 1 : at });
-    say(`Moved ${labelOf(from.node)} ${parentNode ? `into ${labelOf(parentNode)}` : "to the top"}`);
+    say(parentNode ? L("Moved {name} into {parent}", { name: labelOf(from.node), parent: labelOf(parentNode) }) : L("Moved {name} to the top", { name: labelOf(from.node) }));
     queueMicrotask(() => focus(id));
     return true;
   }

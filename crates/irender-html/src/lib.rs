@@ -230,7 +230,7 @@ impl Engine {
         let parallel = self.parallel_min_items;
         #[cfg(not(feature = "parallel"))]
         let parallel = None;
-        let mut cx = RenderCx::new(&self.registry, &self.policy, &ir.theme, &ir.state, data, parallel);
+        let mut cx = RenderCx::new(&self.registry, &self.policy, &ir.theme, &ir.labels, &ir.state, data, parallel);
         cx.render(&ir.root)?;
         let (body, css, interactive, scripts, early_scripts) = cx.finish(theme);
         #[cfg(feature = "lightningcss")]
@@ -240,7 +240,8 @@ impl Engine {
             css
         };
         let state = Json::Object(ir.state.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
-        Ok(Page { css, body, state, interactive, scripts, early_scripts })
+        let labels = (!ir.labels.is_empty() || ir.labels.lang.is_some()).then(|| ir.labels.to_json());
+        Ok(Page { css, body, state, interactive, scripts, early_scripts, labels, lang: ir.labels.lang.clone() })
     }
 }
 
@@ -259,6 +260,11 @@ pub struct Page {
     /// Scripts that run before the content is shown (see [`RenderCx::early_js`]),
     /// written right after the `<style>`.
     pub early_scripts: Vec<&'static str>,
+    /// The document's `lang` and `labels` for the browser (`{ lang, labels }`), when it
+    /// has either.
+    pub labels: Option<Json>,
+    /// The document's language: [`Page::document`]'s `<html lang>`.
+    pub lang: Option<String>,
 }
 
 impl Page {
@@ -275,6 +281,7 @@ impl Page {
                 "<script type=\"application/json\" data-i-state>{}</script>",
                 escape::script_json(&self.state)
             ));
+            s.push_str(&self.labels_json());
         }
         s.push_str("</div>\n");
         for js in &self.scripts {
@@ -294,6 +301,7 @@ impl Page {
         let mut s = format!("<style>\n{}</style>\n<div data-i-root style=\"display:contents\">{}", self.css, self.body);
         if self.interactive {
             s.push_str(&format!("<script type=\"application/json\" data-i-state>{}</script>", escape::script_json(&self.state)));
+            s.push_str(&self.labels_json());
         }
         s.push_str("</div>\n");
         for js in &self.scripts {
@@ -302,15 +310,21 @@ impl Page {
         s
     }
 
+    /// The labels for the runtime, beside the state.
+    fn labels_json(&self) -> String {
+        self.labels.as_ref().map_or_else(String::new, |l| format!("<script type=\"application/json\" data-i-labels>{}</script>", escape::script_json(l)))
+    }
+
     /// A full HTML page around [`Page::fragment`]. The `body` loses the browser's
     /// default margin and takes the theme's page colour (`color.background`, else
     /// `color.surface`), so dark mode reaches the edges of the window.
     pub fn document(&self, title: &str) -> String {
         format!(
-            "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n\
+            "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
              <title>{}</title>\n<style>body{{margin:0;background:var(--color-background,var(--color-surface))}}</style>\n\
              </head>\n<body>\n{}</body>\n</html>\n",
+            escape::text(self.lang.as_deref().unwrap_or("en")),
             escape::text(title),
             self.fragment()
         )

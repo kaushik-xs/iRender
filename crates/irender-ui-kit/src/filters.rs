@@ -21,6 +21,7 @@ const SCRIPT: &str = include_str!("filters.js");
 pub(crate) const TYPES: &[&str] = &["list", "number", "currency", "date", "text"];
 
 /// Each type's operators: the name the behaviour uses, and its label.
+// Labels: "Is any of", "Is none of", "Is empty", "Is not empty", "Contains", "Is", "Between", "On", "Before", "After", "Equals", "More than", "Less than"
 fn operators(kind: &str) -> &'static [(&'static str, &'static str)] {
     match kind {
         "list" => &[("any", "Is any of"), ("none", "Is none of"), ("empty", "Is empty"), ("set", "Is not empty")],
@@ -47,6 +48,7 @@ const PROPS: &[PropDef] = &[
 ];
 
 /// Date presets, in order: the name, its label.
+// Labels: "Today", "Yesterday", "Last 7 days", "Last 30 days", "This month", "Last month", "This quarter", "This year"
 pub(crate) const PRESETS: &[(&str, &str)] = &[
     ("today", "Today"),
     ("yesterday", "Yesterday"),
@@ -413,7 +415,7 @@ impl Component for Filters {
         let defs = defs(cx, node)?;
         let live = cx.prop(node, "live").is_some_and(|v| irender_core::expr::truthy(&v));
         let chips = cx.prop(node, "chips").is_none_or(|v| irender_core::expr::truthy(&v));
-        let title = node.prop("title").cloned().unwrap_or_else(|| lit("Filters"));
+        let title = node.prop("title").cloned().unwrap_or_else(|| lit(cx.label("Filters")));
         let id = instance_id(cx, node, "filters");
 
         cx.global_js("ui-filters", SCRIPT);
@@ -440,7 +442,7 @@ impl Component for Filters {
         cx.open(&button, node)?;
         cx.markup(SLIDERS);
         let mut label = Element::new("span");
-        label.text(node.prop("label").cloned().unwrap_or_else(|| lit("Filters")));
+        label.text(node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Filters"))));
         cx.open(&label, node)?;
         cx.close("span");
         let mut count = Element::new("span");
@@ -458,7 +460,7 @@ impl Component for Filters {
             cx.close("div");
             let mut clear = Element::new("button");
             forms::button_look(&mut clear, "ghost", "sm");
-            clear.attr("type", "button").attr("data-fl-clear", true).attr("hidden", true).text(lit("Clear all"));
+            clear.attr("type", "button").attr("data-fl-clear", true).attr("hidden", true).text(lit(cx.label("Clear all")));
             cx.open(&clear, node)?;
             cx.close("button");
         }
@@ -480,7 +482,7 @@ impl Component for Filters {
         body.base_style_ref(&BODY);
         cx.open(&body, node)?;
         let mut tabs = Element::new("div");
-        tabs.base_style_ref(&TABS).attr("role", "tablist").attr("aria-orientation", "vertical").attr("aria-label", "Fields");
+        tabs.base_style_ref(&TABS).attr("role", "tablist").attr("aria-orientation", "vertical").attr("aria-label", cx.label("Fields"));
         cx.open(&tabs, node)?;
         let mut section: Option<&str> = None;
         for (i, d) in defs.iter().enumerate() {
@@ -522,31 +524,31 @@ impl Component for Filters {
         cx.open(&foot, node)?;
         let mut reset = Element::new("button");
         forms::button_look(&mut reset, "ghost", "sm");
-        reset.attr("type", "button").attr("data-fl-reset", true).text(lit("Clear all"));
+        reset.attr("type", "button").attr("data-fl-reset", true).text(lit(cx.label("Clear all")));
         cx.open(&reset, node)?;
         cx.close("button");
         if live {
             let mut done = Element::new("button");
             forms::button_look(&mut done, "default", "sm");
-            done.attr("type", "button").attr("command", "close").attr("commandfor", id.clone()).text(lit("Done"));
+            done.attr("type", "button").attr("command", "close").attr("commandfor", id.clone()).text(lit(cx.label("Done")));
             cx.open(&done, node)?;
             cx.close("button");
         } else {
             let mut cancel = Element::new("button");
             forms::button_look(&mut cancel, "outline", "sm");
-            cancel.attr("type", "button").attr("command", "close").attr("commandfor", id.clone()).text(lit("Cancel"));
+            cancel.attr("type", "button").attr("command", "close").attr("commandfor", id.clone()).text(lit(cx.label("Cancel")));
             cx.open(&cancel, node)?;
             cx.close("button");
             let mut apply = Element::new("button");
             forms::button_look(&mut apply, "default", "sm");
-            apply.attr("type", "button").attr("data-fl-apply", true).text(lit("Apply"));
+            apply.attr("type", "button").attr("data-fl-apply", true).text(lit(cx.label("Apply")));
             cx.open(&apply, node)?;
             cx.close("button");
         }
         cx.close("div");
 
         let mut x = Element::new("button");
-        x.base_style_ref(&DIALOG_X).attr("type", "button").attr("command", "close").attr("commandfor", id.clone()).attr("aria-label", "Close").text(lit("✕"));
+        x.base_style_ref(&DIALOG_X).attr("type", "button").attr("command", "close").attr("commandfor", id.clone()).attr("aria-label", cx.label("Close")).text(lit("✕"));
         cx.open(&x, node)?;
         cx.close("button");
         cx.close("dialog");
@@ -581,14 +583,14 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
     cx.close("h3");
 
     let mut op = Element::new("select");
-    op.base_style_ref(forms::select_look()).attr("data-fl-op", true).attr("aria-label", format!("{} condition", d.label));
+    op.base_style_ref(forms::select_look()).attr("data-fl-op", true).attr("aria-label", cx.label_with("{name} condition", &[("name", &d.label)]));
     if d.ops.len() == 1 {
         op.attr("hidden", true);
     }
     cx.open(&op, node)?;
     for (value, label) in &d.ops {
         let mut o = Element::new("option");
-        o.attr("value", *value).text(lit(*label));
+        o.attr("value", *value).text(lit(cx.label(label)));
         cx.open(&o, node)?;
         cx.close("option");
     }
@@ -601,8 +603,8 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
             .attr("type", "search")
             .attr("data-fl-search", true)
             .attr("hidden", true)
-            .attr("placeholder", format!("Search {}", d.label.to_lowercase()))
-            .attr("aria-label", format!("Search {}", d.label.to_lowercase()));
+            .attr("placeholder", cx.label_with("Search {name}", &[("name", &d.label.to_lowercase())]))
+            .attr("aria-label", cx.label_with("Search {name}", &[("name", &d.label.to_lowercase())]));
         cx.open(&search, node)?;
         let mut list = Element::new("div");
         list.attr("data-fl-options", true).attr("role", "group").attr("aria-label", d.label.clone());
@@ -638,10 +640,11 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
         }
         cx.open(&values, node)?;
         let symbol = (d.kind == "currency").then(|| crate::number::symbol(&d.currency.clone().or(currency.map(str::to_string)).unwrap_or_else(|| "USD".into()).to_uppercase()));
-        for (which, label) in [("a", "value"), ("b", "upper value")] {
+        // Labels: "{name} value", "{name} upper value"
+        for (which, label) in [("a", "{name} value"), ("b", "{name} upper value")] {
             if which == "b" {
                 let mut and = Element::new("span");
-                and.attr("data-fl-and", true).text(lit("and"));
+                and.attr("data-fl-and", true).text(lit(cx.label("and")));
                 cx.open(&and, node)?;
                 cx.close("span");
             }
@@ -655,7 +658,7 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
                 cx.close("span");
             }
             let mut input = Element::new("input");
-            input.base_style_ref(forms::input_look()).attr("type", ty).attr(&format!("data-fl-{which}"), true).attr("aria-label", format!("{} {label}", d.label));
+            input.base_style_ref(forms::input_look()).attr("type", ty).attr(&format!("data-fl-{which}"), true).attr("aria-label", cx.label_with(label, &[("name", &d.label)]));
             if numeric {
                 input.attr("inputmode", "decimal").attr("data-fl-num", true).attr("autocomplete", "off");
             }
@@ -679,7 +682,7 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
                 let mut props = vec![
                     ("mode", lit(mode)),
                     ("id", lit(format!("{base}-cal-{i}-{mode}"))),
-                    ("label", lit(format!("{} {}", d.label, if mode == "range" { "range" } else { "date" }))),
+                    ("label", lit(if mode == "range" { cx.label_with("{name} range", &[("name", &d.label)]) } else { cx.label_with("{name} date", &[("name", &d.label)]) })),
                 ];
                 if let Some(l) = locale {
                     props.push(("locale", lit(l.to_string())));
@@ -692,11 +695,11 @@ fn pane(cx: &mut RenderCx<'_>, node: &Node, id: &Val, i: usize, d: &Def, currenc
         // Presets set a range, so only where the filter offers Between.
         if !d.presets.is_empty() && d.ops.iter().any(|(o, _)| *o == "between") {
             let mut box_ = Element::new("div");
-            box_.attr("data-fl-presets", true).attr("role", "group").attr("aria-label", format!("{} presets", d.label));
+            box_.attr("data-fl-presets", true).attr("role", "group").attr("aria-label", cx.label_with("{name} presets", &[("name", &d.label)]));
             cx.open(&box_, node)?;
             for (name, label) in &d.presets {
                 let mut b = Element::new("button");
-                b.attr("type", "button").attr("data-fl-preset", *name).text(lit(*label));
+                b.attr("type", "button").attr("data-fl-preset", *name).text(lit(cx.label(label)));
                 cx.open(&b, node)?;
                 cx.close("button");
             }
@@ -726,7 +729,7 @@ fn views_menu(cx: &mut RenderCx<'_>, node: &Node, id: &Val) -> Result<(), Render
         .attr("aria-haspopup", "true");
     cx.open(&b, node)?;
     let mut t = Element::new("span");
-    t.text(lit("Views"));
+    t.text(lit(cx.label("Views")));
     cx.open(&t, node)?;
     cx.close("span");
     cx.markup(r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>"#);
@@ -735,18 +738,18 @@ fn views_menu(cx: &mut RenderCx<'_>, node: &Node, id: &Val) -> Result<(), Render
     menu.attr("data-fl-views", true).attr("id", id_with(id, "-views")).attr("hidden", true);
     cx.open(&menu, node)?;
     let mut list = Element::new("ul");
-    list.attr("data-fl-view-list", true).attr("aria-label", "Saved views");
+    list.attr("data-fl-view-list", true).attr("aria-label", cx.label("Saved views"));
     cx.open(&list, node)?;
     cx.close("ul");
     let mut form = Element::new("div");
     form.attr("data-fl-view-form", true);
     cx.open(&form, node)?;
     let mut name = Element::new("input");
-    name.base_style_ref(forms::input_look()).attr("type", "text").attr("data-fl-view-name", true).attr("placeholder", "Name these filters").attr("aria-label", "View name");
+    name.base_style_ref(forms::input_look()).attr("type", "text").attr("data-fl-view-name", true).attr("placeholder", cx.label("Name these filters")).attr("aria-label", cx.label("View name"));
     cx.open(&name, node)?;
     let mut save = Element::new("button");
     forms::button_look(&mut save, "default", "sm");
-    save.attr("type", "button").attr("data-fl-view-save", true).text(lit("Save"));
+    save.attr("type", "button").attr("data-fl-view-save", true).text(lit(cx.label("Save")));
     cx.open(&save, node)?;
     cx.close("button");
     cx.close("div");

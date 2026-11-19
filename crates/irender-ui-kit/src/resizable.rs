@@ -160,7 +160,7 @@ impl Component for Resizable {
         let list = panels(cx, node)?;
         let id = instance_id(cx, node, "rz");
         let grip = cx.prop(node, "handle").is_some_and(|v| expr::truthy(&v));
-        let name = cx.prop_string(node, "label").unwrap_or_else(|| "panels".into());
+        let name = cx.prop_string(node, "label").unwrap_or_else(|| cx.label("panels"));
 
         cx.global_js("ui-resizable", SCRIPT);
         let mut root = cx.element("div", node);
@@ -200,7 +200,7 @@ impl Component for Resizable {
             cx.close("div");
             if i + 1 < n {
                 let mut h = cx.part("div", node, "handle");
-                let label = format!("Resize {}", cx.prop_string(p.node, "label").unwrap_or_else(|| name.clone()));
+                let label = cx.label_with("Resize {name}", &[("name", &cx.prop_string(p.node, "label").unwrap_or_else(|| name.clone()))]);
                 h.attr("data-rz-handle", true)
                     .attr("role", "separator")
                     .attr("tabindex", "0")

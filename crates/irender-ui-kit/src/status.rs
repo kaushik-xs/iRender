@@ -424,7 +424,7 @@ impl Component for Timeline {
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let mut ol = cx.element("ol", node);
-        ol.base_style_ref(&TIMELINE).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Activity")));
+        ol.base_style_ref(&TIMELINE).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Activity"))));
         cx.open(&ol, node)?;
         cx.children(node)?;
         if node.prop("items").is_some() {
@@ -540,7 +540,7 @@ impl Component for TimelineItem {
                     cx.close("span");
                 }
                 let mut arrow = Element::new("span");
-                arrow.attr("data-arrow", true).attr("aria-label", "to").text(lit("→"));
+                arrow.attr("data-arrow", true).attr("aria-label", cx.label("to")).text(lit("→"));
                 cx.open(&arrow, node)?;
                 cx.close("span");
                 let mut to = Element::new("span");

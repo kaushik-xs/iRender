@@ -7,6 +7,8 @@
   const list = el.querySelector("[role=listbox]");
   const empty = el.querySelector("[data-ui-empty]");
   const live = el.querySelector("[data-ui-live]");
+  // Interface text in the document's words (its `labels`), by the English.
+  const L = (text, vars) => window.__irender.label(text, vars);
   const dialog = el.closest("dialog");
 
   // Case- and accent-insensitive text for matching.
@@ -50,7 +52,7 @@
   input.addEventListener("input", () => {
     active = null;
     const n = filter();
-    live.textContent = `${n} result${n === 1 ? "" : "s"} available.`;
+    live.textContent = L(["{n} result available.", "{n} results available."], { n });
   });
 
   input.addEventListener("keydown", (e) => {

@@ -192,6 +192,8 @@
     const count = el.querySelector("[data-md-count]");
     const tabs = [...el.querySelectorAll("[data-md-view]")];
     const md = window.__irenderMarkdown;
+    // Interface text in the document's words (its `labels`), by the English.
+    const L = (text, vars) => window.__irender.label(text, vars);
     // Rich text is showing (not its Markdown tab).
     const isRich = () => rich && body.dataset.view === "rich";
 
@@ -208,7 +210,7 @@
     const fixBox = (box) => {
       box.disabled = false;
       box.contentEditable = "false";
-      box.setAttribute("aria-label", "Done");
+      box.setAttribute("aria-label", L("Done"));
     };
     const empty = () => rich.toggleAttribute("data-empty", rich.textContent.trim() === "" && !rich.querySelector("img, hr, li, input"));
     const sync = () => {
@@ -350,7 +352,7 @@
       }
       const text = r.toString();
       if (text.includes("\n") || (text === "" && (blockAt()?.textContent.trim() ?? "") === "")) return toggleBlock("pre");
-      exec("insertHTML", `<code>${esc(text || "code")}</code>`);
+      exec("insertHTML", `<code>${esc(text || L("code"))}</code>`);
     };
 
     // The link bar: opened on the selection, which is put back when it closes.
@@ -573,7 +575,7 @@
     const draw = () => {
       const text = area.value;
       if (preview) {
-        preview.innerHTML = text.trim() === "" ? '<p style="color: var(--color-muted, #71717a)">Nothing to preview</p>' : md.render(text);
+        preview.innerHTML = text.trim() === "" ? `<p style="color: var(--color-muted, #71717a)">${esc(L("Nothing to preview"))}</p>` : md.render(text);
         window.__irenderCode?.enhance(preview);
       }
       if (rich) {
@@ -656,7 +658,7 @@
 
     const link = () => {
       const { selectionStart: a, selectionEnd: b, value } = area;
-      const label = value.slice(a, b) || "link text";
+      const label = value.slice(a, b) || L("link text");
       const text = `[${label}](https://)`;
       // Select the URL to type over.
       const at = a + label.length + 3;
@@ -669,16 +671,16 @@
         const [start, end] = lineRange();
         const block = "```\n" + value.slice(start, end) + "\n```";
         replace(start, end, block, start + 4, start + block.length - 4);
-      } else wrap("`", "`", "code");
+      } else wrap("`", "`", L("code"));
     };
 
     const run = (cmd) => {
       if (area.disabled) return;
       if (isRich()) return richRun[cmd]?.();
       ({
-        bold: () => wrap("**", "**", "bold text"),
-        italic: () => wrap("_", "_", "italic text"),
-        strike: () => wrap("~~", "~~", "struck text"),
+        bold: () => wrap("**", "**", L("bold text")),
+        italic: () => wrap("_", "_", L("italic text")),
+        strike: () => wrap("~~", "~~", L("struck text")),
         code,
         link,
         heading: () => prefixLines("heading"),

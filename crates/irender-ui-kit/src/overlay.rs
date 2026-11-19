@@ -291,7 +291,7 @@ impl Component for Dialog {
                 .attr("type", "button")
                 .attr("command", "close")
                 .attr("commandfor", id.clone())
-                .attr("aria-label", "Close")
+                .attr("aria-label", cx.label("Close"))
                 .text(lit("✕"));
             cx.open(&x, node)?;
             cx.close("button");
@@ -325,7 +325,7 @@ impl Component for DialogClose {
         let Some(dialog) = context(cx, "ui-dialog") else {
             return Err(RenderError::new(node, "`ui-dialog-close` must be inside a `ui-dialog`, `ui-alert-dialog` or `ui-sheet`"));
         };
-        let mut props = vec![("label", node.prop("label").cloned().unwrap_or_else(|| lit("Close")))];
+        let mut props = vec![("label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Close"))))];
         if let Some(v) = node.prop("variant") {
             props.push(("variant", v.clone()));
         }
@@ -532,7 +532,7 @@ impl Component for ContextMenu {
             .attr("popover", "auto")
             .attr("id", id.clone())
             .attr("role", "menu")
-            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit("Actions")))
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Actions"))))
             .behavior("ui-dropdown-menu", json!({}));
         cx.open(&menu, node)?;
         cx.with_context("ui-popover", Some(id), |cx| {
@@ -614,7 +614,7 @@ impl Component for SplitButton {
             primary.style = p.style.clone();
         }
 
-        let label = node.prop("menuLabel").cloned().unwrap_or_else(|| lit("More actions"));
+        let label = node.prop("menuLabel").cloned().unwrap_or_else(|| lit(cx.label("More actions")));
         let mut props = vec![("trigger", lit("▾")), ("triggerVariant", variant), ("align", lit("end"))];
         for name in ["side", "align", "id"] {
             if let Some(v) = node.prop(name) {

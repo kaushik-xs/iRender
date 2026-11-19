@@ -94,6 +94,26 @@ theme:
 - Option and choice names use lowercase letters, digits and `-`. Mistakes are reported with their paths, like other theme errors.
 - [irender-ui-kit](crates/irender-ui-kit/README.md#theme-options) ships options (palette, radius, density, text size, font) and `ui-theme-option`, which picks one, remembers it and applies it before the page shows. The [chart kit](crates/irender-chart-kit/README.md#theme) adds chart colour schemes. A document adds choices to these or options of its own.
 
+### Language and interface text
+
+`lang` is the document's language: the page's `<html lang>`, and the plural rules for its labels. `labels` gives the kits' fixed words (buttons, counts, empty and loading messages, what screen readers hear) in that language, keyed by the English. Keys a document doesn't give stay English.
+
+```yaml
+version: 1
+lang: es
+labels:
+  "Rows per page": "Filas por página"
+  "Page {page} of {pages}": "Página {page} de {pages}"
+  "{n} results": { one: "{n} resultado", other: "{n} resultados" }
+root: …
+```
+
+- `{name}` marks a value filled in; keep it in your text, anywhere in it.
+- A count's key (one with `{n}`) takes plural forms, `{ one, other }`, plus `zero`, `two`, `few` or `many` where the language has them. The browser picks with `Intl.PluralRules` for `lang`, and the server, which only draws the first view, knows `one` and `other`. A single text is used for every count.
+- Every key, by kit and component, is in [the labels reference](skills/irender/references/labels.md), generated from the source by `tools/labels.py`.
+- Dates and numbers aren't labels: they follow each component's `locale` (default: the browser's).
+- A component reads a label with `cx.label("…")`, `cx.label_with("…", &[(name, value)])` or `cx.label_count(one, other, n)` on the server, and `window.__irender.label(text, vars)` in the browser (`[one, other]` for a count).
+
 ## Form controls
 
 `input`, `select` and `textarea` take `bind: <state key>` to keep a state value in sync both ways.

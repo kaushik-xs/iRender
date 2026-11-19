@@ -548,6 +548,7 @@ const SORT_BOTH: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill=
 const PLUS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
 const DOWNLOAD: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
 const COLUMNS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12M5 2.5v11"/></svg>"#;
+// Labels (looked up where they're used): "Go to first page", "Go to previous page", "Go to next page", "Go to last page"
 const PAGE_BUTTONS: &[(&str, &str, &str)] = &[
     ("first", "Go to first page", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3.5 4 8l4.5 4.5M12.5 3.5 8 8l4.5 4.5"/></svg>"#),
     ("prev", "Go to previous page", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>"#),
@@ -988,7 +989,7 @@ impl Component for DataTable {
             if let Some(s) = &search {
                 let placeholder = match s {
                     Json::String(p) => p.clone(),
-                    _ => "Search…".into(),
+                    _ => cx.label("Search…"),
                 };
                 let mut input = Element::new("input");
                 input
@@ -1005,7 +1006,7 @@ impl Component for DataTable {
             if !filtered.is_empty() || search.is_some() {
                 let mut reset = Element::new("button");
                 forms::button_look(&mut reset, "ghost", "sm");
-                reset.attr("type", "button").attr("data-dt-reset", true).attr("hidden", true).text(lit("Reset ✕"));
+                reset.attr("type", "button").attr("data-dt-reset", true).attr("hidden", true).text(lit(format!("{} ✕", cx.label("Reset"))));
                 cx.open(&reset, node)?;
                 cx.close("button");
             }
@@ -1019,10 +1020,11 @@ impl Component for DataTable {
             if export.is_some() {
                 let mut b = Element::new("button");
                 forms::button_look(&mut b, "outline", "sm");
-                b.attr("type", "button").attr("data-dt-export", true).attr("title", "Download the rows that pass the filters as CSV");
+                b.attr("type", "button").attr("data-dt-export", true).attr("title", cx.label("Download the rows that pass the filters as CSV"));
                 cx.open(&b, node)?;
                 cx.markup(DOWNLOAD);
-                cx.text("Export");
+                let t = cx.label("Export");
+                cx.text(&t);
                 cx.close("button");
             }
             if menu {
@@ -1034,14 +1036,15 @@ impl Component for DataTable {
                 b.base_style(StyleBlock::new().set("anchor-name", anchor.clone()));
                 cx.open(&b, node)?;
                 cx.markup(COLUMNS);
-                cx.text("View");
+                let t = cx.label("View");
+                cx.text(&t);
                 cx.close("button");
                 let mut p = Element::new("div");
                 p.attr("popover", "auto").attr("id", pop).attr("data-dt-pop", true).attr("data-dt-columns", true);
                 p.base_style(StyleBlock::new().set("position-anchor", anchor).set("position-area", "bottom span-left"));
                 cx.open(&p, node)?;
                 let mut title = Element::new("div");
-                title.attr("data-dt-pop-title", true).text(lit("Columns"));
+                title.attr("data-dt-pop-title", true).text(lit(cx.label("Columns")));
                 cx.open(&title, node)?;
                 cx.close("div");
                 for c in columns.iter().filter(|c| c.hideable) {
@@ -1055,11 +1058,11 @@ impl Component for DataTable {
                 }
                 if !groupable.is_empty() {
                     let mut title = Element::new("div");
-                    title.attr("data-dt-pop-title", true).attr("data-dt-group-title", true).text(lit("Group by"));
+                    title.attr("data-dt-pop-title", true).attr("data-dt-group-title", true).text(lit(cx.label("Group by")));
                     cx.open(&title, node)?;
                     cx.close("div");
                     let name = format!("{}-group-by", expr::stringify(&cx.eval(&id)));
-                    let none = (String::new(), "None".to_string());
+                    let none = (String::new(), cx.label("None"));
                     for (value, text) in std::iter::once(none).chain(groupable.iter().map(|c| (c.field.clone().unwrap_or_default(), c.label_text.clone()))) {
                         let mut label = Element::new("label");
                         cx.open(label.attr("data-dt-option", true), node)?;
@@ -1078,15 +1081,16 @@ impl Component for DataTable {
         // ---- bulk actions
         if !parts.bulk.is_empty() {
             let mut bulk = Element::new("div");
-            bulk.attr("data-dt-bulk", true).attr("role", "region").attr("aria-label", "Bulk actions").attr("hidden", selection.is_empty());
+            bulk.attr("data-dt-bulk", true).attr("role", "region").attr("aria-label", cx.label("Bulk actions")).attr("hidden", selection.is_empty());
             cx.open(&bulk, node)?;
             let mut count = Element::new("span");
-            count.attr("data-dt-count", true).text(lit(format!("{} selected", selection.len())));
+            count.attr("data-dt-count", true).text(lit(cx.label_with("{n} selected", &[("n", &selection.len().to_string())])));
             cx.open(&count, node)?;
             cx.close("span");
+            // Labels: "Select all", "Clear selection"
             for (attr, text) in [("data-dt-select-all", "Select all"), ("data-dt-clear-selection", "Clear selection")] {
                 let mut b = Element::new("button");
-                b.attr("type", "button").attr("data-dt-link", true).attr(attr, true).text(lit(text));
+                b.attr("type", "button").attr("data-dt-link", true).attr(attr, true).text(lit(cx.label(text)));
                 if attr == "data-dt-select-all" {
                     b.attr("hidden", true);
                 }
@@ -1168,7 +1172,7 @@ impl Component for DataTable {
             th.attr("data-dt-box", true).attr("data-pin", lead_pin.clone());
             cx.open(&th, node)?;
             let mut all = Element::new("input");
-            all.base_style_ref(forms::checkbox_look()).attr("type", "checkbox").attr("data-dt-select-page", true).attr("aria-label", "Select all rows on this page");
+            all.base_style_ref(forms::checkbox_look()).attr("type", "checkbox").attr("data-dt-select-page", true).attr("aria-label", cx.label("Select all rows on this page"));
             cx.open(&all, node)?;
             cx.close("th");
         }
@@ -1177,7 +1181,7 @@ impl Component for DataTable {
             th.attr("data-dt-box", true).attr("data-pin", lead_pin.clone());
             cx.open(&th, node)?;
             let mut hidden = Element::new("span");
-            hidden.attr("data-dt-live", true).text(lit("Details"));
+            hidden.attr("data-dt-live", true).text(lit(cx.label("Details")));
             cx.open(&hidden, node)?;
             cx.close("span");
             cx.close("th");
@@ -1234,7 +1238,7 @@ impl Component for DataTable {
                     .attr("role", "separator")
                     .attr("aria-orientation", "vertical")
                     .attr("tabindex", "0")
-                    .attr("aria-label", format!("Resize {}", c.label_text));
+                    .attr("aria-label", cx.label_with("Resize {name}", &[("name", &c.label_text)]));
                 cx.open(&r, node)?;
                 cx.close("span");
             }
@@ -1283,7 +1287,7 @@ impl Component for DataTable {
                 td.attr("data-dt-box", true).attr("data-pin", lead_pin.clone());
                 cx.open(&td, node)?;
                 let mut b = Element::new("button");
-                b.attr("type", "button").attr("data-dt-expand", true).attr("aria-expanded", "false").attr("aria-label", "Show details");
+                b.attr("type", "button").attr("data-dt-expand", true).attr("aria-expanded", "false").attr("aria-label", cx.label("Show details"));
                 cx.open(&b, node)?;
                 cx.markup(CHEVRON);
                 cx.close("button");
@@ -1366,7 +1370,7 @@ impl Component for DataTable {
         tr.attr("data-dt-empty", true).attr("hidden", !rows.is_empty() || url.is_some());
         cx.open(&tr, node)?;
         let mut td = Element::new("td");
-        td.attr("colspan", span.clone()).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit("No results.")));
+        td.attr("colspan", span.clone()).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit(cx.label("No results."))));
         cx.open(&td, node)?;
         cx.close("td");
         cx.close("tr");
@@ -1411,19 +1415,19 @@ impl Component for DataTable {
             }
             cx.open(&more, node)?;
             let mut loading = Element::new("span");
-            loading.attr("data-dt-loading", true).attr("hidden", true).text(lit("Loading more…"));
+            loading.attr("data-dt-loading", true).attr("hidden", true).text(lit(cx.label("Loading more…")));
             cx.open(&loading, node)?;
             cx.close("span");
             if paging == "more" {
                 let mut b = Element::new("button");
                 forms::button_look(&mut b, "outline", "sm");
-                b.attr("type", "button").attr("data-dt-load", true).text(lit("Load more"));
+                b.attr("type", "button").attr("data-dt-load", true).text(lit(cx.label("Load more")));
                 cx.open(&b, node)?;
                 cx.close("button");
             }
             let mut retry = Element::new("button");
             forms::button_look(&mut retry, "outline", "sm");
-            retry.attr("type", "button").attr("data-dt-retry", true).attr("hidden", true).text(lit("Couldn't load rows. Retry"));
+            retry.attr("type", "button").attr("data-dt-retry", true).attr("hidden", true).text(lit(cx.label("Couldn't load rows. Retry")));
             cx.open(&retry, node)?;
             cx.close("button");
             cx.close("div");
@@ -1436,13 +1440,13 @@ impl Component for DataTable {
         cx.open(&footer, node)?;
         let mut status = Element::new("div");
         let status_text = if url.is_some() {
-            "Loading…".to_string()
+            cx.label("Loading…")
         } else if paging == "more" || paging == "scroll" {
-            format!("Showing {} of {}", rows.len().min(page_size), rows.len())
+            cx.label_with("Showing {shown} of {total}", &[("shown", &rows.len().min(page_size).to_string()), ("total", &rows.len().to_string())])
         } else if selectable {
-            format!("{} of {} row(s) selected.", selection.len(), rows.len())
+            cx.label_with("{count} of {total} row(s) selected.", &[("count", &selection.len().to_string()), ("total", &rows.len().to_string())])
         } else {
-            format!("{} row(s)", rows.len())
+            cx.label_with("{total} row(s)", &[("total", &rows.len().to_string())])
         };
         status.attr("data-dt-status", true).text(lit(status_text));
         cx.open(&status, node)?;
@@ -1452,7 +1456,8 @@ impl Component for DataTable {
                 let mut sizes = Element::new("label");
                 sizes.attr("data-dt-sizes", true);
                 cx.open(&sizes, node)?;
-                cx.text("Rows per page");
+                let t = cx.label("Rows per page");
+                cx.text(&t);
                 let mut select = Element::new("select");
                 select.attr("data-dt-size", true);
                 cx.open(&select, node)?;
@@ -1471,7 +1476,7 @@ impl Component for DataTable {
                 cx.close("label");
             }
             let mut at = Element::new("div");
-            at.attr("data-dt-page", true).text(lit(format!("Page {page} of {pages}")));
+            at.attr("data-dt-page", true).text(lit(cx.label_with("Page {page} of {pages}", &[("page", &page.to_string()), ("pages", &pages.to_string())])));
             cx.open(&at, node)?;
             cx.close("div");
             let mut nav = Element::new("div");
@@ -1481,7 +1486,8 @@ impl Component for DataTable {
                 let mut b = Element::new("button");
                 forms::button_look(&mut b, "outline", "sm");
                 let off = if matches!(*go, "first" | "prev") { page <= 1 } else { page >= pages };
-                b.attr("type", "button").attr("data-dt-go", *go).attr("aria-label", *label).attr("title", *label).attr("disabled", off);
+                let label = cx.label(label);
+                b.attr("type", "button").attr("data-dt-go", *go).attr("aria-label", label.clone()).attr("title", label).attr("disabled", off);
                 cx.open(&b, node)?;
                 cx.markup(icon);
                 cx.close("button");
@@ -1526,12 +1532,14 @@ fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column, loca
         .attr("data-dt-filter", c.key.clone())
         .attr("data-kind", kind)
         .attr("role", "dialog")
-        .attr("aria-label", format!("Filter by {}", c.label_text))
+        .attr("aria-label", cx.label_with("Filter by {name}", &[("name", &c.label_text)]))
         .base_style(StyleBlock::new().set("position-anchor", anchor));
     cx.open(&p, node)?;
+    // Labels: "Contains", "Min", "Max"
     let input = |cx: &mut RenderCx<'_>, ty: &str, op: &str, label: &str| -> Result<(), RenderError> {
+        let label = cx.label(label);
         let mut l = Element::new("label");
-        l.text(lit(label));
+        l.text(lit(label.clone()));
         cx.open(&l, node)?;
         cx.close("label");
         let mut i = Element::new("input");
@@ -1600,7 +1608,7 @@ fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column, loca
         }
     }
     let mut clear = Element::new("button");
-    clear.attr("type", "button").attr("data-dt-clear", true).text(lit("Clear filter"));
+    clear.attr("type", "button").attr("data-dt-clear", true).text(lit(cx.label("Clear filter")));
     cx.open(&clear, node)?;
     cx.close("button");
     cx.close("div");

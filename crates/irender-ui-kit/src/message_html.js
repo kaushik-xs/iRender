@@ -63,6 +63,8 @@
   };
 
   (window.__irenderBehaviors ||= {})["ui-message-html"] = (el, api) => {
+    // Interface text in the document's words (its `labels`), by the English.
+    const L = (text, vars) => window.__irender.label(text, vars);
     let shown = null;
     let turn = 0;
     const insert = (html) => {
@@ -91,7 +93,7 @@
           el.innerHTML = "";
           const note = document.createElement("p");
           note.setAttribute("data-ui-note", "");
-          note.textContent = "This reply has UI that can't be shown here.";
+          note.textContent = L("This reply has UI that can't be shown here.");
           el.append(note);
         },
       );
