@@ -5551,3 +5551,73 @@ fn quarter_presets_in_chrome() {
         "\n{result}"
     );
 }
+
+/// A layout per width: the grid switches as its width crosses a breakpoint, a move
+/// changes only the size it's made in, `bind` keeps each, and null puts them back.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn dashboard_grid_breakpoints_in_chrome() {
+    let tile = |id: &str, p: serde_json::Value| {
+        let mut props = serde_json::json!({ "id": id, "title": id.to_uppercase() });
+        props.as_object_mut().unwrap().extend(p.as_object().unwrap().clone());
+        serde_json::json!({ "type": "ui-tile", "props": props, "children": [ { "type": "text", "props": { "value": id } } ] })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "layout": null },
+        "root": { "type": "element", "attrs": { "id": "box" }, "style": { "width": "960px" }, "children": [
+            { "type": "ui-dashboard-grid", "attrs": { "id": "g" }, "props": { "bind": "layout", "gap": 0, "rowHeight": 50, "stackBelow": 200,
+                "breakpoints": { "lg": { "width": 700, "columns": 12 }, "md": { "width": 300, "columns": 6 } } },
+              "children": [
+                tile("a", serde_json::json!({ "x": 0, "y": 0, "w": 6, "h": 2 })),
+                tile("b", serde_json::json!({ "x": 6, "y": 0, "w": 6, "h": 2 })),
+                tile("c", serde_json::json!({ "x": 0, "y": 2, "w": 12, "h": 1, "layouts": { "md": { "x": 0, "y": 0, "w": 6, "h": 1 } } })) ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const G = document.getElementById("g"), box = document.getElementById("box");
+      const cell = () => G.querySelector("[data-dg-grid]").clientWidth / (G.__x.size === "md" ? 6 : 12);
+      const seen = () => [...G.querySelectorAll("[data-dg-tile]")].map((n) =>
+        `${n.dataset.id}:${Math.round(n.offsetLeft / cell())},${Math.round(n.offsetTop / 50)},${Math.round(n.offsetWidth / cell())}x${Math.round(n.offsetHeight / 50)}`).join(" ");
+      const at = () => G.__x.size + " " + G.__x.layout.map((t) => `${t.id}:${t.x},${t.y},${t.w}x${t.h}`).join(" ");
+      const key = (id, k) => G.querySelector(`[data-id=${id}] [data-dg-handle]`).dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+      try {
+        await wait(50);
+        log("wide", at(), "|", seen());
+        box.style.width = "480px"; await wait(100);
+        log("narrow", at(), "|", seen());
+        // A move at this size: only its layout changes.
+        key("a", "ArrowRight"); await wait(250);
+        log("moved", at(), "|", JSON.stringify(S().layout));
+        box.style.width = "960px"; await wait(100);
+        log("wide again", at(), "|", seen());
+        box.style.width = "480px"; await wait(100);
+        log("narrow again", at());
+        root.__irender.set("layout", null); await wait(100);
+        log("reset", at());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("dashboard-breakpoints", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "wide lg a:0,0,6x2 b:6,0,6x2 c:0,2,12x1 | a:0,0,6x2 b:6,0,6x2 c:0,2,12x1",
+            // 480px: md's six columns, c first (its `layouts`), a and b scaled and packed.
+            "narrow md a:0,1,3x2 b:3,1,3x2 c:0,0,6x1 | a:0,1,3x2 b:3,1,3x2 c:0,0,6x1",
+            // Moved at md: lg's layout in `bind` is untouched.
+            "moved md a:1,1,3x2 b:3,3,3x2 c:0,0,6x1 | {\"lg\":[{\"id\":\"a\",\"x\":0,\"y\":0,\"w\":6,\"h\":2},{\"id\":\"b\",\"x\":6,\"y\":0,\"w\":6,\"h\":2},{\"id\":\"c\",\"x\":0,\"y\":2,\"w\":12,\"h\":1}],\"md\":[{\"id\":\"a\",\"x\":1,\"y\":1,\"w\":3,\"h\":2},{\"id\":\"b\",\"x\":3,\"y\":3,\"w\":3,\"h\":2},{\"id\":\"c\",\"x\":0,\"y\":0,\"w\":6,\"h\":1}]}",
+            "wide again lg a:0,0,6x2 b:6,0,6x2 c:0,2,12x1 | a:0,0,6x2 b:6,0,6x2 c:0,2,12x1",
+            "narrow again md a:1,1,3x2 b:3,3,3x2 c:0,0,6x1",
+            // Null: every size back to the tiles' own places.
+            "reset md a:0,1,3x2 b:3,1,3x2 c:0,0,6x1",
+        ],
+        "\n{result}"
+    );
+}

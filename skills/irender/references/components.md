@@ -359,6 +359,7 @@ ui-password-checklist: A password's rules, ticked as they're met, with a strengt
   children: no
 ui-dashboard-grid: Tiles (`ui-tile` children) on a grid, to drag by their header and resize from their corner, or move with the arrow keys; the others make way. `bind` keeps the layout in state. On a narrow screen the tiles stack.
   columns      number  Columns across (default 12)
+  breakpoints  any  A layout per width: `{ lg: { width: 1100, columns: 12 }, md: { width: 700, columns: 6 } }`, each used from its `width` (of the grid, in px) up
   rowHeight    number  Each row's height in px (default 80)
   gap          number  Space between tiles in px (default 16)
   bind         statekey  State key for the layout, `[{ id, x, y, w, h }]`: read to place the tiles, written after each move
@@ -380,6 +381,7 @@ ui-tile: One tile of a `ui-dashboard-grid`: its place (`x`, `y`, `w`, `h` in gri
   maxW         number  The widest
   maxH         number  The tallest
   locked       bool  Stays where it is: it can't be moved or resized, and others go around it
+  layouts      any  Its place at the grid's smaller `breakpoints`: `{ md: { x, y, w, h } }` (default: worked out from the largest)
   children: yes
 ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.
   columns      any (required)  The columns, in order: `{ id, title, tone, limit }` (or plain names). `limit` marks a column over it

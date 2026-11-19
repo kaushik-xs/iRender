@@ -2,7 +2,8 @@
 # its bottom corner, or focus a header and use the arrow keys (Shift with them resizes);
 # the other tiles make way and float up. The layout is kept in state, so Reset layout
 # puts the tiles back, and the charts redraw at their tile's new size. The alerts strip
-# is locked in place. On a phone the tiles stack.
+# is locked in place. On a tablet (a grid under 960px) the tiles have a layout of their
+# own, six columns wide, kept apart from the desktop one; on a phone they stack.
 #
 #   cargo run -p irender-cli -- render examples/blocks/dashboard-02.yaml --ui-kit --chart-kit --icon-kit -o dashboard-02.html
 version: 1
@@ -53,7 +54,12 @@ root:
               props: { label: Reset layout, variant: outline, icon: rotate-ccw }
               on: { click: { action: set_state, key: layout, value: null } }
         - type: ui-dashboard-grid
-          props: { bind: layout, rowHeight: 72, label: Bhiwandi DC dashboard }
+          props:
+            bind: layout
+            rowHeight: 72
+            label: Bhiwandi DC dashboard
+            stackBelow: 560
+            breakpoints: { desktop: { width: 960, columns: 12 }, tablet: { width: 560, columns: 6 } }
           children:
             - type: ui-tile
               props: { id: alerts, x: 0, y: 0, w: 12, h: 1, locked: true }
@@ -64,17 +70,17 @@ root:
                     - { type: ui-badge, props: { text: 2 alerts, variant: destructive } }
                     - { type: text, props: { value: "Dock D6 is 35 minutes late · Chilled zone at 94% capacity" } }
             - type: ui-tile
-              props: { id: orders, title: Orders shipped, x: 0, y: 1, w: 3, h: 2, minW: 2 }
+              props: { id: orders, title: Orders shipped, x: 0, y: 1, w: 3, h: 2, minW: 2, layouts: { tablet: { w: 3 } } }
               children:
                 - { type: text, props: { value: "3,740" }, style: { font-size: 32px, font-weight: 700, line-height: 1 } }
                 - { type: ui-text, props: { variant: muted, text: "+8.2% on last Thursday" } }
             - type: ui-tile
-              props: { id: rate, title: Pick rate, x: 3, y: 1, w: 3, h: 2, minW: 2 }
+              props: { id: rate, title: Pick rate, x: 3, y: 1, w: 3, h: 2, minW: 2, layouts: { tablet: { w: 3 } } }
               children:
                 - { type: text, props: { value: "142 / hr" }, style: { font-size: 32px, font-weight: 700, line-height: 1 } }
                 - { type: ui-sparkline, props: { data: [118, 126, 131, 129, 138, 142, 140, 142] } }
             - type: ui-tile
-              props: { id: accuracy, title: Pick accuracy, x: 6, y: 1, w: 3, h: 2, minW: 2 }
+              props: { id: accuracy, title: Pick accuracy, x: 6, y: 1, w: 3, h: 2, minW: 2, layouts: { tablet: { w: 3 } } }
               children:
                 - type: element
                   style: { display: flex, align-items: center, gap: 16px }
@@ -82,16 +88,16 @@ root:
                     - { type: ui-progress-ring, props: { value: 99.4, size: 56, label: Pick accuracy } }
                     - { type: ui-text, props: { variant: muted, text: "12 mis-picks in 2,031 lines" } }
             - type: ui-tile
-              props: { id: backlog, title: Backlog, x: 9, y: 1, w: 3, h: 2, minW: 2 }
+              props: { id: backlog, title: Backlog, x: 9, y: 1, w: 3, h: 2, minW: 2, layouts: { tablet: { w: 3 } } }
               children:
                 - { type: text, props: { value: "486" }, style: { font-size: 32px, font-weight: 700, line-height: 1 } }
                 - { type: ui-progress, props: { value: 38 } }
             - type: ui-tile
-              props: { id: throughput, title: Throughput by hour, x: 0, y: 3, w: 8, h: 4, minW: 4, minH: 3 }
+              props: { id: throughput, title: Throughput by hour, x: 0, y: 3, w: 8, h: 4, minW: 4, minH: 3, layouts: { tablet: { x: 0, y: 5, w: 6, h: 4 } } }
               children:
                 - { type: ui-chart, props: { type: line, data: "{{ throughput }}", x: hour, smooth: true, height: 100%, title: Throughput by hour } }
             - type: ui-tile
-              props: { id: zones, title: Orders by zone, x: 8, y: 3, w: 4, h: 4, minW: 3, minH: 3 }
+              props: { id: zones, title: Orders by zone, x: 8, y: 3, w: 4, h: 4, minW: 3, minH: 3, layouts: { tablet: { x: 0, y: 9, w: 6, h: 4 } } }
               children:
                 - { type: ui-chart, props: { type: donut, data: "{{ zones }}", height: 100%, title: Orders by zone } }
             - type: ui-tile

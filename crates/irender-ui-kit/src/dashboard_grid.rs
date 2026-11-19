@@ -17,6 +17,11 @@ pub struct Tile;
 
 const PROPS: &[PropDef] = &[
     PropDef::new("columns", PropKind::Number, "Columns across (default 12)"),
+    PropDef::new(
+        "breakpoints",
+        PropKind::Any,
+        "A layout per width: `{ lg: { width: 1100, columns: 12 }, md: { width: 700, columns: 6 } }`, each used from its `width` (of the grid, in px) up",
+    ),
     PropDef::new("rowHeight", PropKind::Number, "Each row's height in px (default 80)"),
     PropDef::new("gap", PropKind::Number, "Space between tiles in px (default 16)"),
     PropDef::new("bind", PropKind::StateKey, "State key for the layout, `[{ id, x, y, w, h }]`: read to place the tiles, written after each move"),
@@ -37,6 +42,7 @@ const TILE_PROPS: &[PropDef] = &[
     PropDef::new("maxW", PropKind::Number, "The widest"),
     PropDef::new("maxH", PropKind::Number, "The tallest"),
     PropDef::new("locked", PropKind::Bool, "Stays where it is: it can't be moved or resized, and others go around it"),
+    PropDef::new("layouts", PropKind::Any, "Its place at the grid's smaller `breakpoints`: `{ md: { x, y, w, h } }` (default: worked out from the largest)"),
 ];
 
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
@@ -186,7 +192,11 @@ fn collides(a: &Item, b: &Item) -> bool {
 /// The layout with every tile on the grid and none overlapping: tiles without a place
 /// take the first free one after the others have settled, overlapping tiles move down, and with `compact` each tile
 /// floats up as far as it can. Locked tiles stay put. `dashboard_grid.js` does the same.
-pub(crate) fn place(items: &mut [Item], placed: &[bool], cols: i64, compact: bool) {
+///
+/// `first` settles the tiles with a place before the others take the free spots (a
+/// size's own layout); without it they stay put until everything settles (a smaller
+/// size, where only some have a place of their own).
+fn place_with(items: &mut [Item], placed: &[bool], cols: i64, compact: bool, first: bool) {
     for it in items.iter_mut() {
         let (hi_w, hi_h) = (it.max_w.min(cols).max(1), it.max_h.max(1));
         it.w = it.w.clamp(it.min_w.clamp(1, hi_w), hi_w);
@@ -197,7 +207,9 @@ pub(crate) fn place(items: &mut [Item], placed: &[bool], cols: i64, compact: boo
     // The tiles with a place settle first; then those without one, in order, take the
     // first spot, row by row, where they fit.
     let mut fixed: Vec<Item> = items.iter().zip(placed).filter(|(_, p)| **p).map(|(t, _)| t.clone()).collect();
-    settle(&mut fixed, compact);
+    if first {
+        settle(&mut fixed, compact);
+    }
     let mut k = 0;
     for (it, p) in items.iter_mut().zip(placed) {
         if *p {
@@ -282,53 +294,106 @@ impl Component for DashboardGrid {
         let (editable, compact) = (truthy("editable", true), truthy("compact", true));
         let key = cx.prop_string(node, "bind");
 
-        // The tiles' places: from `bind`'s layout when it has them, else their own props.
-        let saved = key.as_ref().map(|k| cx.lookup(std::slice::from_ref(k))).unwrap_or(Json::Null);
-        let saved_at = |id: &str| saved.as_array().and_then(|a| a.iter().find(|l| l.get("id").map(expr::stringify).as_deref() == Some(id)));
-        let mut items = Vec::new();
-        let mut placed = Vec::new();
+        // The sizes: one layout each, widest first. Without `breakpoints`, one.
+        let mut sizes = match cx.prop(node, "breakpoints") {
+            None | Some(Json::Null) => vec![Size { name: String::new(), width: stack, cols }],
+            Some(Json::Object(m)) if !m.is_empty() => m
+                .iter()
+                .map(|(name, v)| {
+                    let field = |k: &str| v.get(k).map(expr::to_num).filter(|n| n.is_finite());
+                    let width = field("width").or_else(|| v.is_number().then(|| expr::to_num(v))).unwrap_or(-1.0);
+                    let c = field("columns").map_or(cols, |c| c.round() as i64);
+                    if width < 0.0 || !(1..=48).contains(&c) {
+                        return Err(RenderError::new(node, format!("breakpoint `{name}` needs a `width` in px and `columns` from 1 to 48")));
+                    }
+                    Ok(Size { name: name.clone(), width, cols: c })
+                })
+                .collect::<Result<_, _>>()?,
+            Some(_) => return Err(RenderError::new(node, "`breakpoints` must map names to `{ width, columns }`")),
+        };
+        sizes.sort_by(|a, b| b.width.total_cmp(&a.width));
+
         let mut ids = std::collections::HashSet::new();
+        let mut tiles = Vec::new();
         for (i, t) in node.children.iter().enumerate() {
             let id = cx.prop_string(t, "id").unwrap_or_else(|| format!("tile-{}", i + 1));
             if !ids.insert(id.clone()) {
                 return Err(RenderError::new(t, format!("two tiles have the id `{id}`")));
             }
-            let n = |name: &str| num(cx, t, name).map(|v| v.round() as i64);
-            let from = |name: &str| saved_at(&id).and_then(|l| l.get(name)).map(expr::to_num).filter(|v| v.is_finite()).map(|v| v.round() as i64);
-            let (x, y) = (from("x").or(n("x")), from("y").or(n("y")));
-            placed.push(x.is_some() && y.is_some());
-            items.push(Item {
-                x: x.unwrap_or(0),
-                y: y.unwrap_or(0),
-                w: from("w").or(n("w")).unwrap_or(4),
-                h: from("h").or(n("h")).unwrap_or(2),
-                min_w: n("minW").unwrap_or(1),
-                min_h: n("minH").unwrap_or(1),
-                max_w: n("maxW").unwrap_or(cols),
-                max_h: n("maxH").unwrap_or(i64::MAX / 4),
-                locked: cx.prop(t, "locked").is_some_and(|v| expr::truthy(&v)),
-                id,
-            });
+            tiles.push(id);
         }
+        // A size's saved layout from `bind`: a list (the widest size's), or one per size.
+        let saved = key.as_ref().map(|k| cx.lookup(std::slice::from_ref(k))).unwrap_or(Json::Null);
+        let saved_for = |k: usize| -> Option<&Vec<Json>> {
+            match &saved {
+                Json::Array(a) if k == 0 => Some(a),
+                Json::Object(o) => o.get(&sizes[k].name).and_then(Json::as_array),
+                _ => None,
+            }
+        };
+        // A tile's place in size `k`, as given: from `bind` (when `saved`), or its props.
+        let given = |k: usize, i: usize, saved: bool| -> [Option<i64>; 4] {
+            let id = &tiles[i];
+            let t = &node.children[i];
+            let entry = if saved { saved_for(k).and_then(|a| a.iter().find(|l| l.get("id").map(expr::stringify).as_deref() == Some(id))) } else { None };
+            let own = if k == 0 { None } else { cx.prop(t, "layouts").and_then(|l| l.get(&sizes[k].name).cloned()) };
+            ["x", "y", "w", "h"].map(|f| {
+                let from = |v: Option<&Json>| v.and_then(|l| l.get(f)).map(expr::to_num).filter(|n| n.is_finite()).map(|n| n.round() as i64);
+                from(entry).or_else(|| from(own.as_ref())).or_else(|| if k == 0 { num(cx, t, f).map(|v| v.round() as i64) } else { None })
+            })
+        };
+        let limits = |i: usize, cols: i64| {
+            let t = &node.children[i];
+            let n = |name: &str| num(cx, t, name).map(|v| v.round() as i64);
+            (n("minW").unwrap_or(1), n("minH").unwrap_or(1), n("maxW").unwrap_or(cols), n("maxH").unwrap_or(i64::MAX / 4), cx.prop(t, "locked").is_some_and(|v| expr::truthy(&v)))
+        };
+        // Every size's layout. The widest comes from the places given; a smaller one takes
+        // its own where given, and the rest from the widest: widths scaled to its
+        // columns, packed in reading order.
+        let layouts = |saved: bool| -> Vec<Vec<Item>> {
+            let mut out: Vec<Vec<Item>> = Vec::new();
+            for (k, size) in sizes.iter().enumerate() {
+                let mut order: Vec<usize> = (0..tiles.len()).collect();
+                if k > 0 {
+                    let base = &out[0];
+                    order.sort_by_key(|&i| (base[i].y, base[i].x));
+                }
+                let (mut items, mut placed) = (Vec::new(), Vec::new());
+                for &i in &order {
+                    let [x, y, w, h] = given(k, i, saved);
+                    let (min_w, min_h, max_w, max_h, locked) = limits(i, size.cols);
+                    let scaled = |base: &Item| ((base.w * size.cols) as f64 / sizes[0].cols as f64).round() as i64;
+                    let (w, h) = if k == 0 { (w.unwrap_or(4), h.unwrap_or(2)) } else { (w.unwrap_or_else(|| scaled(&out[0][i])), h.unwrap_or(out[0][i].h)) };
+                    placed.push(x.is_some() && y.is_some());
+                    items.push(Item { id: tiles[i].clone(), x: x.unwrap_or(0), y: y.unwrap_or(0), w, h, min_w, min_h, max_w, max_h, locked });
+                }
+                place_with(&mut items, &placed, size.cols, compact, k == 0);
+                // Back in the tiles' order.
+                let mut back = items.clone();
+                for (n, &i) in order.iter().enumerate() {
+                    back[i] = items[n].clone();
+                }
+                out.push(back);
+            }
+            out
+        };
+        let all = layouts(true);
         // Where they go without a saved layout, for when `bind` is cleared.
-        let mut defaults = items.clone();
-        let mut own = placed.clone();
-        for (i, t) in node.children.iter().enumerate() {
-            let n = |name: &str| num(cx, t, name).map(|v| v.round() as i64);
-            own[i] = n("x").is_some() && n("y").is_some();
-            let d = &mut defaults[i];
-            (d.x, d.y, d.w, d.h) = (n("x").unwrap_or(0), n("y").unwrap_or(0), n("w").unwrap_or(4), n("h").unwrap_or(2));
-        }
-        place(&mut items, &placed, cols, compact);
-        place(&mut defaults, &own, cols, compact);
+        let defaults = layouts(false);
 
         cx.global_js("ui-dashboard-grid", SCRIPT);
         crate::flips(cx);
         let id = instance_id(cx, node, "dg");
         let help = id_with(&id, "-help");
         let mut root = cx.element("div", node);
+        // A smaller size's columns, below the next size up's width.
+        let mut vars = pairs(&[("--dg-cols", &sizes[0].cols.to_string()), ("--dg-row", &format!("{row}px")), ("--dg-gap", &format!("{gap}px"))]);
+        for k in 1..sizes.len() {
+            // On the grid: a container query styles what's inside the container, not it.
+            vars = vars.nest(below(sizes[k - 1].width), pairs(&[]).nest("& [data-dg-grid]", pairs(&[("--dg-cols", &sizes[k].cols.to_string())])));
+        }
         root.base_style_ref(&GRID).base_style(
-            pairs(&[("--dg-cols", &cols.to_string()), ("--dg-row", &format!("{row}px")), ("--dg-gap", &format!("{gap}px"))]).nest(
+            vars.nest(
                 format!("@container (max-width: {}px)", stack - 0.02),
                 pairs(&[])
                     .nest("& [data-dg-grid]", pairs(&[("grid-template-columns", "minmax(0, 1fr)")]))
@@ -341,18 +406,22 @@ impl Component for DashboardGrid {
         root.behavior(
             "ui-dashboard-grid",
             json!({
-                "columns": cols,
+                "sizes": sizes.iter().enumerate().map(|(k, size)| json!({
+                    "name": (sizes.len() > 1).then(|| size.name.clone()),
+                    "width": size.width,
+                    "columns": size.cols,
+                    "items": all[k].iter().map(|it| json!({
+                        "id": it.id, "x": it.x, "y": it.y, "w": it.w, "h": it.h,
+                        "minW": it.min_w, "minH": it.min_h, "maxW": max(it.max_w), "maxH": max(it.max_h), "locked": it.locked,
+                    })).collect::<Vec<_>>(),
+                    "defaults": defaults[k].iter().map(|it| json!({ "id": it.id, "x": it.x, "y": it.y, "w": it.w, "h": it.h })).collect::<Vec<_>>(),
+                })).collect::<Vec<_>>(),
                 "gap": gap,
                 "row": row,
                 "stack": stack,
                 "bind": key,
                 "editable": editable,
                 "compact": compact,
-                "items": items.iter().map(|it| json!({
-                    "id": it.id, "x": it.x, "y": it.y, "w": it.w, "h": it.h,
-                    "minW": it.min_w, "minH": it.min_h, "maxW": max(it.max_w), "maxH": max(it.max_h), "locked": it.locked,
-                })).collect::<Vec<_>>(),
-                "defaults": defaults.iter().map(|it| json!({ "id": it.id, "x": it.x, "y": it.y, "w": it.w, "h": it.h })).collect::<Vec<_>>(),
             }),
         );
         cx.open(&root, node)?;
@@ -360,12 +429,17 @@ impl Component for DashboardGrid {
         let label = cx.prop_string(node, "label").unwrap_or_else(|| cx.label("Dashboard"));
         grid.attr("data-dg-grid", true).attr("role", "list").attr("aria-label", label);
         cx.open(&grid, node)?;
-        // Stacked, tiles go in reading order.
-        let mut order: Vec<usize> = (0..items.len()).collect();
-        order.sort_by_key(|&i| (items[i].y, items[i].x));
-        for (i, (t, it)) in node.children.iter().zip(&items).enumerate() {
-            let rank = order.iter().position(|&o| o == i).unwrap_or(i);
-            tile(cx, node, t, it, rank, editable, &help)?;
+        for (i, t) in node.children.iter().enumerate() {
+            // Its place in each size: the widest's, then each smaller one's below the
+            // width of the size above it.
+            let places: Vec<(Option<f64>, &Item, usize)> = (0..sizes.len())
+                .map(|k| {
+                    let mut o: Vec<usize> = (0..all[k].len()).collect();
+                    o.sort_by_key(|&j| (all[k][j].y, all[k][j].x));
+                    (if k == 0 { None } else { Some(sizes[k - 1].width) }, &all[k][i], o.iter().position(|&j| j == i).unwrap_or(i))
+                })
+                .collect();
+            tile(cx, node, t, &places, editable, &help)?;
         }
         let mut ghost = Element::new("div");
         ghost.attr("data-dg-ghost", true).attr("hidden", true).attr("aria-hidden", "true");
@@ -387,16 +461,39 @@ impl Component for DashboardGrid {
     }
 }
 
-fn tile(cx: &mut RenderCx<'_>, grid: &Node, t: &Node, it: &Item, rank: usize, editable: bool, help: &irender_core::Val) -> Result<(), RenderError> {
+/// `@container` for widths under `width`.
+fn below(width: f64) -> String {
+    format!("@container (max-width: {}px)", width - 0.02)
+}
+
+/// A grid size: its name in `breakpoints` and `bind`, the narrowest grid it's for, and
+/// its columns.
+struct Size {
+    name: String,
+    width: f64,
+    cols: i64,
+}
+
+/// One tile, with its place in each size: `(below, item, rank)`, `below` the width under
+/// which it applies (none for the widest), `rank` its place in reading order.
+fn tile(cx: &mut RenderCx<'_>, grid: &Node, t: &Node, places: &[(Option<f64>, &Item, usize)], editable: bool, help: &irender_core::Val) -> Result<(), RenderError> {
+    let it = places[0].1;
     let movable = editable && !it.locked;
     let name = cx.prop_string(t, "title").unwrap_or_else(|| it.id.clone());
     let mut el = cx.part("section", grid, "tile");
-    el.base_style(pairs(&[
-        ("grid-column", &format!("{} / span {}", it.x + 1, it.w)),
-        ("grid-row", &format!("{} / span {}", it.y + 1, it.h)),
-        ("order", &rank.to_string()),
-        ("--h", &it.h.to_string()),
-    ]))
+    let place = |it: &Item, rank: usize| {
+        pairs(&[
+            ("grid-column", &format!("{} / span {}", it.x + 1, it.w)),
+            ("grid-row", &format!("{} / span {}", it.y + 1, it.h)),
+            ("order", &rank.to_string()),
+            ("--h", &it.h.to_string()),
+        ])
+    };
+    let mut style = place(it, places[0].2);
+    for (under, it, rank) in &places[1..] {
+        style = style.nest(below(under.unwrap_or(0.0)), place(it, *rank));
+    }
+    el.base_style(style)
     .attr("data-dg-tile", true)
     .attr("data-id", it.id.clone())
     .attr("role", "listitem")
@@ -488,26 +585,26 @@ mod tests {
     #[test]
     fn tiles_float_up_and_overlaps_move_down() {
         let mut l = vec![item("a", 0, 3, 6, 2), item("b", 0, 3, 6, 2), item("c", 6, 9, 6, 1)];
-        place(&mut l, &[true, true, true], 12, true);
+        place_with(&mut l, &[true, true, true], 12, true, true);
         assert_eq!(l.iter().map(|i| (i.x, i.y)).collect::<Vec<_>>(), [(0, 0), (0, 2), (6, 0)]);
         // Without compacting, only the overlap is undone.
         let mut l = vec![item("a", 0, 3, 6, 2), item("b", 0, 3, 6, 2)];
-        place(&mut l, &[true, true], 12, false);
+        place_with(&mut l, &[true, true], 12, false, true);
         assert_eq!(l.iter().map(|i| i.y).collect::<Vec<_>>(), [3, 5]);
     }
 
     #[test]
     fn unplaced_tiles_take_the_first_free_spot_and_locked_ones_stay() {
         let mut l = vec![item("a", 0, 0, 8, 2), item("b", 0, 0, 4, 2), item("c", 0, 0, 6, 1)];
-        place(&mut l, &[true, false, false], 12, true);
+        place_with(&mut l, &[true, false, false], 12, true, true);
         assert_eq!(l.iter().map(|i| (i.x, i.y)).collect::<Vec<_>>(), [(0, 0), (8, 0), (0, 2)]);
         let mut l = vec![item("a", 0, 0, 12, 1), Item { locked: true, ..item("lock", 0, 1, 12, 1) }];
         l[0].y = 1;
-        place(&mut l, &[true, true], 12, true);
+        place_with(&mut l, &[true, true], 12, true, true);
         assert_eq!(l.iter().map(|i| (i.id.as_str(), i.y)).collect::<Vec<_>>(), [("a", 0), ("lock", 1)]);
         // Too wide is cut to the grid; past the edge comes back in.
         let mut l = vec![item("a", 10, 0, 20, 1), item("b", 11, 1, 4, 1)];
-        place(&mut l, &[true, true], 12, true);
+        place_with(&mut l, &[true, true], 12, true, true);
         assert_eq!(l.iter().map(|i| (i.x, i.w)).collect::<Vec<_>>(), [(0, 12), (8, 4)]);
     }
 }

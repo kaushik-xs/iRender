@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: a separate layout per screen width for the dashboard grid, or paging inside API groups.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: paging inside API groups, or drawing Gantt arrows by dragging.
 
 ## Gaps you'd hit in real use
 
@@ -44,7 +44,7 @@ _Last updated: 2026-11-19._
     - [ ] No custom card content (a template per card), only the built-in fields.
     - [ ] No swimlanes (rows by assignee or epic), and columns can't be reordered.
   - [x] **Dashboard grid** (2026-11-19): `ui-dashboard-grid` + `ui-tile`, tiles dragged by their header and resized from their corner (pointer events, so touch too) or with the arrow keys, pushing the others aside and floating up, locked tiles, the layout in `bind`, and one column on a narrow grid (block dashboard-02, gallery section). Not done yet:
-    - [ ] One layout for every width: no separate layouts per breakpoint (react-grid-layout's `ResponsiveGridLayout`); under `stackBelow` the tiles just stack.
+    - [x] A layout per width (2026-11-20): `breakpoints` with each size's columns, tiles' `layouts` per size, the rest worked out from the widest, all in the page's CSS, and `bind` keeping each size's (block dashboard-02's tablet layout).
     - [ ] Tiles come from the document, not from a list in state, so a dashboard can't add or remove tiles on its own; show and hide them with `if` around the content.
     - [ ] Only vertical packing: no horizontal compaction, and tiles can't be dropped in from outside the grid (a palette of widgets).
   - [x] **Activity timeline** (2026-11-18): `ui-timeline` + `ui-timeline-item`, with avatars or initials, field changes (old → new), comments and event dots, from children or state (block ticket-01). No grouping by day, and no "show more" for long histories.

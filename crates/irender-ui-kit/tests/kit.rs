@@ -1689,3 +1689,47 @@ fn data_table_views_menu_and_mistakes() {
     assert!(err(table(json!({ "views": "nope" }))).contains("`views` must be a list"));
     assert!(err(table(json!({ "views": [1] }))).contains("each of `views` must be an object"));
 }
+
+#[test]
+fn dashboard_grid_breakpoints_lay_out_each_size() {
+    let tile = |p: Json| json!({ "type": "ui-tile", "props": p, "children": [ { "type": "text", "props": { "value": "x" } } ] });
+    let kids = vec![
+        tile(json!({ "id": "a", "x": 0, "y": 0, "w": 6, "h": 2 })),
+        tile(json!({ "id": "b", "x": 6, "y": 0, "w": 6, "h": 2 })),
+        tile(json!({ "id": "c", "x": 0, "y": 2, "w": 12, "h": 1, "layouts": { "sm": { "x": 0, "y": 0, "w": 2, "h": 1 } } })),
+    ];
+    let grid = json!({ "type": "ui-dashboard-grid", "props": { "breakpoints": { "md": { "width": 600, "columns": 6 }, "lg": { "width": 1000, "columns": 12 }, "sm": { "width": 400, "columns": 2 } } }, "children": kids });
+    let page = render_with(grid.clone(), json!({}), json!({})).unwrap();
+    let css = &page.css;
+    // The widest by default; each smaller one under the width of the one above.
+    assert!(css.contains("@container (max-width: 999.98px)") && css.contains("@container (max-width: 599.98px)"), "{css}");
+    assert!(css.contains("--dg-cols: 12;") && css.contains("--dg-cols: 6;") && css.contains("--dg-cols: 2;"), "{css}");
+    // md, worked out: widths halved, packed in reading order.
+    let md = &css[css.find("@container (max-width: 999.98px)").unwrap()..];
+    assert!(md.contains("grid-column: 4 / span 3;"), "{md}");
+    // sm: c where its `layouts` says, first; a and b packed after it.
+    assert!(css.contains("grid-column: 1 / span 2;\n  grid-row: 1 / span 1;"), "{css}");
+    let config = |page: &Page| -> Json {
+        let body = &page.body;
+        let at = body.find("data-i-xc=\"").unwrap() + 11;
+        serde_json::from_str(&body[at..at + body[at..].find('"').unwrap()].replace("&quot;", "\"").replace("&amp;", "&")).unwrap()
+    };
+    let c = config(&page);
+    let sizes: Vec<String> = c["sizes"].as_array().unwrap().iter().map(|z| format!("{}:{}:{}", z["name"].as_str().unwrap(), z["width"], z["columns"])).collect();
+    assert_eq!(sizes, ["lg:1000.0:12", "md:600.0:6", "sm:400.0:2"]);
+    let at = |k: usize| c["sizes"][k]["items"].as_array().unwrap().iter().map(|i| format!("{}:{},{},{}x{}", i["id"].as_str().unwrap(), i["x"], i["y"], i["w"], i["h"])).collect::<Vec<_>>().join(" ");
+    assert_eq!(at(1), "a:0,0,3x2 b:3,0,3x2 c:0,2,6x1");
+    assert_eq!(at(2), "a:0,1,1x2 b:1,1,1x2 c:0,0,2x1");
+
+    // `bind` with a layout per size; a list is the widest size's.
+    let mut bound = grid.clone();
+    bound["props"]["bind"] = json!("layout");
+    let page = render_with(bound.clone(), json!({ "layout": { "md": [{ "id": "a", "x": 3, "y": 0, "w": 3, "h": 1 }] } }), json!({})).unwrap();
+    assert!(config(&page)["sizes"][1]["items"][0]["x"] == json!(3), "{}", config(&page));
+    let page = render_with(bound, json!({ "layout": [{ "id": "a", "x": 6, "y": 0, "w": 6, "h": 1 }] }), json!({})).unwrap();
+    assert!(config(&page)["sizes"][0]["items"][0]["x"] == json!(6));
+
+    let err = |b: Json| render_with(json!({ "type": "ui-dashboard-grid", "props": { "breakpoints": b }, "children": [tile(json!({}))] }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "md": { "columns": 6 } })).contains("needs a `width`"));
+    assert!(err(json!([600])).contains("must map names"));
+}

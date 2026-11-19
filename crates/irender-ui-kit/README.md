@@ -637,9 +637,11 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Small screens.** Under `stackBelow` px (default 640, of the grid's own width) the tiles stack in one column in reading order, each `h` rows tall, and can't be moved. A chart in a tile redraws at the tile's size; give it `height: 100%`.
 
+**A layout per width.** `breakpoints` names sizes of grid, each with the `width` (of the grid, in px) it's used from and its `columns`: `{ desktop: { width: 960, columns: 12 }, tablet: { width: 560, columns: 6 } }`. The tiles' `x`, `y`, `w` and `h` are for the widest size; a tile's `layouts: { tablet: { x, y, w, h } }` sets its place in a smaller one (any of them: `{ w: 3 }` keeps the width and packs the tile in). Tiles without one are worked out from the widest layout: widths scaled to the size's columns, packed in reading order. Each size's layout is in the page's CSS, so the right one shows before the script runs, and the grid switches as its width crosses a breakpoint. A move or resize changes the layout of the size it's made in; `bind` then holds one layout per size, `{ desktop: [...], tablet: [...] }` (a plain list is taken as the widest size's), and `layout` events carry the `size`. Under `stackBelow` the tiles still stack. The [`dashboard-02`](../../examples/blocks/dashboard-02.yaml) block has a tablet layout.
+
 **Right to left.** Column 0 is on the right, and dragging and the arrow keys follow.
 
-**Props.** Grid: `columns`, `rowHeight`, `gap` (px, default 16), `bind`, `editable`, `compact`, `stackBelow`, `label`; parts `tile` and `header`. Tile: `id` (default `tile-1`, `tile-2`, …), `title`, `x`, `y`, `w`, `h`, `minW`, `minH`, `maxW`, `maxH`, `locked`.
+**Props.** Grid: `columns`, `breakpoints`, `rowHeight`, `gap` (px, default 16), `bind`, `editable`, `compact`, `stackBelow`, `label`; parts `tile` and `header`. Tile: `id` (default `tile-1`, `tile-2`, …), `title`, `x`, `y`, `w`, `h`, `minW`, `minH`, `maxW`, `maxH`, `locked`, `layouts`.
 
 ## Tree
 
