@@ -388,9 +388,9 @@ root:
                     - type: ui-radio-group
                       props: { bind: order, orientation: horizontal, options: [ { value: desc, label: Most }, { value: asc, label: Least }, { value: label, label: "A–Z" } ] }
                 - type: ui-field
-                  props: { label: "Show the top {{ top }}", description: "{{ dim == 'month' ? 'Every month is shown.' : (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel' ? 'Split charts show every group.' : '') }}" }
+                  props: { label: "Show the top {{ top }}", description: "{{ dim == 'month' ? 'Every month is shown.' : (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel' ? 'The groups with the biggest totals.' : '') }}" }
                   children:
-                    - { type: ui-slider, props: { bind: top, min: 2, max: 10, disabled: "{{ dim == 'month' || (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel') }}" } }
+                    - { type: ui-slider, props: { bind: top, min: 2, max: 10, disabled: "{{ dim == 'month' }}" } }
                 - { type: ui-separator }
                 - { type: ui-switch, props: { bind: stack, label: Stack the series, disabled: "{{ split == 'none' || kind == 'pie' || kind == 'donut' || kind == 'funnel' }}" } }
                 - { type: ui-switch, props: { bind: horizontal, label: Horizontal bars, disabled: "{{ kind != 'bar' }}" } }
@@ -415,7 +415,7 @@ root:
                     aggregate: "{{ agg }}"
                     series: "{{ split == 'none' || kind == 'pie' || kind == 'donut' || kind == 'funnel' ? null : split }}"
                     sort: "{{ order == 'label' ? dim : (order == 'desc' ? '-' : '') + (agg == 'count' ? 'count' : measure) }}"
-                    limit: "{{ dim == 'month' || (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel') ? null : top }}"
+                    limit: "{{ dim == 'month' ? null : top }}"
                     stack: "{{ stack }}"
                     horizontal: "{{ horizontal }}"
                     labels: "{{ labels }}"
@@ -493,7 +493,7 @@ root:
                                 aggregate: {{ agg }}
                                 series: {{ split == 'none' || kind == 'pie' || kind == 'donut' || kind == 'funnel' ? 'null' : split }}
                                 sort: {{ order == 'label' ? dim : (order == 'desc' ? '-' : '') + (agg == 'count' ? 'count' : measure) }}
-                                limit: {{ dim == 'month' || (split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel') ? 'null' : top }}
+                                limit: {{ dim == 'month' ? 'null' : top }}
                                 stack: {{ stack }}
                                 horizontal: {{ horizontal }}
                                 labels: {{ labels }}

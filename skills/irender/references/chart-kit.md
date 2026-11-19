@@ -143,8 +143,8 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 
    Blank conditions (null, `""`, `[]`, or `{ from: null }`) keep every row. A filter bound to an empty control shows everything rather than nothing. irender-ui-kit's `ui-filters` writes this format, so its panel can filter charts directly.
 3. **`aggregate`**: `sum`, `avg`, `min`, `max` or `count`. Groups rows by `x`, and by `series` if set, and aggregates the `y` fields. Each group also gets a `count`. With `count`, `y` defaults to it.
-4. **`sort`**: a field, `-field` for descending, `{ field, order }`, or a list of these.
-5. **`limit`**: the first N rows.
+4. **`sort`**: a field, `-field` for descending, `{ field, order }`, or a list of these. With `series`, it orders the categories, each by its total over the series (`-amount`: the biggest totals first), and `limit` keeps the first N categories with all their series.
+5. **`limit`**: the first N rows (with `series`, the first N categories).
 
 `series: product` turns long-format rows (`{ month, product, amount }`) into one series per product, aligned on the categories.
 

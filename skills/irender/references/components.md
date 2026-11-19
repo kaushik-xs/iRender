@@ -1040,8 +1040,8 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   filter       any  Keep rows whose fields match: `{ region: "{{ region }}", date: { from, to }, product: [a, b] }`; blank conditions pass
   aggregate    one of: sum, avg, min, max, count  Group rows by `x` (and `series`)
   series       any  Field whose values become separate series (long-format rows)
-  sort         any  A field, `-field` for descending, or a list of them
-  limit        any  Keep the first N rows after sorting
+  sort         any  A field, `-field` for descending, or a list of them; with `series`, orders the categories by their totals
+  limit        any  Keep the first N rows after sorting; with `series`, the first N categories
   drill        any  Fields to drill through on click, e.g. `[region, country, city]`
   xType        one of: category, time, value, log  The x axis; default: time for dates on lines and points
   zoom         any  Zoom controls along the category or time axis: `inside`, `slider` or `both` (`true`)

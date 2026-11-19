@@ -788,3 +788,30 @@ fn value_formats_in_chrome() {
         lines.join("\n")
     );
 }
+
+/// With `series`, `sort` and `limit` rank the categories by their totals over the
+/// series, and keep each category's series together.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn series_sort_and_limit_by_category_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    // North has the biggest single row (9) but the smallest total (9 + 0 = 9);
+    // West's total is 12, South's 10.
+    let rows = json!([
+        { "region": "North", "channel": "web", "amount": 9 }, { "region": "North", "channel": "shop", "amount": 0 },
+        { "region": "South", "channel": "web", "amount": 4 }, { "region": "South", "channel": "shop", "amount": 3 }, { "region": "South", "channel": "shop", "amount": 3 },
+        { "region": "West", "channel": "web", "amount": 6 }, { "region": "West", "channel": "shop", "amount": 6 } ]);
+    let doc = json!({ "version": 1, "root": { "type": "stack", "children": [
+        { "type": "ui-chart", "attrs": { "id": "top" }, "props": { "type": "bar", "stack": true, "data": rows, "x": "region", "y": "amount", "series": "channel", "aggregate": "sum", "sort": "-amount", "limit": 2 } },
+        { "type": "ui-chart", "attrs": { "id": "az" }, "props": { "type": "bar", "data": rows, "x": "region", "y": "amount", "series": "channel", "aggregate": "sum", "sort": "region" } } ] } });
+    let body = r##"
+    await ready(["top", "az"]);
+    const show = (id) => opt(id).xAxis[0].data.join(",") + " | " + opt(id).series.map((s) => s.name + ":" + s.data.map((v) => v?.value ?? v).join(",")).join(" ");
+    log("top", show("top"));
+    log("az", show("az"));
+"##;
+    let Some(lines) = run("series-sort", &engine, doc, &driver(body)) else { return };
+    assert_eq!(lines, ["top West,South | web:6,4 shop:6,6", "az North,South,West | web:9,4,6 shop:0,6,6"], "\n{}", lines.join("\n"));
+}

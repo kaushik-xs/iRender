@@ -286,8 +286,30 @@
       rows = group(rows, keys, ys, how);
       if (blank(y)) y = how === "count" ? "count" : ys;
     }
-    if (!blank(p.sort)) rows = sortRows(rows, p.sort);
-    if (isNum(p.limit) && Number(p.limit) > 0) rows = rows.slice(0, Number(p.limit));
+    const limit = isNum(p.limit) && Number(p.limit) > 0 ? Number(p.limit) : null;
+    if (!blank(p.series) && (!blank(p.sort) || limit)) {
+      // Split into series, the rows are (category, series) pairs: sort and limit the
+      // categories, each by its total over its series, and keep its rows together.
+      const cats = new Map();
+      for (const r of rows) {
+        const k = JSON.stringify(at(r, x) ?? null);
+        cats.has(k) ? cats.get(k).push(r) : cats.set(k, [r]);
+      }
+      let order = [...cats.values()].map((list) => {
+        const sum = { [x]: at(list[0], x), __rows: list };
+        for (const f of fieldsOf(list)) {
+          if (f === x) continue;
+          sum[f] = list.every((r) => blank(at(r, f)) || isNum(at(r, f))) && list.some((r) => isNum(at(r, f))) ? tidy(list.reduce((a, r) => a + (isNum(at(r, f)) ? Number(at(r, f)) : 0), 0)) : at(list[0], f);
+        }
+        return sum;
+      });
+      if (!blank(p.sort)) order = sortRows(order, p.sort);
+      if (limit) order = order.slice(0, limit);
+      rows = order.flatMap((c) => c.__rows);
+    } else {
+      if (!blank(p.sort)) rows = sortRows(rows, p.sort);
+      if (limit) rows = rows.slice(0, limit);
+    }
     return { ...out, rows, x, y };
   }
 
