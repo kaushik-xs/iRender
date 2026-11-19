@@ -75,6 +75,7 @@ const PROPS: &[PropDef] = &[
         "Load a row's children when it's first opened: GET `<url>?parent=<key>`, answering an array or `{ rows }`",
     ),
     PropDef::new("expanded", PropKind::Bool, "Nested rows start open (default false)"),
+    PropDef::new("selectChildren", PropKind::Bool, "Nested rows: picking a row picks the rows under it, and a row is picked when all under it are (default true)"),
     PropDef::new("virtual", PropKind::Bool, "Keep only the rows in view in the page, for long tables; scrolls inside `height` (default 480)"),
     PropDef::new("rowHeight", PropKind::Number, "With `virtual`, a row's height to start from before rows are measured (default 41)"),
     PropDef::new("pageSizes", PropKind::Any, "Choices for rows per page (default `[10, 20, 50, 100]`; `[]` hides it)"),
@@ -240,6 +241,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-dt-pop] label:hover", pairs(&[("background", SUBTLE)]))
+        .nest(
+            "& [data-dt-pop] button[data-dt-open-all]",
+            pairs(&[("padding", sp!(6, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", "inherit"), ("font", "inherit"), ("text-align", "start"), ("cursor", "pointer")]),
+        )
+        .nest("& [data-dt-pop] button[data-dt-open-all]:hover", pairs(&[("background", SUBTLE)]))
         .nest("& [data-dt-option] [data-dt-n]", pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", sp!(16)), ("color", MUTED), ("font-size", fs!(12))]))
         .nest(
             "& [data-dt-fields]",
@@ -1033,6 +1039,7 @@ impl Component for DataTable {
                 "all": flag(cx, "expanded", false),
             })),
             "groupRemote": group_remote,
+            "selectChildren": flag(cx, "selectChildren", true),
             "columns": columns.iter().map(|c| json!({
                 "key": c.key, "field": c.field, "sortField": c.sort_field, "label": c.label_text, "sortable": c.sortable, "filter": c.filter,
                 "options": c.options, "format": c.format, "currency": c.currency, "decimals": c.decimals,
@@ -1082,7 +1089,9 @@ impl Component for DataTable {
         // ---- toolbar
         let filtered: Vec<&Column> = columns.iter().filter(|c| c.filter.is_some()).collect();
         let groupable: Vec<&Column> = columns.iter().filter(|c| c.groupable && c.field.is_some()).collect();
-        let menu = (flag(cx, "columnsMenu", true) && columns.iter().any(|c| c.hideable)) || !groupable.is_empty();
+        // Nested rows of its own (not groups from the API): Expand all and Collapse all.
+        let open_all = nested && !group_remote;
+        let menu = (flag(cx, "columnsMenu", true) && columns.iter().any(|c| c.hideable)) || !groupable.is_empty() || open_all;
         if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() || export.is_some() || has_views {
             let mut bar = cx.part("div", node, "toolbar");
             bar.attr("data-dt-toolbar", true);
@@ -1193,6 +1202,19 @@ impl Component for DataTable {
                         cx.open(&r, node)?;
                         cx.text(&text);
                         cx.close("label");
+                    }
+                }
+                if open_all {
+                    let mut title = Element::new("div");
+                    title.attr("data-dt-pop-title", true).attr("data-dt-group-title", true).text(lit(cx.label("Rows")));
+                    cx.open(&title, node)?;
+                    cx.close("div");
+                    // Labels: "Expand all", "Collapse all"
+                    for (open, text) in [("true", "Expand all"), ("false", "Collapse all")] {
+                        let mut b = Element::new("button");
+                        b.attr("type", "button").attr("data-dt-open-all", open).attr("data-dt-option", true).text(lit(cx.label(text)));
+                        cx.open(&b, node)?;
+                        cx.close("button");
                     }
                 }
                 cx.close("div");

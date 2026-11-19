@@ -185,6 +185,8 @@ root: …
 `data_table.js`
 
 ```yaml
+"All rows expanded": "All rows expanded"
+"All rows collapsed": "All rows collapsed"
 "{n} more rows loaded": { one: "{n} more row loaded", other: "{n} more rows loaded" }
 "Couldn't load the rows under this one": "Couldn't load the rows under this one"
 "Loading…": "Loading…"
@@ -232,6 +234,8 @@ root: …
 "Go to previous page": "Go to previous page"
 "Go to next page": "Go to next page"
 "Go to last page": "Go to last page"
+"Expand all": "Expand all"
+"Collapse all": "Collapse all"
 "Select all": "Select all"
 "Clear selection": "Clear selection"
 "Contains": "Contains"
@@ -246,6 +250,7 @@ root: …
 "Columns": "Columns"
 "Group by": "Group by"
 "None": "None"
+"Rows": "Rows"
 "Bulk actions": "Bulk actions"
 "{n} selected": "{n} selected"
 "Select all rows on this page": "Select all rows on this page"

@@ -943,6 +943,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   parentField  string  Rows nest: flat rows name their parent's key in this field, e.g. `parentId`
   childrenUrl  any  Load a row's children when it's first opened: GET `<url>?parent=<key>`, answering an array or `{ rows }`
   expanded     bool  Nested rows start open (default false)
+  selectChildren bool  Nested rows: picking a row picks the rows under it, and a row is picked when all under it are (default true)
   virtual      bool  Keep only the rows in view in the page, for long tables; scrolls inside `height` (default 480)
   rowHeight    number  With `virtual`, a row's height to start from before rows are measured (default 41)
   pageSizes    any  Choices for rows per page (default `[10, 20, 50, 100]`; `[]` hides it)

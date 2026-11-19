@@ -271,7 +271,8 @@
         out.push(r);
         const k = keyOf(rowKey(r, i)), ch = childrenOf(r, i);
         const has = (ch?.length ?? 0) > 0 || lazy(r, i);
-        const open = has && (isOpen(k) || (filtering && (ch ?? []).some(kept)));
+        // Open, and with its rows (or loading them): Expand all doesn't load rows.
+        const open = has && (isOpen(k) || (filtering && (ch ?? []).some(kept))) && (!!ch || kidsLoading.has(k) || !lazy(r, i));
         info.push({ depth, has, open, parent, loading: kidsLoading.has(k), failed: kidsFailed.has(k) });
         if (open && ch) walk(ch, depth + 1, i);
         // A group from the API with more rows than it has loaded: a row to load them.
@@ -299,6 +300,14 @@
     apply();
   }
   // `more`: the next batch of a group's rows, after those loaded.
+  // Every row open (those whose rows would have to load stay closed), or every one closed.
+  function openAll(open) {
+    tree.all = open;
+    toggled.clear();
+    treeVersion++;
+    apply();
+    announce(open ? L("All rows expanded") : L("All rows collapsed"));
+  }
   async function loadChildren(r, i, k, more = false) {
     kidsLoading.add(k);
     kidsFailed.delete(k);
@@ -329,6 +338,11 @@
       const batch = Array.isArray(answer) ? answer : Array.isArray(answer?.rows) ? answer.rows : [];
       const rows = had.concat(batch);
       kids.set(k, rows);
+      // Rows loaded under a picked row are picked too.
+      if (cascading() && selection().some((x) => keyOf(x) === k)) {
+        treeVersion++;
+        toggleRows([rowKey(r, i)], true);
+      }
       if (isGroupRow(r)) {
         // The group's total: the answer's, else the group's count.
         const total = Number.isFinite(answer?.total) ? answer.total : Number.isFinite(Number(r.count)) ? Number(r.count) : null;
@@ -520,7 +534,11 @@
         const sel = chosen.has(key);
         tr.setAttribute("aria-selected", String(sel));
         const box = tr.querySelector("[data-dt-select]");
-        if (box) box.checked = sel;
+        if (box) {
+          box.checked = sel;
+          // Some of the rows under it picked, not all.
+          box.indeterminate = !sel && cascading() && under(key).some((c) => chosen.has(c));
+        }
       }
       if (on) for (const x of tr.querySelectorAll(":scope > [data-dt-fmt], :scope > td > [data-dt-node] > [data-dt-fmt]")) {
         const c = byKey.get(x.closest("[data-dt-col]").getAttribute("data-dt-col"));
@@ -643,6 +661,10 @@
         : (total != null ? L("Showing {shown} of {total}", { shown: num(data.length), total: num(total) }) : L("Showing {shown}", { shown: num(data.length) })) + picked;
     } else if (mode === "more" || mode === "scroll") {
       status.textContent = L("Showing {shown} of {total}", { shown: num(shown.length), total: num(filtered.length) }) + (filtered.length < data.length ? " " + L("(of {all})", { all: num(data.length) }) : "") + picked;
+    } else if (tree && !remote && !Object.values(fs).some(active) && !String(get("search") ?? "").trim()) {
+      // Nested: every row loaded, open or not, so the count doesn't change as rows open.
+      const of = num(familyOf().rowOf.size);
+      status.textContent = cfg.selectable ? L("{count} of {total} row(s) selected.", { count, total: of }) : L("{total} row(s)", { total: of });
     } else {
       const of = filtered.length === data.length ? num(data.length) : `${num(filtered.length)} ${L("(of {all})", { all: num(data.length) })}`;
       status.textContent = cfg.selectable ? L("{count} of {total} row(s) selected.", { count, total: of }) : L("{total} row(s)", { total: of });
@@ -1552,10 +1574,56 @@
     put("filters", next);
   };
   const goTo = (p) => put("page", p);
+  // Nested rows, every one loaded whether open or not: each's children and parent, by key.
+  let family = null;
+  function familyOf() {
+    if (family && family.version === treeVersion && family.data === data) return family;
+    const kidsOf = new Map(), parentOf = new Map(), rowOf_ = new Map();
+    const walk = (list, parent) => {
+      for (const r of list) {
+        if (!isDataRow(r)) continue;
+        const k = keyOf(rowKey(r, -1));
+        rowOf_.set(k, r);
+        if (parent !== null) parentOf.set(k, parent);
+        const ch = (childrenOf(r, -1) ?? []).filter(isDataRow);
+        kidsOf.set(k, ch.map((c) => keyOf(rowKey(c, -1))));
+        walk(ch, k);
+      }
+    };
+    walk(tree.parent ? data.filter((_, i) => meta[i]?.depth === 0) : remote ? R.rows : rows(), null);
+    family = { version: treeVersion, data, kidsOf, parentOf, rowOf: rowOf_ };
+    return family;
+  }
+  const cascading = () => !!tree && cfg.selectChildren !== false;
+  // Every row under `k`, loaded.
+  function under(k, f = familyOf()) {
+    const out = [];
+    for (const c of f.kidsOf.get(k) ?? []) out.push(c, ...under(c, f));
+    return out;
+  }
   function toggleRows(keys, on) {
-    const ks = new Set(keys.map(keyOf));
-    const rest = selection().filter((k) => !ks.has(keyOf(k)));
-    put("selection", on ? [...rest, ...keys] : rest);
+    const picked = new Map(selection().map((k) => [keyOf(k), k]));
+    if (cascading()) {
+      // A row brings the rows under it; then each row above is picked when all its
+      // children are.
+      const f = familyOf(), raw = (k) => rowKey(f.rowOf.get(k) ?? {}, -1);
+      const touched = new Set();
+      for (const key of keys) for (const k of [keyOf(key), ...under(keyOf(key), f)]) {
+        touched.add(k);
+        if (on) picked.set(k, f.rowOf.has(k) ? raw(k) : key);
+        else picked.delete(k);
+      }
+      for (const k of touched) {
+        for (let p = f.parentOf.get(k); p !== undefined; p = f.parentOf.get(p)) {
+          const all = (f.kidsOf.get(p) ?? []).every((c) => picked.has(c));
+          if (all) picked.set(p, raw(p));
+          else picked.delete(p);
+        }
+      }
+    } else {
+      for (const key of keys) on ? picked.set(keyOf(key), key) : picked.delete(keyOf(key));
+    }
+    put("selection", [...picked.values()]);
     api.emit("select", { selection: get("selection") });
   }
   function clickRow(tr) {
@@ -1584,6 +1652,7 @@
     }
     if (t.matches("[data-dt-export]")) return exportCsv();
     if (t.matches("[data-dt-load-group]")) return loadGroupMore(rowOf(t.closest("[data-dt-row]")).row);
+    if (t.matches("[data-dt-open-all]")) return openAll(t.getAttribute("data-dt-open-all") === "true");
     if (t.matches("[data-dt-sort]")) {
       const field = byKey.get(t.getAttribute("data-dt-sort")).sortField;
       let keys = sortList(get("sort"));
@@ -1767,6 +1836,24 @@
         e.preventDefault();
         if (B.row || !isDataRow(rowOf(t).row)) return clickRow(t);
         if (cfg.detail) return toggleDetail(t);
+        return;
+      case "*":
+        // Every row beside this one opens, as in a tree.
+        if (!tree) return;
+        e.preventDefault();
+        {
+          const m = meta[indexOf(t)];
+          const sibs = data.map((_, j) => j).filter((j) => meta[j]?.parent === m?.parent && meta[j].has && !meta[j].open);
+          // All at once: each opening moves the rows after it.
+          for (const j of sibs) {
+            const k = keyOf(rowKey(data[j], j));
+            if (tree.all) toggled.delete(k);
+            else toggled.add(k);
+            if (lazy(data[j], j) && !kidsLoading.has(k)) loadChildren(data[j], j, k);
+          }
+          treeVersion++;
+          apply();
+        }
         return;
       case "ArrowRight":
       case "ArrowLeft":

@@ -440,7 +440,9 @@ Rows can hold rows. The tree column (`tree: true`, or the first) indents each ro
 
 `expanded: true` opens every row to start with. Siblings sort among themselves under their parent. A search or filter shows the rows that match with the rows above them, opened. Summaries add up the top rows only, so nothing counts twice. Give rows a `rowKey`: it identifies them when they open, load and are selected.
 
-On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent. The other keys work as in any table.
+On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent; `*` opens every row beside it. The other keys work as in any table. The View menu has Expand all and Collapse all; rows whose children load from `childrenUrl` stay closed under Expand all until they're opened, so it doesn't send a request per row.
+
+**Selection.** With `selectable`, picking a row picks every row under it, and a row is picked once all the rows under it are; one with only some of them picked shows a part-filled box. Rows loaded later under a picked row come in picked. `selectChildren: false` picks rows one at a time instead. The footer counts every loaded row, open or not.
 
 ### Grouping, column layout and export
 

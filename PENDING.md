@@ -6,7 +6,7 @@ _Last updated: 2026-11-19._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: nested rows (selecting a parent selects its children, Expand all), or fuzzy ranking in the command palette.
+1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: fuzzy ranking in the command palette, or the submenu safe triangle.
 
 ## Gaps you'd hit in real use
 
@@ -65,7 +65,7 @@ _Last updated: 2026-11-19._
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
   - [x] Paging options (pages, Load more, infinite scroll), rows from an API in batches (`url`), virtual rows, nested rows with children loaded when opened, and pinned columns (2026-11-18; blocks data-table-04 and -05).
   - [ ] Remote tables: select filters offer only `options` or the values loaded so far, and summaries and `bindView` cover the loaded rows only. Idea: let the API answer facets and totals too.
-  - [ ] Nested rows: selecting a parent doesn't select its children; no "expand all" control; the footer counts the rows shown, children included.
+  - [x] Nested rows (2026-11-20): picking a row picks the rows under it (part-picked parents, rows loaded later under a picked one), Expand all and Collapse all in View, `*` for siblings, and a footer counting every loaded row.
   - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
   - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.
   - [x] Grouping rows from an API (2026-11-20): `groupBy` with `url` asks the API for a row per group (count and subtotals) and loads a group's rows when it's opened. A group's rows load a batch at a time, with a Load more row after them (2026-11-20); with `paging: scroll` they still wait for that row rather than loading as you scroll.

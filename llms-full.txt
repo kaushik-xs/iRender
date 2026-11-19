@@ -1109,6 +1109,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   parentField  string  Rows nest: flat rows name their parent's key in this field, e.g. `parentId`
   childrenUrl  any  Load a row's children when it's first opened: GET `<url>?parent=<key>`, answering an array or `{ rows }`
   expanded     bool  Nested rows start open (default false)
+  selectChildren bool  Nested rows: picking a row picks the rows under it, and a row is picked when all under it are (default true)
   virtual      bool  Keep only the rows in view in the page, for long tables; scrolls inside `height` (default 480)
   rowHeight    number  With `virtual`, a row's height to start from before rows are measured (default 41)
   pageSizes    any  Choices for rows per page (default `[10, 20, 50, 100]`; `[]` hides it)
@@ -2166,7 +2167,9 @@ Rows can hold rows. The tree column (`tree: true`, or the first) indents each ro
 
 `expanded: true` opens every row to start with. Siblings sort among themselves under their parent. A search or filter shows the rows that match with the rows above them, opened. Summaries add up the top rows only, so nothing counts twice. Give rows a `rowKey`: it identifies them when they open, load and are selected.
 
-On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent. The other keys work as in any table.
+On a focused row, Right opens it, then steps to its first child; Left closes it, then steps to its parent; `*` opens every row beside it. The other keys work as in any table. The View menu has Expand all and Collapse all; rows whose children load from `childrenUrl` stay closed under Expand all until they're opened, so it doesn't send a request per row.
+
+**Selection.** With `selectable`, picking a row picks every row under it, and a row is picked once all the rows under it are; one with only some of them picked shows a part-filled box. Rows loaded later under a picked row come in picked. `selectChildren: false` picks rows one at a time instead. The footer counts every loaded row, open or not.
 
 ### Grouping, column layout and export
 

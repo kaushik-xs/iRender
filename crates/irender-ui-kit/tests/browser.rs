@@ -5824,3 +5824,78 @@ fn data_table_remote_group_batches_in_chrome() {
     );
     assert_eq!(asked, "groupBy=region&group=X&offset=0&limit=2\ngroupBy=region&group=X&offset=2&limit=2\ngroupBy=region&group=X&offset=4&limit=2\nq=a&groupBy=region&group=X&offset=0&limit=2");
 }
+
+/// Nested rows: picking a row picks the rows under it, a row is picked when all under it
+/// are and shows part-picked when some are, the footer counts every row, Expand all and
+/// Collapse all in View, and `*` opens a row's siblings.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_nested_selection_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "picked": [], "rows": [
+            { "id": "a", "name": "A", "children": [ { "id": "a1", "name": "A1" }, { "id": "a2", "name": "A2", "children": [ { "id": "a2a", "name": "A2a" } ] } ] },
+            { "id": "b", "name": "B", "children": [ { "id": "b1", "name": "B1" } ] } ] },
+        "root": { "type": "ui-data-table", "props": { "rows": "{{ rows }}", "selectable": true, "bindSelection": "picked", "pageSize": 0,
+            "columns": [ { "field": "name", "label": "Name" } ] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const T = document.querySelector("[data-i-x=ui-data-table]");
+      const rows = () => [...T.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")].map((tr) => {
+        const b = tr.querySelector("[data-dt-select]");
+        return tr.querySelector("[data-dt-tree]").textContent.trim() + (b.indeterminate ? "~" : b.checked ? "*" : "");
+      }).join(" ");
+      const row = (name) => [...T.querySelectorAll("[data-dt-body] > [data-dt-row]")].find((tr) => tr.querySelector("[data-dt-tree]").textContent.trim() === name);
+      const tick = async (name) => { const b = row(name).querySelector("[data-dt-select]"); b.checked = !b.checked; b.dispatchEvent(new Event("change", { bubbles: true })); await wait(30); };
+      const picked = () => [...S().picked].sort().join(",");
+      const footer = () => T.querySelector("[data-dt-status]").textContent;
+      try {
+        log("start", rows(), "|", footer());
+        await tick("A");
+        log("ticked A:", rows(), "|", picked(), "|", footer());
+        T.querySelector('[data-dt-open-all="true"]').click(); await wait(0);
+        log("expanded", rows(), "|", footer());
+        // One row under A2 unpicked: A2 and A aren't, A shows part-picked.
+        await tick("A2a");
+        log("A2a off", rows(), "|", picked());
+        await tick("A2a");
+        log("A2a on", rows(), "|", picked());
+        // B1 alone: B (its only row) is picked too.
+        await tick("B1");
+        log("B1", rows(), "|", picked());
+        T.querySelector('[data-dt-open-all="false"]').click(); await wait(0);
+        log("collapsed", rows());
+        // `*` on A opens A and B.
+        row("A").focus();
+        row("A").dispatchEvent(new KeyboardEvent("keydown", { key: "*", bubbles: true, cancelable: true })); await wait(0);
+        log("star", rows());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("nested-selection", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Six rows, open or not.
+            "start A B | 0 of 6 row(s) selected.",
+            // A brings everything under it.
+            "ticked A: A* B | a,a1,a2,a2a | 4 of 6 row(s) selected.",
+            "expanded A* A1* A2* A2a* B B1 | 4 of 6 row(s) selected.",
+            // A2a off: A2 (all its rows) and A (not all) go; A shows part-picked (~).
+            "A2a off A~ A1* A2 A2a B B1 | a1",
+            "A2a on A* A1* A2* A2a* B B1 | a,a1,a2,a2a",
+            "B1 A* A1* A2* A2a* B* B1* | a,a1,a2,a2a,b,b1",
+            "collapsed A* B*",
+            // `*` opens A and B, the rows beside it; A2 stays as it was.
+            "star A* A1* A2* B* B1*",
+        ],
+        "\n{result}"
+    );
+}
