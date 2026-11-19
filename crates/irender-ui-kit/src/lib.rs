@@ -271,6 +271,36 @@ fn lit(v: impl Into<Json>) -> Val {
     Val::Lit(v.into())
 }
 
+/// Right to left: icons that point along the line (previous and next, a submenu's
+/// chevron, a panel's side) carry `data-flip` and point the other way (`scale` rather
+/// than `transform`, so an icon's own rotation still applies), and `--ui-dir` is -1, for
+/// offsets along the line (`translateX(calc(16px * var(--ui-dir, 1)))`).
+const RTL: &str = ":dir(rtl) { --ui-dir: -1; }\nsvg[data-flip]:dir(rtl) { scale: -1 1; }";
+
+/// Adds the right-to-left rules, for components that use them.
+fn flips(cx: &mut RenderCx<'_>) {
+    cx.global_css("ui-rtl", RTL);
+}
+
+/// `position-area` with left and right swapped.
+fn mirrored_area(area: &str) -> String {
+    area.split(' ')
+        .map(|w| match w {
+            "left" => "right",
+            "right" => "left",
+            "span-left" => "span-right",
+            "span-right" => "span-left",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// `block` placed at `area` (a `position-area`), mirrored on a right-to-left page.
+fn with_area(block: irender_core::StyleBlock, area: &str) -> irender_core::StyleBlock {
+    block.set("position-area", area.to_string()).nest("&:dir(rtl)", irender_core::StyleBlock::new().set("position-area", mirrored_area(area)))
+}
+
 /// The `locale` for a component's numbers and dates: its own, else the document's `lang`
 /// (else the browser's, decided there).
 fn locale(cx: &RenderCx<'_>, node: &Node) -> Option<String> {

@@ -77,12 +77,13 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kb-dot]", pairs(&[("flex", "none"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
         .nest(
             "& [data-kb-count]",
-            pairs(&[("padding", "0 7px"), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
+            // "2 / 3" reads left to right on any page.
+            pairs(&[("direction", "ltr"), ("unicode-bidi", "isolate"), ("padding", "0 7px"), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
         )
         .nest("& [data-over] [data-kb-count]", pairs(&[("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 14%, transparent)"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "600")]))
         .nest(
             "& [data-kb-fold]",
-            pairs(&[("margin-left", "auto"), ("display", "inline-flex"), ("padding", "4px"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
+            pairs(&[("margin-inline-start", "auto"), ("display", "inline-flex"), ("padding", "4px"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
         )
         .nest("& [data-kb-fold]:hover", pairs(&[("background", ACCENT), ("color", TEXT)]))
         .nest("& [data-kb-fold]:focus-visible", forms::focus_ring())
@@ -125,7 +126,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "& [data-kb-avatar]",
             pairs(&[
-                ("margin-left", "auto"),
+                ("margin-inline-start", "auto"),
                 ("display", "grid"),
                 ("place-items", "center"),
                 ("width", "24px"),
@@ -209,6 +210,7 @@ impl Component for Kanban {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let flag = |cx: &RenderCx<'_>, name: &str, default: bool| cx.prop(node, name).map_or(default, |v| expr::truthy(&v));
         let (movable, addable, collapsible) = (flag(cx, "movable", true), flag(cx, "addable", false), flag(cx, "collapsible", false));
         let list = |cx: &RenderCx<'_>, name: &str| -> Result<Vec<Json>, RenderError> {

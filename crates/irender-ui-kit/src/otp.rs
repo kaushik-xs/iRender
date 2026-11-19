@@ -61,7 +61,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-otp-input]::selection", pairs(&[("background", "transparent")]))
         .nest("& [data-otp-input]:disabled", pairs(&[("cursor", "not-allowed")]))
         .nest("&:has([data-otp-input]:disabled)", pairs(&[("opacity", "0.5")]))
-        .nest("& [data-otp-group]", pairs(&[("display", "flex")]))
+        // A code reads left to right in every language.
+        .nest("& [data-otp-group]", pairs(&[("display", "flex"), ("direction", "ltr")]))
         .nest(
             "& [data-otp-slot]",
             pairs(&[
@@ -71,7 +72,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("justify-content", "center"),
                 ("width", sp!(40)),
                 ("height", sp!(40)),
-                ("margin-left", "-1px"),
+                ("margin-inline-start", "-1px"),
                 ("border", "1px solid var(--color-border)"),
                 ("background", "transparent"),
                 ("font-size", fs!(16)),
@@ -80,7 +81,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("transition", "border-color .15s, box-shadow .15s"),
             ]),
         )
-        .nest("& [data-otp-slot]:first-child", pairs(&[("margin-left", "0"), ("border-radius", "var(--radius-md) 0 0 var(--radius-md)")]))
+        .nest("& [data-otp-slot]:first-child", pairs(&[("margin-inline-start", "0"), ("border-radius", "var(--radius-md) 0 0 var(--radius-md)")]))
         .nest("& [data-otp-slot]:last-child", pairs(&[("border-radius", "0 var(--radius-md) var(--radius-md) 0")]))
         .nest("& [data-otp-slot]:only-child", pairs(&[("border-radius", "var(--radius-md)")]))
         .nest(

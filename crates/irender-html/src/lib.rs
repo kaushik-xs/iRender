@@ -241,7 +241,8 @@ impl Engine {
         };
         let state = Json::Object(ir.state.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
         let labels = (!ir.labels.is_empty() || ir.labels.lang.is_some()).then(|| ir.labels.to_json());
-        Ok(Page { css, body, state, interactive, scripts, early_scripts, labels, lang: ir.labels.lang.clone() })
+        let dir = ir.labels.dir();
+        Ok(Page { css, body, state, interactive, scripts, early_scripts, labels, lang: ir.labels.lang.clone(), dir })
     }
 }
 
@@ -265,6 +266,9 @@ pub struct Page {
     pub labels: Option<Json>,
     /// The document's language: [`Page::document`]'s `<html lang>`.
     pub lang: Option<String>,
+    /// `rtl` when `lang` is written right to left, else `ltr`: the root's (and
+    /// [`Page::document`]'s `<html>`) `dir`.
+    pub dir: &'static str,
 }
 
 impl Page {
@@ -275,7 +279,7 @@ impl Page {
         for js in &self.early_scripts {
             s.push_str(&format!("<script>\n{js}</script>\n"));
         }
-        s.push_str(&format!("<div data-i-root style=\"display:contents\">{}", self.body));
+        s.push_str(&format!("<div data-i-root{} style=\"display:contents\">{}", self.dir_attr(), self.body));
         if self.interactive {
             s.push_str(&format!(
                 "<script type=\"application/json\" data-i-state>{}</script>",
@@ -298,7 +302,7 @@ impl Page {
     /// scripts. Its `<script>`s only run when added as new script elements, which
     /// `window.__irender.mount` doesn't do; see `Engine::render_embedded`.
     pub fn embedded(&self) -> String {
-        let mut s = format!("<style>\n{}</style>\n<div data-i-root style=\"display:contents\">{}", self.css, self.body);
+        let mut s = format!("<style>\n{}</style>\n<div data-i-root{} style=\"display:contents\">{}", self.css, self.dir_attr(), self.body);
         if self.interactive {
             s.push_str(&format!("<script type=\"application/json\" data-i-state>{}</script>", escape::script_json(&self.state)));
             s.push_str(&self.labels_json());
@@ -308,6 +312,11 @@ impl Page {
             s.push_str(&format!("<script>\n{js}</script>\n"));
         }
         s
+    }
+
+    /// ` dir="rtl"` on the root of a right-to-left page.
+    fn dir_attr(&self) -> &'static str {
+        if self.dir == "rtl" { " dir=\"rtl\"" } else { "" }
     }
 
     /// The labels for the runtime, beside the state.
@@ -320,11 +329,12 @@ impl Page {
     /// `color.surface`), so dark mode reaches the edges of the window.
     pub fn document(&self, title: &str) -> String {
         format!(
-            "<!doctype html>\n<html lang=\"{}\">\n<head>\n<meta charset=\"utf-8\">\n\
+            "<!doctype html>\n<html lang=\"{}\"{}>\n<head>\n<meta charset=\"utf-8\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
              <title>{}</title>\n<style>body{{margin:0;background:var(--color-background,var(--color-surface))}}</style>\n\
              </head>\n<body>\n{}</body>\n</html>\n",
             escape::text(self.lang.as_deref().unwrap_or("en")),
+            self.dir_attr(),
             escape::text(title),
             self.fragment()
         )

@@ -14,6 +14,11 @@
   const cols = cfg.columns, byKey = new Map(cols.map((c) => [c.key, c]));
   // Interface text in the document's words (its `labels`), by the English.
   const L = (text, vars) => window.__irender.label(text, vars);
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
+  // Along the line: 1, or -1 on a right-to-left page, where it runs leftward.
+  const along = () => (getComputedStyle(el).direction === "rtl" ? -1 : 1);
+
   const lead = (cfg.selectable ? 1 : 0) + (cfg.detail ? 1 : 0);
 
   // ---- values
@@ -808,7 +813,8 @@
       for (const [{ out, edge }, prop, side] of [[L, "left", "left"], [R2, "right", "right"]]) {
         for (const [n, x] of out) {
           const c = tr.cells[n];
-          c.style[prop] = x + "px";
+          // Pinned to the start (`left`) or the end (`right`): the right of a right-to-left table.
+          c.style[prop === "left" ? "insetInlineStart" : "insetInlineEnd"] = x + "px";
           if (n === edge) c.setAttribute("data-pin-edge", side);
           else c.removeAttribute("data-pin-edge");
         }
@@ -891,7 +897,7 @@
   // ---- grouped rows: a header row per group, with its count and subtotals
   const folded = new Set();
   const groupRows = new Map(); // group key → its header row
-  const CHEVRON = '<svg data-dt-chevron width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
+  const CHEVRON = '<svg data-flip data-dt-chevron width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4l4 4-4 4"/></svg>';
   const groupField = () => {
     const v = B.groupBy ? api.state[B.groupBy] : local.groupBy !== undefined ? local.groupBy : resolve(cfg.groupBy);
     return blank(v) ? null : String(v);
@@ -1048,7 +1054,7 @@
   }, true);
   el.addEventListener("pointermove", (e) => {
     if (!sizing || e.pointerId !== sizing.id) return;
-    widths[sizing.key] = Math.max(48, Math.round(sizing.w + e.clientX - sizing.x));
+    widths[sizing.key] = Math.max(48, Math.round(sizing.w + (e.clientX - sizing.x) * along()));
     drawWidths();
     pinLayout();
   });
@@ -1114,9 +1120,10 @@
     $$("[data-dt-drop]").forEach((c) => c.removeAttribute("data-dt-drop"));
     moving.drop = null;
     if (over && over !== moving.th) {
-      const b = over.getBoundingClientRect(), side = e.clientX < b.left + b.width / 2 ? "before" : "after";
-      over.setAttribute("data-dt-drop", side);
-      moving.drop = { key: over.getAttribute("data-dt-col"), side };
+      // Before is the left half, or the right half of a right-to-left table.
+      const b = over.getBoundingClientRect(), half = (e.clientX < b.left + b.width / 2) === (along() === 1) ? "before" : "after";
+      over.setAttribute("data-dt-drop", half);
+      moving.drop = { key: over.getAttribute("data-dt-col"), side: half };
     }
   });
   const endMoving = (e) => {
@@ -1328,7 +1335,7 @@
     if (t.matches("[data-dt-resizer]") && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
       e.preventDefault();
       const k = t.getAttribute("data-dt-resizer"), w = widths[k] ?? t.closest("th").getBoundingClientRect().width;
-      widths[k] = Math.max(48, Math.round(w + (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 4 : 16)));
+      widths[k] = Math.max(48, Math.round(w + (side(e.key) === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 4 : 16)));
       drawWidths();
       saveColumns();
       return apply();
@@ -1337,7 +1344,7 @@
     if (cfg.reorderable && e.altKey && th && el.contains(th) && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
       e.preventDefault();
       const k = th.getAttribute("data-dt-col"), list = movable();
-      moveColumn(k, list.indexOf(k) + (e.key === "ArrowRight" ? 1 : -1));
+      moveColumn(k, list.indexOf(k) + (side(e.key) === "ArrowRight" ? 1 : -1));
       return t.isConnected && t.focus();
     }
     if (!navigable || !t.matches("[data-dt-row]")) return;
@@ -1391,14 +1398,14 @@
           e.preventDefault();
           const i = indexOf(t), m = meta[i];
           if (!m) return;
-          if (e.key === "ArrowRight") return m.has && !m.open ? toggleNode(i, true) : m.open ? move(n + 1) : undefined;
+          if (side(e.key) === "ArrowRight") return m.has && !m.open ? toggleNode(i, true) : m.open ? move(n + 1) : undefined;
           if (m.open) return toggleNode(i, false);
           if (m.parent >= 0) return move(cfg.listed ? shown.indexOf(m.parent) : n);
           return;
         }
         if (!cfg.detail) return;
         e.preventDefault();
-        if (expanded.has(t.__k) !== (e.key === "ArrowRight")) toggleDetail(t);
+        if (expanded.has(t.__k) !== (side(e.key) === "ArrowRight")) toggleDetail(t);
     }
   });
 

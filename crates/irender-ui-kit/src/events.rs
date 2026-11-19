@@ -60,21 +60,21 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("box-sizing", "border-box"),
         ("padding", "1px 6px"),
         ("border", "0"),
-        ("border-left", "3px solid var(--tone)"),
+        ("border-inline-start", "3px solid var(--tone)"),
         ("border-radius", "4px"),
         ("background", "color-mix(in srgb, var(--tone) 13%, var(--color-surface, #fff))"),
         ("color", "color-mix(in srgb, var(--tone) 70%, var(--color-text))"),
         ("font", "inherit"),
         ("font-size", fs!(12)),
         ("line-height", "1.5"),
-        ("text-align", "left"),
+        ("text-align", "start"),
         ("cursor", "pointer"),
         ("white-space", "nowrap"),
         ("overflow", "hidden"),
     ]);
     let b = pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(12)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
         .nest("& [data-ev-bar]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8))]))
-        .nest("& [data-ev-title]", pairs(&[("margin", "0 auto 0 4px"), ("font-size", fs!(17)), ("font-weight", "600"), ("min-width", "0")]))
+        .nest("& [data-ev-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "4px auto"), ("font-size", fs!(17)), ("font-weight", "600"), ("min-width", "0")]))
         .nest("& [data-ev-views]", pairs(&[("display", "inline-flex"), ("padding", "2px"), ("border-radius", "var(--radius-md)"), ("background", "color-mix(in srgb, var(--color-text) 6%, transparent)")]))
         .nest(
             "& [data-ev-views] button",
@@ -90,7 +90,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-event] > span", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis")]))
         .nest("& [data-ev-event]:hover", pairs(&[("background", "color-mix(in srgb, var(--tone) 22%, var(--color-surface, #fff))")]))
         .nest("& [data-ev-event]:focus-visible, & [data-ev-more]:focus-visible", forms::focus_ring())
-        .nest("& [data-ev-event][data-from-before]", pairs(&[("border-left-color", "transparent"), ("border-top-left-radius", "0"), ("border-bottom-left-radius", "0")]))
+        .nest("& [data-ev-event][data-from-before]", pairs(&[("border-inline-start-color", "transparent"), ("border-top-left-radius", "0"), ("border-bottom-left-radius", "0")]))
         .nest("& [data-ev-event][data-on-after]", pairs(&[("border-top-right-radius", "0"), ("border-bottom-right-radius", "0")]))
         // Month: a grid of days.
         .nest("& [data-ev-month]", pairs(&[("display", "grid"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)"), ("overflow", "hidden")]))
@@ -98,10 +98,10 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-weekdays] > div", pairs(&[("padding", sp!(6, 8)), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "500"), ("border-bottom", "1px solid var(--color-border)")]))
         .nest(
             "& [data-ev-week] > [data-ev-day]",
-            pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "3px"), ("min-height", sp!(96)), ("min-width", "0"), ("padding", sp!(4)), ("border-top", "1px solid var(--color-border)"), ("border-left", "1px solid var(--color-border)"), ("outline", "none"), ("cursor", "pointer")]),
+            pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "3px"), ("min-height", sp!(96)), ("min-width", "0"), ("padding", sp!(4)), ("border-top", "1px solid var(--color-border)"), ("border-inline-start", "1px solid var(--color-border)"), ("outline", "none"), ("cursor", "pointer")]),
         )
         .nest("& [data-ev-week]:first-of-type > [data-ev-day]", pairs(&[]))
-        .nest("& [data-ev-week] > [data-ev-day]:first-child", pairs(&[("border-left", "0")]))
+        .nest("& [data-ev-week] > [data-ev-day]:first-child", pairs(&[("border-inline-start", "0")]))
         .nest("& [data-ev-month] [data-ev-day][data-outside]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 2.5%, transparent)")]))
         .nest("& [data-ev-month] [data-ev-day][data-outside] [data-ev-date]", pairs(&[("color", MUTED)]))
         .nest("& [data-ev-month] [data-ev-day]:hover", pairs(&[("background", ACCENT)]))
@@ -123,14 +123,14 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "& [data-ev-week-head] > button",
-            pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", "2px"), ("padding", sp!(6, 4)), ("border", "0"), ("border-left", "1px solid var(--color-border)"), ("background", "transparent"), ("color", MUTED), ("font", "inherit"), ("font-size", fs!(12)), ("cursor", "pointer")]),
+            pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", "2px"), ("padding", sp!(6, 4)), ("border", "0"), ("border-inline-start", "1px solid var(--color-border)"), ("background", "transparent"), ("color", MUTED), ("font", "inherit"), ("font-size", fs!(12)), ("cursor", "pointer")]),
         )
         .nest("& [data-ev-week-head] b", pairs(&[("display", "grid"), ("place-items", "center"), ("min-width", "28px"), ("height", "28px"), ("border-radius", "999px"), ("color", TEXT), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest("& [data-ev-week-head] [data-today] b", pairs(&[("background", PRIMARY), ("color", "var(--color-on-primary, #fff)")]))
         .nest("& [data-ev-week-head] > button:focus-visible", pairs(&[("outline", "none"), ("box-shadow", "inset 0 0 0 2px var(--color-ring, var(--color-primary))")]))
         .nest("& [data-ev-allday]", pairs(&[("border-top", "1px solid var(--color-border)"), ("border-bottom", "1px solid var(--color-border)")]))
-        .nest("& [data-ev-allday-cell]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding", "3px"), ("border-left", "1px solid var(--color-border)"), ("min-height", "26px")]))
-        .nest("& [data-ev-hour]", pairs(&[("padding", "2px 6px"), ("color", MUTED), ("font-size", fs!(11)), ("text-align", "right"), ("white-space", "nowrap")]))
+        .nest("& [data-ev-allday-cell]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding", "3px"), ("border-inline-start", "1px solid var(--color-border)"), ("min-height", "26px")]))
+        .nest("& [data-ev-hour]", pairs(&[("padding", "2px 6px"), ("color", MUTED), ("font-size", fs!(11)), ("text-align", "end"), ("white-space", "nowrap")]))
         .nest("& [data-ev-hours]", pairs(&[("height", "calc(var(--hours) * 44px)"), ("max-height", "560px"), ("overflow-y", "auto"), ("position", "relative")]))
         .nest("& [data-ev-labels] [data-ev-hour]", pairs(&[("height", "44px"), ("box-sizing", "border-box"), ("transform", "translateY(-7px)")]))
         .nest("& [data-ev-labels] [data-ev-hour]:first-child", pairs(&[("visibility", "hidden")]))
@@ -139,7 +139,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("position", "relative"),
                 ("height", "calc(var(--hours) * 44px)"),
-                ("border-left", "1px solid var(--color-border)"),
+                ("border-inline-start", "1px solid var(--color-border)"),
                 ("background", "repeating-linear-gradient(to bottom, transparent 0 43px, var(--color-border) 43px 44px)"),
             ]),
         )
@@ -149,11 +149,11 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Movable events: grabbed, dragged, and resized by the strip at a timed one's foot.
         .nest("&[data-editable] [data-ev-event]:not([data-ev-list] *)", pairs(&[("cursor", "grab"), ("touch-action", "none")]))
         .nest("& [data-ev-event][data-dragging]", pairs(&[("z-index", "5"), ("cursor", "grabbing"), ("opacity", ".9"), ("box-shadow", "0 6px 16px rgb(0 0 0 / .18)"), ("pointer-events", "none")]))
-        .nest("& [data-ev-resize]", pairs(&[("position", "absolute"), ("left", "0"), ("right", "0"), ("bottom", "0"), ("height", "7px"), ("cursor", "ns-resize")]))
+        .nest("& [data-ev-resize]", pairs(&[("position", "absolute"), ("inset-inline-start", "0"), ("inset-inline-end", "0"), ("bottom", "0"), ("height", "7px"), ("cursor", "ns-resize")]))
         .nest("&[data-editable] :is([data-ev-month] [data-ev-day], [data-ev-cell-date])[data-ev-drop]", pairs(&[("outline", "2px dashed var(--color-ring, var(--color-muted))"), ("outline-offset", "-2px")]))
         .nest("& [data-ev-timed][data-short]", pairs(&[("flex-direction", "row"), ("align-items", "center"), ("gap", "4px"), ("padding-top", "0"), ("padding-bottom", "0"), ("white-space", "nowrap")]))
-        .nest("& [data-ev-now]", pairs(&[("position", "absolute"), ("left", "0"), ("right", "0"), ("height", "2px"), ("background", "var(--color-destructive, #dc2626)"), ("z-index", "2")]))
-        .nest("& [data-ev-now]::before", pairs(&[("content", "''"), ("position", "absolute"), ("left", "-4px"), ("top", "-3px"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--color-destructive, #dc2626)")]))
+        .nest("& [data-ev-now]", pairs(&[("position", "absolute"), ("inset-inline-start", "0"), ("inset-inline-end", "0"), ("height", "2px"), ("background", "var(--color-destructive, #dc2626)"), ("z-index", "2")]))
+        .nest("& [data-ev-now]::before", pairs(&[("content", "''"), ("position", "absolute"), ("inset-inline-start", "-4px"), ("top", "-3px"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--color-destructive, #dc2626)")]))
         // Year: twelve small months.
         .nest("& [data-ev-year]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(auto-fill, minmax(196px, 1fr))"), ("gap", sp!(20, 24))]))
         .nest("& [data-ev-mini]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(4))]))
@@ -195,7 +195,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-group] ul", pairs(&[("margin", "0"), ("padding", sp!(6)), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", "2px")]))
         .nest(
             "& [data-ev-list] [data-ev-event]",
-            pairs(&[("display", "grid"), ("grid-template-columns", "130px 10px minmax(0, 1fr) auto"), ("align-items", "center"), ("gap", sp!(10)), ("padding", sp!(8, 10)), ("border-left", "0"), ("background", "transparent"), ("color", TEXT), ("font-size", fs!(14))]),
+            pairs(&[("display", "grid"), ("grid-template-columns", "130px 10px minmax(0, 1fr) auto"), ("align-items", "center"), ("gap", sp!(10)), ("padding", sp!(8, 10)), ("border-inline-start", "0"), ("background", "transparent"), ("color", TEXT), ("font-size", fs!(14))]),
         )
         .nest("& [data-ev-list] [data-ev-event]:hover", pairs(&[("background", ACCENT)]))
         .nest("& [data-ev-list] [data-ev-event] time", pairs(&[("color", MUTED), ("font-size", fs!(13))]))
@@ -205,7 +205,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("@media (max-width: 640px)", pairs(&[])
             .nest("& [data-ev-week] > [data-ev-day]", pairs(&[("min-height", "64px")]))
             .nest("& [data-ev-month] [data-ev-event] > :is(span, time)", pairs(&[("display", "none")]))
-            .nest("& [data-ev-month] [data-ev-event]", pairs(&[("height", "6px"), ("padding", "0"), ("border-left-width", "0"), ("background", "var(--tone)")]))
+            .nest("& [data-ev-month] [data-ev-event]", pairs(&[("height", "6px"), ("padding", "0"), ("border-inline-start-width", "0"), ("background", "var(--tone)")]))
             .nest("& [data-ev-group]", pairs(&[("grid-template-columns", "1fr")]))
             .nest("& [data-ev-list] [data-ev-event]", pairs(&[("grid-template-columns", "90px 10px minmax(0, 1fr)")]))
             .nest("& [data-ev-list] small", pairs(&[("display", "none")])))
@@ -216,8 +216,8 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
     tone_rules(tone_rules(tone_rules(b, "& [data-ev-event]"), "& [data-ev-legend] > span"), "& [data-ev-mini] [data-ev-day]")
 });
 
-const CHEVRON_LEFT: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#;
-const CHEVRON_RIGHT: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON_LEFT: &str = r#"<svg data-flip width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#;
+const CHEVRON_RIGHT: &str = r#"<svg data-flip width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 
 impl Component for EventCalendar {
     fn name(&self) -> &'static str {
@@ -236,6 +236,7 @@ impl Component for EventCalendar {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let views: Vec<String> = match cx.prop(node, "views") {
             None | Some(Json::Null) => VIEWS.iter().map(|v| v.to_string()).collect(),
             Some(Json::Array(vs)) if !vs.is_empty() => {

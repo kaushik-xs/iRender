@@ -357,7 +357,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("padding-bottom", sp!(18)),
         ])
         // The rail between entries.
-        .nest("&::before", pairs(&[("content", "''"), ("position", "absolute"), ("left", "13.5px"), ("top", "30px"), ("bottom", "2px"), ("width", "1px"), ("background", BORDER)]))
+        .nest("&::before", pairs(&[("content", "''"), ("position", "absolute"), ("inset-inline-start", "13.5px"), ("top", "30px"), ("bottom", "2px"), ("width", "1px"), ("background", BORDER)]))
         .nest("&:last-child::before", pairs(&[("display", "none")]))
         .nest("&:last-child", pairs(&[("padding-bottom", "0")]))
         .nest(
@@ -382,7 +382,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(6)), ("min-width", "0"), ("padding-top", "4px")]))
         .nest("& [data-line]", pairs(&[("line-height", "1.45")]))
         .nest("& [data-line] b", pairs(&[("font-weight", "600")]))
-        .nest("& [data-line] time", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("margin-left", sp!(6)), ("white-space", "nowrap")]))
+        .nest("& [data-line] time", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("margin-inline-start", sp!(6)), ("white-space", "nowrap")]))
         .nest("& [data-changes]", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", sp!(4))]))
         .nest("& [data-changes] li", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(6)), ("font-size", fs!(13))]))
         .nest("& [data-field]", pairs(&[("color", MUTED)]))

@@ -13,6 +13,8 @@
 // Moves and deletions are written to `bindNodes` when given, and fire `move` and
 // `delete` either way, so a host can save them.
 (window.__irenderBehaviors ||= {})["ui-tree"] = (el, api) => {
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
   const cfg = api.config;
   const $ = (s, from = el) => from.querySelector(s);
   const $$ = (s, from = el) => [...from.querySelectorAll(s)];
@@ -102,7 +104,7 @@
 
   // ---- drawing (the same markup as tree.rs)
   const svg = {
-    chevron: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>',
+    chevron: '<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>',
     check: '<svg data-on width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg><svg data-some width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>',
     plus: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>',
     trash: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>',
@@ -391,14 +393,14 @@
       let done = false;
       if (e.key === "ArrowUp" && at.i > 0) done = move(id, at.parent, at.i - 1);
       else if (e.key === "ArrowDown" && at.i < ids.length - 1) done = move(id, at.parent, at.i + 2);
-      else if (e.key === "ArrowRight" && at.i > 0) {
+      else if (side(e.key) === "ArrowRight" && at.i > 0) {
         const into = ids[at.i - 1];
         done = move(id, into, kids(index.get(into).node).length);
-      } else if (e.key === "ArrowLeft" && at.parent !== null) done = move(id, index.get(at.parent).parent, index.get(at.parent).i + 1);
+      } else if (side(e.key) === "ArrowLeft" && at.parent !== null) done = move(id, index.get(at.parent).parent, index.get(at.parent).i + 1);
       if (done || e.key.startsWith("Arrow")) e.preventDefault();
       return;
     }
-    switch (e.key) {
+    switch (side(e.key)) {
       case "ArrowDown": return go(rows[i + 1]);
       case "ArrowUp": return go(rows[i - 1]);
       case "Home": return go(rows[0]);

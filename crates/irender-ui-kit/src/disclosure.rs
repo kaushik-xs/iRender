@@ -541,7 +541,7 @@ static RAINBOW: LazyLock<StyleBlock> = LazyLock::new(|| {
 /// Several swatches overlap a little, like a fanned palette.
 static SWATCHES: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "inline-flex"), ("flex-shrink", "0")])
-        .nest("& > * + *", StyleBlock::from_pairs(&[("margin-left", "-4px")]))
+        .nest("& > * + *", StyleBlock::from_pairs(&[("margin-inline-start", "-4px")]))
 });
 static SWATCH: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[

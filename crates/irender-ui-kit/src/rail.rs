@@ -62,7 +62,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("align-items", "center"),
             ("gap", sp!(4)),
             ("padding", sp!(10, 0)),
-            ("border-right", "1px solid var(--color-border)"),
+            ("border-inline-end", "1px solid var(--color-border)"),
             ("background", "var(--color-sidebar, color-mix(in srgb, var(--color-text) 3%, var(--color-surface, #fff)))"),
             ("min-height", "0"),
             // Not a scroll box: that would clip the labels shown beside the icons.
@@ -98,7 +98,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     // The open section: a bar on the rail's edge.
     .nest(
         "& [data-rail-item][aria-selected=true]::before",
-        pairs(&[("content", "''"), ("position", "absolute"), ("left", "-8px"), ("top", "10px"), ("bottom", "10px"), ("width", "3px"), ("border-radius", "0 3px 3px 0"), ("background", PRIMARY_FILL)]),
+        pairs(&[("content", "''"), ("position", "absolute"), ("inset-inline-start", "-8px"), ("top", "10px"), ("bottom", "10px"), ("width", "3px"), ("border-start-end-radius", "3px"), ("border-end-end-radius", "3px"), ("background", PRIMARY_FILL)]),
     )
     // Its label beside it on hover and focus; `/ ""` keeps the copy from screen readers.
     .nest(
@@ -106,7 +106,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         pairs(&[
             ("content", "attr(data-tip) / \"\""),
             ("position", "absolute"),
-            ("left", "calc(100% + 10px)"),
+            ("inset-inline-start", "calc(100% + 10px)"),
             ("top", "50%"),
             ("z-index", "30"),
             ("padding", sp!(4, 8)),
@@ -128,7 +128,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         pairs(&[
             ("position", "absolute"),
             ("top", "3px"),
-            ("right", "1px"),
+            ("inset-inline-end", "1px"),
             ("min-width", "16px"),
             ("height", "16px"),
             ("padding", "0 4px"),
@@ -150,21 +150,21 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("width", "var(--rail-panel, 260px)"),
             ("min-height", "0"),
             ("overflow", "hidden"),
-            ("border-right", "1px solid var(--color-border)"),
+            ("border-inline-end", "1px solid var(--color-border)"),
             ("background", "var(--color-surface, #fff)"),
             ("transition", "width .2s ease"),
         ]),
     )
-    .nest("&[data-closed] [data-rail-panels]", pairs(&[("width", "0"), ("border-right-width", "0")]))
+    .nest("&[data-closed] [data-rail-panels]", pairs(&[("width", "0"), ("border-inline-end-width", "0")]))
     .nest("&[data-resizing] [data-rail-panels]", pairs(&[("transition", "none")]))
     .nest("&[data-resizing]", pairs(&[("cursor", "col-resize"), ("user-select", "none")]))
     // The resize handle: a strip on the panel's edge, a line when hovered or focused.
     .nest(
         "& [data-rail-resize]",
-        pairs(&[("position", "absolute"), ("z-index", "21"), ("top", "0"), ("bottom", "0"), ("left", "calc(56px + var(--rail-panel, 260px) - 3px)"), ("width", "7px"), ("cursor", "col-resize"), ("touch-action", "none"), ("outline", "none")]),
+        pairs(&[("position", "absolute"), ("z-index", "21"), ("top", "0"), ("bottom", "0"), ("inset-inline-start", "calc(56px + var(--rail-panel, 260px) - 3px)"), ("width", "7px"), ("cursor", "col-resize"), ("touch-action", "none"), ("outline", "none")]),
     )
-    .nest("& [data-rail-resize]::after", pairs(&[("content", "''"), ("position", "absolute"), ("top", "0"), ("bottom", "0"), ("left", "3px"), ("width", "1px"), ("transition", "background .15s")]))
-    .nest("& [data-rail-resize]:is(:hover, :focus-visible)::after, &[data-resizing] [data-rail-resize]::after", pairs(&[("left", "2px"), ("width", "3px"), ("background", "var(--color-ring, var(--color-muted))")]))
+    .nest("& [data-rail-resize]::after", pairs(&[("content", "''"), ("position", "absolute"), ("top", "0"), ("bottom", "0"), ("inset-inline-start", "3px"), ("width", "1px"), ("transition", "background .15s")]))
+    .nest("& [data-rail-resize]:is(:hover, :focus-visible)::after, &[data-resizing] [data-rail-resize]::after", pairs(&[("inset-inline-start", "2px"), ("width", "3px"), ("background", "var(--color-ring, var(--color-muted))")]))
     .nest("&[data-closed] [data-rail-resize]", pairs(&[("display", "none")]))
     .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& [data-rail-panels]", pairs(&[("transition", "none")])))
     .nest("& [data-rail-main]", pairs(&[("min-width", "0"), ("min-height", "0"), ("overflow", "auto")]))
@@ -174,7 +174,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         pairs(&[("grid-template-columns", "56px minmax(0, 1fr)")])
             .nest(
                 "& [data-rail-panels]",
-                pairs(&[("position", "absolute"), ("z-index", "20"), ("top", "0"), ("bottom", "0"), ("left", "56px"), ("box-shadow", "8px 0 24px rgb(0 0 0 / 0.12)")]),
+                pairs(&[("position", "absolute"), ("z-index", "20"), ("top", "0"), ("bottom", "0"), ("inset-inline-start", "56px"), ("box-shadow", "8px 0 24px rgb(0 0 0 / 0.12)")]),
             )
             .nest("&[data-closed] [data-rail-panels]", pairs(&[("box-shadow", "none")])),
     )
@@ -183,7 +183,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("box-sizing", "border-box"), ("width", "var(--rail-panel, 260px)"), ("height", "100%"), ("padding", sp!(14, 12)), ("overflow-y", "auto")])
         .nest("&[hidden]", pairs(&[("display", "none")]))
         .nest("& [data-rail-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(6)), ("padding", sp!(0, 4, 4))]))
-        .nest("& [data-rail-head] h2", pairs(&[("margin", "0 auto 0 0"), ("font-size", fs!(15)), ("font-weight", "600")]))
+        .nest("& [data-rail-head] h2", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest(
             "& [data-rail-fold]",
             pairs(&[("display", "grid"), ("place-items", "center"), ("width", "28px"), ("height", "28px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
@@ -192,7 +192,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-rail-fold]:focus-visible", forms::focus_ring())
 });
 
-const FOLD: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11M10.5 6.5 9 8l1.5 1.5"/></svg>"#;
+const FOLD: &str = r#"<svg data-flip width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11M10.5 6.5 9 8l1.5 1.5"/></svg>"#;
 
 /// One rail item, read from `items`.
 struct Item {
@@ -244,6 +244,7 @@ impl Component for RailLayout {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let key = cx.prop_string(node, "bind").ok_or_else(|| RenderError::new(node, "`ui-rail-layout` needs `bind`"))?;
         let open_key = cx.prop_string(node, "bindOpen");
         let items = items(cx, node)?;

@@ -68,15 +68,15 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("font", "inherit"),
             ("font-size", fs!(14)),
             ("font-variant-numeric", "tabular-nums"),
-            ("text-align", "right"),
+            ("text-align", "end"),
         ]),
     )
     .nest("& input::placeholder", pairs(&[("color", MUTED)]))
-    .nest("& [data-num-prefix] + input", pairs(&[("padding-left", sp!(6))]))
-    .nest("& input:has(+ [data-num-suffix])", pairs(&[("padding-right", sp!(6))]))
+    .nest("& [data-num-prefix] + input", pairs(&[("padding-inline-start", sp!(6))]))
+    .nest("& input:has(+ [data-num-suffix])", pairs(&[("padding-inline-end", sp!(6))]))
     .nest("& :is([data-num-prefix], [data-num-suffix])", pairs(&[("flex", "none"), ("color", MUTED), ("font-size", fs!(14)), ("white-space", "nowrap")]))
-    .nest("& [data-num-prefix]", pairs(&[("padding-left", sp!(12))]))
-    .nest("& [data-num-suffix]", pairs(&[("padding-right", sp!(12))]))
+    .nest("& [data-num-prefix]", pairs(&[("padding-inline-start", sp!(12))]))
+    .nest("& [data-num-suffix]", pairs(&[("padding-inline-end", sp!(12))]))
     .nest(
         "& [data-num-step]",
         pairs(&[
@@ -94,8 +94,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("cursor", "pointer"),
         ]),
     )
-    .nest("& [data-num-step='-1']", pairs(&[("border-right", "1px solid var(--color-border)")]))
-    .nest("& [data-num-step='1']", pairs(&[("border-left", "1px solid var(--color-border)")]))
+    .nest("& [data-num-step='-1']", pairs(&[("border-inline-end", "1px solid var(--color-border)")]))
+    .nest("& [data-num-step='1']", pairs(&[("border-inline-start", "1px solid var(--color-border)")]))
     .nest("& [data-num-step]:hover", pairs(&[("background", "color-mix(in srgb, var(--color-text) 9%, transparent)")]))
     .nest("& [data-num-step]:focus-visible", forms::focus_ring().set("outline-offset", "-2px"))
 });

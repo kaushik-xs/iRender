@@ -93,8 +93,8 @@ static MAIN: LazyLock<StyleBlock> = LazyLock::new(|| {
             "[data-variant=inset] > &",
             pairs(&[("margin", sp!(8)), ("border-radius", "var(--radius-lg)"), ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)")]),
         )
-        .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=left] > &", pairs(&[("margin-left", "0")])))
-        .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=right] > &", pairs(&[("margin-right", "0")])))
+        .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=left] > &", pairs(&[("margin-inline-start", "0")])))
+        .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=right] > &", pairs(&[("margin-inline-end", "0")])))
 });
 
 impl Component for SidebarLayout {
@@ -110,6 +110,7 @@ impl Component for SidebarLayout {
         )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let key = cx.prop_string(node, "bind");
         let collapsible = COLLAPSIBLE[choice(cx, node, "collapsible", COLLAPSIBLE)];
         let open = match &key {
@@ -178,8 +179,8 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("font-size", fs!(14)),
         ("transition", "width .2s ease-out"),
     ])
-    .nest("[data-side=left]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-right", "1px solid var(--color-border)")]))
-    .nest("[data-side=right]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-left", "1px solid var(--color-border)")]))
+    .nest("[data-side=left]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-end", "1px solid var(--color-border)")]))
+    .nest("[data-side=right]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-start", "1px solid var(--color-border)")]))
     .nest("[data-variant=floating] > &", pairs(&[("padding", sp!(8)), ("background", "transparent")]))
     // As specific as the border rules above, and after them, so it takes the border too.
     .nest(WIDE, wide("[data-collapsible=offcanvas][data-state=collapsed][data-side] > &", pairs(&[("width", "0"), ("border", "0"), ("padding", "0")])))
@@ -193,22 +194,22 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("position", "fixed"),
                 ("top", "0"),
                 ("bottom", "0"),
-                ("left", "0"),
+                ("inset-inline-start", "0"),
                 ("z-index", "50"),
                 ("width", "min(var(--sidebar-width), 85vw)"),
                 // Stretched between top and bottom: the sticky panel's `align-self:
                 // flex-start` would shrink a fixed box to its content.
                 ("align-self", "stretch"),
                 ("height", "auto"),
-                ("border-right", "1px solid var(--color-border)"),
+                ("border-inline-end", "1px solid var(--color-border)"),
                 ("background", SIDEBAR_BG),
                 ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
-                ("transform", "translateX(-100%)"),
+                ("transform", "translateX(calc(-100% * var(--ui-dir, 1)))"),
                 ("visibility", "hidden"),
                 ("transition", "transform .2s ease-out, visibility .2s"),
             ]),
         )
-        .nest(format!("[data-side=right]{CLOSES} > &"), pairs(&[("left", "auto"), ("right", "0"), ("border-right", "0"), ("border-left", "1px solid var(--color-border)"), ("transform", "translateX(100%)")]))
+        .nest(format!("[data-side=right]{CLOSES} > &"), pairs(&[("inset-inline-start", "auto"), ("inset-inline-end", "0"), ("border-inline-end", "0"), ("border-inline-start", "1px solid var(--color-border)"), ("transform", "translateX(calc(100% * var(--ui-dir, 1)))")]))
         .nest(format!("[data-mobile-open]{CLOSES} > &"), pairs(&[("transform", "none"), ("visibility", "visible")])),
     )
     .nest("@media (prefers-reduced-motion: reduce)", pairs(&[("transition", "none")]))
@@ -242,6 +243,7 @@ impl Component for Sidebar {
         )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let mut el = cx.element("aside", node);
         el.base_style_ref(&PANEL).attr("data-sidebar", true);
         el.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Sidebar"))));
@@ -284,6 +286,7 @@ impl Component for SidebarHeader {
         info("The top of a `ui-sidebar`, e.g. a logo or a team switcher.", &[], &[])
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         container(cx, node, "div", &HEADER, "data-sidebar-header")
     }
 }
@@ -296,6 +299,7 @@ impl Component for SidebarFooter {
         info("The bottom of a `ui-sidebar`, e.g. the signed-in user.", &[], &[])
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         container(cx, node, "div", &HEADER, "data-sidebar-footer")
     }
 }
@@ -308,6 +312,7 @@ impl Component for SidebarContent {
         info("The scrolling middle of a `ui-sidebar`. Children: `ui-sidebar-group`s.", &[], &[])
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         container(cx, node, "div", &CONTENT, "data-sidebar-content")
     }
 }
@@ -350,6 +355,7 @@ impl Component for SidebarGroup {
         )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let mut el = cx.element("div", node);
         el.base_style_ref(&GROUP).attr("data-sidebar-group", true);
         cx.open(&el, node)?;
@@ -406,7 +412,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("background", "transparent"),
         ("color", "inherit"),
         ("font", "inherit"),
-        ("text-align", "left"),
+        ("text-align", "start"),
         ("text-decoration", "none"),
         ("white-space", "nowrap"),
         ("position", "relative"),
@@ -427,7 +433,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(WIDE, wide(format!("{ICONS} &::after"), pairs(&[
         ("content", "attr(data-tip) / \"\""),
         ("position", "absolute"),
-        ("left", "calc(100% + 8px)"),
+        ("inset-inline-start", "calc(100% + 8px)"),
         ("top", "50%"),
         ("z-index", "20"),
         ("padding", sp!(4, 8)),
@@ -442,7 +448,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("pointer-events", "none"),
         ("transition", "opacity .1s"),
     ])))
-    .nest(WIDE, wide(format!("[data-side=right]{ICONS} &::after"), pairs(&[("left", "auto"), ("right", "calc(100% + 8px)")])))
+    .nest(WIDE, wide(format!("[data-side=right]{ICONS} &::after"), pairs(&[("inset-inline-start", "auto"), ("inset-inline-end", "calc(100% + 8px)")])))
     .nest(WIDE, wide(format!("{ICONS} &:hover::after, {ICONS} &:focus-visible::after"), pairs(&[("opacity", "1")])))
     .nest(WIDE, wide(format!("{ICONS} & > [data-label]"), pairs(HIDDEN_TEXT)))
     .nest(WIDE, wide(format!("{ICONS} & > [data-badge], {ICONS} & > [data-chevron]"), pairs(&[("display", "none")])))
@@ -450,19 +456,21 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
 static LABEL: LazyLock<StyleBlock> =
     LazyLock::new(|| pairs(&[("flex", "1"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis")]));
 static BADGE: LazyLock<StyleBlock> =
-    LazyLock::new(|| pairs(&[("margin-left", "auto"), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums"), ("color", MUTED)]));
+    LazyLock::new(|| pairs(&[("margin-inline-start", "auto"), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums"), ("color", MUTED)]));
 static CHEVRON: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "inline-flex"), ("margin-left", "auto"), ("color", MUTED), ("transition", "transform .2s")])
+    pairs(&[("display", "inline-flex"), ("margin-inline-start", "auto"), ("color", MUTED), ("transition", "transform .2s")])
         .nest("details[open] > summary > &", pairs(&[("transform", "rotate(90deg)")]))
+        // Its icon is mirrored right to left (pointing left): it turns the other way to point down.
+        .nest("details[open] > summary > &:dir(rtl)", pairs(&[("transform", "rotate(-90deg)")]))
 });
 static SUB: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("flex-direction", "column"),
         ("gap", sp!(4)),
-        ("margin", sp!(4, 0, 0, 14)),
-        ("padding", sp!(2, 0, 2, 10)),
-        ("border-left", "1px solid var(--color-border)"),
+        ("margin-block", sp!(4, 0)), ("margin-inline", sp!(14, 0)),
+        ("padding-block", sp!(2, 2)), ("padding-inline", sp!(10, 0)),
+        ("border-inline-start", "1px solid var(--color-border)"),
         ("list-style", "none"),
     ])
     .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("display", "none")])))
@@ -471,7 +479,7 @@ static SUB_ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("min-height", sp!(28)), ("padding", sp!(4, 8)), ("color", "color-mix(in srgb, var(--color-text) 85%, transparent)")])
 });
 
-const CHEVRON_SVG: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON_SVG: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 
 impl Component for SidebarItem {
     fn name(&self) -> &'static str {
@@ -486,6 +494,7 @@ impl Component for SidebarItem {
         )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let sub = cx.context("ui-sidebar-sub").is_some();
         let has_children = !node.children.is_empty();
         cx.open(&Element::new("li"), node)?;
@@ -590,7 +599,7 @@ static TRIGGER: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":focus-visible", pairs(&[("outline", "2px solid"), ("outline-color", RING), ("outline-offset", "2px")]))
 });
 
-const PANEL_SVG: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11"/></svg>"#;
+const PANEL_SVG: &str = r#"<svg data-flip width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11"/></svg>"#;
 
 impl Component for SidebarTrigger {
     fn name(&self) -> &'static str {
@@ -604,6 +613,7 @@ impl Component for SidebarTrigger {
         )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let Some(Val::Lit(serde_json::Value::String(key))) = cx.context("ui-sidebar").cloned() else {
             return Err(RenderError::new(node, "`ui-sidebar-trigger` must be inside a `ui-sidebar-layout` with `bind`"));
         };

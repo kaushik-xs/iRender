@@ -7,6 +7,8 @@
 (window.__irenderBehaviors ||= {})["ui-resizable"] = (el, api) => {
   const cfg = api.config;
   const vertical = cfg.direction === "vertical";
+  // Side by side on a right-to-left page, the first panel is on the right: moves go the other way.
+  const along = () => (!vertical && getComputedStyle(el).direction === "rtl" ? -1 : 1);
   const panels = [...el.children].filter((c) => c.hasAttribute("data-rz-panel"));
   const handles = [...el.children].filter((c) => c.hasAttribute("data-rz-handle"));
   const limits = cfg.panels; // [{ min, max, collapsible }]
@@ -69,7 +71,7 @@
   });
   el.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
-    const moved = ((vertical ? e.clientY : e.clientX) - drag.startAt) / drag.total * 100;
+    const moved = ((vertical ? e.clientY : e.clientX) - drag.startAt) / drag.total * 100 * along();
     moveTo(drag.i, drag.startSize + moved);
   });
   const end = (e) => {
@@ -93,7 +95,7 @@
     const h = e.target.closest?.("[data-rz-handle]");
     if (!h || h.parentElement !== el) return;
     const i = handles.indexOf(h), step = e.shiftKey ? 1 : 5;
-    const grow = vertical ? "ArrowDown" : "ArrowRight", shrink = vertical ? "ArrowUp" : "ArrowLeft";
+    const grow = vertical ? "ArrowDown" : along() === 1 ? "ArrowRight" : "ArrowLeft", shrink = vertical ? "ArrowUp" : along() === 1 ? "ArrowLeft" : "ArrowRight";
     let done = true;
     if (e.key === grow) moveTo(i, sizes[i] + step);
     else if (e.key === shrink) moveTo(i, sizes[i] - step);

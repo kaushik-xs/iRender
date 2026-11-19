@@ -55,7 +55,7 @@ static RATING: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-full]",
             pairs(&[("position", "absolute"), ("inset", "0"), ("color", AMBER), ("clip-path", "inset(0 calc(100% - min(100%, max(0%, var(--ui-value) * 1%))) 0 0)")]),
         )
-        .nest("& [data-score]", pairs(&[("margin-left", "6px"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1"), ("font-variant-numeric", "tabular-nums")]))
+        .nest("& [data-score]", pairs(&[("margin-inline-start", "6px"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1"), ("font-variant-numeric", "tabular-nums")]))
 });
 
 impl Component for Rating {

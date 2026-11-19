@@ -67,7 +67,7 @@ static GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& > [data-rz-handle] [data-rz-grip]",
             pairs(&[
                 ("position", "absolute"),
-                ("left", "50%"),
+                ("inset-inline-start", "50%"),
                 ("top", "50%"),
                 ("translate", "-50% -50%"),
                 ("display", "grid"),

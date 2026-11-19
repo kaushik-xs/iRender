@@ -90,9 +90,9 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-up-zone] svg", pairs(&[("color", MUTED)]))
         .nest("& [data-up-label]", pairs(&[("font-weight", "500")]))
         .nest("& [data-up-hint]", pairs(&[("color", MUTED), ("font-size", fs!(13))]))
-        .nest("& [data-up-errors]", pairs(&[("margin", "0"), ("padding-left", sp!(18)), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(13))]))
+        .nest("& [data-up-errors]", pairs(&[("margin", "0"), ("padding-inline-start", sp!(18)), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(13))]))
         .nest("& [data-up-bar]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(13))]))
-        .nest("& [data-up-bar] > :first-child", pairs(&[("margin-right", "auto")]))
+        .nest("& [data-up-bar] > :first-child", pairs(&[("margin-inline-end", "auto")]))
         .nest("& [data-up-empty]", pairs(&[("margin", "0"), ("color", MUTED)]))
         .nest(
             "& [data-up-live]",
@@ -128,7 +128,7 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "transparent"),
                 ("color", "inherit"),
                 ("font", "inherit"),
-                ("text-align", "left"),
+                ("text-align", "start"),
                 ("cursor", "pointer"),
             ]),
         )
@@ -163,7 +163,7 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& progress::-webkit-progress-value", pairs(&[("background", PRIMARY), ("border-radius", "999px")]))
         .nest("& progress::-moz-progress-bar", pairs(&[("background", PRIMARY), ("border-radius", "999px")]))
         .nest("& [data-up-actions]", pairs(&[("display", "flex"), ("gap", sp!(2)), ("flex", "none")]))
-        .nest("&[data-view=grid] [data-up-actions]", pairs(&[("position", "absolute"), ("top", sp!(6)), ("right", sp!(6))]))
+        .nest("&[data-view=grid] [data-up-actions]", pairs(&[("position", "absolute"), ("top", sp!(6)), ("inset-inline-end", sp!(6))]))
         .nest(
             "& [data-up-actions] button",
             pairs(&[
@@ -197,9 +197,9 @@ static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[open]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "0")]))
         .nest(
             "& [data-up-head]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(14, 56, 14, 20)), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding-block", sp!(14, 14)), ("padding-inline", sp!(20, 56)), ("border-bottom", "1px solid var(--color-border)")]),
         )
-        .nest("& [data-up-title]", pairs(&[("margin", "0 auto 0 0"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-size", fs!(16)), ("font-weight", "600")]))
+        .nest("& [data-up-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-size", fs!(16)), ("font-weight", "600")]))
         .nest("& [data-up-count]", pairs(&[("color", MUTED), ("font-size", fs!(13)), ("white-space", "nowrap")]))
         .nest(
             "& [data-up-body]",
@@ -210,10 +210,10 @@ static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-up-body] pre", pairs(&[("align-self", "stretch"), ("width", "100%"), ("margin", "0"), ("padding", sp!(16)), ("box-sizing", "border-box"), ("white-space", "pre-wrap"), ("font-size", fs!(13))]))
         .nest("& [data-up-body] [data-up-sheet]", pairs(&[("align-self", "stretch"), ("width", "100%"), ("overflow", "auto")]))
         .nest("& [data-up-body] table", pairs(&[("border-collapse", "collapse"), ("font-size", fs!(13)), ("background", "var(--color-surface, #fff)")]))
-        .nest("& [data-up-body] :is(th, td)", pairs(&[("padding", sp!(4, 10)), ("border", "1px solid var(--color-border)"), ("white-space", "nowrap"), ("text-align", "left")]))
+        .nest("& [data-up-body] :is(th, td)", pairs(&[("padding", sp!(4, 10)), ("border", "1px solid var(--color-border)"), ("white-space", "nowrap"), ("text-align", "start")]))
         .nest("& [data-up-body] th", pairs(&[("position", "sticky"), ("top", "0"), ("background", ACCENT), ("color", MUTED), ("font-weight", "500")]))
         .nest("& [data-up-body] [data-up-none]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", sp!(12)), ("color", MUTED)]))
-        .nest("& [data-up-body] [data-up-note]", pairs(&[("position", "sticky"), ("left", "0"), ("padding", sp!(8, 12)), ("color", MUTED), ("font-size", fs!(12))]))
+        .nest("& [data-up-body] [data-up-note]", pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("padding", sp!(8, 12)), ("color", MUTED), ("font-size", fs!(12))]))
 });
 
 // Decorative: the zone and buttons around them are labelled.

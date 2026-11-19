@@ -776,6 +776,8 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
+        // Positions are geometry: left to right on any page.
+        ("direction", "ltr"),
         ("position", "relative"),
         ("overflow", "hidden"),
         ("width", "100%"),

@@ -491,8 +491,10 @@
   });
   dialog.addEventListener("keydown", (e) => {
     if (e.target.closest("input, textarea, select")) return;
-    if (e.key === "ArrowLeft") e.preventDefault(), show(current - 1);
-    if (e.key === "ArrowRight") e.preventDefault(), show(current + 1);
+    // Right to left, the next file is on the left.
+    const fwd = getComputedStyle(dialog).direction === "rtl" ? -1 : 1;
+    if (e.key === "ArrowLeft") e.preventDefault(), show(current - fwd);
+    if (e.key === "ArrowRight") e.preventDefault(), show(current + fwd);
   });
   dialog.addEventListener("close", () => {
     const f = files()[current];

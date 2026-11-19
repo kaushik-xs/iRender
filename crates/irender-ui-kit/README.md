@@ -31,6 +31,8 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 
 ## Components
 
+**Right to left.** On a page whose `lang` is written right to left (`dir="rtl"`), every component mirrors: what was on the left is on the right, `left` and `right` in `side` and `pin` mean the start and end sides, icons that point along the line turn round, and Left and Right swap in the keyboard (the calendar's next day is to the left) and in dragging. Charts keep their geometry; one-time codes, shortcuts and counts like `2 / 3` read left to right; and a badge takes its direction from its own text.
+
 | component | props | notes |
 |---|---|---|
 | `ui-button` | `label`, `icon`, `variant` (default, secondary, destructive, outline, ghost, link, brand), `size` (default, sm, lg, icon), `href`, `type`, `disabled` | With `href` it renders a link that looks like a button. Children follow the label. A `variant` that reads state follows it. |

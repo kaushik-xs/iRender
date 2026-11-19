@@ -77,8 +77,8 @@ fn calendar_style() -> StyleBlock {
                 ("flex-direction", "column"),
                 ("gap", sp!(2)),
                 ("min-width", sp!(132)),
-                ("padding-right", sp!(12)),
-                ("border-right", "1px solid var(--color-border)"),
+                ("padding-inline-end", sp!(12)),
+                ("border-inline-end", "1px solid var(--color-border)"),
             ]),
         )
         .nest(
@@ -90,7 +90,7 @@ fn calendar_style() -> StyleBlock {
                 ("background", "none"),
                 ("color", "inherit"),
                 ("font", "inherit"),
-                ("text-align", "left"),
+                ("text-align", "start"),
                 ("white-space", "nowrap"),
                 ("cursor", "pointer"),
             ]),
@@ -216,7 +216,7 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .set("max-width", "100%")
         .nest(
             "& [data-cal-trigger]",
-            pairs(&[("width", "100%"), ("justify-content", "flex-start"), ("font-weight", "400"), ("text-align", "left"), ("padding-right", sp!(32))]),
+            pairs(&[("width", "100%"), ("justify-content", "flex-start"), ("font-weight", "400"), ("text-align", "start"), ("padding-inline-end", sp!(32))]),
         )
         .nest("& [data-cal-trigger] svg", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
         .nest("& [data-cal-text]", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
@@ -225,7 +225,7 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-cal-x]",
             pairs(&[
                 ("position", "absolute"),
-                ("right", sp!(6)),
+                ("inset-inline-end", sp!(6)),
                 ("top", "50%"),
                 ("transform", "translateY(-50%)"),
                 ("display", "inline-flex"),
@@ -309,7 +309,7 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("justify-content", "center"),
             ("width", sp!(32)),
             ("height", sp!(28)),
-            ("margin-right", sp!(3)),
+            ("margin-inline-end", sp!(3)),
             ("padding", "0"),
             ("border", "0"),
             ("border-radius", "var(--radius-sm)"),
@@ -481,6 +481,7 @@ impl Component for Calendar {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let config = config(cx, node, false)?;
         let value = current(cx, node);
         cx.global_js("ui-calendar", SCRIPT);
@@ -522,6 +523,7 @@ impl Component for DatePicker {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let config = config(cx, node, true)?;
         let value = current(cx, node);
         cx.global_js("ui-calendar", SCRIPT);
@@ -652,7 +654,7 @@ fn finish(cx: &mut RenderCx<'_>, node: &Node, config: Json, pop: &Val, anchor: &
     let area = if align == "end" { "bottom span-left" } else { "bottom span-right" };
     let mut popover = cx.part("div", node, "popover");
     popover
-        .base_style(StyleBlock::new().set("position-anchor", anchor.to_string()).set("position-area", area))
+        .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor.to_string()), area))
         .attr("popover", "auto")
         .attr("id", pop.clone())
         .attr("role", "dialog")

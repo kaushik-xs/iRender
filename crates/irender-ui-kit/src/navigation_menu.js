@@ -4,6 +4,9 @@
 // and moves into it, Escape closes it and returns to the button, and Left and Right move
 // along the bar. Only one panel is open at a time.
 (window.__irenderBehaviors ||= {})["ui-navigation-menu"] = (el) => {
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
+
   const tops = () => [...el.querySelectorAll(":scope > ul > li > :is([data-ui-nav-trigger], a)")];
   const panelOf = (t) => document.getElementById(t.getAttribute("aria-controls"));
   const OPEN = 120, CLOSE = 250;
@@ -34,7 +37,7 @@
     const list = tops(), at = list.indexOf(t);
     if (at >= 0 && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
       e.preventDefault();
-      list.at((at + (e.key === "ArrowRight" ? 1 : -1)) % list.length).focus();
+      list.at((at + (side(e.key) === "ArrowRight" ? 1 : -1)) % list.length).focus();
     } else if (t.matches("[data-ui-nav-trigger]") && e.key === "ArrowDown") {
       e.preventDefault();
       show(t, true);

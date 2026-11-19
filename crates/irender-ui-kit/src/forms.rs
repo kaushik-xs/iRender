@@ -398,7 +398,7 @@ static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("content", "''"),
             ("position", "absolute"),
             ("top", "1px"),
-            ("left", "1px"),
+            ("inset-inline-start", "1px"),
             ("width", "16px"),
             ("height", "16px"),
             ("border-radius", "999px"),
@@ -408,7 +408,7 @@ static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
         ]),
     )
     .nest(":checked", StyleBlock::from_pairs(&[("background", PRIMARY)]))
-    .nest(":checked::before", StyleBlock::from_pairs(&[("transform", "translateX(16px)")]))
+    .nest(":checked::before", StyleBlock::from_pairs(&[("transform", "translateX(calc(16px * var(--ui-dir, 1)))")]))
     .nest(":focus-visible", focus_ring())
 });
 
@@ -481,6 +481,7 @@ impl Component for Switch {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         checkable(node, cx, &SWITCH, Some("switch"))
     }
 }
@@ -719,8 +720,8 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest(GROUPED, field)
     // Next to a prefix or suffix, the field's own padding would double the gap.
-    .nest("& > span + :is(input, textarea, select)", StyleBlock::from_pairs(&[("padding-left", sp!(8))]))
-    .nest("& > :is(input, textarea, select):has(+ span)", StyleBlock::from_pairs(&[("padding-right", sp!(8))]))
+    .nest("& > span + :is(input, textarea, select)", StyleBlock::from_pairs(&[("padding-inline-start", sp!(8))]))
+    .nest("& > :is(input, textarea, select):has(+ span)", StyleBlock::from_pairs(&[("padding-inline-end", sp!(8))]))
     .nest(format!("{GROUPED}:focus-visible"), StyleBlock::from_pairs(&[("box-shadow", "none")]))
     // The group shows the focus ring, around the field and its addons together.
     .nest(":has(:focus-visible)", focus_ring().set("border-color", RING))
@@ -732,8 +733,8 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
 static INPUT_GROUP_ADDON: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "center"), ("padding", sp!(0, 12)), ("color", MUTED), ("white-space", "nowrap")])
 });
-static INPUT_GROUP_PREFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-right", "0"));
-static INPUT_GROUP_SUFFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-left", "0"));
+static INPUT_GROUP_PREFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-inline-end", "0"));
+static INPUT_GROUP_SUFFIX: LazyLock<StyleBlock> = LazyLock::new(|| INPUT_GROUP_ADDON.clone().set("padding-inline-start", "0"));
 
 impl Component for InputGroup {
     fn name(&self) -> &'static str {

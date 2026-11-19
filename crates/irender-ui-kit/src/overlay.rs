@@ -131,8 +131,8 @@ pub(crate) static SHEETS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     };
     let tall = [("height", "100dvh"), ("width", "min(384px, 85vw)")];
     [
-        side(&[tall[0], tall[1], ("margin", "0 0 0 auto"), ("border-width", "0 0 0 1px")]),
-        side(&[tall[0], tall[1], ("margin", "0 auto 0 0"), ("border-width", "0 1px 0 0")]),
+        side(&[tall[0], tall[1], ("margin-block", "0 0"), ("margin-inline", "auto 0"), ("border-block-width", "0"), ("border-inline-width", "1px 0")]),
+        side(&[tall[0], tall[1], ("margin-block", "0 0"), ("margin-inline", "0 auto"), ("border-block-width", "0"), ("border-inline-width", "0 1px")]),
         side(&[("width", "100%"), ("margin", "0 0 auto"), ("border-width", "0 0 1px")]),
         side(&[("width", "100%"), ("margin", "auto 0 0"), ("border-width", "1px 0 0")]),
     ]
@@ -163,7 +163,7 @@ static DRAWER: LazyLock<StyleBlock> = LazyLock::new(|| {
         // The grab bar, and the strip around it that takes the drag.
         .nest(
             "& [data-drawer-grip]",
-            StyleBlock::from_pairs(&[("position", "absolute"), ("top", "0"), ("left", "0"), ("right", "0"), ("height", "28px"), ("cursor", "grab"), ("touch-action", "none")]),
+            StyleBlock::from_pairs(&[("position", "absolute"), ("top", "0"), ("inset-inline-start", "0"), ("inset-inline-end", "0"), ("height", "28px"), ("cursor", "grab"), ("touch-action", "none")]),
         )
         .nest(
             "& [data-drawer-grip]::after",
@@ -171,10 +171,10 @@ static DRAWER: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("content", "''"),
                 ("position", "absolute"),
                 ("top", "10px"),
-                ("left", "50%"),
+                ("inset-inline-start", "50%"),
                 ("width", "40px"),
                 ("height", "5px"),
-                ("margin-left", "-20px"),
+                ("margin-inline-start", "-20px"),
                 ("border-radius", "999px"),
                 ("background", "color-mix(in srgb, var(--color-text) 18%, transparent)"),
             ]),
@@ -183,7 +183,7 @@ static DRAWER: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 pub(crate) static DIALOG_HEADER: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6)), ("padding-right", sp!(24))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6)), ("padding-inline-end", sp!(24))]));
 pub(crate) static DIALOG_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(18)), ("font-weight", "600"), ("line-height", "1.2")])
 });
@@ -193,7 +193,7 @@ pub(crate) static DIALOG_X: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
         ("top", "14px"),
-        ("right", "14px"),
+        ("inset-inline-end", "14px"),
         ("width", "28px"),
         ("height", sp!(28)),
         ("border", "0"),
@@ -455,9 +455,9 @@ impl Component for Popover {
         // The gap to the trigger goes on the axis facing it only, so alignment stays exact.
         let vertical = matches!(side, "top" | "bottom");
         placement = placement
-            .set("position-area", position_area(side, &align))
             .set("position-try-fallbacks", if vertical { "flip-block" } else { "flip-inline" })
             .set("margin", if vertical { "6px 0" } else { "0 6px" });
+        placement = crate::with_area(placement, &position_area(side, &align));
 
         let mut el = cx.element("div", node);
         el.base_style_ref(if self.menu { &MENU } else { &POPOVER }).base_style(placement);
@@ -680,7 +680,7 @@ pub(crate) static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
             ("color", color),
             ("font-family", "inherit"),
             ("font-size", fs!(14)),
-            ("text-align", "left"),
+            ("text-align", "start"),
             ("text-decoration", "none"),
             ("cursor", "pointer"),
         ])
@@ -691,7 +691,8 @@ pub(crate) static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     [base(TEXT), base(DESTRUCTIVE)]
 });
 pub(crate) static SHORTCUT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin-left", "auto"), ("padding-left", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)])
+    // A shortcut reads left to right (⌘K) on any page.
+    StyleBlock::from_pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED), ("direction", "ltr"), ("unicode-bidi", "isolate")])
 });
 static MENU_SEPARATOR: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", "var(--color-border)")]));
@@ -825,8 +826,8 @@ static TIPS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     [
         base(&[("bottom", "calc(100% + 6px)"), ("left", "50%"), ("transform", "translateX(-50%)")]),
         base(&[("top", "calc(100% + 6px)"), ("left", "50%"), ("transform", "translateX(-50%)")]),
-        base(&[("right", "calc(100% + 6px)"), ("top", "50%"), ("transform", "translateY(-50%)")]),
-        base(&[("left", "calc(100% + 6px)"), ("top", "50%"), ("transform", "translateY(-50%)")]),
+        base(&[("inset-inline-end", "calc(100% + 6px)"), ("top", "50%"), ("transform", "translateY(-50%)")]),
+        base(&[("inset-inline-start", "calc(100% + 6px)"), ("top", "50%"), ("transform", "translateY(-50%)")]),
     ]
 });
 
@@ -899,7 +900,7 @@ static CARD_POP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("position", "absolute"),
         ("z-index", "50"),
         ("top", "calc(100% + 8px)"),
-        ("left", "0"),
+        ("inset-inline-start", "0"),
         ("width", "320px"),
         ("padding", sp!(16)),
         ("border", "1px solid var(--color-border)"),

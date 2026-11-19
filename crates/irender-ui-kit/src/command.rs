@@ -92,7 +92,7 @@ fn palette_style(framed: bool) -> StyleBlock {
                 ("background", "transparent"),
                 ("color", TEXT),
                 ("font", "inherit"),
-                ("text-align", "left"),
+                ("text-align", "start"),
                 ("text-decoration", "none"),
                 ("cursor", "default"),
                 ("user-select", "none"),
@@ -102,7 +102,7 @@ fn palette_style(framed: bool) -> StyleBlock {
         .nest("& [role=option]:disabled", pairs(&[("opacity", "0.5")]))
         .nest(
             "& [data-ui-shortcut]",
-            pairs(&[("margin-left", "auto"), ("padding-left", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)]),
+            pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)]),
         )
         .nest("& [role=separator]", pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", BORDER)]))
         .nest("& [data-ui-empty]", pairs(&[("padding", sp!(24, 8)), ("text-align", "center"), ("color", MUTED)]))

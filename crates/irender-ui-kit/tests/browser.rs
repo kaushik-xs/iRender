@@ -4992,3 +4992,86 @@ fn labels_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Right to left (`lang: ar`): the page's `dir`, mirrored icons and the switch's thumb,
+/// Left and Right swapped in the calendar and the tree, a resizable panel dragged the
+/// other way, and a pinned column on the right.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn right_to_left_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "lang": "ar", "state": { "sizes": [30, 70], "on": true, "day": null, "node": null },
+        "root": { "type": "stack", "style": { "width": "900px" }, "children": [
+            { "type": "ui-switch", "props": { "bind": "on", "label": "On" } },
+            { "type": "ui-event-calendar", "attrs": { "id": "cal" }, "props": { "events": [], "date": "2026-11-04", "today": "2026-11-04", "bindDay": "day", "view": "month" } },
+            { "type": "ui-tree", "attrs": { "id": "tree" }, "props": { "nodes": [ { "id": "a", "label": "A", "children": [ { "id": "b", "label": "B" } ] } ], "bindNode": "node" } },
+            { "type": "ui-resizable", "attrs": { "id": "rz" }, "props": { "bind": "sizes", "height": 100 }, "children": [
+                { "type": "ui-resizable-panel", "children": [ { "type": "text", "props": { "value": "one" } } ] },
+                { "type": "ui-resizable-panel", "children": [ { "type": "text", "props": { "value": "two" } } ] } ] },
+            { "type": "ui-data-table", "attrs": { "id": "dt" }, "props": { "rows": [ { "a": 1, "b": 2 } ] }, "children": [
+                { "type": "ui-data-table-column", "props": { "field": "a", "pin": "left" } },
+                { "type": "ui-data-table-column", "props": { "field": "b" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      document.head.append(Object.assign(document.createElement("style"), { textContent: "* { transition: none !important }" }));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const key = (t, k) => t.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+      try {
+        log("dir", document.documentElement.dir, root.getAttribute("dir"), getComputedStyle(document.querySelector("#cal")).direction);
+        // The switch's thumb goes left when on; a previous arrow points right.
+        const thumb = getComputedStyle(document.querySelector("input[role=switch], [data-ui-switch] input, input[type=checkbox]"), "::before").transform;
+        log("thumb", thumb);
+        const icon = document.querySelector("#cal svg[data-flip]");
+        log("icon", getComputedStyle(icon).scale);
+        // The calendar: Left is the next day.
+        const day = document.querySelector('#cal [data-ev-day="2026-11-04"]');
+        day.focus(); key(day, "ArrowLeft"); await wait(0);
+        log("calendar left", document.activeElement.getAttribute("data-ev-day"));
+        key(document.activeElement, "ArrowRight"); key(document.activeElement, "ArrowRight"); await wait(0);
+        log("calendar right", document.activeElement.getAttribute("data-ev-day"));
+        // The tree: Left opens a node.
+        const item = () => document.querySelector('#tree [data-tree-id="a"]');
+        const before = item().getAttribute("aria-expanded");
+        item().focus(); key(item(), "ArrowRight"); await wait(0);
+        const afterRight = item().getAttribute("aria-expanded");
+        item().focus(); key(item(), "ArrowLeft"); await wait(0);
+        log("tree", before, "right:", afterRight, "left:", item().getAttribute("aria-expanded"));
+        // The resizable: the first panel is on the right; dragging left makes it wider.
+        const rz = document.querySelector("#rz"), h = rz.querySelector("[data-rz-handle]"), first = rz.querySelector("[data-rz-panel]");
+        log("first panel on the right", first.getBoundingClientRect().left > h.getBoundingClientRect().left);
+        const x = h.getBoundingClientRect().left;
+        const ptr = (type, cx) => h.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 4, button: 0, clientX: cx, clientY: 10 }));
+        ptr("pointerdown", x); ptr("pointermove", x - 90); ptr("pointerup", x - 90);
+        log("drag left widens", JSON.stringify(S().sizes), S().sizes[0] > 30);
+        key(h, "ArrowLeft"); log("left key widens", S().sizes[0] > JSON.parse(JSON.stringify(S().sizes))[0] - 1, S().sizes[0]);
+        // The pinned column sticks to the right.
+        const pinned = document.querySelector('#dt th[data-dt-col="a"]');
+        log("pinned", pinned.style.insetInlineStart || "-", pinned.style.left || "-", getComputedStyle(pinned).right);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("rtl", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "dir rtl rtl rtl",
+            "thumb matrix(1, 0, 0, 1, -16, 0)",
+            "icon -1 1",
+            "calendar left 2026-11-05",
+            "calendar right 2026-11-03",
+            "tree false right: false left: true",
+            "first panel on the right true",
+            "drag left widens [40.01,59.99] true",
+            "left key widens true 45.01",
+            "pinned 0px - 0px",
+        ],
+        "\n{result}"
+    );
+}

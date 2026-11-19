@@ -21,7 +21,7 @@ const TOASTER_PROPS: &[PropDef] = &[
 static REGION: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "fixed"),
-        ("right", "16px"),
+        ("inset-inline-end", "16px"),
         ("bottom", "16px"),
         ("z-index", "100"),
         ("width", "min(360px, calc(100% - 32px))"),
@@ -36,7 +36,7 @@ static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("position", "relative"),
         ("display", "grid"),
         ("gap", sp!(4)),
-        ("padding", sp!(16, 40, 16, 16)),
+        ("padding-block", sp!(16, 16)), ("padding-inline", sp!(16, 40)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("--ui-bg", BG_POPOVER),
@@ -56,7 +56,7 @@ static CLOSE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
         ("top", "8px"),
-        ("right", "8px"),
+        ("inset-inline-end", "8px"),
         ("width", "24px"),
         ("height", sp!(24)),
         ("border", "0"),

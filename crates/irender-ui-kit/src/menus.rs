@@ -24,7 +24,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-const CHEVRON_RIGHT: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON_RIGHT: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 const CHEVRON_DOWN: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-ui-chevron><path d="M3.5 6 8 10.5 12.5 6"/></svg>"#;
 
 /// The space before an item's text where a check or a dot shows.
@@ -33,7 +33,7 @@ static INDICATOR: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 /// Checkbox and radio items: the indicator shows only when checked.
 static CHECKABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("padding-left", sp!(6))])
+    pairs(&[("padding-inline-start", sp!(6))])
         .nest("& [data-ui-indicator]::before", pairs(&[("content", "''")]))
         .nest("&[role=menuitemcheckbox][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'✓'")]))
         .nest("&[role=menuitemradio][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'●'"), ("font-size", "8px")]))
@@ -87,6 +87,7 @@ impl Component for MenuSub {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         if context(cx, "ui-menu").is_none() {
             return Err(RenderError::new(node, "`ui-menu-sub` goes inside a menu: `ui-dropdown-menu`, `ui-context-menu`, `ui-menubar-menu` or another `ui-menu-sub`"));
         }
@@ -114,18 +115,14 @@ impl Component for MenuSub {
         cx.open(&label, node)?;
         cx.close("span");
         let mut arrow = Element::new("span");
-        arrow.base_style(pairs(&[("display", "inline-flex"), ("margin-left", "auto"), ("color", MUTED)]));
+        arrow.base_style(pairs(&[("display", "inline-flex"), ("margin-inline-start", "auto"), ("color", MUTED)]));
         cx.open(&arrow, node)?;
         cx.markup(CHEVRON_RIGHT);
         cx.close("span");
         cx.close("button");
 
         let mut menu = cx.part("div", node, "menu");
-        let place = StyleBlock::new()
-            .set("position-anchor", anchor)
-            .set("position-area", "right span-bottom")
-            .set("position-try-fallbacks", "flip-inline")
-            .set("margin", "-5px 4px");
+        let place = crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-inline").set("margin", "-5px 4px"), "right span-bottom");
         menu.base_style_ref(&MENU)
             .base_style(place)
             .attr("popover", "auto")
@@ -169,6 +166,7 @@ impl Component for MenuCheckbox {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let key = cx.prop_string(node, "bind").ok_or_else(|| RenderError::new(node, "`bind` is required"))?;
         let mut el = cx.element("button", node);
         el.base_style_ref(&MENU_ITEM[0])
@@ -217,6 +215,7 @@ impl Component for MenuRadioGroup {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let key = cx.prop_string(node, "bind").ok_or_else(|| RenderError::new(node, "`bind` is required"))?;
         let options = server_array(cx, node, "options")?;
         let mut group = cx.element("div", node);
@@ -334,6 +333,7 @@ impl Component for Menubar {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         cx.global_js("ui-dropdown-menu", MENU_SCRIPT);
         cx.global_js("ui-menubar", MENUBAR_SCRIPT);
         let mut root = cx.element("div", node);
@@ -365,7 +365,7 @@ impl Component for Menubar {
             cx.close("button");
             let mut m = cx.element("div", menu);
             m.base_style_ref(&MENU)
-                .base_style(StyleBlock::new().set("position-anchor", anchor).set("position-area", "bottom span-right").set("position-try-fallbacks", "flip-block, flip-inline").set("margin", "6px 0"))
+                .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-block, flip-inline").set("margin", "6px 0"), "bottom span-right"))
                 .attr("popover", "auto")
                 .attr("id", id.clone())
                 .attr("role", "menu")
@@ -496,6 +496,7 @@ impl Component for NavigationMenu {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         cx.global_js("ui-navigation-menu", NAVIGATION_SCRIPT);
         let align = cx.prop_string(node, "align").unwrap_or_else(|| "start".into());
         let area = match align.as_str() {
@@ -535,7 +536,7 @@ impl Component for NavigationMenu {
                     }
                     let mut p = cx.element("div", child);
                     p.base_style_ref(&NAV_PANEL)
-                        .base_style(StyleBlock::new().set("position-anchor", anchor).set("position-area", area))
+                        .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor), area))
                         .base_style(size)
                         .attr("popover", "auto")
                         .attr("id", id)
@@ -595,6 +596,7 @@ impl Component for NavigationLink {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let mut a = cx.element("a", node);
         a.attr("href", node.prop("href").cloned().unwrap_or_else(|| lit("#")));
         if let Some(act) = node.prop("active") {

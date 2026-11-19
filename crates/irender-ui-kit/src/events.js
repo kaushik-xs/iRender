@@ -15,6 +15,9 @@
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
   // Interface text in the document's words (its `labels`), by the English.
   const L = (text, vars) => window.__irender.label(text, vars);
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
+
   const resolve = (v) => (isObj(v) && "$irender" in v && Object.keys(v).length === 1 ? window.__irender.evaluate(v.$irender, api.state) : v);
   const say = (text) => {
     live.textContent = "";
@@ -375,7 +378,8 @@
     cursor = parse(d.getAttribute("data-ev-day"));
     const across = view === "week" || view === "day";
     const moves = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: across ? 0 : -7, ArrowDown: across ? 0 : 7 };
-    if (e.key in moves && moves[e.key]) return e.preventDefault(), go(addDays(cursor, moves[e.key]), true);
+    const k = side(e.key);
+    if (k in moves && moves[k]) return e.preventDefault(), go(addDays(cursor, moves[k]), true);
     if (e.key === "Home") return e.preventDefault(), go(startOfWeek(cursor), true);
     if (e.key === "End") return e.preventDefault(), go(addDays(startOfWeek(cursor), 6), true);
     if (e.key === "PageUp" || e.key === "PageDown") return e.preventDefault(), go(view === "week" ? addDays(cursor, e.key === "PageUp" ? -7 : 7) : addMonths(cursor, e.key === "PageUp" ? -1 : 1), true);
@@ -529,7 +533,7 @@
     if (!ev) return;
     const hours = view === "week" || view === "day";
     const timedHere = hours && !!c.closest("[data-ev-date-col]");
-    const v = { ArrowUp: -1, ArrowDown: 1 }[e.key], h = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    const v = { ArrowUp: -1, ArrowDown: 1 }[e.key], h = { ArrowLeft: -1, ArrowRight: 1 }[side(e.key)];
     let change = null;
     if (h) change = { days: h };
     else if (v && timedHere) change = e.shiftKey ? { longer: v * snap } : { minutes: v * snap };

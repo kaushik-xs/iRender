@@ -95,7 +95,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("position", "absolute"),
                 ("z-index", "20"),
                 ("top", "calc(100% + 4px)"),
-                ("left", "0"),
+                ("inset-inline-start", "0"),
                 ("display", "flex"),
                 ("flex-direction", "column"),
                 ("gap", sp!(6)),
@@ -114,7 +114,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-fl-view-list] button",
             pairs(&[("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(14)), ("cursor", "pointer")]),
         )
-        .nest("& [data-fl-view-apply]", pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("padding", sp!(6, 8)), ("text-align", "left"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest("& [data-fl-view-apply]", pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("padding", sp!(6, 8)), ("text-align", "start"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest("& [data-fl-view-apply][aria-current=true]", pairs(&[("font-weight", "600")]))
         .nest("& [data-fl-view-apply][aria-current=true]::after", pairs(&[("content", "' ✓'"), ("color", MUTED)]))
         .nest("& [data-fl-view-delete]", pairs(&[("flex", "none"), ("padding", sp!(4, 8)), ("color", MUTED)]))
@@ -176,8 +176,8 @@ static CHIPS: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("cursor", "pointer"),
             ]),
         )
-        .nest("& [data-fl-chip] > button:first-child", pairs(&[("padding", sp!(0, 4, 0, 12))]))
-        .nest("& [data-fl-chip] > button:last-child", pairs(&[("padding", sp!(0, 10, 0, 6)), ("color", MUTED)]))
+        .nest("& [data-fl-chip] > button:first-child", pairs(&[("padding-block", sp!(0, 0)), ("padding-inline", sp!(12, 4))]))
+        .nest("& [data-fl-chip] > button:last-child", pairs(&[("padding-block", sp!(0, 0)), ("padding-inline", sp!(6, 10)), ("color", MUTED)]))
         .nest("& [data-fl-chip] > button:hover", pairs(&[("background", ACCENT), ("color", TEXT)]))
         .nest("& [data-fl-chip] > button:focus-visible", forms::focus_ring().set("outline-offset", "-2px"))
         .nest("& [data-fl-chip] b", pairs(&[("font-weight", "400"), ("color", MUTED), ("white-space", "nowrap")]))
@@ -192,7 +192,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[open]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "0")]))
 });
 static HEAD: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(20, 56, 16, 24)), ("border-bottom", "1px solid var(--color-border)")])
+    pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding-block", sp!(20, 16)), ("padding-inline", sp!(24, 56)), ("border-bottom", "1px solid var(--color-border)")])
 });
 static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("flex", "1 1 auto"), ("min-height", "0"), ("display", "grid"), ("grid-template-columns", "minmax(150px, 36%) minmax(0, 1fr)")])
@@ -202,7 +202,7 @@ static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("grid-template-columns", "minmax(0, 1fr)"), ("grid-template-rows", "auto minmax(0, 1fr)")])
                 .nest(
                     "& [role=tablist]",
-                    pairs(&[("flex-direction", "row"), ("overflow-x", "auto"), ("border-right", "0"), ("border-bottom", "1px solid var(--color-border)")]),
+                    pairs(&[("flex-direction", "row"), ("overflow-x", "auto"), ("border-inline-end", "0"), ("border-bottom", "1px solid var(--color-border)")]),
                 )
                 .nest("& [role=tablist] > [role=tab]", pairs(&[("width", "auto"), ("flex", "none")]))
                 .nest("& [data-fl-section]", pairs(&[("display", "none")])),
@@ -214,7 +214,7 @@ static TABS: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-direction", "column"),
         ("gap", sp!(2)),
         ("padding", sp!(12)),
-        ("border-right", "1px solid var(--color-border)"),
+        ("border-inline-end", "1px solid var(--color-border)"),
         ("overflow-y", "auto"),
     ])
     .nest(
@@ -237,7 +237,7 @@ static TABS: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("color", TEXT),
             ("font", "inherit"),
             ("font-size", fs!(14)),
-            ("text-align", "left"),
+            ("text-align", "start"),
             ("cursor", "pointer"),
         ]),
     )
@@ -255,9 +255,9 @@ static PANE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-fl-values] [data-fl-field]", pairs(&[("position", "relative"), ("flex", "1 1 0"), ("display", "flex"), ("min-width", "0")]))
         .nest("& [data-fl-values] [data-fl-field][hidden]", pairs(&[("display", "none")]))
         .nest("& [data-fl-values] input", pairs(&[("flex", "1 1 0"), ("min-width", "0")]))
-        .nest("& [data-fl-num]", pairs(&[("text-align", "right"), ("font-variant-numeric", "tabular-nums")]))
-        .nest("& [data-fl-prefix]", pairs(&[("position", "absolute"), ("left", sp!(10)), ("top", "50%"), ("transform", "translateY(-50%)"), ("color", MUTED), ("font-size", fs!(14)), ("pointer-events", "none")]))
-        .nest("& [data-fl-prefix] + input", pairs(&[("padding-left", sp!(26))]))
+        .nest("& [data-fl-num]", pairs(&[("text-align", "end"), ("font-variant-numeric", "tabular-nums")]))
+        .nest("& [data-fl-prefix]", pairs(&[("position", "absolute"), ("inset-inline-start", sp!(10)), ("top", "50%"), ("transform", "translateY(-50%)"), ("color", MUTED), ("font-size", fs!(14)), ("pointer-events", "none")]))
+        .nest("& [data-fl-prefix] + input", pairs(&[("padding-inline-start", sp!(26))]))
         // With the calendar there, the date fields only keep its values.
         .nest("& [data-fl-dates]", pairs(&[("display", "none")]))
         .nest("& [data-fl-cal][hidden]", pairs(&[("display", "none")]))
@@ -307,7 +307,7 @@ static FOOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("padding", sp!(12, 24)),
         ("border-top", "1px solid var(--color-border)"),
     ])
-    .nest("& > :first-child", pairs(&[("margin-right", "auto")]))
+    .nest("& > :first-child", pairs(&[("margin-inline-end", "auto")]))
 });
 
 // Decorative: the button around it is labelled.

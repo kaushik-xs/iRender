@@ -72,6 +72,15 @@ impl Labels {
         self.map.is_empty()
     }
 
+    /// `rtl` for a language written right to left (Arabic, Hebrew, Persian, Urdu, …),
+    /// else `ltr`.
+    pub fn dir(&self) -> &'static str {
+        match base(self.lang.as_deref()).as_str() {
+            "ar" | "he" | "iw" | "fa" | "ur" | "ps" | "yi" | "dv" | "ug" | "ckb" | "sd" | "syr" => "rtl",
+            _ => "ltr",
+        }
+    }
+
     /// `text`, in the document's words, with `{name}`s filled from `vars`.
     pub fn get(&self, text: &str, vars: &[(&str, &str)]) -> String {
         let s = match self.map.get(text) {

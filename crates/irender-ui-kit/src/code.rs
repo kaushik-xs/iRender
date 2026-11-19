@@ -66,12 +66,12 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
     ]))
     .nest(
         "& [data-code-head]",
-        pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-height", "36px"), ("padding", sp!(0, 6, 0, 14)), ("border-bottom", "1px solid var(--color-border)"), ("font-size", fs!(13)), ("color", MUTED)]),
+        pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-height", "36px"), ("padding-block", sp!(0, 0)), ("padding-inline", sp!(14, 6)), ("border-bottom", "1px solid var(--color-border)"), ("font-size", fs!(13)), ("color", MUTED)]),
     )
     .nest("& [data-code-title]", pairs(&[("color", TEXT), ("font-weight", "500"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
-    .nest("& [data-code-lang]", pairs(&[("margin-left", "auto"), ("font-family", FONT), ("font-size", fs!(12)), ("text-transform", "lowercase")]))
+    .nest("& [data-code-lang]", pairs(&[("margin-inline-start", "auto"), ("font-family", FONT), ("font-size", fs!(12)), ("text-transform", "lowercase")]))
     // With no bar, the copy button floats in the corner.
-    .nest("& > [data-code-copy]", pairs(&[("position", "absolute"), ("top", "6px"), ("right", "6px"), ("z-index", "1"), ("background", CODE_BG)]))
+    .nest("& > [data-code-copy]", pairs(&[("position", "absolute"), ("top", "6px"), ("inset-inline-end", "6px"), ("z-index", "1"), ("background", CODE_BG)]))
     .nest(
         "& [data-code-copy]",
         pairs(&[
@@ -111,22 +111,23 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&[data-wrap] code", pairs(&[("min-width", "0"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]))
     .nest("& [data-ln]", pairs(&[("display", "block"), ("padding", sp!(0, 16)), ("min-height", "1.6em")]))
     .nest("& [data-ln][data-hl]", pairs(&[("background", "color-mix(in srgb, var(--color-primary, #2563eb) 10%, transparent)"), ("box-shadow", "inset 2px 0 var(--color-primary, #2563eb)")]))
-    .nest("&[data-numbered] [data-ln]", pairs(&[("padding-left", "0"), ("counter-increment", "ln")]))
+    .nest("&:dir(rtl) [data-ln][data-hl]", pairs(&[("box-shadow", "inset -2px 0 var(--color-primary, #2563eb)")]))
+    .nest("&[data-numbered] [data-ln]", pairs(&[("padding-inline-start", "0"), ("counter-increment", "ln")]))
     .nest(
         "&[data-numbered] [data-ln]::before",
         pairs(&[
             ("content", "counter(ln) / \"\""),
             ("display", "inline-block"),
             ("width", "var(--code-gutter, 3ch)"),
-            ("margin-right", sp!(16)),
-            ("padding-left", sp!(12)),
-            ("text-align", "right"),
+            ("margin-inline-end", sp!(16)),
+            ("padding-inline-start", sp!(12)),
+            ("text-align", "end"),
             ("color", MUTED),
             ("opacity", ".7"),
             ("user-select", "none"),
         ]),
     )
-    .nest("&[data-wrap][data-numbered] [data-ln]", pairs(&[("padding-left", "calc(var(--code-gutter, 3ch) + 28px)"), ("text-indent", "calc(-1 * (var(--code-gutter, 3ch) + 28px))")]))
+    .nest("&[data-wrap][data-numbered] [data-ln]", pairs(&[("padding-inline-start", "calc(var(--code-gutter, 3ch) + 28px)"), ("text-indent", "calc(-1 * (var(--code-gutter, 3ch) + 28px))")]))
     .nest(
         "& [data-code-live]",
         pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
@@ -139,16 +140,16 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-invalid]", pairs(&[("border-color", "var(--color-destructive, #dc2626)")]))
         .nest(
             "& [data-je-bar]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-height", "34px"), ("padding", sp!(0, 6, 0, 12)), ("border-bottom", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("font-size", fs!(12)), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-height", "34px"), ("padding-block", sp!(0, 0)), ("padding-inline", sp!(12, 6)), ("border-bottom", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("font-size", fs!(12)), ("color", MUTED)]),
         )
         .nest("& [data-je-status]", pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(6))]))
         .nest("& [data-je-status]::before", pairs(&[("content", "''"), ("width", "7px"), ("height", "7px"), ("border-radius", "50%"), ("background", "var(--color-success, #16a34a)")]))
         .nest("&[data-invalid] [data-je-status]::before", pairs(&[("background", "var(--color-destructive, #dc2626)")]))
-        .nest("& [data-je-format]", pairs(&[("margin-left", "auto")]))
+        .nest("& [data-je-format]", pairs(&[("margin-inline-start", "auto")]))
         .nest("& [data-je-area]", pairs(&[("position", "relative"), ("display", "flex"), ("min-height", "0"), ("font-family", FONT), ("font-size", fs!(13)), ("line-height", "20px")]))
         .nest(
             "& [data-je-gutter-box]",
-            pairs(&[("flex", "0 0 auto"), ("min-width", "3ch"), ("padding", sp!(10, 10, 10, 12)), ("overflow", "hidden"), ("border-right", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("color", MUTED), ("text-align", "right"), ("user-select", "none")]),
+            pairs(&[("flex", "0 0 auto"), ("min-width", "3ch"), ("padding-block", sp!(10, 10)), ("padding-inline", sp!(12, 10)), ("overflow", "hidden"), ("border-inline-end", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("color", MUTED), ("text-align", "end"), ("user-select", "none")]),
         )
         .nest("& [data-je-gutter] span", pairs(&[("display", "block"), ("opacity", ".7")]))
         .nest("& [data-je-gutter] span[data-err]", pairs(&[("opacity", "1"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "700")]))

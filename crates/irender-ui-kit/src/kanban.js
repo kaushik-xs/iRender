@@ -10,6 +10,9 @@
   const cfg = api.config;
   // Interface text in the document's words (its `labels`), by the English.
   const L = (text, vars) => window.__irender.label(text, vars);
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
+
   const $ = (s, from = el) => from.querySelector(s);
   const $$ = (s, from = el) => [...from.querySelectorAll(s)];
   const board = $("[data-kb-board]");
@@ -40,7 +43,7 @@
   };
   const svg = {
     plus: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>',
-    fold: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>',
+    fold: '<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>',
   };
   function card(c) {
     const a = make("article", { "data-kb-card": key(c.id), tabindex: -1, draggable: cfg.movable ? "true" : null, "aria-roledescription": L("card") });
@@ -202,7 +205,7 @@
     const cols = columns().map((x) => key(x.id)).filter((x) => !collapsed.has(x));
     const ci = cols.indexOf(col), mine = inColumn(col).map((x) => key(x.id)), i = mine.indexOf(id);
     if (e.altKey && cfg.movable) {
-      const step = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+      const step = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[side(e.key)];
       if (!step) return;
       e.preventDefault();
       if (step[0]) {
@@ -222,7 +225,7 @@
     else if (e.key === "ArrowUp") focus(mine[i - 1]);
     else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       // The nearest column with cards that way, at the same height or its last card.
-      const dir = e.key === "ArrowLeft" ? -1 : 1;
+      const dir = side(e.key) === "ArrowLeft" ? -1 : 1;
       for (let j = ci + dir; j >= 0 && j < cols.length; j += dir) {
         const there = inColumn(cols[j]).map((x) => key(x.id));
         if (there.length) return focus(there[Math.min(i, there.length - 1)]);

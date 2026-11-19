@@ -9,6 +9,9 @@
 // or Escape, focus going back to the item. Checkbox items flip their state key and radio
 // items write their value.
 (window.__irenderBehaviors ||= {})["ui-dropdown-menu"] = (el, api) => {
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
+
   const ITEMS = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio]";
   // This menu's own items, not those of a submenu inside it.
   const items = () => [...el.querySelectorAll(ITEMS)].filter((i) => !i.disabled && i.closest("[role=menu]") === el);
@@ -57,11 +60,11 @@
     if (move !== undefined) {
       e.preventDefault();
       focus(list, move % list.length);
-    } else if (e.key === "ArrowRight" && e.target.hasAttribute("data-ui-sub-trigger")) {
+    } else if (side(e.key) === "ArrowRight" && e.target.hasAttribute("data-ui-sub-trigger")) {
       e.preventDefault();
       e.stopPropagation();
       openSub(e.target, true);
-    } else if (e.key === "ArrowLeft" && isSub) {
+    } else if (side(e.key) === "ArrowLeft" && isSub) {
       e.preventDefault();
       e.stopPropagation();
       el.hidePopover();

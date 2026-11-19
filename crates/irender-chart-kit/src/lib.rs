@@ -251,7 +251,8 @@ impl Component for Chart {
         cx.global_js("ui-chart", SCRIPT);
 
         let (height, width) = if self.sparkline { (40, "100%") } else { (320, "100%") };
-        let mut sizing = StyleBlock::from_pairs(&[("position", "relative"), ("min-width", "0")]);
+        // A chart's geometry runs left to right on any page; its text still reads its own way.
+        let mut sizing = StyleBlock::from_pairs(&[("position", "relative"), ("min-width", "0"), ("direction", "ltr")]);
         for (property, default) in [("width", Val::Lit(width.into())), ("height", Val::Lit(height.into()))] {
             let v = node.prop(property).cloned().unwrap_or(default);
             if let Some(v) = cx.style_value(node, property, &v)? {

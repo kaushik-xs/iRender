@@ -64,7 +64,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("position", "absolute"),
                 ("top", "-6px"),
-                ("right", "-6px"),
+                ("inset-inline-end", "-6px"),
                 ("min-width", "18px"),
                 ("height", "18px"),
                 ("padding", "0 5px"),
@@ -80,11 +80,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-nt-count][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", "8px 0").set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline"))
+        .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", "8px 0").set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline").nest("&:dir(rtl)", StyleBlock::new().set("position-area", "bottom span-right")))
         .nest("& [data-nt-panel][popover]:popover-open, & [data-nt-panel]:not([popover])", pairs(&[("display", "flex"), ("flex-direction", "column")]))
         .nest("& [data-nt-panel]:not([popover])", pairs(&[("width", "100%"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)")]))
         .nest("& [data-nt-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(12, 14, 8))]))
-        .nest("& [data-nt-head] h3", pairs(&[("margin", "0 auto 0 0"), ("font-size", fs!(15)), ("font-weight", "600")]))
+        .nest("& [data-nt-head] h3", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest(
             "& [data-nt-mark-all]",
             pairs(&[("padding", sp!(4, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("font-weight", "500"), ("cursor", "pointer")]),
@@ -116,7 +116,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "transparent"),
                 ("color", TEXT),
                 ("font", "inherit"),
-                ("text-align", "left"),
+                ("text-align", "start"),
                 ("cursor", "pointer"),
             ]),
         )
@@ -139,7 +139,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-nt-mark] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
         .nest("& [data-nt-mark][data-dot]::after", pairs(&[("content", "''"), ("width", "10px"), ("height", "10px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
-        .nest("& [data-nt-text]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding-right", sp!(48))]))
+        .nest("& [data-nt-text]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding-inline-end", sp!(48))]))
         .nest("& [data-nt-title]", pairs(&[("line-height", "1.35"), ("overflow-wrap", "anywhere")]))
         .nest("& [data-unread] [data-nt-title]", pairs(&[("font-weight", "600")]))
         .nest(
@@ -147,7 +147,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
         )
         .nest("& [data-nt-text] time", pairs(&[("color", MUTED), ("font-size", fs!(12))]))
-        .nest("& [data-nt-actions]", pairs(&[("position", "absolute"), ("top", sp!(8)), ("right", sp!(6)), ("display", "flex"), ("gap", "2px")]))
+        .nest("& [data-nt-actions]", pairs(&[("position", "absolute"), ("top", sp!(8)), ("inset-inline-end", sp!(6)), ("display", "flex"), ("gap", "2px")]))
         .nest(
             "& [data-nt-actions] button",
             pairs(&[("display", "grid"), ("place-items", "center"), ("width", "24px"), ("height", "24px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),

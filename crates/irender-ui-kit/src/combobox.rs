@@ -78,7 +78,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("align-items", "center"),
                 ("gap", sp!(4)),
                 ("min-height", sp!(36)),
-                ("padding", sp!(2, 4, 2, 8)),
+                ("padding-block", sp!(2, 2)), ("padding-inline", sp!(8, 4)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -123,7 +123,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", sp!(2)),
                 ("max-width", "100%"),
                 ("height", sp!(24)),
-                ("padding", sp!(0, 2, 0, 8)),
+                ("padding-block", sp!(0, 0)), ("padding-inline", sp!(8, 2)),
                 ("border-radius", "var(--radius-sm)"),
                 // Tinted with the primary colour, like the selected options they stand for.
                 ("background", PRIMARY_TINT),
@@ -134,7 +134,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "& [data-ui-chip][data-fixed]",
-            pairs(&[("padding-right", sp!(8)), ("background", "color-mix(in srgb, var(--color-muted) 30%, transparent)")]),
+            pairs(&[("padding-inline-end", sp!(8)), ("background", "color-mix(in srgb, var(--color-muted) 30%, transparent)")]),
         )
         .nest(
             "& [data-ui-remove]",
@@ -172,7 +172,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("content", "''"),
                 ("width", "6px"),
                 ("height", "6px"),
-                ("border-right", "1.5px solid currentColor"),
+                ("border-inline-end", "1.5px solid currentColor"),
                 ("border-bottom", "1.5px solid currentColor"),
                 ("transform", "translateY(-2px) rotate(45deg)"),
             ]),
@@ -547,10 +547,7 @@ impl Component for Combobox {
         cx.close("div");
 
         let mut menu = cx.part("div", node, "menu");
-        let placement = StyleBlock::new()
-            .set("position-anchor", anchor)
-            .set("position-area", "bottom span-right")
-            .set("position-try-fallbacks", "flip-block");
+        let placement = crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-block"), "bottom span-right");
         menu.base_style(placement)
             .attr("data-ui-menu", true)
             .attr("popover", "manual")

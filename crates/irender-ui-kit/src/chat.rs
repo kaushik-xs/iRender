@@ -208,8 +208,8 @@ static REPLIES: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-direction", "column"),
         ("gap", sp!(12)),
         ("margin-top", sp!(8)),
-        ("padding-left", sp!(12)),
-        ("border-left", "2px solid var(--color-border)"),
+        ("padding-inline-start", sp!(12)),
+        ("border-inline-start", "2px solid var(--color-border)"),
     ])
 });
 
@@ -441,6 +441,7 @@ static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
 static LATEST: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
+        // Centred: the same either way.
         ("left", "50%"),
         ("bottom", sp!(12)),
         ("transform", "translateX(-50%)"),
@@ -645,7 +646,7 @@ static SEND: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-shrink", "0"),
         ("width", "32px"),
         ("height", "32px"),
-        ("margin-left", "auto"),
+        ("margin-inline-start", "auto"),
         ("padding", "0"),
         ("border", "0"),
         ("border-radius", "999px"),

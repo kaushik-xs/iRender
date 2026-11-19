@@ -48,7 +48,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
         .nest("& [data-tree-head]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8))]))
-        .nest("& [data-tree-title]", pairs(&[("margin", "0 auto 0 0"), ("font-size", fs!(15)), ("font-weight", "600")]))
+        .nest("& [data-tree-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest("& [data-tree-search]", pairs(&[("flex", "1 1 160px")]))
         .nest(
             "& [data-tree-bulk]",
@@ -56,13 +56,13 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("display", "flex"),
                 ("align-items", "center"),
                 ("gap", sp!(8)),
-                ("padding", sp!(4, 4, 4, 12)),
+                ("padding-block", sp!(4, 4)), ("padding-inline", sp!(12, 4)),
                 ("border-radius", "var(--radius-md)"),
                 ("background", ACCENT),
                 ("font-size", fs!(13)),
             ]),
         )
-        .nest("& [data-tree-bulk] > span", pairs(&[("margin-right", "auto"), ("font-weight", "500")]))
+        .nest("& [data-tree-bulk] > span", pairs(&[("margin-inline-end", "auto"), ("font-weight", "500")]))
         .nest("& [hidden]", pairs(&[("display", "none")]))
         .nest("& [data-tree-empty]", pairs(&[("margin", "0"), ("padding", sp!(16, 8)), ("color", MUTED), ("text-align", "center")]))
         .nest(
@@ -78,7 +78,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("gap", sp!(6)),
         ("min-height", sp!(32)),
         ("padding", sp!(0, 4)),
-        ("padding-left", "calc(var(--depth, 0) * 18px * var(--space-scale, 1) + 4px)"),
+        ("padding-inline-start", "calc(var(--depth, 0) * 18px * var(--space-scale, 1) + 4px)"),
         ("border-radius", "var(--radius-md)"),
         ("cursor", "pointer"),
         ("user-select", "none"),
@@ -95,6 +95,8 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("display", "inline-flex"), ("flex", "none"), ("width", "16px"), ("justify-content", "center"), ("color", MUTED), ("transition", "transform .15s")]),
         )
         .nest("& [aria-expanded=true] > [data-tree-row] [data-tree-twisty]", pairs(&[("transform", "rotate(90deg)")]))
+        // Its icon is mirrored right to left (pointing left): it turns the other way to point down.
+        .nest("&:dir(rtl) [aria-expanded=true] > [data-tree-row] [data-tree-twisty]", pairs(&[("transform", "rotate(-90deg)")]))
         .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& [data-tree-twisty]", pairs(&[("transition", "none")])))
         .nest(
             "& [data-tree-check]",
@@ -151,7 +153,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 // Decorative: the rows and buttons around them are labelled.
-const CHEVRON: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 const CHECK: &str = r#"<svg data-on width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg><svg data-some width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>"#;
 const PLUS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#;
 const TRASH: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>"#;
@@ -316,6 +318,7 @@ impl Component for Tree {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
         let flag = |cx: &RenderCx<'_>, name: &str| cx.prop(node, name).is_some_and(|v| expr::truthy(&v));
         let (checkable, addable, deletable, movable, counts) =
             (flag(cx, "checkable"), flag(cx, "addable"), flag(cx, "deletable"), flag(cx, "movable"), flag(cx, "counts"));

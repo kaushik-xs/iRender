@@ -314,6 +314,7 @@
       s.setAttribute("aria-hidden", "true");
       const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
       p.setAttribute("d", d === "prev" ? "M10 3.5 5.5 8l4.5 4.5" : "M6 3.5 10.5 8 6 12.5");
+      s.setAttribute("data-flip", "");
       s.append(p);
       return s;
     };
@@ -486,9 +487,11 @@
       if (!k) return;
       const d = u.start(k);
       let next = null;
+      // Right to left, the next day is on the left.
+      const fwd = getComputedStyle(body).direction === "rtl" ? -1 : 1;
       switch (e.key) {
-        case "ArrowLeft": next = u.step(k, -1); break;
-        case "ArrowRight": next = u.step(k, 1); break;
+        case "ArrowLeft": next = u.step(k, -fwd); break;
+        case "ArrowRight": next = u.step(k, fwd); break;
         case "ArrowUp": next = u.step(k, -cols); break;
         case "ArrowDown": next = u.step(k, cols); break;
         case "Home": {

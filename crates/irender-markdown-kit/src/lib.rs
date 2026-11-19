@@ -76,10 +76,10 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& h2", pairs(&[("font-size", "1.4em"), ("padding-bottom", "0.2em"), ("border-bottom", "1px solid var(--color-border, #e4e4e7)")]))
         .nest("& h3", pairs(&[("font-size", "1.2em")]))
         .nest("& :is(h4, h5, h6)", pairs(&[("font-size", "1em")]))
-        .nest("& :is(ul, ol)", pairs(&[("padding-left", "1.5em")]))
+        .nest("& :is(ul, ol)", pairs(&[("padding-inline-start", "1.5em")]))
         .nest("& li + li", pairs(&[("margin-top", "0.25em")]))
-        .nest("& li.task", pairs(&[("list-style", "none"), ("margin-left", "-1.3em")]))
-        .nest("& li.task > input", pairs(&[("margin", "0 0.4em 0 0"), ("vertical-align", "-0.1em")]))
+        .nest("& li.task", pairs(&[("list-style", "none"), ("margin-inline-start", "-1.3em")]))
+        .nest("& li.task > input", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 0.4em"), ("vertical-align", "-0.1em")]))
         .nest("& a", pairs(&[("color", PRIMARY), ("text-decoration", "underline"), ("text-underline-offset", "3px")]))
         .nest(
             "& code",
@@ -105,7 +105,7 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("position", "absolute"),
                 ("top", "6px"),
-                ("right", "6px"),
+                ("inset-inline-end", "6px"),
                 ("display", "grid"),
                 ("place-items", "center"),
                 ("width", "26px"),
@@ -130,11 +130,11 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-fence-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
         )
-        .nest("& blockquote", pairs(&[("padding-left", "1em"), ("border-left", "3px solid var(--color-border, #e4e4e7)"), ("color", MUTED)]))
+        .nest("& blockquote", pairs(&[("padding-inline-start", "1em"), ("border-inline-start", "3px solid var(--color-border, #e4e4e7)"), ("color", MUTED)]))
         .nest("& hr", pairs(&[("margin", "1.5em 0"), ("border", "0"), ("border-top", "1px solid var(--color-border, #e4e4e7)")]))
         .nest("& img", pairs(&[("max-width", "100%"), ("border-radius", "var(--radius-md, 8px)")]))
         .nest("& table", pairs(&[("width", "100%"), ("border-collapse", "collapse"), ("font-size", "0.95em")]))
-        .nest("& :is(th, td)", pairs(&[("padding", "0.4em 0.75em"), ("border", "1px solid var(--color-border, #e4e4e7)"), ("text-align", "left")]))
+        .nest("& :is(th, td)", pairs(&[("padding", "0.4em 0.75em"), ("border", "1px solid var(--color-border, #e4e4e7)"), ("text-align", "start")]))
         .nest("& th", pairs(&[("font-weight", "600"), ("background", SUBTLE)]))
 });
 
@@ -285,12 +285,12 @@ static TOOL: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static SEP: LazyLock<StyleBlock> =
     LazyLock::new(|| pairs(&[("width", "1px"), ("height", sp!(16)), ("margin", "0 4px"), ("background", BORDER)]));
-static TABS: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("display", "flex"), ("gap", sp!(2)), ("margin-left", "auto")]));
+static TABS: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("display", "flex"), ("gap", sp!(2)), ("margin-inline-start", "auto")]));
 static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
     // Fills the editor, so a taller editor gets a taller text area.
     pairs(&[("display", "grid"), ("flex", "1"), ("min-height", "0")])
         .nest("&[data-mode=split]", pairs(&[("grid-template-columns", "1fr 1fr")]))
-        .nest("&[data-mode=split] > [data-md-preview]", pairs(&[("border-left", "1px solid var(--color-border, #e4e4e7)")]))
+        .nest("&[data-mode=split] > [data-md-preview]", pairs(&[("border-inline-start", "1px solid var(--color-border, #e4e4e7)")]))
         .nest("&[data-mode=tabs][data-view=write] > [data-md-preview]", pairs(&[("display", "none")]))
         .nest("&[data-mode=tabs][data-view=preview] > textarea", pairs(&[("display", "none")]))
         .nest("&[data-view=rich] > textarea", pairs(&[("display", "none")]))

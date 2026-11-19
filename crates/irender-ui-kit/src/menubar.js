@@ -6,6 +6,9 @@
 // open, hovering another button opens that one. Closing a menu puts focus back on its
 // button.
 (window.__irenderBehaviors ||= {})["ui-menubar"] = (el) => {
+  // Right to left, Left and Right swap: the next one is on the left.
+  const side = (k) => (getComputedStyle(el).direction === "rtl" ? { ArrowLeft: "ArrowRight", ArrowRight: "ArrowLeft" }[k] ?? k : k);
+
   const triggers = () => [...el.querySelectorAll(":scope > [data-ui-menubar-trigger]")].filter((t) => !t.disabled);
   const menuOf = (t) => document.getElementById(t.getAttribute("popovertarget"));
   const open = () => triggers().find((t) => menuOf(t)?.matches(":popover-open"));
@@ -34,7 +37,7 @@
   el.addEventListener("keydown", (e) => {
     const t = e.target;
     if (t.matches("[data-ui-menubar-trigger]")) {
-      const go = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+      const go = { ArrowRight: 1, ArrowLeft: -1 }[side(e.key)];
       if (go) {
         e.preventDefault();
         const next = step(t, go);
@@ -60,7 +63,7 @@
     const own = triggers().find((b) => menuOf(b) === menu);
     if (!own) return;
     e.preventDefault();
-    show(step(own, e.key === "ArrowRight" ? 1 : -1), 0, true);
+    show(step(own, side(e.key) === "ArrowRight" ? 1 : -1), 0, true);
   });
 
   // With a menu open, the pointer moves the open menu along the bar.

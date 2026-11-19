@@ -1604,3 +1604,23 @@ fn locale_defaults_to_the_documents_lang() {
     assert!(page(Some("de"), Some("en-IN")).contains("&quot;locale&quot;:&quot;en-IN&quot;"), "the component's own wins");
     assert!(page(None, None).contains("&quot;locale&quot;:null"), "without either, the browser's");
 }
+
+#[test]
+fn right_to_left_languages_set_dir() {
+    let page = |lang: &str| {
+        let doc = irender_core::parse(&json!({ "version": 1, "lang": lang, "state": { "on": true }, "root": { "type": "ui-switch", "props": { "bind": "on" } } }).to_string(), Format::Json).unwrap();
+        let engine = engine();
+        engine.render(&engine.resolve(&doc).unwrap(), &json!({})).unwrap()
+    };
+    for lang in ["ar", "he", "fa", "ur", "ar-EG"] {
+        let p = page(lang);
+        assert_eq!(p.dir, "rtl", "{lang}");
+        assert!(p.document("t").contains(&format!(r#"<html lang="{lang}" dir="rtl">"#)));
+        assert!(p.fragment().contains(r#"<div data-i-root dir="rtl""#));
+        // The mirroring rules come along with the components that use them.
+        assert!(p.css.contains("--ui-dir: -1") && p.css.contains("svg[data-flip]:dir(rtl)"), "{}", p.css);
+    }
+    let p = page("de");
+    assert_eq!(p.dir, "ltr");
+    assert!(p.document("t").contains(r#"<html lang="de">"#) && p.fragment().contains("<div data-i-root style"));
+}

@@ -83,7 +83,9 @@
       } catch {}
       el.setAttribute("data-resizing", "");
     });
-    edge.addEventListener("pointermove", (e) => drag && e.pointerId === drag.id && paint(drag.from + e.clientX - drag.at));
+    // The panel grows away from the rail: rightward, or leftward right to left.
+    const along = () => (getComputedStyle(el).direction === "rtl" ? -1 : 1);
+    edge.addEventListener("pointermove", (e) => drag && e.pointerId === drag.id && paint(drag.from + (e.clientX - drag.at) * along()));
     const end = (e) => {
       if (!drag || e.pointerId !== drag.id) return;
       drag = null;
@@ -98,7 +100,7 @@
     });
     edge.addEventListener("keydown", (e) => {
       const step = e.shiftKey ? 4 : 16;
-      const to = { ArrowRight: width + step, ArrowLeft: width - step, Home: cfg.min, End: cfg.max }[e.key];
+      const to = { ArrowRight: width + step * along(), ArrowLeft: width - step * along(), Home: cfg.min, End: cfg.max }[e.key];
       if (to !== undefined) {
         e.preventDefault();
         paint(to);

@@ -68,6 +68,8 @@ const BADGE_PROPS: &[PropDef] = &[
 static BADGE: LazyLock<[StyleBlock; 5]> = LazyLock::new(|| {
     let base = |bg: &str, fg: &str, border: &str| {
         StyleBlock::from_pairs(&[
+            // Its direction from its own text: "+4.5%" reads as written on a right-to-left page.
+            ("unicode-bidi", "plaintext"),
             ("display", "inline-flex"),
             ("align-items", "center"),
             ("gap", sp!(4)),
@@ -476,6 +478,8 @@ const KBD_PROPS: &[PropDef] = &[PropDef::new("text", PropKind::Any, "The key, e.
 
 static KBD: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
+        ("direction", "ltr"),
+        ("unicode-bidi", "isolate"),
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("padding", "1px 6px"),
@@ -626,7 +630,7 @@ static TABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("height", sp!(40)),
             ("padding", sp!(0, 8)),
-            ("text-align", "left"),
+            ("text-align", "start"),
             ("vertical-align", "middle"),
             ("font-weight", "500"),
             ("white-space", "nowrap"),
@@ -750,7 +754,7 @@ static TEXTS: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
             ("font-size", "0.875em"),
             ("font-weight", "600"),
         ]),
-        base(&[("padding-left", sp!(24)), ("border-left", "2px solid var(--color-border)"), ("font-style", "italic")]),
+        base(&[("padding-inline-start", sp!(24)), ("border-inline-start", "2px solid var(--color-border)"), ("font-style", "italic")]),
     ]
 });
 const TEXT_TAGS: [&str; 7] = ["p", "p", "div", "small", "p", "code", "blockquote"];
@@ -784,7 +788,7 @@ static SPINNER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-shrink", "0"),
         ("box-sizing", "border-box"),
         ("border", "2px solid currentColor"),
-        ("border-right-color", "transparent"),
+        ("border-inline-end-color", "transparent"),
         ("border-radius", "999px"),
         ("animation", "ui-spin .7s linear infinite"),
     ])
