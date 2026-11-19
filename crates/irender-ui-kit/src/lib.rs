@@ -61,6 +61,7 @@ mod number;
 mod otp;
 mod rail;
 mod rating;
+mod resizable;
 mod overlay;
 mod scroll_spy;
 mod sidebar;
@@ -130,6 +131,8 @@ pub fn register(registry: &mut Registry) {
         .register(notifications::Notifications)
         .register(rail::RailLayout)
         .register(rail::RailPanel)
+        .register(resizable::Resizable)
+        .register(resizable::ResizablePanel)
         .register(forms::ButtonGroup)
         .register(forms::InputGroup)
         .register(forms::Field)

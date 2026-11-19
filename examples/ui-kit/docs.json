@@ -484,6 +484,18 @@
    ]
   },
   {
+   "id": "resizable",
+   "group": "Navigation",
+   "title": "Resizable",
+   "nav": "Resizable",
+   "summary": "Panels side by side or stacked, with a line between each two that resizes them by dragging or with the arrow keys. Sizes are percentages, kept in state with bind; a collapsible panel folds away and comes back.",
+   "usage": "- type: ui-resizable\n  props: { bind: panes, handle: true }\n  children:\n    - { type: ui-resizable-panel, props: { size: 25, min: 15, collapsible: true }, children: [ ... ] }\n    - { type: ui-resizable-panel, children: [ ... ] }",
+   "components": [
+    "ui-resizable",
+    "ui-resizable-panel"
+   ]
+  },
+  {
    "id": "scroll-spy",
    "group": "Navigation",
    "title": "Scroll spy",

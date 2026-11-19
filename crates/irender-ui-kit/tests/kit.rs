@@ -105,6 +105,8 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-menu-sub" => root = json!({ "type": "ui-dropdown-menu", "props": { "trigger": "T" }, "children": [root] }),
             "ui-filters" => root["children"] = json!([{ "type": "ui-filter", "props": { "field": "a" } }]),
             "ui-filter" => root = json!({ "type": "ui-filters", "props": { "bind": "k" }, "children": [{ "type": "ui-filter", "props": { "field": "a" } }] }),
+            "ui-resizable" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
+            "ui-resizable-panel" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
             "ui-rail-panel" => root = json!({ "type": "ui-rail-layout", "props": { "bind": "k", "items": [{ "id": "a", "label": "A" }] }, "children": [{ "type": "ui-rail-panel", "props": { "for": "a" } }] }),
             _ => {}
         }
@@ -118,7 +120,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             .unwrap_or_else(|e| panic!("{}: {e}", c.name()));
         assert!(!page.body.is_empty(), "{}", c.name());
     }
-    assert_eq!(kit, 109);
+    assert_eq!(kit, 111);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1470,4 +1472,33 @@ fn rail_layout_structure_and_mistakes() {
     assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "items": [ { "id": "a", "label": "A" }, { "id": "a", "label": "B" } ] } })).contains("two rail items have the id `a`"));
     assert!(err(json!({ "type": "ui-rail-layout", "props": { "bind": "s", "items": [ { "id": "a" } ] } })).contains("needs a `label`"));
     assert!(err(json!({ "type": "ui-rail-panel", "props": { "for": "a" } })).contains("must be a direct child of `ui-rail-layout`"));
+}
+
+#[test]
+fn resizable_sizes_and_mistakes() {
+    let panel = |p: Json| json!({ "type": "ui-resizable-panel", "props": p, "children": [ { "type": "text", "props": { "value": "x" } } ] });
+    let group = |props: Json, kids: Vec<Json>| json!({ "type": "ui-resizable", "props": props, "children": kids });
+    // Sizes not given share what's left; all of them scale to 100.
+    let page = render_with(group(json!({ "handle": true }), vec![panel(json!({ "size": 40, "label": "Files" })), panel(json!({})), panel(json!({}))]), json!({}), json!({})).unwrap();
+    let body = plain(&page.body);
+    assert!(body.contains(r#"data-direction="horizontal""#), "{body}");
+    assert!(page.css.contains("--rz-size: 40;") && page.css.contains("--rz-size: 30;"), "{}", page.css);
+    assert!(body.contains(r#"data-rz-handle role="separator" tabindex="0" aria-orientation="vertical" aria-controls="rz-root-0" aria-label="Resize Files" aria-valuemin="10" aria-valuemax="100" aria-valuenow="40"><span data-rz-grip>"#), "{body}");
+    assert!(body.contains(r#"aria-label="Resize panels""#), "{body}");
+    let page = render_with(group(json!({}), vec![panel(json!({ "size": 60 })), panel(json!({ "size": 60 }))]), json!({}), json!({})).unwrap();
+    assert!(page.css.contains("--rz-size: 50;") && !page.css.contains("--rz-size: 60;"), "{}", page.css);
+    // Bound: the size follows state.
+    let r = render_with(group(json!({ "bind": "s", "direction": "vertical" }), vec![panel(json!({})), panel(json!({}))]), json!({ "s": [25, 75] }), json!({})).unwrap();
+    let body = plain(&r.body);
+    assert!(body.contains(r#"aria-orientation="horizontal""#), "{body}");
+    assert!(r.css.contains("--rz-size: var(--i-d"), "{}", r.css);
+    assert!(body.contains(r#"style="--i-d0: 25""#) && body.contains(r#"style="--i-d0: 75""#), "{body}");
+
+    let err = |root: Json| render_with(root, json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(group(json!({}), vec![panel(json!({}))])).contains("two or more"));
+    assert!(err(group(json!({}), vec![panel(json!({})), json!({ "type": "text", "props": { "value": "x" } })])).contains("takes only `ui-resizable-panel` children"));
+    assert!(err(group(json!({ "direction": "diagonal" }), vec![panel(json!({})), panel(json!({}))])).contains("`horizontal` or `vertical`"));
+    assert!(err(group(json!({}), vec![panel(json!({ "min": 50, "max": 20 })), panel(json!({}))])).contains("`min` no more than `max`"));
+    assert!(err(group(json!({}), vec![panel(json!({ "size": 0 })), panel(json!({ "size": 0 }))])).contains("add up to nothing"));
+    assert!(err(panel(json!({}))).contains("must be a direct child of `ui-resizable`"));
 }

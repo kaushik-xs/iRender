@@ -1,0 +1,114 @@
+# Block: a mail client in three resizable panels: folders, the folder's messages, and
+# the message picked. Drag a line between them (or focus it and use the arrow keys) to
+# resize; the folders fold away when dragged small, or with Enter on their line, and a
+# double click puts the sizes back. The sizes are state (`bind: panes`), so a page could
+# remember them.
+#
+#   cargo run -p irender-cli -- render examples/blocks/mail-01.yaml --ui-kit --icon-kit -o mail-01.html
+version: 1
+state:
+  panes: [18, 34, 48]
+  folder: inbox
+  mail: { id: 1, from: Meera Iyer, subject: About INV002, when: "09:40", folder: inbox, body: "Hi, the invoice for October is attached. The PO number is PO-2291; could you add it to the copy you send finance? Thanks!" }
+  folders:
+    - { id: inbox, label: Inbox, count: 3 }
+    - { id: drafts, label: Drafts, count: 1 }
+    - { id: sent, label: Sent }
+    - { id: archive, label: Archive }
+  mails:
+    - { id: 1, from: Meera Iyer, subject: About INV002, when: "09:40", folder: inbox, body: "Hi, the invoice for October is attached. The PO number is PO-2291; could you add it to the copy you send finance? Thanks!" }
+    - { id: 2, from: Ravi Kumar, subject: Q3 report draft, when: "08:15", folder: inbox, body: "Here's the first draft of the Q3 report. The revenue chart still needs the September numbers." }
+    - { id: 3, from: Asha Rao, subject: "Design review, Wednesday", when: Yesterday, folder: inbox, body: "Moving the design review to Wednesday at 2pm. Bring the rail layout screens." }
+    - { id: 4, from: Me, subject: "Re: hotel invoice", when: Yesterday, folder: drafts, body: "Thanks, I'll file it with the trip's expenses." }
+    - { id: 5, from: Me, subject: Release 0.5.7, when: Monday, folder: sent, body: "0.5.7 is out, with the calendar's day and year views." }
+    - { id: 6, from: Billing, subject: Your receipt, when: 2 Nov, folder: archive, body: "Thanks for your payment of ₹4,200." }
+root:
+  type: element
+  style: { font-family: $font.body, color: $color.text, background: $color.surface, height: 100svh, display: flex, flex-direction: column }
+  children:
+    - type: element
+      style: { display: flex, align-items: center, gap: 12px, padding: "10px 16px", border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-heading, props: { level: 4, text: Mail } }
+        - { type: ui-input, props: { placeholder: Search mail, type: search }, style: { max-width: 320px, margin-left: auto } }
+    - type: element
+      style: { flex: 1, min-height: 0 }
+      children:
+        - type: ui-resizable
+          props: { bind: panes, handle: true, label: mail panes }
+          children:
+            # Folders.
+            - type: ui-resizable-panel
+              props: { min: 12, max: 30, collapsible: true, label: folders }
+              children:
+                - type: element
+                  props: { tag: nav }
+                  attrs: { aria-label: Folders }
+                  style: { display: flex, flex-direction: column, gap: 2px, padding: 12px }
+                  children:
+                    - type: list
+                      props: { items: "{{ folders }}", as: f }
+                      style: { display: contents }
+                      children:
+                        - type: ui-button
+                          props: { variant: "{{ folder == f.id ? 'secondary' : 'ghost' }}", size: sm, label: "{{ f.label }}" }
+                          attrs: { aria-current: "{{ folder == f.id ? 'page' : null }}" }
+                          style: { justify-content: space-between }
+                          on: { click: { action: set_state, key: folder, value: "{{ f.id }}" } }
+                          children:
+                            - { type: if, props: { when: "{{ f.count }}" }, children: [ { type: ui-badge, props: { text: "{{ f.count }}", variant: secondary } } ] }
+            # The folder's messages.
+            - type: ui-resizable-panel
+              props: { min: 22, label: messages }
+              children:
+                - type: element
+                  style: { display: flex, flex-direction: column }
+                  children:
+                    - type: list
+                      props: { items: "{{ mails }}", as: m }
+                      style: { display: contents }
+                      children:
+                        - type: if
+                          props: { when: "{{ m.folder == folder }}" }
+                          children:
+                            - type: element
+                              props: { tag: button }
+                              attrs: { type: button, aria-pressed: "{{ mail.id == m.id ? 'true' : 'false' }}" }
+                              style:
+                                display: grid
+                                grid-template-columns: "1fr auto"
+                                gap: "2px 8px"
+                                padding: "12px 16px"
+                                border: 0
+                                border-bottom: 1px solid $color.border
+                                background: "{{ mail.id == m.id ? 'color-mix(in srgb, var(--color-text) 6%, transparent)' : 'transparent' }}"
+                                color: inherit
+                                font: inherit
+                                text-align: left
+                                cursor: pointer
+                              on: { click: { action: set_state, key: mail, value: "{{ m }}" } }
+                              children:
+                                - { type: ui-text, props: { text: "{{ m.from }}" }, style: { font-weight: 600 } }
+                                - { type: ui-text, props: { variant: muted, text: "{{ m.when }}" }, style: { font-size: 12px } }
+                                - { type: ui-text, props: { text: "{{ m.subject }}" }, style: { grid-column: 1 / -1, font-size: 14px } }
+            # The message.
+            - type: ui-resizable-panel
+              props: { min: 30, label: the message }
+              children:
+                - type: element
+                  props: { tag: article }
+                  style: { display: flex, flex-direction: column, gap: 12px, padding: 24px, max-width: 720px }
+                  children:
+                    - { type: ui-heading, props: { level: 3, text: "{{ mail.subject }}" } }
+                    - type: element
+                      style: { display: flex, align-items: center, gap: 10px }
+                      children:
+                        - { type: ui-text, props: { text: "{{ mail.from }}" }, style: { font-weight: 600 } }
+                        - { type: ui-text, props: { variant: muted, text: "{{ mail.when }}" }, style: { margin-left: auto, font-size: 13px } }
+                    - { type: ui-separator }
+                    - { type: ui-text, props: { text: "{{ mail.body }}" }, style: { line-height: 1.6 } }
+                    - type: element
+                      style: { display: flex, gap: 8px, margin-top: 8px }
+                      children:
+                        - { type: ui-button, props: { label: Reply, size: sm } }
+                        - { type: ui-button, props: { label: Forward, variant: outline, size: sm } }

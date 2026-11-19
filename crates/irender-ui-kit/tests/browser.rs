@@ -4342,3 +4342,89 @@ fn rail_layout_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Resizable panels: the handles as separators, dragging, the keys within each panel's
+/// limits, folding a collapsible panel and bringing it back, a double click to reset,
+/// and sizes to and from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn resizable_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "sizes": [30, 70] },
+        "root": { "type": "element", "style": { "width": "800px" }, "children": [
+            { "type": "ui-resizable", "props": { "bind": "sizes", "height": 200, "label": "Files" }, "children": [
+                { "type": "ui-resizable-panel", "props": { "min": 20, "max": 60, "collapsible": true, "label": "the sidebar" }, "children": [ { "type": "text", "props": { "value": "A" } } ] },
+                { "type": "ui-resizable-panel", "props": { "min": 30 }, "children": [ { "type": "text", "props": { "value": "B" } } ] } ] },
+            { "type": "ui-resizable", "attrs": { "id": "v" }, "props": { "direction": "vertical", "height": 300 }, "children": [
+                { "type": "ui-resizable-panel", "props": { "size": 50 }, "children": [ { "type": "text", "props": { "value": "C" } } ] },
+                { "type": "ui-resizable-panel", "children": [ { "type": "text", "props": { "value": "D" } } ] },
+                { "type": "ui-resizable-panel", "children": [ { "type": "text", "props": { "value": "E" } } ] } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const [G, V] = document.querySelectorAll("[data-i-x=ui-resizable]");
+      const kids = (g, s) => [...g.children].filter((c) => c.matches(s));
+      const widths = (g) => kids(g, "[data-rz-panel]").map((p) => Math.round(g === V ? p.offsetHeight : p.offsetWidth)).join("/");
+      const H = kids(G, "[data-rz-handle]")[0];
+      const key = (h, k, shift) => h.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: !!shift, bubbles: true, cancelable: true }));
+      const now = () => `${JSON.stringify(S().sizes)} ${widths(G)} ${H.getAttribute("aria-valuenow")}`;
+      const ptr = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 7, button: 0, clientX: x, clientY: y }));
+      try {
+        log("handle", H.getAttribute("role"), H.getAttribute("aria-orientation"), H.getAttribute("aria-label"), H.getAttribute("aria-valuemin"), H.getAttribute("aria-valuemax"), H.getAttribute("aria-controls") === kids(G, "[data-rz-panel]")[0].id, H.tabIndex);
+        log("vertical", kids(V, "[data-rz-handle]").map((h) => h.getAttribute("aria-orientation") + ":" + h.getAttribute("aria-label") + ":" + h.getAttribute("aria-valuenow")).join(" "), widths(V));
+        log("start", now());
+        key(H, "ArrowRight"); log("right", now());
+        key(H, "ArrowLeft", true); log("shift", now());
+        key(H, "End"); log("end (max 60)", now());
+        // Dragging, in pixels of the 799 the panels share.
+        const x = H.getBoundingClientRect().left;
+        ptr(H, "pointerdown", x, 50); ptr(H, "pointermove", x - 160, 50); log("drag", now(), H.hasAttribute("data-dragging")); ptr(H, "pointerup", x - 160, 50);
+        log("dropped", now(), H.hasAttribute("data-dragging"));
+        ptr(H, "pointerdown", x, 50); ptr(H, "pointermove", x - 700, 50); ptr(H, "pointerup", x - 700, 50);
+        log("dragged to the end: folds", now(), kids(G, "[data-rz-panel]")[0].hasAttribute("data-collapsed"));
+        key(H, "Enter"); log("enter: back", now());
+        key(H, "Enter"); log("enter: folds", now());
+        key(H, "Enter"); key(H, "Home"); log("home folds", now());
+        H.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); log("reset", now());
+        root.__irender.set("sizes", [55, 45]); await wait(0); log("state", now());
+        // The vertical group's keys are Up and Down.
+        const VH = kids(V, "[data-rz-handle]")[1];
+        key(VH, "ArrowDown"); key(VH, "ArrowRight"); log("down", widths(V), VH.getAttribute("aria-valuenow"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("resizable", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "handle separator vertical Resize the sidebar 20 60 true 0",
+            "vertical horizontal:Resize panels:50 horizontal:Resize panels:25 149/75/75",
+            "start [30,70] 240/559 30",
+            // 5% a press, 1% with Shift, up to the first panel's max.
+            "right [35,65] 280/519 35",
+            "shift [34,66] 272/527 34",
+            "end (max 60) [60,40] 479/320 60",
+            // Dragging, saved when the pointer is let go.
+            "drag [60,40] 319/480 40 true",
+            "dropped [39.97,60.03] 319/480 40 false",
+            // Under half its min, a collapsible panel folds; Enter brings it back to its last size.
+            "dragged to the end: folds [0,100] 0/799 0 true",
+            "enter: back [39.97,60.03] 319/480 40",
+            "enter: folds [0,100] 0/799 0",
+            "home folds [0,100] 0/799 0",
+            // A double click goes back to the starting sizes.
+            "reset [30,70] 240/559 30",
+            // From state.
+            "state [55,45] 439/360 55",
+            "down 149/89/60 30",
+        ],
+        "\n{result}"
+    );
+}

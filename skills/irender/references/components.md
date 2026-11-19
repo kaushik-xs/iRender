@@ -435,6 +435,21 @@ ui-rail-panel: The panel a `ui-rail-layout` item opens: its children, under a he
   for          string (required)  The `id` of the rail item it belongs to
   title        any  A heading at its top
   children: yes
+ui-resizable: Panels side by side or stacked (`ui-resizable-panel` children), with a handle between each two to resize them by dragging or with the arrow keys. Sizes are percentages; `bind` keeps them in state.
+  direction    string  `horizontal` (side by side, the default) or `vertical` (stacked)
+  bind         statekey  State key for the sizes: a list of percentages, one per panel, written after each move
+  handle       bool  Shows a grip on each handle
+  height       any  The group's height (default: as tall as its container lets it be)
+  label        any  Names the handles for screen readers: `Resize <label>` (default `Resize panels`)
+  parts: handle
+  children: yes
+ui-resizable-panel: One panel of a `ui-resizable`: its children, at its size. Read by the group, never rendered on its own.
+  size         number  Its starting size in % (the panels without one share what's left)
+  min          number  The smallest it can be, in % (default 10)
+  max          number  The largest it can be, in % (default 100)
+  collapsible  bool  Can fold to nothing: dragged under half its `min`, or Enter on its handle
+  label        any  Its name, read with the handle before it
+  children: yes
 ui-button-group: Buttons joined into one control. Children are usually `ui-button`s; outline ones look best.
   orientation  one of: horizontal, vertical  Default `horizontal`
   label        any  Names the group for screen readers

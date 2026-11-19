@@ -100,6 +100,7 @@ state:
   noteOpen: null
   railSection: messages
   railOpen: true
+  panes: [25, 75]
   notes:
     - { id: 1, title: Meera commented on INV002, body: "Customer asked for the PO number on the next one.", who: Meera Iyer, when: 5 min ago }
     - { id: 2, title: Payment failed for INV007, body: "Card declined. We'll retry tomorrow.", when: 1 h ago, tone: danger }
@@ -2450,6 +2451,41 @@ root:
                 - { type: if, props: { when: "{{ api.rail_layout.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.rail_layout }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- resizable
+            - type: element
+              props: { tag: section }
+              attrs: { id: resizable, aria-labelledby: resizable-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.resizable }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Drag a line, or focus it and use the arrow keys. Drag the sidebar small, or press Enter on its line, to fold it; a double click puts the sizes back. Sizes: {{ panes }}" }
+                - type: element
+                  style: { border: 1px solid $color.border, border-radius: $radius.lg, overflow: hidden }
+                  children:
+                    - type: ui-resizable
+                      props: { bind: panes, handle: true, height: 280 }
+                      children:
+                        - type: ui-resizable-panel
+                          props: { min: 15, max: 50, collapsible: true, label: the sidebar }
+                          children: [ { type: element, style: { padding: 16, height: "100%", box-sizing: border-box }, children: [ { type: ui-text, props: { variant: muted, text: "Sidebar" } } ] } ]
+                        - type: ui-resizable-panel
+                          children:
+                            - type: ui-resizable
+                              props: { direction: vertical }
+                              children:
+                                - { type: ui-resizable-panel, props: { size: 65 }, children: [ { type: element, style: { padding: 16, height: "100%", box-sizing: border-box }, children: [ { type: ui-text, props: { variant: muted, text: "Editor" } } ] } ] }
+                                - { type: ui-resizable-panel, children: [ { type: element, style: { padding: 16, height: "100%", box-sizing: border-box }, children: [ { type: ui-text, props: { variant: muted, text: "Terminal" } } ] } ] }
+                - { type: if, props: { when: "{{ api.resizable.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.resizable }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
