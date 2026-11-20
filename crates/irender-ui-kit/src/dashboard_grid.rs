@@ -42,6 +42,11 @@ const TILE_PROPS: &[PropDef] = &[
     PropDef::new("maxW", PropKind::Number, "The widest"),
     PropDef::new("maxH", PropKind::Number, "The tallest"),
     PropDef::new("locked", PropKind::Bool, "Stays where it is: it can't be moved or resized, and others go around it"),
+    PropDef::new(
+        "when",
+        PropKind::Any,
+        "Whether it's on the dashboard, e.g. `{{ includes(widgets, 'sales') }}`: hidden, it leaves the layout and the others close up; shown again, it comes back to its place (or the first free one)",
+    ),
     PropDef::new("layouts", PropKind::Any, "Its place at the grid's smaller `breakpoints`: `{ md: { x, y, w, h } }` (default: worked out from the largest)"),
 ];
 
@@ -61,6 +66,7 @@ static GRID: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", "var(--dg-gap)"),
             ]),
         )
+        .nest("& [data-dg-tile][hidden]", pairs(&[("display", "none !important")]))
         .nest(
             "& [data-dg-tile]",
             pairs(&[
@@ -313,6 +319,8 @@ impl Component for DashboardGrid {
         };
         sizes.sort_by(|a, b| b.width.total_cmp(&a.width));
 
+        // Tiles whose `when` is false take no room: they're left out of the packing.
+        let shown: Vec<bool> = node.children.iter().map(|t| cx.prop(t, "when").is_none_or(|v| expr::truthy(&v))).collect();
         let mut ids = std::collections::HashSet::new();
         let mut tiles = Vec::new();
         for (i, t) in node.children.iter().enumerate() {
@@ -367,7 +375,12 @@ impl Component for DashboardGrid {
                     placed.push(x.is_some() && y.is_some());
                     items.push(Item { id: tiles[i].clone(), x: x.unwrap_or(0), y: y.unwrap_or(0), w, h, min_w, min_h, max_w, max_h, locked });
                 }
-                place_with(&mut items, &placed, size.cols, compact, k == 0);
+                let keep: Vec<usize> = (0..items.len()).filter(|&n| shown[order[n]]).collect();
+                let mut packed: Vec<Item> = keep.iter().map(|&n| items[n].clone()).collect();
+                place_with(&mut packed, &keep.iter().map(|&n| placed[n]).collect::<Vec<_>>(), size.cols, compact, k == 0);
+                for (m, &n) in keep.iter().enumerate() {
+                    items[n] = packed[m].clone();
+                }
                 // Back in the tiles' order.
                 let mut back = items.clone();
                 for (n, &i) in order.iter().enumerate() {
@@ -380,6 +393,9 @@ impl Component for DashboardGrid {
         let all = layouts(true);
         // Where they go without a saved layout, for when `bind` is cleared.
         let defaults = layouts(false);
+        // A tile hidden to start with and without a place of its own: shown, it takes the
+        // first free one.
+        let auto: Vec<Vec<bool>> = (0..sizes.len()).map(|k| (0..tiles.len()).map(|i| !shown[i] && given(k, i, true)[..2].iter().any(Option::is_none)).collect()).collect();
 
         cx.global_js("ui-dashboard-grid", SCRIPT);
         crate::flips(cx);
@@ -410,9 +426,10 @@ impl Component for DashboardGrid {
                     "name": (sizes.len() > 1).then(|| size.name.clone()),
                     "width": size.width,
                     "columns": size.cols,
-                    "items": all[k].iter().map(|it| json!({
+                    "items": all[k].iter().enumerate().map(|(i, it)| json!({
                         "id": it.id, "x": it.x, "y": it.y, "w": it.w, "h": it.h,
                         "minW": it.min_w, "minH": it.min_h, "maxW": max(it.max_w), "maxH": max(it.max_h), "locked": it.locked,
+                        "hidden": !shown[i], "auto": auto[k][i],
                     })).collect::<Vec<_>>(),
                     "defaults": defaults[k].iter().map(|it| json!({ "id": it.id, "x": it.x, "y": it.y, "w": it.w, "h": it.h })).collect::<Vec<_>>(),
                 })).collect::<Vec<_>>(),
@@ -500,6 +517,10 @@ fn tile(cx: &mut RenderCx<'_>, grid: &Node, t: &Node, places: &[(Option<f64>, &I
     .attr("aria-label", name.clone());
     if it.locked {
         el.attr("data-locked", true);
+    }
+    // `when`: hidden while it's false (the behaviour closes the gap).
+    if let Some(w) = t.prop("when") {
+        el.attr("hidden", crate::expr_val(irender_core::expr::Expr::Unary(irender_core::expr::UnOp::Not, Box::new(crate::val_expr(w)))));
     }
     cx.open(&el, t)?;
     let handle = |cx: &RenderCx<'_>, h: &mut Element<'_>| {

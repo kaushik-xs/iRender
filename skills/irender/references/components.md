@@ -391,6 +391,7 @@ ui-tile: One tile of a `ui-dashboard-grid`: its place (`x`, `y`, `w`, `h` in gri
   maxW         number  The widest
   maxH         number  The tallest
   locked       bool  Stays where it is: it can't be moved or resized, and others go around it
+  when         any  Whether it's on the dashboard, e.g. `{{ includes(widgets, 'sales') }}`: hidden, it leaves the layout and the others close up; shown again, it comes back to its place (or the first free one)
   layouts      any  Its place at the grid's smaller `breakpoints`: `{ md: { x, y, w, h } }` (default: worked out from the largest)
   children: yes
 ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.

@@ -661,9 +661,11 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **A layout per width.** `breakpoints` names sizes of grid, each with the `width` (of the grid, in px) it's used from and its `columns`: `{ desktop: { width: 960, columns: 12 }, tablet: { width: 560, columns: 6 } }`. The tiles' `x`, `y`, `w` and `h` are for the widest size; a tile's `layouts: { tablet: { x, y, w, h } }` sets its place in a smaller one (any of them: `{ w: 3 }` keeps the width and packs the tile in). Tiles without one are worked out from the widest layout: widths scaled to the size's columns, packed in reading order. Each size's layout is in the page's CSS, so the right one shows before the script runs, and the grid switches as its width crosses a breakpoint. A move or resize changes the layout of the size it's made in; `bind` then holds one layout per size, `{ desktop: [...], tablet: [...] }` (a plain list is taken as the widest size's), and `layout` events carry the `size`. Under `stackBelow` the tiles still stack. The [`dashboard-02`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/dashboard-02.yaml) block has a tablet layout.
 
+**Adding and removing tiles.** A tile's `when` (e.g. `"{{ showReturns }}"`, or `"{{ includes(widgets, 'returns') }}"`) puts it on the dashboard while it's true. Hidden, it takes no room: the tiles below float up into its space. Shown again, it goes back to its place, from `bind` or its own `x` and `y`, and the tiles there make way; a tile without one takes the first free spot. A menu of `ui-menu-checkbox` items (with `keepOpen`) bound to the flags makes a Widgets picker, as in block dashboard-02. The layout in `bind` isn't rewritten when tiles come and go.
+
 **Right to left.** Column 0 is on the right, and dragging and the arrow keys follow.
 
-**Props.** Grid: `columns`, `breakpoints`, `rowHeight`, `gap` (px, default 16), `bind`, `editable`, `compact`, `stackBelow`, `label`; parts `tile` and `header`. Tile: `id` (default `tile-1`, `tile-2`, …), `title`, `x`, `y`, `w`, `h`, `minW`, `minH`, `maxW`, `maxH`, `locked`, `layouts`.
+**Props.** Grid: `columns`, `breakpoints`, `rowHeight`, `gap` (px, default 16), `bind`, `editable`, `compact`, `stackBelow`, `label`; parts `tile` and `header`. Tile: `id` (default `tile-1`, `tile-2`, …), `title`, `x`, `y`, `w`, `h`, `minW`, `minH`, `maxW`, `maxH`, `locked`, `layouts`, `when`.
 
 ## Tree
 

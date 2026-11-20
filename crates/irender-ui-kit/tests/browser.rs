@@ -6854,6 +6854,73 @@ fn filters_find_a_field_in_chrome() {
     );
 }
 
+/// A tile's `when`: hidden, it leaves the layout and the tiles below close up; shown, it
+/// takes its own place (or the first free one, without one), the others making room.
+/// The saved layout in `bind` isn't touched.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn dashboard_grid_tiles_shown_from_state_in_chrome() {
+    let tile = |id: &str, extra: serde_json::Value| {
+        let mut props = serde_json::json!({ "id": id, "title": id.to_uppercase() });
+        props.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        serde_json::json!({ "type": "ui-tile", "props": props, "children": [ { "type": "text", "props": { "value": id } } ] })
+    };
+    let on = |id: &str| format!("{{{{ includes(on, '{id}') }}}}");
+    let doc = serde_json::json!({ "version": 1, "state": { "layout": null, "on": ["c"] },
+        "root": { "type": "element", "style": { "width": "960px" }, "children": [
+            { "type": "ui-dashboard-grid", "attrs": { "id": "g" }, "props": { "bind": "layout", "gap": 0, "rowHeight": 50 }, "children": [
+                tile("a", serde_json::json!({ "x": 0, "y": 0, "w": 6, "h": 2 })),
+                tile("b", serde_json::json!({ "x": 6, "y": 0, "w": 6, "h": 2 })),
+                tile("c", serde_json::json!({ "x": 0, "y": 2, "w": 12, "h": 1, "when": on("c") })),
+                tile("d", serde_json::json!({ "w": 4, "h": 1, "when": on("d") })),
+                tile("e", serde_json::json!({ "x": 0, "y": 4, "w": 4, "h": 1, "when": on("e") })),
+                tile("f", serde_json::json!({ "x": 0, "y": 3, "w": 4, "h": 1 })) ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const G = document.getElementById("g");
+      // The tiles on screen, in cells of 80 by 50 px.
+      const seen = () => [...G.querySelectorAll("[data-dg-tile]")].filter((n) => n.offsetParent).map((n) =>
+        `${n.dataset.id}:${Math.round(n.offsetLeft / 80)},${Math.round(n.offsetTop / 50)}`).join(" ");
+      const set = async (v) => { root.__irender.set("on", v); await wait(50); };
+      try {
+        log("start", seen());
+        await set([]); log("c hidden", seen());
+        await set(["d"]); log("d shown", seen());
+        await set(["d", "e"]); log("e shown", seen());
+        await set(["c", "d", "e"]); log("c back", seen());
+        log("bind", JSON.stringify(S().layout));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("dashboard-grid-when", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // D and E start hidden and take no room: F sits right under C.
+            "start a:0,0 b:6,0 c:0,2 f:0,3",
+            // Without C, F floats up into its row.
+            "c hidden a:0,0 b:6,0 f:0,2",
+            // D has no place: the first free one, beside F.
+            "d shown a:0,0 b:6,0 d:4,2 f:0,2",
+            // E has one (row 4), and floats up under F.
+            "e shown a:0,0 b:6,0 d:4,2 e:0,3 f:0,2",
+            // C comes back to row 2; the tiles there move down to make room.
+            "c back a:0,0 b:6,0 c:0,2 d:4,3 e:0,4 f:0,3",
+            "bind null",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `loading` on a command palette: while items are fetched, a Loading row shows (and
 /// the list says it's busy) and the empty message waits; items that arrive show.
 #[test]

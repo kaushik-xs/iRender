@@ -3,7 +3,9 @@
 // cell, pushing the tiles it lands on down (or up into the space it left), and with
 // `compact` every tile floats up. Pointer events, so touch works too. On a focused
 // header the arrow keys move the tile and Shift with them resizes it; Escape puts a
-// dragged tile back. The layout goes to `bind` when a move ends.
+// dragged tile back. The layout goes to `bind` when a move ends. A tile whose `when`
+// turns false is hidden and the others close up; shown again, it comes back to its
+// place, or the first free one if it never had one.
 (window.__irenderBehaviors ||= {})["ui-dashboard-grid"] = (el, api) => {
   // Interface text in the document's words (its `labels`), by the English.
   const L = (text, vars) => window.__irender.label(text, vars);
@@ -22,13 +24,13 @@
   };
 
   // ---- the layout (the same rules as `place` in dashboard_grid.rs)
-  const collides = (a, b) => a !== b && a.id !== b.id && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const collides = (a, b) => a !== b && a.id !== b.id && !a.hidden && !b.hidden && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   // Locked tiles first, then by row and column: each floats up (with `compact`) and
   // then down past anything it overlaps.
   function settle(l) {
     const done = [];
     for (const it of [...l].sort((a, b) => b.locked - a.locked || a.y - b.y || a.x - b.x)) {
-      if (!it.locked) {
+      if (!it.locked && !it.hidden) {
         if (cfg.compact) while (it.y > 0 && !done.some((d) => collides(d, { ...it, y: it.y - 1 }))) it.y--;
         for (let d; (d = done.find((d) => collides(d, it))); ) it.y = d.y + d.h;
       }
@@ -121,6 +123,37 @@
     }
   }
   const plain = (l) => l.map(({ id, x, y, w, h }) => ({ id, x, y, w, h }));
+
+  // ---- tiles shown and hidden (`when`)
+  // The first free spot for `it` in layout `l` of `cols` columns, row by row.
+  function freeSpot(l, it, cols) {
+    for (let y = 0; y < 1000; y++)
+      for (let x = 0; x <= cols - it.w; x++) if (!l.some((o) => collides(o, { ...it, x, y }))) return Object.assign(it, { x, y });
+    return it;
+  }
+  // Each size's layout takes the tiles' hidden state from the page; false when nothing changed.
+  function syncHidden() {
+    let changed = false;
+    layouts.forEach((l, k) => {
+      for (const it of l) {
+        const h = !!tileOf(it.id)?.hidden;
+        if (h === !!it.hidden) continue;
+        changed = true;
+        it.hidden = h;
+        if (!h && it.auto) {
+          it.auto = false;
+          freeSpot(l, it, sizes[k].columns);
+        }
+      }
+      settle(l);
+    });
+    return changed;
+  }
+  new MutationObserver(() => {
+    if (drag || !syncHidden()) return;
+    layout = layouts[cur];
+    paint();
+  }).observe(grid, { attributes: true, subtree: true, attributeFilter: ["hidden"] });
   // What `bind` holds: the layout, or with `breakpoints` one per size by name.
   const bound = () => (sizes.length > 1 ? Object.fromEntries(sizes.map((z, k) => [z.name, plain(k === cur ? layout : layouts[k])])) : plain(layout));
   function save(id, how) {
@@ -258,13 +291,15 @@
   // puts every tile back where its props say.
   let last = JSON.stringify(bound());
   // A size's layout from `v` (a list for it), over the one the server worked out.
-  function adoptSize(k, v) {
+  function adoptSize(k, v, saved) {
     const was = cur;
     cur = k; // for C() while clamping
     const l = copy(sizes[k].items);
     for (const it of l) {
       const s = v.find((s) => s && String(s.id) === it.id);
       if (!s) continue;
+      // A place saved in `bind` is its own, for when it's shown.
+      if (saved && Number.isFinite(Number(s.x)) && Number.isFinite(Number(s.y))) it.auto = false;
       for (const f of ["x", "y", "w", "h"]) if (Number.isFinite(Number(s[f]))) it[f] = Math.round(Number(s[f]));
       [it.w, it.h] = clampSize({ ...it, x: 0 }, it.w, it.h);
       it.x = Math.max(0, Math.min(C() - it.w, it.x));
@@ -277,8 +312,9 @@
     sizes.forEach((z, k) => {
       // Cleared: back to the tiles' own places. A list is the widest size's.
       const list = v === null || v === undefined ? z.defaults : Array.isArray(v) ? (k === 0 ? v : z.items) : Array.isArray(v[z.name]) ? v[z.name] : z.items;
-      layouts[k] = adoptSize(k, list);
+      layouts[k] = adoptSize(k, list, list !== z.defaults && list !== z.items);
     });
+    syncHidden();
     layout = layouts[cur];
     paint();
   }
