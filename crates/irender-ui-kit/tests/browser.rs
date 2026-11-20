@@ -2092,6 +2092,64 @@ fn data_table_paging_options_in_chrome() {
     );
 }
 
+/// A virtual table keeps a row's focus while the row scrolls out of the drawn window:
+/// the scroll area holds it, the row gets it back when it's drawn again, and a key
+/// pressed meanwhile acts from that row.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_virtual_focus_in_chrome() {
+    let rows = (0..500).map(|i| serde_json::json!({ "id": i, "name": format!("Row {i}") })).collect::<Vec<_>>();
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "ui-data-table", "props": { "rows": rows, "virtual": true, "pageSize": 0, "height": 240, "selectable": true,
+            "columns": [{ "field": "name" }] } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const T = document.querySelector("[data-i-x=ui-data-table]"), sc = T.querySelector("[data-dt-scroll]");
+      const row = (name) => [...T.querySelectorAll("[data-dt-body] > [data-dt-row]")].find((r) => r.textContent.includes(name + "") && r.querySelector("[data-dt-col=name]").textContent === name);
+      const scroll = async (top) => { sc.scrollTop = top; sc.dispatchEvent(new Event("scroll")); await wait(40); };
+      const where = () => document.activeElement === sc ? "scroll area" : document.activeElement.querySelector?.("[data-dt-col=name]")?.textContent ?? document.activeElement.tagName;
+      const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+      try {
+        await wait(50);
+        row("Row 3").focus();
+        log("focused", where());
+        await scroll(sc.scrollHeight / 2);
+        log("away", where(), !!row("Row 3"));
+        await scroll(0);
+        log("back", where(), row("Row 3").tabIndex);
+        await scroll(sc.scrollHeight / 2);
+        key("ArrowDown"); await wait(20);
+        log("down", where(), sc.scrollTop < 400);
+        await scroll(sc.scrollHeight);
+        key(" "); await wait(20);
+        log("space", where(), T.querySelector("[data-dt-status]").textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-virtual-focus", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "focused Row 3",
+            "away scroll area false",
+            "back Row 3 0",
+            // Down from Row 3, drawn again and scrolled to.
+            "down Row 4 true",
+            // Space picks the held row, not one in view.
+            "space Row 4 1 of 500 row(s) selected.",
+        ],
+        "\n{result}"
+    );
+}
+
 /// Rows from `url`: batches as the table scrolls, the query sent to the server, a
 /// new sort starting over, server pages with the total, and a failed load retried.
 #[test]

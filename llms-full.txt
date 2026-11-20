@@ -2187,7 +2187,7 @@ With `more` and `scroll`, new filters, a search or a sort start again from the f
 - `bindView` holds the rows loaded so far.
 - `url` must be a path or an http(s) URL, as `ui-combobox`'s `searchUrl`.
 
-**Virtual.** With `virtual`, only the rows in view (and a few either side) are in the page, with space above and below standing in for the rest, so a table of thousands of rows scrolls smoothly. It scrolls inside `height` (default 480). Rows of different heights work: the table measures the rows it draws, starting from `rowHeight` (default 41). Arrow keys, Home and End reach rows that aren't drawn yet. It works with every `paging`, rows from `rows` or `url`, and nested rows; with `scroll` it's the usual infinite list.
+**Virtual.** With `virtual`, only the rows in view (and a few either side) are in the page, with space above and below standing in for the rest, so a table of thousands of rows scrolls smoothly. It scrolls inside `height` (default 480). Rows of different heights work: the table measures the rows it draws, starting from `rowHeight` (default 41). Arrow keys, Home and End reach rows that aren't drawn yet. It works with every `paging`, rows from `rows` or `url`, and nested rows; with `scroll` it's the usual infinite list. A focused row keeps its focus while it's scrolled out of view: the scroll area holds it until the row is drawn again, and a key pressed meanwhile (Down, Space, Enter, …) brings the row back and acts from it.
 
 ### Nested rows
 

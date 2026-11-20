@@ -340,6 +340,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("&[aria-busy=true] [data-dt-scroll]", pairs(&[("opacity", "0.55"), ("pointer-events", "none")]))
+        // Holding a row's focus while the row is scrolled out of a virtual table's window.
+        .nest("& [data-dt-scroll]:focus", pairs(&[("outline", "none")]))
         .nest("& table", pairs(&[("width", "100%"), ("border-collapse", "separate"), ("border-spacing", "0")]))
         .nest(
             "& th",

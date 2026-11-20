@@ -70,7 +70,7 @@ _Last updated: 2026-11-19._
   - [x] Paging options (pages, Load more, infinite scroll), rows from an API in batches (`url`), virtual rows, nested rows with children loaded when opened, and pinned columns (2026-11-18; blocks data-table-04 and -05).
   - [x] Remote tables: facets and totals (2026-11-20): a query's first batch asks `facets=` and `summary=`, and the API's `facets` and `summary` fill the select filters (every value, with counts) and the footer. `bindView` still holds only the rows loaded so far.
   - [x] Nested rows (2026-11-20): picking a row picks the rows under it (part-picked parents, rows loaded later under a picked one), Expand all and Collapse all in View, `*` for siblings, and a footer counting every loaded row.
-  - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
+  - [x] Virtual rows keep a row's focus when it scrolls out of the drawn window (2026-11-20): the scroll area holds it, and the row gets it back.
   - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.
   - [x] Grouping rows from an API (2026-11-20): `groupBy` with `url` asks the API for a row per group (count and subtotals) and loads a group's rows when it's opened. A group's rows load a batch at a time, with a Load more row after them (2026-11-20); with `paging: scroll` they still wait for that row rather than loading as you scroll.
   - [x] Column order, widths and hidden columns are state with `bindColumns` (2026-11-19).

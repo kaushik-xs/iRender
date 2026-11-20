@@ -482,7 +482,14 @@
         listData = data;
         listStart = s;
         const n = applies;
+        const held = body.contains(document.activeElement) ? document.activeElement : null;
         api.list(body, shown.slice(s, e).map((i) => data[i]), s);
+        // The focused row scrolled out of the window: the scroll area holds focus, so
+        // keys still reach the table, until the row is drawn again.
+        if (held && !held.isConnected && focusKey != null) {
+          lost = focusKey;
+          scroller.focus({ preventScroll: true });
+        }
         if (applies !== n) return; // the redraw applied everything again
       }
     } else {
@@ -566,6 +573,14 @@
     // Rows drawn since (a listed table's) take the columns' order too.
     if (table.__moved) placeColumns();
     roving();
+    // A row that scrolled away and back gets its focus back.
+    if (lost != null && document.activeElement === scroller) {
+      const tr = $$("[data-dt-body] > [data-dt-row]").find((x) => x.__k === lost);
+      if (tr) {
+        lost = null;
+        tr.focus({ preventScroll: true });
+      }
+    }
     if (cfg.virtual) measure(g);
 
     // Columns shown and the cells that span them.
@@ -1007,16 +1022,24 @@
   // ---- keyboard: one row in the tab order, arrows move between shown rows
   const navigable = cfg.selectable || cfg.detail || !!B.row || !!cfg.tree;
   let focusKey = null;
+  // The key of a focused row a virtual table's window dropped, while the scroll area
+  // holds focus for it.
+  let lost = null;
+  if (cfg.virtual && !scroller.hasAttribute("tabindex")) scroller.tabIndex = -1;
+  // Tabbing (or clicking) onto a row makes it the one that keeps the tab stop.
+  body.addEventListener("focusin", (e) => {
+    const tr = e.target.closest?.("[data-dt-row]");
+    if (tr?.parentElement === body && tr.__k !== undefined) focusKey = tr.__k;
+    lost = null;
+  });
   function roving() {
     if (!navigable) return;
     const g = groups();
+    // Keys first: rows a virtual table just drew have none yet.
+    for (const [i, nodes] of g) nodes[0].__k = keyOf(rowKey(data[i], i));
     const trs = shown.map((i) => g.get(i)?.[0]).filter(Boolean);
     const target = trs.find((tr) => tr.__k === focusKey) ?? trs[0];
-    for (const [i, nodes] of g) {
-      const tr = nodes[0];
-      tr.__k = keyOf(rowKey(data[i], i));
-      tr.tabIndex = tr === target ? 0 : -1;
-    }
+    for (const nodes of g.values()) nodes[0].tabIndex = nodes[0] === target ? 0 : -1;
   }
   const visibleRows = () => $$("[data-dt-body] > [data-dt-row]:not([hidden])");
   const rowOf = (tr) => {
@@ -1796,7 +1819,22 @@
   for (const p of $$("[data-dt-filter]")) p.addEventListener("toggle", (e) => e.newState === "open" && options(p));
 
   el.addEventListener("keydown", (e) => {
-    const t = e.target;
+    let t = e.target;
+    // A key while the scroll area holds a row's focus: the row is drawn and focused, and
+    // the key acts from it.
+    if (t === scroller && lost != null && navigable && /^(Arrow|Home$|End$|Page|Enter$| $|\*$)/.test(e.key)) {
+      const n = shown.findIndex((i) => keyOf(rowKey(data[i], i)) === lost);
+      if (n < 0) return void (lost = null);
+      const tr = () => $(`[data-dt-body] > [data-dt-row="${n}"]`);
+      if (!tr()) {
+        scroller.scrollTop = Math.max(0, ($("thead")?.offsetHeight ?? 0) + n * est - scroller.clientHeight / 2);
+        apply();
+      }
+      if (!tr()) return;
+      t = tr();
+      lost = null;
+      t.focus({ preventScroll: true });
+    }
     if (t.matches("[data-dt-search]") && e.key === "Escape" && t.value) {
       e.preventDefault();
       t.value = "";
