@@ -102,7 +102,7 @@ _Last updated: 2026-11-19._
   - [x] Group and item actions (2026-11-20): `ui-sidebar-action`, a button or a ⋯ menu, shown always or on hover (block sidebar-07, gallery).
   - [x] The phone sheet keeps Tab inside the panel and swipes closed (2026-11-20). Tried with touch pointer events in Chrome, WebKit and Firefox, not on a real phone.
 - [ ] **`ui-illustration` gaps** (15 drawings and the error and empty-state blocks shipped 2026-11-18):
-  - [ ] More drawings people ask for: no permission to a file, upload failed, too many requests (429), not found in a list ("no matches" for a person or place), a deleted item, an empty calendar or schedule, welcome / onboarding.
+  - [x] Seven more drawings (2026-11-20): `no-access`, `upload-failed`, `too-many-requests`, `no-people`, `deleted`, `empty-calendar`, `welcome` (gallery, block empty-states).
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up; and app pages beyond shadcn's: a report builder (report-01), an incident room (incident-01) and a sales pipeline (crm-01).

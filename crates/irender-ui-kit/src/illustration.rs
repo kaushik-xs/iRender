@@ -168,12 +168,91 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <rect x="178" y="118" width="10" height="5" rx="2.5" transform="rotate(-20 183 120)" data-f="s"/>
 <circle cx="74" cy="60" r="3.5" data-f="s"/><circle cx="170" cy="28" r="3" data-f="p"/><circle cx="196" cy="88" r="3" data-f="sl"/><circle cx="40" cy="92" r="3" data-f="p"/>"#,
     ),
+    (
+        "no-access",
+        r#"<ellipse cx="120" cy="160" rx="80" ry="8" data-f="n1"/>
+<path d="M62 20 H132 L158 46 V150 H62 Z" data-f="w" data-k="n2" stroke-width="2" stroke-linejoin="round"/>
+<path d="M132 20 V46 H158" data-f="n1" data-k="n2" stroke-width="2" stroke-linejoin="round"/>
+<rect x="78" y="60" width="56" height="7" rx="3.5" data-f="n1"/><rect x="78" y="76" width="42" height="7" rx="3.5" data-f="n1"/><rect x="78" y="92" width="50" height="7" rx="3.5" data-f="n1"/><rect x="78" y="108" width="30" height="7" rx="3.5" data-f="n1"/>
+<path d="M156 112 V100 C156 90 162 84 170 84 C178 84 184 90 184 100 V112" data-k="n3" stroke-width="7" fill="none" stroke-linecap="round"/>
+<rect x="146" y="106" width="48" height="38" rx="8" data-f="p"/>
+<circle cx="170" cy="121" r="5.5" data-f="w"/><rect x="167.5" y="123" width="5" height="11" rx="2.5" data-f="w"/>
+<circle cx="40" cy="40" r="3" data-f="s"/><circle cx="200" cy="40" r="2.5" data-f="sl"/><circle cx="40" cy="120" r="2" data-f="pl"/>"#,
+    ),
+    (
+        "upload-failed",
+        r#"<ellipse cx="120" cy="160" rx="84" ry="8" data-f="n1"/>
+<path d="M62 118 H172 A30 30 0 0 0 166 59 A40 40 0 0 0 90 52 A34 34 0 0 0 62 118 Z" data-f="n1"/>
+<path d="M120 140 V80" data-k="p" stroke-width="10" stroke-linecap="round"/>
+<path d="M98 100 L120 78 L142 100" data-k="p" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M108 150 H132" data-k="pl" stroke-width="6" stroke-linecap="round"/>
+<circle cx="176" cy="122" r="22" data-f="s"/>
+<path d="M167 113 L185 131 M185 113 L167 131" data-k="w" stroke-width="6" stroke-linecap="round"/>
+<circle cx="44" cy="34" r="3" data-f="s"/><circle cx="206" cy="30" r="2.5" data-f="p"/>"#,
+    ),
+    (
+        "too-many-requests",
+        r#"<ellipse cx="120" cy="160" rx="84" ry="8" data-f="n1"/>
+<path d="M48 128 A72 72 0 0 1 84 65.6" data-k="pl" stroke-width="18" fill="none"/>
+<path d="M84 65.6 A72 72 0 0 1 156 65.6" data-k="p" stroke-width="18" fill="none"/>
+<path d="M156 65.6 A72 72 0 0 1 192 128" data-k="s" stroke-width="18" fill="none"/>
+<path d="M66 128 A54 54 0 0 1 174 128" data-k="n1" stroke-width="4" stroke-dasharray="2 8" fill="none" stroke-linecap="round"/>
+<path d="M120 128 L170 104" data-k="n3" stroke-width="6" stroke-linecap="round"/>
+<circle cx="120" cy="128" r="11" data-f="n3"/><circle cx="120" cy="128" r="4" data-f="w"/>
+<path d="M200 30 L212 18 M206 44 L222 40 M194 22 L196 6" data-k="s" stroke-width="4" stroke-linecap="round"/>
+<path d="M18 74 H36 M14 90 H30" data-k="n2" stroke-width="4" stroke-linecap="round"/>"#,
+    ),
+    (
+        "no-people",
+        r#"<ellipse cx="120" cy="160" rx="88" ry="8" data-f="n1"/>
+<rect x="34" y="34" width="112" height="44" rx="8" data-f="w" data-k="n2" stroke-width="2"/>
+<circle cx="56" cy="56" r="12" data-f="pl"/><rect x="76" y="48" width="52" height="6" rx="3" data-f="n2"/><rect x="76" y="60" width="34" height="6" rx="3" data-f="n1"/>
+<rect x="34" y="92" width="112" height="44" rx="8" fill="none" data-k="n2" stroke-width="2" stroke-dasharray="5 5"/>
+<circle cx="56" cy="114" r="12" fill="none" data-k="n2" stroke-width="2" stroke-dasharray="4 4"/><rect x="76" y="106" width="52" height="6" rx="3" data-f="n1"/><rect x="76" y="118" width="34" height="6" rx="3" data-f="n1"/>
+<circle cx="168" cy="96" r="28" data-f="w" data-k="p" stroke-width="9"/>
+<path d="M189 117 L212 140" data-k="p" stroke-width="12" stroke-linecap="round"/>
+<path d="M158 88 A10 10 0 1 1 172 97 C169 99 168 101 168 105" data-k="s" stroke-width="6" fill="none" stroke-linecap="round"/>
+<circle cx="168" cy="114" r="3.8" data-f="s"/>"#,
+    ),
+    (
+        "deleted",
+        r#"<ellipse cx="120" cy="160" rx="72" ry="8" data-f="n1"/>
+<path d="M78 66 H162 L154 148 A8 8 0 0 1 146 155 H94 A8 8 0 0 1 86 148 Z" data-f="p"/>
+<path d="M104 82 V138 M120 82 V138 M136 82 V138" data-k="pl" stroke-width="6" stroke-linecap="round"/>
+<g transform="rotate(-24 74 64)"><rect x="70" y="54" width="100" height="12" rx="6" data-f="s"/><path d="M104 54 V48 A4 4 0 0 1 108 44 H132 A4 4 0 0 1 136 48 V54" data-k="s" stroke-width="5" fill="none"/></g>
+<g transform="rotate(16 186 30)"><rect x="170" y="10" width="32" height="40" rx="3" data-f="w" data-k="n2" stroke-width="2"/><path d="M177 22 H195 M177 30 H191 M177 38 H193" data-k="n1" stroke-width="3" stroke-linecap="round"/></g>
+<path d="M180 58 C176 66 166 70 156 70" data-k="n2" stroke-width="3" stroke-dasharray="4 6" fill="none" stroke-linecap="round"/>"#,
+    ),
+    (
+        "empty-calendar",
+        r#"<ellipse cx="120" cy="160" rx="84" ry="8" data-f="n1"/>
+<rect x="50" y="34" width="140" height="116" rx="10" data-f="w" data-k="n2" stroke-width="2"/>
+<path d="M50 44 A10 10 0 0 1 60 34 H180 A10 10 0 0 1 190 44 V62 H50 Z" data-f="p"/>
+<rect x="80" y="24" width="8" height="20" rx="4" data-f="n3"/><rect x="152" y="24" width="8" height="20" rx="4" data-f="n3"/>
+<rect x="64" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="88" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="112" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="136" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="160" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="64" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="88" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="136" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="160" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="64" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="88" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="112" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="136" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="160" y="124" width="16" height="14" rx="3" data-f="n1"/>
+<rect x="112" y="100" width="16" height="14" rx="3" fill="none" data-k="s" stroke-width="2.5" stroke-dasharray="3 3"/>
+<path d="M196 30 H208 L196 42 H208 M210 12 H220 L210 22 H220" data-k="s" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>"#,
+    ),
+    (
+        "welcome",
+        r#"<ellipse cx="120" cy="160" rx="92" ry="8" data-f="n1"/>
+<path d="M84 156 H156 L182 168 H58 Z" data-f="sl" opacity=".8"/>
+<rect x="78" y="24" width="84" height="134" rx="4" data-f="n2"/>
+<rect x="84" y="30" width="72" height="126" data-f="sl"/>
+<path d="M84 30 L56 40 V150 L84 156 Z" data-f="p"/>
+<circle cx="64" cy="98" r="4" data-f="w"/>
+<rect x="96" y="150" width="48" height="8" rx="4" data-f="s"/>
+<path d="M192 26 L196 38 L208 42 L196 46 L192 58 L188 46 L176 42 L188 38 Z" data-f="s"/>
+<path d="M40 52 L42 59 L49 61 L42 63 L40 70 L38 63 L31 61 L38 59 Z" data-f="p"/>
+<circle cx="208" cy="80" r="3" data-f="pl"/><circle cx="30" cy="100" r="2.5" data-f="s"/>"#,
+    ),
 ];
 
 /// The names, for the prop's enum and the docs.
 pub(crate) const NAMES: &[&str] = &[
     "not-found", "server-error", "forbidden", "maintenance", "offline", "no-data", "no-results", "out-of-stock", "empty-cart",
-    "empty-inbox", "no-notifications", "session-expired", "payment-failed", "coming-soon", "all-done",
+    "empty-inbox", "no-notifications", "session-expired", "payment-failed", "coming-soon", "all-done", "no-access", "upload-failed",
+    "too-many-requests", "no-people", "deleted", "empty-calendar", "welcome",
 ];
 
 /// The colours, by role. The background is the surface the drawing sits on.

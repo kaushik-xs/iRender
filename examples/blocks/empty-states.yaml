@@ -1,6 +1,7 @@
 # Block: empty states, each with its own `ui-illustration` in a `ui-empty`: no data, no
 # results, out of stock, an empty cart and inbox, no notifications, a failed payment,
-# coming soon and all done. The drawings take the theme's primary and second brand
+# coming soon, all done, no access, a failed upload, too many requests, no people found,
+# a deleted item, an empty calendar and a welcome. The drawings take the theme's primary and second brand
 # colours; pick a palette or custom colours with the Theme button.
 #
 #   cargo run -p irender-cli -- render examples/blocks/empty-states.yaml --ui-kit --chart-kit --icon-kit -o empty-states.html
@@ -91,3 +92,52 @@ root:
               props: { illustration: all-done, illustrationSize: 180, title: "All done!", description: "Every task this week is finished. Enjoy the quiet." }
               style: { border: 0, padding: 28px 20px }
               children: [ { type: ui-button, props: { label: "View completed", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: no-access, illustrationSize: 180, title: "You don't have access", description: "This file is shared with the finance team only. Ask its owner to let you in." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Request access", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: upload-failed, illustrationSize: 180, title: "Upload failed", description: "report-q3.pdf didn't upload: the connection dropped. Your file is still on your device." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Try again", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: too-many-requests, illustrationSize: 180, title: "Slow down a little", description: "You've made a lot of requests in a short time. Try again in a minute." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Retry in 60s", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: no-people, illustrationSize: 180, title: "No one by that name", description: "Nobody in your workspace matches “Priya”. Check the spelling, or invite them." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Invite people", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: deleted, illustrationSize: 180, title: "This item was deleted", description: "The project “Atlas” was moved to the bin by Ravi, 2 hours ago." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Restore it", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: empty-calendar, illustrationSize: 180, title: "Nothing scheduled", description: "Your calendar is clear this week. Book a meeting or block some focus time." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "New event", size: sm, variant: outline } } ]
+        - type: ui-card
+          style: { padding: 0 }
+          children:
+            - type: ui-empty
+              props: { illustration: welcome, illustrationSize: 180, title: "Welcome aboard", description: "Your workspace is ready. Take the two-minute tour, or jump straight in." }
+              style: { border: 0, padding: 28px 20px }
+              children: [ { type: ui-button, props: { label: "Start the tour", size: sm, variant: outline } } ]

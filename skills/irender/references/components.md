@@ -148,7 +148,7 @@ ui-empty: A placeholder for a page or list with nothing in it yet. Children foll
   parts: icon, title, description
   children: yes
 ui-illustration: A drawing for an error page or an empty state (not found, server error, no data, out of stock, …), coloured by the theme's primary and secondary colours.
-  name         one of: not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done (required)  The drawing
+  name         one of: not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done, no-access, upload-failed, too-many-requests, no-people, deleted, empty-calendar, welcome (required)  The drawing
   size         any  Width (default 240); the height follows, at 3 : 4
   primary      any  Its main colour, a CSS colour or token (default `color.primary`)
   secondary    any  Its second colour (default `color.brand-2`, else `color.chart-2`)

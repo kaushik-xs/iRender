@@ -1859,6 +1859,41 @@ root:
                       children:
                         - { type: ui-illustration, props: { name: all-done, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: all-done }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: no-access, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: no-access }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: upload-failed, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: upload-failed }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: too-many-requests, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: too-many-requests }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: no-people, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: no-people }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: deleted, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: deleted }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: empty-calendar, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: empty-calendar }, style: { font-size: 12, color: $color.muted } }
+                    - type: element
+                      style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
+                      children:
+                        - { type: ui-illustration, props: { name: welcome, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: text, props: { tag: code, value: welcome }, style: { font-size: 12, color: $color.muted } }
                 - { type: ui-label, props: { text: "In ui-empty, for an empty state" } }
                 - type: ui-empty
                   props: { illustration: out-of-stock, title: Out of stock, description: "This item is sold out for now. We'll email you as soon as it's back." }
