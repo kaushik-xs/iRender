@@ -9,6 +9,8 @@
 # after a bar onto another task to make it wait on that one, and click an arrow to remove
 # it; with `cascade`, the tasks that wait on a moved one move on too. `visibleRows: 9`
 # keeps the chart nine rows tall; the rest scroll inside it, under the dates.
+# `workdays` counts and moves tasks on weekdays (weekends and the `holidays` shaded), so
+# a moved task, and the ones pushed after it, land on working days.
 #
 #   cargo run -p irender-cli -- render examples/blocks/gantt-01.yaml --ui-kit --chart-kit --icon-kit -o gantt-01.html
 version: 1
@@ -66,6 +68,8 @@ root:
                       - { at: "2027-01-20", name: Launch, color: "#16a34a" }
                     zoom: true
                     visibleRows: 9
+                    workdays: true
+                    holidays: ["2026-12-25", "2027-01-01"]
                     bindRow: task
                     bindData: tasks
                     cascade: true

@@ -742,6 +742,7 @@ root: …
 
 ```yaml
 "Task": "Task"
+"{count} working days": { one: "{count} working day", other: "{count} working days" }
 "{count} days": { one: "{count} day", other: "{count} days" }
 "{percent}% done": "{percent}% done"
 "Starts before {name} ends": "Starts before {name} ends"

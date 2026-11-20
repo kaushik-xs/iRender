@@ -43,7 +43,8 @@ _Last updated: 2026-11-19._
     - [x] The table is an HTML tree grid over the chart (2026-11-20): rows read out and moved through with the keys, groups opened with Right, Left and Enter, tasks picked with Enter.
     - [x] Editing (2026-11-20): bars dragged to move or stretch them (a hold first by touch), Alt and the arrows on a row, written back to `bindData`; tasks that start before what they wait for ends are marked. Links drawn from a bar's dot and removed by clicking their arrow, and `cascade` moving the tasks that wait on a moved one (2026-11-20). Not done yet: dates snap to whole days only; cascade only pushes later, never pulls tasks earlier.
     - [x] Scrolling inside the chart (2026-11-20): `visibleRows` keeps it that many rows tall, the rest scrolled to by the wheel, a bar, a drag or the table's keys (block gantt-01).
-    - [ ] No critical path, baselines or working days (weekends count).
+    - [x] Working days (2026-11-20): `workdays` and `holidays` count, move and cascade whole-day tasks on working days, days off shaded (block gantt-01). Tasks with times of day still use calendar days.
+    - [ ] No critical path or baselines.
     - [x] The axis's dates are in the document's `lang` (2026-11-20).
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
     - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved; moving a column has no touch drag (the grip's keys work). `swimlanes` and `fields` may use state (2026-11-19; block crm-01's Board settings).

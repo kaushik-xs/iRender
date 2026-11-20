@@ -399,6 +399,52 @@ fn gantt_scrolls_its_rows_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// A gantt with `workdays` and `holidays`: lengths in working days, days off shaded, and
+/// a moved task (and, with `cascade`, those that wait on it) landing on working days and
+/// keeping its working days.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_workdays_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    // 4–6 Nov 2026 is Wednesday to Friday; 10 Nov, a Tuesday, is a holiday.
+    let doc = json!({ "version": 1, "state": { "tasks": [
+            { "id": "a", "name": "A", "start": "2026-11-04", "end": "2026-11-06" },
+            { "id": "b", "name": "B", "start": "2026-11-09", "end": "2026-11-12", "after": "a" } ] },
+        "root": { "type": "ui-chart", "attrs": { "id": "g" }, "props": { "type": "gantt", "data": "{{ tasks }}", "bindData": "tasks",
+            "workdays": true, "holidays": ["2026-11-10"], "cascade": true, "today": false } } });
+    let body = r##"
+    await ready(["g"]);
+    const o = () => opt("g");
+    const rows = () => [...el("g").querySelectorAll("[data-gantt-table] [role=row][data-key]")];
+    const dates = () => S().tasks.map((t) => `${t.id} ${t.start.slice(8)}–${t.end.slice(8)}`).join(", ");
+    const day = (t) => new Date(t).getDate();
+    log("lengths", rows().map((r) => r.getAttribute("aria-label").match(/· ([^,]*)/)[1]).join(" | "));
+    log("off", o().series.find((s) => s.id === "rows").markArea.data.map(([a, b]) => `${day(a.xAxis)}-${day(b.xAxis)}`).join(" "));
+    const key = (k, mods) => { rows()[0].focus(); document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, altKey: true, ...mods, bubbles: true, cancelable: true })); };
+    key("ArrowRight"); await wait(100);
+    log("moved", dates());
+    key("ArrowRight", { shiftKey: true }); await wait(100);
+    log("stretched", dates());
+    key("ArrowLeft"); await wait(100);
+    log("back", dates());
+"##;
+    let Some(lines) = run("gantt-workdays", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        "lengths 3 working days | 3 working days",
+        // The weekends and the holiday, each run of days off one band.
+        "off 7-9 10-11 14-16",
+        // A moves a working day and keeps three; B, waiting on it, starts after the holiday.
+        "moved a 05–09, b 11–13",
+        // A's end steps over the holiday; B moves on, past the weekend.
+        "stretched a 05–11, b 12–16",
+        // Back a working day, keeping its four; B stays (cascade only pushes on).
+        "back a 04–09, b 12–16",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// Editing a gantt: dragging a bar moves its task and an end stretches it, a day at a
 /// time, written back to `bindData` in the dates' own form; Escape puts a drag back; a
 /// task that starts before the one it waits for ends is marked; Alt and the arrows on

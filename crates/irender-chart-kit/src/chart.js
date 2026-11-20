@@ -331,6 +331,44 @@
     }
     return Date.parse(v);
   };
+  // Local midnight `n` days from `t` (a day changing clocks is still one day).
+  const addDays = (t, n) => {
+    const d = new Date(t);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n).getTime();
+  };
+  // A gantt's working days: `workdays` (true for Monday to Friday, or the weekdays
+  // that are, 0 for Sunday) less its `holidays`. Null when every day is one.
+  function workCalendar(p) {
+    if (!p.workdays) return null;
+    const week = new Set(Array.isArray(p.workdays) ? p.workdays.map(Number) : [1, 2, 3, 4, 5]);
+    if (!week.size) return null;
+    const off = new Set((Array.isArray(p.holidays) ? p.holidays : []).filter(dateOnly));
+    const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const works = (t) => {
+      const d = new Date(t);
+      return week.has(d.getDay()) && !off.has(key(d));
+    };
+    // The working day at `t`, or the next (`dir` 1) or last (-1) one.
+    const snap = (t, dir = 1) => {
+      for (let i = 0; i < 400 && !works(t); i++) t = addDays(t, dir < 0 ? -1 : 1);
+      return t;
+    };
+    return {
+      works,
+      snap,
+      // The working days from `a` up to, not including, `b`.
+      count: (a, b) => {
+        let n = 0;
+        for (let t = a, i = 0; t < b && i < 20000; t = addDays(t, 1), i++) if (works(t)) n++;
+        return n;
+      },
+      // The working day `n` working days after working day `t`.
+      add: (t, n) => {
+        for (let i = 0; i < n; i++) t = snap(addDays(t, 1));
+        return t;
+      },
+    };
+  }
   const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   // The rows a gantt shows, in order, with their depth and span. `collapsed` holds
   // the ids of closed groups; a group's own `collapsed: true` closes it the first time
@@ -453,7 +491,10 @@
     const split = blank(p.series) ? null : p.series;
     // From every row, so closing a group keeps each team's colour.
     const names = split ? uniq(g.all.filter((i) => !i.group).map((i) => String(at(i.row, split) ?? ""))) : [""];
-    const days = (i) => Math.max(1, Math.round((i.b - i.a) / DAY));
+    // Its length: working days with `workdays` (for tasks dated in whole days).
+    const cal = workCalendar(p);
+    const working = (i) => cal && dateOnly(at(i.row, "start")) && (blank(at(i.row, "end")) || dateOnly(at(i.row, "end")));
+    const days = (i) => Math.max(1, working(i) ? cal.count(i.a, i.b) : Math.round((i.b - i.a) / DAY));
     const nameOf = (i) => String(at(i.row, cols[0].field) ?? at(i.row, "name") ?? i.key);
     // What a task is, line by line: its name, dates and length, progress and series.
     const about = (i) => {
@@ -462,7 +503,7 @@
       else if (!Number.isNaN(i.a)) {
         const a = blank(at(r, "start")) ? when(new Date(i.a).toISOString()) : when(at(r, "start"));
         const b = blank(at(r, "end")) ? when(new Date(dateOnly(at(r, "start")) ? i.b - DAY : i.b).toISOString()) : when(at(r, "end"));
-        lines.push(`${a} – ${b} · ${L(["{count} day", "{count} days"], { count: days(i) })}`);
+        lines.push(`${a} – ${b} · ${working(i) ? L(["{count} working day", "{count} working days"], { count: days(i) }) : L(["{count} day", "{count} days"], { count: days(i) })}`);
       }
       if (i.done !== null) lines.push(L("{percent}% done", { percent: Math.round(i.done * 100) }));
       if (split && !i.group && !blank(at(r, split))) lines.push(String(at(r, split)));
@@ -580,6 +621,16 @@
     const marks = [];
     const lo = Math.min(...drawn.map((i) => i.a)), hi = Math.max(...drawn.map((i) => i.b));
     const now = Date.now();
+    // Days off shaded, runs of them as one band, on plans up to three years long.
+    const offDays = [];
+    if (cal && Number.isFinite(hi - lo) && hi - lo < 3 * 365 * DAY) {
+      let from = null;
+      for (let day = addDays(lo - 2 * DAY, 0), end = hi + 2 * DAY; day <= end; day = addDays(day, 1)) {
+        if (!cal.works(day)) from ??= day;
+        else if (from !== null) offDays.push([{ xAxis: from }, { xAxis: day }]), (from = null);
+      }
+      if (from !== null) offDays.push([{ xAxis: from }, { xAxis: addDays(hi + 2 * DAY, 1) }]);
+    }
     if (p.today !== false && drawn.length && now >= lo && now <= hi)
       marks.push({ xAxis: now, name: L("Today"), lineStyle: { color: t.palette[7] ?? t.text, type: "solid", width: 1.5 }, label: { color: t.palette[7] ?? t.text } });
     for (const m of Array.isArray(p.markers) ? p.markers : []) {
@@ -598,6 +649,7 @@
         return { type: "group", children: [line(mid - h / 2), line(mid + h / 2)] };
       },
       ...(marks.length ? { markLine: { silent: true, symbol: "none", animation: false, label: { show: true, position: "end", distance: 6, formatter: "{b}", fontSize: 11 }, data: marks } } : {}),
+      ...(offDays.length ? { markArea: { silent: true, animation: false, itemStyle: { color: fade(t.text, 0.05) }, data: offDays } } : {}),
     });
     d.rowsBy.unshift(shown.map((i) => i.row));
 
@@ -1653,8 +1705,24 @@
     // null when that would turn it inside out.
     function shifted(item, how, n) {
       const s0 = at(item.row, "start"), e0 = at(item.row, "end");
+      const cal = workCalendar(current());
+      if (cal && dateOnly(s0) && (blank(e0) || dateOnly(e0))) return workShifted(cal, s0, e0, how, n);
       const start = how === "end" ? s0 : dayShift(s0, n);
       const end = how === "start" || blank(e0) ? e0 : dayShift(e0, n);
+      return !blank(end) && ms(end) < ms(start) ? null : { start, end };
+    }
+    // `shifted` on working days: what moves lands on one (onward the way it moved), and
+    // a moved task keeps its length in working days.
+    const daysFrom = (v, t) => dayShift(v, Math.round((t - ms(v)) / DAY));
+    function workShifted(cal, s0, e0, how, n) {
+      const dir = n < 0 ? -1 : 1, a = ms(s0), b = blank(e0) ? null : ms(e0);
+      let start = s0, end = e0;
+      if (how === "move") {
+        const a2 = cal.snap(addDays(a, n), dir);
+        start = daysFrom(s0, a2);
+        if (b !== null) end = daysFrom(e0, cal.add(a2, Math.max(0, cal.count(a, addDays(b, 1)) - 1)));
+      } else if (how === "start") start = daysFrom(s0, cal.snap(addDays(a, n), dir));
+      else if (b !== null) end = daysFrom(e0, cal.snap(addDays(b, n), dir));
       return !blank(end) && ms(end) < ms(start) ? null : { start, end };
     }
     const span = (v) => {
@@ -1680,6 +1748,14 @@
           if (!afterKeys(r).includes(k)) continue;
           const rk = keyOf(r), mine = now(rk), a = ms(mine.start);
           if (Number.isNaN(a) || Number.isNaN(done.b) || a >= done.b) continue;
+          const cal = workCalendar(current());
+          if (cal && dateOnly(mine.start) && (blank(mine.end) || dateOnly(mine.end))) {
+            // The first working day once it ends, keeping the task's working days.
+            const a2 = cal.snap(addDays(done.b, 0)), b = blank(mine.end) ? null : ms(mine.end);
+            out.set(rk, { start: daysFrom(mine.start, a2), end: b === null ? mine.end : daysFrom(mine.end, cal.add(a2, Math.max(0, cal.count(a, addDays(b, 1)) - 1))) });
+            queue.push(rk);
+            continue;
+          }
           // Whole days (a day changing clocks is an hour short or long).
           const n = Math.ceil((done.b - a) / DAY - 0.1);
           out.set(rk, { start: dayShift(mine.start, n), end: blank(mine.end) ? mine.end : dayShift(mine.end, n) });
