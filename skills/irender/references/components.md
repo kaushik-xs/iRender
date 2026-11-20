@@ -821,7 +821,9 @@ ui-command: A search box over a list of actions, filtered as you type; Up and Do
   id           any  Element id (default: derived from the document)
   rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
   bindSearch   statekey  State key that holds the search text, both ways: to fetch items for it, say
-  parts: search, input, list, empty
+  loading      any  True while items are being fetched, e.g. `{{ searching }}`: a Loading row shows, and the empty message waits
+  loadingText  any  The Loading row's text (default `Loading…`)
+  parts: search, input, list, loading, empty
   children: yes
 ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut`, or a button with `commandfor` its id. Running an item closes it.
   placeholder  any  The search box's placeholder (default `Type a command or search…`)
@@ -830,11 +832,13 @@ ui-command-dialog: A `ui-command` in a modal, opened by its trigger, a `shortcut
   id           any  Element id (default: derived from the document)
   rank         bool  Put the best matches first, in each group and of the groups (default true); false keeps the items' order
   bindSearch   statekey  State key that holds the search text, both ways: to fetch items for it, say
+  loading      any  True while items are being fetched, e.g. `{{ searching }}`: a Loading row shows, and the empty message waits
+  loadingText  any  The Loading row's text (default `Loading…`)
   trigger      any  Text of a button that opens it
   triggerVariant one of: default, secondary, destructive, outline, ghost, link, brand  The trigger button's variant (default `outline`)
   shortcut     string  Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)
   title        any  Its accessible name (default `Command palette`)
-  parts: trigger, search, input, list, empty
+  parts: trigger, search, input, list, loading, empty
   children: yes
 ui-command-group: Items under a heading in a command palette. It hides while none of its items match.
   heading      any  Its heading

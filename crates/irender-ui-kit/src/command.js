@@ -2,10 +2,29 @@
 // every item; this filters them as you type and moves the active one, while focus
 // stays in the search box (`aria-activedescendant`). Enter clicks the active item, so
 // its own `on.click` runs; in a `ui-command-dialog`, running one closes the dialog.
+// While `loading` is true (items fetched for `bindSearch`, say), a Loading row shows and
+// the empty message waits.
 (window.__irenderBehaviors ||= {})["ui-command"] = (el, api) => {
   const input = el.querySelector("[data-ui-command-input]");
   const list = el.querySelector("[role=listbox]");
   const empty = el.querySelector("[data-ui-empty]");
+  const loadingRow = el.querySelector("[data-ui-loading]");
+  // `loading`, which may follow state.
+  const busy = () => {
+    const v = api.config.loading;
+    if (v && typeof v === "object" && "$irender" in v) {
+      const s = api.scope?.();
+      return !!window.__irender.evaluate(v.$irender, s ? { ...api.state, ...s } : api.state);
+    }
+    return !!v;
+  };
+  let shownCount = 0;
+  function loadingState() {
+    const b = busy();
+    if (loadingRow) loadingRow.hidden = !b;
+    list.setAttribute("aria-busy", String(b));
+    empty.hidden = shownCount > 0 || b;
+  }
   const live = el.querySelector("[data-ui-live]");
   const crumb = el.querySelector("[data-ui-crumb]");
   // Pages: an item's `page` opens a `ui-command-page`, shown in place of the rest.
@@ -153,7 +172,8 @@
     mark(found);
     for (const g of list.querySelectorAll("[role=group]")) g.hidden = !g.querySelector("[role=option]:not([hidden])");
     for (const s of list.querySelectorAll("[role=separator]")) s.hidden = words.length > 0 || pageOf(s) !== here();
-    empty.hidden = shown > 0;
+    shownCount = shown;
+    loadingState();
     // Typing again starts from the best match.
     const can = usable();
     setActive(can.includes(active) && !ranked ? active : (can[0] ?? null));
@@ -252,6 +272,7 @@
   return {
     // The search text from `bindSearch`, when it's changed from outside.
     update() {
+      loadingState();
       const key = api.config.bindSearch;
       if (!key || document.activeElement === input) return;
       const v = String(api.state[key] ?? "");

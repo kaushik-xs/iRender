@@ -21,13 +21,19 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-const SEARCH_PROPS: [PropDef; 6] = [
+const SEARCH_PROPS: [PropDef; 8] = [
     PropDef::new("placeholder", PropKind::Any, "The search box's placeholder (default `Type a command or search…`)"),
     PropDef::new("label", PropKind::Any, "The search box's accessible name (default: the placeholder)"),
     PropDef::new("empty", PropKind::Any, "Shown when nothing matches (default `No results found.`)"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
     PropDef::new("rank", PropKind::Bool, "Put the best matches first, in each group and of the groups (default true); false keeps the items' order"),
     PropDef::new("bindSearch", PropKind::StateKey, "State key that holds the search text, both ways: to fetch items for it, say"),
+    PropDef::new(
+        "loading",
+        PropKind::Any,
+        "True while items are being fetched, e.g. `{{ searching }}`: a Loading row shows, and the empty message waits",
+    ),
+    PropDef::new("loadingText", PropKind::Any, "The Loading row's text (default `Loading…`)"),
 ];
 const COMMAND_PROPS: &[PropDef] = &SEARCH_PROPS;
 const DIALOG_PROPS: &[PropDef] = &[
@@ -37,6 +43,8 @@ const DIALOG_PROPS: &[PropDef] = &[
     SEARCH_PROPS[3],
     SEARCH_PROPS[4],
     SEARCH_PROPS[5],
+    SEARCH_PROPS[6],
+    SEARCH_PROPS[7],
     PropDef::new("trigger", PropKind::Any, "Text of a button that opens it"),
     PropDef::new("triggerVariant", PropKind::Enum(&["default", "secondary", "destructive", "outline", "ghost", "link", "brand"]), "The trigger button's variant (default `outline`)"),
     PropDef::new("shortcut", PropKind::String, "Keys that open and close it from anywhere on the page, e.g. `mod+k` (⌘K on Apple devices, Ctrl+K elsewhere)"),
@@ -121,6 +129,23 @@ fn palette_style(framed: bool) -> StyleBlock {
         .nest("& [role=separator]", pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", BORDER)]))
         .nest("& [data-ui-empty]", pairs(&[("padding", sp!(24, 8)), ("text-align", "center"), ("color", MUTED)]))
         .nest(
+            "& [data-ui-loading]",
+            pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("gap", sp!(8)), ("padding", sp!(12, 8)), ("font-size", fs!(14)), ("color", MUTED)]),
+        )
+        .nest(
+            "& [data-ui-spinner]",
+            pairs(&[
+                ("width", "14px"),
+                ("height", "14px"),
+                ("box-sizing", "border-box"),
+                ("border", "2px solid currentColor"),
+                ("border-inline-end-color", "transparent"),
+                ("border-radius", "999px"),
+                ("animation", "ui-spin .7s linear infinite"),
+            ]),
+        )
+        .nest("@media (prefers-reduced-motion: reduce)", slow_spin())
+        .nest(
             "& [data-ui-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
         )
@@ -129,6 +154,11 @@ fn palette_style(framed: bool) -> StyleBlock {
         .nest("& [data-ui-heading]", pairs(&[("order", "-1")]))
         // Last, so it beats the `display` of items and the rest at the same specificity.
         .nest("& [hidden]", pairs(&[("display", "none")]))
+}
+
+/// The spinner turns slower rather than stopping when less motion is asked for.
+fn slow_spin() -> StyleBlock {
+    StyleBlock::new().nest("& [data-ui-spinner]", pairs(&[("animation-duration", "2s")]))
 }
 
 static FRAMED: LazyLock<StyleBlock> = LazyLock::new(|| palette_style(true));
@@ -156,8 +186,13 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
 fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, shortcut: Option<String>, dialog: bool) -> Result<(), RenderError> {
     cx.global_js("ui-command", SCRIPT);
     let rank = cx.prop(node, "rank").is_none_or(|v| irender_core::expr::truthy(&v));
-    el.attr("data-ui-command", true).behavior("ui-command", json!({ "shortcut": shortcut, "rank": rank, "bindSearch": cx.prop_string(node, "bindSearch") }));
+    let loading = node.prop("loading").map(|v| crate::data_table::dynamic(cx, node, "loading", v)).transpose()?;
+    el.attr("data-ui-command", true)
+        .behavior("ui-command", json!({ "shortcut": shortcut, "rank": rank, "bindSearch": cx.prop_string(node, "bindSearch"), "loading": loading }));
     cx.global_css("ui-command-match", MATCH_CSS);
+    if loading.is_some() {
+        cx.global_css("ui-spin", crate::SPIN);
+    }
     cx.open(&el, node)?;
 
     let placeholder = node.prop("placeholder").cloned().unwrap_or_else(|| lit(cx.label("Type a command or search…")));
@@ -196,6 +231,21 @@ fn palette(cx: &mut RenderCx<'_>, node: &Node, mut el: Element<'_>, id: &Val, sh
     cx.with_context("ui-command", Some(id.clone()), |cx| cx.children(node))?;
     cx.close("div");
 
+    // While items are fetched: a spinner and its text, in place of the empty message.
+    if node.prop("loading").is_some() {
+        let mut row = cx.part("div", node, "loading");
+        row.attr("data-ui-loading", true).attr("hidden", true).attr("role", "status");
+        cx.open(&row, node)?;
+        let mut spin = Element::new("span");
+        spin.attr("data-ui-spinner", true).attr("aria-hidden", "true");
+        cx.open(&spin, node)?;
+        cx.close("span");
+        let mut text = Element::new("span");
+        text.text(node.prop("loadingText").cloned().unwrap_or_else(|| lit(cx.label("Loading…"))));
+        cx.open(&text, node)?;
+        cx.close("span");
+        cx.close("div");
+    }
     let mut empty = cx.part("div", node, "empty");
     empty.attr("data-ui-empty", true).attr("hidden", true).text(node.prop("empty").cloned().unwrap_or_else(|| lit(cx.label("No results found."))));
     cx.open(&empty, node)?;
@@ -218,7 +268,7 @@ impl Component for Command {
             doc: "A search box over a list of actions, filtered as you type; Up and Down move, Enter runs the active \
                   one. Children are `ui-command-group`, `ui-command-item` and `ui-command-separator`.",
             props: COMMAND_PROPS,
-            parts: &["search", "input", "list", "empty"],
+            parts: &["search", "input", "list", "loading", "empty"],
             children: true,
             open_props: false,
         }
@@ -244,7 +294,7 @@ impl Component for CommandDialog {
             doc: "A `ui-command` in a modal, opened by its trigger, a `shortcut`, or a button with `commandfor` its id. \
                   Running an item closes it.",
             props: DIALOG_PROPS,
-            parts: &["trigger", "search", "input", "list", "empty"],
+            parts: &["trigger", "search", "input", "list", "loading", "empty"],
             children: true,
             open_props: false,
         }

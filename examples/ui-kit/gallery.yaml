@@ -10,6 +10,7 @@
 version: 1
 state:
   name: ""
+  cmdLoading: false
   illColours: theme
   otp: ""
   otpDone: ""
@@ -2188,7 +2189,7 @@ root:
                       props: { direction: row, gap: 24, wrap: true, align: start }
                       children:
                         - type: ui-command
-                          props: { id: command }
+                          props: { id: command, loading: "{{ cmdLoading }}", loadingText: Searching… }
                           style: { max-width: 420 }
                           children:
                             - type: ui-command-group
@@ -2225,6 +2226,7 @@ root:
                         - type: stack
                           props: { gap: 8 }
                           children:
+                            - { type: ui-switch, props: { bind: cmdLoading, label: "Loading, as while items are fetched for the search" } }
                             - { type: ui-text, props: { variant: muted, text: "Press ⌘K (Ctrl+K) or the button." } }
                             - type: ui-command-dialog
                               props: { trigger: Open command palette, shortcut: mod+k, id: command-dialog }

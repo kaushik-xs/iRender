@@ -96,7 +96,7 @@ _Last updated: 2026-11-19._
   - [x] Right-clicking a data table row selects it (2026-11-20), or keeps the selection on a selected row, as file lists do; block data-table-01's row menu acts on the selection.
 - [ ] **`ui-command` gaps:**
   - [x] Ranked, fuzzy matching (2026-11-20): best match first in each group and of the groups, letters in order, keywords, matched letters marked; `rank: false` for document order.
-  - [x] Pages (`ui-command-page`, an item's `page`, Backspace back) and `bindSearch` (2026-11-20). Not done yet: no loading state for items fetched as you type.
+  - [x] Pages (`ui-command-page`, an item's `page`, Backspace back) and `bindSearch` (2026-11-20). A loading state for items fetched as you type: `loading` and `loadingText` (2026-11-20; gallery).
 - [ ] **`ui-sidebar` gaps:**
   - [x] `remember` keeps it open or closed across reloads, in localStorage (2026-11-20; blocks sidebar-07, dashboard-01). The server can't read it (shadcn's cookie can), so a page drawn closed but remembered open opens as its script runs.
   - [x] Group and item actions (2026-11-20): `ui-sidebar-action`, a button or a ⋯ menu, shown always or on hover (block sidebar-07, gallery).

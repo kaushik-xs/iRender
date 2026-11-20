@@ -179,6 +179,7 @@ root: …
 
 ```yaml
 "Type a command or search…": "Type a command or search…"
+"Loading…": "Loading…"
 "No results found.": "No results found."
 "Command palette": "Command palette"
 ```

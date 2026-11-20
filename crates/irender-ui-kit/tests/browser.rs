@@ -6720,6 +6720,59 @@ fn command_palette_pages_in_chrome() {
     );
 }
 
+/// `loading` on a command palette: while items are fetched, a Loading row shows (and
+/// the list says it's busy) and the empty message waits; items that arrive show.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn command_palette_loading_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "q": "", "searching": false, "people": [] },
+        "root": { "type": "ui-command", "props": { "id": "cmd", "bindSearch": "q", "loading": "{{ searching }}", "loadingText": "Finding people…" }, "children": [
+            { "type": "list", "props": { "items": "{{ people }}", "as": "p", "key": "{{ p }}" }, "style": { "display": "contents" }, "children": [
+                { "type": "ui-command-item", "props": { "label": "{{ p }}" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender;
+      const P = document.getElementById("cmd"), input = P.querySelector("input");
+      const loading = P.querySelector("[data-ui-loading]"), empty = P.querySelector("[data-ui-empty]");
+      const view = () => [`loading ${loading.hidden ? "hidden" : loading.textContent}`, `empty ${empty.hidden ? "hidden" : "shown"}`, `busy ${P.querySelector("[role=listbox]").getAttribute("aria-busy")}`,
+        `items ${[...P.querySelectorAll("[role=option]")].filter((i) => i.getClientRects().length).map((i) => i.textContent.trim()).join(",") || "none"}`].join(" | ");
+      try {
+        log("start", view());
+        input.value = "as"; input.dispatchEvent(new Event("input", { bubbles: true }));
+        api.set("searching", true); await wait(10);
+        log("fetching", view(), loading.getAttribute("role"));
+        api.set("people", ["Asha", "Asif"]); api.set("searching", false); await wait(20);
+        log("arrived", view());
+        input.value = "zz"; input.dispatchEvent(new Event("input", { bubbles: true }));
+        api.set("searching", true); api.set("people", []); await wait(10);
+        log("again", view());
+        api.set("searching", false); await wait(10);
+        log("none", view());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("command-loading", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start loading hidden | empty shown | busy false | items none",
+            "fetching loading Finding people… | empty hidden | busy true | items none status",
+            "arrived loading hidden | empty hidden | busy false | items Asha,Asif",
+            "again loading Finding people… | empty hidden | busy true | items none",
+            "none loading hidden | empty shown | busy false | items none",
+        ],
+        "\n{result}"
+    );
+}
+
 /// A long press by touch opens a context menu (iOS sends no `contextmenu`), moving first
 /// doesn't, and the press's own `contextmenu` and click don't act again; menu checkbox and
 /// radio items with `keepOpen` leave the menu open.
