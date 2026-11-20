@@ -6305,6 +6305,66 @@ fn kanban_lanes_and_fields_from_state_in_chrome() {
     );
 }
 
+/// A board's `filter`: only the cards that pass are shown, counts say "n of total", a
+/// limit still counts every card, and moving among the shown cards keeps the hidden ones.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn kanban_filter_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": {
+            "who": null, "f": {},
+            "tasks": [
+                { "id": "a", "column": "todo", "title": "Alpha", "assignee": "Asha", "points": 3 },
+                { "id": "b", "column": "todo", "title": "Bravo", "assignee": "Ravi", "points": 5 },
+                { "id": "c", "column": "todo", "title": "Charlie", "assignee": "Asha", "points": 8 },
+                { "id": "d", "column": "doing", "title": "Delta", "assignee": "Ravi", "points": 2 } ] },
+        "root": { "type": "ui-kanban", "props": { "columns": [ { "id": "todo", "title": "To do", "limit": 3 }, "doing" ], "cards": "{{ tasks }}", "bindCards": "tasks",
+            "filter": { "assignee": "{{ who }}", "points": "{{ f.points }}" } } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), api = root.__irender;
+      const K = document.querySelector("[data-i-x=ui-kanban]"), $ = (s) => K.querySelector(s), $$ = (s) => [...K.querySelectorAll(s)];
+      const board = () => $$("[data-kb-column]").map((c) => c.getAttribute("data-kb-column") + "(" + c.querySelector("[data-kb-count]").textContent + "):" + [...c.querySelectorAll("[data-kb-card]")].map((x) => x.getAttribute("data-kb-card")).join("")).join(" ");
+      const order = () => api.state.tasks.map((t) => t.id + "@" + t.column).join(" ");
+      try {
+        log("all", board());
+        api.set("who", "Asha"); await wait(0);
+        log("asha", board());
+        // Down past Charlie's hidden neighbour Bravo: Alpha goes after Charlie, Bravo stays.
+        $('[data-kb-card="a"]').focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", altKey: true, bubbles: true, cancelable: true })); await wait(0);
+        log("down", board(), "|", order());
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true, cancelable: true })); await wait(0);
+        log("right", board(), "|", order());
+        api.set("who", null); api.set("f", { points: { gte: 5 } }); await wait(0);
+        log("points", board());
+        api.set("f", {}); await wait(0);
+        log("none", board());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("kanban-filter", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "all todo(3 / 3):abc doing(1):d",
+            "asha todo(3 / 3):ac doing(0 of 1):",
+            "down todo(3 / 3):ca doing(0 of 1): | b@todo c@todo a@todo d@doing",
+            "right todo(2 / 3):c doing(1 of 2):a | b@todo c@todo d@doing a@doing",
+            "points todo(2 / 3):bc doing(0 of 2):",
+            "none todo(2 / 3):bc doing(2):da",
+        ],
+        "\n{result}"
+    );
+}
+
 /// The carousel: slides of different widths stepped one at a time, dots marking and
 /// going to slides, `loop` going round at the ends, and `autoplay` moving on by itself
 /// while it isn't held by the pointer or paused.

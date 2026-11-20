@@ -432,6 +432,7 @@ root: …
 "Move column {name}": "Move column {name}"
 "Drag, or press Left or Right, to move the column": "Drag, or press Left or Right, to move the column"
 "Limit {limit}": "Limit {limit}"
+"{n} of {total}": "{n} of {total}"
 "{n} cards": { one: "{n} card", other: "{n} cards" }
 "No cards": "No cards"
 "Card title, then Enter": "Card title, then Enter"

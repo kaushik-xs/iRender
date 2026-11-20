@@ -625,7 +625,9 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Moving columns.** With `reorderable`, each column's header has a grip: drag it onto another header (its first half puts it before that column, its second after), or focus it and press Left or Right. The columns' new order goes to `bindColumns` (the state key `columns` reads), with a `columns` event, and is announced.
 
-**Props.** `columns` and `cards` (required), `bindCards`, `bindCard`, `movable` (default true), `addable`, `collapsible`, `collapsed`, `addLabel`, `emptyText`, `columnWidth` (px, default 280), `label` (default `Board`), `swimlanes`, `lanes`, `fields`, `reorderable`, `bindColumns`, `locale`; part `board`.
+**Filtering.** `filter` shows only the cards that pass, `{ field: condition }` in the same format as `ui-data-table`'s and `ui-chart`'s `filter`, so a `ui-filters` panel's `bind` narrows a board too: `filter: "{{ boardFilter }}"`, or `{ assignee: "{{ owner }}" }`. A column's count reads "2 of 6" while some of its cards are hidden; a `limit` still counts all of them. Moving a card places it among the cards shown, and the hidden ones keep their places in `bindCards`. A card added or moved so that it no longer passes drops out of view. The filter is applied in the browser, so the server's first drawing shows every card (block crm-01).
+
+**Props.** `columns` and `cards` (required), `bindCards`, `bindCard`, `movable` (default true), `addable`, `collapsible`, `collapsed`, `addLabel`, `emptyText`, `columnWidth` (px, default 280), `label` (default `Board`), `swimlanes`, `lanes`, `fields`, `reorderable`, `bindColumns`, `filter`, `locale`; part `board`.
 
 ## Dashboard grid
 

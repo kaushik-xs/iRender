@@ -4,6 +4,8 @@
 #
 # - Board settings picks the swimlanes (none, owner, region or tier) and how much each
 #   card shows (the `fields` list comes from state), so one board covers several views.
+# - Filters narrow the board (its `filter`) by owner, region, tier, product or value;
+#   counts read "2 of 5", and Negotiation's limit still counts every deal.
 # - Negotiation has a limit of 4; Lost starts folded.
 # - The table is grouped by stage with subtotals, and its owner filter, search and sort
 #   are its own. Clicking an owner's bar in Forecast filters the table to them.
@@ -17,6 +19,7 @@ state:
   detail: standard
   deal: null
   owner: null
+  boardFilter: {}
   stageTones: { Lead: neutral, Qualified: info, Proposal: primary, Negotiation: warning, Won: success, Lost: danger }
   compact: []
   standard: [ { field: value, label: Value }, { field: close, label: Closes, cell: date } ]
@@ -89,6 +92,14 @@ root:
         - type: element
           style: { display: flex, flex-wrap: wrap, gap: 8, align-items: center }
           children:
+            - type: ui-filters
+              props: { bind: boardFilter, rows: "{{ deals }}", title: Filter the board, currency: USD, locale: en-US }
+              children:
+                - { type: ui-filter, props: { field: assignee, label: Owner } }
+                - { type: ui-filter, props: { field: region, label: Region } }
+                - { type: ui-filter, props: { field: tier, label: Tier } }
+                - { type: ui-filter, props: { field: product, label: Product } }
+                - { type: ui-filter, props: { field: amount, label: Value, type: currency } }
             - type: ui-popover
               props: { trigger: Board settings, align: end }
               style: { width: 300 }
@@ -125,6 +136,7 @@ root:
                     cards: "{{ deals }}"
                     bindCards: deals
                     bindCard: deal
+                    filter: "{{ boardFilter }}"
                     swimlanes: "{{ lanes == 'none' ? null : lanes }}"
                     fields: "{{ detail == 'compact' ? compact : (detail == 'detailed' ? detailed : standard) }}"
                     collapsible: true

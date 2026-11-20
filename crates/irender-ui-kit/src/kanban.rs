@@ -43,6 +43,11 @@ const PROPS: &[PropDef] = &[
     PropDef::new("reorderable", PropKind::Bool, "A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)"),
     PropDef::new("bindColumns", PropKind::StateKey, "State key the columns are in: a moved column's new order is written back to it"),
     PropDef::new("locale", PropKind::String, "Locale for `date` fields (default: the document's `lang`)"),
+    PropDef::new(
+        "filter",
+        PropKind::Any,
+        "Shows only the cards that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`. Applied in the browser",
+    ),
 ];
 
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
@@ -332,6 +337,7 @@ impl Component for Kanban {
             "swimlanes": node.prop("swimlanes").map(|v| dynamic(cx, node, "swimlanes", v)).transpose()?,
             "lanes": node.prop("lanes").map(|l| dynamic(cx, node, "lanes", l)).transpose()?,
             "fields": node.prop("fields").map(|v| dynamic(cx, node, "fields", v)).transpose()?,
+            "filter": node.prop("filter").map(|f| dynamic(cx, node, "filter", f)).transpose()?,
             "reorderable": reorderable,
             "bindColumns": cx.prop_string(node, "bindColumns"),
             "locale": crate::locale(cx, node),

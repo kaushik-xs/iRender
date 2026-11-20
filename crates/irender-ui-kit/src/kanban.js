@@ -12,6 +12,8 @@
 // lane writes the field. Up and Down go on into the next lane at a cell's ends, and Alt
 // with them moves a card there. With `reorderable`, a grip on each column's header moves
 // the column (dragged, or Left and Right on it), writing the order to `bindColumns`.
+// With `filter` (`{ field: condition }`, as the data table's and `ui-chart`'s), only the
+// cards that pass are drawn; moves place a card among the ones shown and keep the rest.
 (window.__irenderBehaviors ||= {})["ui-kanban"] = (el, api) => {
   const cfg = api.config;
   // Interface text in the document's words (its `labels`), by the English.
@@ -30,7 +32,7 @@
   };
   const resolve = (v) => (isObj(v) && "$irender" in v && Object.keys(v).length === 1 ? window.__irender.evaluate(v.$irender, env()) : v);
   const columns = () => (Array.isArray(resolve(cfg.columns)) ? resolve(cfg.columns) : []).map((c) => (isObj(c) ? c : { id: c, title: c }));
-  const cards = () => (Array.isArray(resolve(cfg.cards)) ? resolve(cfg.cards) : []);
+  const allCards = () => (Array.isArray(resolve(cfg.cards)) ? resolve(cfg.cards) : []);
   const key = (v) => (v == null ? "" : String(v));
   const say = (text) => {
     live.textContent = "";
@@ -40,6 +42,52 @@
   const PRIORITY = { urgent: "danger", critical: "danger", high: "warning", medium: "info", normal: "info", low: "neutral" };
   const initialsOf = (name) => String(name ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
   const at = (r, f) => String(f).split(".").reduce((x, k) => (x !== null && typeof x === "object" ? x[k] : undefined), r);
+
+  // ---- `filter`: the data table's conditions (`matches` in data_table.js), so one
+  // `ui-filters` panel can narrow a board, a table and a chart alike
+  const blank = (v) => v === null || v === undefined || v === "";
+  const isNum = (v) => typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !isNaN(v));
+  const looksLikeDate = (v) => typeof v === "string" && /^\d{4}-\d{2}/.test(v) && !isNaN(Date.parse(v));
+  const fold = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const same = (a, b) => a === b || (!blank(a) && !blank(b) && typeof a !== "object" && typeof b !== "object" && String(a) === String(b));
+  const cmp = (a, b) => {
+    if (isNum(a) && isNum(b)) return Number(a) - Number(b);
+    if (looksLikeDate(a) && looksLikeDate(b)) return Date.parse(a) - Date.parse(b);
+    return String(a ?? "").localeCompare(String(b ?? ""), cfg.locale || undefined, { numeric: true, sensitivity: "base" });
+  };
+  const endOfDay = (b) => (typeof b === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b) ? b + "T23:59:59.999" : b);
+  const OPS = {
+    from: (v, b) => cmp(v, b) >= 0,
+    to: (v, b) => cmp(v, looksLikeDate(v) ? endOfDay(b) : b) <= 0,
+    gt: (v, b) => cmp(v, b) > 0,
+    gte: (v, b) => cmp(v, b) >= 0,
+    lt: (v, b) => cmp(v, b) < 0,
+    lte: (v, b) => cmp(v, b) <= 0,
+    contains: (v, b) => fold(v).includes(fold(b)),
+  };
+  function matches(v, c, field) {
+    if (blank(c)) return true;
+    if (Array.isArray(v)) return !v.length ? matches(null, c, field) || (Array.isArray(c) && !c.length) : v.some((x) => matches(x, c, field));
+    if (Array.isArray(c)) return !c.length || c.some((x) => same(v, isObj(x) ? x[field] : x));
+    if (!isObj(c)) return same(v, c);
+    if (Object.hasOwn(c, "not")) return blank(c.not) || !matches(v, c.not, field);
+    if (Object.hasOwn(c, "empty")) return blank(c.empty) || (c.empty ? blank(v) : !blank(v));
+    const ops = Object.keys(c).filter((k) => Object.hasOwn(OPS, k));
+    if (!ops.length) return same(v, c[field]);
+    return ops.every((k) => blank(c[k]) || (!blank(v) && OPS[k](v, c[k])));
+  }
+  // The filter, with any state it uses read (it may be `{ owner: "{{ who }}" }`).
+  const deep = (v) => (Array.isArray(v) ? v.map(deep) : isObj(v) ? ("$irender" in v && Object.keys(v).length === 1 ? resolve(v) : Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)]))) : v);
+  const filter = () => {
+    const f = deep(cfg.filter);
+    return isObj(f) ? f : null;
+  };
+  const passes = (c, f = filter()) => !f || Object.entries(f).every(([field, cond]) => matches(at(c, field), cond, field));
+  // The cards shown: every card, or those that pass the filter.
+  const cards = () => {
+    const all = allCards(), f = filter();
+    return f ? all.filter((c) => passes(c, f)) : all;
+  };
 
   // ---- lanes: one per value of the `swimlanes` field, in `lanes`' order or as they come.
   // The field may follow state, so it's read again on each draw.
@@ -136,6 +184,8 @@
   const cellKey = (col, lane) => `${col}|${lane ?? ""}`;
   // A column's header: its dot, title, count (of every lane), fold button and grip.
   function header(col, mine) {
+    // Filtered, "2 of 5"; a limit counts every card in the column.
+    const total = allCards().filter((c) => key(c.column) === key(col.id)).length;
     const id = key(col.id), title = String(col.title ?? id);
     const head = make("header", { "data-kb-head": "" });
     if (cfg.reorderable) {
@@ -144,7 +194,7 @@
       head.append(g);
     }
     head.append(make("span", { "data-kb-dot": "", "aria-hidden": "true" }), make("h3", {}, title));
-    head.append(make("span", { "data-kb-count": "", title: col.limit != null ? L("Limit {limit}", { limit: String(col.limit) }) : null }, col.limit != null ? `${mine.length} / ${col.limit}` : String(mine.length)));
+    head.append(make("span", { "data-kb-count": "", title: col.limit != null ? L("Limit {limit}", { limit: String(col.limit) }) : null }, col.limit != null ? `${total} / ${col.limit}` : mine.length < total ? L("{n} of {total}", { n: mine.length, total }) : String(mine.length)));
     if (cfg.collapsible) {
       const b = make("button", { type: "button", "data-kb-fold": "", "aria-expanded": collapsed.has(id) ? "false" : "true", "aria-label": L(collapsed.has(id) ? "Show {name}" : "Hide {name}", { name: title }) });
       b.innerHTML = svg.fold;
@@ -155,11 +205,11 @@
   // A column's cards in one lane (or all of them): the list, the empty note and Add card.
   function cell(col, lane, mine, withHead) {
     const id = key(col.id), title = String(col.title ?? id);
-    const all = cards().filter((c) => key(c.column) === id);
+    const all = allCards().filter((c) => key(c.column) === id);
     const over = col.limit != null && all.length > Number(col.limit);
     const name = lane?.key == null ? title : `${title}, ${lane.name}`;
     const section = make("section", { "data-kb-column": id, "data-kb-lane": lane?.key ?? null, "data-tone": col.tone ?? null, "data-over": over, "data-collapsed": collapsed.has(id), "aria-label": `${name}, ${L(["{n} card", "{n} cards"], { n: mine.length })}` });
-    if (withHead) section.append(header(col, all));
+    if (withHead) section.append(header(col, mine));
     const list = make("div", { "data-kb-cards": "", role: "list" });
     for (const c of mine) {
       const item = card(c);
@@ -227,7 +277,7 @@
 
   // ---- reading and writing the cards
   const cardEl = (id) => $(`[data-kb-card="${CSS.escape(id)}"]`);
-  const cardOf = (id) => cards().find((c) => key(c.id) === id);
+  const cardOf = (id) => allCards().find((c) => key(c.id) === id);
   const columnOf = (id) => key(cardOf(id)?.column);
   // The cards in column `col` (and lane `lane`, with lanes).
   const inCell = (col, lane, all = cards()) => all.filter((c) => key(c.column) === col && (!laneField || laneOf(c) === lane));
@@ -236,12 +286,12 @@
   // Moves card `id` to place `pos` (among the cards in column `to`, and lane `lane`,
   // without it).
   function move(id, to, pos, lane) {
-    const all = cards();
+    const all = allCards(), f = filter();
     const c = all.find((x) => key(x.id) === id);
     if (!c) return false;
     const from = key(c.column), fromLane = laneOf(c);
     lane = laneField ? (lane === undefined ? fromLane : lane) : null;
-    const before = inCell(from, fromLane, all).findIndex((x) => key(x.id) === id);
+    const before = inCell(from, fromLane, all.filter((x) => passes(x, f))).findIndex((x) => key(x.id) === id);
     if (from === to && lane === fromLane && before === pos) return false;
     const rest = all.filter((x) => key(x.id) !== id);
     let moved = { ...c, column: columns().find((x) => key(x.id) === to)?.id ?? to };
@@ -252,10 +302,11 @@
       const set = (o, i) => (i === path.length - 1 ? { ...o, [path[i]]: v ?? null } : { ...o, [path[i]]: set(isObj(o[path[i]]) ? o[path[i]] : {}, i + 1) });
       moved = set(moved, 0);
     }
-    const target = inCell(to, lane, rest);
+    // `pos` is among the cards shown; filtered out ones keep their places.
+    const target = inCell(to, lane, rest.filter((x) => passes(x, f))), whole = inCell(to, lane, rest);
     // Into the whole list just before the card that will follow it (or after the cell's last).
     const next = target[pos];
-    let i = next ? rest.indexOf(next) : target.length ? rest.indexOf(target.at(-1)) + 1 : rest.length;
+    let i = next ? rest.indexOf(next) : whole.length ? rest.indexOf(whole.at(-1)) + 1 : rest.length;
     rest.splice(i, 0, moved);
     focusId = id;
     if (cfg.bindCards) api.set(cfg.bindCards, rest);
@@ -282,7 +333,7 @@
       const v = laneByKey(lane)?.value;
       if (v != null && v !== "") c = { ...c, [laneField]: v };
     }
-    const all = cards();
+    const all = allCards();
     const mine = inCell(col, laneField ? lane : null, all);
     const i = mine.length ? all.indexOf(mine.at(-1)) + 1 : all.length;
     focusId = id;
@@ -525,14 +576,14 @@
   function syncOpen() {
     const open = cfg.bindCard ? api.state[cfg.bindCard] : null;
     if (!isObj(open) || open.id == null) return;
-    const now = cards().find((c) => key(c.id) === key(open.id)) ?? null;
+    const now = allCards().find((c) => key(c.id) === key(open.id)) ?? null;
     if (now !== open) api.set(cfg.bindCard, now);
   }
   let last = null;
   draw();
   return {
     update() {
-      const now = [resolve(cfg.columns), resolve(cfg.cards), resolve(cfg.lanes), resolve(cfg.swimlanes), resolve(cfg.fields)];
+      const now = [resolve(cfg.columns), resolve(cfg.cards), resolve(cfg.lanes), resolve(cfg.swimlanes), resolve(cfg.fields), JSON.stringify(filter())];
       if (last && now.every((x, n) => x === last[n])) return;
       last = now;
       draw();

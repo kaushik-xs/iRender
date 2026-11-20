@@ -407,6 +407,7 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   reorderable  bool  A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)
   bindColumns  statekey  State key the columns are in: a moved column's new order is written back to it
   locale       string  Locale for `date` fields (default: the document's `lang`)
+  filter       any  Shows only the cards that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`. Applied in the browser
   parts: board
   children: no
 ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
