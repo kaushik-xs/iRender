@@ -81,7 +81,7 @@ fn lookup_edge_cases() {
 
 #[test]
 fn rejects_anything_beyond_the_language() {
-    for bad in ["a = 1", "f()", "a.b()", "[1, 2]", "{a: 1}", "a ? b", "'open", "a..b", "1 +", "@x", "a[b]"] {
+    for bad in ["a = 1", "f()", "a.b()", "[1, 2]", "{a: 1}", "a ? b", "'open", "a..b", "1 +", "@x", "a[]", "a[b", "a[b c]"] {
         assert!(Expr::parse(bad).is_err(), "`{bad}` should not parse");
     }
 }

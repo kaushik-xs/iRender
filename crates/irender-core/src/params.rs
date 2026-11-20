@@ -65,6 +65,7 @@ impl Params {
             Expr::Binary(op, a, b) => Expr::Binary(*op, Box::new(self.expr(a)?), Box::new(self.expr(b)?)),
             Expr::Cond(c, a, b) => Expr::Cond(Box::new(self.expr(c)?), Box::new(self.expr(a)?), Box::new(self.expr(b)?)),
             Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| self.expr(a)).collect::<Result<_, _>>()?),
+            Expr::Index(v, k) => Expr::Index(Box::new(self.expr(v)?), Box::new(self.expr(k)?)),
         })
     }
 

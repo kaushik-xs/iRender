@@ -91,6 +91,11 @@
     }
     if ("c" in e) return truthy(ev(e.c[0], s)) ? ev(e.c[1], s) : ev(e.c[2], s);
     if ("f" in e) return fns[e.f] ? fns[e.f](e.a.map((x) => ev(x, s))) : null;
+    // `value[key]` with a computed key: a string names a field, a whole number an index.
+    if ("i" in e) {
+      const k = ev(e.i[1], s);
+      return typeof k === "string" || (Number.isInteger(k) && k >= 0) ? get(ev(e.i[0], s), [String(k)]) : null;
+    }
     if (e.b === "&&") { const l = ev(e.x, s); return truthy(l) ? ev(e.y, s) : l; }
     if (e.b === "||") { const l = ev(e.x, s); return truthy(l) ? l : ev(e.y, s); }
     const l = ev(e.x, s), r = ev(e.y, s);

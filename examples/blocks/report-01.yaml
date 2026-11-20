@@ -17,6 +17,8 @@ state:
   dim: region
   measure: revenue
   agg: sum
+  # The start of the chart's title for each way of aggregating: `aggNames[agg]`.
+  aggNames: { count: Number of sales, sum: Total, avg: Average, max: Largest, min: Smallest }
   split: channel
   order: desc
   top: 10
@@ -401,7 +403,7 @@ root:
           children:
             - type: ui-card
               props:
-                title: "{{ agg == 'count' ? 'Number of sales' : (agg == 'sum' ? 'Total' : (agg == 'avg' ? 'Average' : (agg == 'max' ? 'Largest' : 'Smallest'))) + ' ' + measure }} by {{ dim }}"
+                title: "{{ agg == 'count' ? aggNames[agg] : aggNames[agg] + ' ' + measure }} by {{ dim }}"
                 description: "{{ split != 'none' && kind != 'pie' && kind != 'donut' && kind != 'funnel' ? 'Split by ' + split + '. ' : '' }}Click a mark to see its sales below."
               children:
                 - type: ui-chart

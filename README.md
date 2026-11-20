@@ -61,6 +61,7 @@ See [`examples/`](examples/README.md) for complete pages: a dashboard built from
 - **parts** style a component's inner elements.
 - **on** maps DOM events to declarative actions: `set_state`, `navigate`, `submit`, `call` and `wait`. A `call` dispatches an `irender:call` DOM event for the host app to handle. A `wait` (`{ "action": "wait", "ms": 3000 }`, at most 60 000) pauses before the next action, e.g. to hide a message again.
 - **Expressions** (`{{ … }}`) support paths, literals, arithmetic, comparisons, `&& || !`, `?:` and the functions `range`, `includes` and `toggle`. An expression that references `state` updates live in the browser. Any other path is filled in from server `data` at render time.
+  - Paths: `user.name`, `rows[0].id`, `obj['first-name']`, and computed keys, such as `names[dim]` (the field `dim` names) or `rows[i + 1]`. A key that's neither a string nor a whole number from 0 gives `null`.
   - `range(n)` is the list `[0, 1, …, n - 1]`, and `range(start, end)` runs from `start` to `end - 1`, for a `list` that repeats something a number of times: `"items": "{{ range(stars) }}"`.
   - Arguments are truncated to whole numbers, and anything that isn't a number counts as 0.
   - At most 1000 items.

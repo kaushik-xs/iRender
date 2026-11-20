@@ -23,6 +23,9 @@ pub enum Expr {
     Binary(BinOp, Box<Expr>, Box<Expr>),
     Cond(Box<Expr>, Box<Expr>, Box<Expr>),
     Call(Func, Vec<Expr>),
+    /// `value[key]` with a computed key, e.g. `names[dim]`: the field the key names, or
+    /// the item at that index. A literal key stays part of a [`Path`](Expr::Path).
+    Index(Box<Expr>, Box<Expr>),
 }
 
 /// What folding an expression can work out before the browser does (see [`Expr::fold`]).
@@ -204,6 +207,10 @@ impl Expr {
                 }
             }
             Expr::Call(f, args) => f.call(&args.iter().map(|a| a.eval(lookup)).collect::<Vec<_>>()),
+            Expr::Index(v, k) => match key_segment(&k.eval(lookup)) {
+                Some(seg) => self::lookup(&v.eval(lookup), &[seg]),
+                None => Json::Null,
+            },
             Expr::Binary(op, l, r) => {
                 let lv = l.eval(lookup);
                 match op {
@@ -250,6 +257,10 @@ impl Expr {
                 b.visit_paths(f);
             }
             Expr::Call(_, args) => args.iter().for_each(|a| a.visit_paths(f)),
+            Expr::Index(v, k) => {
+                v.visit_paths(f);
+                k.visit_paths(f);
+            }
         }
     }
 
@@ -280,6 +291,7 @@ impl Expr {
                 Box::new(b.fold(keep, lookup)),
             ),
             Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| a.fold(keep, lookup)).collect()),
+            Expr::Index(v, k) => Expr::Index(Box::new(v.fold(keep, lookup)), Box::new(k.fold(keep, lookup))),
         }
     }
 
@@ -292,6 +304,7 @@ impl Expr {
             Expr::Binary(_, l, r) => l.reads(keep) || r.reads(keep),
             Expr::Cond(c, a, b) => c.reads(keep) || a.reads(keep) || b.reads(keep),
             Expr::Call(_, args) => args.iter().any(|a| a.reads(keep)),
+            Expr::Index(v, k) => v.reads(keep) || k.reads(keep),
         }
     }
 
@@ -317,7 +330,7 @@ impl Expr {
 
     /// Compact JSON form consumed by the browser runtime. Each node kind has a distinct
     /// discriminating key: `l` literal, `p` path, `u` unary, `b` binary, `c` conditional,
-    /// `f` call (with its arguments in `a`).
+    /// `f` call (with its arguments in `a`), `i` index (`[value, key]`).
     pub fn to_js(&self) -> Json {
         match self {
             Expr::Lit(v) => json!({ "l": v }),
@@ -326,6 +339,7 @@ impl Expr {
             Expr::Binary(op, l, r) => json!({ "b": op.symbol(), "x": l.to_js(), "y": r.to_js() }),
             Expr::Cond(c, a, b) => json!({ "c": [c.to_js(), a.to_js(), b.to_js()] }),
             Expr::Call(f, args) => json!({ "f": f.name(), "a": args.iter().map(Expr::to_js).collect::<Vec<_>>() }),
+            Expr::Index(v, k) => json!({ "i": [v.to_js(), k.to_js()] }),
         }
     }
 
@@ -386,7 +400,24 @@ impl Expr {
                 }
                 out.write_str("]}")
             }
+            Expr::Index(v, k) => {
+                out.write_str("{\"i\":[")?;
+                v.write_js(out, keep, lookup)?;
+                out.write_char(',')?;
+                k.write_js(out, keep, lookup)?;
+                out.write_str("]}")
+            }
         }
+    }
+}
+
+/// A computed key as a path segment: a string, or a whole number from 0 (an index).
+/// Anything else picks nothing.
+fn key_segment(k: &Json) -> Option<String> {
+    match k {
+        Json::String(s) => Some(s.clone()),
+        Json::Number(n) => n.as_f64().filter(|f| f.fract() == 0.0 && *f >= 0.0).map(|f| (f as u64).to_string()),
+        _ => None,
     }
 }
 
@@ -462,6 +493,10 @@ impl Hash for Expr {
             Expr::Call(f, args) => {
                 f.hash(state);
                 args.hash(state);
+            }
+            Expr::Index(v, k) => {
+                v.hash(state);
+                k.hash(state);
             }
         }
     }
@@ -819,6 +854,11 @@ impl Parser {
         &self.toks[self.pos].0
     }
 
+    /// The token `n` after the next one, or the end.
+    fn peek_at(&self, n: usize) -> &Tok {
+        &self.toks[(self.pos + n).min(self.toks.len() - 1)].0
+    }
+
     fn offset(&self) -> usize {
         self.toks[self.pos].1
     }
@@ -927,27 +967,47 @@ impl Parser {
         Ok(Expr::Call(f, args))
     }
 
+    /// A path: `a.b`, `a['b']`, `a[0]`; or, once a key is computed (`names[dim]`),
+    /// lookups on its value, with what follows (`names[dim].short`) looked up on that.
     fn path(&mut self, root: String) -> Result<Expr, ParseError> {
         let index = |n: f64| (n.fract() == 0.0 && n >= 0.0).then(|| (n as u64).to_string());
         let mut segs = vec![root];
+        let mut computed: Option<Expr> = None;
+        // A literal segment: onto the path, or looked up on the computed value.
+        let push = |segs: &mut Vec<String>, computed: &mut Option<Expr>, seg: String| match computed.take() {
+            Some(e) => *computed = Some(Expr::Index(Box::new(e), Box::new(Expr::Lit(Json::String(seg))))),
+            None => segs.push(seg),
+        };
         loop {
             if self.eat(".") {
                 let at = self.offset();
                 match self.next() {
-                    Tok::Ident(s) => segs.push(s),
-                    Tok::Num(n) if index(n).is_some() => segs.extend(index(n)),
+                    Tok::Ident(s) => push(&mut segs, &mut computed, s),
+                    Tok::Num(n) if index(n).is_some() => push(&mut segs, &mut computed, index(n).unwrap()),
                     _ => return Err(ParseError::new("expected a property name after `.`", at)),
                 }
             } else if self.eat("[") {
                 let at = self.offset();
-                match self.next() {
-                    Tok::Str(s) => segs.push(s),
-                    Tok::Num(n) if index(n).is_some() => segs.extend(index(n)),
-                    _ => return Err(ParseError::new("expected a string or index inside `[]`", at)),
+                match (self.peek(), self.peek_at(1)) {
+                    (Tok::Str(s), Tok::Op("]")) => {
+                        let s = s.clone();
+                        self.next();
+                        push(&mut segs, &mut computed, s);
+                    }
+                    (Tok::Num(n), Tok::Op("]")) if index(*n).is_some() => {
+                        let seg = index(*n).unwrap();
+                        self.next();
+                        push(&mut segs, &mut computed, seg);
+                    }
+                    _ => {
+                        let key = self.ternary().map_err(|_| ParseError::new("expected a key inside `[]`", at))?;
+                        let base = computed.take().unwrap_or_else(|| Expr::Path(std::mem::take(&mut segs)));
+                        computed = Some(Expr::Index(Box::new(base), Box::new(key)));
+                    }
                 }
                 self.expect("]")?;
             } else {
-                return Ok(Expr::Path(segs));
+                return Ok(computed.unwrap_or(Expr::Path(segs)));
             }
         }
     }
@@ -979,6 +1039,23 @@ mod tests {
         assert_eq!(eval("p.tags.length", data.clone()), json!(2));
         assert_eq!(eval("p['first-name']", data.clone()), json!("X"));
         assert_eq!(eval("p.missing.deep", data), Json::Null);
+    }
+
+    #[test]
+    fn computed_keys() {
+        let data = json!({ "names": { "region": "Region", "a": { "short": "A" } }, "dim": "region", "list": [1, 2, 3], "i": 2 });
+        assert_eq!(eval("names[dim]", data.clone()), json!("Region"));
+        assert_eq!(eval("names['a'].short", data.clone()), json!("A"));
+        assert_eq!(eval("names[dim == 'x' ? dim : 'a'].short", data.clone()), json!("A"));
+        assert_eq!(eval("list[i]", data.clone()), json!(3));
+        assert_eq!(eval("list[i - 1] + list[0]", data.clone()), json!(3));
+        assert_eq!(eval("list[0.5]", data.clone()), Json::Null);
+        assert_eq!(eval("names[missing]", data), Json::Null);
+        // A literal key stays a plain path.
+        assert_eq!(Expr::parse("a['b'][0]").unwrap(), Expr::Path(vec!["a".into(), "b".into(), "0".into()]));
+        assert!(matches!(Expr::parse("a[b].c").unwrap(), Expr::Index(_, _)));
+        assert!(Expr::parse("a[]").is_err());
+        assert!(Expr::parse("a[b").is_err());
     }
 
     #[test]

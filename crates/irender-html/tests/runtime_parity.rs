@@ -12,9 +12,9 @@ fn cases() -> Vec<(&'static str, Json, Json)> {
     let state = json!({
         "n": 3, "neg": -2, "f": 0.1, "s": "abc", "empty": "", "t": true, "no": false, "nil": null,
         "list": [1, "two", { "three": 3 }], "obj": { "a": { "b": [10, 20] }, "k-ey": "dash" }, "emoji": "a😀",
-        "num_str": " 42 ", "big": 9007199254740991_i64
+        "num_str": " 42 ", "big": 9007199254740991_i64, "key": "a", "i": 1, "names": { "region": "Region", "a": { "short": "A" } }
     });
-    let data = json!({ "price": 1499, "name": "Mug", "rows": [{ "id": 7 }] });
+    let data = json!({ "price": 1499, "name": "Mug", "rows": [{ "id": 7 }], "dim": "region" });
     let exprs = [
         // literals & paths
         "{{ 1 }}", "{{ -1.5 }}", "{{ 'x' }}", "{{ \"y\" }}", "{{ true }}", "{{ null }}",
@@ -43,6 +43,11 @@ fn cases() -> Vec<(&'static str, Json, Json)> {
         "{{ includes(s, 'a') }}", "{{ includes(nil, 1) }}", "{{ includes(list, list.2) }}", "{{ toggle(list, list.2) }}",
         "{{ toggle(list, 1) }}", "{{ toggle(list, 'x') }}", "{{ toggle(nil, n) }}", "{{ toggle(s, 1) }}",
         "{{ toggle(toggle(list, 'two'), 'two') }}",
+        // computed keys
+        "{{ obj[key] }}", "{{ obj[key].b[i] }}", "{{ obj[key]['b'][0] }}", "{{ list[i] }}", "{{ list[i + 1].three }}",
+        "{{ names[dim] }}", "{{ names[key].short }}", "{{ names[missing] }}", "{{ list[f] }}", "{{ list[neg] }}",
+        "{{ list[nil] }}", "{{ obj[t] }}", "{{ list['len' + 'gth'] }}", "{{ s[key] }}", "{{ rows[n - 3].id }}",
+        "{{ names[n > 2 ? 'region' : 'a'] }}", "{{ list[range(3)] }}", "{{ obj[obj] }}",
         // templates (string results)
         "₹{{ price * n }}", "{{ n }}{{ s }}", "{{ name }} × {{ n }} = {{ price * n }}", "{{ nil }}-{{ t }}-{{ list }}",
         "{{ rows[0].id + n }}", "{{ f }}", "{{ neg }}px", "{{ big }}", "plain",

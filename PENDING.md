@@ -14,9 +14,10 @@ _Last updated: 2026-11-19._
 - [ ] **Touch dragging isn't tried on real phones.** The kanban board, tree and flow palette pick an item up after a 300 ms hold (2026-11-19); that's tested with Chrome's emulated touch input and with touch pointer events in Chrome, WebKit and Firefox, not on an iPhone or an Android phone.
 - [ ] **Older browsers aren't tested.** The browser tests run in Chrome, and in Playwright's WebKit and Firefox (CI, and `tools/playwright/dump-dom.js` locally), which are recent builds (Safari 27.2, Firefox 159 on 2026-11-17). Safari releases and Firefox ESR without the Popover API, invoker commands, `closedby` or `<details name>` aren't covered. Anchor positioning has a fallback script (2026-11-20), tested by turning the browser's own off; `anchor()` and `anchor-size()` in a document's own CSS aren't handled by it.
   - Idea: run the tests in the installed Safari through `safaridriver`.
-- [x] **Chart value labels are formatted** (2026-11-20): `format` (number, currency, percent), `currency` and `decimals`, for labels, tooltips and the value axis; at most two decimals by default.
+
 - [x] **Charts with `series`: `sort` and `limit` rank categories by their totals** (2026-11-20), keeping each one's series together; report-01's Top N works on split charts.
-- [ ] **No lookup by a computed key in expressions.** `names[dim]` is refused (only literal strings or numbers go inside `[]`), so a label per value needs a chain of `? :` (report-01's title). Idea: allow a path or expression inside `[]`.
+- [x] **Chart value labels are formatted** (2026-11-20): `format` (number, currency, percent), `currency` and `decimals`, for labels, tooltips and the value axis; at most two decimals by default.
+- [x] **Lookup by a computed key in expressions** (2026-11-20): `names[dim]`, `rows[i + 1].id`; report-01's title uses it.
 
 ## UI kit: not built yet
 
