@@ -226,7 +226,9 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest(format!("[data-side=right]{CLOSES} > &"), pairs(&[("inset-inline-start", "auto"), ("inset-inline-end", "0"), ("border-inline-end", "0"), ("border-inline-start", "1px solid var(--color-border)"), ("transform", "translateX(calc(100% * var(--ui-dir, 1)))")]))
-        .nest(format!("[data-mobile-open]{CLOSES} > &"), pairs(&[("transform", "none"), ("visibility", "visible")])),
+        .nest(format!("[data-mobile-open]{CLOSES} > &"), pairs(&[("transform", "none"), ("visibility", "visible"), ("touch-action", "pan-y")]))
+        // Following a swipe: no easing behind the finger.
+        .nest(format!("[data-mobile-open]{CLOSES} > &[data-dragging]"), pairs(&[("transition", "none")])),
     )
     .nest("@media (prefers-reduced-motion: reduce)", pairs(&[("transition", "none")]))
 });

@@ -100,7 +100,7 @@ _Last updated: 2026-11-19._
 - [ ] **`ui-sidebar` gaps:**
   - [x] `remember` keeps it open or closed across reloads, in localStorage (2026-11-20; blocks sidebar-07, dashboard-01). The server can't read it (shadcn's cookie can), so a page drawn closed but remembered open opens as its script runs.
   - [x] Group and item actions (2026-11-20): `ui-sidebar-action`, a button or a ⋯ menu, shown always or on hover (block sidebar-07, gallery).
-  - [ ] The phone sheet makes the page behind it `inert` but doesn't trap Tab inside the panel against the browser's own UI, and it doesn't swipe closed.
+  - [x] The phone sheet keeps Tab inside the panel and swipes closed (2026-11-20). Tried with touch pointer events in Chrome, WebKit and Firefox, not on a real phone.
 - [ ] **`ui-illustration` gaps** (15 drawings and the error and empty-state blocks shipped 2026-11-18):
   - [ ] More drawings people ask for: no permission to a file, upload failed, too many requests (429), not found in a list ("no matches" for a person or place), a deleted item, an empty calendar or schedule, welcome / onboarding.
   - [ ] The drawings don't animate (a floating planet, a blinking light); they'd need to stop for reduced motion.

@@ -1292,6 +1292,23 @@ fn sidebar_shortcut_labels_and_phone_sheet_in_chrome() {
       trigger.click(); await wait();
       aside.querySelector("a[href]").click(); await wait(); sheet("link");
       key(d, "b", {{ ctrlKey: true }}); await wait(); sheet("shortcut");
+      // Tab goes round the panel's links.
+      const links = [...aside.querySelectorAll("a[href]")], name = () => d.activeElement.textContent;
+      links.at(-1).focus(); key(d, "Tab"); await wait(5);
+      out.push(`tab ${{name()}}`);
+      key(d, "Tab", {{ shiftKey: true }}); await wait(5);
+      out.push(`shift+tab ${{name()}}`);
+      // A touch swipe toward the edge: a short one springs back, a long one shuts it.
+      const touch = (type, x, y) => links[0].dispatchEvent(new w.PointerEvent(type, {{ bubbles: true, cancelable: true, pointerId: 7, pointerType: "touch", clientX: x, clientY: y, button: 0 }}));
+      // Slowly, so it isn't a flick.
+      touch("pointerdown", 200, 100); await wait(100); touch("pointermove", 190, 100); await wait(100); touch("pointermove", 170, 101); await wait(100); touch("pointermove", 150, 102); await wait(100);
+      out.push(`dragging ${{aside.style.transform}} ${{aside.hasAttribute("data-dragging")}}`);
+      touch("pointermove", 150, 102); touch("pointerup", 150, 102); await wait(400);
+      sheet("short swipe");
+      touch("pointerdown", 200, 100); touch("pointermove", 200, 140); touch("pointermove", 60, 140); touch("pointerup", 60, 140); await wait(400);
+      sheet("scroll");
+      touch("pointerdown", 200, 100); touch("pointermove", 190, 100); touch("pointermove", 60, 100); touch("pointerup", 60, 100); await wait(400);
+      sheet("swipe");
       }} catch (e) {{ out.push("EXCEPTION " + e.stack); }}
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
       document.body.append(pre);
@@ -1314,6 +1331,13 @@ fn sidebar_shortcut_labels_and_phone_sheet_in_chrome() {
             "backdrop shut hidden -256,600 inert false expanded false bind true focus trigger",
             "link shut hidden -256,600 inert false expanded false bind true focus trigger",
             "shortcut open visible 0,600 inert true expanded true bind true focus panel",
+            "tab HHome",
+            "shift+tab DDocs",
+            "dragging translateX(-50px) true",
+            "short swipe open visible 0,600 inert true expanded true bind true focus panel",
+            // Up and down first: a scroll, not a swipe.
+            "scroll open visible 0,600 inert true expanded true bind true focus panel",
+            "swipe shut hidden -256,600 inert false expanded false bind true focus trigger",
         ],
         "\n{result}"
     );
