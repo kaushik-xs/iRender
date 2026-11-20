@@ -399,6 +399,43 @@ fn gantt_scrolls_its_rows_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// A gantt's `critical` path: the tasks with no slack, ringed, and the links between
+/// them; slack counts working days with `workdays`, so a weekend before the next task
+/// isn't slack.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_critical_path_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    // 2 March 2026 is a Monday; M, on Monday the 9th, waits on B and C.
+    let tasks = json!([
+        { "id": "a", "name": "A", "start": "2026-03-02", "end": "2026-03-04" },
+        { "id": "b", "name": "B", "start": "2026-03-05", "end": "2026-03-06", "after": "a" },
+        { "id": "c", "name": "C", "start": "2026-03-05", "end": "2026-03-05", "after": "a" },
+        { "id": "m", "name": "M", "start": "2026-03-09", "milestone": true, "after": ["b", "c"] },
+        { "id": "d", "name": "D", "start": "2026-03-02", "end": "2026-03-03" } ]);
+    let chart = |id: &str, workdays: bool| json!({ "type": "ui-chart", "attrs": { "id": id }, "props": { "type": "gantt", "data": tasks, "critical": true, "workdays": workdays, "today": false } });
+    let doc = json!({ "version": 1, "root": { "type": "stack", "children": [chart("days", false), chart("work", true)] } });
+    let body = r##"
+    await ready(["days", "work"]);
+    const critical = (id) => [...el(id).querySelectorAll("[data-gantt-table] [role=row][data-key]")]
+      .filter((r) => r.getAttribute("aria-label").includes("On the critical path")).map((r) => r.getAttribute("data-key")).join(",") || "none";
+    const flags = (id) => opt(id).series.filter((s) => s.type === "custom" && s.encode?.x?.length === 2 && s.id !== "links").flatMap((s) => s.data).filter((d) => d.value[5] === 1).length;
+    const links = (id) => opt(id).series.find((s) => s.id === "links").data.filter((l) => l[5] === 1).map((l) => `${l[0]}>${l[2]}`).join(",") || "none";
+    log("calendar days", critical("days"), flags("days"), links("days"));
+    log("working days", critical("work"), flags("work"), links("work"));
+"##;
+    let Some(lines) = run("gantt-critical", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        // The weekend before M is slack: only M sets the end.
+        "calendar days m 1 none",
+        // On working days it isn't: A, B and M, joined A → B → M; C has a day (Friday) to spare.
+        "working days a,b,m 3 0>1,1>3",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// A gantt with `workdays` and `holidays`: lengths in working days, days off shaded, and
 /// a moved task (and, with `cascade`, those that wait on it) landing on working days and
 /// keeping its working days.

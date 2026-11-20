@@ -750,6 +750,7 @@ root: …
 "{count} days": { one: "{count} day", other: "{count} days" }
 "{percent}% done": "{percent}% done"
 "Starts before {name} ends": "Starts before {name} ends"
+"On the critical path": "On the critical path"
 "Groups": "Groups"
 "Today": "Today"
 "All": "All"

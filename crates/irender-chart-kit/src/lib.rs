@@ -149,6 +149,11 @@ const CHART_PROPS: &[PropDef] = &[
         "Gantt: count and move whole-day tasks on working days, days off shaded: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`",
     ),
     PropDef::new("holidays", PropKind::Any, "Gantt: dates that aren't working days either, with `workdays`, e.g. `[\"2026-12-25\"]`"),
+    PropDef::new(
+        "critical",
+        PropKind::Bool,
+        "Gantt: mark the critical path, the tasks with no slack whose delay would move the plan's end (ringed, their links in red)",
+    ),
     PropDef::new("cascade", PropKind::Bool, "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends"),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
@@ -188,7 +193,7 @@ const SPARKLINE_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "format", "currency", "decimals", "legend", "tooltip", "loading",
-    "columns", "markers", "today", "editable", "cascade", "visibleRows", "workdays", "holidays",
+    "columns", "markers", "today", "editable", "cascade", "visibleRows", "workdays", "holidays", "critical",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.

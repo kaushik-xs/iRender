@@ -491,10 +491,37 @@
     const split = blank(p.series) ? null : p.series;
     // From every row, so closing a group keeps each team's colour.
     const names = split ? uniq(g.all.filter((i) => !i.group).map((i) => String(at(i.row, split) ?? ""))) : [""];
+    // The critical path's colour: red, as plans usually draw it.
+    const CRIT = t.palette[7] ?? "#dc2626";
     // Its length: working days with `workdays` (for tasks dated in whole days).
     const cal = workCalendar(p);
     const working = (i) => cal && dateOnly(at(i.row, "start")) && (blank(at(i.row, "end")) || dateOnly(at(i.row, "end")));
     const days = (i) => Math.max(1, working(i) ? cal.count(i.a, i.b) : Math.round((i.b - i.a) / DAY));
+    // `critical`: the tasks with no slack, the chain that sets the plan's end. A task's
+    // slack is the least of the gap to a task that waits on it plus that task's slack;
+    // with nothing waiting, the gap to the plan's end. Gaps are working days with
+    // `workdays`, else days.
+    for (const i of g.all) i.critical = false;
+    if (p.critical) {
+      const nodes = g.all.filter((i) => !Number.isNaN(i.a) && !Number.isNaN(i.b));
+      const end = Math.max(...nodes.map((i) => i.b));
+      const next = new Map(nodes.map((i) => [i, []]));
+      for (const i of nodes) for (const f of afterOf(i)) if (f !== i && next.has(f)) next.get(f).push(i);
+      const gap = (i, t) => (working(i) ? cal.count(i.b, t) : (t - i.b) / DAY);
+      const memo = new Map();
+      const slackOf = (i, path = new Set()) => {
+        if (memo.has(i)) return memo.get(i);
+        // A loop of `after`s: no further on.
+        if (path.has(i)) return 0;
+        path.add(i);
+        let v = next.get(i).length ? Infinity : gap(i, end);
+        for (const s of next.get(i)) v = Math.min(v, Math.max(0, gap(i, s.a)) + slackOf(s, path));
+        path.delete(i);
+        memo.set(i, v);
+        return v;
+      };
+      for (const i of nodes) i.critical = !i.group && slackOf(i) < 0.5;
+    }
     const nameOf = (i) => String(at(i.row, cols[0].field) ?? at(i.row, "name") ?? i.key);
     // What a task is, line by line: its name, dates and length, progress and series.
     const about = (i) => {
@@ -508,12 +535,13 @@
       if (i.done !== null) lines.push(L("{percent}% done", { percent: Math.round(i.done * 100) }));
       if (split && !i.group && !blank(at(r, split))) lines.push(String(at(r, split)));
       for (const f of i.late ?? []) lines.push(L("Starts before {name} ends", { name: nameOf(f) }));
+      if (i.critical) lines.push(L("On the critical path"));
       return lines;
     };
     const tip = (i) => about(i).map((l, n) => (n ? escapeHtml(l) : `<b>${escapeHtml(l)}</b>`)).join("<br/>");
     const item = (i) => ({
       name: String(at(i.row, "name") ?? i.key),
-      value: [i.index, i.a, i.b, i.done === null ? -1 : i.done, i.group ? 1 : i.milestone ? 2 : 0],
+      value: [i.index, i.a, i.b, i.done === null ? -1 : i.done, i.group ? 1 : i.milestone ? 2 : 0, i.critical ? 1 : 0],
       tip: tip(i),
       // A milestone outside every `series` is the text's colour.
       ...(!blank(at(i.row, "color")) ? { itemStyle: { color: String(at(i.row, "color")) } } : i.milestone && split && blank(at(i.row, split)) ? { itemStyle: { color: t.text } } : {}),
@@ -523,8 +551,10 @@
     const bar = (params, api) => {
       const at0 = api.coord([api.value(1), api.value(0)]), at1 = api.coord([api.value(2), api.value(0)]);
       const h = api.size([0, 1])[1];
-      const kind = api.value(4), done = api.value(3);
+      const kind = api.value(4), done = api.value(3), critical = api.value(5) === 1;
       const color = api.visual("color");
+      // On the critical path: a ring in the critical colour.
+      const ring = (shape, type = "rect") => ({ type, shape, style: { fill: "none", stroke: CRIT, lineWidth: 2 }, silent: true });
       const y = at0[1];
       // Editable: a dot after the bar, shown on hover, to drag to a task that waits on it.
       const connector = (x) => [
@@ -533,7 +563,7 @@
       ];
       if (kind === 2) {
         const s = Math.min(h * 0.32, 9);
-        const diamond = { type: "polygon", shape: { points: [[at0[0], y - s], [at0[0] + s, y], [at0[0], y + s], [at0[0] - s, y]] }, style: { fill: color, stroke: t.surface, lineWidth: 1 } };
+        const diamond = { type: "polygon", shape: { points: [[at0[0], y - s], [at0[0] + s, y], [at0[0], y + s], [at0[0] - s, y]] }, style: { fill: color, stroke: critical ? CRIT : t.surface, lineWidth: critical ? 2 : 1 } };
         return editable ? { type: "group", children: [{ ...diamond, cursor: "grab" }, ...connector(at0[0] + s)] } : diamond;
       }
       const w = Math.max(at1[0] - at0[0], 2);
@@ -551,6 +581,7 @@
             { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: fade(rgba(color), 0.35) } },
             { type: "rect", shape: { x: at0[0], y: top, width: w * done, height: bh, r }, style: { fill: color } },
           ];
+      if (critical) children.push(ring({ x: at0[0] - 1.5, y: top - 1.5, width: w + 3, height: bh + 3, r: r + 1.5 }));
       // Editable: the bar is grabbed to move it, its ends to stretch it.
       if (editable) {
         for (const c of children) c.cursor = "grab";
@@ -583,7 +614,7 @@
         const from = g.showing(f.key), to = g.showing(i.key);
         if (!from || !to || from === to || Number.isNaN(from.b) || Number.isNaN(to.a)) continue;
         // A task that starts before the one it waits for ends: its arrow in red.
-        const l = [from.index, from.b, to.index, to.a, i.late.includes(f) ? 1 : 0];
+        const l = [from.index, from.b, to.index, to.a, i.late.includes(f) ? 1 : 0, f.critical && i.critical ? 1 : 0];
         if (seenLinks.has(JSON.stringify(l))) continue;
         seenLinks.add(JSON.stringify(l));
         links.push(l);
@@ -601,11 +632,14 @@
           const h = api.size([0, 1])[1], gap = 8;
           const ym = y1 + (y2 >= y1 ? h / 2 : -h / 2);
           const points = x2 - gap >= x1 + gap ? [[x1, y1], [x2 - gap, y1], [x2 - gap, y2], [x2 - 5, y2]] : [[x1, y1], [x1 + gap, y1], [x1 + gap, ym], [x2 - gap, ym], [x2 - gap, y2], [x2 - 5, y2]];
-          const stroke = api.value(4) ? (t.palette[7] ?? "#dc2626") : t.muted;
+          // Late (starting before what it waits for ends): dashed red. On the critical
+          // path: solid, thicker, in the critical colour.
+          const late = api.value(4) === 1, crit = api.value(5) === 1;
+          const stroke = late ? (t.palette[7] ?? "#dc2626") : crit ? CRIT : t.muted;
           return {
             type: "group",
             children: [
-              { type: "polyline", shape: { points }, style: { stroke, fill: "none", lineWidth: 1 }, emphasis: { style: { lineWidth: 2.5 } }, cursor: editable ? "pointer" : "default" },
+              { type: "polyline", shape: { points }, style: { stroke, fill: "none", lineWidth: crit ? 2 : 1, lineDash: late ? [4, 3] : null }, emphasis: { style: { lineWidth: 2.5 } }, cursor: editable ? "pointer" : "default" },
               { type: "polygon", shape: { points: [[x2, y2], [x2 - 6, y2 - 4], [x2 - 6, y2 + 4]] }, style: { fill: stroke } },
               // A wider line to hit.
               ...(editable ? [{ type: "polyline", shape: { points }, style: { stroke: "transparent", fill: "none", lineWidth: 8 }, cursor: "pointer" }] : []),

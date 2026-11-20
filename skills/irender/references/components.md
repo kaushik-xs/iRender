@@ -1075,6 +1075,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   visibleRows  number  Gantt: at most this many rows tall; the rest scroll inside the chart, under its dates and beside its table
   workdays     any  Gantt: count and move whole-day tasks on working days, days off shaded: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`
   holidays     any  Gantt: dates that aren't working days either, with `workdays`, e.g. `["2026-12-25"]`
+  critical     bool  Gantt: mark the critical path, the tasks with no slack whose delay would move the plan's end (ringed, their links in red)
   cascade      bool  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends
   stack        bool  Stack the series
   smooth       bool  Smooth lines
