@@ -6921,6 +6921,83 @@ fn dashboard_grid_tiles_shown_from_state_in_chrome() {
     );
 }
 
+/// A date range with times (`time` and `mode: range`): a start and an end time under the
+/// calendar, kept as a new range is picked, in the value, `bindRange`, the form fields
+/// and the button; typed as `date time – date time`; 00:00 and 23:59 when not picked.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn date_range_with_times_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "rt": { "from": "2026-03-02T09:00", "to": "2026-03-06T17:30" }, "rtr": null, "typed": null, "plain": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-date-picker", "props": { "id": "rt", "bind": "rt", "bindRange": "rtr", "mode": "range", "time": true, "name": "slot", "locale": "en-US" } },
+            { "type": "ui-date-picker", "props": { "id": "typed", "bind": "typed", "mode": "range", "time": true, "input": true, "locale": "en-US" } },
+            { "type": "ui-calendar", "props": { "id": "plain", "bind": "plain", "mode": "range", "time": true, "locale": "en-US", "value": null } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const P = (id) => document.getElementById(id).closest("[data-i-x]");
+      const J = (v) => JSON.stringify(v);
+      try {
+        const rt = P("rt");
+        log("shown", rt.querySelector("[data-cal-text]").textContent);
+        rt.querySelector("[data-cal-trigger]").click(); await wait(10);
+        const times = () => [...rt.querySelectorAll("[data-cal-time-input]")];
+        log("inputs", times().map((t) => `${t.getAttribute("aria-label")}=${t.value}`).join(" "));
+        const end = times()[1]; end.value = "18:00"; end.dispatchEvent(new Event("change", { bubbles: true })); await wait(10);
+        log("end time", J(S().rt));
+        rt.querySelector('[data-key="2026-03-10"]').click(); await wait(10);
+        rt.querySelector('[data-key="2026-03-12"]').click(); await wait(10);
+        log("new range", J(S().rt), J(S().rtr));
+        log("form", [...rt.querySelectorAll("input[type=hidden]")].map((i) => `${i.name}=${i.value}`).join(" "));
+        log("button", rt.querySelector("[data-cal-text]").textContent);
+
+        const f = P("typed").querySelector("[data-cal-input]");
+        log("placeholder", f.placeholder);
+        f.value = "03/02/2026 9:00 – 03/04/2026 5:30 pm"; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); await wait(10);
+        log("typed", J(S().typed), f.value);
+        f.value = "03/02/2026 25:00 – 03/04/2026"; f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true })); await wait(10);
+        log("bad time", f.getAttribute("aria-invalid"), f.title);
+
+        // Two days of the month it shows (this one).
+        // (Each pick draws the grid again, so the cells are looked up each time.)
+        const cal = P("plain"), days = () => [...cal.querySelectorAll("[data-key]:not([data-outside])")];
+        const [a, b] = [days()[2].dataset.key, days()[4].dataset.key];
+        days()[2].click(); await wait(5); days()[4].click(); await wait(10);
+        const v = S().plain;
+        log("defaults", v.from === a + "T00:00", v.to === b + "T23:59");
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("date-range-times", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "shown Mar 2, 2026, 9:00 AM – Mar 6, 2026, 5:30 PM",
+            "inputs Start time=09:00 End time=17:30",
+            r#"end time {"from":"2026-03-02T09:00","to":"2026-03-06T18:00"}"#,
+            // A new range keeps the times picked.
+            r#"new range {"from":"2026-03-10T09:00","to":"2026-03-12T18:00"} {"from":"2026-03-10T09:00","to":"2026-03-12T18:00"}"#,
+            "form slot[from]=2026-03-10T09:00 slot[to]=2026-03-12T18:00",
+            "button Mar 10, 2026, 9:00 AM – Mar 12, 2026, 6:00 PM",
+            "placeholder MM/DD/YYYY HH:MM – MM/DD/YYYY HH:MM",
+            r#"typed {"from":"2026-03-02T09:00","to":"2026-03-04T17:30"} 03/02/2026 9:00 AM – 03/04/2026 5:30 PM"#,
+            "bad time true Enter a time like 14:30",
+            // Not picked: the whole of each day.
+            "defaults true true",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `loading` on a command palette: while items are fetched, a Loading row shows (and
 /// the list says it's busy) and the empty message waits; items that arrive show.
 #[test]

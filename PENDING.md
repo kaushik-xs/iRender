@@ -84,7 +84,8 @@ _Last updated: 2026-11-19._
 - [ ] **Date picker gaps** (`ui-date-picker` and `ui-calendar` shipped 2026-11-18: days with a time, months, quarters and years on a financial year, single, range and multiple, limits, disabled days, presets, month and year menus, `bindRange`; the data table's date filter uses the calendar):
   - [x] Typing a date (`input: true`, 2026-11-18): the locale's numeric order, month names, two-digit years, ranges, times, quarters and years, with errors for `ui-field`.
   - [ ] Typing: month names are matched in the locale and in English only; error messages are English.
-  - [ ] Times go with single days only; a range has no times, and there's no time zone (values are local wall-clock times).
+  - [x] A range with times (2026-11-20): `time` with `mode: range` gives a start and an end time, typed too (gallery's Room booking).
+  - [ ] No time zone: values are local wall-clock times.
   - [x] Interface text follows the document's `labels`; dates and month names follow `locale` (2026-11-19).
   - [ ] No week picker and no "multiple months" mode beyond three months side by side.
   - [x] Quarter presets (2026-11-20): `quarters` (the last four, named by their financial year), `lastQuarter`, `lastYear` and `yearToDate` in the calendar, the filters panel (with its own `fiscalStart`) and the data table's date filter (with the column's `presets` and `fiscalStart`).

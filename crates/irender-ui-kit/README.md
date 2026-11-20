@@ -300,10 +300,10 @@ Not replicated:
 
 | prop | |
 |---|---|
-| `bind`, `value` | The state key holding the value, or the starting value when not bound. A day is `2026-03-01` (with `time`, `2026-03-01T14:30`), a month `2026-03`, a quarter `2026-Q1`, a year `2026`; a range is `{ from, to }` and `multiple` a list. Partial ranges keep `to: null` while the end is being picked. |
+| `bind`, `value` | The state key holding the value, or the starting value when not bound. A day is `2026-03-01` (with `time`, `2026-03-01T14:30`), a month `2026-03`, a quarter `2026-Q1`, a year `2026`; a range is `{ from, to }` (each with its time, with `time`) and `multiple` a list. Partial ranges keep `to: null` while the end is being picked. |
 | `picker` | `day` (default), `month`, `quarter` or `year`. |
 | `mode` | `single` (default), `range` or `multiple`. |
-| `time`, `step` | A time under the calendar, for single days; `step` is the minutes between times (default 1). |
+| `time`, `step` | A time under the calendar, for days: one for a single day; with `mode: range` a start and an end time, so a range is `{ from: 2026-03-02T09:00, to: 2026-03-06T17:30 }` (00:00 and 23:59 until they're picked, the whole of each day). A typed range takes them too: `03/02/2026 9:00 – 03/06/2026 5:30 pm`. `step` is the minutes between times (default 1). Not with `multiple`. |
 | `min`, `max` | The earliest and latest dates: `2026-01-01`, or `today`, `today-30d`, `today+2w`, `today+1m`, `today+1y`. They may use state, and the arrows don't page past them. |
 | `disabledDates`, `disabledDays` | Dates that can't be picked (`2026-12-25`, or `{ from, to }`), and weekdays (0 Sunday … 6 Saturday). |
 | `months` | Months side by side (default 1); two suit ranges. |

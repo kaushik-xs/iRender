@@ -1195,8 +1195,10 @@ fn date_picker_structure_and_mistakes() {
     assert!(page.scripts.iter().any(|s| s.contains("ui-date-picker")));
 
     let err = |props: Json| render_with(json!({ "type": "ui-calendar", "props": props }), json!({}), json!({})).unwrap_err().to_string();
-    assert!(err(json!({ "time": true, "mode": "range" })).contains("single days"));
-    assert!(err(json!({ "time": true, "picker": "month" })).contains("single days"));
+    // Times go with days, one or a range: not with several, nor with months.
+    assert!(render_with(json!({ "type": "ui-calendar", "props": { "time": true, "mode": "range" } }), json!({}), json!({})).is_ok());
+    assert!(err(json!({ "time": true, "mode": "multiple" })).contains("not `multiple`"));
+    assert!(err(json!({ "time": true, "picker": "month" })).contains("`picker: day`"));
     assert!(err(json!({ "fiscalStart": 13 })).contains("1–12"));
     assert!(err(json!({ "weekStart": 7 })).contains("0 (Sunday)"));
     assert!(err(json!({ "presets": ["someday"] })).contains("unknown preset"));

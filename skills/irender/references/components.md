@@ -917,11 +917,11 @@ ui-carousel: Slides in a row that scrolls sideways and snaps to each one: images
   parts: track, previous, next, dots, play
   children: yes
 ui-calendar: An inline calendar: days (with a time), months, quarters or years; one, a range or several; limits, presets, financial years and full keyboard support.
-  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`
+  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range` (with `time`, `{ from: 2026-03-02T09:00, to: 2026-03-06T17:00 }`), a list with `multiple`
   value        any  Starting value, when not bound
   picker       one of: day, month, quarter, year  What is picked: `day` (default), `month`, `quarter` or `year`
   mode         one of: single, range, multiple  `single` (default), `range` or `multiple`
-  time         bool  A time as well as the day (single days only)
+  time         bool  A time as well as the day: one, or with `mode: range` a start and an end time (days only, not `multiple`)
   step         number  With `time`, minutes between times (default 1)
   min          any  Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state
   max          any  Latest date, as `min`
@@ -940,11 +940,11 @@ ui-calendar: An inline calendar: days (with a time), months, quarters or years; 
   clearable    bool  A Clear button under the calendar
   children: no
 ui-date-picker: A button that opens a calendar in a popover: a day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years.
-  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`
+  bind         statekey  State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range` (with `time`, `{ from: 2026-03-02T09:00, to: 2026-03-06T17:00 }`), a list with `multiple`
   value        any  Starting value, when not bound
   picker       one of: day, month, quarter, year  What is picked: `day` (default), `month`, `quarter` or `year`
   mode         one of: single, range, multiple  `single` (default), `range` or `multiple`
-  time         bool  A time as well as the day (single days only)
+  time         bool  A time as well as the day: one, or with `mode: range` a start and an end time (days only, not `multiple`)
   step         number  With `time`, minutes between times (default 1)
   min          any  Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state
   max          any  Latest date, as `min`

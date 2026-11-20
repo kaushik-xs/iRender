@@ -150,6 +150,7 @@ state:
   invoicePicks: []
   due: "2026-11-24"
   meeting: null
+  booking: null
   period: null
   periodDates: null
   month: "2026-11"
@@ -1002,6 +1003,10 @@ root:
                       props: { label: Meeting, description: "A day and a time, every 15 minutes. meeting = {{ meeting }}" }
                       children:
                         - { type: ui-date-picker, props: { bind: meeting, time: true, step: 15, placeholder: Pick a day and time } }
+                    - type: ui-field
+                      props: { label: Room booking, description: "A range with a start and an end time. booking = {{ booking }}" }
+                      children:
+                        - { type: ui-date-picker, props: { bind: booking, mode: range, time: true, step: 30, placeholder: Pick the days and times } }
                     - type: ui-field
                       props: { label: Reporting period, description: "periodDates = {{ periodDates }}" }
                       children:

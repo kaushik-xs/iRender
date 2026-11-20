@@ -22,11 +22,11 @@ pub(crate) const MODES: &[&str] = &["single", "range", "multiple"];
 macro_rules! calendar_props {
     ($($extra:expr),* $(,)?) => {
         &[
-            PropDef::new("bind", PropKind::StateKey, "State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range`, a list with `multiple`"),
+            PropDef::new("bind", PropKind::StateKey, "State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range` (with `time`, `{ from: 2026-03-02T09:00, to: 2026-03-06T17:00 }`), a list with `multiple`"),
             PropDef::new("value", PropKind::Any, "Starting value, when not bound"),
             PropDef::new("picker", PropKind::Enum(PICKERS), "What is picked: `day` (default), `month`, `quarter` or `year`"),
             PropDef::new("mode", PropKind::Enum(MODES), "`single` (default), `range` or `multiple`"),
-            PropDef::new("time", PropKind::Bool, "A time as well as the day (single days only)"),
+            PropDef::new("time", PropKind::Bool, "A time as well as the day: one, or with `mode: range` a start and an end time (days only, not `multiple`)"),
             PropDef::new("step", PropKind::Number, "With `time`, minutes between times (default 1)"),
             PropDef::new("min", PropKind::Any, "Earliest date: `2026-01-01`, or `today`, `today-30d`, `today+1y`; may use state"),
             PropDef::new("max", PropKind::Any, "Latest date, as `min`"),
@@ -178,6 +178,7 @@ fn calendar_style() -> StyleBlock {
             "& [data-cal-grids] td > button[aria-disabled=true]",
             pairs(&[("opacity", "0.35"), ("cursor", "not-allowed"), ("text-decoration", "line-through"), ("background", "transparent")]),
         )
+        .nest("& [data-cal-times]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(8, 16))]))
         .nest("& [data-cal-time]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED)]))
         .nest(
             "& [data-cal-time] input",
@@ -214,12 +215,15 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .set("display", "inline-flex")
         .set("width", "100%")
         .set("max-width", "100%")
+        // In a field's grid (or any grid or flex), as wide as its place, not its text.
+        .set("min-width", "0")
         .nest(
             "& [data-cal-trigger]",
-            pairs(&[("width", "100%"), ("justify-content", "flex-start"), ("font-weight", "400"), ("text-align", "start"), ("padding-inline-end", sp!(32))]),
+            // `min-width: 0`: a long value (a range with times) is cut short, not wider than its place.
+            pairs(&[("width", "100%"), ("min-width", "0"), ("justify-content", "flex-start"), ("font-weight", "400"), ("text-align", "start"), ("padding-inline-end", sp!(32))]),
         )
         .nest("& [data-cal-trigger] svg", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
-        .nest("& [data-cal-text]", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest("& [data-cal-text]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest("&[data-empty] [data-cal-text]", pairs(&[("color", MUTED)]))
         .nest(
             "& [data-cal-x]",
@@ -367,8 +371,8 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
     if picker && flag("input").unwrap_or(false) && mode == "multiple" {
         return Err(RenderError::new(node, "`input` takes one value or a range, not `multiple`"));
     }
-    if time && (kind != "day" || mode != "single") {
-        return Err(RenderError::new(node, "`time` goes with single days (`picker: day`, `mode: single`)"));
+    if time && (kind != "day" || mode == "multiple") {
+        return Err(RenderError::new(node, "`time` goes with days (`picker: day`), one or a range, not `multiple`"));
     }
     let fiscal = num("fiscalStart").unwrap_or(1.0);
     if !(1.0..=12.0).contains(&fiscal) || fiscal.fract() != 0.0 {

@@ -127,8 +127,23 @@
       return keyOf(v);
     }
     let time = timeOf(raw()) || "";
+    // A range's start and end times, with `time`. Not picked, they're 00:00 and 23:59,
+    // so the range takes in the whole of its last day.
+    let fromTime = "", toTime = "";
+    function readTimes() {
+      const v = raw();
+      if (mode === "range" && isObj(v)) {
+        fromTime = timeOf(v.from) || fromTime;
+        toTime = timeOf(v.to) || toTime;
+      } else time = timeOf(v) || time;
+    }
+    readTimes();
+    const withTime = (k, t, dflt) => `${k}T${t || dflt}`;
+    // A range's ends as written: with their times, when there are times.
+    const ends = (v) => (cfg.time ? { from: v.from && withTime(v.from, fromTime, "00:00"), to: v.to && withTime(v.to, toTime, "23:59") } : { from: v.from, to: v.to });
     // The dates a value covers, for `bindRange`.
     function rangeOf(v) {
+      if (mode === "range" && cfg.time) return v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null;
       if (mode === "range") return v.from ? { from: isoDay(u.start(v.from)), to: v.to ? isoDay(u.end(v.to)) : null } : null;
       if (mode === "multiple") return v.map((k) => ({ from: isoDay(u.start(k)), to: isoDay(u.end(k)) }));
       if (!v) return null;
@@ -136,7 +151,7 @@
       return { from: isoDay(u.start(v)), to: isoDay(u.end(v)) };
     }
     function write(v) {
-      const out = mode === "range" ? (v.from ? { from: v.from, to: v.to } : null) : mode === "multiple" ? v : v && cfg.time ? `${v}T${time || "00:00"}` : v;
+      const out = mode === "range" ? (v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null) : mode === "multiple" ? v : v && cfg.time ? `${v}T${time || "00:00"}` : v;
       if (cfg.bindRange) api.set(cfg.bindRange, rangeOf(v));
       if (cfg.bind) api.set(cfg.bind, out);
       else {
@@ -187,6 +202,11 @@
       if (mode === "range") {
         if (!v.from) return "";
         if (!v.to) return `${label(v.from)} – …`;
+        if (cfg.time) {
+          // One day: its times once; two: each day with its time.
+          const a = timeText(fromTime || "00:00"), b = timeText(toTime || "23:59");
+          return v.from === v.to ? `${label(v.from)}, ${a} – ${b}` : `${label(v.from)}, ${a} – ${label(v.to)}, ${b}`;
+        }
         return v.from === v.to ? label(v.from) : `${label(v.from)} – ${label(v.to)}`;
       }
       if (mode === "multiple") return v.length === 0 ? "" : v.length === 1 ? label(v[0]) : L("{n} selected", { n: v.length });
@@ -416,7 +436,14 @@
       });
       main.append(grids);
 
-      if (cfg.time) {
+      if (cfg.time && mode === "range") {
+        // A start and an end time, side by side.
+        const one = (end) => {
+          const input = h("input", { type: "time", step: String(Math.round(cfg.step * 60)), value: end ? toTime : fromTime, "aria-label": end ? L("End time") : L("Start time"), "data-cal-time-input": end ? "to" : "from" });
+          return h("label", { "data-cal-time": true }, end ? L("End") : L("Start"), input);
+        };
+        main.append(h("div", { "data-cal-times": true }, one(false), one(true)));
+      } else if (cfg.time) {
         const input = h("input", { type: "time", step: String(Math.round(cfg.step * 60)), value: time, "aria-label": L("Time"), "data-cal-time-input": true });
         main.append(h("label", { "data-cal-time": true }, L("Time"), input));
       }
@@ -439,12 +466,14 @@
       } else if (trigger) {
         const span = trigger.querySelector("[data-cal-text]");
         span.textContent = text || span.getAttribute("data-placeholder");
+        // The whole value on hover, for when it's cut short.
+        trigger.title = text;
         el.toggleAttribute("data-empty", !text);
       }
       if (clearX) clearX.hidden = !text;
       const hidden = $("[data-cal-hidden]");
       if (hidden && cfg.name) {
-        const inputs = mode === "range" ? [[`${cfg.name}[from]`, v.from ?? ""], [`${cfg.name}[to]`, v.to ?? ""]]
+        const inputs = mode === "range" ? [[`${cfg.name}[from]`, ends(v).from ?? ""], [`${cfg.name}[to]`, ends(v).to ?? ""]]
           : mode === "multiple" ? v.map((k) => [cfg.name, k])
           : [[cfg.name, v ? (cfg.time ? `${v}T${time || "00:00"}` : v) : ""]];
         hidden.replaceChildren(...inputs.map(([n, val]) => h("input", { type: "hidden", name: n, value: val })));
@@ -478,7 +507,7 @@
     }
     function clear() {
       hover = null;
-      time = "";
+      time = fromTime = toTime = "";
       write(mode === "range" ? { from: null, to: null } : mode === "multiple" ? [] : null);
       say(L("Cleared"));
     }
@@ -556,8 +585,14 @@
         focus = u.key(D(+y, +m, Math.min(Dd(u.start(focus)), Dd(D(+y, +m + 1, 0)))));
         render(false);
       } else if (t.matches("[data-cal-time-input]")) {
-        time = t.value;
         const v = read();
+        if (mode === "range") {
+          if (t.getAttribute("data-cal-time-input") === "to") toTime = t.value;
+          else fromTime = t.value;
+          if (v.from) write(v);
+          return;
+        }
+        time = t.value;
         if (v) write(v);
         else write(focus);
       }
@@ -612,6 +647,7 @@
     // Text the field shows for a value, which reads back as the same value.
     function typed(v) {
       const one = (k) => (kind === "day" ? numeric.format(u.start(k)) : label(k));
+      if (mode === "range" && cfg.time) return v.from ? `${one(v.from)} ${timeText(fromTime || "00:00")} – ${v.to ? `${one(v.to)} ${timeText(toTime || "23:59")}` : ""}`.trim() : "";
       if (mode === "range") return v.from ? `${one(v.from)} – ${v.to ? one(v.to) : ""}`.trim() : "";
       if (!v) return "";
       return cfg.time && time ? `${one(v)} ${timeText(time)}` : one(v);
@@ -703,11 +739,15 @@
       if (mode === "range") {
         const parts = text.split(/\s+(?:–|—|-|to|until)\s+|\s*[–—]\s*/i).filter((p) => p.trim());
         if (parts.length !== 2) return { error: L("Enter two dates, like {example} – {example}", { example: example() }) };
-        const keys = parts.map(parseOne);
+        // With `time`, each end may have one: `02/03/2026 09:00 – 06/03/2026 17:30`.
+        const split = parts.map((p) => (cfg.time ? splitTime(p.trim()) : [p, null]));
+        if (split.some(([, t]) => t === "bad")) return { error: L("Enter a time like 14:30") };
+        const keys = split.map(([p]) => parseOne(p));
         if (keys.some((k) => !k)) return bad;
-        const [from, to] = keys.sort((a, b) => u.start(a) - u.start(b));
+        const sorted = keys.map((k, n) => [k, split[n][1]]).sort(([a, ta], [b, tb]) => u.start(a) - u.start(b) || String(ta).localeCompare(String(tb)));
+        const [[from, t1], [to, t2]] = sorted;
         const error = check(from, lim) || check(to, lim);
-        return error ? { error } : { value: { from, to } };
+        return error ? { error } : { value: { from, to }, times: [t1, t2] };
       }
       let rest = text, t = null;
       if (cfg.time) {
@@ -748,13 +788,15 @@
       done();
       setError(null);
       if (r.time) time = r.time;
+      if (r.times) [fromTime, toTime] = [r.times[0] || "", r.times[1] || ""];
       focus = mode === "range" ? r.value.from : r.value;
       view = pageOf(focus);
       write(r.value);
       sync(read());
     }
     if (field) {
-      field.placeholder ||= mode === "range" ? `${kind === "day" ? pattern : example()} – ${kind === "day" ? pattern : example()}` : kind === "day" ? pattern + (cfg.time ? " HH:MM" : "") : example();
+      const hm = cfg.time ? " HH:MM" : "";
+      field.placeholder ||= mode === "range" ? `${kind === "day" ? pattern + hm : example()} – ${kind === "day" ? pattern + hm : example()}` : kind === "day" ? pattern + hm : example();
       field.addEventListener("input", () => (field.__dirty = true));
       field.addEventListener("change", commit);
       field.addEventListener("blur", commit);
@@ -779,14 +821,13 @@
     // Other components (the data table's date filter) set the value through this.
     const handle = {
       update() {
-        const t = timeOf(raw());
-        if (t) time = t;
+        readTimes();
         if (!popover || pop?.matches(":popover-open")) render();
         else sync(read());
       },
       set(v) {
         local = v;
-        time = timeOf(v) || time;
+        readTimes();
         focus = first();
         view = pageOf(focus);
         render(false);
