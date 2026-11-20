@@ -6720,6 +6720,38 @@ fn command_palette_pages_in_chrome() {
     );
 }
 
+/// `animate` on an illustration: its parts move while it's true (it may follow state),
+/// and stop when it turns false.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn illustration_animates_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "on": true },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-illustration", "attrs": { "id": "a" }, "props": { "name": "maintenance", "animate": "{{ on }}" } },
+            { "type": "ui-illustration", "attrs": { "id": "b" }, "props": { "name": "maintenance" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const running = (id) => document.getElementById(id).getAnimations({ subtree: true }).map((a) => a.animationName).sort().join(",") || "none";
+      try {
+        await wait(20);
+        log("on", running("a"), "| plain", running("b"));
+        document.querySelector("[data-i-root]").__irender.set("on", false); await wait(20);
+        log("off", running("a"), document.getElementById("a").hasAttribute("data-animate"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("illustration-animate", &html) else { return };
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["on ill-spin | plain none", "off none false"], "\n{result}");
+}
+
 /// `loading` on a command palette: while items are fetched, a Loading row shows (and
 /// the list says it's busy) and the empty message waits; items that arrive show.
 #[test]

@@ -1,6 +1,6 @@
-# Block: an error page (Error 404). The drawing is `ui-illustration` (`not-found`), coloured
-# by the theme's primary colour and its second brand colour (`color.brand-2`), so it
-# follows the palette, the custom colours and dark mode.
+# Block: an error page (Error 404). The drawing is `ui-illustration` (`not-found`, its planet
+# floating with `animate`), coloured by the theme's primary colour and its second brand
+# colour (`color.brand-2`), so it follows the palette, the custom colours and dark mode.
 #
 #   cargo run -p irender-cli -- render examples/blocks/error-404.yaml --ui-kit --icon-kit -o error-404.html
 version: 1
@@ -23,7 +23,7 @@ root:
       props: { gap: 16, align: center }
       style: { max-width: 540, text-align: center }
       children:
-        - { type: ui-illustration, props: { name: not-found, size: "min(340px, 80vw)" } }
+        - { type: ui-illustration, props: { name: not-found, size: "min(340px, 80vw)", animate: true } }
         - { type: ui-badge, props: { text: "Error 404", variant: secondary } }
         - { type: ui-heading, props: { level: 1, text: "Page not found" }, style: { font-size: 32 } }
         - { type: ui-text, props: { variant: lead, text: "Sorry, we couldn't find the page you're looking for. It may have moved, or the link may be wrong." }, style: { font-size: 16 } }

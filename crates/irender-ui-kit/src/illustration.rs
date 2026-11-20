@@ -8,7 +8,8 @@
 //! to `n3` for neutrals from light to dark, and `w` for the background.
 
 use crate::TEXT;
-use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock};
+use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, expr::Expr};
+use serde_json::{Value as Json, json};
 use irender_html::{Component, RenderCx, RenderError};
 use std::sync::LazyLock;
 
@@ -17,13 +18,13 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
     (
         "not-found",
         r#"<ellipse cx="120" cy="160" rx="92" ry="8" data-f="n1"/>
-<circle cx="34" cy="34" r="3" data-f="s"/><circle cx="212" cy="28" r="2.5" data-f="p"/><circle cx="196" cy="140" r="2" data-f="s"/><circle cx="46" cy="132" r="2" data-f="pl"/>
+<circle cx="34" cy="34" r="3" data-f="s" data-a="twinkle"/><circle cx="196" cy="140" r="2" data-f="s" data-a="twinkle"/><circle cx="212" cy="28" r="2.5" data-f="p"/><circle cx="46" cy="132" r="2" data-f="pl"/>
 <path d="M70 48 L38 104 H90 M72 48 V138" data-k="n3" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 <path d="M190 48 L158 104 H210 M192 48 V138" data-k="n3" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-<path d="M76 104 C76 84 164 66 164 86" data-k="sl" stroke-width="6" fill="none" stroke-linecap="round"/>
+<g data-a="float"><path d="M76 104 C76 84 164 66 164 86" data-k="sl" stroke-width="6" fill="none" stroke-linecap="round"/>
 <circle cx="120" cy="92" r="32" data-f="p"/>
 <circle cx="109" cy="80" r="7" data-f="pl"/><circle cx="132" cy="104" r="5" data-f="pl"/><circle cx="128" cy="78" r="3" data-f="pl"/>
-<path d="M76 104 C76 116 164 104 164 86" data-k="s" stroke-width="6" fill="none" stroke-linecap="round"/>"#,
+<path d="M76 104 C76 116 164 104 164 86" data-k="s" stroke-width="6" fill="none" stroke-linecap="round"/></g>"#,
     ),
     (
         "server-error",
@@ -32,7 +33,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <rect x="78" y="52" width="84" height="26" rx="5" data-f="w"/><rect x="78" y="85" width="84" height="26" rx="5" data-f="w"/><rect x="78" y="118" width="84" height="26" rx="5" data-f="w"/>
 <rect x="88" y="62" width="34" height="6" rx="3" data-f="n1"/><rect x="88" y="95" width="34" height="6" rx="3" data-f="n1"/><rect x="88" y="128" width="34" height="6" rx="3" data-f="n1"/>
 <circle cx="148" cy="65" r="5" data-f="p"/><circle cx="148" cy="98" r="5" data-f="s"/><circle cx="148" cy="131" r="5" data-f="p"/>
-<path d="M176 14 L150 62 H168 L154 100 L196 46 H176 L190 14 Z" data-f="s"/>
+<path d="M176 14 L150 62 H168 L154 100 L196 46 H176 L190 14 Z" data-f="s" data-a="blink"/>
 <circle cx="50" cy="40" r="10" data-f="n1"/><circle cx="38" cy="58" r="6" data-f="n1"/><circle cx="58" cy="24" r="5" data-f="n1"/>"#,
     ),
     (
@@ -51,7 +52,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <path d="M30 40 A10 10 0 0 1 40 30 H170 A10 10 0 0 1 180 40 V50 H30 Z" data-f="n2"/>
 <circle cx="44" cy="40" r="3.5" data-f="w"/><circle cx="56" cy="40" r="3.5" data-f="w"/><circle cx="68" cy="40" r="3.5" data-f="w"/>
 <rect x="46" y="66" width="70" height="8" rx="4" data-f="n2"/><rect x="46" y="82" width="52" height="8" rx="4" data-f="n2"/><rect x="46" y="98" width="62" height="8" rx="4" data-f="n2"/>
-<g transform="translate(166 108)"><path d="M-6 -36 H6 L8 -27 L16 -23 L24 -29 L32 -21 L26 -13 L30 -5 L38 -4 V8 L29 10 L25 18 L31 26 L23 34 L15 28 L7 32 L6 40 H-6 L-8 32 L-16 28 L-24 34 L-32 26 L-26 18 L-30 10 L-38 8 V-4 L-30 -6 L-26 -14 L-32 -22 L-24 -30 L-16 -24 L-8 -28 Z" data-f="p"/><circle r="12" data-f="w"/></g>
+<g transform="translate(166 108)"><g data-a="spin"><path d="M-6 -36 H6 L8 -27 L16 -23 L24 -29 L32 -21 L26 -13 L30 -5 L38 -4 V8 L29 10 L25 18 L31 26 L23 34 L15 28 L7 32 L6 40 H-6 L-8 32 L-16 28 L-24 34 L-32 26 L-26 18 L-30 10 L-38 8 V-4 L-30 -6 L-26 -14 L-32 -22 L-24 -30 L-16 -24 L-8 -28 Z" data-f="p"/><circle r="12" data-f="w"/></g></g>
 <path d="M200 40 L150 90" data-k="s" stroke-width="10" stroke-linecap="round"/>
 <path d="M196 30 A14 14 0 1 0 212 48 L202 46 L198 36 Z" data-f="s"/>"#,
     ),
@@ -59,7 +60,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
         "offline",
         r#"<ellipse cx="120" cy="160" rx="84" ry="8" data-f="n1"/>
 <path d="M66 128 H176 A30 30 0 0 0 170 69 A40 40 0 0 0 94 62 A34 34 0 0 0 66 128 Z" data-f="n1"/>
-<path d="M86 100 A48 48 0 0 1 154 100" data-k="pl" stroke-width="9" fill="none" stroke-linecap="round"/>
+<path d="M86 100 A48 48 0 0 1 154 100" data-k="pl" stroke-width="9" fill="none" stroke-linecap="round" data-a="blink"/>
 <path d="M98 112 A30 30 0 0 1 142 112" data-k="p" stroke-width="9" fill="none" stroke-linecap="round"/>
 <circle cx="120" cy="126" r="7" data-f="p"/>
 <path d="M78 58 L162 142" data-k="s" stroke-width="9" stroke-linecap="round"/>"#,
@@ -113,8 +114,8 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
         r#"<ellipse cx="120" cy="160" rx="88" ry="8" data-f="n1"/>
 <path d="M50 96 L74 54 H166 L190 96 V140 A6 6 0 0 1 184 146 H56 A6 6 0 0 1 50 140 Z" data-f="pl"/>
 <path d="M50 96 H90 L98 112 H142 L150 96 H190 V140 A6 6 0 0 1 184 146 H56 A6 6 0 0 1 50 140 Z" data-f="p"/>
-<path d="M150 26 L206 12 L180 62 L168 46 L150 26 Z M168 46 L206 12" data-f="s" data-k="s" stroke-width="2" stroke-linejoin="round"/>
-<path d="M168 46 L164 60 L176 52" data-f="sl"/>
+<g data-a="float"><path d="M150 26 L206 12 L180 62 L168 46 L150 26 Z M168 46 L206 12" data-f="s" data-k="s" stroke-width="2" stroke-linejoin="round"/>
+<path d="M168 46 L164 60 L176 52" data-f="sl"/></g>
 <path d="M146 30 C122 40 106 30 92 40" data-k="n2" stroke-width="3" stroke-dasharray="5 6" fill="none" stroke-linecap="round"/>"#,
     ),
     (
@@ -124,7 +125,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <rect x="114" y="20" width="12" height="14" rx="6" data-f="p"/>
 <path d="M104 126 A16 16 0 0 0 136 126 Z" data-f="s"/>
 <path d="M92 72 A30 30 0 0 1 104 50" data-k="pl" stroke-width="6" fill="none" stroke-linecap="round"/>
-<path d="M172 34 H190 L172 52 H190 M196 14 H208 L196 26 H208" data-k="s" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>"#,
+<path d="M172 34 H190 L172 52 H190 M196 14 H208 L196 26 H208" data-k="s" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" data-a="drift"/>"#,
     ),
     (
         "session-expired",
@@ -150,11 +151,11 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
         "coming-soon",
         r#"<ellipse cx="120" cy="160" rx="60" ry="8" data-f="n1"/>
 <circle cx="40" cy="40" r="3" data-f="s"/><circle cx="200" cy="56" r="3" data-f="p"/><circle cx="64" cy="100" r="2" data-f="pl"/><circle cx="186" cy="20" r="2" data-f="sl"/>
-<path d="M120 12 C146 30 154 64 146 108 H94 C86 64 94 30 120 12 Z" data-f="p"/>
+<g data-a="float"><path d="M120 12 C146 30 154 64 146 108 H94 C86 64 94 30 120 12 Z" data-f="p"/>
 <circle cx="120" cy="58" r="13" data-f="w" data-k="s" stroke-width="5"/>
 <path d="M94 84 L72 112 L94 108 Z M146 84 L168 112 L146 108 Z" data-f="s"/>
 <path d="M102 112 H138 C138 130 128 144 120 156 C112 144 102 130 102 112 Z" data-f="sl"/>
-<path d="M110 112 H130 C130 124 125 134 120 142 C115 134 110 124 110 112 Z" data-f="s"/>"#,
+<path d="M110 112 H130 C130 124 125 134 120 142 C115 134 110 124 110 112 Z" data-f="s" data-a="blink"/></g>"#,
     ),
     (
         "all-done",
@@ -166,7 +167,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <rect x="186" y="46" width="12" height="5" rx="2.5" transform="rotate(25 192 48)" data-f="s"/>
 <rect x="56" y="122" width="10" height="5" rx="2.5" transform="rotate(40 61 124)" data-f="sl"/>
 <rect x="178" y="118" width="10" height="5" rx="2.5" transform="rotate(-20 183 120)" data-f="s"/>
-<circle cx="74" cy="60" r="3.5" data-f="s"/><circle cx="170" cy="28" r="3" data-f="p"/><circle cx="196" cy="88" r="3" data-f="sl"/><circle cx="40" cy="92" r="3" data-f="p"/>"#,
+<circle cx="74" cy="60" r="3.5" data-f="s" data-a="twinkle"/><circle cx="196" cy="88" r="3" data-f="sl" data-a="twinkle" style="animation-delay: -1.2s"/><circle cx="170" cy="28" r="3" data-f="p"/><circle cx="40" cy="92" r="3" data-f="p"/>"#,
     ),
     (
         "no-access",
@@ -183,8 +184,8 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
         "upload-failed",
         r#"<ellipse cx="120" cy="160" rx="84" ry="8" data-f="n1"/>
 <path d="M62 118 H172 A30 30 0 0 0 166 59 A40 40 0 0 0 90 52 A34 34 0 0 0 62 118 Z" data-f="n1"/>
-<path d="M120 140 V80" data-k="p" stroke-width="10" stroke-linecap="round"/>
-<path d="M98 100 L120 78 L142 100" data-k="p" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<g data-a="float"><path d="M120 140 V80" data-k="p" stroke-width="10" stroke-linecap="round"/>
+<path d="M98 100 L120 78 L142 100" data-k="p" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
 <path d="M108 150 H132" data-k="pl" stroke-width="6" stroke-linecap="round"/>
 <circle cx="176" cy="122" r="22" data-f="s"/>
 <path d="M167 113 L185 131 M185 113 L167 131" data-k="w" stroke-width="6" stroke-linecap="round"/>
@@ -197,7 +198,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <path d="M84 65.6 A72 72 0 0 1 156 65.6" data-k="p" stroke-width="18" fill="none"/>
 <path d="M156 65.6 A72 72 0 0 1 192 128" data-k="s" stroke-width="18" fill="none"/>
 <path d="M66 128 A54 54 0 0 1 174 128" data-k="n1" stroke-width="4" stroke-dasharray="2 8" fill="none" stroke-linecap="round"/>
-<path d="M120 128 L170 104" data-k="n3" stroke-width="6" stroke-linecap="round"/>
+<path d="M120 128 L170 104" data-k="n3" stroke-width="6" stroke-linecap="round" data-a="wobble" style="transform-origin: 120px 128px"/>
 <circle cx="120" cy="128" r="11" data-f="n3"/><circle cx="120" cy="128" r="4" data-f="w"/>
 <path d="M200 30 L212 18 M206 44 L222 40 M194 22 L196 6" data-k="s" stroke-width="4" stroke-linecap="round"/>
 <path d="M18 74 H36 M14 90 H30" data-k="n2" stroke-width="4" stroke-linecap="round"/>"#,
@@ -231,7 +232,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <rect x="80" y="24" width="8" height="20" rx="4" data-f="n3"/><rect x="152" y="24" width="8" height="20" rx="4" data-f="n3"/>
 <rect x="64" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="88" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="112" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="136" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="160" y="76" width="16" height="14" rx="3" data-f="n1"/><rect x="64" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="88" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="136" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="160" y="100" width="16" height="14" rx="3" data-f="n1"/><rect x="64" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="88" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="112" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="136" y="124" width="16" height="14" rx="3" data-f="n1"/><rect x="160" y="124" width="16" height="14" rx="3" data-f="n1"/>
 <rect x="112" y="100" width="16" height="14" rx="3" fill="none" data-k="s" stroke-width="2.5" stroke-dasharray="3 3"/>
-<path d="M196 30 H208 L196 42 H208 M210 12 H220 L210 22 H220" data-k="s" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>"#,
+<path d="M196 30 H208 L196 42 H208 M210 12 H220 L210 22 H220" data-k="s" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round" data-a="drift"/>"#,
     ),
     (
         "welcome",
@@ -242,7 +243,7 @@ pub(crate) const ILLUSTRATIONS: &[(&str, &str)] = &[
 <path d="M84 30 L56 40 V150 L84 156 Z" data-f="p"/>
 <circle cx="64" cy="98" r="4" data-f="w"/>
 <rect x="96" y="150" width="48" height="8" rx="4" data-f="s"/>
-<path d="M192 26 L196 38 L208 42 L196 46 L192 58 L188 46 L176 42 L188 38 Z" data-f="s"/>
+<path d="M192 26 L196 38 L208 42 L196 46 L192 58 L188 46 L176 42 L188 38 Z" data-f="s" data-a="twinkle"/>
 <path d="M40 52 L42 59 L49 61 L42 63 L40 70 L38 63 L31 61 L38 59 Z" data-f="p"/>
 <circle cx="208" cy="80" r="3" data-f="pl"/><circle cx="30" cy="100" r="2.5" data-f="s"/>"#,
     ),
@@ -277,7 +278,14 @@ static STYLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         b = b.nest(format!("& [data-f={k}]"), StyleBlock::new().set("fill", v.clone()));
         b = b.nest(format!("& [data-k={k}]"), StyleBlock::new().set("stroke", v));
     }
-    b
+    // `animate`: each part moves in its own way, round its own middle (the needle round
+    // the hub its `style` names), and none for readers who prefer less motion.
+    b = b.nest("&[data-animate] [data-a]", StyleBlock::from_pairs(&[("transform-box", "fill-box"), ("transform-origin", "center")]));
+    for (name, timing) in MOTIONS {
+        b = b.nest(format!("&[data-animate] [data-a={name}]"), StyleBlock::new().set("animation", format!("ill-{name} {timing}")));
+    }
+    b.nest("&[data-animate] [data-a=wobble]", StyleBlock::from_pairs(&[("transform-box", "view-box")]))
+        .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::new().nest("&[data-animate] [data-a]", StyleBlock::from_pairs(&[("animation", "none")])))
 });
 
 pub struct Illustration;
@@ -288,7 +296,28 @@ const PROPS: &[PropDef] = &[
     PropDef::new("primary", PropKind::Any, "Its main colour, a CSS colour or token (default `color.primary`)"),
     PropDef::new("secondary", PropKind::Any, "Its second colour (default `color.brand-2`, else `color.chart-2`)"),
     PropDef::new("label", PropKind::Any, "Describe it for screen readers; without one it is decoration"),
+    PropDef::new(
+        "animate",
+        PropKind::Any,
+        "Bring it to life a little: a planet floats, a gear turns, a light blinks. Still for readers who prefer less motion. May use state",
+    ),
 ];
+
+/// The movements a drawing's parts take with `animate`, by their `data-a`, and how.
+const MOTIONS: &[(&str, &str)] = &[
+    ("float", "3.2s ease-in-out infinite"),
+    ("blink", "1.6s ease-in-out infinite"),
+    ("spin", "9s linear infinite"),
+    ("twinkle", "2.4s ease-in-out infinite"),
+    ("drift", "2.8s ease-out infinite"),
+    ("wobble", "1.4s ease-in-out infinite"),
+];
+const KEYFRAMES: &str = "@keyframes ill-float {\n  50% { transform: translateY(-5px); }\n}\n\
+@keyframes ill-blink {\n  50% { opacity: .35; }\n}\n\
+@keyframes ill-spin {\n  to { transform: rotate(1turn); }\n}\n\
+@keyframes ill-twinkle {\n  50% { opacity: .2; transform: scale(.7); }\n}\n\
+@keyframes ill-drift {\n  0% { opacity: 0; transform: translate(-4px, 6px); }\n  30%, 70% { opacity: 1; }\n  100% { opacity: 0; transform: translate(4px, -6px); }\n}\n\
+@keyframes ill-wobble {\n  0%, 100% { transform: rotate(-8deg); }\n  50% { transform: rotate(4deg); }\n}";
 
 impl Component for Illustration {
     fn name(&self) -> &'static str {
@@ -325,6 +354,12 @@ impl Component for Illustration {
         }
         let mut el = cx.element("svg", node);
         el.base_style_ref(&STYLE).base_style(colours).attr("viewBox", "0 0 240 180").attr("width", "240").attr("height", "180");
+        // `animate` may follow state: the attribute is there while it's true.
+        if let Some(a) = node.prop("animate") {
+            cx.global_css("ui-illustration-motion", KEYFRAMES);
+            let on = Expr::Cond(Box::new(crate::val_expr(a)), Box::new(Expr::Lit(json!(true))), Box::new(Expr::Lit(Json::Null)));
+            el.attr("data-animate", crate::expr_val(on));
+        }
         match node.prop("label") {
             Some(l) => {
                 el.attr("role", "img").attr("aria-label", l.clone());
@@ -356,6 +391,11 @@ mod tests {
                 }
             }
             assert!(!body.contains("fill=\"#") && !body.contains("stroke=\"#"), "{name} has a fixed colour");
+            for part in body.split("data-a=\"").skip(1) {
+                let motion = &part[..part.find('"').unwrap()];
+                assert!(MOTIONS.iter().any(|(m, _)| *m == motion), "{name}: data-a={motion}");
+                assert!(KEYFRAMES.contains(&format!("ill-{motion} ")), "{name}: no keyframes for {motion}");
+            }
         }
     }
 }

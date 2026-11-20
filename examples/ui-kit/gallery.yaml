@@ -12,6 +12,7 @@ state:
   name: ""
   cmdLoading: false
   illColours: theme
+  illAnimate: false
   otp: ""
   otpDone: ""
   pin: ""
@@ -1781,118 +1782,119 @@ root:
                         options: [{ value: theme, label: The theme's }, { value: ocean, label: Ocean }, { value: berry, label: Berry }, { value: forest, label: Forest }]
                     - type: ui-text
                       props: { variant: muted, text: "Set with `primary` and `secondary`; left out, they're the theme's." }
+                    - { type: ui-switch, props: { bind: illAnimate, label: Animate }, style: { margin-left: auto } }
                 - type: element
                   style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }
                   children:
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: not-found, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: not-found, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: not-found }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: server-error, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: server-error, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: server-error }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: forbidden, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: forbidden, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: forbidden }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: maintenance, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: maintenance, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: maintenance }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: offline, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: offline, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: offline }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: no-data, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: no-data, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: no-data }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: no-results, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: no-results, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: no-results }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: out-of-stock, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: out-of-stock, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: out-of-stock }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: empty-cart, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: empty-cart, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: empty-cart }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: empty-inbox, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: empty-inbox, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: empty-inbox }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: no-notifications, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: no-notifications, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: no-notifications }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: session-expired, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: session-expired, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: session-expired }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: payment-failed, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: payment-failed, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: payment-failed }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: coming-soon, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: coming-soon, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: coming-soon }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: all-done, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: all-done, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: all-done }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: no-access, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: no-access, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: no-access }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: upload-failed, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: upload-failed, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: upload-failed }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: too-many-requests, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: too-many-requests, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: too-many-requests }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: no-people, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: no-people, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: no-people }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: deleted, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: deleted, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: deleted }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: empty-calendar, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: empty-calendar, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: empty-calendar }, style: { font-size: 12, color: $color.muted } }
                     - type: element
                       style: { display: flex, flex-direction: column, align-items: center, gap: 6, padding: 12, border: 1px solid $color.border, border-radius: $radius.md }
                       children:
-                        - { type: ui-illustration, props: { name: welcome, size: 100%, primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
+                        - { type: ui-illustration, props: { name: welcome, size: 100%, animate: "{{ illAnimate }}", primary: "{{ illColours == 'ocean' ? '#0284c7' : illColours == 'berry' ? '#be185d' : illColours == 'forest' ? '#15803d' : null }}", secondary: "{{ illColours == 'ocean' ? '#f97316' : illColours == 'berry' ? '#f59e0b' : illColours == 'forest' ? '#a3e635' : null }}" } }
                         - { type: text, props: { tag: code, value: welcome }, style: { font-size: 12, color: $color.muted } }
                 - { type: ui-label, props: { text: "In ui-empty, for an empty state" } }
                 - type: ui-empty

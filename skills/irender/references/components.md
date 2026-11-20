@@ -153,6 +153,7 @@ ui-illustration: A drawing for an error page or an empty state (not found, serve
   primary      any  Its main colour, a CSS colour or token (default `color.primary`)
   secondary    any  Its second colour (default `color.brand-2`, else `color.chart-2`)
   label        any  Describe it for screen readers; without one it is decoration
+  animate      any  Bring it to life a little: a planet floats, a gear turns, a light blinks. Still for readers who prefer less motion. May use state
   children: no
 ui-scroll-area: A box that scrolls its children, with a thin scrollbar in the theme's colours. It can be focused, so the keyboard scrolls it too.
   height       any  Number (px) or CSS length
