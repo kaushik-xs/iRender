@@ -45,7 +45,7 @@ _Last updated: 2026-11-19._
     - [x] Scrolling inside the chart (2026-11-20): `visibleRows` keeps it that many rows tall, the rest scrolled to by the wheel, a bar, a drag or the table's keys (block gantt-01).
     - [x] Working days (2026-11-20): `workdays` and `holidays` count, move and cascade whole-day tasks on working days, days off shaded (block gantt-01). Tasks with times of day still use calendar days.
     - [x] The critical path (2026-11-20): `critical` rings the tasks with no slack (in working days with `workdays`) and draws their links red (block gantt-01).
-    - [ ] No baselines (the planned dates beside the current ones).
+    - [x] Baselines (2026-11-20): `baselineStart` and `baselineEnd` drawn as a thin bar under each task (a hollow diamond for a milestone), groups' from their tasks', tooltips saying how many days late or early; `baselines: false` hides them (block gantt-01's switch). Not done yet: no way to save the current dates as the baseline, other than the host copying them.
     - [x] The axis's dates are in the document's `lang` (2026-11-20).
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
     - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved; moving a column has no touch drag (the grip's keys work). `swimlanes` and `fields` may use state (2026-11-19; block crm-01's Board settings).

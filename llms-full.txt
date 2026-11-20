@@ -1241,6 +1241,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   workdays     any  Gantt: count and move whole-day tasks on working days, days off shaded: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`
   holidays     any  Gantt: dates that aren't working days either, with `workdays`, e.g. `["2026-12-25"]`
   critical     bool  Gantt: mark the critical path, the tasks with no slack whose delay would move the plan's end (ringed, their links in red)
+  baselines    bool  Gantt: draw each task's `baselineStart` and `baselineEnd` (its planned dates) as a thin bar under it, with how late or early it is (default true)
   cascade      bool  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends
   stack        bool  Stack the series
   smooth       bool  Smooth lines
@@ -2675,7 +2676,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `format`, `currency`, `decimals` | How values show in labels, tooltips and the value axis, in the document's `lang`: `number` (the default), `currency` (`currency`, default `USD`) or `percent` (of 1), with `decimals` digits after the point. Without them, labels and tooltips show at most two decimals; with a `format`, big axis values stay short (`$1.5M`). |
 | `legend`, `tooltip` | On or off. Default: a legend with two or more series, and a tooltip always. |
 | `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows (or `visibleRows` of them). The width is the container's. |
-| `columns`, `markers`, `today`, `visibleRows`, `workdays`, `holidays`, `critical` | For a gantt; see [Gantt](#gantt). |
+| `columns`, `markers`, `today`, `visibleRows`, `workdays`, `holidays`, `critical`, `baselines` | For a gantt; see [Gantt](#gantt). |
 | `loading` | Shows the loading mask, e.g. `{{ fetching }}`. |
 | `bind`, `bindRow`, `bindZoom`, `bindLegend`, `bindBrush`, `bindDrill` | State keys for what people do with the chart; see [Interactions as state](#interactions-as-state). |
 | `maps` | GeoJSON maps to register before drawing: `{ world: /geo/world.json }`. The URLs are checked against the policy. |
@@ -2814,6 +2815,7 @@ Each row is a task with these fields. Any other field can be a column.
 | `after` | The `id` (or a list) of the tasks this one waits for. Each gets an arrow from its end to this task's start; an arrow to a hidden task goes to its closed group. |
 | `milestone` | `true`, or a `start` with no `end`: a diamond. |
 | `color` | This bar's colour, over the series colour. |
+| `baselineStart`, `baselineEnd` | The planned dates, read as `start` and `end` are; see `baselines`. |
 
 - **`columns`**: the table's columns, each a field or `{ field, name, width, align }`. The first holds the names, indented under their groups. Default `[name]`. On a narrow chart the table takes at most half the width: the last columns go first, then the names get narrower.
 - **`series`**: a field to colour the bars by, with a legend that hides a series' bars.
@@ -2821,6 +2823,7 @@ Each row is a task with these fields. Any other field can be a column.
 - **`today`**: a line at today's date when it falls on the timeline. Default true.
 - **`workdays`**: tasks dated in whole days count and move on working days. `true` is Monday to Friday; a list names the weekdays that work, `0` for Sunday (`[0, 1, 2, 3, 4]` for Sunday to Thursday). `holidays` adds dates off. Days off are shaded on the timeline, lengths read "5 working days", a moved task (by a drag or Alt and the arrows) lands on a working day and keeps its working days, its start or end steps over days off, and with `cascade` a task that waits starts on the first working day after what it waits for. Tasks with times of day keep to calendar days.
 - **`critical`**: marks the critical path: the tasks with no slack, whose delay would move the plan's end. A task's slack is the least, over the tasks waiting on it (its `after`s, the other way), of the gap to that task plus that task's own slack; with nothing waiting, the gap to the last end. With `workdays` the gaps count working days, so a weekend or holiday before the next task isn't slack. Critical bars and milestones are ringed in red, the links between them drawn solid red, their rows and tooltips say "On the critical path", and a late link (one that starts before what it waits for ends) is dashed red. Groups aren't marked themselves, and a task that waits on a group waits on the group's span.
+- **`baselines`**: a task with a `baselineStart` and `baselineEnd` (the dates first planned) gets a thin grey bar under its bar from them, and a milestone with a `baselineStart` a hollow diamond behind it, so a slip shows at a glance. A group's baseline spans its tasks' unless it has its own. Tooltips and rows say "Planned 2 Mar – 6 Mar" and how many days (working days with `workdays`) the end is late or early. Moving a bar leaves its baseline where it was. Default true; `false` hides them, e.g. from a switch in state.
 - **`visibleRows`**: the chart is at most that many rows tall, and the rest scroll inside it: with the wheel, a thin bar on the right, dragging (when the bars don't move), or the keys on the table, which scroll to the row they go to. The dates and the table's header stay put, and zooming the timeline leaves the rows where they are.
 - **`zoom`**: `true` adds −, + and "show all" buttons. ⌘/Ctrl with the wheel zooms, dragging pans, and Shift with the wheel pans. `slider` or `both` adds a slider. `bindZoom` works as for other charts.
 - **Clicks:** `bind` and `bindRow` get the clicked task, and a group opening or closing fires `toggle` with `{ id, open, row }`.

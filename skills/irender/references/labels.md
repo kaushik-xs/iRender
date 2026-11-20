@@ -746,8 +746,12 @@ root: …
 
 ```yaml
 "Task": "Task"
-"{count} working days": { one: "{count} working day", other: "{count} working days" }
-"{count} days": { one: "{count} day", other: "{count} days" }
+"{n} working days": { one: "{n} working day", other: "{n} working days" }
+"{n} days": { one: "{n} day", other: "{n} days" }
+"Planned {date}": "Planned {date}"
+"Planned {start} – {end}": "Planned {start} – {end}"
+"{n} days late": { one: "{n} day late", other: "{n} days late" }
+"{n} days early": { one: "{n} day early", other: "{n} days early" }
 "{percent}% done": "{percent}% done"
 "Starts before {name} ends": "Starts before {name} ends"
 "On the critical path": "On the critical path"

@@ -399,6 +399,11 @@
       // A task being dragged: where it would go.
       const draft = drafts?.get(k);
       if (draft) [a, b] = [draft.a, milestone ? draft.a : draft.b];
+      // The baseline, the planned dates: `baselineStart` and `baselineEnd`, read as
+      // `start` and `end` are.
+      let pa = ms(at(r, "baselineStart")), pb = ms(at(r, "baselineEnd"));
+      if (dateOnly(at(r, "baselineEnd"))) pb += DAY;
+      if (milestone || (!Number.isNaN(pa) && blank(at(r, "baselineEnd")))) pb = pa;
       let done = isNum(at(r, "progress")) ? Math.max(0, Math.min(100, Number(at(r, "progress")))) / 100 : null;
       const children = kids.get(k) || [];
       if (children.length) {
@@ -407,12 +412,17 @@
           const s = span(c, trail);
           if (Number.isNaN(a) || s.a < a) a = Number.isNaN(s.a) ? a : s.a;
           if (Number.isNaN(b) || s.b > b) b = Number.isNaN(s.b) ? b : s.b;
+          // A group's baseline: its tasks', unless it has its own.
+          if (blank(at(r, "baselineStart"))) {
+            if (!Number.isNaN(s.pa) && (Number.isNaN(pa) || s.pa < pa)) pa = s.pa;
+            if (!Number.isNaN(s.pb) && (Number.isNaN(pb) || s.pb > pb)) pb = s.pb;
+          }
           const w = Math.max(s.b - s.a, DAY / 24);
           if (s.done !== null && Number.isFinite(w)) (weight += w), (sum += s.done * w);
         }
         if (done === null && weight) done = sum / weight;
       }
-      const out = { a, b, done, milestone: milestone && !children.length };
+      const out = { a, b, pa, pb, done, milestone: milestone && !children.length };
       spans.set(k, out);
       return out;
     };
@@ -522,6 +532,18 @@
       };
       for (const i of nodes) i.critical = !i.group && slackOf(i) < 0.5;
     }
+    // Baselines: drawn under the bars when a task has one, unless `baselines` is false.
+    const planned = (i) => !Number.isNaN(i.pa) && !Number.isNaN(i.pb);
+    const baselines = p.baselines !== false && g.all.some(planned);
+    // How far a task's end is from its planned end, in days (working days with
+    // `workdays`): more than 0 is late.
+    const slip = (i) => {
+      if (!planned(i) || Number.isNaN(i.b)) return 0;
+      const [x, y] = i.b >= i.pb ? [i.pb, i.b] : [i.b, i.pb];
+      // A group's in working days too, with `workdays`.
+      const n = working(i) || (cal && i.group) ? cal.count(x, y) : Math.round((y - x) / DAY);
+      return i.b >= i.pb ? n : -n;
+    };
     const nameOf = (i) => String(at(i.row, cols[0].field) ?? at(i.row, "name") ?? i.key);
     // What a task is, line by line: its name, dates and length, progress and series.
     const about = (i) => {
@@ -530,7 +552,16 @@
       else if (!Number.isNaN(i.a)) {
         const a = blank(at(r, "start")) ? when(new Date(i.a).toISOString()) : when(at(r, "start"));
         const b = blank(at(r, "end")) ? when(new Date(dateOnly(at(r, "start")) ? i.b - DAY : i.b).toISOString()) : when(at(r, "end"));
-        lines.push(`${a} – ${b} · ${working(i) ? L(["{count} working day", "{count} working days"], { count: days(i) }) : L(["{count} day", "{count} days"], { count: days(i) })}`);
+        lines.push(`${a} – ${b} · ${working(i) ? L(["{n} working day", "{n} working days"], { n: days(i) }) : L(["{n} day", "{n} days"], { n: days(i) })}`);
+      }
+      if (baselines && planned(i)) {
+        // A group's are its tasks': days.
+        const a = blank(at(r, "baselineStart")) ? day.format(i.pa) : when(at(r, "baselineStart"));
+        const b = blank(at(r, "baselineEnd")) ? day.format(i.pb - DAY) : when(at(r, "baselineEnd"));
+        lines.push(i.pa === i.pb ? L("Planned {date}", { date: a }) : L("Planned {start} – {end}", { start: a, end: b }));
+        const n = slip(i);
+        if (n > 0) lines.push(L(["{n} day late", "{n} days late"], { n }));
+        else if (n < 0) lines.push(L(["{n} day early", "{n} days early"], { n: -n }));
       }
       if (i.done !== null) lines.push(L("{percent}% done", { percent: Math.round(i.done * 100) }));
       if (split && !i.group && !blank(at(r, split))) lines.push(String(at(r, split)));
@@ -541,7 +572,7 @@
     const tip = (i) => about(i).map((l, n) => (n ? escapeHtml(l) : `<b>${escapeHtml(l)}</b>`)).join("<br/>");
     const item = (i) => ({
       name: String(at(i.row, "name") ?? i.key),
-      value: [i.index, i.a, i.b, i.done === null ? -1 : i.done, i.group ? 1 : i.milestone ? 2 : 0, i.critical ? 1 : 0],
+      value: [i.index, i.a, i.b, i.done === null ? -1 : i.done, i.group ? 1 : i.milestone ? 2 : 0, i.critical ? 1 : 0, baselines && planned(i) ? i.pa : null, baselines && planned(i) ? i.pb : null],
       tip: tip(i),
       // A milestone outside every `series` is the text's colour.
       ...(!blank(at(i.row, "color")) ? { itemStyle: { color: String(at(i.row, "color")) } } : i.milestone && split && blank(at(i.row, split)) ? { itemStyle: { color: t.text } } : {}),
@@ -556,6 +587,12 @@
       // On the critical path: a ring in the critical colour.
       const ring = (shape, type = "rect") => ({ type, shape, style: { fill: "none", stroke: CRIT, lineWidth: 2 }, silent: true });
       const y = at0[1];
+      // The baseline: a thin grey bar under the bar from its planned dates (a hollow
+      // diamond for a milestone's), behind it.
+      const pa = api.value(6), pb = api.value(7);
+      const base = Number.isFinite(pa) && Number.isFinite(pb) ? [api.coord([pa, api.value(0)])[0], api.coord([pb, api.value(0)])[0]] : null;
+      const baseStyle = { fill: fade(t.muted, 0.55) };
+      const baseBar = (by) => ({ type: "rect", shape: { x: base[0], y: by, width: Math.max(base[1] - base[0], 2), height: Math.max(3, h * 0.1), r: 1.5 }, style: baseStyle, silent: true });
       // Editable: a dot after the bar, shown on hover, to drag to a task that waits on it.
       const connector = (x) => [
         { type: "circle", shape: { cx: x + 10, cy: y, r: 9 }, style: { fill: "transparent" }, cursor: "crosshair" },
@@ -564,16 +601,21 @@
       if (kind === 2) {
         const s = Math.min(h * 0.32, 9);
         const diamond = { type: "polygon", shape: { points: [[at0[0], y - s], [at0[0] + s, y], [at0[0], y + s], [at0[0] - s, y]] }, style: { fill: color, stroke: critical ? CRIT : t.surface, lineWidth: critical ? 2 : 1 } };
-        return editable ? { type: "group", children: [{ ...diamond, cursor: "grab" }, ...connector(at0[0] + s)] } : diamond;
+        const ps = s * 0.8, px = base?.[0];
+        const planned = base ? [{ type: "polygon", shape: { points: [[px, y - ps], [px + ps, y], [px, y + ps], [px - ps, y]] }, style: { fill: "none", stroke: t.muted, lineWidth: 1.5 }, silent: true }] : [];
+        if (!editable && !planned.length) return diamond;
+        return { type: "group", children: [...planned, editable ? { ...diamond, cursor: "grab" } : diamond, ...(editable ? connector(at0[0] + s) : [])] };
       }
       const w = Math.max(at1[0] - at0[0], 2);
       if (kind === 1) {
         // A group: a thin bar with a notch down at either end.
         const bh = Math.max(4, h * 0.2), top = y - bh / 2, tip = Math.min(6, w / 2);
         const children = [{ type: "polygon", shape: { points: [[at0[0], top], [at0[0] + w, top], [at0[0] + w, top + bh + tip], [at0[0] + w - tip, top + bh], [at0[0] + tip, top + bh], [at0[0], top + bh + tip]] }, style: { fill: color } }];
+        if (base) children.unshift(baseBar(top + bh + tip + 2));
         return { type: "group", children };
       }
-      const bh = Math.max(10, h * 0.56), top = y - bh / 2;
+      // With baselines the bars move up a little, to make room under them.
+      const bh = baselines ? Math.max(8, h * 0.44) : Math.max(10, h * 0.56), top = y - bh / 2 - (baselines ? h * 0.08 : 0);
       const r = Math.min(4, bh / 2, w / 2);
       const children = done < 0
         ? [{ type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: color } }]
@@ -581,6 +623,7 @@
             { type: "rect", shape: { x: at0[0], y: top, width: w, height: bh, r }, style: { fill: fade(rgba(color), 0.35) } },
             { type: "rect", shape: { x: at0[0], y: top, width: w * done, height: bh, r }, style: { fill: color } },
           ];
+      if (base) children.unshift(baseBar(top + bh + 2));
       if (critical) children.push(ring({ x: at0[0] - 1.5, y: top - 1.5, width: w + 3, height: bh + 3, r: r + 1.5 }));
       // Editable: the bar is grabbed to move it, its ends to stretch it.
       if (editable) {
@@ -653,7 +696,9 @@
     // The ruled lines of the table and the chart, and the lines down: today and `markers`.
     const head = (split || p.zoom ? GANTT.band : 0) + GANTT.head;
     const marks = [];
-    const lo = Math.min(...drawn.map((i) => i.a)), hi = Math.max(...drawn.map((i) => i.b));
+    // The dates shown: the bars', and their baselines'.
+    const both = (i) => baselines && planned(i);
+    const lo = Math.min(...drawn.flatMap((i) => (both(i) ? [i.a, i.pa] : [i.a]))), hi = Math.max(...drawn.flatMap((i) => (both(i) ? [i.b, i.pb] : [i.b])));
     const now = Date.now();
     // Days off shaded, runs of them as one band, on plans up to three years long.
     const offDays = [];

@@ -436,6 +436,48 @@ fn gantt_critical_path_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// A gantt's baselines: a thin bar from each task's planned dates, a group's from its
+/// tasks', how late or early each one is, the timeline widened to show them, and
+/// `baselines: false` from state hiding them.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_baselines_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1, "state": { "show": true, "tasks": [
+            { "id": "g", "name": "G" },
+            { "id": "a", "group": "g", "name": "A", "start": "2026-03-02", "end": "2026-03-04", "baselineStart": "2026-03-02", "baselineEnd": "2026-03-03" },
+            { "id": "b", "group": "g", "name": "B", "start": "2026-03-05", "end": "2026-03-06", "baselineStart": "2026-03-05", "baselineEnd": "2026-03-09" },
+            { "id": "c", "name": "C", "start": "2026-03-05", "end": "2026-03-05" },
+            { "id": "m", "name": "M", "start": "2026-03-10", "milestone": true, "baselineStart": "2026-03-09" },
+            { "id": "e", "name": "E", "start": "2026-03-03", "end": "2026-03-04", "baselineStart": "2026-02-23", "baselineEnd": "2026-02-24" } ] },
+        "root": { "type": "ui-chart", "attrs": { "id": "g" }, "props": { "type": "gantt", "data": "{{ tasks }}", "baselines": "{{ show }}", "today": false } } });
+    let body = r##"
+    await ready(["g"]);
+    const rows = () => [...el("g").querySelectorAll("[data-gantt-table] [role=row][data-key]")];
+    const said = () => rows().map((r) => `${r.getAttribute("data-key")}: ${(r.getAttribute("aria-label").match(/Planned .*?(\d+ days? (late|early)|$)/) ?? ["-"])[0]}`).join(" | ");
+    const planned = () => opt("g").series.filter((s) => s.type === "custom" && s.encode?.x?.length === 2 && s.id !== "links").flatMap((s) => s.data).filter((d) => Number.isFinite(d.value[6])).length;
+    const from = () => new Date(opt("g").xAxis[0].min).getDate();
+    log("shown", planned(), "from", from());
+    log(said());
+    root.__irender.set("show", false);
+    await wait(200);
+    log("hidden", planned(), "from", from());
+    log(said());
+"##;
+    let Some(lines) = run("gantt-baselines", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        // G, A, B, M and E; the timeline starts before E's planned 23 Feb.
+        "shown 5 from 22",
+        // G's from its tasks'; A and M a day late, B three days early, E eight late.
+        "g: Planned Mar 2, 2026 – Mar 9, 2026, 3 days early | a: Planned Mar 2, 2026 – Mar 3, 2026, 1 day late | b: Planned Mar 5, 2026 – Mar 9, 2026, 3 days early | c: - | m: Planned Mar 9, 2026, 1 day late | e: Planned Feb 23, 2026 – Feb 24, 2026, 8 days late",
+        "hidden 0 from 1",
+        "g: - | a: - | b: - | c: - | m: - | e: -",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// A gantt with `workdays` and `holidays`: lengths in working days, days off shaded, and
 /// a moved task (and, with `cascade`, those that wait on it) landing on working days and
 /// keeping its working days.
