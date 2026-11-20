@@ -256,4 +256,7 @@ fn a_gantt_starts_as_tall_as_its_rows_and_grows_in_the_browser() {
     let page = render_with(json!({ "type": "ui-chart", "props": { "type": "gantt", "data": "{{ rows }}" } }), json!({ "rows": rows }), json!({})).unwrap();
     assert!(page.css.contains("height: 124px"), "{}", page.css);
     assert_eq!(tall(json!({ "type": "gantt", "data": rows, "height": 200 })), (Some("200px".into()), json!(false)));
+    // `visibleRows` caps it: one row's worth, the other scrolled to; more than there are changes nothing.
+    assert_eq!(tall(json!({ "type": "gantt", "data": rows, "visibleRows": 1 })), (Some("90px".into()), json!(true)));
+    assert_eq!(tall(json!({ "type": "gantt", "data": rows, "visibleRows": 5 })), (Some("124px".into()), json!(true)));
 }

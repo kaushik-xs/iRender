@@ -335,6 +335,70 @@ fn gantt_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// A gantt with `visibleRows`: as tall as that many rows, the rest scrolled to inside it
+/// (the wheel, a bar on the right, or the keys on the table), the table following its
+/// window; zooming the timeline leaves the rows where they are.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_scrolls_its_rows_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let tasks: Vec<Json> = (0..12)
+        .map(|i| json!({ "id": format!("t{i}"), "name": format!("Task {i}"), "start": format!("2026-03-{:02}", i + 2), "end": format!("2026-03-{:02}", i + 5) }))
+        .collect();
+    let doc = json!({ "version": 1, "state": { "tasks": tasks },
+        "root": { "type": "ui-chart", "attrs": { "id": "g" }, "props": { "type": "gantt", "data": "{{ tasks }}", "zoom": true, "visibleRows": 4 } } });
+    let body = r##"
+    await ready(["g"]);
+    const g = chart("g"), o = () => opt("g");
+    const T = () => el("g").querySelector("[data-gantt-table]");
+    const shownRows = () => [...T().querySelectorAll("[role=row][data-key]")].filter((r) => r.style.display !== "none");
+    const keys = () => shownRows().map((r) => r.getAttribute("data-key")).join(",");
+    const g0 = () => el("g").getBoundingClientRect(), mid = (r) => r.getBoundingClientRect().top + r.getBoundingClientRect().height / 2 - g0().top;
+    const aligned = () => shownRows().every((r) => Math.abs(mid(r) - g.convertToPixel({ yAxisIndex: 0 }, r.getAttribute("data-key").slice(1))) <= 1);
+    const bars = () => o().series.filter((s) => s.type === "custom" && s.id !== "rows" && s.id !== "links").flatMap((s) => s.data).length;
+    log("start", el("g").style.height, keys(), aligned(), o().dataZoom.map((z) => z.id || z.type).join(","));
+    g.dispatchAction({ type: "dataZoom", dataZoomId: "rows", startValue: 5, endValue: 8 }); await wait(250);
+    log("scrolled", keys(), aligned());
+    // The wheel: a row for each row's height (34px) scrolled; at the end, the page's.
+    const wheel = (dy) => { const ev = new WheelEvent("wheel", { deltaY: dy, bubbles: true, cancelable: true }); el("g").querySelector("canvas").dispatchEvent(ev); return ev.defaultPrevented; };
+    log("wheel", wheel(68), keys(), wheel(34 * 10), keys(), wheel(34), keys());
+    // The keys: End goes to the last task, which scrolls into view; Home back to the first.
+    shownRows()[0].focus();
+    const key = (k) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+    key("End"); await wait(250);
+    log("end", document.activeElement.getAttribute("data-key"), keys(), aligned());
+    key("Home"); await wait(250);
+    log("home", document.activeElement.getAttribute("data-key"), keys());
+    key("ArrowDown"); key("ArrowDown"); key("ArrowDown"); key("ArrowDown"); await wait(250);
+    log("down past the window", document.activeElement.getAttribute("data-key"), keys());
+    // Zooming the timeline in leaves the rows' window alone.
+    const w = el("g").clientWidth, canvas = el("g").querySelector("canvas");
+    const click = async (x, y) => {
+      const r = canvas.getBoundingClientRect(), at = { bubbles: true, clientX: r.left + x, clientY: r.top + y };
+      for (const type of ["mousemove", "mousedown", "mouseup", "click"]) canvas.dispatchEvent(new MouseEvent(type, at));
+      await wait(250);
+    };
+    await click(w - 42 - 13, 15);
+    const time = o().dataZoom.find((z) => z.id !== "rows" && z.id !== "rowsBar");
+    log("zoomed", Math.round(time.end - time.start), keys());
+"##;
+    let Some(lines) = run("gantt-scroll", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        // Four rows under the dates (and the zoom buttons' band): 74 + 4 × 34 + 12.
+        "start 222px t0,t1,t2,t3 true inside,rows,rowsBar",
+        "scrolled t5,t6,t7,t8 true",
+        // Down two rows; then to the end; past it, the wheel is left to the page.
+        "wheel true t7,t8,t9,t10 true t8,t9,t10,t11 false t8,t9,t10,t11",
+        "end t11 t8,t9,t10,t11 true",
+        "home t0 t0,t1,t2,t3",
+        "down past the window t4 t1,t2,t3,t4",
+        "zoomed 50 t1,t2,t3,t4",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// Editing a gantt: dragging a bar moves its task and an end stretches it, a day at a
 /// time, written back to `bindData` in the dates' own form; Escape puts a drag back; a
 /// task that starts before the one it waits for ends is marked; Alt and the arrows on

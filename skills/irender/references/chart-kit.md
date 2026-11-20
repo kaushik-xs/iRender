@@ -65,8 +65,8 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `stack`, `smooth`, `horizontal`, `labels` | Shorthand switches. |
 | `format`, `currency`, `decimals` | How values show in labels, tooltips and the value axis, in the document's `lang`: `number` (the default), `currency` (`currency`, default `USD`) or `percent` (of 1), with `decimals` digits after the point. Without them, labels and tooltips show at most two decimals; with a `format`, big axis values stay short (`$1.5M`). |
 | `legend`, `tooltip` | On or off. Default: a legend with two or more series, and a tooltip always. |
-| `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows. The width is the container's. |
-| `columns`, `markers`, `today` | For a gantt; see [Gantt](#gantt). |
+| `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows (or `visibleRows` of them). The width is the container's. |
+| `columns`, `markers`, `today`, `visibleRows` | For a gantt; see [Gantt](#gantt). |
 | `loading` | Shows the loading mask, e.g. `{{ fetching }}`. |
 | `bind`, `bindRow`, `bindZoom`, `bindLegend`, `bindBrush`, `bindDrill` | State keys for what people do with the chart; see [Interactions as state](#interactions-as-state). |
 | `maps` | GeoJSON maps to register before drawing: `{ world: /geo/world.json }`. The URLs are checked against the policy. |
@@ -210,6 +210,7 @@ Each row is a task with these fields. Any other field can be a column.
 - **`series`**: a field to colour the bars by, with a legend that hides a series' bars.
 - **`markers`**: dated lines down the timeline, `[{ at, name, color }]`, named under it.
 - **`today`**: a line at today's date when it falls on the timeline. Default true.
+- **`visibleRows`**: the chart is at most that many rows tall, and the rest scroll inside it: with the wheel, a thin bar on the right, dragging (when the bars don't move), or the keys on the table, which scroll to the row they go to. The dates and the table's header stay put, and zooming the timeline leaves the rows where they are.
 - **`zoom`**: `true` adds −, + and "show all" buttons. ⌘/Ctrl with the wheel zooms, dragging pans, and Shift with the wheel pans. `slider` or `both` adds a slider. `bindZoom` works as for other charts.
 - **Clicks:** `bind` and `bindRow` get the clicked task, and a group opening or closing fires `toggle` with `{ id, open, row }`.
 - **Editing:** with `bindData` (the state key `data` reads), drag a bar to move its task, or either end to change its start or end, a day at a time; the bar shows where it's going and the tasks change when it's let go. On a touch screen, hold the bar for a moment first, so a quick swipe still scrolls; Escape puts a drag back. On a focused row, Alt with Left or Right moves the task a day, and with Shift too moves its end. Groups follow their tasks, and a milestone moves its date. New dates are written as the old ones were: a day stays a day, a timestamp a timestamp. Each edit fires `edit` with `{ id, start, end, row }`, and is announced. `editable: false` turns it off; while editable, dragging the background doesn't pan (Shift with the wheel, or the slider, does).

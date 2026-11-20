@@ -138,6 +138,11 @@ const CHART_PROPS: &[PropDef] = &[
     PropDef::new("today", PropKind::Bool, "Gantt: a line at today's date when it's on the timeline (default true)"),
     PropDef::new("bindData", PropKind::StateKey, "Gantt: the state key `data` reads; bars dragged (or moved with Alt and the arrows) write their new dates back to it"),
     PropDef::new("editable", PropKind::Bool, "Gantt: with `bindData`, bars can be moved and stretched, and links drawn and removed (default true)"),
+    PropDef::new(
+        "visibleRows",
+        PropKind::Number,
+        "Gantt: at most this many rows tall; the rest scroll inside the chart, under its dates and beside its table",
+    ),
     PropDef::new("cascade", PropKind::Bool, "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends"),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
@@ -177,7 +182,7 @@ const SPARKLINE_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "format", "currency", "decimals", "legend", "tooltip", "loading",
-    "columns", "markers", "today", "editable", "cascade",
+    "columns", "markers", "today", "editable", "cascade", "visibleRows",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.
@@ -296,7 +301,10 @@ fn gantt_height(node: &Node, cx: &RenderCx<'_>) -> Option<usize> {
     if lit("type")?.as_str()? != "gantt" {
         return None;
     }
-    let rows = cx.prop(node, "data")?.as_array()?.len().max(1);
+    let mut rows = cx.prop(node, "data")?.as_array()?.len().max(1);
+    if let Some(n) = cx.prop(node, "visibleRows").and_then(|v| v.as_f64()).filter(|n| *n >= 1.0) {
+        rows = rows.min(n as usize);
+    }
     let band = if node.prop("series").is_some() || node.prop("zoom").is_some() { 30 } else { 0 };
     let slider = if lit("zoom").and_then(Json::as_str).is_some_and(|z| z == "slider" || z == "both") { 36 } else { 0 };
     let foot = if node.prop("markers").is_some() { 28 } else { 12 };

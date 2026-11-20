@@ -590,11 +590,12 @@
     }
     o.series.unshift({
       type: "custom", id: "rows", silent: true, z: 1, tooltip: { show: false }, encode: { y: 0 }, data: shown.map((i) => [i.index]),
+      // A line above and below each row, from the axis, so a scrolled window lines up.
+      clip: true,
       renderItem: (params, api) => {
-        const box = params.coordSys, h = box.height / Math.max(1, shown.length), i = api.value(0);
-        const line = (yy) => ({ type: "line", shape: { x1: 0, y1: yy, x2: api.getWidth(), y2: yy }, style: { stroke: t.border, lineWidth: 1 } });
-        const y = (n) => Math.round(box.y + n * h) + 0.5;
-        return { type: "group", children: i === 0 ? [line(y(0)), line(y(1))] : [line(y(i + 1))] };
+        const mid = api.coord([0, api.value(0)])[1], h = api.size([0, 1])[1];
+        const line = (yy) => ({ type: "line", shape: { x1: 0, y1: Math.round(yy) + 0.5, x2: api.getWidth(), y2: Math.round(yy) + 0.5 }, style: { stroke: t.border, lineWidth: 1 } });
+        return { type: "group", children: [line(mid - h / 2), line(mid + h / 2)] };
       },
       ...(marks.length ? { markLine: { silent: true, symbol: "none", animation: false, label: { show: true, position: "end", distance: 6, formatter: "{b}", fontSize: 11 }, data: marks } } : {}),
     });
@@ -620,10 +621,13 @@
     else o.tooltip = { show: false };
     if (split) o.legend = { show: p.legend !== false, top: 4, left: 8, type: "scroll", icon: "roundRect", itemWidth: 12, itemHeight: 12, data: names.filter((n) => n !== ""), width: width - (p.zoom ? 136 : 16) };
     else o.legend = { show: false };
-    d.height = head + Math.max(1, shown.length) * GANTT.row + o.grid.bottom;
+    // `visibleRows`: at most that many rows, the rest scrolled to.
+    const visible = Number(p.visibleRows) >= 1 && shown.length > Number(p.visibleRows) ? Math.floor(Number(p.visibleRows)) : 0;
+    if (visible) o.grid.right += 12;
+    d.height = head + (visible || Math.max(1, shown.length)) * GANTT.row + o.grid.bottom;
     // For the table: its columns, where its rows go, and each row's cells and description.
     Object.assign(g, {
-      cols, head, bottom: o.grid.bottom, tableWidth,
+      cols, head, bottom: o.grid.bottom, tableWidth, visible,
       cells: (i) => cols.map((c, n) => (n ? cell(at(i.row, c.field)) : nameOf(i))),
       about: (i) => about(i).join(", "),
     });
@@ -1287,6 +1291,23 @@
         if (!dz.length) dz.push({ type: "inside", ...along, zoomOnMouseWheel: false, moveOnMouseMove: false, moveOnMouseWheel: false });
         o.dataZoom = dz;
       }
+      // A gantt's `visibleRows`: a window of rows, moved by the wheel (or a drag when bars
+      // don't move), or by a thin bar on the right. It's kept as the chart redraws.
+      const win = p.type === "gantt" ? d.gantt?.visible : 0;
+      if (win) {
+        const n = d.gantt.shown.length, start = Math.max(0, Math.min(n - win, rowStart));
+        // Its size held by the spans: `zoomLock` would leave ECharts' wheel handling off.
+        const range = { yAxisIndex: 0, filterMode: "weakFilter", minValueSpan: win - 1, maxValueSpan: win - 1, startValue: start, endValue: start + win - 1 };
+        o.dataZoom = [
+          ...(o.dataZoom || []),
+          // The wheel is the behaviour's (a row at a time); a drag moves it when bars don't.
+          { type: "inside", id: "rows", ...range, zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: !canEdit(), preventDefaultMouseMove: !canEdit() },
+          {
+            type: "slider", id: "rowsBar", ...range, right: 2, width: 8, top: o.grid.top, bottom: o.grid.bottom, showDetail: false, brushSelect: false,
+            showDataShadow: false, handleSize: 0, moveHandleSize: 0, borderColor: "transparent", backgroundColor: fade(theme.border, 0.35), fillerColor: fade(theme.muted, 0.45),
+          },
+        ];
+      }
       // `brush`: drag to select points; `bindBrush` gets their rows.
       if (p.brush && o.series?.length) {
         o.brush = {
@@ -1322,9 +1343,13 @@
     // A gantt's closed groups, and the groups it has seen (so a row's own
     // `collapsed` applies once).
     const collapsed = new Set(), seen = new Set();
+    // The first row a gantt's `visibleRows` window shows, kept across redraws.
+    let rowStart = 0;
     // Zoom in (factor < 1) or out about the middle of the window; 0 shows everything.
+    // The controls that zoom the chart's axis, not a gantt's window of rows.
+    const axisZooms = () => (chart.getOption().dataZoom || []).map((z, i) => (z.id === "rows" || z.id === "rowsBar" ? -1 : i)).filter((i) => i >= 0);
     function zoomBy(factor) {
-      const dz = chart.getOption().dataZoom?.[0];
+      const dz = chart.getOption().dataZoom?.[axisZooms()[0]];
       if (!dz) return;
       let a = 0, b = 100;
       if (factor) {
@@ -1333,7 +1358,7 @@
         b = Math.min(100, a + half * 2);
         a = Math.max(0, b - half * 2);
       }
-      chart.dispatchAction({ type: "dataZoom", start: a, end: b });
+      chart.dispatchAction({ type: "dataZoom", batch: axisZooms().map((i) => ({ dataZoomIndex: i, start: a, end: b })) });
     }
     function zoomButtons() {
       const button = (id, text, right, factor) => ({
@@ -1405,7 +1430,7 @@
 
     // The axis values at either end of the zoom window, or null when it shows everything.
     function zoomWindow() {
-      const dz = chart.getOption().dataZoom?.[0];
+      const dz = chart.getOption().dataZoom?.find((z) => z.id !== "rows" && z.id !== "rowsBar");
       if (!dz || (dz.start <= 0 && dz.end >= 100)) return null;
       const axis = chart.getOption()[`${zoomAxis}Axis`]?.[0];
       if (axis?.type === "category") {
@@ -1433,7 +1458,55 @@
       return { from: tidy(a), to: tidy(b) };
     }
     let zoomTimer;
-    function onZoom() {
+    // The first row a gantt's window of rows shows.
+    function firstRow() {
+      try {
+        return Math.round(chart.getModel().getComponent("yAxis", 0).axis.scale.getExtent()[0]);
+      } catch {
+        return 0;
+      }
+    }
+    // Moves a gantt's window of rows to start at row `start`; false when it can't move.
+    function scrollRows(start) {
+      const win = level.gantt?.visible;
+      if (!win) return false;
+      start = Math.max(0, Math.min(level.gantt.shown.length - win, start));
+      if (start === firstRow()) return false;
+      rowStart = start;
+      chart.dispatchAction({ type: "dataZoom", dataZoomId: "rows", startValue: start, endValue: start + win - 1 });
+      ganttTable();
+      return true;
+    }
+    // Scrolls a gantt's window of rows so row `k` is in it.
+    function showRow(k) {
+      const win = level.gantt?.visible, first = firstRow();
+      if (win && (k < first || k >= first + win)) scrollRows(k < first ? k : k - win + 1);
+    }
+    // The wheel over a gantt with `visibleRows` (bars or table): a row per row's height
+    // scrolled, so a mouse's notches and a trackpad's glide both feel right. At either
+    // end the page scrolls on. With ⌘/Ctrl or Shift it's the timeline's.
+    let wheeled = 0;
+    el.addEventListener("wheel", (e) => {
+      if (!level.gantt?.visible || e.ctrlKey || e.metaKey || e.shiftKey || !e.deltaY) return;
+      wheeled += e.deltaMode === 1 ? e.deltaY * GANTT.row : e.deltaY;
+      const step = Math.trunc(wheeled / GANTT.row);
+      const first = firstRow(), last = level.gantt.shown.length - level.gantt.visible;
+      // Already at the end it's going to: the page has it.
+      if ((e.deltaY < 0 && first <= 0) || (e.deltaY > 0 && first >= last)) return void (wheeled = 0);
+      e.preventDefault();
+      if (!step) return;
+      wheeled -= step * GANTT.row;
+      scrollRows(first + step);
+      // Before ECharts', which stops the wheel on the bars.
+    }, { passive: false, capture: true });
+    function onZoom(e) {
+      // A gantt's rows scrolled: the table follows; it isn't a zoom of the timeline.
+      const id = e?.batch?.[0]?.dataZoomId ?? e?.dataZoomId;
+      if (id === "rows" || id === "rowsBar") {
+        rowStart = firstRow();
+        ganttTable();
+        return;
+      }
       clearTimeout(zoomTimer);
       zoomTimer = setTimeout(() => {
         if (!chart) return;
@@ -1483,8 +1556,7 @@
         const cats = axis?.type === "category" ? (axis.data || []).map((c) => (isObj(c) ? c.value : c)) : null;
         // Dates are read the way ECharts reads them, so a day is local midnight.
         const value = (x) => (cats ? cats.findIndex((c) => same(c, x)) : axis?.type === "time" ? +ec.time.parse(x) : Number(x));
-        const n = chart.getOption().dataZoom?.length || 0;
-        for (let i = 0; i < n; i++) {
+        for (const i of axisZooms()) {
           const action = { type: "dataZoom", dataZoomIndex: i };
           const [a, b] = isObj(v) ? [v.from, v.to] : [null, null];
           if (blank(a) || value(a) < 0) action.start = 0;
@@ -1835,7 +1907,9 @@
         el.append(table);
       }
       table.setAttribute("aria-label", cfg.title ? String(cfg.title) : L("Tasks"));
-      const n = Math.max(1, g.shown.length), h = (el.clientHeight - g.head - g.bottom) / n;
+      // With `visibleRows`, a window of them: each row where the axis puts it, the rest hidden.
+      const n = g.visible || Math.max(1, g.shown.length), h = (el.clientHeight - g.head - g.bottom) / n;
+      const first = g.visible ? firstRow() : 0;
       Object.assign(table.style, { position: "absolute", left: "0", top: "0", width: `${g.tableWidth}px`, height: "0", font: `12px ${theme.font}`, color: theme.text });
       const had = table.contains(document.activeElement) ? document.activeElement.getAttribute("data-key") : null;
       const make = (role, attrs, style) => {
@@ -1868,7 +1942,7 @@
           "data-key": i.key, "aria-level": String(i.depth + 1), "aria-expanded": i.group ? String(i.open) : null,
           "aria-selected": String(i.key === pickedKey), "aria-label": g.about(i), tabindex: i.key === focusKey ? "0" : "-1",
           "data-group": i.group ? "" : null, "data-linking": i.key === linkFrom ? "" : null,
-        }, { top: `${g.head + k * h}px`, height: `${h}px` });
+        }, { top: `${g.head + (k - first) * h}px`, height: `${h}px`, display: k < first || k >= first + n ? "none" : "" });
         r.append(...cellsOf(g.cells(i), false, i.depth, i.group ? (i.open ? "▾ " : "▸ ") : ""));
         return r;
       });
@@ -1903,8 +1977,11 @@
         if (!r) return;
         e.preventDefault();
         focusKey = r.getAttribute("data-key");
-        for (const x of rows) x.tabIndex = x === r ? 0 : -1;
-        r.focus();
+        // Out of a gantt's window of rows: scrolled to first (which draws the rows again).
+        showRow(level.gantt.shown.findIndex((i) => i.key === focusKey));
+        const now = table.querySelector(`[role=row][data-key="${CSS.escape(focusKey)}"]`) ?? r;
+        for (const x of table.querySelectorAll("[role=row][data-key]")) x.tabIndex = x === now ? 0 : -1;
+        now.focus();
       };
       // Links from the keyboard: L on a task starts one, Enter on another makes it wait
       // for the first (or, if it already does, no longer), Escape stops.
