@@ -3,7 +3,8 @@
 // whatever `bind` says, and a tap on the backdrop, Escape or following a link closes
 // it. While it's open the page behind is inert, and focus goes into the panel and back
 // to the trigger. ⌘B / Ctrl+B toggles the sidebar: the sheet on a phone, `bind`
-// otherwise. With several layouts on a page, the first one takes the shortcut.
+// otherwise. With several layouts on a page, the first one takes the shortcut. With
+// `remember`, open or closed is kept in localStorage and restored as the page loads.
 (window.__irenderBehaviors ||= {})["ui-sidebar"] = (el, api) => {
   const { key } = api.config;
   const phone = matchMedia("(max-width: 767px)");
@@ -69,10 +70,33 @@
     setSheet(false, { restoreFocus: false });
     sync();
   });
+  // `remember`: the last choice, restored without sliding, then saved as it changes.
+  const store = api.config.remember ? `irender-sidebar:${api.config.remember}` : null;
+  let saved = null;
+  if (store) {
+    try {
+      saved = localStorage.getItem(store);
+    } catch {}
+    if ((saved === "true" || saved === "false") && (saved === "true") !== !!state[key]) {
+      el.setAttribute("data-restoring", "");
+      api.set(key, saved === "true");
+      // After the next paint (or a moment, where frames don't come).
+      const done = () => el.removeAttribute("data-restoring");
+      requestAnimationFrame(() => requestAnimationFrame(done));
+      setTimeout(done, 100);
+    }
+  }
   sync();
   return {
     update(next) {
       state = next;
+      const now = String(!!state[key]);
+      if (store && now !== saved) {
+        saved = now;
+        try {
+          localStorage.setItem(store, now);
+        } catch {}
+      }
       if (phone.matches) sync(); // the runtime just wrote `bind`'s value
     },
   };

@@ -10,7 +10,7 @@ use irender_core::{
     expr::{Expr, UnOp},
 };
 use irender_html::{Component, Element, RenderCx, RenderError};
-use serde_json::json;
+use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
 
 /// The panel's background: a step off the page's, in light and dark.
@@ -63,6 +63,11 @@ const LAYOUT_PROPS: &[PropDef] = &[
     PropDef::new("variant", PropKind::Enum(VARIANTS), "`sidebar` (default), `inset` (the main area is a raised panel) or `floating`"),
     PropDef::new("side", PropKind::Enum(SIDES), "Default `left`"),
     PropDef::new("width", PropKind::Any, "The open sidebar's width (default 16rem)"),
+    PropDef::new(
+        "remember",
+        PropKind::Any,
+        "Keep open or closed across reloads, in the browser's storage: `true` (under `bind`'s name) or a name shared by the pages that should agree",
+    ),
 ];
 
 static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -80,6 +85,8 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     ]))
     .nest("&[data-side=right]", pairs(&[("flex-direction", "row-reverse")]))
     .nest("&[data-variant=inset]", pairs(&[("background", SIDEBAR_BG)]))
+    // Restored from storage as the page loads: no sliding.
+    .nest("&[data-restoring], &[data-restoring] *", pairs(&[("transition", "none !important")]))
     // The backdrop behind the sheet on a phone; a click on it closes the sheet.
     .nest(
         "&[data-mobile-open]::before",
@@ -128,7 +135,16 @@ impl Component for SidebarLayout {
             .attr("data-side", SIDES[choice(cx, node, "side", SIDES)]);
         if let Some(k) = key.as_ref().filter(|_| collapsible != "none") {
             cx.global_js("ui-sidebar", SCRIPT);
-            el.behavior("ui-sidebar", json!({ "key": k }));
+            let remember = match cx.prop(node, "remember") {
+                None | Some(Json::Null) | Some(Json::Bool(false)) => None,
+                Some(Json::Bool(true)) => Some(k.clone()),
+                Some(v) => Some(irender_core::expr::stringify(&v)).filter(|n| !n.is_empty()),
+            };
+            let mut config = json!({ "key": k });
+            if let Some(r) = remember {
+                config["remember"] = json!(r);
+            }
+            el.behavior("ui-sidebar", config);
         }
         if let Some(w) = node.prop("width") {
             let mut width = StyleBlock::new();

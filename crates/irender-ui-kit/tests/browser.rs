@@ -965,6 +965,51 @@ fn split_buttons_in_chrome() {
     );
 }
 
+/// `remember`: open or closed comes back from localStorage as the page loads, without
+/// sliding, and each change is saved; `remember: name` uses that name.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sidebar_remembers_in_chrome() {
+    let layout = |id: &str, bind: &str, remember: serde_json::Value| serde_json::json!({ "type": "ui-sidebar-layout", "props": { "bind": bind, "remember": remember }, "attrs": { "id": id }, "style": { "min-height": 100 }, "children": [
+        { "type": "ui-sidebar", "children": [ { "type": "ui-sidebar-content" } ] },
+        { "type": "ui-sidebar-trigger" } ] });
+    let doc = serde_json::json!({ "version": 1, "state": { "nav": true, "docs": false, "plain": true },
+        "root": { "type": "stack", "children": [ layout("a", "nav", serde_json::json!(true)), layout("b", "docs", serde_json::json!("docs-pages")), layout("c", "plain", serde_json::json!(null)) ] } });
+    let early = r#"<script>localStorage.clear(); localStorage.setItem("irender-sidebar:nav", "false"); localStorage.setItem("irender-sidebar:docs-pages", "true");</script>"#;
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const $ = (s) => document.querySelector(s), S = () => $("[data-i-root]").__irender.state;
+      const restoring = $("#a").hasAttribute("data-restoring");
+      await wait(150);
+      try {
+        log("restored", S().nav, S().docs, S().plain, $("#a").dataset.state, $("#b").dataset.state, restoring, $("#a").hasAttribute("data-restoring"));
+        $("#a [data-sidebar-trigger]").click(); await wait(20);
+        $("#b [data-sidebar-trigger]").click(); await wait(20);
+        $("#c [data-sidebar-trigger]").click(); await wait(20);
+        log("saved", localStorage.getItem("irender-sidebar:nav"), localStorage.getItem("irender-sidebar:docs-pages"), String(localStorage.getItem("irender-sidebar:plain")));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replacen("<head>", &format!("<head>{early}"), 1).replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("sidebar-remember", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Restored with sliding off, which comes back on after a frame or two.
+            "restored false true true collapsed expanded true false",
+            "saved true false null",
+        ],
+        "\n{result}"
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn sidebar_collapses_in_chrome() {

@@ -98,7 +98,7 @@ _Last updated: 2026-11-19._
   - [x] Ranked, fuzzy matching (2026-11-20): best match first in each group and of the groups, letters in order, keywords, matched letters marked; `rank: false` for document order.
   - [x] Pages (`ui-command-page`, an item's `page`, Backspace back) and `bindSearch` (2026-11-20). Not done yet: no loading state for items fetched as you type.
 - [ ] **`ui-sidebar` gaps:**
-  - [ ] No remembered state: a reload opens it as `state` says (shadcn keeps it in a cookie).
+  - [x] `remember` keeps it open or closed across reloads, in localStorage (2026-11-20; blocks sidebar-07, dashboard-01). The server can't read it (shadcn's cookie can), so a page drawn closed but remembered open opens as its script runs.
   - [ ] No group actions or per-item action buttons (shadcn's `SidebarGroupAction`, `SidebarMenuAction`); put a `ui-dropdown-menu` beside the item instead.
   - [ ] The phone sheet makes the page behind it `inert` but doesn't trap Tab inside the panel against the browser's own UI, and it doesn't swipe closed.
 - [ ] **`ui-illustration` gaps** (15 drawings and the error and empty-state blocks shipped 2026-11-18):

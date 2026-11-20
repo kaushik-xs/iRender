@@ -1,5 +1,6 @@
 # Block: a sidebar that collapses to icons, in the style of shadcn/ui's sidebar-07. The
 # button in the header narrows it to its icons and back; labels stay for screen readers.
+# `remember` keeps it narrowed or open across reloads.
 #
 #   cargo run -p irender-cli -- render examples/blocks/sidebar-07.yaml --ui-kit --icon-kit -o sidebar-07.html
 version: 1
@@ -7,7 +8,7 @@ state:
   sidebar: true
 root:
   type: ui-sidebar-layout
-  props: { bind: sidebar, collapsible: icon }
+  props: { bind: sidebar, collapsible: icon, remember: true }
   children:
     - type: ui-sidebar
       children:

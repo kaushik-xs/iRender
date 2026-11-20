@@ -748,6 +748,7 @@ ui-sidebar-layout: A page with a sidebar. Children: a `ui-sidebar`, then the mai
   variant      one of: sidebar, inset, floating  `sidebar` (default), `inset` (the main area is a raised panel) or `floating`
   side         one of: left, right  Default `left`
   width        any  The open sidebar's width (default 16rem)
+  remember     any  Keep open or closed across reloads, in the browser's storage: `true` (under `bind`'s name) or a name shared by the pages that should agree
   parts: main
   children: yes
 ui-sidebar: The sidebar's panel, inside a `ui-sidebar-layout`. Children: `ui-sidebar-header`, `ui-sidebar-content` and `ui-sidebar-footer`.

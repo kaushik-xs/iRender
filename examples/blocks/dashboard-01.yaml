@@ -3,7 +3,8 @@
 # Search in the sidebar) for its pages and actions, and a bell of notifications in the
 # header. Data comes from
 # dashboard-01.data.json; the chart's range, the table's tabs, row selection and
-# paging are state, so they work in the browser without a server round trip.
+# paging are state, so they work in the browser without a server round trip. The
+# sidebar stays open or closed across reloads (`remember`).
 #
 #   cargo run -p irender-cli -- render examples/blocks/dashboard-01.yaml \
 #     --data examples/blocks/dashboard-01.data.json --ui-kit --chart-kit --icon-kit -o dashboard-01.html
@@ -23,7 +24,7 @@ state:
     - { id: 4, title: Export finished, body: Your CSV is ready to download., when: Yesterday, tone: success, read: true }
 root:
   type: ui-sidebar-layout
-  props: { bind: sidebar, variant: inset }
+  props: { bind: sidebar, variant: inset, remember: true }
   children:
     # ------------------------------------------------------------ sidebar
     - type: ui-sidebar
