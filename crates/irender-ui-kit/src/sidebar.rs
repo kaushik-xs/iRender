@@ -365,7 +365,7 @@ impl Component for SidebarGroup {
     }
     fn info(&self) -> ComponentInfo {
         info(
-            "A labelled list in a sidebar. Children: `ui-sidebar-item`s.",
+            "A labelled list in a sidebar. Children: `ui-sidebar-item`s, and `ui-sidebar-action`s for buttons beside the label.",
             GROUP_PROPS,
             &["label", "list"],
         )
@@ -375,16 +375,26 @@ impl Component for SidebarGroup {
         let mut el = cx.element("div", node);
         el.base_style_ref(&GROUP).attr("data-sidebar-group", true);
         cx.open(&el, node)?;
-        if let Some(label) = node.prop("label") {
+        let (actions, items) = split_actions(node);
+        if node.prop("label").is_some() || !actions.is_empty() {
             let mut l = cx.part("div", node, "label");
-            l.base_style_ref(&GROUP_LABEL).text(label);
+            l.base_style_ref(&GROUP_LABEL);
             cx.open(&l, node)?;
+            if let Some(label) = node.prop("label") {
+                let mut text = Element::new("span");
+                text.base_style_ref(&LABEL).text(label);
+                cx.open(&text, node)?;
+                cx.close("span");
+            }
+            for a in actions {
+                cx.render(a)?;
+            }
             cx.close("div");
         }
         let mut ul = cx.part("ul", node, "list");
         ul.base_style_ref(&MENU);
         cx.open(&ul, node)?;
-        cx.with_context("ui-sidebar-sub", None, |cx| cx.children(node))?;
+        cx.with_context("ui-sidebar-sub", None, |cx| items.into_iter().try_for_each(|c| cx.render(c)))?;
         cx.close("ul");
         cx.close("div");
         Ok(())
@@ -504,7 +514,7 @@ impl Component for SidebarItem {
     fn info(&self) -> ComponentInfo {
         info(
             "An entry in a sidebar group: a link, or a button that runs its `on.click`. Children are a sub-menu of \
-             more `ui-sidebar-item`s, opened and closed by the item.",
+             more `ui-sidebar-item`s, opened and closed by the item, and `ui-sidebar-action`s for buttons at the end of its row.",
             ITEM_PROPS,
             &["label", "list"],
         )
@@ -512,8 +522,11 @@ impl Component for SidebarItem {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         crate::flips(cx);
         let sub = cx.context("ui-sidebar-sub").is_some();
-        let has_children = !node.children.is_empty();
-        cx.open(&Element::new("li"), node)?;
+        let (actions, kids) = split_actions(node);
+        let has_children = !kids.is_empty();
+        let mut li = Element::new("li");
+        li.base_style_ref(&ITEM_ROW);
+        cx.open(&li, node)?;
         let tag = if has_children {
             let mut details = Element::new("details");
             if cx.prop(node, "open").is_some_and(|o| irender_core::expr::truthy(&o)) {
@@ -576,15 +589,120 @@ impl Component for SidebarItem {
             cx.close("span");
         }
         cx.close(tag);
+        // Actions sit over the end of the item's row (the summary, with a sub-menu).
+        for a in &actions {
+            cx.render(a)?;
+        }
         if has_children {
             let mut ul = cx.part("ul", node, "list");
             ul.base_style_ref(&SUB);
             cx.open(&ul, node)?;
-            cx.with_context("ui-sidebar-sub", Some(lit(true)), |cx| cx.children(node))?;
+            cx.with_context("ui-sidebar-sub", Some(lit(true)), |cx| kids.into_iter().try_for_each(|c| cx.render(c)))?;
             cx.close("ul");
             cx.close("details");
         }
         cx.close("li");
+        Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- action
+
+/// A group's or an item's `ui-sidebar-action` children, and the rest.
+fn split_actions(node: &Node) -> (Vec<&Node>, Vec<&Node>) {
+    node.children.iter().partition(|c| c.kind == "ui-sidebar-action")
+}
+
+pub struct SidebarAction;
+
+const ACTION_PROPS: &[PropDef] = &[
+    PropDef::new("label", PropKind::Any, "What it does, for screen readers and as its tooltip, e.g. `Add project`").required(),
+    PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character (default: three dots)"),
+    PropDef::new("showOnHover", PropKind::Bool, "On an item: hidden until the row is hovered or has focus"),
+];
+
+/// An item's row holds its actions over its end.
+static ITEM_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("position", "relative"), ("list-style", "none")])
+        .nest("&:has(> [data-sidebar-action]) > [data-sidebar-item], &:has(> [data-sidebar-action]) > details > [data-sidebar-item]", pairs(&[("padding-inline-end", sp!(32))]))
+        .nest("&:has(> [data-sidebar-action]) > details > [data-sidebar-item] > [data-chevron]", pairs(&[("margin-inline-end", sp!(-4))]))
+});
+static ACTION: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("display", "inline-flex"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("flex-shrink", "0"),
+        ("width", sp!(20)),
+        ("height", sp!(20)),
+        ("margin-inline-start", "auto"),
+        ("padding", "0"),
+        ("border", "0"),
+        ("border-radius", "var(--radius-sm)"),
+        ("background", "transparent"),
+        ("color", "inherit"),
+        ("font", "inherit"),
+        ("cursor", "pointer"),
+        ("transition", "opacity .1s"),
+    ])
+    .nest(":hover", pairs(&[("background", ACCENT)]))
+    .nest(":focus-visible", pairs(&[("outline", "2px solid"), ("outline-color", RING), ("outline-offset", "-2px")]))
+    // On an item: over the end of its first row.
+    .nest("li > &", pairs(&[("position", "absolute"), ("top", sp!(6)), ("inset-inline-end", sp!(6))]))
+    .nest("li > &[data-hover]", pairs(&[("opacity", "0")]))
+    // Shown on hover, or with focus in the row (its menu included).
+    .nest("li:hover > &[data-hover], li:focus-within > &[data-hover]", pairs(&[("opacity", "1")]))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("display", "none")])))
+});
+
+const DOTS_SVG: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="12.5" cy="8" r="1.25"/></svg>"#;
+
+impl Component for SidebarAction {
+    fn name(&self) -> &'static str {
+        "ui-sidebar-action"
+    }
+    fn info(&self) -> ComponentInfo {
+        info(
+            "A small button beside a `ui-sidebar-group`'s label or at the end of a `ui-sidebar-item`'s row, e.g. Add project or \
+             More. It runs its `on.click`; with `ui-menu-item`, `ui-menu-label` and `ui-menu-separator` children it opens them \
+             as a dropdown menu instead.",
+            ACTION_PROPS,
+            &["menu"],
+        )
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        crate::flips(cx);
+        let label = node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("More")));
+        let mut el = cx.element("button", node);
+        el.base_style_ref(&ACTION).attr("type", "button").attr("data-sidebar-action", true).attr("aria-label", label.clone()).attr("title", label);
+        if cx.prop(node, "showOnHover").is_some_and(|v| irender_core::expr::truthy(&v)) {
+            el.attr("data-hover", true);
+        }
+        let menu = !node.children.is_empty();
+        let id = crate::instance_id(cx, node, "sidebar-action");
+        if menu {
+            let anchor = crate::id_after("--", &id);
+            let mut style = StyleBlock::new();
+            style.push("anchor-name", crate::overlay::style_of(&anchor));
+            el.base_style(style).attr("popovertarget", id.clone()).attr("aria-haspopup", lit("menu"));
+        }
+        cx.open(&el, node)?;
+        match node.prop("icon") {
+            Some(i) => icon(cx, node, i, 16)?,
+            None => cx.markup(DOTS_SVG),
+        }
+        cx.close("button");
+        if menu {
+            // The dropdown menu's own, with no trigger of its own: this button opens it.
+            let mut m = crate::synthetic(node, "ui-dropdown-menu", vec![("side", lit("right")), ("align", lit("start"))], vec![("id", id)], Vec::new());
+            m.children = node.children.clone();
+            if let Some(p) = node.parts.get("menu") {
+                m.class = p.class.clone();
+                m.style = p.style.clone();
+                m.attrs.extend(p.attrs.clone());
+            }
+            crate::overlay::Popover::MENU.render(&m, cx)?;
+        }
         Ok(())
     }
 }

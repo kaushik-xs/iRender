@@ -761,11 +761,11 @@ ui-sidebar-content: The scrolling middle of a `ui-sidebar`. Children: `ui-sideba
   children: yes
 ui-sidebar-footer: The bottom of a `ui-sidebar`, e.g. the signed-in user.
   children: yes
-ui-sidebar-group: A labelled list in a sidebar. Children: `ui-sidebar-item`s.
+ui-sidebar-group: A labelled list in a sidebar. Children: `ui-sidebar-item`s, and `ui-sidebar-action`s for buttons beside the label.
   label        any  The group's heading, e.g. `Platform`
   parts: label, list
   children: yes
-ui-sidebar-item: An entry in a sidebar group: a link, or a button that runs its `on.click`. Children are a sub-menu of more `ui-sidebar-item`s, opened and closed by the item.
+ui-sidebar-item: An entry in a sidebar group: a link, or a button that runs its `on.click`. Children are a sub-menu of more `ui-sidebar-item`s, opened and closed by the item, and `ui-sidebar-action`s for buttons at the end of its row.
   label        any (required)  The item's text
   icon         any  An icon name (with the icon kit) or a character, shown before the label
   href         any  Make it a link
@@ -773,6 +773,12 @@ ui-sidebar-item: An entry in a sidebar group: a link, or a button that runs its 
   badge        any  A count or short text on the right
   open         bool  With children: start with its sub-menu open
   parts: label, list
+  children: yes
+ui-sidebar-action: A small button beside a `ui-sidebar-group`'s label or at the end of a `ui-sidebar-item`'s row, e.g. Add project or More. It runs its `on.click`; with `ui-menu-item`, `ui-menu-label` and `ui-menu-separator` children it opens them as a dropdown menu instead.
+  label        any (required)  What it does, for screen readers and as its tooltip, e.g. `Add project`
+  icon         any  An icon name (with the icon kit) or a character (default: three dots)
+  showOnHover  bool  On an item: hidden until the row is hovered or has focus
+  parts: menu
   children: yes
 ui-sidebar-trigger: A button that opens and closes the sidebar of the `ui-sidebar-layout` it is in (one with `bind`).
   label        any  Its name for screen readers (default `Toggle sidebar`)

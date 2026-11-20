@@ -184,6 +184,7 @@ pub fn register(registry: &mut Registry) {
         .register(sidebar::SidebarFooter)
         .register(sidebar::SidebarGroup)
         .register(sidebar::SidebarItem)
+        .register(sidebar::SidebarAction)
         .register(sidebar::SidebarTrigger)
         .register(combobox::Combobox)
         .register(command::Command)

@@ -1,11 +1,13 @@
 # Block: a sidebar that collapses to icons, in the style of shadcn/ui's sidebar-07. The
 # button in the header narrows it to its icons and back; labels stay for screen readers.
-# `remember` keeps it narrowed or open across reloads.
+# `remember` keeps it narrowed or open across reloads. Projects has an Add project button
+# beside its label, and each project a ⋯ menu that shows on hover (`ui-sidebar-action`).
 #
 #   cargo run -p irender-cli -- render examples/blocks/sidebar-07.yaml --ui-kit --icon-kit -o sidebar-07.html
 version: 1
 state:
   sidebar: true
+  toast: null
 root:
   type: ui-sidebar-layout
   props: { bind: sidebar, collapsible: icon, remember: true }
@@ -58,9 +60,27 @@ root:
             - type: ui-sidebar-group
               props: { label: Projects }
               children:
-                - { type: ui-sidebar-item, props: { label: Design Engineering, icon: marketing:target, href: "#" } }
-                - { type: ui-sidebar-item, props: { label: Sales & Marketing, icon: marketing:analytics, href: "#" } }
-                - { type: ui-sidebar-item, props: { label: Travel, icon: public-sector:public-transport, href: "#" } }
+                - type: ui-sidebar-action
+                  props: { label: Add project, icon: add }
+                  on: { click: { action: set_state, key: toast, value: { title: New project, description: A blank project was added. } } }
+                - type: ui-sidebar-item
+                  props: { label: Design Engineering, icon: marketing:target, href: "#" }
+                  children:
+                    - type: ui-sidebar-action
+                      props: { label: More, showOnHover: true }
+                      children: &projectMenu
+                        - { type: ui-menu-item, props: { label: View project }, on: { click: { action: set_state, key: toast, value: { title: Opened the project } } } }
+                        - { type: ui-menu-item, props: { label: Share project }, on: { click: { action: set_state, key: toast, value: { title: Link copied } } } }
+                        - { type: ui-menu-separator }
+                        - { type: ui-menu-item, props: { label: Delete project, variant: destructive }, on: { click: { action: set_state, key: toast, value: { title: Project deleted } } } }
+                - type: ui-sidebar-item
+                  props: { label: Sales & Marketing, icon: marketing:analytics, href: "#" }
+                  children:
+                    - { type: ui-sidebar-action, props: { label: More, showOnHover: true }, children: *projectMenu }
+                - type: ui-sidebar-item
+                  props: { label: Travel, icon: public-sector:public-transport, href: "#" }
+                  children:
+                    - { type: ui-sidebar-action, props: { label: More, showOnHover: true }, children: *projectMenu }
                 - { type: ui-sidebar-item, props: { label: More, icon: more-horizontal } }
         - type: ui-sidebar-footer
           children:
@@ -93,3 +113,4 @@ root:
             - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
             - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
         - { type: element, style: { flex: 1, min-height: 360, border-radius: 12, background: $color.subtle } }
+    - { type: ui-toaster, props: { bind: toast } }

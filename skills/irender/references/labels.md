@@ -595,6 +595,7 @@ root: …
 
 ```yaml
 "Sidebar": "Sidebar"
+"More": "More"
 "Toggle sidebar": "Toggle sidebar"
 ```
 

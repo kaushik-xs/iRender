@@ -18,7 +18,7 @@ const BUTTON_VARIANTS: PropKind = PropKind::Enum(&["default", "secondary", "dest
 const BUTTON_SIZES: PropKind = PropKind::Enum(&["default", "sm", "lg", "icon"]);
 
 /// A value as a style value: literal as is, template evaluated live.
-fn style_of(v: &Val) -> StyleValue {
+pub(crate) fn style_of(v: &Val) -> StyleValue {
     match v {
         Val::Lit(j) => StyleValue::Static(expr::stringify(j)),
         Val::Tpl(t) => StyleValue::Dynamic { tpl: t.clone(), px: false },

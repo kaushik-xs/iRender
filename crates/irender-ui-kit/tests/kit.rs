@@ -78,6 +78,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-split-button", json!({ "label": "Save" })),
         ("ui-theme-option", json!({ "option": "palette" })),
         ("ui-sidebar-item", json!({ "label": "Home" })),
+        ("ui-sidebar-action", json!({ "label": "More" })),
         ("ui-command-item", json!({ "label": "L" })),
         ("ui-chat-input", json!({ "messages": "k" })),
         ("ui-data-table", json!({ "rows": [], "columns": [{ "field": "a" }] })),
@@ -154,7 +155,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 117);
+    assert_eq!(kit, 118);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");

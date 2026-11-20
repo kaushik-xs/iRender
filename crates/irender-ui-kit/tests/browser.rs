@@ -965,6 +965,73 @@ fn split_buttons_in_chrome() {
     );
 }
 
+/// `ui-sidebar-action`: a group's button beside its label, an item's at the end of its
+/// row (shown on hover or focus), one opening a menu, and none while collapsed to icons.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sidebar_actions_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "open": true, "ran": "" },
+        "root": { "type": "ui-sidebar-layout", "props": { "bind": "open", "collapsible": "icon" }, "style": { "min-height": 300 }, "children": [
+            { "type": "ui-sidebar", "children": [ { "type": "ui-sidebar-content", "children": [
+                { "type": "ui-sidebar-group", "props": { "label": "Projects" }, "children": [
+                    { "type": "ui-sidebar-action", "props": { "label": "Add project", "icon": "+" },
+                        "on": { "click": { "action": "set_state", "key": "ran", "value": "add" } } },
+                    { "type": "ui-sidebar-item", "props": { "label": "Design engineering", "icon": "D", "href": "#design" }, "children": [
+                        { "type": "ui-sidebar-action", "props": { "label": "More", "showOnHover": true }, "children": [
+                            { "type": "ui-menu-item", "props": { "label": "Share" }, "on": { "click": { "action": "set_state", "key": "ran", "value": "share" } } },
+                            { "type": "ui-menu-item", "props": { "label": "Delete", "variant": "destructive" } } ] } ] },
+                    { "type": "ui-sidebar-item", "props": { "label": "Sales", "icon": "S" } } ] } ] } ] },
+            { "type": "ui-sidebar-trigger" } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const $ = (s) => document.querySelector(s), S = () => $("[data-i-root]").__irender.state;
+      const [add, more] = document.querySelectorAll("[data-sidebar-action]");
+      const row = more.closest("li"), link = row.querySelector("a");
+      const r = (el) => el.getBoundingClientRect();
+      try {
+        const label = $("[data-sidebar-group] > div");
+        log("group", add.getAttribute("aria-label"), add.parentElement === label, Math.round(r(label).right - r(add).right) < 12, $("[data-sidebar-group] li a").textContent);
+        add.click(); await wait(10);
+        log("clicked", S().ran);
+        log("item", Math.abs(r(more).top + r(more).height / 2 - (r(link).top + r(link).height / 2)) < 2, r(more).right <= r(row).right, r(link).right - r(more).left >= 20,
+          getComputedStyle(more).opacity, more.getAttribute("aria-haspopup"), link.querySelector("[data-label]").getBoundingClientRect().right <= r(more).left + 1);
+        link.focus(); await wait(10);
+        log("focused", getComputedStyle(more).opacity);
+        more.click(); await wait(20);
+        const menu = document.getElementById(more.getAttribute("popovertarget"));
+        log("menu", menu.matches(":popover-open"), menu.getAttribute("role"), [...menu.querySelectorAll("[role=menuitem]")].map((m) => m.textContent.trim()).join(","), location.hash);
+        menu.querySelector("[role=menuitem]").click(); await wait(20);
+        log("chose", S().ran, menu.matches(":popover-open"), location.hash);
+        $("[data-sidebar-trigger]").click(); await wait(20);
+        log("icons", getComputedStyle(add).display, getComputedStyle(more).display);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("sidebar-actions", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "group Add project true true DDesign engineering",
+            "clicked add",
+            // Centred on the link's row, inside it, over its end; hidden until hovered.
+            "item true true true 0 menu true",
+            "focused 1",
+            "menu true menu Share,Delete ",
+            "chose share false ",
+            "icons none none",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `remember`: open or closed comes back from localStorage as the page loads, without
 /// sliding, and each change is saved; `remember: name` uses that name.
 #[test]
