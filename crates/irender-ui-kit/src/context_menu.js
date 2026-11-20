@@ -25,6 +25,9 @@
 
   function open(x, y, target) {
     if (el.hasAttribute("data-disabled")) return false;
+    // What it opens on hears first, so a data table can select the row (and `bind`'s
+    // context and the items see that).
+    target?.dispatchEvent?.(new CustomEvent("irender:context", { bubbles: true }));
     const context = contextOf(target);
     if (api.config.bind) api.set(api.config.bind, context);
     api.emit("contextopen", { context });

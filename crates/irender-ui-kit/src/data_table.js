@@ -1032,6 +1032,19 @@
     if (tr?.parentElement === body && tr.__k !== undefined) focusKey = tr.__k;
     lost = null;
   });
+  // A context menu opening on a row (a right-click, a long press, Shift+F10) makes it
+  // the focused one and, when it isn't selected, the selection, as file lists do; on a
+  // selected row the selection stays, for actions on all of it.
+  body.addEventListener("irender:context", (e) => {
+    const tr = e.target.closest?.("[data-dt-row]");
+    if (tr?.parentElement !== body) return;
+    focusKey = tr.__k;
+    roving();
+    const { row, key: k } = rowOf(tr);
+    if (!cfg.selectable || !isDataRow(row) || selection().some((x) => keyOf(x) === keyOf(k))) return;
+    put("selection", []);
+    toggleRows([k], true);
+  });
   function roving() {
     if (!navigable) return;
     const g = groups();

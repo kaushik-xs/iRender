@@ -2732,7 +2732,7 @@ fn context_menu_in_chrome() {
         serde_json::json!({ "type": "ui-menu-item", "props": props,
             "on": { "click": { "action": "set_state", "key": "ran", "value": format!("{label} {{{{ ctx }}}}") } } })
     };
-    let doc = serde_json::json!({ "version": 1, "state": { "ctx": null, "ran": "", "row": null, "off": false },
+    let doc = serde_json::json!({ "version": 1, "state": { "ctx": null, "ran": "", "row": null, "off": false, "picked": [] },
         "root": { "type": "stack", "children": [
             { "type": "ui-context-menu", "props": { "bind": "ctx", "disabled": "{{ off }}" }, "children": [
                 { "type": "element", "attrs": { "id": "area", "tabindex": 0 }, "style": { "height": 120 }, "children": [
@@ -2742,7 +2742,8 @@ fn context_menu_in_chrome() {
                 { "type": "ui-menu-separator" },
                 item("Delete", serde_json::json!({ "variant": "destructive" })) ] },
             { "type": "ui-context-menu", "props": { "bind": "row" }, "children": [
-                { "type": "ui-data-table", "props": { "rows": [{ "id": 1, "name": "One" }, { "id": 2, "name": "Two" }], "pageSize": 0, "columns": [{ "field": "name" }] } },
+                { "type": "ui-data-table", "props": { "rows": [{ "id": 1, "name": "One" }, { "id": 2, "name": "Two" }, { "id": 3, "name": "Three" }], "rowKey": "id",
+                    "selectable": true, "bindSelection": "picked", "pageSize": 0, "columns": [{ "field": "name" }] } },
                 { "type": "ui-menu-label", "props": { "text": "{{ row.name }}" } },
                 { "type": "ui-menu-item", "props": { "label": "Rename {{ row.name }}" } } ] } ] } });
     let driver = r##"<style>* { transition: none !important; }</style><script>
@@ -2790,7 +2791,17 @@ fn context_menu_in_chrome() {
 
         const rowEl = two.querySelectorAll("[data-dt-row]")[1];
         right(rowEl.querySelector("td"), 50, 50); await wait(10);
-        log("row", JSON.stringify(S().row), menu(two).querySelector("[role=menuitem]").textContent, menu(two).firstElementChild.textContent);
+        log("row", JSON.stringify(S().row), menu(two).querySelector("[role=menuitem]").textContent, menu(two).firstElementChild.textContent, JSON.stringify(S().picked), rowEl.tabIndex);
+        menu(two).hidePopover(); await wait(20);
+        // On a selected row the selection stays; on another, it's just that row.
+        root.__irender.set("picked", [1, 3]); await wait(10);
+        const rows = two.querySelectorAll("[data-dt-row]");
+        right(rows[2].querySelector("td"), 50, 50); await wait(10);
+        log("selected row", JSON.stringify(S().row), JSON.stringify(S().picked));
+        menu(two).hidePopover(); await wait(20);
+        rows[1].focus();
+        key("F10", { shiftKey: true }); await wait(10);
+        log("keyboard row", JSON.stringify(S().row), JSON.stringify(S().picked));
       } catch (e) { log("EXCEPTION", e.stack); }
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
     });
@@ -2815,7 +2826,10 @@ fn context_menu_in_chrome() {
             "focus back file",
             // The browser's own menu: the event isn't cancelled.
             "disabled true false",
-            "row {\"id\":2,\"name\":\"Two\"} Rename Two Two",
+            // The row right-clicked is selected and focusable.
+            "row {\"id\":2,\"name\":\"Two\"} Rename Two Two [2] 0",
+            "selected row {\"id\":3,\"name\":\"Three\"} [1,3]",
+            "keyboard row {\"id\":2,\"name\":\"Two\"} [2]",
         ],
         "\n{result}"
     );

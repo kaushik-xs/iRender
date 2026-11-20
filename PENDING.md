@@ -93,7 +93,7 @@ _Last updated: 2026-11-19._
 - [ ] **`ui-context-menu` gaps** (shipped 2026-11-18):
   - [x] Submenus, checkbox and radio items (2026-11-18), in every menu.
   - [x] A long press (500ms) by touch opens it, for iOS Safari, which sends no `contextmenu` (2026-11-20).
-  - [ ] Right-clicking a data table row doesn't select it; items act on `bind`'s row, and the selection is separate.
+  - [x] Right-clicking a data table row selects it (2026-11-20), or keeps the selection on a selected row, as file lists do; block data-table-01's row menu acts on the selection.
 - [ ] **`ui-command` gaps:**
   - [x] Ranked, fuzzy matching (2026-11-20): best match first in each group and of the groups, letters in order, keywords, matched letters marked; `rank: false` for document order.
   - [x] Pages (`ui-command-page`, an item's `page`, Backspace back) and `bindSearch` (2026-11-20). Not done yet: no loading state for items fetched as you type.

@@ -1,7 +1,8 @@
 # Block: a task list in the style of shadcn/ui's tasks example, built on `ui-data-table`.
 # A search box and faceted filters (status, priority, label) over the rows, sorting on
 # the headers (Shift-click adds a column), a View menu that hides columns, paging, and
-# row selection with bulk actions, and a right-click menu on each row. The Views menu has
+# row selection with bulk actions, and a right-click menu on each row: right-clicking a
+# row selects it (or keeps the selection, on a selected row), and the menu acts on it all. The Views menu has
 # two ready-made views, and saves your own: sort, filter or hide columns, then Save as new view. Rows come from data-table-01.data.json; the
 # selection is state, so the bulk actions read it and hand it to the host with `call`.
 #
@@ -144,25 +145,26 @@ root:
                               - { action: call, name: delete, args: { ids: "{{ picked }}" } }
                               - { action: set_state, key: toast, value: { title: "Deleted {{ picked.length }} tasks" } }
                               - { action: set_state, key: picked, value: [] }
-        - { type: ui-menu-label, props: { text: "{{ task ? task.id : 'No task' }}" } }
+        - { type: ui-menu-label, props: { text: "{{ !task ? 'No task' : (picked.length > 1 ? picked.length + ' tasks' : task.id) }}" } }
         - type: ui-menu-item
-          props: { label: Edit, shortcut: "⏎", disabled: "{{ !task }}" }
+          props: { label: Edit, shortcut: "⏎", disabled: "{{ !task || picked.length > 1 }}" }
           on: { click: { action: call, name: edit, args: { id: "{{ task.id }}" } } }
         - type: ui-menu-item
-          props: { label: Mark done, disabled: "{{ !task || task.status == 'Done' }}" }
+          props: { label: Mark done, disabled: "{{ !task }}" }
           on:
             click:
-              - { action: call, name: complete, args: { ids: ["{{ task.id }}"] } }
-              - { action: set_state, key: toast, value: { title: "Marked {{ task.id }} done" } }
+              - { action: call, name: complete, args: { ids: "{{ picked }}" } }
+              - { action: set_state, key: toast, value: { title: "Marked {{ picked.length > 1 ? picked.length + ' tasks' : task.id }} done" } }
         - type: ui-menu-item
-          props: { label: Select, disabled: "{{ !task || includes(picked, task.id) }}" }
-          on: { click: { action: set_state, key: picked, value: "{{ toggle(picked, task.id) }}" } }
+          props: { label: Clear selection, disabled: "{{ !picked.length }}" }
+          on: { click: { action: set_state, key: picked, value: [] } }
         - { type: ui-menu-separator }
         - type: ui-menu-item
           props: { label: Delete, variant: destructive, disabled: "{{ !task }}" }
           on:
             click:
-              - { action: call, name: delete, args: { ids: ["{{ task.id }}"] } }
-              - { action: set_state, key: toast, value: { title: "Deleted {{ task.id }}" } }
+              - { action: call, name: delete, args: { ids: "{{ picked }}" } }
+              - { action: set_state, key: toast, value: { title: "Deleted {{ picked.length > 1 ? picked.length + ' tasks' : task.id }}" } }
+              - { action: set_state, key: picked, value: [] }
 
     - { type: ui-toaster, props: { bind: toast } }
