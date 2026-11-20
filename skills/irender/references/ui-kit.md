@@ -507,7 +507,7 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **Events.** The table fires bubbling `rowclick` (`detail.row`) and `select` (`detail.selection`) events for `on:` actions.
 
-**How it works.** The server renders the rows, in the starting order and with the first page shown, so the table reads without JavaScript. The browser then sorts, filters and pages by moving and hiding the rendered rows rather than drawing them again, so what's inside a cell keeps its state. Virtual, remote and nested tables instead hand the runtime the rows to show, as a list keyed by `rowKey` (`api.list` in the [runtime](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-html/src/runtime.js)); a row that stays keeps its nodes, charts included.
+**How it works.** The server renders the rows, in the starting order and with the first page shown, so the table reads without JavaScript. It sorts text as the browser will (numbers by value, so Item 9 comes before Item 10; case and the accents of Latin letters aside), so rows stay put when the script takes over. The browser then sorts, filters and pages by moving and hiding the rendered rows rather than drawing them again, so what's inside a cell keeps its state. Virtual, remote and nested tables instead hand the runtime the rows to show, as a list keyed by `rowKey` (`api.list` in the [runtime](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-html/src/runtime.js)); a row that stays keeps its nodes, charts included.
 
 ## Filters panel
 

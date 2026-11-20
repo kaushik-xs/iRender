@@ -76,7 +76,7 @@ _Last updated: 2026-11-19._
   - [x] Column order, widths and hidden columns are state with `bindColumns` (2026-11-19).
   - [x] Saved views (2026-11-20): a Views menu with ready-made `views` and people's own in `bindViews` (sort, filters, search, columns, grouping, page size), "(edited)" with Undo and Save changes, rename and delete (block data-table-01). Not done yet: no default chosen from the menu (only `defaultView`), no sharing a view by link, and views aren't ordered by dragging.
   - [ ] Formats are applied by the browser, so the server's HTML shows raw values until the script runs.
-  - [ ] The server's starting order compares text without locale rules, so mixed-case text can reorder once the script runs.
+  - [x] The server's starting order is the browser's (2026-11-20): numbers by value, case and Latin accents aside, checked against Chrome, WebKit and Firefox. Scripts other than Latin (and language rules such as Swedish å after z) still follow code points.
   - [x] Interface text follows the document's `labels` (2026-11-19).
   - [x] CSV export of the rows that pass, in the columns shown (2026-11-19). A remote table exports only the rows it has loaded; no Excel (.xlsx) file.
 - [ ] **Date picker gaps** (`ui-date-picker` and `ui-calendar` shipped 2026-11-18: days with a time, months, quarters and years on a financial year, single, range and multiple, limits, disabled days, presets, month and year menus, `bindRange`; the data table's date filter uses the calendar):

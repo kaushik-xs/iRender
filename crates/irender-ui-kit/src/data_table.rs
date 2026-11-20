@@ -830,9 +830,9 @@ fn sort_keys(v: &Json) -> Vec<(String, bool)> {
     }
 }
 
-/// As `cmp` in data_table.js: numbers as numbers, other values as text, and blanks last
-/// whichever way the column sorts. The browser compares text by locale, so the
-/// server's order of mixed-case text can differ until it runs.
+/// As `cmp` in data_table.js: numbers (and text that is a number) as numbers, other
+/// values as text the way the browser's `localeCompare` with `numeric` does (see
+/// `text_order`), and blanks last whichever way the column sorts.
 fn compare(a: &Json, b: &Json, desc: bool) -> Ordering {
     let blank = |v: &Json| v.is_null() || v.as_str() == Some("");
     match (blank(a), blank(b)) {
@@ -841,11 +841,78 @@ fn compare(a: &Json, b: &Json, desc: bool) -> Ordering {
         (false, true) => return Ordering::Less,
         _ => {}
     }
-    let o = match (a.as_f64(), b.as_f64()) {
+    let num = |v: &Json| v.as_f64().or_else(|| v.as_str().and_then(|s| s.trim().parse::<f64>().ok()).filter(|n| n.is_finite()));
+    let o = match (num(a), num(b)) {
         (Some(x), Some(y)) => x.partial_cmp(&y).unwrap_or(Ordering::Equal),
-        _ => expr::stringify(a).to_lowercase().cmp(&expr::stringify(b).to_lowercase()),
+        _ => text_order(&expr::stringify(a), &expr::stringify(b)),
     };
     if desc { o.reverse() } else { o }
+}
+
+/// Text in the order the browser's collator gives it with `numeric` and base sensitivity,
+/// near enough for the first drawing: case and the accents of Latin letters don't count,
+/// runs of digits compare by their value ("Item 9" before "Item 10"), and spaces come
+/// before punctuation and symbols, then digits, then letters. Equal text keeps its order.
+fn text_order(a: &str, b: &str) -> Ordering {
+    let fold = |s: &str| s.chars().flat_map(char::to_lowercase).map(base_letter).collect::<Vec<_>>();
+    let (a, b) = (fold(a), fold(b));
+    let rank = |c: char| if c.is_whitespace() { 0 } else if c.is_numeric() { 2 } else if c.is_alphabetic() { 3 } else { 1 };
+    let (mut i, mut j) = (0, 0);
+    while i < a.len() && j < b.len() {
+        if a[i].is_ascii_digit() && b[j].is_ascii_digit() {
+            // A run of digits each, by value: without leading zeros, the longer is larger.
+            fn run(s: &[char], mut k: usize) -> (&[char], usize) {
+                while k < s.len() && s[k] == '0' && s.get(k + 1).is_some_and(char::is_ascii_digit) {
+                    k += 1;
+                }
+                let start = k;
+                while k < s.len() && s[k].is_ascii_digit() {
+                    k += 1;
+                }
+                (&s[start..k], k)
+            }
+            let ((x, ni), (y, nj)) = (run(&a, i), run(&b, j));
+            let o = x.len().cmp(&y.len()).then_with(|| x.cmp(y));
+            if o.is_ne() {
+                return o;
+            }
+            (i, j) = (ni, nj);
+            continue;
+        }
+        let o = rank(a[i]).cmp(&rank(b[j])).then(a[i].cmp(&b[j]));
+        if o.is_ne() {
+            return o;
+        }
+        i += 1;
+        j += 1;
+    }
+    (a.len() - i).cmp(&(b.len() - j))
+}
+
+/// A lower-case Latin letter without its accent (`é` → `e`, `ø` → `o`); others as they are.
+fn base_letter(c: char) -> char {
+    match c {
+        'à'..='å' | 'ā' | 'ă' | 'ą' => 'a',
+        'ç' | 'ć' | 'ĉ' | 'ċ' | 'č' => 'c',
+        'ď' | 'đ' => 'd',
+        'è'..='ë' | 'ē' | 'ĕ' | 'ė' | 'ę' | 'ě' => 'e',
+        'ĝ' | 'ğ' | 'ġ' | 'ģ' => 'g',
+        'ĥ' | 'ħ' => 'h',
+        'ì'..='ï' | 'ĩ' | 'ī' | 'ĭ' | 'į' | 'ı' => 'i',
+        'ĵ' => 'j',
+        'ķ' => 'k',
+        'ĺ' | 'ļ' | 'ľ' | 'ŀ' | 'ł' => 'l',
+        'ñ' | 'ń' | 'ņ' | 'ň' => 'n',
+        'ò'..='ö' | 'ø' | 'ō' | 'ŏ' | 'ő' => 'o',
+        'ŕ' | 'ŗ' | 'ř' => 'r',
+        'ś' | 'ŝ' | 'ş' | 'š' | 'ß' => 's',
+        'ţ' | 'ť' | 'ŧ' => 't',
+        'ù'..='ü' | 'ũ' | 'ū' | 'ŭ' | 'ů' | 'ű' | 'ų' => 'u',
+        'ŵ' => 'w',
+        'ý' | 'ÿ' | 'ŷ' => 'y',
+        'ź' | 'ż' | 'ž' => 'z',
+        c => c,
+    }
 }
 
 // ---------------------------------------------------------------- the component
@@ -1906,5 +1973,25 @@ mod tests {
             ("c".into(), true)
         ]);
         assert_eq!(lookup(&json!({ "a": { "b": 3 } }), "a.b"), &json!(3));
+    }
+
+    #[test]
+    fn server_sort_orders_text_as_the_browser_does() {
+        let sorted = |list: &[Json]| {
+            let mut order: Vec<usize> = (0..list.len()).collect();
+            order.sort_by(|&a, &b| compare(&list[a], &list[b], false));
+            order.iter().map(|&i| expr::stringify(&list[i])).collect::<Vec<_>>()
+        };
+        // Digits by value, case and accents ignored (equal ones keep their order).
+        assert_eq!(sorted(&[json!("Item 10"), json!("item 9"), json!("Item 1")]), ["Item 1", "item 9", "Item 10"]);
+        assert_eq!(sorted(&[json!("zebra"), json!("Émile"), json!("eve"), json!("Ada")]), ["Ada", "Émile", "eve", "zebra"]);
+        assert_eq!(sorted(&[json!("b"), json!("B"), json!("a")]), ["a", "b", "B"]);
+        // Text that is a number, as a number; leading zeros don't count.
+        assert_eq!(sorted(&[json!("10"), json!("9"), json!(8.5)]), ["8.5", "9", "10"]);
+        assert_eq!(sorted(&[json!("v010"), json!("v9"), json!("v2a")]), ["v2a", "v9", "v010"]);
+        // Spaces, then punctuation, digits and letters.
+        assert_eq!(sorted(&[json!("a"), json!("1"), json!("_x"), json!(" y")]), [" y", "_x", "1", "a"]);
+        // Dates written the ISO way stay in date order.
+        assert_eq!(sorted(&[json!("2026-11-02"), json!("2026-02-11"), json!("2026-11-02T08:00")]), ["2026-02-11", "2026-11-02", "2026-11-02T08:00"]);
     }
 }

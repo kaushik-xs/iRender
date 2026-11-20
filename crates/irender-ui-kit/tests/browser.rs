@@ -2286,6 +2286,37 @@ fn data_table_virtual_focus_in_chrome() {
     );
 }
 
+/// The server's starting order is the browser's: text by locale with numbers by value,
+/// case and accents aside, so rows don't move when the script takes over.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_server_order_is_the_browsers_in_chrome() {
+    let names = ["Item 10", "item 9", "Item 1", "zebra", "Émile", "eve", "Ada", "b", "B", "a", "v010", "v9", "v2a", "_x", "1", "10", "9", "Ölaf", "oscar", "Zoë", "zoe"];
+    let rows: Vec<_> = names.iter().enumerate().map(|(i, n)| serde_json::json!({ "id": i, "name": n })).collect();
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "ui-data-table", "props": { "rows": rows, "rowKey": "id", "sort": "name", "pageSize": 0, "locale": "en-US", "columns": [{ "field": "name" }] } } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    // The server's order: where each name's cell is in its markup.
+    let body = &page.body;
+    let mut server: Vec<(usize, &str)> = names.iter().map(|n| (body.find(&format!(">{n}<")).expect(n), *n)).collect();
+    server.sort();
+    let server: Vec<&str> = server.into_iter().map(|(_, n)| n).collect();
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      await new Promise((r) => setTimeout(r, 30));
+      const names = [...document.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden]) [data-dt-col=name]")].map((td) => td.textContent);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = names.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let html = page.document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-server-order", &html) else { return };
+    assert_eq!(server, result.lines().collect::<Vec<_>>(), "server first, then the browser's");
+}
+
 /// Rows from `url`: batches as the table scrolls, the query sent to the server, a
 /// new sort starting over, server pages with the total, and a failed load retried.
 #[test]
