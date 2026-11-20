@@ -2,7 +2,8 @@
 # - Infinite scroll: `paging: scroll` asks for the next 50 rows as you near the bottom,
 #   and `virtual` keeps only the rows in view in the page, so the table stays fast.
 # - Load more: `paging: more`, a button under the rows. Its columns are plain objects,
-#   and summaries add up the rows loaded so far.
+#   The API answers facets and totals too, so Carrier and Status offer every value
+#   with its count, and the Value total covers every matching row, not just those loaded.
 # - Pages: `paging: pages`, one page from the server at a time, with the total it sends.
 # - Grouped: Group by (in View) asks the server for a row per carrier, mode or status,
 #   with its count and total value; opening a group loads its shipments.
@@ -101,10 +102,10 @@ root:
                 locale: en-US
                 columns: &columns
                   - { field: id, label: Shipment, hideable: false }
-                  - { field: carrier, label: Carrier, filter: select, options: [DHL, FedEx, UPS, Maersk, DB Schenker, Kuehne+Nagel] }
+                  - { field: carrier, label: Carrier, filter: select }
                   - { field: origin, label: From }
                   - { field: destination, label: To }
-                  - { field: status, label: Status, filter: select, options: [Booked, In transit, Customs, Delayed, Delivered], cell: badge, tones: { Booked: outline, In transit: info, Customs: warning, Delayed: destructive, Delivered: success } }
+                  - { field: status, label: Status, filter: select, cell: badge, tones: { Booked: outline, In transit: info, Customs: warning, Delayed: destructive, Delivered: success } }
                   - { field: value, label: Value, format: currency, filter: range, summary: sum }
                   - { field: eta, label: ETA, format: date }
 

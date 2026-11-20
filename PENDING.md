@@ -68,7 +68,7 @@ _Last updated: 2026-11-19._
 - [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
   - [x] Paging options (pages, Load more, infinite scroll), rows from an API in batches (`url`), virtual rows, nested rows with children loaded when opened, and pinned columns (2026-11-18; blocks data-table-04 and -05).
-  - [ ] Remote tables: select filters offer only `options` or the values loaded so far, and summaries and `bindView` cover the loaded rows only. Idea: let the API answer facets and totals too.
+  - [x] Remote tables: facets and totals (2026-11-20): a query's first batch asks `facets=` and `summary=`, and the API's `facets` and `summary` fill the select filters (every value, with counts) and the footer. `bindView` still holds only the rows loaded so far.
   - [x] Nested rows (2026-11-20): picking a row picks the rows under it (part-picked parents, rows loaded later under a picked one), Expand all and Collapse all in View, `*` for siblings, and a footer counting every loaded row.
   - [ ] Virtual rows: a row's focus is lost when it scrolls out of the drawn window.
   - [x] Grouped headers (`group`), row grouping with counts, subtotals and folding (`groupBy`, Group by in View), resizing and moving columns (2026-11-19; block data-table-07). Grouping doesn't work with virtual or nested rows; groups don't nest; a header row's checkbox doesn't select its group.

@@ -43,7 +43,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "url",
         PropKind::Any,
-        "Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array",
+        "Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array. A query's first batch also asks `facets=` (select filters' fields) and `summary=` (`field:sum`, …); answering `facets: { field: [{ value, count }] }` and `summary: { \"field:sum\": n }` makes the filters and footer cover every matching row",
     ),
     PropDef::new("params", PropKind::Any, "Extra query parameters for `url`; may use state, and a change reloads"),
     PropDef::new(

@@ -696,7 +696,13 @@
     for (const td of $$("[data-dt-sum]")) {
       const c = byKey.get(td.getAttribute("data-dt-sum"));
       if (c.summary === "count") {
-        td.textContent = String(filtered.length);
+        td.textContent = String(remote && R.total != null && !R.rows.some(isGroupRow) ? R.total : filtered.length);
+        continue;
+      }
+      // A remote table's API may answer the summary over every matching row.
+      const given = remote ? R.sums?.[`${c.field}:${c.summary}`] ?? R.sums?.[c.field] : undefined;
+      if (isNum(given)) {
+        td.textContent = fmt({ ...c, format: c.format || "number" }, Math.round(Number(given) * 1e9) / 1e9);
         continue;
       }
       // Nested rows count once: only the top ones are added up.
@@ -752,7 +758,11 @@
 
   // Remote rows: one query (sort, search, filters, params) at a time; a new one starts
   // over, and answers to an old one are dropped.
-  const R = { rows: [], total: null, done: false, loading: false, error: false, page: 0, key: null, seq: 0 };
+  const R = { rows: [], total: null, done: false, loading: false, error: false, page: 0, key: null, seq: 0, facets: null, sums: null };
+  // What the first batch of a query also asks for: the values of each select filter's
+  // field (`facets=`) and each summary over every matching row (`summary=field:sum`).
+  const facetFields = () => [...new Set($$("[data-dt-filter]").filter((p) => p.querySelector("[data-dt-options]")).map((p) => byKey.get(p.getAttribute("data-dt-filter"))?.field).filter(Boolean))];
+  const sumAsks = () => [...new Set(cols.filter((c) => c.summary && c.summary !== "count" && c.field).map((c) => `${c.field}:${c.summary}`))];
   let timer = null;
   const okUrl = (u) => {
     const l = u.trim().toLowerCase();
@@ -789,7 +799,7 @@
     const key = JSON.stringify(remoteQuery());
     if (key !== R.key) {
       const first = R.key === null;
-      Object.assign(R, { key, rows: [], total: null, done: false, error: false, page: 0, loading: true });
+      Object.assign(R, { key, rows: [], total: null, done: false, error: false, page: 0, loading: true, facets: null, sums: null });
       R.seq++;
       // A group's rows depend on the query: they load again when it's opened.
       if (cfg.groupRemote) {
@@ -816,6 +826,10 @@
       p.set("offset", String(offset));
       p.set("limit", String(size));
     }
+    // Facets and totals once per query, until an answer has them.
+    const extras = R.facets === null && R.sums === null;
+    if (extras && facetFields().length) p.set("facets", facetFields().join(","));
+    if (extras && sumAsks().length) p.set("summary", sumAsks().join(","));
     try {
       if (!okUrl(q.url)) throw new Error("url");
       const res = await fetch(q.url + (q.url.includes("?") ? "&" : "?") + p, { headers: { accept: "application/json" } });
@@ -831,6 +845,10 @@
         return r;
       });
       const total = Number.isFinite(answer?.total) ? answer.total : null;
+      if (extras) {
+        R.facets = isObj(answer?.facets) ? answer.facets : {};
+        R.sums = isObj(answer?.summary) ? answer.summary : {};
+      }
       Object.assign(R, {
         rows: mode === "pages" || mode === "none" ? batch : R.rows.concat(batch),
         page: at,
@@ -940,7 +958,13 @@
     const list = pop.querySelector("[data-dt-options]");
     if (!list) return;
     const counts = new Map();
-    for (const r of data) {
+    // A remote table's API may answer the field's values: a list of values or of
+    // `{ value, label, count }`, or `{ value: count }`.
+    const facet = remote ? R.facets?.[c.field] ?? R.facets?.[key] : undefined;
+    const faceted = Array.isArray(facet)
+      ? facet.filter((o) => !blank(isObj(o) ? o.value : o)).map((o) => (isObj(o) ? { value: o.value, label: text(o.label ?? o.value), count: o.count } : { value: o, label: text(o) }))
+      : isObj(facet) ? Object.entries(facet).map(([v, n]) => ({ value: v, label: v, count: n })) : null;
+    for (const r of faceted ? [] : data) {
       if (!remote && !passes(r, key)) continue;
       const v = at(r, c.field);
       for (const x of Array.isArray(v) ? v : [v]) {
@@ -950,7 +974,8 @@
       }
     }
     const given = Array.isArray(c.options) ? c.options.map((o) => (isObj(o) ? { value: o.value, label: text(o.label ?? o.value) } : { value: o, label: text(o) })) : null;
-    const choices = given ?? [...new Set(data.flatMap((r) => [at(r, c.field)].flat()).filter((v) => !blank(v)).map(text))]
+    for (const o of faceted ?? []) if (isNum(o.count)) counts.set(text(o.value), Number(o.count));
+    const choices = given ?? faceted ?? [...new Set(data.flatMap((r) => [at(r, c.field)].flat()).filter((v) => !blank(v)).map(text))]
       .sort((a, b) => cmp(a, b))
       .map((v) => ({ value: v, label: v }));
     const picked = filters()[key];
@@ -972,7 +997,8 @@
         box.checked = on(o.value);
         box.__v = o.value;
         name.textContent = o.label;
-        n.textContent = String(counts.get(text(o.value)) ?? 0);
+        // Values the API gave without counts show none.
+        n.textContent = faceted && !counts.size ? "" : String(counts.get(text(o.value)) ?? 0);
         return label;
       }),
     );

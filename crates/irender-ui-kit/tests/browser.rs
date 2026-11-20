@@ -2204,6 +2204,113 @@ fn data_table_remote_rows_in_chrome() {
     assert!(log.iter().any(|q| q.contains("sort=-n")), "{log:?}");
 }
 
+/// A remote table asks its API for facets and totals with a query's first batch, and
+/// uses them for the select filter's choices and the footer.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_table_remote_facets_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let target = request.split_whitespace().nth(1).unwrap_or("").to_string();
+            let (path, q) = target.split_once('?').unwrap_or((&target, ""));
+            let query: std::collections::HashMap<String, String> =
+                q.split('&').filter_map(|kv| kv.split_once('=')).map(|(k, v)| (k.to_string(), v.replace("%2C", ",").replace("%3A", ":"))).collect();
+            seen.lock().unwrap().push(format!("{path} {}", q.replace("%2C", ",").replace("%3A", ":")));
+            let num = |k: &str, d: usize| query.get(k).and_then(|v| v.parse().ok()).unwrap_or(d);
+            let (offset, limit) = (num("offset", 0), num("limit", 1000));
+            // 30 rows: status a, b or c in turn; n is the row's number.
+            let all: Vec<_> = (0..30).map(|i| serde_json::json!({ "id": i, "status": ("abc".as_bytes()[i % 3] as char).to_string(), "n": i })).collect();
+            let rows: Vec<_> = all.iter().skip(offset).take(limit).cloned().collect();
+            let mut body = serde_json::json!({ "rows": rows, "total": 30 });
+            if path == "/full" && query.contains_key("facets") {
+                body["facets"] = serde_json::json!({ "status": [{ "value": "a", "count": 10 }, { "value": "b", "count": 10 }, { "value": "c", "count": 10 }] });
+            }
+            if path == "/full" && query.contains_key("summary") {
+                body["summary"] = serde_json::json!({ "n:sum": 435 });
+            }
+            let body = body.to_string();
+            let _ = write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+        }
+    });
+    let cols = serde_json::json!([
+        { "field": "status", "label": "Status", "filter": "select" },
+        { "field": "n", "label": "N", "summary": "sum" },
+        { "field": "id", "label": "Rows", "summary": "count" } ]);
+    let table = |id: &str, path: &str| serde_json::json!({ "type": "ui-data-table", "props": { "id": id, "url": format!("http://127.0.0.1:{port}/{path}"), "paging": "more", "pageSize": 4, "columns": cols } });
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "stack", "children": [table("full", "full"), table("plain", "plain")] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
+      const T = (id) => document.getElementById(id);
+      const idle = (t) => until(() => !t.hasAttribute("data-loading"));
+      const sums = (t) => [...t.querySelectorAll("[data-dt-sum]")].map((td) => td.textContent).join(" ");
+      const choices = async (t) => {
+        const p = t.querySelector("[data-dt-filter]");
+        p.showPopover();
+        await wait(30);
+        const s = [...p.querySelectorAll("[data-dt-options] label")].map((l) => [...l.querySelectorAll("span")].map((x) => x.textContent).join(":")).join(" ");
+        p.hidePopover();
+        return s;
+      };
+      try {
+        const full = T("full"), plain = T("plain");
+        await idle(full); await idle(plain);
+        log("full", await choices(full), "|", sums(full));
+        log("plain", await choices(plain), "|", sums(plain));
+        full.querySelector("[data-dt-load]").click(); await wait(30); await idle(full);
+        log("more", full.querySelectorAll("[data-dt-body] > [data-dt-row]").length, await choices(full), "|", sums(full));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-table-remote-facets", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // Every value with its count, and totals over all 30 rows.
+            "full a:10 b:10 c:10 | 435 30",
+            // Without them: the values and sums of the 4 rows loaded.
+            "plain a:2 b:1 c:1 | 6 30",
+            // The next batch keeps them, and doesn't ask again.
+            "more 8 a:10 b:10 c:10 | 435 30",
+        ],
+        "\n{result}"
+    );
+    let mut log = log.lock().unwrap().clone();
+    log.sort();
+    assert_eq!(
+        log,
+        [
+            "/full offset=0&limit=4&facets=status&summary=n:sum",
+            "/full offset=4&limit=4",
+            "/plain offset=0&limit=4&facets=status&summary=n:sum",
+        ],
+        "{log:?}"
+    );
+}
+
 /// Nested rows (children arrays, children loaded on demand, and flat rows with a
 /// parent field) and pinned columns.
 #[test]
@@ -5487,7 +5594,7 @@ fn data_table_remote_groups_in_chrome() {
         ],
         "\n{result}\n---\n{asked}"
     );
-    assert_eq!(asked, "groupBy=region\ngroupBy=region&group=North\nq=d&groupBy=region\nq=d&groupBy=region&group=North\nq=d");
+    assert_eq!(asked, "groupBy=region&summary=net%3Asum\ngroupBy=region&group=North\nq=d&groupBy=region&summary=net%3Asum\nq=d&groupBy=region&group=North\nq=d&summary=net%3Asum");
 }
 
 /// Quarter presets on a financial year starting in April: the filters panel's (named by

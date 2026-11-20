@@ -953,7 +953,7 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
   children: no
 ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.
   rows         any  The rows: an array of objects, from data or state (or use `url`)
-  url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array
+  url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array. A query's first batch also asks `facets=` (select filters' fields) and `summary=` (`field:sum`, …); answering `facets: { field: [{ value, count }] }` and `summary: { "field:sum": n }` makes the filters and footer cover every matching row
   params       any  Extra query parameters for `url`; may use state, and a change reloads
   columns      any  Columns as objects with the `ui-data-table-column` props, for tables with no cell templates
   rowKey       string  Field that identifies a row, for selection (default `id`; else its position)

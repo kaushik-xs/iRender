@@ -18,6 +18,9 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/shipments     JSON: 5,000 made-up shipments for the data table blocks, a batch at a time.
                     Takes ui-data-table's query: offset, limit, sort (`-eta,id`), q (search),
                     filters (JSON conditions) and delay (ms); answers { rows, total }.
+                    With facets=<fields>, also { facets: { <field>: [{ value, count }] } },
+                    each counted under every filter but the field's own; with
+                    summary=<field>:sum,…, also { summary: { "<field>:sum": n } }.
                     With groupBy=<field>, answers a row per group ({ <field>, count, value });
                     with group=<value> too, that group's rows, a batch at a time.
   api/upload        POST multipart (field `file`): keeps the file in memory for this run and
@@ -112,13 +115,38 @@ def matches(v, c):
     return str(v) == str(c)
 
 
+SUMMARIES = {
+    "sum": lambda vs: round(sum(vs), 2),
+    "avg": lambda vs: round(sum(vs) / len(vs), 2) if vs else None,
+    "min": lambda vs: min(vs, default=None),
+    "max": lambda vs: max(vs, default=None),
+}
+
+
 def shipments(query):
     rows = SHIPMENTS
     q = (query.get("q") or "").strip().lower()
     if q:
         rows = [r for r in rows if all(any(w in str(r[f]).lower() for f in ("id", "carrier", "origin", "destination")) for w in q.split())]
-    for field, cond in json.loads(query.get("filters") or "{}").items():
+    searched = rows
+    filters = json.loads(query.get("filters") or "{}")
+    for field, cond in filters.items():
         rows = [r for r in rows if matches(r.get(field), cond)]
+    extras = {}
+    if query.get("facets"):
+        extras["facets"] = {}
+        for f in query["facets"].split(","):
+            counts = {}
+            for r in searched:
+                if all(matches(r.get(k), c) for k, c in filters.items() if k != f):
+                    counts[r.get(f)] = counts.get(r.get(f), 0) + 1
+            extras["facets"][f] = [{"value": v, "count": n} for v, n in sorted(counts.items(), key=lambda x: str(x[0]))]
+    if query.get("summary"):
+        extras["summary"] = {}
+        for ask in query["summary"].split(","):
+            f, _, how = ask.partition(":")
+            if how in SUMMARIES:
+                extras["summary"][ask] = SUMMARIES[how]([r[f] for r in rows if isinstance(r.get(f), (int, float))])
     for key in reversed([k for k in (query.get("sort") or "").split(",") if k]):
         field = key.lstrip("-")
         rows = sorted(rows, key=lambda r: (r.get(field) is None, r.get(field)), reverse=key.startswith("-"))
@@ -136,8 +164,8 @@ def shipments(query):
             g["count"] += 1
             g["value"] = round(g["value"] + r["value"], 2)
         ordered = sorted(groups.values(), key=lambda g: str(g[group_by]))
-        return {"rows": ordered[offset:offset + limit], "total": len(ordered)}
-    return {"rows": rows[offset:offset + limit], "total": len(rows)}
+        return {"rows": ordered[offset:offset + limit], "total": len(ordered), **extras}
+    return {"rows": rows[offset:offset + limit], "total": len(rows), **extras}
 
 
 def render_ui(ui):

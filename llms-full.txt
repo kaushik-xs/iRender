@@ -1119,7 +1119,7 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
   children: no
 ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.
   rows         any  The rows: an array of objects, from data or state (or use `url`)
-  url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array
+  url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array. A query's first batch also asks `facets=` (select filters' fields) and `summary=` (`field:sum`, …); answering `facets: { field: [{ value, count }] }` and `summary: { "field:sum": n }` makes the filters and footer cover every matching row
   params       any  Extra query parameters for `url`; may use state, and a change reloads
   columns      any  Columns as objects with the `ui-data-table-column` props, for tables with no cell templates
   rowKey       string  Field that identifies a row, for selection (default `id`; else its position)
@@ -2182,7 +2182,8 @@ With `more` and `scroll`, new filters, a search or a sort start again from the f
 - With `pages`, each page is one request, and the total gives the page count. Without a total, the pager goes on until a short page comes back.
 - With `more` and `scroll`, batches add up. Without a total, a short batch is the last.
 - A failed request shows a Retry button.
-- A select filter's choices come from `options`, or the rows loaded so far; summaries and `bindView` cover the rows loaded so far.
+- Facets and totals: a query's first batch also asks for the select filters' fields as `facets=status,region` and the footer's summaries as `summary=net:sum,qty:avg`. The API may answer `facets: { status: [{ value: open, count: 41 }, …] }` (or a plain list of values, or `{ open: 41, … }`) and `summary: { "net:sum": 125000, "qty:avg": 3.2 }` beside `rows`, over every row that matches; then the filters offer every value with its count, and the summaries and a `count` summary (from `total`) cover all those rows. Counts are best taken with every filter but the field's own, as a local table does. Without them, the choices come from `options` or the rows loaded so far, and the summaries cover the rows loaded so far.
+- `bindView` holds the rows loaded so far.
 - `url` must be a path or an http(s) URL, as `ui-combobox`'s `searchUrl`.
 
 **Virtual.** With `virtual`, only the rows in view (and a few either side) are in the page, with space above and below standing in for the rest, so a table of thousands of rows scrolls smoothly. It scrolls inside `height` (default 480). Rows of different heights work: the table measures the rows it draws, starting from `rowHeight` (default 41). Arrow keys, Home and End reach rows that aren't drawn yet. It works with every `paging`, rows from `rows` or `url`, and nested rows; with `scroll` it's the usual infinite list.
