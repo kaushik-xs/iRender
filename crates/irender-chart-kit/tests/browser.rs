@@ -478,6 +478,48 @@ fn gantt_baselines_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// A gantt's `snap`: tasks with times of day move and stretch by the step, landing on its
+/// grid, written as they were (local times stay local, epoch numbers numbers), and
+/// `cascade` pushing on by steps; a task in whole days still moves by days.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_snap_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let doc = json!({ "version": 1, "state": { "tasks": [
+            { "id": "a", "name": "A", "start": "2026-03-02T09:00", "end": "2026-03-02T10:30" },
+            { "id": "b", "name": "B", "start": "2026-03-02T10:30", "end": "2026-03-02T11:00", "after": "a" },
+            { "id": "c", "name": "C", "start": "2026-03-02T09:07", "end": "2026-03-02T09:37" },
+            { "id": "d", "name": "D", "start": "2026-03-02", "end": "2026-03-03" } ] },
+        "root": { "type": "ui-chart", "attrs": { "id": "g" }, "props": { "type": "gantt", "data": "{{ tasks }}", "bindData": "tasks",
+            "snap": "15m", "cascade": true, "today": false } } });
+    let body = r##"
+    await ready(["g"]);
+    const rows = () => [...el("g").querySelectorAll("[data-gantt-table] [role=row][data-key]")];
+    const dates = () => S().tasks.map((t) => `${t.id} ${String(t.start).slice(5)}–${String(t.end).slice(5)}`).join(", ");
+    const key = (n, k, mods) => { rows()[n].focus(); document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, altKey: true, ...mods, bubbles: true, cancelable: true })); };
+    key(0, "ArrowRight"); await wait(100);
+    log("moved", dates());
+    key(0, "ArrowRight", { shiftKey: true }); await wait(100);
+    log("stretched", dates());
+    key(2, "ArrowLeft"); await wait(100);
+    log("aligned", dates());
+    key(3, "ArrowRight"); await wait(100);
+    log("days", dates());
+"##;
+    let Some(lines) = run("gantt-snap", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        // A a quarter of an hour on; B, waiting on it, pushed to its new end.
+        "moved a 03-02T09:15–03-02T10:45, b 03-02T10:45–03-02T11:15, c 03-02T09:07–03-02T09:37, d 03-02–03-03",
+        "stretched a 03-02T09:15–03-02T11:00, b 03-02T11:00–03-02T11:30, c 03-02T09:07–03-02T09:37, d 03-02–03-03",
+        // C, off the grid, lands on it (8:52 rounds to 8:45) and keeps its half hour.
+        "aligned a 03-02T09:15–03-02T11:00, b 03-02T11:00–03-02T11:30, c 03-02T08:45–03-02T09:15, d 03-02–03-03",
+        "days a 03-02T09:15–03-02T11:00, b 03-02T11:00–03-02T11:30, c 03-02T08:45–03-02T09:15, d 03-03–03-04",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// A gantt with `workdays` and `holidays`: lengths in working days, days off shaded, and
 /// a moved task (and, with `cascade`, those that wait on it) landing on working days and
 /// keeping its working days.

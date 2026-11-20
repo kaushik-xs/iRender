@@ -1763,7 +1763,7 @@
     }
 
     // ---- editing a gantt (with `bindData`): drag a bar to move its task, or an end to
-    // stretch it, a day at a time; by touch, hold it first. On its row in the table,
+    // stretch it, a day at a time (or by `snap` with times of day); by touch, hold it first. On its row in the table,
     // Alt with Left or Right moves it a day, and with Shift too moves its end. The new
     // dates go back to the tasks in `bindData`, written as they were (a day stays a day).
     const drafts = new Map();
@@ -1780,12 +1780,50 @@
       const t = Date.parse(v);
       return Number.isNaN(t) ? v : new Date(t + n * DAY).toISOString();
     };
-    // A task's start and end after moving it (`move`) or its start or end `n` days, or
-    // null when that would turn it inside out.
+    // `snap`: the step a task with times of day moves by, in minutes or as "15m", "1h"
+    // or "1d"; a day without it. Tasks dated in whole days always move by days.
+    const snapStep = () => {
+      const v = current().snap;
+      if (isNum(v) && Number(v) > 0) return Number(v) * 6e4;
+      const m = /^\s*(\d+(?:\.\d+)?)\s*(m|min|h|d)\s*$/i.exec(String(v ?? ""));
+      return m && Number(m[1]) > 0 ? Number(m[1]) * { m: 6e4, min: 6e4, h: 36e5, d: DAY }[m[2].toLowerCase()] : DAY;
+    };
+    const stepOf = (row) => (dateOnly(at(row, "start")) ? DAY : snapStep());
+    // A time moved `d` ms, written as it was: a local "2026-03-02T09:30" stays local.
+    const timeShift = (v, d) => {
+      if (blank(v) || !d) return v;
+      if (typeof v === "number") return v + d;
+      const t = ms(v);
+      if (Number.isNaN(t)) return v;
+      const m = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?$/.exec(v);
+      if (!m) return new Date(t + d).toISOString();
+      const x = new Date(t + d);
+      return `${x.getFullYear()}-${pad2(x.getMonth() + 1)}-${pad2(x.getDate())}T${pad2(x.getHours())}:${pad2(x.getMinutes())}${m[1] ? ":" + pad2(x.getSeconds()) : ""}`;
+    };
+    // A time on the step's grid, counted from its day's local midnight.
+    const align = (t, step) => {
+      const mid = new Date(t).setHours(0, 0, 0, 0);
+      return mid + Math.round((t - mid) / step) * step;
+    };
+    // A task's start and end after moving it (`move`) or its start or end `n` steps (days,
+    // or `snap` for times of day), or null when that would turn it inside out.
     function shifted(item, how, n) {
       const s0 = at(item.row, "start"), e0 = at(item.row, "end");
       const cal = workCalendar(current());
       if (cal && dateOnly(s0) && (blank(e0) || dateOnly(e0))) return workShifted(cal, s0, e0, how, n);
+      const step = stepOf(item.row);
+      if (step < DAY) {
+        // Times of day: the moved edge lands on the step's grid; a move keeps the length.
+        const a = ms(s0), b = blank(e0) ? NaN : ms(e0);
+        let start = s0, end = e0;
+        if (how === "end") end = timeShift(e0, align(b + n * step, step) - b);
+        else {
+          const d = align(a + n * step, step) - a;
+          start = timeShift(s0, d);
+          if (how === "move") end = timeShift(e0, d);
+        }
+        return !blank(end) && ms(end) <= ms(start) ? null : { start, end };
+      }
       const start = how === "end" ? s0 : dayShift(s0, n);
       const end = how === "start" || blank(e0) ? e0 : dayShift(e0, n);
       return !blank(end) && ms(end) < ms(start) ? null : { start, end };
@@ -1832,6 +1870,14 @@
             // The first working day once it ends, keeping the task's working days.
             const a2 = cal.snap(addDays(done.b, 0)), b = blank(mine.end) ? null : ms(mine.end);
             out.set(rk, { start: daysFrom(mine.start, a2), end: b === null ? mine.end : daysFrom(mine.end, cal.add(a2, Math.max(0, cal.count(a, addDays(b, 1)) - 1))) });
+            queue.push(rk);
+            continue;
+          }
+          // Times of day with `snap`: on to the step after it ends.
+          const step = stepOf(r);
+          if (step < DAY) {
+            const d = Math.ceil((done.b - a) / step - 1e-6) * step;
+            out.set(rk, { start: timeShift(mine.start, d), end: blank(mine.end) ? mine.end : timeShift(mine.end, d) });
             queue.push(rk);
             continue;
           }
@@ -1915,7 +1961,7 @@
       const how = item.milestone ? "move" : x - p0 <= edge ? "start" : p1 - x <= edge ? "end" : "move";
       const touch = ev.pointerType === "touch" || String(ev.type).startsWith("touch");
       const pt = ev.touches?.[0] ?? ev;
-      editing = { item, how, x0: pt.clientX, y0: pt.clientY, perDay: chart.convertToPixel({ xAxisIndex: 0 }, v[1] + DAY) - p0, n: 0, live: !touch };
+      editing = { item, how, x0: pt.clientX, y0: pt.clientY, perStep: chart.convertToPixel({ xAxisIndex: 0 }, v[1] + stepOf(item.row)) - p0, n: 0, live: !touch };
       if (touch) editing.timer = setTimeout(() => editing && ((editing.live = true), navigator.vibrate?.(8)), 300);
       addEventListener("pointermove", onDragMove);
       addEventListener("pointerup", onDragEnd);
@@ -1929,7 +1975,7 @@
         if (Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 8) onDragCancel();
         return;
       }
-      const n = Math.round((e.clientX - g.x0) / (g.perDay || 1));
+      const n = Math.round((e.clientX - g.x0) / (g.perStep || 1));
       if (n === g.n) return;
       const v = shifted(g.item, g.how, n);
       if (!v) return;
@@ -2164,7 +2210,7 @@
           return relink(from, item.key, true);
         }
       }
-      // Alt with Left or Right moves the task a day; with Shift too, its end.
+      // Alt with Left or Right moves the task a day (or a `snap`); with Shift too, its end.
       if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && canEdit() && !item.group && !(e.shiftKey && item.milestone)) {
         e.preventDefault();
         const v = shifted(item, e.shiftKey ? "end" : "move", e.key === "ArrowRight" ? 1 : -1);

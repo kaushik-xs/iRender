@@ -159,6 +159,11 @@ const CHART_PROPS: &[PropDef] = &[
         PropKind::Bool,
         "Gantt: draw each task's `baselineStart` and `baselineEnd` (its planned dates) as a thin bar under it, with how late or early it is (default true)",
     ),
+    PropDef::new(
+        "snap",
+        PropKind::Any,
+        "Gantt: the step a task with times of day moves and stretches by, in minutes or as `\"15m\"`, `\"1h\"` or `\"1d\"` (default a day); tasks in whole days move by days",
+    ),
     PropDef::new("cascade", PropKind::Bool, "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends"),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
@@ -198,7 +203,7 @@ const SPARKLINE_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "format", "currency", "decimals", "legend", "tooltip", "loading",
-    "columns", "markers", "today", "editable", "cascade", "visibleRows", "workdays", "holidays", "critical", "baselines",
+    "columns", "markers", "today", "editable", "cascade", "visibleRows", "workdays", "holidays", "critical", "baselines", "snap",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.
