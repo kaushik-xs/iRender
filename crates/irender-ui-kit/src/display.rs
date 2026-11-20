@@ -3,7 +3,7 @@
 //! area.
 
 use crate::{
-    BRAND_2_FILL, PRIMARY_FILL, BG_CARD, BG_UNDER, BORDER, MONO, MUTED, ON_BRAND_2, ON_PRIMARY, ON_SECONDARY, SECONDARY, SPIN, SUBTLE,
+    BRAND_2_FILL, PRIMARY, PRIMARY_FILL, BG_CARD, BG_UNDER, BORDER, MONO, MUTED, ON_BRAND_2, ON_PRIMARY, ON_SECONDARY, SECONDARY, SPIN, SUBTLE,
     TEXT, choice, lit,
 };
 use irender_core::{ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
@@ -153,33 +153,96 @@ impl Component for Badge {
 
 pub struct Card;
 
+const CARD_VARIANTS: &[&str] = &["default", "elevated", "outline", "muted"];
 const CARD_PROPS: &[PropDef] = &[
     PropDef::new("title", PropKind::Any, "Heading in the card's header"),
     PropDef::new("description", PropKind::Any, "Muted text under the title"),
-    PropDef::new("tag", PropKind::Tag, "HTML tag (default `div`), e.g. `article`, `section`"),
+    PropDef::new("icon", PropKind::Any, "An icon name (with the icon kit) or a character, in a tinted square beside the title"),
+    PropDef::new(
+        "variant",
+        PropKind::Enum(CARD_VARIANTS),
+        "`default` (a border and a light shadow), `elevated` (a deeper shadow), `outline` (a border only) or `muted` (a tinted fill)",
+    ),
+    PropDef::new("href", PropKind::Any, "Makes the whole card a link, which lifts when hovered. Keep buttons and other links out of it"),
+    PropDef::new("tag", PropKind::Tag, "HTML tag (default `div`, or `a` with `href`), e.g. `article`, `section`"),
 ];
 
-static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
+const CARD_SHADOW: &str = "0 1px 2px rgb(0 0 0 / 0.04), 0 2px 6px -2px rgb(0 0 0 / 0.06)";
+const CARD_SHADOW_RAISED: &str = "0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -6px rgb(0 0 0 / 0.14)";
+
+static CARD: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
+    let base = |bg: &str, border: &str, shadow: &str| {
+        StyleBlock::from_pairs(&[
+            ("display", "flex"),
+            ("flex-direction", "column"),
+            ("gap", sp!(16)),
+            ("padding", sp!(24)),
+            ("border", border),
+            ("border-radius", "var(--radius-lg)"),
+            ("--ui-bg", bg),
+            ("background", bg),
+            ("color", TEXT),
+            ("box-shadow", shadow),
+        ])
+        // A card that is a link: no underline, and it lifts towards the pointer.
+        .nest(
+            "&[href]",
+            StyleBlock::from_pairs(&[
+                ("text-decoration", "none"),
+                ("transition", "box-shadow 150ms ease, border-color 150ms ease, translate 150ms ease"),
+            ]),
+        )
+        .nest(
+            "&[href]:hover",
+            StyleBlock::from_pairs(&[
+                ("border-color", "color-mix(in srgb, var(--color-text) 22%, var(--color-border))"),
+                ("box-shadow", CARD_SHADOW_RAISED),
+                ("translate", "0 -1px"),
+            ]),
+        )
+        .nest("&[href]:focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring)"), ("outline-offset", "2px")]))
+        .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::from_pairs(&[("transition", "none"), ("translate", "none")]))
+    };
+    let border = "1px solid var(--color-border)";
+    vec![
+        base(BG_CARD, border, CARD_SHADOW),
+        base(BG_CARD, "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)", CARD_SHADOW_RAISED),
+        base(BG_CARD, border, "none"),
+        base(SUBTLE, "1px solid transparent", "none"),
+    ]
+});
+static CARD_HEADER: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "grid"), ("column-gap", sp!(14)), ("row-gap", sp!(6)), ("align-items", "center")])
+        // With an icon: the icon on the left, beside both lines.
+        .nest("&:has(> [data-icon])", StyleBlock::from_pairs(&[("grid-template-columns", "auto 1fr")]))
+        .nest("& > :not([data-icon])", StyleBlock::from_pairs(&[("grid-column", "-2")]))
+});
+static CARD_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
+        ("grid-row", "span 2"),
         ("display", "flex"),
-        ("flex-direction", "column"),
-        ("gap", sp!(16)),
-        ("padding", sp!(24)),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-lg)"),
-        ("--ui-bg", BG_CARD),
-        ("background", BG_CARD),
-        ("color", TEXT),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+        ("align-items", "center"),
+        ("justify-content", "center"),
+        ("width", "40px"),
+        ("height", "40px"),
+        ("border-radius", "var(--radius-md)"),
+        ("background", "color-mix(in srgb, var(--color-primary) 10%, var(--ui-bg))"),
+        ("color", PRIMARY),
+        ("font-size", fs!(18)),
     ])
 });
-static CARD_HEADER: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6))]));
 static CARD_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(16)), ("font-weight", "600"), ("line-height", "1.2")])
+    StyleBlock::from_pairs(&[
+        ("margin", "0"),
+        ("font-size", fs!(16)),
+        ("font-weight", "600"),
+        ("line-height", "1.3"),
+        ("letter-spacing", "-0.01em"),
+    ])
 });
-static CARD_DESCRIPTION: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("color", MUTED)]));
+static CARD_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("line-height", "1.5"), ("color", MUTED)])
+});
 
 impl Component for Card {
     fn name(&self) -> &'static str {
@@ -187,22 +250,39 @@ impl Component for Card {
     }
     fn info(&self) -> ComponentInfo {
         info(
-            "A bordered panel with an optional title and description. Put a `ui-card-footer` last for actions.",
+            "A bordered panel with an optional icon, title and description. Put a `ui-card-footer` last for actions.",
             CARD_PROPS,
-            &["header", "title", "description"],
+            &["header", "icon", "title", "description"],
             true,
         )
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let tag = cx.prop_string(node, "tag").unwrap_or_else(|| "div".into());
+        let href = node.prop("href");
+        let tag = cx.prop_string(node, "tag").unwrap_or_else(|| if href.is_some() { "a" } else { "div" }.into());
         let mut el = cx.element(&tag, node);
-        el.base_style_ref(&CARD);
+        el.base_style_ref(&CARD[choice(cx, node, "variant", CARD_VARIANTS)]);
+        if let Some(h) = href {
+            el.attr("href", h.clone());
+        }
         cx.open(&el, node)?;
-        let (title, description) = (node.prop("title"), node.prop("description"));
-        if title.is_some() || description.is_some() {
+        let (icon, title, description) = (node.prop("icon"), node.prop("title"), node.prop("description"));
+        if icon.is_some() || title.is_some() || description.is_some() {
             let mut header = cx.part("div", node, "header");
             header.base_style_ref(&CARD_HEADER);
             cx.open(&header, node)?;
+            if let Some(i) = icon {
+                let mut part = cx.part("span", node, "icon");
+                part.base_style_ref(&CARD_ICON).attr("aria-hidden", "true").attr("data-icon", true);
+                let name = crate::icon_name(cx, i);
+                if name.is_none() {
+                    part.text(i.clone());
+                }
+                cx.open(&part, node)?;
+                if let Some(n) = name {
+                    crate::icon_kit(cx, node, &n, 20)?;
+                }
+                cx.close("span");
+            }
             if let Some(t) = title {
                 part_text(cx, node, "h3", "title", &CARD_TITLE, t)?;
             }

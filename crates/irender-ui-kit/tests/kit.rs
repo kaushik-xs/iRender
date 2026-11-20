@@ -196,6 +196,9 @@ fn card_alert_and_typography_structure() {
         "children": [{ "type": "ui-card-footer", "children": [{ "type": "ui-button", "props": { "label": "OK" } }] }] })));
     assert_eq!(body, r#"<div><div><h3 id="t">T</h3><p>D</p></div><div><button type="button">OK</button></div></div>"#);
 
+    let body = plain(&render(json!({ "type": "ui-card", "props": { "icon": "★", "title": "T", "href": "/orders", "variant": "elevated" } })));
+    assert_eq!(body, r#"<a href="/orders"><div><span aria-hidden="true" data-icon>★</span><h3>T</h3></div></a>"#);
+
     let body = plain(&render(json!({ "type": "ui-alert", "props": { "icon": "⚠", "title": "Oops", "variant": "destructive" } })));
     assert_eq!(body, r#"<div role="alert"><span aria-hidden="true" data-icon>⚠</span><div>Oops</div></div>"#);
     let body = plain(&render(json!({ "type": "ui-alert", "props": { "icon": "none", "title": "Done", "variant": "success" } })));
@@ -361,7 +364,8 @@ fn untrusted_policy_drops_unsafe_urls() {
         { "type": "ui-button", "props": { "label": "x", "href": "{{ bad }}" } },
         { "type": "ui-breadcrumb", "props": { "items": [{ "label": "x", "href": "javascript:alert(1)" }, { "label": "y" }] } },
         { "type": "ui-pagination", "props": { "page": 1, "pages": 2, "href": "{{ bad }}" } },
-        { "type": "ui-avatar", "props": { "src": "{{ bad }}" } }
+        { "type": "ui-avatar", "props": { "src": "{{ bad }}" } },
+        { "type": "ui-card", "props": { "title": "c", "href": "{{ bad }}" } }
     ] } });
     let ir = engine.load(&doc.to_string(), Format::Json).unwrap_or_else(|d| panic!("{d}"));
     let body = engine.render(&ir, &json!({ "bad": "javascript:alert(1)" })).unwrap().body;

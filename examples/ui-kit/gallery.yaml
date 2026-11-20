@@ -1209,6 +1209,15 @@ root:
                                         - { type: ui-text, props: { variant: small, text: "{{ m.name }}" } }
                                         - { type: ui-text, props: { variant: muted, text: "{{ m.email }}" } }
                                     - { type: ui-badge, props: { text: "{{ m.role }}", variant: outline } }
+                    - type: element
+                      style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(200px, 1fr))" }
+                      children:
+                        - type: ui-card
+                          props: { icon: "✦", title: Getting started, description: Set up your first page in five minutes., href: "#card" }
+                        - type: ui-card
+                          props: { icon: "◆", title: Components, description: "Every component, with its props and examples.", href: "#card", variant: elevated }
+                        - type: ui-card
+                          props: { icon: "▲", title: Deploy, description: Render on the server or in the browser., href: "#card", variant: muted }
 
                 - { type: if, props: { when: "{{ api.card.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list

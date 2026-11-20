@@ -176,7 +176,7 @@
    "id": "card",
    "group": "Data display",
    "title": "Card",
-   "summary": "A bordered panel with an optional title and description. Put a card footer last for its actions.",
+   "summary": "A bordered panel with an optional icon, title and description. Put a card footer last for its actions. `variant` picks `elevated`, `outline` or `muted`, and `href` makes the whole card a link that lifts when hovered.",
    "usage": "- type: ui-card\n  props: { title: Create project, description: Deploy in one click. }\n  children:\n    - { type: ui-input, props: { bind: project, placeholder: Name } }\n    - type: ui-card-footer\n      children: [ { type: ui-button, props: { label: Deploy } } ]",
    "components": [
     "ui-card",

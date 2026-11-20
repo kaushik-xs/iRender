@@ -76,11 +76,14 @@ ui-badge: A small status label.
   variant      one of: default, secondary, destructive, outline, brand, info, success, warning  `default`, `secondary`, `outline` or `brand`, or `info`, `success`, `warning` or `destructive`: a soft wash of that colour
   dot          bool  A dot in the badge's colour before the text, for a status
   children: no
-ui-card: A bordered panel with an optional title and description. Put a `ui-card-footer` last for actions.
+ui-card: A bordered panel with an optional icon, title and description. Put a `ui-card-footer` last for actions.
   title        any  Heading in the card's header
   description  any  Muted text under the title
-  tag          tag  HTML tag (default `div`), e.g. `article`, `section`
-  parts: header, title, description
+  icon         any  An icon name (with the icon kit) or a character, in a tinted square beside the title
+  variant      one of: default, elevated, outline, muted  `default` (a border and a light shadow), `elevated` (a deeper shadow), `outline` (a border only) or `muted` (a tinted fill)
+  href         any  Makes the whole card a link, which lifts when hovered. Keep buttons and other links out of it
+  tag          tag  HTML tag (default `div`, or `a` with `href`), e.g. `article`, `section`
+  parts: header, icon, title, description
   children: yes
 ui-card-footer: A row of actions at the bottom of a `ui-card`.
   children: yes
