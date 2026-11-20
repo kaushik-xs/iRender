@@ -1450,7 +1450,7 @@ root:
                 - type: ui-text
                   props: { variant: muted, text: "The filters write invoiceFilters, and the table takes it as its filter. Click a chip to change it, or Filters for every field." }
                 - type: ui-filters
-                  props: { bind: invoiceFilters, bindViews: invoiceViews, rows: "{{ invoices }}", currency: INR, locale: en-IN }
+                  props: { bind: invoiceFilters, bindViews: invoiceViews, rows: "{{ invoices }}", currency: INR, locale: en-IN, searchFields: true }
                   children:
                     - { type: ui-filter, props: { field: status, label: Status, section: Invoice } }
                     - { type: ui-filter, props: { field: customer, label: Customer, section: Invoice } }

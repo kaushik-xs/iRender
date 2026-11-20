@@ -6783,6 +6783,77 @@ fn illustration_animates_in_chrome() {
     assert_eq!(result.lines().collect::<Vec<_>>(), ["on ill-spin | plain none", "off none false"], "\n{result}");
 }
 
+/// Past eight fields, a box over a filter panel's fields finds one by name or section:
+/// the others hide (and their section headings), Enter opens the first match, the
+/// arrow keys skip what's hidden, and Escape clears the box first.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn filters_find_a_field_in_chrome() {
+    let f = |field: &str, label: &str, section: &str| serde_json::json!({ "type": "ui-filter", "props": { "field": field, "label": label, "section": section, "type": "text" } });
+    let doc = serde_json::json!({ "version": 1, "state": { "f": {}, "g": {} },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-filters", "attrs": { "id": "many" }, "props": { "bind": "f" }, "children": [
+                f("status", "Status", "Order"), f("total", "Total", "Order"), f("placed", "Placed on", "Order"),
+                f("name", "Customer name", "Customer"), f("email", "Email", "Customer"), f("city", "City", "Customer"),
+                f("carrier", "Carrier", "Shipping"), f("tracking", "Tracking number", "Shipping"), f("eta", "Delivery date", "Shipping"),
+                f("note", "Note", "Order") ] },
+            { "type": "ui-filters", "attrs": { "id": "few" }, "props": { "bind": "g" }, "children": [ f("a", "A", "S"), f("b", "B", "S") ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const M = document.getElementById("many"), panel = M.querySelector("[data-fl-panel]"), find = M.querySelector("[data-fl-find]");
+      const name = (t) => t.firstElementChild.textContent;
+      // What's on screen, not only what's marked hidden.
+      const seen = (t) => t.getClientRects().length > 0;
+      const tabs = () => [...M.querySelectorAll("[data-fl-tab]")].filter(seen).map(name).join(",");
+      const sections = () => [...M.querySelectorAll("[data-fl-section]")].filter(seen).map((t) => t.textContent).join(",");
+      const current = () => name(M.querySelector("[data-fl-tab][aria-selected=true]"));
+      const focused = () => document.activeElement === find ? "find" : document.activeElement.matches("[data-fl-tab]") ? "tab " + name(document.activeElement) : panel.contains(document.activeElement) ? "pane" : "outside";
+      const type = async (t) => { find.value = t; find.dispatchEvent(new Event("input", { bubbles: true })); await wait(5); };
+      const key = async (k) => { document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true })); await wait(5); };
+      try {
+        log("few has a box", !!document.querySelector("#few [data-fl-find]"));
+        M.querySelector("[data-fl-open]").click(); await wait(20);
+        log("open", find.placeholder, focused());
+        await type("ship"); log("ship", tabs(), "|", sections());
+        await type("date"); log("date", tabs(), "|", sections());
+        find.focus(); await key("Enter"); log("enter", current(), focused());
+        await type("o"); find.focus(); await key("ArrowDown"); log("down", current(), focused(), "|", tabs());
+        await key("ArrowDown"); log("next", focused());
+        await key("ArrowUp"); await key("ArrowUp"); log("up past the first", focused());
+        await type("zzz"); log("none", tabs() || "-", seen(M.querySelector("[data-fl-unfound]")));
+        find.focus(); await key("Escape"); log("escape", JSON.stringify(find.value), panel.open, tabs().split(",").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("filters-find", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "few has a box false",
+            "open Find a field… pane",
+            // By section: every field under Shipping.
+            "ship Carrier,Tracking number,Delivery date | Shipping",
+            "date Delivery date | Shipping",
+            "enter Delivery date pane",
+            // "o" is in the Order and Customer fields; Down from the box goes to the first.
+            "down Status tab Status | Status,Total,Placed on,Customer name,Email,City,Note",
+            "next tab Total",
+            "up past the first find",
+            "none - true",
+            "escape \"\" true 10",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `loading` on a command palette: while items are fetched, a Loading row shows (and
 /// the list says it's busy) and the empty message waits; items that arrive show.
 #[test]

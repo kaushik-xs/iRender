@@ -262,6 +262,7 @@ ui-filters: Filters for a list: a button that opens a side panel of fields, each
   locale       string  Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)
   bindViews    statekey  State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them
   today        string  The date date presets count from (default: today)
+  searchFields bool  A box over the fields that finds one by its name or section (default: on past eight fields)
   fiscalStart  number  The month a financial year starts, 1–12 (default 1): the quarter and year presets follow it
   id           any  The panel's element id (default: derived from the document)
   parts: button, panel

@@ -538,6 +538,8 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 
 **Applying.** The panel edits a draft: Apply writes it, and Cancel, Escape or a click outside drops it. A `between` whose ends are the wrong way round shows an error and can't be applied. With `live`, each change is written at once and the panel has a Done button. Clear all empties the draft, or the filters with `live`; the Clear all beside the chips removes every filter at once.
 
+**Finding a field.** Past eight fields (or with `searchFields: true`; `false` turns it off), a box over the list finds one: every word typed must be in the field's name or section, and the rest hide, section headings with them. Enter opens the first match, Down goes into the list, Up from its top comes back, and Escape clears the box before it closes the panel.
+
 **Keyboard.** The fields are tabs: Up and Down (and Home, End) move between them. Opening the panel focuses the field's first control, and closing it returns focus to the button. The button's label says how many filters are applied.
 
 **Dates and amounts.** A date filter picks on the kit's calendar: a range for Between, one day for On, Before and After. Amounts (`number` and `currency`) are grouped in the `locale`'s way as they're typed (`1,25,000`), with the currency's symbol before them, and the filter gets a plain number.

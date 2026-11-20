@@ -6,6 +6,7 @@
 //   text      { contains }, "x" (is)
 //   any       { empty: true } (is empty), { empty: false } (is not empty)
 // While the panel is open it edits a draft, written on Apply (or at once with `live`).
+// With many fields, a box over them finds one by its name or section.
 (window.__irenderBehaviors ||= {})["ui-filters"] = (el, api) => {
   const cfg = api.config;
   const defs = cfg.defs;
@@ -393,6 +394,48 @@
   function commit() {
     api.set(cfg.bind, clone(draft));
   }
+  // ---- finding a field: every word typed is in its name or section
+  const find = $("[data-fl-find]");
+  const unfound = $("[data-fl-unfound]");
+  const fold = (t) => String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const shown = () => tabs.filter((t) => !t.hidden);
+  function narrow() {
+    const words = fold(find?.value).split(/\s+/).filter(Boolean);
+    tabs.forEach((t, i) => {
+      const text = fold(`${defs[i].label} ${defs[i].section ?? ""}`);
+      t.hidden = !words.every((w) => text.includes(w));
+    });
+    // A section's heading goes with its fields.
+    for (const h of $$("[data-fl-section]", panel)) {
+      let n = h.nextElementSibling, any = false;
+      while (n && !n.hasAttribute("data-fl-section")) {
+        if (n.matches("[data-fl-tab]") && !n.hidden) any = true;
+        n = n.nextElementSibling;
+      }
+      h.hidden = !any;
+    }
+    if (unfound) unfound.hidden = shown().length > 0;
+    // The first match is the one Tab reaches.
+    const first = shown()[0];
+    if (first && tabs[current].hidden) tabs.forEach((t) => (t.tabIndex = t === first ? 0 : -1));
+  }
+  find?.addEventListener("input", narrow);
+  find?.addEventListener("keydown", (e) => {
+    const first = shown()[0];
+    if (e.key === "Escape" && find.value) {
+      // Clears the box; a second Escape closes the panel.
+      e.preventDefault();
+      find.value = "";
+      narrow();
+    } else if ((e.key === "ArrowDown" || e.key === "Enter") && first) {
+      e.preventDefault();
+      const i = tabs.indexOf(first);
+      select(i, e.key === "ArrowDown");
+      // Enter goes on into the field's controls, as opening the panel does.
+      if (e.key === "Enter") focusPane(i);
+    }
+  });
+
   function select(i, focus) {
     current = i;
     tabs.forEach((t, j) => {
@@ -402,15 +445,22 @@
     });
     if (focus) tabs[i].focus();
   }
+  // The field's first control, so typing starts at once.
+  function focusPane(i) {
+    const p = pane(i);
+    ($("[data-fl-search]:not([hidden])", p) || $("[data-fl-pick]", p) || $("[data-fl-a]:not([hidden])", p) || tabs[i]).focus();
+  }
   function open(i = current) {
     draft = clone(applied());
     defs.forEach((_, j) => fill(j));
     badges();
+    if (find) {
+      find.value = "";
+      narrow();
+    }
     select(i);
     if (!panel.open) panel.showModal();
-    // Into the first control of the field, so typing starts at once.
-    const p = pane(i);
-    ($("[data-fl-search]:not([hidden])", p) || $("[data-fl-pick]", p) || $("[data-fl-a]:not([hidden])", p) || tabs[i]).focus();
+    focusPane(i);
   }
 
   // ---- saved views: `bindViews` holds [{ name, filters }]
@@ -585,13 +635,15 @@
     }
   });
   // Up and down (and Home, End) move between fields.
+  // Only the fields the box shows; Up from the first goes back to the box.
   $("[role=tablist]", panel).addEventListener("keydown", (e) => {
-    const i = tabs.indexOf(e.target);
+    const list = shown(), i = list.indexOf(e.target);
     if (i < 0) return;
-    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    const to = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: list.length - 1 }[e.key];
     if (to === undefined) return;
     e.preventDefault();
-    select((to + tabs.length) % tabs.length, true);
+    if (to < 0 && find) return find.focus();
+    select(tabs.indexOf(list[(to + list.length) % list.length]), true);
   });
   // Escape, ✕ or Cancel: the draft is dropped; focus goes back to the button.
   panel.addEventListener("close", () => {

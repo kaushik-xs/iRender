@@ -23,7 +23,7 @@ _Last updated: 2026-11-19._
 
 - [ ] **Gaps against client-ui-next** (`~/Documents/GitHub/client-ui-next/components`, compared 2026-11-17). Generic components it uses that no kit has yet, most used first:
   - [x] **Filters** (2026-11-18): `ui-filters` + `ui-filter`, a side panel of list, number, currency, date and text fields with operators, shown as removable chips, writing the chart kit's `filter` format (block data-table-06). Not done yet:
-    - [ ] No "Add filter" dialog: every field is listed in the panel. Fine up to a dozen or so fields; past that, a picker of fields to add would help.
+    - [x] Finding a field (2026-11-20): past eight fields (or `searchFields`), a box over the panel's list narrows it by name or section (block data-table-06, gallery). Every field is still in the list; there's no "Add filter" step that keeps fields out until picked.
     - [x] Date presets (today, last 7 days, this month, this quarter, …) and saved views (`bindViews`) (2026-11-18).
     - [x] Dates pick on the kit's calendar, and amounts are grouped as typed with the currency's symbol (2026-11-18). No quarter type yet.
     - [ ] List values come from `options` or `rows` only, not from an API as you search, so very long lists (thousands of customers) need their values in state.

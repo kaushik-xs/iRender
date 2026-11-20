@@ -44,6 +44,11 @@ const PROPS: &[PropDef] = &[
     PropDef::new("locale", PropKind::String, "Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)"),
     PropDef::new("bindViews", PropKind::StateKey, "State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them"),
     PropDef::new("today", PropKind::String, "The date date presets count from (default: today)"),
+    PropDef::new(
+        "searchFields",
+        PropKind::Bool,
+        "A box over the fields that finds one by its name or section (default: on past eight fields)",
+    ),
     PropDef::new("fiscalStart", PropKind::Number, "The month a financial year starts, 1–12 (default 1): the quarter and year presets follow it"),
     PropDef::new("id", PropKind::Any, "The panel's element id (default: derived from the document)"),
 ];
@@ -205,10 +210,8 @@ static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "@media (max-width: 560px)",
             pairs(&[("grid-template-columns", "minmax(0, 1fr)"), ("grid-template-rows", "auto minmax(0, 1fr)")])
-                .nest(
-                    "& [role=tablist]",
-                    pairs(&[("flex-direction", "row"), ("overflow-x", "auto"), ("border-inline-end", "0"), ("border-bottom", "1px solid var(--color-border)")]),
-                )
+                .nest("& [data-fl-fields]", pairs(&[("border-inline-end", "0"), ("border-bottom", "1px solid var(--color-border)")]))
+                .nest("& [data-fl-fields] > [role=tablist]", pairs(&[("flex-direction", "row"), ("overflow-x", "auto")]))
                 .nest("& [role=tablist] > [role=tab]", pairs(&[("width", "auto"), ("flex", "none")]))
                 .nest("& [data-fl-section]", pairs(&[("display", "none")])),
         )
@@ -227,6 +230,9 @@ static TABS: LazyLock<StyleBlock> = LazyLock::new(|| {
         pairs(&[("padding", sp!(12, 8, 4)), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "500")]),
     )
     .nest("& [data-fl-section]:first-child", pairs(&[("padding-top", sp!(4))]))
+    .nest("& [role=tablist]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(2))]))
+    .nest("& [data-fl-find]", pairs(&[("margin-bottom", sp!(8)), ("flex-shrink", "0")]))
+    .nest("& [data-fl-unfound]", pairs(&[("padding", sp!(8)), ("color", MUTED), ("font-size", fs!(13))]))
     .nest(
         "& [role=tab]",
         pairs(&[
@@ -250,6 +256,8 @@ static TABS: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [role=tab][aria-selected=true]", pairs(&[("background", ACCENT), ("font-weight", "600")]))
     .nest("& [role=tab]:focus-visible", forms::focus_ring())
     .nest("& [data-fl-n]", badge())
+    // Last, over the tabs' own `display`: fields the box leaves out.
+    .nest("& [role=tab][hidden], & [data-fl-section][hidden], & [data-fl-unfound][hidden]", pairs(&[("display", "none")]))
 });
 static PANE: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(12)), ("min-width", "0"), ("padding", sp!(16, 20)), ("overflow-y", "auto")])
@@ -438,7 +446,7 @@ impl Component for Filters {
             "today": cx.prop_string(node, "today"),
             "fiscalStart": fiscal,
             "defs": defs.iter().map(|d| json!({
-                "field": d.field, "label": d.label, "type": d.kind, "options": d.options, "unit": d.unit, "currency": d.currency,
+                "field": d.field, "label": d.label, "section": d.section, "type": d.kind, "options": d.options, "unit": d.unit, "currency": d.currency,
                 "ops": d.ops.iter().map(|(o, _)| *o).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
         });
@@ -491,8 +499,26 @@ impl Component for Filters {
         let mut body = Element::new("div");
         body.base_style_ref(&BODY);
         cx.open(&body, node)?;
+        // The fields, with a box that finds one when there are many.
+        let mut fields = Element::new("div");
+        fields.base_style_ref(&TABS).attr("data-fl-fields", true);
+        cx.open(&fields, node)?;
+        if cx.prop(node, "searchFields").map_or(defs.len() > 8, |v| irender_core::expr::truthy(&v)) {
+            let mut find = Element::new("input");
+            find.base_style_ref(forms::input_look())
+                .attr("type", "search")
+                .attr("data-fl-find", true)
+                .attr("autocomplete", "off")
+                .attr("placeholder", cx.label("Find a field…"))
+                .attr("aria-label", cx.label("Find a field"));
+            cx.open(&find, node)?;
+            let mut none = Element::new("p");
+            none.attr("data-fl-unfound", true).attr("hidden", true).text(lit(cx.label("No fields match")));
+            cx.open(&none, node)?;
+            cx.close("p");
+        }
         let mut tabs = Element::new("div");
-        tabs.base_style_ref(&TABS).attr("role", "tablist").attr("aria-orientation", "vertical").attr("aria-label", cx.label("Fields"));
+        tabs.attr("role", "tablist").attr("aria-orientation", "vertical").attr("aria-label", cx.label("Fields"));
         cx.open(&tabs, node)?;
         let mut section: Option<&str> = None;
         for (i, d) in defs.iter().enumerate() {
@@ -522,6 +548,7 @@ impl Component for Filters {
             cx.close("span");
             cx.close("button");
         }
+        cx.close("div");
         cx.close("div");
 
         for (i, d) in defs.iter().enumerate() {

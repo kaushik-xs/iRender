@@ -427,6 +427,7 @@ ui-filters: Filters for a list: a button that opens a side panel of fields, each
   locale       string  Locale for numbers and dates in chips (default: the document's `lang`, else the browser's)
   bindViews    statekey  State key for saved views, `[{ name, filters }]`: a Views menu applies, saves and deletes them
   today        string  The date date presets count from (default: today)
+  searchFields bool  A box over the fields that finds one by its name or section (default: on past eight fields)
   fiscalStart  number  The month a financial year starts, 1–12 (default 1): the quarter and year presets follow it
   id           any  The panel's element id (default: derived from the document)
   parts: button, panel
@@ -2308,6 +2309,8 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **List values.** A list filter offers its `options` (text, or `{ value, label }`, possibly from state). Without them it offers the field's values in the filters' `rows`, each with how many rows have it. A list longer than five gets a search box. Values already picked stay listed even when they're no longer among the options.
 
 **Applying.** The panel edits a draft: Apply writes it, and Cancel, Escape or a click outside drops it. A `between` whose ends are the wrong way round shows an error and can't be applied. With `live`, each change is written at once and the panel has a Done button. Clear all empties the draft, or the filters with `live`; the Clear all beside the chips removes every filter at once.
+
+**Finding a field.** Past eight fields (or with `searchFields: true`; `false` turns it off), a box over the list finds one: every word typed must be in the field's name or section, and the rest hide, section headings with them. Enter opens the first match, Down goes into the list, Up from its top comes back, and Escape clears the box before it closes the panel.
 
 **Keyboard.** The fields are tabs: Up and Down (and Home, End) move between them. Opening the panel focuses the field's first control, and closing it returns focus to the button. The button's label says how many filters are applied.
 
