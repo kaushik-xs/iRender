@@ -534,8 +534,41 @@ impl Resolver<'_> {
 
     fn val_map(&mut self, map: &IndexMap<String, Json>, path: &str) -> IndexMap<String, Val> {
         map.iter()
-            .filter_map(|(k, v)| Some((k.clone(), self.val(v, &format!("{path}.{k}"))?)))
+            .filter_map(|(k, v)| Some((k.clone(), self.action_val(v, &format!("{path}.{k}"))?)))
             .collect()
+    }
+
+    /// An action's value: as [`val`](Self::val), and an object or list with `{{ }}`
+    /// somewhere inside is built when the action runs, its templates filled in then
+    /// (`{ title: "Deleted {{ task.id }}" }`, `["{{ row.id }}"]`). Component props aren't
+    /// read this way: components fill in their own, e.g. a column's `{{ row.x }}`.
+    fn action_val(&mut self, raw: &Json, path: &str) -> Option<Val> {
+        fn templated(v: &Json) -> bool {
+            match v {
+                Json::String(s) => Template::is_template(s),
+                Json::Array(items) => items.iter().any(templated),
+                Json::Object(map) => map.values().any(templated),
+                _ => false,
+            }
+        }
+        if !matches!(raw, Json::Array(_) | Json::Object(_)) || !templated(raw) {
+            return self.val(raw, path);
+        }
+        let e = self.shape(raw, path)?;
+        Some(Val::Tpl(Template { parts: vec![Part::Expr(e)] }))
+    }
+
+    /// `raw` as an expression that builds it, its templated strings parsed.
+    fn shape(&mut self, raw: &Json, path: &str) -> Option<Expr> {
+        Some(match raw {
+            Json::Array(items) => {
+                Expr::List(items.iter().enumerate().map(|(i, v)| self.shape(v, &format!("{path}[{i}]"))).collect::<Option<_>>()?)
+            }
+            Json::Object(map) => {
+                Expr::Object(map.iter().map(|(k, v)| Some((k.clone(), self.shape(v, &format!("{path}.{k}"))?))).collect::<Option<_>>()?)
+            }
+            leaf => to_expr(&self.val(leaf, path)?),
+        })
     }
 
     fn url(&mut self, url: &str, path: &str) -> Option<Val> {
@@ -553,7 +586,7 @@ impl Resolver<'_> {
         match spec {
             ActionSpec::SetState { key, value } => {
                 let key_ok = self.state_key(key, &format!("{path}.key"));
-                let value = self.val(value, &format!("{path}.value"))?;
+                let value = self.action_val(value, &format!("{path}.value"))?;
                 key_ok.then(|| Action::SetState { key: key.clone(), value })
             }
             ActionSpec::Navigate { url } => {

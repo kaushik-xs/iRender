@@ -50,7 +50,7 @@ Any string may contain `{{ … }}`.
 
 - **Grammar:** paths (`user.name`, `items[0]`, `row['first-name']`, `cart.length`), string, number, boolean and `null` literals, arithmetic `+ - * / %`, comparisons `== != < <= > >=`, `&& || !`, `a ? b : c` and parentheses.
 - **Functions:** only `range(n)` / `range(start, end)`, `includes(list, value)` and `toggle(list, value)`. There are no others: no `map`, `filter`, `join`, `toUpperCase`, `Math.*`, template literals or arrow functions.
-- **No array or object literals inside `{{ }}`:** write a fixed structure in YAML or JSON instead (`value: { title: Saved, tags: [] }`). Its leaves are **not** evaluated: `value: { description: "Hi {{ name }}" }` stores the text `Hi {{ name }}`. The validator doesn't catch this, so keep expressions out of literal objects and arrays in `set_state`, or set each piece as its own key.
+- **No array or object literals inside `{{ }}`:** write the structure in YAML or JSON instead, with expressions in its leaves: `value: { title: Saved, description: "Hi {{ name }}", tags: ["{{ tag }}"] }`. An action's object or list is filled in when the action runs.
 - **Paths only:** `.field` and `[i]` follow paths, not call results (`range(n).length` is invalid).
 - **Live or server-side:** a path whose first name is a `state` key updates live in the browser. Any other path is filled from server `data` at render time. Inside a `list`, `item` and `index` (or the `as` / `index` names) are in scope.
 - **Exact values:** a string that is only one expression keeps the value's type (`"{{ count }}"` is a number). Mixed text makes a string: `"Buy {{ qty }}"`.
@@ -71,7 +71,7 @@ Any string may contain `{{ … }}`.
 
 There is no other action and no inline JavaScript. Anything custom goes through `call`.
 
-- **What gets evaluated:** each field of `submit`'s `body` is evaluated (`body: { customer: "{{ customer }}" }`). So is `call`'s `args`. A `set_state` value is evaluated only when it is one expression string.
+- **What gets evaluated:** in actions, every `{{ }}` is, however deep: a `set_state` value, each field of `submit`'s `body` (`body: { customer: "{{ customer }}" }`) and `call`'s `args`, objects and lists in them included. In component props, the component decides (a column's `{{ row.x }}` is filled per row).
 - **`submit` failures:** they don't stop the chain. A non-2xx response is still stored in `into`, and a network error fires an `irender:error` DOM event. Either way, the following actions run. Success fires `irender:submitted` with `{ ok, status, data }`. To act only on success, show the outcome with an `if` on the response stored in `into` (e.g. `{{ saved.id }}`), or let the host handle the request through `call`.
 - **Forms:** `on.submit` on an `element` with `tag: form` whose actions include `submit` prevents the browser's own navigation.
 
@@ -150,7 +150,6 @@ root:
 - **Bad `else`:** an `else` that doesn't directly follow an `if`, or one that follows a plain `else` (only `else` with `when` can be followed).
 - **Layout by hand:** hand-writing flex layout with `element` instead of `stack` (`direction`, `gap`, `align`, `justify`, `wrap`).
 - **Literal colours:** they break dark mode. Use `$color.*`.
-- **Expressions in literal objects:** `{{ }}` inside a literal object or array in `set_state` stays as text (see Expressions). This is common with toasts: `value: { title: Saved, description: "{{ name }}" }` shows the braces.
 - **Toggle groups reset to `null`:** pressing a selected `ui-toggle-group` option again sets its key to `null`, so a filter must treat `null` as "all".
 - **Dialogs that stay open:** a submit button inside a `ui-dialog` doesn't close it. Use a `ui-dialog-close` whose `on.click` runs the `submit` (and any toast), so it sends and closes in one click.
 - **Missing table components:** `ui-table` has no row or cell components. Its children are `element`s with `tag: thead`, `tbody`, `tr`, `th` and `td`, or a `list` with `tag: tbody`.

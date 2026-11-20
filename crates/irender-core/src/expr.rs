@@ -26,6 +26,11 @@ pub enum Expr {
     /// `value[key]` with a computed key, e.g. `names[dim]`: the field the key names, or
     /// the item at that index. A literal key stays part of a [`Path`](Expr::Path).
     Index(Box<Expr>, Box<Expr>),
+    /// An object built from parts: what a literal object with `{{ }}` inside it, such as
+    /// a `set_state` value, becomes. Not written in expressions themselves.
+    Object(Vec<(String, Expr)>),
+    /// A list built from parts, as [`Object`](Expr::Object).
+    List(Vec<Expr>),
 }
 
 /// What folding an expression can work out before the browser does (see [`Expr::fold`]).
@@ -211,6 +216,8 @@ impl Expr {
                 Some(seg) => self::lookup(&v.eval(lookup), &[seg]),
                 None => Json::Null,
             },
+            Expr::Object(fields) => Json::Object(fields.iter().map(|(k, e)| (k.clone(), e.eval(lookup))).collect()),
+            Expr::List(items) => Json::Array(items.iter().map(|e| e.eval(lookup)).collect()),
             Expr::Binary(op, l, r) => {
                 let lv = l.eval(lookup);
                 match op {
@@ -261,6 +268,8 @@ impl Expr {
                 v.visit_paths(f);
                 k.visit_paths(f);
             }
+            Expr::Object(fields) => fields.iter().for_each(|(_, e)| e.visit_paths(f)),
+            Expr::List(items) => items.iter().for_each(|e| e.visit_paths(f)),
         }
     }
 
@@ -292,6 +301,8 @@ impl Expr {
             ),
             Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| a.fold(keep, lookup)).collect()),
             Expr::Index(v, k) => Expr::Index(Box::new(v.fold(keep, lookup)), Box::new(k.fold(keep, lookup))),
+            Expr::Object(fields) => Expr::Object(fields.iter().map(|(k, e)| (k.clone(), e.fold(keep, lookup))).collect()),
+            Expr::List(items) => Expr::List(items.iter().map(|e| e.fold(keep, lookup)).collect()),
         }
     }
 
@@ -305,6 +316,8 @@ impl Expr {
             Expr::Cond(c, a, b) => c.reads(keep) || a.reads(keep) || b.reads(keep),
             Expr::Call(_, args) => args.iter().any(|a| a.reads(keep)),
             Expr::Index(v, k) => v.reads(keep) || k.reads(keep),
+            Expr::Object(fields) => fields.iter().any(|(_, e)| e.reads(keep)),
+            Expr::List(items) => items.iter().any(|e| e.reads(keep)),
         }
     }
 
@@ -330,7 +343,8 @@ impl Expr {
 
     /// Compact JSON form consumed by the browser runtime. Each node kind has a distinct
     /// discriminating key: `l` literal, `p` path, `u` unary, `b` binary, `c` conditional,
-    /// `f` call (with its arguments in `a`), `i` index (`[value, key]`).
+    /// `f` call (with its arguments in `a`), `i` index (`[value, key]`), `o` object
+    /// (`[[key, value], …]`), `s` list.
     pub fn to_js(&self) -> Json {
         match self {
             Expr::Lit(v) => json!({ "l": v }),
@@ -340,6 +354,8 @@ impl Expr {
             Expr::Cond(c, a, b) => json!({ "c": [c.to_js(), a.to_js(), b.to_js()] }),
             Expr::Call(f, args) => json!({ "f": f.name(), "a": args.iter().map(Expr::to_js).collect::<Vec<_>>() }),
             Expr::Index(v, k) => json!({ "i": [v.to_js(), k.to_js()] }),
+            Expr::Object(fields) => json!({ "o": fields.iter().map(|(k, e)| json!([k, e.to_js()])).collect::<Vec<_>>() }),
+            Expr::List(items) => json!({ "s": items.iter().map(Expr::to_js).collect::<Vec<_>>() }),
         }
     }
 
@@ -405,6 +421,30 @@ impl Expr {
                 v.write_js(out, keep, lookup)?;
                 out.write_char(',')?;
                 k.write_js(out, keep, lookup)?;
+                out.write_str("]}")
+            }
+            Expr::Object(fields) => {
+                out.write_str("{\"o\":[")?;
+                for (i, (k, e)) in fields.iter().enumerate() {
+                    if i > 0 {
+                        out.write_char(',')?;
+                    }
+                    out.write_char('[')?;
+                    write_json_str(out, k)?;
+                    out.write_char(',')?;
+                    e.write_js(out, keep, lookup)?;
+                    out.write_char(']')?;
+                }
+                out.write_str("]}")
+            }
+            Expr::List(items) => {
+                out.write_str("{\"s\":[")?;
+                for (i, e) in items.iter().enumerate() {
+                    if i > 0 {
+                        out.write_char(',')?;
+                    }
+                    e.write_js(out, keep, lookup)?;
+                }
                 out.write_str("]}")
             }
         }
@@ -498,6 +538,8 @@ impl Hash for Expr {
                 v.hash(state);
                 k.hash(state);
             }
+            Expr::Object(fields) => fields.hash(state),
+            Expr::List(items) => items.hash(state),
         }
     }
 }

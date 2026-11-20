@@ -66,6 +66,8 @@ impl Params {
             Expr::Cond(c, a, b) => Expr::Cond(Box::new(self.expr(c)?), Box::new(self.expr(a)?), Box::new(self.expr(b)?)),
             Expr::Call(f, args) => Expr::Call(*f, args.iter().map(|a| self.expr(a)).collect::<Result<_, _>>()?),
             Expr::Index(v, k) => Expr::Index(Box::new(self.expr(v)?), Box::new(self.expr(k)?)),
+            Expr::Object(fields) => Expr::Object(fields.iter().map(|(k, e)| Ok((k.clone(), self.expr(e)?))).collect::<Result<_, String>>()?),
+            Expr::List(items) => Expr::List(items.iter().map(|e| self.expr(e)).collect::<Result<_, _>>()?),
         })
     }
 

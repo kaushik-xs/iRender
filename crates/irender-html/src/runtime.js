@@ -96,6 +96,9 @@
       const k = ev(e.i[1], s);
       return typeof k === "string" || (Number.isInteger(k) && k >= 0) ? get(ev(e.i[0], s), [String(k)]) : null;
     }
+    // An object or list built from parts (a literal value with `{{ }}` inside it).
+    if ("o" in e) return Object.fromEntries(e.o.map(([k, x]) => [k, ev(x, s)]));
+    if ("s" in e) return e.s.map((x) => ev(x, s));
     if (e.b === "&&") { const l = ev(e.x, s); return truthy(l) ? ev(e.y, s) : l; }
     if (e.b === "||") { const l = ev(e.x, s); return truthy(l) ? l : ev(e.y, s); }
     const l = ev(e.x, s), r = ev(e.y, s);

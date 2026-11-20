@@ -110,6 +110,83 @@ fn rust_and_browser_evaluators_agree() {
     assert!(mismatches.is_empty(), "evaluators disagree:\n{}", mismatches.join("\n"));
 }
 
+/// A `set_state` value (and a `call`'s argument) written as an object or list with
+/// `{{ }}` inside is built when the action runs, its templates filled in: the same in
+/// Rust and in the browser.
+#[test]
+fn built_action_values_agree() {
+    use irender_core::{Action, Format, Val};
+    let node = std::env::var("NODE").unwrap_or_else(|_| "node".into());
+    if Command::new(&node).arg("--version").output().is_err() {
+        eprintln!("skipping runtime parity: `{node}` not found (set NODE=/path/to/node)");
+        return;
+    }
+    let value = json!({
+        "title": "Deleted {{ task.id }}", "count": "{{ picked.length }}", "plain": "text", "on": true, "none": null,
+        "ids": ["{{ task.id }}", 7, "x{{ n + 1 }}"], "nested": { "deep": ["{{ picked }}", { "k": "{{ task.title }}!" }] },
+        "label": "{{ picked.length > 1 ? picked.length + ' tasks' : task.id }}"
+    });
+    let doc = json!({ "version": 1, "state": { "toast": null, "task": { "id": "T-1", "title": "Write" }, "picked": ["a", "b"], "n": 2 },
+        "root": { "type": "button", "props": { "label": "x" }, "on": { "click": [
+            { "action": "set_state", "key": "toast", "value": value },
+            { "action": "call", "name": "f", "args": { "ids": ["{{ task.id }}"], "keep": [1, 2] } } ] } } });
+    let engine = irender_html::Engine::new();
+    let ir = engine.resolve(&irender_core::parse(&doc.to_string(), Format::Json).unwrap()).unwrap_or_else(|d| panic!("{d}"));
+    let state = doc["state"].clone();
+    let lookup = |p: &[String]| expr::lookup(&state, p);
+    let vals: Vec<&Val> = ir.root.on["click"]
+        .iter()
+        .flat_map(|a| match a {
+            Action::SetState { value, .. } => vec![value],
+            Action::Call { args, .. } => args.values().collect(),
+            _ => vec![],
+        })
+        .collect();
+    let expected: Vec<Json> = vals.iter().map(|v| v.eval(&lookup)).collect();
+    // What it's meant to be, filled in.
+    assert_eq!(expected[0], json!({
+        "title": "Deleted T-1", "count": 2, "plain": "text", "on": true, "none": null,
+        "ids": ["T-1", 7, "x3"], "nested": { "deep": [["a", "b"], { "k": "Write!" }] }, "label": "2 tasks"
+    }));
+    assert_eq!(expected[1..], [json!(["T-1"]), json!([1, 2])]);
+    // A literal with no templates stays a literal.
+    assert!(matches!(vals[2], Val::Lit(_)));
+
+    let inputs: Vec<Json> = vals
+        .iter()
+        .map(|v| match v {
+            Val::Tpl(t) => json!({ "template": t.fold(&|_| true, &lookup).to_js(), "state": state }),
+            Val::Lit(l) => json!({ "literal": l }),
+        })
+        .collect();
+    let runtime = concat!(env!("CARGO_MANIFEST_DIR"), "/src/runtime.js");
+    let script = r#"
+        const fs = require("fs");
+        globalThis.window = {};
+        globalThis.document = { readyState: "complete", querySelectorAll: () => [] };
+        eval(fs.readFileSync(process.argv[1], "utf8"));
+        const cases = JSON.parse(fs.readFileSync(0, "utf8"));
+        process.stdout.write(JSON.stringify(cases.map(c => "literal" in c ? c.literal : window.__irender.evaluate(c.template, c.state))));
+    "#;
+    let mut child = Command::new(&node)
+        .args(["-e", script, runtime])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    {
+        use std::io::Write;
+        child.stdin.take().unwrap().write_all(Json::Array(inputs).to_string().as_bytes()).unwrap();
+    }
+    let out = child.wait_with_output().unwrap();
+    assert!(out.status.success(), "node failed:\n{}", String::from_utf8_lossy(&out.stderr));
+    let actual: Vec<Json> = serde_json::from_slice(&out.stdout).unwrap();
+    for (rust, js) in expected.iter().zip(&actual) {
+        assert!(same(rust, js), "rust={rust}\njs={js}");
+    }
+}
+
 /// JSON equality where `3` and `3.0` are the same number.
 fn same(a: &Json, b: &Json) -> bool {
     match (a, b) {
