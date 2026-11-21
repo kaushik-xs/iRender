@@ -24,15 +24,36 @@
 //! derived from `color.text` and `color.surface`, so the kit looks right with any
 //! theme, dark mode included. [`apply_theme`] adds the kit's own palette.
 
-/// A spacing value that follows the theme's `space.scale` (1 unless a theme option
-/// sets it): `sp!(4, 12)` is `calc(4px * var(--space-scale, 1)) calc(12px * …)`. The
-/// kit's paddings, gaps, margins and control heights use it, so a density option
-/// makes every component more compact or roomier. `0` stays `0`.
+/// A length that follows the theme's `space.scale` (1 unless a theme option sets
+/// it) times `$s`, a further factor: `scaled!(""; 4, 12)` is
+/// `calc(4px * var(--space-scale, 1)) calc(12px * …)`. `0` stays `0`.
+macro_rules! scaled {
+    ($s:literal; 0) => { "0" };
+    ($s:literal; 0, $($rest:literal),+) => { concat!("0 ", scaled!($s; $($rest),+)) };
+    ($s:literal; $n:literal) => { concat!("calc(", $n, "px * var(--space-scale, 1)", $s, ")") };
+    ($s:literal; $n:literal, $($rest:literal),+) => { concat!(scaled!($s; $n), " ", scaled!($s; $($rest),+)) };
+}
+
+/// A spacing value that follows the density (`space.scale`) alone: `sp!(4, 12)`.
+/// Layout sizes use it, so a density option makes every component more compact or
+/// roomier. The finer options scale one kind of spacing further:
 macro_rules! sp {
-    (0) => { "0" };
-    (0, $($rest:literal),+) => { concat!("0 ", sp!($($rest),+)) };
-    ($n:literal) => { concat!("calc(", $n, "px * var(--space-scale, 1))") };
-    ($n:literal, $($rest:literal),+) => { concat!(sp!($n), " ", sp!($($rest),+)) };
+    ($($t:tt)*) => { scaled!(""; $($t)*) };
+}
+
+/// Paddings, and offsets inside a component's padding: also `space.inset`.
+macro_rules! pad {
+    ($($t:tt)*) => { scaled!(" * var(--space-inset, 1)"; $($t)*) };
+}
+
+/// Gaps and margins between things: also `space.gap`.
+macro_rules! gap {
+    ($($t:tt)*) => { scaled!(" * var(--space-gap, 1)"; $($t)*) };
+}
+
+/// The heights and widths of controls, rows and cells: also `size.control`.
+macro_rules! ctl {
+    ($($t:tt)*) => { scaled!(" * var(--size-control, 1)"; $($t)*) };
 }
 
 /// A font size that follows the theme's `font.scale`: `fs!(14)`.
@@ -258,7 +279,7 @@ const NOTICES: &[(&str, &str, &str)] = &[
 /// One of `NOTICES`' icons as an SVG, `attrs` going on the `<svg>`.
 fn notice_icon(paths: &str, attrs: &str) -> String {
     format!(
-        r#"<svg{attrs} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{paths}</svg>"#
+        r#"<svg{attrs} width="18" height="18" style="width:calc(18px * var(--size-icon, 1));height:calc(18px * var(--size-icon, 1))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{paths}</svg>"#
     )
 }
 
@@ -611,6 +632,7 @@ fn icon_name(cx: &RenderCx<'_>, value: &Val) -> Option<Val> {
 
 /// The icon kit's `ui-icon` for `name`, decorative.
 fn icon_kit(cx: &mut RenderCx<'_>, node: &Node, name: &Val, size: u32) -> Result<(), RenderError> {
+    let size = format!("calc({size}px * var(--size-icon, 1))");
     let mut i = synthetic(node, "ui-icon", vec![("name", name.clone()), ("size", lit(size))], Vec::new(), Vec::new());
     i.style = irender_core::StyleBlock::from_pairs(&[("flex-shrink", "0")]);
     cx.render(&i)

@@ -67,7 +67,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("inset-inline-end", "-6px"),
                 ("min-width", "18px"),
                 ("height", "18px"),
-                ("padding", sp!(0, 5)),
+                ("padding", pad!(0, 5)),
                 ("box-sizing", "border-box"),
                 ("border", "2px solid var(--color-surface, #fff)"),
                 ("border-radius", "999px"),
@@ -80,25 +80,25 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-nt-count][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", concat!(sp!(8), " 0")).set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline").nest("&:dir(rtl)", StyleBlock::new().set("position-area", "bottom span-right")))
+        .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", concat!(gap!(8), " 0")).set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline").nest("&:dir(rtl)", StyleBlock::new().set("position-area", "bottom span-right")))
         .nest("& [data-nt-panel][popover]:popover-open, & [data-nt-panel]:not([popover])", pairs(&[("display", "flex"), ("flex-direction", "column")]))
         .nest("& [data-nt-panel]:not([popover])", pairs(&[("width", "100%"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)")]))
-        .nest("& [data-nt-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(12, 14, 8))]))
+        .nest("& [data-nt-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(12, 14, 8))]))
         .nest("& [data-nt-head] h3", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest(
             "& [data-nt-mark-all]",
-            pairs(&[("padding", sp!(4, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("font-weight", "500"), ("cursor", "pointer")]),
+            pairs(&[("padding", pad!(4, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("font-weight", "500"), ("cursor", "pointer")]),
         )
         .nest("& [data-nt-mark-all]:hover", pairs(&[("background", ACCENT)]))
         .nest("& [data-nt-mark-all]:disabled", pairs(&[("color", MUTED), ("cursor", "default"), ("background", "transparent")]))
         .nest("& [data-nt-mark-all]:focus-visible, & [data-nt-tab]:focus-visible", forms::focus_ring())
-        .nest("& [data-nt-tabs]", pairs(&[("display", "flex"), ("gap", sp!(4)), ("padding", sp!(0, 14, 8)), ("border-bottom", "1px solid var(--color-border)")]))
+        .nest("& [data-nt-tabs]", pairs(&[("display", "flex"), ("gap", gap!(4)), ("padding", pad!(0, 14, 8)), ("border-bottom", "1px solid var(--color-border)")]))
         .nest(
             "& [data-nt-tab]",
-            pairs(&[("padding", sp!(4, 10)), ("border", "0"), ("border-radius", "999px"), ("background", "transparent"), ("color", MUTED), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer")]),
+            pairs(&[("padding", pad!(4, 10)), ("border", "0"), ("border-radius", "999px"), ("background", "transparent"), ("color", MUTED), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer")]),
         )
         .nest("& [data-nt-tab][aria-pressed=true]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", TEXT), ("font-weight", "500")]))
-        .nest("& [data-nt-list]", pairs(&[("margin", "0"), ("padding", sp!(4)), ("list-style", "none"), ("max-height", "min(420px, 60vh)"), ("overflow-y", "auto")]))
+        .nest("& [data-nt-list]", pairs(&[("margin", "0"), ("padding", pad!(4)), ("list-style", "none"), ("max-height", "min(420px, 60vh)"), ("overflow-y", "auto")]))
         .nest("& [data-nt-panel]:not([popover]) [data-nt-list]", pairs(&[("max-height", "none")]))
         .nest("& [data-nt-item]", pairs(&[("--tone", PRIMARY), ("position", "relative"), ("display", "flex"), ("align-items", "flex-start"), ("border-radius", "var(--radius-md)")]))
         .nest("& [data-nt-item]:hover", pairs(&[("background", ACCENT)]))
@@ -109,8 +109,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("min-width", "0"),
                 ("display", "flex"),
                 ("align-items", "flex-start"),
-                ("gap", sp!(10)),
-                ("padding", sp!(10)),
+                ("gap", gap!(10)),
+                ("padding", pad!(10)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -139,7 +139,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-nt-mark] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
         .nest("& [data-nt-mark][data-dot]::after", pairs(&[("content", "''"), ("width", "10px"), ("height", "10px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
-        .nest("& [data-nt-text]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding-inline-end", sp!(48))]))
+        .nest("& [data-nt-text]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding-inline-end", pad!(48))]))
         .nest("& [data-nt-title]", pairs(&[("line-height", "1.35"), ("overflow-wrap", "anywhere")]))
         .nest("& [data-unread] [data-nt-title]", pairs(&[("font-weight", "600")]))
         .nest(
@@ -147,7 +147,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
         )
         .nest("& [data-nt-text] time", pairs(&[("color", MUTED), ("font-size", fs!(12))]))
-        .nest("& [data-nt-actions]", pairs(&[("position", "absolute"), ("top", sp!(8)), ("inset-inline-end", sp!(6)), ("display", "flex"), ("gap", "2px")]))
+        .nest("& [data-nt-actions]", pairs(&[("position", "absolute"), ("top", pad!(8)), ("inset-inline-end", pad!(6)), ("display", "flex"), ("gap", "2px")]))
         .nest(
             "& [data-nt-actions] button",
             pairs(&[("display", "grid"), ("place-items", "center"), ("width", "24px"), ("height", "24px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
@@ -161,9 +161,9 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-nt-archive]", pairs(&[("opacity", "0")]))
         .nest("& [data-nt-item]:is(:hover, :focus-within) [data-nt-archive]", pairs(&[("opacity", "1")]))
         .nest("@media (hover: none)", pairs(&[]).nest("& [data-nt-archive]", pairs(&[("opacity", "1")])))
-        .nest("& [data-nt-empty]", pairs(&[("margin", "0"), ("padding", sp!(28, 16)), ("color", MUTED), ("text-align", "center")]))
+        .nest("& [data-nt-empty]", pairs(&[("margin", "0"), ("padding", pad!(28, 16)), ("color", MUTED), ("text-align", "center")]))
         .nest("& [data-nt-empty][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-nt-foot]", pairs(&[("padding", sp!(8, 14)), ("border-top", "1px solid var(--color-border)"), ("text-align", "center")]))
+        .nest("& [data-nt-foot]", pairs(&[("padding", pad!(8, 14)), ("border-top", "1px solid var(--color-border)"), ("text-align", "center")]))
         .nest("& [data-nt-foot] a", pairs(&[("color", PRIMARY), ("font-size", fs!(13)), ("font-weight", "500"), ("text-decoration", "none")]))
         .nest("& [data-nt-foot] a:hover", pairs(&[("text-decoration", "underline")]))
         .nest(
@@ -174,7 +174,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static INLINE: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("display", "flex")]));
 
-const BELL: &str = r#"<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>"#;
+const BELL: &str = r#"<svg width="18" height="18" style="width:calc(18px * var(--size-icon, 1));height:calc(18px * var(--size-icon, 1))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>"#;
 
 impl Component for Notifications {
     fn name(&self) -> &'static str {

@@ -55,7 +55,7 @@ static RATING: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-full]",
             pairs(&[("position", "absolute"), ("inset", "0"), ("color", AMBER), ("clip-path", "inset(0 calc(100% - min(100%, max(0%, var(--ui-value) * 1%))) 0 0)")]),
         )
-        .nest("& [data-score]", pairs(&[("margin-inline-start", sp!(6)), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1"), ("font-variant-numeric", "tabular-nums")]))
+        .nest("& [data-score]", pairs(&[("margin-inline-start", gap!(6)), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1"), ("font-variant-numeric", "tabular-nums")]))
 });
 
 impl Component for Rating {
@@ -210,16 +210,16 @@ const CHECKLIST_PROPS: &[PropDef] = &[
 ];
 
 static CHECKLIST: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(13))])
-        .nest("& [data-meter]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(4, 1fr)"), ("gap", sp!(4))]))
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("color", MUTED), ("font-size", fs!(13))])
+        .nest("& [data-meter]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(4, 1fr)"), ("gap", gap!(4))]))
         .nest("& [data-meter] span", pairs(&[("height", "4px"), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 12%, transparent)"), ("transition", "background .2s")]))
         .nest("&[data-strength='1'] [data-meter] span:nth-child(-n+1)", pairs(&[("background", "var(--color-destructive, #dc2626)")]))
         .nest("&[data-strength='2'] [data-meter] span:nth-child(-n+2)", pairs(&[("background", "var(--color-warning, #d97706)")]))
         .nest("&[data-strength='3'] [data-meter] span:nth-child(-n+3)", pairs(&[("background", "var(--color-warning, #d97706)")]))
         .nest("&[data-strength='4'] [data-meter] span", pairs(&[("background", "var(--color-success, #16a34a)")]))
         .nest("& [data-strength-text]", pairs(&[("font-weight", "500")]))
-        .nest("& ul", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", sp!(4))]))
-        .nest("& li", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("transition", "color .15s")]))
+        .nest("& ul", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", gap!(4))]))
+        .nest("& li", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("transition", "color .15s")]))
         .nest("& li::before", pairs(&[("content", "''"), ("flex", "none"), ("width", "14px"), ("height", "14px"), ("border-radius", "50%"), ("border", "1.5px solid currentColor"), ("box-sizing", "border-box")]))
         .nest("& li[data-met]", pairs(&[("color", "var(--color-success, #16a34a)")]))
         .nest(

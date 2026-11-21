@@ -60,8 +60,8 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("display", "flex"),
             ("flex-direction", "column"),
             ("align-items", "center"),
-            ("gap", sp!(4)),
-            ("padding", sp!(10, 0)),
+            ("gap", gap!(4)),
+            ("padding", pad!(10, 0)),
             ("border-inline-end", "1px solid var(--color-border)"),
             ("background", "var(--color-sidebar, color-mix(in srgb, var(--color-text) 3%, var(--color-surface, #fff)))"),
             ("min-height", "0"),
@@ -70,7 +70,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("z-index", "25"),
         ]),
     )
-    .nest("& [data-rail-foot]", pairs(&[("margin-top", "auto"), ("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", sp!(4))]))
+    .nest("& [data-rail-foot]", pairs(&[("margin-top", "auto"), ("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", gap!(4))]))
     .nest(
         "& [data-rail-item]",
         pairs(&[
@@ -109,7 +109,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("inset-inline-start", "calc(100% + 10px)"),
             ("top", "50%"),
             ("z-index", "30"),
-            ("padding", sp!(4, 8)),
+            ("padding", pad!(4, 8)),
             ("border-radius", "var(--radius-sm)"),
             ("background", TEXT),
             ("color", SURFACE),
@@ -131,7 +131,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("inset-inline-end", "1px"),
             ("min-width", "16px"),
             ("height", "16px"),
-            ("padding", sp!(0, 4)),
+            ("padding", pad!(0, 4)),
             ("box-sizing", "border-box"),
             ("border", "2px solid var(--color-sidebar, var(--color-surface, #fff))"),
             ("border-radius", "999px"),
@@ -180,9 +180,9 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     )
 });
 static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("box-sizing", "border-box"), ("width", "var(--rail-panel, 260px)"), ("height", "100%"), ("padding", sp!(14, 12)), ("overflow-y", "auto")])
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("box-sizing", "border-box"), ("width", "var(--rail-panel, 260px)"), ("height", "100%"), ("padding", pad!(14, 12)), ("overflow-y", "auto")])
         .nest("&[hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-rail-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(6)), ("padding", sp!(0, 4, 4))]))
+        .nest("& [data-rail-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("padding", pad!(0, 4, 4))]))
         .nest("& [data-rail-head] h2", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest(
             "& [data-rail-fold]",
@@ -192,7 +192,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-rail-fold]:focus-visible", forms::focus_ring())
 });
 
-const FOLD: &str = r#"<svg data-flip width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11M10.5 6.5 9 8l1.5 1.5"/></svg>"#;
+const FOLD: &str = r#"<svg data-flip width="16" height="16" style="width:calc(16px * var(--size-icon, 1));height:calc(16px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11M10.5 6.5 9 8l1.5 1.5"/></svg>"#;
 
 /// One rail item, read from `items`.
 struct Item {

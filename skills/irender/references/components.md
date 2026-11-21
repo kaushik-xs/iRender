@@ -14,7 +14,7 @@ text: Text content.
   children: no
 stack: Flex layout container.
   direction    one of: row, column, row-reverse, column-reverse  Default `column`
-  gap          any  Number (px, following the theme's `space.scale`), CSS length or `$token`
+  gap          any  Number (px, following the theme's `space.scale` and `space.gap`), CSS length or `$token`
   align        any  `align-items`
   justify      any  `justify-content`
   wrap         bool  Wrap children onto multiple lines
@@ -1213,7 +1213,7 @@ ui-flow-item: A palette entry: drag it onto a `ui-flow` to add its `node` there,
 ui-icon: An SVG icon from the icon kit's packs, drawn in the current text colour.
   name         string (required)  `pack:icon` (e.g. `logistics:truck`) or a bare `icon`, found in the first pack that has it
   variant      one of: outline, filled  `outline` (default) or `filled`
-  size         any  Number (px) or CSS length; default `1em`, the size of the text around it
+  size         any  Number (px) or CSS length; default `1em`, the size of the text around it, times the theme's `size.icon`
   label        any  Accessible name. Without one the icon is decorative and hidden from screen readers
   children: no
 ```

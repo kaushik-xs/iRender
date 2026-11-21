@@ -22,7 +22,7 @@ const CAROUSEL_PROPS: &[PropDef] = &[
 ];
 
 static CAROUSEL: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("position", "relative"), ("min-width", "0"), ("--ui-slide", "min(280px, 85%)"), ("--ui-slide-gap", sp!(12))])
+    StyleBlock::from_pairs(&[("position", "relative"), ("min-width", "0"), ("--ui-slide", "min(280px, 85%)"), ("--ui-slide-gap", gap!(12))])
 });
 static TRACK: LazyLock<StyleBlock> = LazyLock::new(|| {
     // A grid, so slides inside a `display: contents` wrapper (a `list`) are sized too.
@@ -42,7 +42,7 @@ static TRACK: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
 });
 static DOTS: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "flex"), ("justify-content", "center"), ("align-items", "center"), ("gap", sp!(6)), ("padding-top", sp!(10))])
+    StyleBlock::from_pairs(&[("display", "flex"), ("justify-content", "center"), ("align-items", "center"), ("gap", gap!(6)), ("padding-top", pad!(10))])
         .nest(
             "& [data-dot]",
             StyleBlock::from_pairs(&[
@@ -63,8 +63,8 @@ static DOTS: LazyLock<StyleBlock> = LazyLock::new(|| {
 static PLAY: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
-        ("top", sp!(8)),
-        ("inset-inline-end", sp!(8)),
+        ("top", pad!(8)),
+        ("inset-inline-end", pad!(8)),
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
@@ -86,7 +86,7 @@ static ARROW: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("position", "absolute"),
             ("top", "50%"),
-            (side, sp!(8)),
+            (side, pad!(8)),
             ("transform", "translateY(-50%)"),
             ("display", "inline-flex"),
             ("align-items", "center"),

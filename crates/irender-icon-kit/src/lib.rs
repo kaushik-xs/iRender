@@ -385,7 +385,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("name", PropKind::String, "`pack:icon` (e.g. `logistics:truck`) or a bare `icon`, found in the first pack that has it")
         .required(),
     PropDef::new("variant", PropKind::Enum(VARIANTS), "`outline` (default) or `filled`"),
-    PropDef::new("size", PropKind::Any, "Number (px) or CSS length; default `1em`, the size of the text around it"),
+    PropDef::new("size", PropKind::Any, "Number (px) or CSS length; default `1em`, the size of the text around it, times the theme's `size.icon`"),
     PropDef::new("label", PropKind::Any, "Accessible name. Without one the icon is decorative and hidden from screen readers"),
 ];
 
@@ -430,7 +430,8 @@ impl Component for UiIcon {
             ("flex-shrink", "0"),
             ("vertical-align", "-0.125em"),
         ]);
-        let size = node.prop("size").cloned().unwrap_or_else(|| Val::from("1em"));
+        // The text's size times the theme's `size.icon`, unless a size is given.
+        let size = node.prop("size").cloned().unwrap_or_else(|| Val::from("calc(1em * var(--size-icon, 1))"));
         for property in ["width", "height"] {
             if let Some(v) = cx.style_value(node, property, &size)? {
                 sizing.push(property, v);

@@ -76,7 +76,7 @@ pub struct Stack;
 
 const STACK_PROPS: &[PropDef] = &[
     PropDef::new("direction", PropKind::Enum(&["row", "column", "row-reverse", "column-reverse"]), "Default `column`"),
-    PropDef::new("gap", PropKind::Any, "Number (px, following the theme's `space.scale`), CSS length or `$token`"),
+    PropDef::new("gap", PropKind::Any, "Number (px, following the theme's `space.scale` and `space.gap`), CSS length or `$token`"),
     PropDef::new("align", PropKind::Any, "`align-items`"),
     PropDef::new("justify", PropKind::Any, "`justify-content`"),
     PropDef::new("wrap", PropKind::Bool, "Wrap children onto multiple lines"),
@@ -102,9 +102,9 @@ impl Component for Stack {
         let tag = cx.prop_string(node, "tag").unwrap_or_else(|| "div".into());
         let mut base = StyleBlock::from_pairs(&[("display", "flex")]);
         let direction = node.prop("direction").cloned().unwrap_or_else(|| Val::from("column"));
-        // A gap in px follows the theme's `space.scale`, like the kit's spacing.
+        // A gap in px follows the theme's `space.scale` and `space.gap`, like the kit's.
         let gap = node.prop("gap").map(|v| match v {
-            Val::Lit(Json::Number(n)) if n.as_f64() != Some(0.0) => Val::from(format!("calc({n}px * var(--space-scale, 1))")),
+            Val::Lit(Json::Number(n)) if n.as_f64() != Some(0.0) => Val::from(format!("calc({n}px * var(--space-scale, 1) * var(--space-gap, 1))")),
             v => v.clone(),
         });
         let mapped = [
@@ -147,8 +147,8 @@ static BUTTON_BASE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("gap", "var(--space-sm, 8px)"),
-        ("padding", "var(--space-sm, 8px) var(--space-md, 16px)"),
+        ("gap", "calc(var(--space-sm, 8px) * var(--space-gap, 1))"),
+        ("padding", "calc(var(--space-sm, 8px) * var(--space-inset, 1)) calc(var(--space-md, 16px) * var(--space-inset, 1))"),
         ("border", "1px solid transparent"),
         ("border-radius", "var(--radius-md)"),
         ("font", "inherit"),
@@ -232,7 +232,7 @@ pub struct Input;
 
 static INPUT_BASE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
-        ("padding", "var(--space-sm, 8px) calc(12px * var(--space-scale, 1))"),
+        ("padding", "calc(var(--space-sm, 8px) * var(--space-inset, 1)) calc(12px * var(--space-scale, 1) * var(--space-inset, 1))"),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
         ("font", "inherit"),

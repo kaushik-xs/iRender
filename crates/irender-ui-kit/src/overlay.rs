@@ -102,7 +102,7 @@ const DRAWER_SCRIPT: &str = include_str!("drawer.js");
 fn dialog_base() -> StyleBlock {
     StyleBlock::from_pairs(&[
         ("box-sizing", "border-box"),
-        ("padding", sp!(24)),
+        ("padding", pad!(24)),
         ("border", "1px solid var(--color-border)"),
         ("--ui-bg", BG_DIALOG),
         ("background", BG_DIALOG),
@@ -111,7 +111,7 @@ fn dialog_base() -> StyleBlock {
         ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
         ("overflow", "auto"),
     ])
-    .nest("&[open]", StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(16))]))
+    .nest("&[open]", StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(16))]))
     .nest("::backdrop", StyleBlock::from_pairs(&[("background", "rgb(0 0 0 / 0.5)")]))
 }
 
@@ -147,7 +147,7 @@ static DRAWER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .set("max-width", "none")
         .set("max-height", "85dvh")
         .set("margin", "auto auto 0")
-        .set("padding-top", sp!(28))
+        .set("padding-top", pad!(28))
         .set("border-width", "1px 1px 0")
         .set("border-radius", "var(--radius-xl, 16px) var(--radius-xl, 16px) 0 0")
         .set("overscroll-behavior", "contain")
@@ -183,7 +183,7 @@ static DRAWER: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 pub(crate) static DIALOG_HEADER: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(6)), ("padding-inline-end", sp!(24))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", gap!(6)), ("padding-inline-end", pad!(24))]));
 pub(crate) static DIALOG_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(18)), ("font-weight", "600"), ("line-height", "1.2")])
 });
@@ -195,7 +195,7 @@ pub(crate) static DIALOG_X: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("top", "14px"),
         ("inset-inline-end", "14px"),
         ("width", "28px"),
-        ("height", sp!(28)),
+        ("height", ctl!(28)),
         ("border", "0"),
         ("border-radius", "var(--radius-sm)"),
         ("background", "transparent"),
@@ -345,8 +345,8 @@ static DIALOG_FOOTER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("flex-wrap", "wrap"),
         ("justify-content", "flex-end"),
-        ("gap", sp!(8)),
-        ("margin-top", sp!(8)),
+        ("gap", gap!(8)),
+        ("margin-top", gap!(8)),
     ])
 });
 
@@ -408,11 +408,11 @@ pub(crate) fn popover_base() -> StyleBlock {
 }
 
 static POPOVER: LazyLock<StyleBlock> =
-    LazyLock::new(|| popover_base().set("width", "288px").set("padding", sp!(16)).set("font-size", fs!(14)));
+    LazyLock::new(|| popover_base().set("width", "288px").set("padding", pad!(16)).set("font-size", fs!(14)));
 pub(crate) static MENU: LazyLock<StyleBlock> = LazyLock::new(|| {
     popover_base()
         .set("min-width", sp!(176))
-        .set("padding", sp!(4))
+        .set("padding", pad!(4))
         .nest(":popover-open", StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column")]))
 });
 
@@ -582,7 +582,7 @@ static SPLIT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("border-start-start-radius", "0"),
                 ("border-end-start-radius", "0"),
                 ("margin-inline-start", "-1px"),
-                ("padding", sp!(0, 10)),
+                ("padding", pad!(0, 10)),
                 ("font-size", fs!(16)),
                 ("border-inline-start-color", "color-mix(in srgb, currentColor 25%, transparent)"),
             ]),
@@ -677,9 +677,9 @@ pub(crate) static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("display", "flex"),
             ("align-items", "center"),
-            ("gap", sp!(8)),
+            ("gap", gap!(8)),
             ("width", "100%"),
-            ("padding", sp!(6, 8)),
+            ("padding", pad!(6, 8)),
             ("border", "0"),
             ("border-radius", "var(--radius-sm)"),
             ("background", "transparent"),
@@ -698,12 +698,12 @@ pub(crate) static MENU_ITEM: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
 });
 pub(crate) static SHORTCUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     // A shortcut reads left to right (⌘K) on any page.
-    StyleBlock::from_pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED), ("direction", "ltr"), ("unicode-bidi", "isolate")])
+    StyleBlock::from_pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", pad!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED), ("direction", "ltr"), ("unicode-bidi", "isolate")])
 });
 static MENU_SEPARATOR: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", "var(--color-border)")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("height", "1px"), ("margin", gap!(4, -4)), ("background", "var(--color-border)")]));
 static MENU_LABEL: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(14)), ("font-weight", "600")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("padding", pad!(6, 8)), ("font-size", fs!(14)), ("font-weight", "600")]));
 
 impl Component for MenuItem {
     fn name(&self) -> &'static str {
@@ -816,7 +816,7 @@ static TIPS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         let mut b = StyleBlock::from_pairs(&[
             ("position", "absolute"),
             ("z-index", "50"),
-            ("padding", sp!(6, 10)),
+            ("padding", pad!(6, 10)),
             ("border-radius", "var(--radius-md)"),
             ("background", PRIMARY),
             ("color", ON_PRIMARY),
@@ -912,7 +912,7 @@ static CARD_POP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("top", "calc(100% + 8px)"),
         ("inset-inline-start", "0"),
         ("width", "320px"),
-        ("padding", sp!(16)),
+        ("padding", pad!(16)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("--ui-bg", BG_POPOVER),

@@ -24,16 +24,16 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
 
-const CHEVRON_RIGHT: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
-const CHEVRON_DOWN: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-ui-chevron><path d="M3.5 6 8 10.5 12.5 6"/></svg>"#;
+const CHEVRON_RIGHT: &str = r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON_DOWN: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-ui-chevron><path d="M3.5 6 8 10.5 12.5 6"/></svg>"#;
 
 /// The space before an item's text where a check or a dot shows.
 static INDICATOR: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "inline-flex"), ("justify-content", "center"), ("width", "16px"), ("flex-shrink", "0"), ("color", PRIMARY)])
+    pairs(&[("display", "inline-flex"), ("justify-content", "center"), ("width", "calc(16px * var(--size-icon, 1))"), ("flex-shrink", "0"), ("color", PRIMARY)])
 });
 /// Checkbox and radio items: the indicator shows only when checked.
 static CHECKABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("padding-inline-start", sp!(6))])
+    pairs(&[("padding-inline-start", pad!(6))])
         .nest("& [data-ui-indicator]::before", pairs(&[("content", "''")]))
         .nest("&[role=menuitemcheckbox][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'✓'")]))
         .nest("&[role=menuitemradio][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'●'"), ("font-size", fs!(8))]))
@@ -128,7 +128,7 @@ impl Component for MenuSub {
         cx.close("button");
 
         let mut menu = cx.part("div", node, "menu");
-        let place = crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-inline").set("margin", sp!(-5, 4)), "right span-bottom");
+        let place = crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-inline").set("margin", gap!(-5, 4)), "right span-bottom");
         menu.base_style_ref(&MENU)
             .base_style(place)
             .attr("popover", "auto")
@@ -299,10 +299,10 @@ static MENUBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", sp!(2)),
+        ("gap", gap!(2)),
         ("width", "fit-content"),
         ("max-width", "100%"),
-        ("padding", sp!(4)),
+        ("padding", pad!(4)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
         ("background", "var(--color-surface)"),
@@ -311,7 +311,7 @@ static MENUBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(
         "& > [data-ui-menubar-trigger]",
         pairs(&[
-            ("padding", sp!(4, 10)),
+            ("padding", pad!(4, 10)),
             ("border", "0"),
             ("border-radius", "var(--radius-sm)"),
             ("background", "transparent"),
@@ -380,7 +380,7 @@ impl Component for Menubar {
             cx.close("button");
             let mut m = cx.element("div", menu);
             m.base_style_ref(&MENU)
-                .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-block, flip-inline").set("margin", concat!(sp!(6), " 0")), "bottom span-right"))
+                .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-block, flip-inline").set("margin", concat!(gap!(6), " 0")), "bottom span-right"))
                 .attr("popover", "auto")
                 .attr("id", id.clone())
                 .attr("role", "menu")
@@ -440,15 +440,15 @@ const NAV_LINK_PROPS: &[PropDef] = &[
 
 static NAV: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("position", "relative"), ("font-size", fs!(14)), ("color", TEXT)])
-        .nest("& > ul", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(2)), ("margin", "0"), ("padding", "0"), ("list-style", "none")]))
+        .nest("& > ul", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(2)), ("margin", "0"), ("padding", "0"), ("list-style", "none")]))
         .nest(
             "& > ul > li > [data-ui-nav-trigger], & > ul > li > a",
             pairs(&[
                 ("display", "inline-flex"),
                 ("align-items", "center"),
-                ("gap", sp!(4)),
-                ("height", sp!(36)),
-                ("padding", sp!(0, 12)),
+                ("gap", gap!(4)),
+                ("height", ctl!(36)),
+                ("padding", pad!(0, 12)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -473,8 +473,8 @@ static NAV: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "flex"),
                 ("flex-direction", "column"),
-                ("gap", sp!(4)),
-                ("padding", sp!(10, 12)),
+                ("gap", gap!(4)),
+                ("padding", pad!(10, 12)),
                 ("border-radius", "var(--radius-md)"),
                 ("color", "inherit"),
                 ("text-decoration", "none"),
@@ -489,8 +489,8 @@ static NAV: LazyLock<StyleBlock> = LazyLock::new(|| {
 static NAV_PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     popover_base()
         .set("max-width", "calc(100vw - 16px)")
-        .set("padding", sp!(8))
-        .set("margin", concat!(sp!(8), " 0"))
+        .set("padding", pad!(8))
+        .set("margin", concat!(gap!(8), " 0"))
         .set("font-size", fs!(14))
         .set("position-try-fallbacks", "flip-inline")
 });

@@ -15,7 +15,7 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("command.js");
 
 /// A magnifying glass for the search box, drawn like the icon kit's outline icons.
-const SEARCH_ICON: &str = r#"<svg data-ui-search-icon width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>"#;
+const SEARCH_ICON: &str = r#"<svg data-ui-search-icon width="16" height="16" style="width:calc(16px * var(--size-icon, 1));height:calc(16px * var(--size-icon, 1))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>"#;
 
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
@@ -73,7 +73,7 @@ fn palette_style(framed: bool) -> StyleBlock {
     }
     root.nest(
             "& [data-ui-search]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(0, 12)), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(0, 12)), ("border-bottom", "1px solid var(--color-border)")]),
         )
         .nest("& [data-ui-search-icon]", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
         .nest(
@@ -81,7 +81,7 @@ fn palette_style(framed: bool) -> StyleBlock {
             pairs(&[
                 ("flex", "1"),
                 ("min-width", "0"),
-                ("height", sp!(44)),
+                ("height", ctl!(44)),
                 ("margin", "0"),
                 ("padding", "0"),
                 ("border", "0"),
@@ -94,21 +94,21 @@ fn palette_style(framed: bool) -> StyleBlock {
         // The open page's crumb: its title, a click (or Backspace) going back.
         .nest(
             "& [data-ui-crumb]",
-            pairs(&[("flex", "none"), ("padding", sp!(2, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", ACCENT), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("font-weight", "500"), ("cursor", "pointer"), ("white-space", "nowrap")]),
+            pairs(&[("flex", "none"), ("padding", pad!(2, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", ACCENT), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("font-weight", "500"), ("cursor", "pointer"), ("white-space", "nowrap")]),
         )
         .nest("& [data-ui-crumb]::before", pairs(&[("content", "'‹ '"), ("color", MUTED)]))
         .nest("& [data-ui-command-input]::placeholder", pairs(&[("color", MUTED)]))
-        .nest("& [role=listbox]", pairs(&[("position", "relative"), ("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", sp!(4))]))
-        .nest("& [data-ui-heading]", pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(12)), ("font-weight", "500"), ("color", MUTED)]))
+        .nest("& [role=listbox]", pairs(&[("position", "relative"), ("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", pad!(4))]))
+        .nest("& [data-ui-heading]", pairs(&[("padding", pad!(6, 8)), ("font-size", fs!(12)), ("font-weight", "500"), ("color", MUTED)]))
         .nest(
             "& [role=option]",
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", sp!(8)),
+                ("gap", gap!(8)),
                 ("width", "100%"),
-                ("padding", sp!(6, 8)),
+                ("padding", pad!(6, 8)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "transparent"),
@@ -124,13 +124,13 @@ fn palette_style(framed: bool) -> StyleBlock {
         .nest("& [role=option]:disabled", pairs(&[("opacity", "0.5")]))
         .nest(
             "& [data-ui-shortcut]",
-            pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", sp!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)]),
+            pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", pad!(16)), ("font-size", fs!(12)), ("letter-spacing", "0.1em"), ("color", MUTED)]),
         )
-        .nest("& [role=separator]", pairs(&[("height", "1px"), ("margin", sp!(4, -4)), ("background", BORDER)]))
-        .nest("& [data-ui-empty]", pairs(&[("padding", sp!(24, 8)), ("text-align", "center"), ("color", MUTED)]))
+        .nest("& [role=separator]", pairs(&[("height", "1px"), ("margin", gap!(4, -4)), ("background", BORDER)]))
+        .nest("& [data-ui-empty]", pairs(&[("padding", pad!(24, 8)), ("text-align", "center"), ("color", MUTED)]))
         .nest(
             "& [data-ui-loading]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("gap", sp!(8)), ("padding", sp!(12, 8)), ("font-size", fs!(14)), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("gap", gap!(8)), ("padding", pad!(12, 8)), ("font-size", fs!(14)), ("color", MUTED)]),
         )
         .nest(
             "& [data-ui-spinner]",

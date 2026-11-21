@@ -99,6 +99,7 @@ root:
                               style:
                                 display: grid
                                 grid-template-columns: "1fr auto"
+                                align-items: baseline
                                 gap: "2px 8px"
                                 padding: "12px 16px"
                                 border: 0

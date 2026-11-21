@@ -53,8 +53,8 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 }
 
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
-        .nest("& [data-tree-head]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8))]))
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
+        .nest("& [data-tree-head]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(8))]))
         .nest("& [data-tree-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
         .nest("& [data-tree-search]", pairs(&[("flex", "1 1 160px")]))
         .nest(
@@ -62,8 +62,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", sp!(8)),
-                ("padding-block", sp!(4, 4)), ("padding-inline", sp!(12, 4)),
+                ("gap", gap!(8)),
+                ("padding-block", pad!(4, 4)), ("padding-inline", pad!(12, 4)),
                 ("border-radius", "var(--radius-md)"),
                 ("background", ACCENT),
                 ("font-size", fs!(13)),
@@ -71,7 +71,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-tree-bulk] > span", pairs(&[("margin-inline-end", "auto"), ("font-weight", "500")]))
         .nest("& [hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-tree-empty]", pairs(&[("margin", "0"), ("padding", sp!(16, 8)), ("color", MUTED), ("text-align", "center")]))
+        .nest("& [data-tree-empty]", pairs(&[("margin", "0"), ("padding", pad!(16, 8)), ("color", MUTED), ("text-align", "center")]))
         .nest(
             "& [data-tree-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
@@ -82,9 +82,9 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
     let row = pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", sp!(6)),
-        ("min-height", sp!(32)),
-        ("padding", sp!(0, 4)),
+        ("gap", gap!(6)),
+        ("min-height", ctl!(32)),
+        ("padding", pad!(0, 4)),
         ("padding-inline-start", "calc(var(--depth, 0) * 18px * var(--space-scale, 1) + 4px)"),
         ("border-radius", "var(--radius-md)"),
         ("cursor", "pointer"),
@@ -101,7 +101,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [role=treeitem]:focus-visible > [data-tree-row]", forms::focus_ring().set("outline-offset", "-2px"))
         .nest(
             "& [data-tree-twisty]",
-            pairs(&[("display", "inline-flex"), ("flex", "none"), ("width", "16px"), ("justify-content", "center"), ("color", MUTED), ("transition", "transform .15s")]),
+            pairs(&[("display", "inline-flex"), ("flex", "none"), ("width", "calc(16px * var(--size-icon, 1))"), ("justify-content", "center"), ("color", MUTED), ("transition", "transform .15s")]),
         )
         .nest("& [aria-expanded=true] > [data-tree-row] [data-tree-twisty]", pairs(&[("transform", "rotate(90deg)")]))
         // Its icon is mirrored right to left (pointing left): it turns the other way to point down.
@@ -134,10 +134,10 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [aria-checked=true] > [data-tree-row] [data-tree-check] [data-on]", pairs(&[("display", "block")]))
         .nest("& [aria-checked=mixed] > [data-tree-row] [data-tree-check] [data-some]", pairs(&[("display", "block")]))
         .nest("& [data-tree-label]", pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
-        .nest("& [data-tree-name]", pairs(&[("flex", "1 1 auto"), ("height", sp!(28)), ("margin", concat!(sp!(2), " 0"))]))
+        .nest("& [data-tree-name]", pairs(&[("flex", "1 1 auto"), ("height", ctl!(28)), ("margin", concat!(gap!(2), " 0"))]))
         .nest("& [data-tree-label] mark", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 18%, transparent)"), ("color", "inherit"), ("border-radius", "2px")]))
         .nest("& [data-tree-count]", pairs(&[("flex", "none"), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "400"), ("font-variant-numeric", "tabular-nums")]))
-        .nest("& [data-tree-actions]", pairs(&[("display", "flex"), ("flex", "none"), ("gap", sp!(2)), ("opacity", "0")]))
+        .nest("& [data-tree-actions]", pairs(&[("display", "flex"), ("flex", "none"), ("gap", gap!(2)), ("opacity", "0")]))
         .nest("& [data-tree-row]:hover [data-tree-actions], & [role=treeitem]:focus > [data-tree-row] [data-tree-actions]", pairs(&[("opacity", "1")]))
         .nest("@media (hover: none)", pairs(&[]).nest("& [data-tree-actions]", pairs(&[("opacity", "1")])))
         .nest(
@@ -166,10 +166,10 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 // Decorative: the rows and buttons around them are labelled.
-const CHEVRON: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON: &str = r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 const CHECK: &str = r#"<svg data-on width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg><svg data-some width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 8h8"/></svg>"#;
-const PLUS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#;
-const TRASH: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>"#;
+const PLUS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#;
+const TRASH: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6.5 4.5V3h3v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>"#;
 
 /// What the server needs to draw the starting tree, and what the browser gets.
 struct Draw<'a> {

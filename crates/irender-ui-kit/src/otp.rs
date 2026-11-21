@@ -36,7 +36,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 }
 
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("position", "relative"), ("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", TEXT)])
+    pairs(&[("position", "relative"), ("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", TEXT)])
         // The real field: over the boxes, taking every click and key, drawn by them.
         .nest(
             "& [data-otp-input]",
@@ -70,8 +70,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("display", "flex"),
                 ("align-items", "center"),
                 ("justify-content", "center"),
-                ("width", sp!(40)),
-                ("height", sp!(40)),
+                ("width", ctl!(40)),
+                ("height", ctl!(40)),
                 ("margin-inline-start", "-1px"),
                 ("border", "1px solid var(--color-border)"),
                 ("background", "transparent"),

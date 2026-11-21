@@ -85,9 +85,9 @@
     // Sequential: the first hue, receding into the surface at the low end.
     const low = color(`color-mix(in oklab, ${palette[0]} 12%, ${surface})`);
     probe.remove();
-    // The theme's text size and density (`font.scale`, `space.scale`), as at `el`.
+    // The theme's text size and padding (`font.scale`, `space.scale` × `space.inset`), as at `el`.
     const scale = (name) => parseFloat(cs.getPropertyValue(name)) || 1;
-    return { text, muted, border, surface, palette, seq: [low, palette[0]], dark, font: cs.fontFamily, fontScale: scale("--font-scale"), spaceScale: scale("--space-scale") };
+    return { text, muted, border, surface, palette, seq: [low, palette[0]], dark, font: cs.fontFamily, fontScale: scale("--font-scale"), inset: scale("--space-scale") * scale("--space-inset") };
   }
 
   // A font size in px that follows the theme's `font.scale`.
@@ -129,7 +129,7 @@
         backgroundColor: t.surface,
         borderColor: t.border,
         borderWidth: 1,
-        padding: [8 * t.spaceScale, 10 * t.spaceScale],
+        padding: [8 * t.inset, 10 * t.inset],
         textStyle: { color: t.text, fontSize: fs(12) },
         extraCssText: "border-radius:8px;box-shadow:0 4px 12px rgb(0 0 0 / 0.1);",
         axisPointer: {

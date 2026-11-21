@@ -60,7 +60,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("flex", "1 1 auto"),
             ("min-width", "0"),
             ("height", "100%"),
-            ("padding", sp!(0, 12)),
+            ("padding", pad!(0, 12)),
             ("border", "0"),
             ("outline", "none"),
             ("background", "transparent"),
@@ -72,11 +72,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ]),
     )
     .nest("& input::placeholder", pairs(&[("color", MUTED)]))
-    .nest("& [data-num-prefix] + input", pairs(&[("padding-inline-start", sp!(6))]))
-    .nest("& input:has(+ [data-num-suffix])", pairs(&[("padding-inline-end", sp!(6))]))
+    .nest("& [data-num-prefix] + input", pairs(&[("padding-inline-start", pad!(6))]))
+    .nest("& input:has(+ [data-num-suffix])", pairs(&[("padding-inline-end", pad!(6))]))
     .nest("& :is([data-num-prefix], [data-num-suffix])", pairs(&[("flex", "none"), ("color", MUTED), ("font-size", fs!(14)), ("white-space", "nowrap")]))
-    .nest("& [data-num-prefix]", pairs(&[("padding-inline-start", sp!(12))]))
-    .nest("& [data-num-suffix]", pairs(&[("padding-inline-end", sp!(12))]))
+    .nest("& [data-num-prefix]", pairs(&[("padding-inline-start", pad!(12))]))
+    .nest("& [data-num-suffix]", pairs(&[("padding-inline-end", pad!(12))]))
     .nest(
         "& [data-num-step]",
         pairs(&[

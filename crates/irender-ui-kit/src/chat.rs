@@ -106,7 +106,7 @@ const MESSAGE_PROPS: &[PropDef] = &[
 ];
 
 static MESSAGE_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "flex-start"), ("gap", sp!(12)), ("min-width", "0")])
+    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "flex-start"), ("gap", gap!(12)), ("min-width", "0")])
         .nest("&[data-role=user]", StyleBlock::from_pairs(&[("flex-direction", "row-reverse")]))
         .nest("&[data-role=system]", StyleBlock::from_pairs(&[("justify-content", "center")]))
         // A user's bubble, in the primary colour.
@@ -142,7 +142,7 @@ static MESSAGE_BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("flex-direction", "column"),
         ("align-items", "flex-start"),
-        ("gap", sp!(4)),
+        ("gap", gap!(4)),
         ("min-width", "0"),
         ("max-width", "min(80%, 640px)"),
     ])
@@ -155,13 +155,13 @@ static MESSAGE_UI: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& > [data-ui-note]", StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(12)), ("color", MUTED)]))
 });
 static MESSAGE_META: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "baseline"), ("gap", sp!(6)), ("font-size", fs!(12)), ("color", MUTED)])
+    StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "baseline"), ("gap", gap!(6)), ("font-size", fs!(12)), ("color", MUTED)])
         .nest("& > :first-child", StyleBlock::from_pairs(&[("font-weight", "500"), ("color", TEXT)]))
         .nest("& > :empty", StyleBlock::from_pairs(&[("display", "none")]))
 });
 static BUBBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
-        ("padding", sp!(8, 12)),
+        ("padding", pad!(8, 12)),
         ("border-radius", "var(--radius-lg)"),
         ("background", SECONDARY),
         ("color", ON_SECONDARY),
@@ -185,7 +185,7 @@ static THREAD: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& > summary",
             StyleBlock::from_pairs(&[
                 ("width", "fit-content"),
-                ("padding", sp!(2, 4)),
+                ("padding", pad!(2, 4)),
                 ("border-radius", "var(--radius-sm)"),
                 ("color", PRIMARY),
                 ("font-weight", "500"),
@@ -206,9 +206,9 @@ static REPLIES: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("gap", sp!(12)),
-        ("margin-top", sp!(8)),
-        ("padding-inline-start", sp!(12)),
+        ("gap", gap!(12)),
+        ("margin-top", gap!(8)),
+        ("padding-inline-start", pad!(12)),
         ("border-inline-start", "2px solid var(--color-border)"),
     ])
 });
@@ -355,7 +355,7 @@ const TYPING_PROPS: &[PropDef] =
 
 static TYPING: LazyLock<StyleBlock> = LazyLock::new(|| {
     let dot = |delay: &str| StyleBlock::from_pairs(&[("animation-delay", delay)]);
-    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(4)), ("height", "1.5em")])
+    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(4)), ("height", "1.5em")])
         .nest(
             "& > span",
             StyleBlock::from_pairs(&[
@@ -425,8 +425,8 @@ static LOG: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("min-height", "0"),
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("gap", sp!(16)),
-        ("padding", sp!(16)),
+        ("gap", gap!(16)),
+        ("padding", pad!(16)),
         ("overflow-y", "auto"),
         ("overscroll-behavior", "contain"),
         ("scrollbar-width", "thin"),
@@ -436,14 +436,14 @@ static LOG: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static MESSAGES: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "contents")]));
 static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "auto"), ("padding", sp!(24)), ("color", MUTED), ("font-size", fs!(14)), ("text-align", "center")])
+    StyleBlock::from_pairs(&[("margin", "auto"), ("padding", pad!(24)), ("color", MUTED), ("font-size", fs!(14)), ("text-align", "center")])
 });
 static LATEST: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("position", "absolute"),
         // Centred: the same either way.
         ("left", "50%"),
-        ("bottom", sp!(12)),
+        ("bottom", pad!(12)),
         ("transform", "translateX(-50%)"),
         ("display", "inline-flex"),
         ("align-items", "center"),
@@ -575,14 +575,14 @@ const CHAT_INPUT_PROPS: &[PropDef] = &[
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
 ];
 
-static CHAT_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", sp!(8)), ("margin", "0")]));
+static CHAT_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", gap!(8)), ("margin", "0")]));
 static SUGGESTIONS: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(8))])
+    StyleBlock::from_pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(8))])
         .nest("&[hidden]", StyleBlock::from_pairs(&[("display", "none")]))
         .nest(
             "& > button",
             StyleBlock::from_pairs(&[
-                ("padding", sp!(6, 12)),
+                ("padding", pad!(6, 12)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "999px"),
                 ("background", SURFACE),
@@ -599,8 +599,8 @@ static SUGGESTIONS: LazyLock<StyleBlock> = LazyLock::new(|| {
 static BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "grid"),
-        ("gap", sp!(8)),
-        ("padding", sp!(8)),
+        ("gap", gap!(8)),
+        ("padding", pad!(8)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("--ui-bg", BG_CARD),
@@ -620,9 +620,9 @@ static TEXTBOX: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("box-sizing", "border-box"),
         ("width", "100%"),
-        ("min-height", sp!(40)),
+        ("min-height", ctl!(40)),
         ("max-height", "200px"),
-        ("padding", sp!(4, 6)),
+        ("padding", pad!(4, 6)),
         ("border", "0"),
         ("outline", "none"),
         ("resize", "none"),
@@ -637,7 +637,7 @@ static TEXTBOX: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":disabled", StyleBlock::from_pairs(&[("cursor", "not-allowed"), ("opacity", "0.5")]))
 });
 static TOOLBAR: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(4))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(4))]));
 static SEND: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "inline-flex"),

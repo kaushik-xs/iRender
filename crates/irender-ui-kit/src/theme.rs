@@ -55,7 +55,7 @@ fn neutral(light: [&str; 10], dark: [&str; 10]) -> Json {
 }
 
 /// The theme options the kit offers: palettes after shadcn/ui's themes, corner radius,
-/// density, text size and font. `ui-theme-option` picks them; a document can add
+/// density, padding, gaps, control and icon sizes, text size and font. `ui-theme-option` picks them; a document can add
 /// choices or options of its own under `theme.options`.
 fn options() -> Json {
     let mut palette = json!({
@@ -110,6 +110,27 @@ fn options() -> Json {
             "compact": scale("Compact", "space.scale", 0.8),
             "default": scale("Default", "space.scale", 1.0),
             "comfortable": scale("Comfortable", "space.scale", 1.2),
+        } },
+        // Finer than density, and on top of it: one kind of spacing or size each.
+        "padding": { "label": "Padding", "default": "default", "choices": {
+            "tight": scale("Tight", "space.inset", 0.75),
+            "default": scale("Default", "space.inset", 1.0),
+            "roomy": scale("Roomy", "space.inset", 1.25),
+        } },
+        "gap": { "label": "Gaps", "default": "default", "choices": {
+            "tight": scale("Tight", "space.gap", 0.75),
+            "default": scale("Default", "space.gap", 1.0),
+            "roomy": scale("Roomy", "space.gap", 1.25),
+        } },
+        "control-size": { "label": "Control size", "default": "default", "choices": {
+            "small": scale("Small", "size.control", 0.889),
+            "default": scale("Default", "size.control", 1.0),
+            "large": scale("Large", "size.control", 1.111),
+        } },
+        "icon-size": { "label": "Icon size", "default": "default", "choices": {
+            "small": scale("Small", "size.icon", 0.875),
+            "default": scale("Default", "size.icon", 1.0),
+            "large": scale("Large", "size.icon", 1.25),
         } },
         "text-size": { "label": "Text size", "default": "default", "choices": {
             "small": scale("Small", "font.scale", 0.9),

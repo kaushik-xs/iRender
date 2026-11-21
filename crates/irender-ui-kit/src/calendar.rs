@@ -69,22 +69,22 @@ const TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--ui-bg, va
 /// attributes, because the behaviour draws it.
 fn calendar_style() -> StyleBlock {
     pairs(&[("color", TEXT), ("font-size", fs!(14))])
-        .nest("& [data-cal-wrap]", pairs(&[("display", "flex"), ("gap", sp!(12)), ("align-items", "flex-start")]))
+        .nest("& [data-cal-wrap]", pairs(&[("display", "flex"), ("gap", gap!(12)), ("align-items", "flex-start")]))
         .nest(
             "& [data-cal-presets]",
             pairs(&[
                 ("display", "flex"),
                 ("flex-direction", "column"),
-                ("gap", sp!(2)),
+                ("gap", gap!(2)),
                 ("min-width", sp!(132)),
-                ("padding-inline-end", sp!(12)),
+                ("padding-inline-end", pad!(12)),
                 ("border-inline-end", "1px solid var(--color-border)"),
             ]),
         )
         .nest(
             "& [data-cal-presets] button",
             pairs(&[
-                ("padding", sp!(6, 8)),
+                ("padding", pad!(6, 8)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "none"),
@@ -97,15 +97,15 @@ fn calendar_style() -> StyleBlock {
         )
         .nest("& [data-cal-presets] button:hover", pairs(&[("background", SUBTLE)]))
         .nest("& [data-cal-presets] button[aria-pressed=true]", pairs(&[("background", TINT), ("font-weight", "500")]))
-        .nest("& [data-cal-main]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8))]))
-        .nest("& [data-cal-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8))]))
-        .nest("& [data-cal-captions]", pairs(&[("display", "flex"), ("flex", "1"), ("justify-content", "space-around"), ("gap", sp!(24))]))
-        .nest("& [data-cal-caption]", pairs(&[("font-weight", "500"), ("display", "flex"), ("gap", sp!(4))]))
+        .nest("& [data-cal-main]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8))]))
+        .nest("& [data-cal-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8))]))
+        .nest("& [data-cal-captions]", pairs(&[("display", "flex"), ("flex", "1"), ("justify-content", "space-around"), ("gap", gap!(24))]))
+        .nest("& [data-cal-caption]", pairs(&[("font-weight", "500"), ("display", "flex"), ("gap", gap!(4))]))
         .nest(
             "& [data-cal-caption] select",
             pairs(&[
-                ("height", sp!(28)),
-                ("padding", sp!(0, 4)),
+                ("height", ctl!(28)),
+                ("padding", pad!(0, 4)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", SURFACE),
@@ -120,8 +120,8 @@ fn calendar_style() -> StyleBlock {
                 ("display", "inline-flex"),
                 ("align-items", "center"),
                 ("justify-content", "center"),
-                ("width", sp!(28)),
-                ("height", sp!(28)),
+                ("width", ctl!(28)),
+                ("height", ctl!(28)),
                 ("padding", "0"),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-sm)"),
@@ -132,18 +132,18 @@ fn calendar_style() -> StyleBlock {
         )
         .nest("& [data-cal-head] > button:hover", pairs(&[("background", SUBTLE)]))
         .nest("& [data-cal-head] > button:disabled", pairs(&[("opacity", "0.4"), ("cursor", "default")]))
-        .nest("& [data-cal-grids]", pairs(&[("display", "flex"), ("gap", sp!(24)), ("flex-wrap", "wrap")]))
-        .nest("& [data-cal-grids] table", pairs(&[("border-collapse", "separate"), ("border-spacing", sp!(0, 2))]))
+        .nest("& [data-cal-grids]", pairs(&[("display", "flex"), ("gap", gap!(24)), ("flex-wrap", "wrap")]))
+        .nest("& [data-cal-grids] table", pairs(&[("border-collapse", "separate"), ("border-spacing", gap!(0, 2))]))
         .nest(
             "& [data-cal-grids] th",
-            pairs(&[("width", sp!(36)), ("padding", sp!(0, 0, 4)), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "400")]),
+            pairs(&[("width", ctl!(36)), ("padding", pad!(0, 0, 4)), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "400")]),
         )
         .nest("& [data-cal-grids] td", pairs(&[("padding", "0"), ("text-align", "center")]))
         .nest(
             "& [data-cal-grids] td > button",
             pairs(&[
-                ("width", sp!(36)),
-                ("height", sp!(36)),
+                ("width", ctl!(36)),
+                ("height", ctl!(36)),
                 ("padding", "0"),
                 ("border", "0"),
                 ("border-radius", "var(--radius-md)"),
@@ -155,8 +155,8 @@ fn calendar_style() -> StyleBlock {
             ]),
         )
         // Months, quarters and years are wider cells.
-        .nest("&[data-picker=month] td > button, &[data-picker=year] td > button", pairs(&[("width", sp!(84))]))
-        .nest("&[data-picker=quarter] td > button", pairs(&[("width", sp!(64))]))
+        .nest("&[data-picker=month] td > button, &[data-picker=year] td > button", pairs(&[("width", ctl!(84))]))
+        .nest("&[data-picker=quarter] td > button", pairs(&[("width", ctl!(64))]))
         .nest("& [data-cal-grids] td > button:hover", pairs(&[("background", SUBTLE)]))
         .nest(
             "& [data-cal-grids] td > button:focus-visible",
@@ -178,13 +178,13 @@ fn calendar_style() -> StyleBlock {
             "& [data-cal-grids] td > button[aria-disabled=true]",
             pairs(&[("opacity", "0.35"), ("cursor", "not-allowed"), ("text-decoration", "line-through"), ("background", "transparent")]),
         )
-        .nest("& [data-cal-times]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(8, 16))]))
-        .nest("& [data-cal-time]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED)]))
+        .nest("& [data-cal-times]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(8, 16))]))
+        .nest("& [data-cal-time]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", MUTED)]))
         .nest(
             "& [data-cal-time] input",
             pairs(&[
-                ("height", sp!(32)),
-                ("padding", sp!(0, 8)),
+                ("height", ctl!(32)),
+                ("padding", pad!(0, 8)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -193,7 +193,7 @@ fn calendar_style() -> StyleBlock {
             ]),
         )
         .nest("& [data-cal-time] input:focus-visible", pairs(&[("outline", "none"), ("border-color", RING)]))
-        .nest("& [data-cal-foot]", pairs(&[("display", "flex"), ("justify-content", "space-between"), ("gap", sp!(8))]))
+        .nest("& [data-cal-foot]", pairs(&[("display", "flex"), ("justify-content", "space-between"), ("gap", gap!(8))]))
         .nest("& [data-cal-foot]:empty", pairs(&[("display", "none")]))
         .nest(
             "& [data-cal-clear]",
@@ -206,7 +206,7 @@ fn calendar_style() -> StyleBlock {
 }
 
 static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
-    calendar_style().set("display", "inline-block").set("width", "fit-content").set("position", "relative").set("padding", sp!(12)).set("border", "1px solid var(--color-border)").set("border-radius", "var(--radius-md)").set("--ui-bg", BG_CARD).set("background", BG_CARD)
+    calendar_style().set("display", "inline-block").set("width", "fit-content").set("position", "relative").set("padding", pad!(12)).set("border", "1px solid var(--color-border)").set("border-radius", "var(--radius-md)").set("--ui-bg", BG_CARD).set("background", BG_CARD)
 });
 
 static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -220,7 +220,7 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "& [data-cal-trigger]",
             // `min-width: 0`: a long value (a range with times) is cut short, not wider than its place.
-            pairs(&[("width", "100%"), ("min-width", "0"), ("justify-content", "flex-start"), ("font-weight", "400"), ("text-align", "start"), ("padding-inline-end", sp!(32))]),
+            pairs(&[("width", "100%"), ("min-width", "0"), ("justify-content", "flex-start"), ("font-weight", "400"), ("text-align", "start"), ("padding-inline-end", pad!(32))]),
         )
         .nest("& [data-cal-trigger] svg", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
         .nest("& [data-cal-text]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
@@ -229,7 +229,7 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-cal-x]",
             pairs(&[
                 ("position", "absolute"),
-                ("inset-inline-end", sp!(6)),
+                ("inset-inline-end", pad!(6)),
                 ("top", "50%"),
                 ("transform", "translateY(-50%)"),
                 ("display", "inline-flex"),
@@ -253,8 +253,8 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("inset", "auto"),
-                ("margin", concat!(sp!(6), " 0")),
-                ("padding", sp!(12)),
+                ("margin", concat!(gap!(6), " 0")),
+                ("padding", pad!(12)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("--ui-bg", BG_POPOVER),
@@ -273,7 +273,7 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("align-items", "center"),
         ("width", "100%"),
-        ("height", sp!(36)),
+        ("height", ctl!(36)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
@@ -294,7 +294,7 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("flex", "1"),
             ("min-width", "0"),
             ("height", "100%"),
-            ("padding", sp!(0, 12)),
+            ("padding", pad!(0, 12)),
             ("border", "0"),
             ("outline", "none"),
             ("background", "transparent"),
@@ -311,9 +311,9 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("display", "inline-flex"),
             ("align-items", "center"),
             ("justify-content", "center"),
-            ("width", sp!(32)),
-            ("height", sp!(28)),
-            ("margin-inline-end", sp!(3)),
+            ("width", ctl!(32)),
+            ("height", ctl!(28)),
+            ("margin-inline-end", gap!(3)),
             ("padding", "0"),
             ("border", "0"),
             ("border-radius", "var(--radius-sm)"),
@@ -326,7 +326,7 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [data-cal-trigger]:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))")]))
 });
 
-const ICON: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>"#;
+const ICON: &str = r#"<svg width="16" height="16" style="width:calc(16px * var(--size-icon, 1));height:calc(16px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>"#;
 
 /// A prop for the behaviour: templates that read state (anywhere inside) left for the
 /// browser as `{ "$irender": js }`, the rest evaluated now.

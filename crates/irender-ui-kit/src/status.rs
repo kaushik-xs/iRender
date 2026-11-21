@@ -114,9 +114,9 @@ static BADGE: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("--tone", MUTED),
             ("display", "inline-flex"),
             ("align-items", "center"),
-            ("gap", sp!(6)),
+            ("gap", gap!(6)),
             ("width", "fit-content"),
-            ("padding", sp!(2, 8)),
+            ("padding", pad!(2, 8)),
             ("border-radius", "999px"),
             ("background", "color-mix(in srgb, var(--tone) 12%, transparent)"),
             ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"),
@@ -353,8 +353,8 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("position", "relative"),
             ("display", "grid"),
             ("grid-template-columns", "28px minmax(0, 1fr)"),
-            ("column-gap", sp!(12)),
-            ("padding-bottom", sp!(18)),
+            ("column-gap", gap!(12)),
+            ("padding-bottom", pad!(18)),
         ])
         // The rail between entries.
         .nest("&::before", pairs(&[("content", "''"), ("position", "absolute"), ("inset-inline-start", "13.5px"), ("top", "30px"), ("bottom", "2px"), ("width", "1px"), ("background", BORDER)]))
@@ -379,23 +379,23 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-first]", pairs(&[("display", "block"), ("font-size", "0"), ("text-transform", "uppercase")]))
         .nest("& [data-first]::first-letter", pairs(&[("font-size", fs!(11))]))
         .nest("& [data-mark][data-dot]::after", pairs(&[("content", "''"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
-        .nest("& [data-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(6)), ("min-width", "0"), ("padding-top", sp!(4))]))
+        .nest("& [data-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(6)), ("min-width", "0"), ("padding-top", pad!(4))]))
         .nest("& [data-line]", pairs(&[("line-height", "1.45")]))
         .nest("& [data-line] b", pairs(&[("font-weight", "600")]))
-        .nest("& [data-line] time", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("margin-inline-start", sp!(6)), ("white-space", "nowrap")]))
-        .nest("& [data-changes]", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", sp!(4))]))
-        .nest("& [data-changes] li", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(6)), ("font-size", fs!(13))]))
+        .nest("& [data-line] time", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("margin-inline-start", gap!(6)), ("white-space", "nowrap")]))
+        .nest("& [data-changes]", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", gap!(4))]))
+        .nest("& [data-changes] li", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(6)), ("font-size", fs!(13))]))
         .nest("& [data-field]", pairs(&[("color", MUTED)]))
         .nest(
             "& :is([data-from], [data-to])",
-            pairs(&[("padding", sp!(1, 6)), ("border-radius", "var(--radius-sm)"), ("background", "color-mix(in srgb, var(--color-text) 6%, transparent)"), ("overflow-wrap", "anywhere")]),
+            pairs(&[("padding", pad!(1, 6)), ("border-radius", "var(--radius-sm)"), ("background", "color-mix(in srgb, var(--color-text) 6%, transparent)"), ("overflow-wrap", "anywhere")]),
         )
         .nest("& [data-from]", pairs(&[("color", MUTED), ("text-decoration", "line-through")]))
         .nest("& [data-from]:empty, & [data-to]:empty", pairs(&[("display", "none")]))
         .nest("& [data-arrow]", pairs(&[("color", MUTED)]))
         .nest(
             "& blockquote",
-            pairs(&[("margin", "0"), ("padding", sp!(8, 12)), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-md)"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]),
+            pairs(&[("margin", "0"), ("padding", pad!(8, 12)), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-md)"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]),
         ),
         "&",
     )

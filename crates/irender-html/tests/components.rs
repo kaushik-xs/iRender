@@ -69,7 +69,7 @@ fn stack_maps_props_to_flex_styles() {
         assert!(page.css.contains(decl), "missing `{decl}` in\n{}", page.css);
     }
     let page = render(json!({ "type": "stack", "props": { "gap": 12 } }));
-    assert!(page.css.contains("flex-direction: column;") && page.css.contains("gap: calc(12px * var(--space-scale, 1));"), "{}", page.css);
+    assert!(page.css.contains("flex-direction: column;") && page.css.contains("gap: calc(12px * var(--space-scale, 1) * var(--space-gap, 1));"), "{}", page.css);
 }
 
 #[test]

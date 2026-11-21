@@ -32,7 +32,7 @@ fn summary_rules(block: StyleBlock) -> StyleBlock {
                 ("display", "flex"),
                 ("align-items", "center"),
                 ("justify-content", "space-between"),
-                ("gap", sp!(16)),
+                ("gap", gap!(16)),
                 ("list-style", "none"),
                 ("cursor", "pointer"),
                 ("font-weight", "500"),
@@ -88,11 +88,11 @@ const ACCORDION_ITEM_PROPS: &[PropDef] = &[
 
 static ACCORDION_ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     summary_rules(StyleBlock::from_pairs(&[("border-bottom", "1px solid var(--color-border)")]))
-        .nest("& > summary", StyleBlock::from_pairs(&[("padding", sp!(16, 0)), ("font-size", fs!(14))]))
+        .nest("& > summary", StyleBlock::from_pairs(&[("padding", pad!(16, 0)), ("font-size", fs!(14))]))
         .nest("& > summary:hover", StyleBlock::from_pairs(&[("text-decoration", "underline")]))
 });
 static DISCLOSURE_CONTENT: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("padding-bottom", sp!(16)), ("font-size", fs!(14))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("padding-bottom", pad!(16)), ("font-size", fs!(14))]));
 
 /// `<details>` with a `<summary>` holding `title`, then the children.
 fn details(node: &Node, cx: &mut RenderCx<'_>, base: &'static StyleBlock, title: &Val, name: Option<Val>) -> Result<(), RenderError> {
@@ -144,10 +144,10 @@ static COLLAPSIBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     summary_rules(StyleBlock::new())
         .nest(
             "& > summary",
-            StyleBlock::from_pairs(&[("padding", sp!(8, 12)), ("border-radius", "var(--radius-md)"), ("font-size", fs!(14))]),
+            StyleBlock::from_pairs(&[("padding", pad!(8, 12)), ("border-radius", "var(--radius-md)"), ("font-size", fs!(14))]),
         )
         .nest("& > summary:hover", StyleBlock::from_pairs(&[("background", ACCENT)]))
-        .nest("& > div", StyleBlock::from_pairs(&[("padding", sp!(8, 12, 0))]))
+        .nest("& > div", StyleBlock::from_pairs(&[("padding", pad!(8, 12, 0))]))
 });
 
 impl Component for Collapsible {
@@ -178,14 +178,14 @@ const TAB_PANEL_PROPS: &[PropDef] = &[
 ];
 
 static TABS: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8))]));
 static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("gap", sp!(2)),
+        ("gap", gap!(2)),
         ("width", "fit-content"),
-        ("padding", sp!(3)),
+        ("padding", pad!(3)),
         ("border-radius", "var(--radius-lg)"),
         ("background", SUBTLE),
         ("color", MUTED),
@@ -196,8 +196,8 @@ static TAB: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("height", sp!(30)),
-        ("padding", sp!(0, 12)),
+        ("height", ctl!(30)),
+        ("padding", pad!(0, 12)),
         ("border", "1px solid transparent"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
@@ -334,7 +334,7 @@ static TOGGLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("gap", sp!(8)),
+        ("gap", gap!(8)),
         ("border", "1px solid transparent"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
@@ -359,13 +359,13 @@ static TOGGLE_VARIANT_STYLES: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
 });
 static TOGGLE_SIZE_STYLES: LazyLock<[StyleBlock; 3]> = LazyLock::new(|| {
     [
-        StyleBlock::from_pairs(&[("height", sp!(36)), ("min-width", sp!(36)), ("padding", sp!(0, 10))]),
-        StyleBlock::from_pairs(&[("height", sp!(32)), ("min-width", sp!(32)), ("padding", sp!(0, 8))]),
-        StyleBlock::from_pairs(&[("height", sp!(40)), ("min-width", sp!(40)), ("padding", sp!(0, 12))]),
+        StyleBlock::from_pairs(&[("height", ctl!(36)), ("min-width", ctl!(36)), ("padding", pad!(0, 10))]),
+        StyleBlock::from_pairs(&[("height", ctl!(32)), ("min-width", ctl!(32)), ("padding", pad!(0, 8))]),
+        StyleBlock::from_pairs(&[("height", ctl!(40)), ("min-width", ctl!(40)), ("padding", pad!(0, 12))]),
     ]
 });
 static TOGGLE_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(4)), ("width", "fit-content")])
+    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(4)), ("width", "fit-content")])
 });
 
 impl Component for Toggle {
@@ -678,14 +678,14 @@ const BACKGROUND_COLORS: [CustomColor; 6] = [
 ];
 
 static COLORS_HEADING: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("margin-top", sp!(8)), ("color", MUTED), ("font-size", fs!(13))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("margin-top", gap!(8)), ("color", MUTED), ("font-size", fs!(13))]));
 static COLORS_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "grid"), ("grid-template-columns", "1fr auto 7.5em"), ("align-items", "center"), ("gap", sp!(8)), ("font-size", fs!(14))])
+    StyleBlock::from_pairs(&[("display", "grid"), ("grid-template-columns", "1fr auto 7.5em"), ("align-items", "center"), ("gap", gap!(8)), ("font-size", fs!(14))])
 });
 static COLOR_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
-        ("width", sp!(32)),
-        ("height", sp!(32)),
+        ("width", ctl!(32)),
+        ("height", ctl!(32)),
         ("padding", "2px"),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
@@ -697,8 +697,8 @@ static HEX_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("box-sizing", "border-box"),
         ("width", "100%"),
-        ("height", sp!(32)),
-        ("padding", sp!(0, 8)),
+        ("height", ctl!(32)),
+        ("padding", pad!(0, 8)),
         ("border", "1px solid var(--color-border)"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
@@ -825,8 +825,8 @@ const THEME_PANEL_PROPS: &[PropDef] = &[
     PropDef::new("mode", PropKind::Bool, "Show the light / dark mode too (default true)"),
 ];
 
-static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(16))]));
-static PANEL_ROW: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8))]));
+static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(16))]));
+static PANEL_ROW: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8))]));
 static PANEL_LABEL: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("font-size", fs!(14)), ("font-weight", "500"), ("line-height", "1")]));
 

@@ -91,9 +91,9 @@ static GRID: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", sp!(8)),
+                ("gap", gap!(8)),
                 ("min-height", "40px"),
-                ("padding", sp!(8, 16)),
+                ("padding", pad!(8, 16)),
                 ("box-sizing", "border-box"),
                 ("user-select", "none"),
                 ("touch-action", "none"),
@@ -107,9 +107,9 @@ static GRID: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dg-head] [data-dg-grip]", pairs(&[("flex", "none"), ("display", "grid"), ("color", MUTED), ("opacity", ".6")]))
         .nest(
             "& [data-dg-body]",
-            pairs(&[("flex", "1"), ("min-height", "0"), ("display", "flex"), ("flex-direction", "column"), ("gap", sp!(12)), ("padding", sp!(0, 16, 16)), ("overflow", "auto")]),
+            pairs(&[("flex", "1"), ("min-height", "0"), ("display", "flex"), ("flex-direction", "column"), ("gap", gap!(12)), ("padding", pad!(0, 16, 16)), ("overflow", "auto")]),
         )
-        .nest("& [data-dg-tile]:not(:has(> [data-dg-head])) > [data-dg-body]", pairs(&[("padding", sp!(16))]))
+        .nest("& [data-dg-tile]:not(:has(> [data-dg-head])) > [data-dg-body]", pairs(&[("padding", pad!(16))]))
         // A tile with no title is dragged by a grip in its corner, shown on hover and focus.
         .nest(
             "& [data-dg-grip-only]",

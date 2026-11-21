@@ -110,8 +110,14 @@ impl Default for Theme {
             ("radius.md", "8px"),
             ("radius.lg", "12px"),
             // Spacing and font sizes follow `space.scale` and `font.scale`, which a
-            // density or text size option sets.
+            // density or text size option sets. Components scale paddings further by
+            // `space.inset`, gaps and margins by `space.gap`, the heights of controls,
+            // rows and cells by `size.control` and icons by `size.icon`.
             ("space.scale", "1"),
+            ("space.inset", "1"),
+            ("space.gap", "1"),
+            ("size.control", "1"),
+            ("size.icon", "1"),
             ("space.xs", "calc(4px * var(--space-scale, 1))"),
             ("space.sm", "calc(8px * var(--space-scale, 1))"),
             ("space.md", "calc(16px * var(--space-scale, 1))"),

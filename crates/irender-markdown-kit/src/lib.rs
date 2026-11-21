@@ -48,6 +48,24 @@ macro_rules! sp {
         concat!("calc(", $n, "px * var(--space-scale, 1))")
     };
 }
+/// A padding: also `space.inset`.
+macro_rules! pad {
+    ($n:literal) => {
+        concat!("calc(", $n, "px * var(--space-scale, 1) * var(--space-inset, 1))")
+    };
+}
+/// A gap: also `space.gap`.
+macro_rules! gap {
+    ($n:literal) => {
+        concat!("calc(", $n, "px * var(--space-scale, 1) * var(--space-gap, 1))")
+    };
+}
+/// A control's height or width: also `size.control`.
+macro_rules! ctl {
+    ($n:literal) => {
+        concat!("calc(", $n, "px * var(--space-scale, 1) * var(--size-control, 1))")
+    };
+}
 /// A font size that follows the theme's `font.scale`.
 macro_rules! fs {
     ($n:literal) => {
@@ -93,7 +111,7 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "& pre",
-            pairs(&[("padding", sp!(12)), ("overflow-x", "auto"), ("border-radius", "var(--radius-md, 8px)"), ("background", SUBTLE)]),
+            pairs(&[("padding", pad!(12)), ("overflow-x", "auto"), ("border-radius", "var(--radius-md, 8px)"), ("background", SUBTLE)]),
         )
         .nest("& pre code", pairs(&[("padding", "0"), ("background", "none"), ("font-size", "0.85em"), ("overflow-wrap", "normal")]))
         // A code fence, once highlighted: a box with a copy button in its corner, shown on
@@ -210,7 +228,7 @@ const EDITOR_PROPS: &[PropDef] = &[
 ];
 
 /// The toolbar: command, its name, what it shows, and its shortcut.
-// Labels (looked up where they're used): "Heading", "Bold", "Italic", "Strikethrough", "Quote", "Code", "Link", "Bulleted list", "Numbered list", "Task list"
+// Labels (looked up where they're used): "Heading", "Bold", "Italic", "Strikethrough", "Quote", "Code", "Link", "Bulleted list", "Numbered list", "Task list", "Table", "Image", "Horizontal rule"
 const TOOLS: &[(&str, &str, &str, &str)] = &[
     ("heading", "Heading", "H", ""),
     ("bold", "Bold", "B", "⌘B"),
@@ -224,6 +242,10 @@ const TOOLS: &[(&str, &str, &str, &str)] = &[
     ("bullets", "Bulleted list", "•", ""),
     ("numbers", "Numbered list", "1.", ""),
     ("tasks", "Task list", "☑", ""),
+    ("|", "", "", ""),
+    ("table", "Table", "▦", ""),
+    ("image", "Image", "🖼", ""),
+    ("rule", "Horizontal rule", "―", ""),
 ];
 
 static EDITOR_ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -250,8 +272,8 @@ static BAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("flex-wrap", "wrap"),
         ("align-items", "center"),
-        ("gap", sp!(2)),
-        ("padding", sp!(4)),
+        ("gap", gap!(2)),
+        ("padding", pad!(4)),
         ("border-bottom", "1px solid var(--color-border, #e4e4e7)"),
         ("background", SUBTLE),
     ])
@@ -261,8 +283,8 @@ static TOOL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("min-width", sp!(28)),
-        ("height", sp!(28)),
+        ("min-width", ctl!(28)),
+        ("height", ctl!(28)),
         ("padding", "0 6px"),
         ("border", "0"),
         ("border-radius", "var(--radius-sm, 4px)"),
@@ -285,7 +307,7 @@ static TOOL: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static SEP: LazyLock<StyleBlock> =
     LazyLock::new(|| pairs(&[("width", "1px"), ("height", sp!(16)), ("margin", "0 4px"), ("background", BORDER)]));
-static TABS: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("display", "flex"), ("gap", sp!(2)), ("margin-inline-start", "auto")]));
+static TABS: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("display", "flex"), ("gap", gap!(2)), ("margin-inline-start", "auto")]));
 static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
     // Fills the editor, so a taller editor gets a taller text area.
     pairs(&[("display", "grid"), ("flex", "1"), ("min-height", "0")])
@@ -310,8 +332,8 @@ static LINKBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", sp!(4)),
-        ("padding", sp!(4)),
+        ("gap", gap!(4)),
+        ("padding", pad!(4)),
         ("border-bottom", "1px solid var(--color-border, #e4e4e7)"),
     ])
     .nest("&[hidden]", pairs(&[("display", "none")]))
@@ -320,7 +342,7 @@ static LINKBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         pairs(&[
             ("flex", "1"),
             ("min-width", "0"),
-            ("height", sp!(28)),
+            ("height", ctl!(28)),
             ("padding", "0 8px"),
             ("border", "1px solid var(--color-border, #e4e4e7)"),
             ("border-radius", "var(--radius-sm, 4px)"),
@@ -337,7 +359,7 @@ static AREA: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "100%"),
         ("height", "100%"),
         ("min-height", sp!(160)),
-        ("padding", sp!(12)),
+        ("padding", pad!(12)),
         ("border", "0"),
         ("outline", "none"),
         ("resize", "vertical"),
@@ -350,13 +372,13 @@ static AREA: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("::placeholder", pairs(&[("color", MUTED)]))
 });
-static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("min-height", sp!(160)), ("padding", sp!(12)), ("overflow", "auto")]));
+static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("min-height", sp!(160)), ("padding", pad!(12)), ("overflow", "auto")]));
 static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| pairs(&[("color", MUTED)]));
 static FOOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("justify-content", "space-between"),
-        ("gap", sp!(8)),
+        ("gap", gap!(8)),
         ("padding", "4px 10px"),
         ("border-top", "1px solid var(--color-border, #e4e4e7)"),
         ("color", MUTED),
@@ -477,6 +499,24 @@ impl Component for MarkdownEditor {
             for (act, label) in [("apply", "Apply"), ("remove", "Remove link"), ("cancel", "Cancel")] {
                 let mut b = Element::new("button");
                 b.base_style_ref(&TOOL).attr("type", "button").attr("data-md-link", act).text(Val::Lit(json!(cx.label(label))));
+                cx.open(&b, node)?;
+                cx.close("button");
+            }
+            cx.close("div");
+            // Where an image's address and description are typed.
+            let mut bar = Element::new("div");
+            bar.base_style_ref(&LINKBAR).attr("data-md-imagebar", true).attr("hidden", true);
+            cx.open(&bar, node)?;
+            let mut url = Element::new("input");
+            url.attr("type", "url").attr("data-md-image-src", true).attr("aria-label", cx.label("Image address")).attr("placeholder", cx.label("Paste or type the image's address"));
+            cx.open(&url, node)?;
+            let mut alt = Element::new("input");
+            alt.attr("type", "text").attr("data-md-image-alt", true).attr("aria-label", cx.label("Image description")).attr("placeholder", cx.label("Describe the image"));
+            cx.open(&alt, node)?;
+            // Labels: "Insert", "Cancel"
+            for (act, label) in [("insert", "Insert"), ("cancel", "Cancel")] {
+                let mut b = Element::new("button");
+                b.base_style_ref(&TOOL).attr("type", "button").attr("data-md-image", act).text(Val::Lit(json!(cx.label(label))));
                 cx.open(&b, node)?;
                 cx.close("button");
             }

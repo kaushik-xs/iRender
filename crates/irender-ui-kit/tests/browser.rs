@@ -1411,6 +1411,53 @@ fn theme_options_apply_and_persist_in_chrome() {
     );
 }
 
+/// Padding, gaps, control size and icon size each scale one kind of size, on top of
+/// density, here on part of the page.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn padding_gap_control_and_icon_sizes_scale_their_own_in_chrome() {
+    let probes = |p: &str| serde_json::json!([
+        { "type": "ui-button", "props": { "label": "Probe" }, "attrs": { "id": format!("{p}-button") } },
+        { "type": "stack", "props": { "direction": "row", "gap": 10 }, "attrs": { "id": format!("{p}-stack") },
+          "children": [ { "type": "text", "props": { "value": "a" } }, { "type": "text", "props": { "value": "b" } } ] },
+        { "type": "ui-date-picker", "attrs": { "id": format!("{p}-date") } } ]);
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "stack", "children": [
+            { "type": "stack", "children": probes("page") },
+            { "type": "stack", "attrs": { "data-theme-padding": "roomy", "data-theme-gap": "roomy", "data-theme-control-size": "large", "data-theme-icon-size": "large" },
+              "children": probes("part") } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const $ = (id) => document.getElementById(id);
+      const line = (p) => [
+        Math.round($(`${p}-button`).getBoundingClientRect().height),
+        getComputedStyle($(`${p}-button`)).paddingLeft,
+        getComputedStyle($(`${p}-stack`)).columnGap,
+        Math.round($(`${p}-date`).querySelector("svg").getBoundingClientRect().width * 10) / 10,
+      ].join(" ");
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = `${line("page")}\n${line("part")}`;
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = html.replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("split-scales", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "36 16px 10px 16",
+            // 40px controls, 1.25 × padding and gaps, 1.25 × icons.
+            "40 20px 12.5px 20",
+        ],
+        "\n{result}"
+    );
+}
+
 /// The switch scales whole with density: its knob keeps a 1px gap all round, off and on.
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]

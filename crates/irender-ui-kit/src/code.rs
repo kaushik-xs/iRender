@@ -66,7 +66,7 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
     ]))
     .nest(
         "& [data-code-head]",
-        pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-height", "36px"), ("padding-block", sp!(0, 0)), ("padding-inline", sp!(14, 6)), ("border-bottom", "1px solid var(--color-border)"), ("font-size", fs!(13)), ("color", MUTED)]),
+        pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-height", "36px"), ("padding-block", pad!(0, 0)), ("padding-inline", pad!(14, 6)), ("border-bottom", "1px solid var(--color-border)"), ("font-size", fs!(13)), ("color", MUTED)]),
     )
     .nest("& [data-code-title]", pairs(&[("color", TEXT), ("font-weight", "500"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
     .nest("& [data-code-lang]", pairs(&[("margin-inline-start", "auto"), ("font-family", FONT), ("font-size", fs!(12)), ("text-transform", "lowercase")]))
@@ -96,7 +96,7 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
         "& pre",
         pairs(&[
             ("margin", "0"),
-            ("padding", sp!(12, 0)),
+            ("padding", pad!(12, 0)),
             ("overflow", "auto"),
             ("max-height", "var(--code-max, none)"),
             ("font-family", FONT),
@@ -109,7 +109,7 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& pre:focus-visible", forms::focus_ring().set("outline-offset", "-2px"))
     .nest("& code", pairs(&[("display", "block"), ("min-width", "max-content"), ("font", "inherit")]))
     .nest("&[data-wrap] code", pairs(&[("min-width", "0"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]))
-    .nest("& [data-ln]", pairs(&[("display", "block"), ("padding", sp!(0, 16)), ("min-height", "1.6em")]))
+    .nest("& [data-ln]", pairs(&[("display", "block"), ("padding", pad!(0, 16)), ("min-height", "1.6em")]))
     .nest("& [data-ln][data-hl]", pairs(&[("background", "color-mix(in srgb, var(--color-primary, #2563eb) 10%, transparent)"), ("box-shadow", "inset 2px 0 var(--color-primary, #2563eb)")]))
     .nest("&:dir(rtl) [data-ln][data-hl]", pairs(&[("box-shadow", "inset -2px 0 var(--color-primary, #2563eb)")]))
     .nest("&[data-numbered] [data-ln]", pairs(&[("padding-inline-start", "0"), ("counter-increment", "ln")]))
@@ -119,8 +119,8 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("content", "counter(ln) / \"\""),
             ("display", "inline-block"),
             ("width", "var(--code-gutter, 3ch)"),
-            ("margin-inline-end", sp!(16)),
-            ("padding-inline-start", sp!(12)),
+            ("margin-inline-end", gap!(16)),
+            ("padding-inline-start", pad!(12)),
             ("text-align", "end"),
             ("color", MUTED),
             ("opacity", ".7"),
@@ -140,16 +140,16 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-invalid]", pairs(&[("border-color", "var(--color-destructive, #dc2626)")]))
         .nest(
             "& [data-je-bar]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-height", "34px"), ("padding-block", sp!(0, 0)), ("padding-inline", sp!(12, 6)), ("border-bottom", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("font-size", fs!(12)), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-height", "34px"), ("padding-block", pad!(0, 0)), ("padding-inline", pad!(12, 6)), ("border-bottom", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("font-size", fs!(12)), ("color", MUTED)]),
         )
-        .nest("& [data-je-status]", pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(6))]))
+        .nest("& [data-je-status]", pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(6))]))
         .nest("& [data-je-status]::before", pairs(&[("content", "''"), ("width", "7px"), ("height", "7px"), ("border-radius", "50%"), ("background", "var(--color-success, #16a34a)")]))
         .nest("&[data-invalid] [data-je-status]::before", pairs(&[("background", "var(--color-destructive, #dc2626)")]))
         .nest("& [data-je-format]", pairs(&[("margin-inline-start", "auto")]))
         .nest("& [data-je-area]", pairs(&[("position", "relative"), ("display", "flex"), ("min-height", "0"), ("font-family", FONT), ("font-size", fs!(13)), ("line-height", "20px")]))
         .nest(
             "& [data-je-gutter-box]",
-            pairs(&[("flex", "0 0 auto"), ("min-width", "3ch"), ("padding-block", sp!(10, 10)), ("padding-inline", sp!(12, 10)), ("overflow", "hidden"), ("border-inline-end", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("color", MUTED), ("text-align", "end"), ("user-select", "none")]),
+            pairs(&[("flex", "0 0 auto"), ("min-width", "3ch"), ("padding-block", pad!(10, 10)), ("padding-inline", pad!(12, 10)), ("overflow", "hidden"), ("border-inline-end", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("color", MUTED), ("text-align", "end"), ("user-select", "none")]),
         )
         .nest("& [data-je-gutter] span", pairs(&[("display", "block"), ("opacity", ".7")]))
         .nest("& [data-je-gutter] span[data-err]", pairs(&[("opacity", "1"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "700")]))
@@ -161,7 +161,7 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("grid-area", "1 / 1"),
                 ("box-sizing", "border-box"),
                 ("margin", "0"),
-                ("padding", sp!(10, 12)),
+                ("padding", pad!(10, 12)),
                 ("border", "0"),
                 ("font", "inherit"),
                 ("line-height", "inherit"),
@@ -186,13 +186,13 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& textarea::placeholder", pairs(&[("color", MUTED)]))
         .nest(
             "& [data-je-error]",
-            pairs(&[("margin", "0"), ("padding", sp!(6, 12)), ("border-top", "1px solid color-mix(in srgb, var(--color-destructive, #dc2626) 35%, transparent)"), ("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 7%, var(--color-surface, #fff))"), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(12))]),
+            pairs(&[("margin", "0"), ("padding", pad!(6, 12)), ("border-top", "1px solid color-mix(in srgb, var(--color-destructive, #dc2626) 35%, transparent)"), ("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 7%, var(--color-surface, #fff))"), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(12))]),
         )
         .nest("& [data-je-error]:empty", pairs(&[("display", "none")]))
         .nest("& [data-je-hint]", pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]))
 });
 
-const COPY: &str = r#"<svg data-idle width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/></svg><svg data-done width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>"#;
+const COPY: &str = r#"<svg data-idle width="15" height="15" style="width:calc(15px * var(--size-icon, 1));height:calc(15px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/></svg><svg data-done width="15" height="15" style="width:calc(15px * var(--size-icon, 1));height:calc(15px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5"/></svg>"#;
 
 /// The code as text: strings as they are, anything else as JSON, two spaces an indent.
 fn as_text(v: &Json) -> String {

@@ -183,8 +183,8 @@ fn button_variants_sizes_and_links() {
             r#"<a href="/next" aria-disabled="true">Go</a><button type="button">nonsense</button></div>"#
         )
     );
-    // Sizes follow the theme's `space.scale` (density).
-    for decl in ["background: var(--color-destructive, #dc2626);", "height: calc(32px * var(--space-scale, 1));", "height: calc(36px * var(--space-scale, 1));"] {
+    // Sizes follow the theme's `space.scale` (density) and `size.control`.
+    for decl in ["background: var(--color-destructive, #dc2626);", "height: calc(32px * var(--space-scale, 1) * var(--size-control, 1));", "height: calc(36px * var(--space-scale, 1) * var(--size-control, 1));"] {
         assert!(page.css.contains(decl), "missing `{decl}`");
     }
 }
@@ -616,7 +616,7 @@ fn theme_option_lists_its_choices_with_swatches() {
     // The kit's options are in the theme CSS, each with its dark colours.
     assert!(page.css.contains(r#":root[data-theme-palette="rose"], [data-theme-palette="rose"] {"#) && page.css.contains(r#":root[data-theme-density="compact"], [data-theme-density="compact"] {"#));
     let err = render_with(json!({ "type": "ui-theme-option", "props": { "option": "nope" } }), json!({}), json!({})).unwrap_err();
-    assert!(err.message.contains("`nope` is not a theme option (options: `palette`, `radius`, `density`, `text-size`, `font`)"), "{err}");
+    assert!(err.message.contains("`nope` is not a theme option (options: `palette`, `radius`, `density`, `padding`, `gap`, `control-size`, `icon-size`, `text-size`, `font`)"), "{err}");
 }
 
 #[test]
@@ -626,7 +626,7 @@ fn theme_panel_has_a_picker_per_option_and_the_mode() {
     let labels: Vec<&str> = body.split(r#"<div aria-hidden="true">"#).skip(1).map(|r| &r[..r.find('<').unwrap()]).collect();
     // The palette first and chart colours (not registered here) last.
     // Custom colours come with the palette, which has a `custom` choice.
-    assert_eq!(labels, ["Colour", "Custom colours", "Radius", "Density", "Text size", "Font", "Mode"], "{body}");
+    assert_eq!(labels, ["Colour", "Custom colours", "Radius", "Density", "Padding", "Gaps", "Control size", "Icon size", "Text size", "Font", "Mode"], "{body}");
     assert!(body.contains(r#"data-i-xc="{&quot;option&quot;:&quot;palette&quot;"#) && body.contains(r#"data-i-x="ui-theme-toggle""#), "{body}");
     let some = plain(&render(json!({ "type": "ui-theme-panel", "props": { "options": ["radius"], "mode": false } })));
     assert_eq!(some.matches("data-i-x=").count(), 1, "{some}");

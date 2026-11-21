@@ -60,7 +60,7 @@ pub(crate) fn bytes(v: &Json) -> Option<f64> {
 }
 
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(12)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(12)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
         .nest("& [hidden]", pairs(&[("display", "none")]))
         // The drop zone: a label around the file input, so a click or Enter opens the picker.
         .nest(
@@ -71,8 +71,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("flex-direction", "column"),
                 ("align-items", "center"),
                 ("justify-content", "center"),
-                ("gap", sp!(6)),
-                ("padding", sp!(24, 16)),
+                ("gap", gap!(6)),
+                ("padding", pad!(24, 16)),
                 ("border", "1.5px dashed var(--color-border)"),
                 ("border-radius", "var(--radius-lg)"),
                 ("text-align", "center"),
@@ -90,8 +90,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-up-zone] svg", pairs(&[("color", MUTED)]))
         .nest("& [data-up-label]", pairs(&[("font-weight", "500")]))
         .nest("& [data-up-hint]", pairs(&[("color", MUTED), ("font-size", fs!(13))]))
-        .nest("& [data-up-errors]", pairs(&[("margin", "0"), ("padding-inline-start", sp!(18)), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(13))]))
-        .nest("& [data-up-bar]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(13))]))
+        .nest("& [data-up-errors]", pairs(&[("margin", "0"), ("padding-inline-start", pad!(18)), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(13))]))
+        .nest("& [data-up-bar]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", MUTED), ("font-size", fs!(13))]))
         .nest("& [data-up-bar] > :first-child", pairs(&[("margin-inline-end", "auto")]))
         .nest("& [data-up-empty]", pairs(&[("margin", "0"), ("color", MUTED)]))
         .nest(
@@ -105,7 +105,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
 static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
     let kind = |c: &str| pairs(&[("color", c)]);
     pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none")])
-        .nest("&[data-view=grid]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(auto-fill, minmax(150px, 1fr))"), ("gap", sp!(12))]))
+        .nest("&[data-view=grid]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(auto-fill, minmax(150px, 1fr))"), ("gap", gap!(12))]))
         .nest("&[data-view=list]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)")]))
         .nest("& [data-up-file]", pairs(&[("position", "relative"), ("min-width", "0")]))
         .nest(
@@ -114,7 +114,7 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "&[data-view=list] [data-up-file]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(12)), ("padding", sp!(8, 12)), ("border-top", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(12)), ("padding", pad!(8, 12)), ("border-top", "1px solid var(--color-border)")]),
         )
         .nest("&[data-view=list] [data-up-file]:first-child", pairs(&[("border-top", "0")]))
         // The part that opens the preview: the thumbnail and name.
@@ -134,7 +134,7 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-up-open]:focus-visible", forms::focus_ring().set("outline-offset", "-2px"))
         .nest("&[data-view=grid] [data-up-open]", pairs(&[("flex-direction", "column"), ("width", "100%")]))
-        .nest("&[data-view=list] [data-up-open]", pairs(&[("flex", "1 1 auto"), ("align-items", "center"), ("gap", sp!(12))]))
+        .nest("&[data-view=list] [data-up-open]", pairs(&[("flex", "1 1 auto"), ("align-items", "center"), ("gap", gap!(12))]))
         .nest(
             "& [data-up-thumb]",
             pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("flex", "none"), ("background", "color-mix(in srgb, var(--color-text) 4%, transparent)"), ("overflow", "hidden")]),
@@ -151,7 +151,7 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kind=archive] [data-ext]", kind("#d97706"))
         .nest("& :is([data-kind=text], [data-kind=other]) [data-ext]", kind(MUTED))
         .nest("& [data-up-meta]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0")]))
-        .nest("&[data-view=grid] [data-up-meta]", pairs(&[("padding", sp!(8, 10))]))
+        .nest("&[data-view=grid] [data-up-meta]", pairs(&[("padding", pad!(8, 10))]))
         .nest("& [data-up-name]", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-weight", "500")]))
         .nest("& [data-up-size]", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]))
         .nest("& [data-up-error]", pairs(&[("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(12))]))
@@ -162,8 +162,8 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& progress::-webkit-progress-bar", pairs(&[("background", "transparent")]))
         .nest("& progress::-webkit-progress-value", pairs(&[("background", PRIMARY), ("border-radius", "999px")]))
         .nest("& progress::-moz-progress-bar", pairs(&[("background", PRIMARY), ("border-radius", "999px")]))
-        .nest("& [data-up-actions]", pairs(&[("display", "flex"), ("gap", sp!(2)), ("flex", "none")]))
-        .nest("&[data-view=grid] [data-up-actions]", pairs(&[("position", "absolute"), ("top", sp!(6)), ("inset-inline-end", sp!(6))]))
+        .nest("& [data-up-actions]", pairs(&[("display", "flex"), ("gap", gap!(2)), ("flex", "none")]))
+        .nest("&[data-view=grid] [data-up-actions]", pairs(&[("position", "absolute"), ("top", pad!(6)), ("inset-inline-end", pad!(6))]))
         .nest(
             "& [data-up-actions] button",
             pairs(&[
@@ -197,7 +197,7 @@ static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[open]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "0")]))
         .nest(
             "& [data-up-head]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding-block", sp!(14, 14)), ("padding-inline", sp!(20, 56)), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding-block", pad!(14, 14)), ("padding-inline", pad!(20, 56)), ("border-bottom", "1px solid var(--color-border)")]),
         )
         .nest("& [data-up-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-size", fs!(16)), ("font-weight", "600")]))
         .nest("& [data-up-count]", pairs(&[("color", MUTED), ("font-size", fs!(13)), ("white-space", "nowrap")]))
@@ -207,18 +207,18 @@ static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-up-body] img", pairs(&[("max-width", "100%"), ("max-height", "100%"), ("object-fit", "contain")]))
         .nest("& [data-up-body] iframe", pairs(&[("width", "100%"), ("height", "100%"), ("border", "0"), ("background", "#fff")]))
-        .nest("& [data-up-body] pre", pairs(&[("align-self", "stretch"), ("width", "100%"), ("margin", "0"), ("padding", sp!(16)), ("box-sizing", "border-box"), ("white-space", "pre-wrap"), ("font-size", fs!(13))]))
+        .nest("& [data-up-body] pre", pairs(&[("align-self", "stretch"), ("width", "100%"), ("margin", "0"), ("padding", pad!(16)), ("box-sizing", "border-box"), ("white-space", "pre-wrap"), ("font-size", fs!(13))]))
         .nest("& [data-up-body] [data-up-sheet]", pairs(&[("align-self", "stretch"), ("width", "100%"), ("overflow", "auto")]))
         .nest("& [data-up-body] table", pairs(&[("border-collapse", "collapse"), ("font-size", fs!(13)), ("background", "var(--color-surface, #fff)")]))
-        .nest("& [data-up-body] :is(th, td)", pairs(&[("padding", sp!(4, 10)), ("border", "1px solid var(--color-border)"), ("white-space", "nowrap"), ("text-align", "start")]))
+        .nest("& [data-up-body] :is(th, td)", pairs(&[("padding", pad!(4, 10)), ("border", "1px solid var(--color-border)"), ("white-space", "nowrap"), ("text-align", "start")]))
         .nest("& [data-up-body] th", pairs(&[("position", "sticky"), ("top", "0"), ("background", ACCENT), ("color", MUTED), ("font-weight", "500")]))
-        .nest("& [data-up-body] [data-up-none]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", sp!(12)), ("color", MUTED)]))
-        .nest("& [data-up-body] [data-up-note]", pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("padding", sp!(8, 12)), ("color", MUTED), ("font-size", fs!(12))]))
+        .nest("& [data-up-body] [data-up-none]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", gap!(12)), ("color", MUTED)]))
+        .nest("& [data-up-body] [data-up-note]", pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("padding", pad!(8, 12)), ("color", MUTED), ("font-size", fs!(12))]))
 });
 
 // Decorative: the zone and buttons around them are labelled.
-const UPLOAD: &str = r#"<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>"#;
-const DOWNLOAD: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
+const UPLOAD: &str = r#"<svg width="28" height="28" style="width:calc(28px * var(--size-icon, 1));height:calc(28px * var(--size-icon, 1))" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></svg>"#;
+const DOWNLOAD: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
 
 impl Component for FileUpload {
     fn name(&self) -> &'static str {

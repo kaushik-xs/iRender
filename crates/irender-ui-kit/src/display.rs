@@ -77,9 +77,9 @@ static BADGE: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
             ("unicode-bidi", "plaintext"),
             ("display", "inline-flex"),
             ("align-items", "center"),
-            ("gap", sp!(6)),
+            ("gap", gap!(6)),
             ("width", "fit-content"),
-            ("padding", sp!(2, 10)),
+            ("padding", pad!(2, 10)),
             ("border", border),
             ("border-radius", "999px"),
             ("font-size", fs!(12)),
@@ -175,8 +175,8 @@ static CARD: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("display", "flex"),
             ("flex-direction", "column"),
-            ("gap", sp!(16)),
-            ("padding", sp!(24)),
+            ("gap", gap!(16)),
+            ("padding", pad!(24)),
             ("border", border),
             ("border-radius", "var(--radius-lg)"),
             ("--ui-bg", bg),
@@ -212,7 +212,7 @@ static CARD: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
     ]
 });
 static CARD_HEADER: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "grid"), ("column-gap", sp!(14)), ("row-gap", sp!(6)), ("align-items", "center")])
+    StyleBlock::from_pairs(&[("display", "grid"), ("column-gap", gap!(14)), ("row-gap", gap!(6)), ("align-items", "center")])
         // With an icon: the icon on the left, beside both lines.
         .nest("&:has(> [data-icon])", StyleBlock::from_pairs(&[("grid-template-columns", "auto 1fr")]))
         .nest("& > :not([data-icon])", StyleBlock::from_pairs(&[("grid-column", "-2")]))
@@ -304,9 +304,9 @@ static CARD_FOOTER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "flex"),
         ("align-items", "center"),
         ("justify-content", "flex-end"),
-        ("gap", sp!(8)),
+        ("gap", gap!(8)),
         ("margin-top", "auto"),
-        ("padding-top", sp!(8)),
+        ("padding-top", pad!(8)),
     ])
 });
 
@@ -357,10 +357,10 @@ static ALERT: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
                 ("position", "relative"),
                 ("display", "grid"),
                 ("grid-template-columns", "auto 1fr"),
-                ("column-gap", sp!(12)),
-                ("row-gap", sp!(4)),
+                ("column-gap", gap!(12)),
+                ("row-gap", gap!(4)),
                 ("align-items", "start"),
-                ("padding", sp!(14, 16)),
+                ("padding", pad!(14, 16)),
                 ("border", &format!("1px solid color-mix(in srgb, var(--tone) {edge}, var(--color-border))")),
                 ("border-inline-start", "3px solid var(--tone)"),
                 ("border-radius", "var(--radius-lg)"),
@@ -374,7 +374,7 @@ static ALERT: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
             // children always sit in the last column.
             .nest("&:not(:has(> [data-icon]))", StyleBlock::from_pairs(&[("grid-template-columns", "1fr")]))
             .nest("& > :not([data-icon], [data-dismiss])", StyleBlock::from_pairs(&[("grid-column", "-2")]))
-            .nest("&[data-dismissible]", StyleBlock::from_pairs(&[("padding-inline-end", sp!(40))]))
+            .nest("&[data-dismissible]", StyleBlock::from_pairs(&[("padding-inline-end", pad!(40))]))
             .nest("&[hidden]", StyleBlock::from_pairs(&[("display", "none")]))
         })
         .collect()
@@ -568,7 +568,7 @@ static SEPARATOR_LABELLED: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", sp!(12)),
+        ("gap", gap!(12)),
         ("width", "100%"),
         ("font-size", fs!(14)),
         ("color", MUTED),
@@ -673,7 +673,7 @@ static KBD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("unicode-bidi", "isolate"),
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("padding", sp!(1, 6)),
+        ("padding", pad!(1, 6)),
         ("border", "1px solid var(--color-border)"),
         ("border-bottom-width", "2px"),
         ("border-radius", "var(--radius-sm)"),
@@ -815,12 +815,12 @@ static TABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("font-size", fs!(14)),
         ("color", TEXT),
     ])
-    .nest("& caption", StyleBlock::from_pairs(&[("margin-top", sp!(16)), ("color", MUTED)]))
+    .nest("& caption", StyleBlock::from_pairs(&[("margin-top", gap!(16)), ("color", MUTED)]))
     .nest(
         "& th",
         StyleBlock::from_pairs(&[
-            ("height", sp!(40)),
-            ("padding", sp!(0, 8)),
+            ("height", ctl!(40)),
+            ("padding", pad!(0, 8)),
             ("text-align", "start"),
             ("vertical-align", "middle"),
             ("font-weight", "500"),
@@ -830,7 +830,7 @@ static TABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     )
     .nest(
         "& td",
-        StyleBlock::from_pairs(&[("padding", sp!(8)), ("vertical-align", "middle"), ("border-bottom", "1px solid var(--color-border)")]),
+        StyleBlock::from_pairs(&[("padding", pad!(8)), ("vertical-align", "middle"), ("border-bottom", "1px solid var(--color-border)")]),
     )
     .nest("& tbody tr:last-child td", StyleBlock::from_pairs(&[("border-bottom", "0")]))
     .nest("& tbody tr:hover", StyleBlock::from_pairs(&[("background", SUBTLE)]))
@@ -896,7 +896,7 @@ static HEADINGS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
     };
     [
         base("36px", "800"),
-        base("30px", "600").set("padding-bottom", sp!(8)).set("border-bottom", "1px solid var(--color-border)"),
+        base("30px", "600").set("padding-bottom", pad!(8)).set("border-bottom", "1px solid var(--color-border)"),
         base("24px", "600"),
         base("20px", "600"),
     ]
@@ -938,14 +938,14 @@ static TEXTS: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
         base(&[("font-size", fs!(14)), ("font-weight", "500"), ("line-height", "1")]),
         base(&[("font-size", fs!(14)), ("color", MUTED)]),
         base(&[
-            ("padding", sp!(2, 5)),
+            ("padding", pad!(2, 5)),
             ("border-radius", "var(--radius-sm)"),
             ("background", SUBTLE),
             ("font-family", MONO),
             ("font-size", "0.875em"),
             ("font-weight", "600"),
         ]),
-        base(&[("padding-inline-start", sp!(24)), ("border-inline-start", "2px solid var(--color-border)"), ("font-style", "italic")]),
+        base(&[("padding-inline-start", pad!(24)), ("border-inline-start", "2px solid var(--color-border)"), ("font-style", "italic")]),
     ]
 });
 const TEXT_TAGS: [&str; 7] = ["p", "p", "div", "small", "p", "code", "blockquote"];
@@ -1030,8 +1030,8 @@ static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-direction", "column"),
         ("align-items", "center"),
         ("justify-content", "center"),
-        ("gap", sp!(12)),
-        ("padding", sp!(48, 24)),
+        ("gap", gap!(12)),
+        ("padding", pad!(48, 24)),
         ("border", "1px dashed var(--color-border)"),
         ("border-radius", "var(--radius-lg)"),
         ("color", TEXT),
@@ -1044,7 +1044,7 @@ static EMPTY_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("align-items", "center"),
         ("justify-content", "center"),
         ("width", "40px"),
-        ("height", sp!(40)),
+        ("height", ctl!(40)),
         ("border-radius", "var(--radius-md)"),
         ("background", SUBTLE),
         ("font-size", fs!(20)),

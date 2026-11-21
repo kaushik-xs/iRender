@@ -841,7 +841,7 @@ static NODE_BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
 static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("min-width", "120px"),
-        ("padding", "calc(10px * var(--space-scale, 1)) calc(14px * var(--space-scale, 1))"),
+        ("padding", "calc(10px * var(--space-scale, 1) * var(--space-inset, 1)) calc(14px * var(--space-scale, 1) * var(--space-inset, 1))"),
         ("border", &format!("1px solid {BORDER}")),
         ("border-radius", "var(--radius-md, 8px)"),
         ("background", SURFACE),
@@ -858,7 +858,7 @@ static SHAPED_CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("min-width", "100px"),
         ("min-height", "56px"),
-        ("padding", "calc(12px * var(--space-scale, 1)) calc(18px * var(--space-scale, 1))"),
+        ("padding", "calc(12px * var(--space-scale, 1) * var(--space-inset, 1)) calc(18px * var(--space-scale, 1) * var(--space-inset, 1))"),
         ("display", "grid"),
         ("place-items", "center"),
         ("text-align", "center"),
@@ -970,7 +970,7 @@ static LABEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("pointer-events", "auto"),
         ("font-size", "calc(11px * var(--font-scale, 1))"),
         ("line-height", "1.3"),
-        ("padding", "calc(2px * var(--space-scale, 1)) calc(6px * var(--space-scale, 1))"),
+        ("padding", "calc(2px * var(--space-scale, 1) * var(--space-inset, 1)) calc(6px * var(--space-scale, 1) * var(--space-inset, 1))"),
         ("border-radius", "4px"),
         ("background", SURFACE),
         ("color", MUTED),

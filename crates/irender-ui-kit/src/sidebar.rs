@@ -98,7 +98,7 @@ static MAIN: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Inset: the main area is a raised panel next to the sidebar.
         .nest(
             "[data-variant=inset] > &",
-            pairs(&[("margin", sp!(8)), ("border-radius", "var(--radius-lg)"), ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)")]),
+            pairs(&[("margin", gap!(8)), ("border-radius", "var(--radius-lg)"), ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)")]),
         )
         .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=left] > &", pairs(&[("margin-inline-start", "0")])))
         .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=right] > &", pairs(&[("margin-inline-end", "0")])))
@@ -197,7 +197,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("[data-side=left]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-end", "1px solid var(--color-border)")]))
     .nest("[data-side=right]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-start", "1px solid var(--color-border)")]))
-    .nest("[data-variant=floating] > &", pairs(&[("padding", sp!(8)), ("background", "transparent")]))
+    .nest("[data-variant=floating] > &", pairs(&[("padding", pad!(8)), ("background", "transparent")]))
     // As specific as the border rules above, and after them, so it takes the border too.
     .nest(WIDE, wide("[data-collapsible=offcanvas][data-state=collapsed][data-side] > &", pairs(&[("width", "0"), ("border", "0"), ("padding", "0")])))
     .nest(WIDE, wide(format!("{ICONS} > &"), pairs(&[("width", "var(--sidebar-width-icon)"), ("overflow", "visible")])))
@@ -281,14 +281,14 @@ pub struct SidebarFooter;
 pub struct SidebarContent;
 
 static HEADER: LazyLock<StyleBlock> =
-    LazyLock::new(|| pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("padding", sp!(8))]));
+    LazyLock::new(|| pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("padding", pad!(8))]));
 static CONTENT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("flex-direction", "column"),
         ("flex", "1"),
         ("min-height", "0"),
-        ("gap", sp!(8)),
+        ("gap", gap!(8)),
         ("overflow-y", "auto"),
         ("overflow-x", "hidden"),
         ("scrollbar-width", "thin"),
@@ -342,23 +342,23 @@ pub struct SidebarGroup;
 const GROUP_PROPS: &[PropDef] = &[PropDef::new("label", PropKind::Any, "The group's heading, e.g. `Platform`")];
 
 static GROUP: LazyLock<StyleBlock> =
-    LazyLock::new(|| pairs(&[("display", "flex"), ("flex-direction", "column"), ("min-width", "0"), ("padding", sp!(8))]));
+    LazyLock::new(|| pairs(&[("display", "flex"), ("flex-direction", "column"), ("min-width", "0"), ("padding", pad!(8))]));
 static GROUP_LABEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("height", sp!(32)),
-        ("padding", sp!(0, 8)),
+        ("height", ctl!(32)),
+        ("padding", pad!(0, 8)),
         ("font-size", fs!(12)),
         ("font-weight", "500"),
         ("color", "color-mix(in srgb, var(--color-text) 70%, transparent)"),
         ("white-space", "nowrap"),
         ("transition", "margin .2s, opacity .2s"),
     ])
-    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("margin-top", sp!(-32)), ("opacity", "0")])))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("margin-top", gap!(-32)), ("opacity", "0")])))
 });
 static MENU: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(4)), ("min-width", "0"), ("margin", "0"), ("padding", "0"), ("list-style", "none")])
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(4)), ("min-width", "0"), ("margin", "0"), ("padding", "0"), ("list-style", "none")])
 });
 
 impl Component for SidebarGroup {
@@ -430,11 +430,11 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("align-items", "center"),
-        ("gap", sp!(8)),
+        ("gap", gap!(8)),
         ("box-sizing", "border-box"),
         ("width", "100%"),
-        ("min-height", sp!(32)),
-        ("padding", sp!(6, 8)),
+        ("min-height", ctl!(32)),
+        ("padding", pad!(6, 8)),
         ("border", "0"),
         ("border-radius", "var(--radius-md)"),
         ("background", "transparent"),
@@ -452,10 +452,10 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":hover", pairs(&[("background", ACCENT)]))
     .nest(":focus-visible", pairs(&[("outline", "2px solid"), ("outline-color", RING), ("outline-offset", "-2px")]))
     .nest("&[aria-current=page]", pairs(&[("background", ACCENT), ("font-weight", "500")]))
-    .nest("& [data-icon]", pairs(&[("display", "inline-flex"), ("width", "16px"), ("justify-content", "center"), ("flex-shrink", "0")]))
+    .nest("& [data-icon]", pairs(&[("display", "inline-flex"), ("width", "calc(16px * var(--size-icon, 1))"), ("justify-content", "center"), ("flex-shrink", "0")]))
     // Collapsed to icons: a square button with the icon alone; the label stays for
     // screen readers.
-    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("width", "32px"), ("padding", sp!(8))])))
+    .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("width", "32px"), ("padding", pad!(8))])))
     // Its label beside it on hover or focus. `/ ""` keeps the copy out of what screen
     // readers hear: they read the hidden label already.
     .nest(WIDE, wide(format!("{ICONS} &::after"), pairs(&[
@@ -464,7 +464,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("inset-inline-start", "calc(100% + 8px)"),
         ("top", "50%"),
         ("z-index", "20"),
-        ("padding", sp!(4, 8)),
+        ("padding", pad!(4, 8)),
         ("border-radius", "var(--radius-sm)"),
         ("background", TEXT),
         ("color", SURFACE),
@@ -482,9 +482,23 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(WIDE, wide(format!("{ICONS} & > [data-badge], {ICONS} & > [data-chevron]"), pairs(&[("display", "none")])))
 });
 static LABEL: LazyLock<StyleBlock> =
-    LazyLock::new(|| pairs(&[("flex", "1"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis")]));
-static BADGE: LazyLock<StyleBlock> =
-    LazyLock::new(|| pairs(&[("margin-inline-start", "auto"), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums"), ("color", MUTED)]));
+    LazyLock::new(|| pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis")]));
+/// When the row is short of room the badge gives way first (an email beside a name),
+/// cut short with an ellipsis. Shrinking is shared by factor times width, so the
+/// factor is large enough to leave the label well under a pixel of it.
+static BADGE: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[
+        ("flex", "0 10000 auto"),
+        ("min-width", "0"),
+        ("margin-inline-start", "auto"),
+        ("overflow", "hidden"),
+        ("text-overflow", "ellipsis"),
+        ("white-space", "nowrap"),
+        ("font-size", fs!(12)),
+        ("font-variant-numeric", "tabular-nums"),
+        ("color", MUTED),
+    ])
+});
 static CHEVRON: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "inline-flex"), ("margin-inline-start", "auto"), ("color", MUTED), ("transition", "transform .2s")])
         .nest("details[open] > summary > &", pairs(&[("transform", "rotate(90deg)")]))
@@ -495,19 +509,19 @@ static SUB: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("gap", sp!(4)),
-        ("margin-block", sp!(4, 0)), ("margin-inline", sp!(14, 0)),
-        ("padding-block", sp!(2, 2)), ("padding-inline", sp!(10, 0)),
+        ("gap", gap!(4)),
+        ("margin-block", gap!(4, 0)), ("margin-inline", gap!(14, 0)),
+        ("padding-block", pad!(2, 2)), ("padding-inline", pad!(10, 0)),
         ("border-inline-start", "1px solid var(--color-border)"),
         ("list-style", "none"),
     ])
     .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("display", "none")])))
 });
 static SUB_ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("min-height", sp!(28)), ("padding", sp!(4, 8)), ("color", "color-mix(in srgb, var(--color-text) 85%, transparent)")])
+    pairs(&[("min-height", ctl!(28)), ("padding", pad!(4, 8)), ("color", "color-mix(in srgb, var(--color-text) 85%, transparent)")])
 });
 
-const CHEVRON_SVG: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const CHEVRON_SVG: &str = r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 
 impl Component for SidebarItem {
     fn name(&self) -> &'static str {
@@ -626,8 +640,8 @@ const ACTION_PROPS: &[PropDef] = &[
 /// An item's row holds its actions over its end.
 static ITEM_ROW: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("position", "relative"), ("list-style", "none")])
-        .nest("&:has(> [data-sidebar-action]) > [data-sidebar-item], &:has(> [data-sidebar-action]) > details > [data-sidebar-item]", pairs(&[("padding-inline-end", sp!(32))]))
-        .nest("&:has(> [data-sidebar-action]) > details > [data-sidebar-item] > [data-chevron]", pairs(&[("margin-inline-end", sp!(-4))]))
+        .nest("&:has(> [data-sidebar-action]) > [data-sidebar-item], &:has(> [data-sidebar-action]) > details > [data-sidebar-item]", pairs(&[("padding-inline-end", pad!(32))]))
+        .nest("&:has(> [data-sidebar-action]) > details > [data-sidebar-item] > [data-chevron]", pairs(&[("margin-inline-end", gap!(-4))]))
 });
 static ACTION: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
@@ -635,8 +649,8 @@ static ACTION: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("align-items", "center"),
         ("justify-content", "center"),
         ("flex-shrink", "0"),
-        ("width", sp!(20)),
-        ("height", sp!(20)),
+        ("width", ctl!(20)),
+        ("height", ctl!(20)),
         ("margin-inline-start", "auto"),
         ("padding", "0"),
         ("border", "0"),
@@ -650,14 +664,14 @@ static ACTION: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":hover", pairs(&[("background", ACCENT)]))
     .nest(":focus-visible", pairs(&[("outline", "2px solid"), ("outline-color", RING), ("outline-offset", "-2px")]))
     // On an item: over the end of its first row.
-    .nest("li > &", pairs(&[("position", "absolute"), ("top", sp!(6)), ("inset-inline-end", sp!(6))]))
+    .nest("li > &", pairs(&[("position", "absolute"), ("top", pad!(6)), ("inset-inline-end", pad!(6))]))
     .nest("li > &[data-hover]", pairs(&[("opacity", "0")]))
     // Shown on hover, or with focus in the row (its menu included).
     .nest("li:hover > &[data-hover], li:focus-within > &[data-hover]", pairs(&[("opacity", "1")]))
     .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("display", "none")])))
 });
 
-const DOTS_SVG: &str = r#"<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="12.5" cy="8" r="1.25"/></svg>"#;
+const DOTS_SVG: &str = r#"<svg width="16" height="16" style="width:calc(16px * var(--size-icon, 1));height:calc(16px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.25"/><circle cx="8" cy="8" r="1.25"/><circle cx="12.5" cy="8" r="1.25"/></svg>"#;
 
 impl Component for SidebarAction {
     fn name(&self) -> &'static str {
@@ -723,7 +737,7 @@ static TRIGGER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("justify-content", "center"),
         ("flex-shrink", "0"),
         ("width", "28px"),
-        ("height", sp!(28)),
+        ("height", ctl!(28)),
         ("padding", "0"),
         ("border", "0"),
         ("border-radius", "var(--radius-md)"),
@@ -735,7 +749,7 @@ static TRIGGER: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest(":focus-visible", pairs(&[("outline", "2px solid"), ("outline-color", RING), ("outline-offset", "2px")]))
 });
 
-const PANEL_SVG: &str = r#"<svg data-flip width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11"/></svg>"#;
+const PANEL_SVG: &str = r#"<svg data-flip width="16" height="16" style="width:calc(16px * var(--size-icon, 1));height:calc(16px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6 2.5v11"/></svg>"#;
 
 impl Component for SidebarTrigger {
     fn name(&self) -> &'static str {

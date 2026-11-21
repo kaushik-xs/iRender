@@ -27,7 +27,7 @@ static REGION: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "min(360px, calc(100% - 32px))"),
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("gap", sp!(8)),
+        ("gap", gap!(8)),
     ])
 });
 const TOAST_IN: &str = "@keyframes ui-toast-in {\n  from { opacity: 0; transform: translateY(8px) scale(0.98); }\n}";
@@ -42,10 +42,10 @@ static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("overflow", "hidden"),
         ("display", "grid"),
         ("grid-template-columns", "1fr"),
-        ("column-gap", sp!(12)),
-        ("row-gap", sp!(2)),
+        ("column-gap", gap!(12)),
+        ("row-gap", gap!(2)),
         ("align-items", "start"),
-        ("padding-block", sp!(14, 14)), ("padding-inline", sp!(16, 40)),
+        ("padding-block", pad!(14, 14)), ("padding-inline", pad!(16, 40)),
         ("border", "1px solid color-mix(in srgb, var(--tone) var(--tint), var(--color-border))"),
         ("border-radius", "var(--radius-lg)"),
         ("--ui-bg", &format!("color-mix(in srgb, var(--tone) var(--wash), {BG_POPOVER})")),
@@ -104,7 +104,7 @@ static CLOSE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("top", "12px"),
         ("inset-inline-end", "10px"),
         ("width", "24px"),
-        ("height", sp!(24)),
+        ("height", ctl!(24)),
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("justify-content", "center"),

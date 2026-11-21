@@ -158,9 +158,9 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 const TINT: &str = "color-mix(in srgb, var(--color-primary) 8%, transparent)";
 
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(12)), ("min-width", "0"), ("font-size", fs!(14)), ("color", TEXT)])
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(12)), ("min-width", "0"), ("font-size", fs!(14)), ("color", TEXT)])
         // Toolbar: search, filters, reset, then the document's own controls and View.
-        .nest("& [data-dt-toolbar]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8))]))
+        .nest("& [data-dt-toolbar]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(8))]))
         // Buttons set their own `display`, which would show them while `hidden`.
         .nest("& button[hidden]", pairs(&[("display", "none")]))
         .nest("& [data-dt-spacer]", pairs(&[("flex", "1"), ("min-width", "0")]))
@@ -168,8 +168,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& input[type=search], & [data-dt-pop] input",
             pairs(&[
                 ("box-sizing", "border-box"),
-                ("height", sp!(32)),
-                ("padding", sp!(0, 10)),
+                ("height", ctl!(32)),
+                ("padding", pad!(0, 10)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -192,7 +192,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "& [data-dt-chip]",
             pairs(&[
-                ("padding", sp!(2, 6)),
+                ("padding", pad!(2, 6)),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", SUBTLE),
                 ("font-size", fs!(12)),
@@ -202,7 +202,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-chips]:empty", pairs(&[("display", "none")]))
         .nest(
             "& [data-dt-chips]",
-            pairs(&[("display", "inline-flex"), ("gap", sp!(4)), ("padding-inline-start", sp!(8)), ("border-inline-start", "1px solid var(--color-border)")]),
+            pairs(&[("display", "inline-flex"), ("gap", gap!(4)), ("padding-inline-start", pad!(8)), ("border-inline-start", "1px solid var(--color-border)")]),
         )
         // Popovers: a filter's control, or the View menu's columns.
         .nest(
@@ -210,11 +210,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("inset", "auto"),
-                ("margin", concat!(sp!(6), " 0")),
+                ("margin", concat!(gap!(6), " 0")),
                 ("min-width", sp!(200)),
                 ("max-height", "min(360px, 70vh)"),
                 ("overflow-y", "auto"),
-                ("padding", sp!(4)),
+                ("padding", pad!(4)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("--ui-bg", BG_POPOVER),
@@ -227,14 +227,14 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ])
             .nest("&:dir(rtl)", pairs(&[("position-area", "bottom span-left")])),
         )
-        .nest("& [data-dt-pop]:popover-open", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(2))]))
+        .nest("& [data-dt-pop]:popover-open", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(2))]))
         .nest(
             "& [data-dt-pop] label",
             pairs(&[
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", sp!(8)),
-                ("padding", sp!(6, 8)),
+                ("gap", gap!(8)),
+                ("padding", pad!(6, 8)),
                 ("border-radius", "var(--radius-sm)"),
                 ("cursor", "pointer"),
                 ("user-select", "none"),
@@ -243,13 +243,13 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-pop] label:hover", pairs(&[("background", SUBTLE)]))
         .nest(
             "& [data-dt-pop] button[data-dt-open-all]",
-            pairs(&[("padding", sp!(6, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", "inherit"), ("font", "inherit"), ("text-align", "start"), ("cursor", "pointer")]),
+            pairs(&[("padding", pad!(6, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", "inherit"), ("font", "inherit"), ("text-align", "start"), ("cursor", "pointer")]),
         )
         .nest("& [data-dt-pop] button[data-dt-open-all]:hover", pairs(&[("background", SUBTLE)]))
-        .nest("& [data-dt-option] [data-dt-n]", pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", sp!(16)), ("color", MUTED), ("font-size", fs!(12))]))
+        .nest("& [data-dt-option] [data-dt-n]", pairs(&[("margin-inline-start", "auto"), ("padding-inline-start", pad!(16)), ("color", MUTED), ("font-size", fs!(12))]))
         .nest(
             "& [data-dt-fields]",
-            pairs(&[("display", "grid"), ("grid-template-columns", "auto 1fr"), ("align-items", "center"), ("gap", sp!(6, 8)), ("padding", sp!(8))]),
+            pairs(&[("display", "grid"), ("grid-template-columns", "auto 1fr"), ("align-items", "center"), ("gap", gap!(6, 8)), ("padding", pad!(8))]),
         )
         .nest("& [data-dt-fields] label", pairs(&[("padding", "0"), ("color", MUTED), ("font-size", fs!(12))]))
         .nest("& [data-dt-fields] label:hover", pairs(&[("background", "none")]))
@@ -257,8 +257,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "& [data-dt-pop] [data-dt-clear]",
             pairs(&[
-                ("margin-top", sp!(2)),
-                ("padding", sp!(6, 8)),
+                ("margin-top", gap!(2)),
+                ("padding", pad!(6, 8)),
                 ("border", "0"),
                 ("border-top", "1px solid var(--color-border)"),
                 ("border-radius", "0"),
@@ -270,11 +270,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-dt-pop] [data-dt-clear]:hover", pairs(&[("background", SUBTLE)]))
-        .nest("& [data-dt-pop-title]", pairs(&[("padding", sp!(6, 8)), ("font-size", fs!(12)), ("font-weight", "600"), ("color", MUTED)]))
-        .nest("& [data-dt-none]", pairs(&[("padding", sp!(8)), ("color", MUTED), ("text-align", "center")]))
+        .nest("& [data-dt-pop-title]", pairs(&[("padding", pad!(6, 8)), ("font-size", fs!(12)), ("font-weight", "600"), ("color", MUTED)]))
+        .nest("& [data-dt-none]", pairs(&[("padding", pad!(8)), ("color", MUTED), ("text-align", "center")]))
         // The Views menu: a row per view, its name to pick it, and rename and delete.
         .nest("& [data-dt-views]", pairs(&[("min-width", sp!(240))]))
-        .nest("& [data-dt-view]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(2)), ("border-radius", "var(--radius-sm)")]))
+        .nest("& [data-dt-view]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(2)), ("border-radius", "var(--radius-sm)")]))
         .nest("& [data-dt-view]:hover", pairs(&[("background", SUBTLE)]))
         .nest(
             "& :is([data-dt-view] button, [data-dt-view-actions] button)",
@@ -282,7 +282,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "& [data-dt-view-pick]",
-            pairs(&[("flex", "1"), ("min-width", "0"), ("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(6, 8)), ("text-align", "start"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]),
+            pairs(&[("flex", "1"), ("min-width", "0"), ("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(6, 8)), ("text-align", "start"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]),
         )
         .nest("& [data-dt-view-pick] [data-dt-tick]", pairs(&[("flex", "none"), ("width", "14px"), ("display", "grid")]))
         .nest("& [data-dt-view-pick][aria-current=true]", pairs(&[("font-weight", "600")]))
@@ -291,11 +291,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-view] :focus-visible, & [data-dt-view-actions] :focus-visible", forms::focus_ring())
         .nest(
             "& [data-dt-view-actions]",
-            pairs(&[("display", "flex"), ("flex-direction", "column"), ("margin-top", sp!(2)), ("padding-top", sp!(2)), ("border-top", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("flex-direction", "column"), ("margin-top", gap!(2)), ("padding-top", pad!(2)), ("border-top", "1px solid var(--color-border)")]),
         )
-        .nest("& [data-dt-view-actions] button", pairs(&[("padding", sp!(6, 8)), ("text-align", "start")]))
+        .nest("& [data-dt-view-actions] button", pairs(&[("padding", pad!(6, 8)), ("text-align", "start")]))
         .nest("& [data-dt-view-actions] button:hover", pairs(&[("background", SUBTLE)]))
-        .nest("& [data-dt-view-name]", pairs(&[("margin", sp!(4)), ("min-width", "0")]))
+        .nest("& [data-dt-view-name]", pairs(&[("margin", gap!(4)), ("min-width", "0")]))
         .nest("& [data-dt-views-edited]", pairs(&[("color", MUTED), ("font-weight", "400")]))
         // Bulk actions, shown while rows are selected.
         .nest(
@@ -304,8 +304,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("display", "flex"),
                 ("flex-wrap", "wrap"),
                 ("align-items", "center"),
-                ("gap", sp!(8)),
-                ("padding-block", sp!(6, 6)), ("padding-inline", sp!(12, 8)),
+                ("gap", gap!(8)),
+                ("padding-block", pad!(6, 6)), ("padding-inline", pad!(12, 8)),
                 ("border", "1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border))"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", TINT),
@@ -327,7 +327,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-dt-link][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-dt-bulk-actions]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(8)), ("margin-inline-start", "auto")]))
+        .nest("& [data-dt-bulk-actions]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(8)), ("margin-inline-start", "auto")]))
         // The table.
         .nest(
             "& [data-dt-scroll]",
@@ -349,8 +349,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("position", "sticky"),
                 ("top", "0"),
                 ("z-index", "1"),
-                ("height", sp!(40)),
-                ("padding", sp!(0, 8)),
+                ("height", ctl!(40)),
+                ("padding", pad!(0, 8)),
                 ("background", "color-mix(in srgb, var(--color-text) 3%, var(--ui-bg, var(--color-background, var(--color-surface))))"),
                 ("color", MUTED),
                 ("font-weight", "500"),
@@ -361,11 +361,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest(
             "& td",
-            pairs(&[("padding", sp!(8)), ("vertical-align", "middle"), ("white-space", "nowrap"), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("padding", pad!(8)), ("vertical-align", "middle"), ("white-space", "nowrap"), ("border-bottom", "1px solid var(--color-border)")]),
         )
         .nest("& [data-dt-detail] > td, & [data-dt-empty] > td", pairs(&[("white-space", "normal")]))
         // Bands over groups of columns, and the column row under them.
-        .nest("& [data-dt-bands] > th", pairs(&[("height", sp!(30)), ("text-align", "center"), ("color", TEXT), ("font-size", fs!(12)), ("font-weight", "600")]))
+        .nest("& [data-dt-bands] > th", pairs(&[("height", ctl!(30)), ("text-align", "center"), ("color", TEXT), ("font-size", fs!(12)), ("font-weight", "600")]))
         .nest("& [data-dt-bands] > th[data-dt-band]:not([data-dt-band=''])", pairs(&[("box-shadow", "inset 1px 0 var(--color-border), inset -1px 0 var(--color-border)")]))
         .nest("& thead > tr:not([data-dt-bands]) > th", pairs(&[("top", "var(--dt-band-h, 0px)")]))
         // Resizing and moving columns.
@@ -392,18 +392,18 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         // After a group's rows, the button that loads the next batch.
         .nest(
             "& [data-dt-load-group]",
-            pairs(&[("padding", sp!(2, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer"), ("white-space", "nowrap")]),
+            pairs(&[("padding", pad!(2, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer"), ("white-space", "nowrap")]),
         )
         .nest("& [data-dt-load-group]:hover", pairs(&[("background", SUBTLE), ("text-decoration", "underline")]))
         .nest("& [data-dt-load-group]:disabled", pairs(&[("color", MUTED), ("cursor", "progress"), ("text-decoration", "none")]))
-        .nest("& [data-dt-more-row] > td", pairs(&[("padding-block", sp!(4))]))
+        .nest("& [data-dt-more-row] > td", pairs(&[("padding-block", pad!(4))]))
         // Its other cells are a row template's with no row: empty, and kept so.
         .nest("& [data-dt-more-row] > td:not([data-dt-tree]) > *", pairs(&[("visibility", "hidden")]))
         .nest("& [data-dt-group-row]", pairs(&[("cursor", "pointer")]))
-        .nest("& [data-dt-group] > td", pairs(&[("padding", sp!(6, 8)), ("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
+        .nest("& [data-dt-group] > td", pairs(&[("padding", pad!(6, 8)), ("background", "color-mix(in srgb, var(--color-text) 4%, var(--ui-bg, var(--color-surface)))"), ("font-weight", "600")]))
         .nest(
             "& [data-dt-fold]",
-            pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(6)), ("padding-block", sp!(2, 2)), ("padding-inline", sp!(2, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", TEXT), ("font", "inherit"), ("cursor", "pointer")]),
+            pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(6)), ("padding-block", pad!(2, 2)), ("padding-inline", pad!(2, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", TEXT), ("font", "inherit"), ("cursor", "pointer")]),
         )
         .nest("& [data-dt-fold]:hover", pairs(&[("background", "color-mix(in srgb, var(--color-text) 7%, transparent)")]))
         .nest("& [data-dt-fold]:focus-visible", forms::focus_ring())
@@ -411,9 +411,9 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-fold][aria-expanded=true] [data-dt-chevron]", pairs(&[("transform", "rotate(90deg)")]))
         .nest(
             "& [data-dt-group-count]",
-            pairs(&[("min-width", "20px"), ("padding", sp!(0, 6)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "500"), ("text-align", "center")]),
+            pairs(&[("min-width", "20px"), ("padding", pad!(0, 6)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "500"), ("text-align", "center")]),
         )
-        .nest("& [data-dt-group-title]", pairs(&[("margin-top", sp!(6)), ("padding-top", sp!(8)), ("border-top", "1px solid var(--color-border)")]))
+        .nest("& [data-dt-group-title]", pairs(&[("margin-top", gap!(6)), ("padding-top", pad!(8)), ("border-top", "1px solid var(--color-border)")]))
         .nest("& tfoot td", pairs(&[("border-bottom", "0"), ("border-top", "1px solid var(--color-border)"), ("font-weight", "600"), ("background", SUBTLE)]))
         .nest("& [data-dt-body] > tr:last-of-type > td", pairs(&[("border-bottom", "0")]))
         .nest("& [data-dt-body]:has(> tr:not([hidden])) + [data-dt-empty-body] td", pairs(&[("border-top", "1px solid var(--color-border)")]))
@@ -428,8 +428,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-dt-row]:focus-visible",
             pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "-2px")]),
         )
-        .nest("& [data-dt-detail] > td", pairs(&[("padding", sp!(12, 16)), ("background", SUBTLE)]))
-        .nest("& [data-dt-box]", pairs(&[("width", sp!(36)), ("padding-inline-end", "0")]))
+        .nest("& [data-dt-detail] > td", pairs(&[("padding", pad!(12, 16)), ("background", SUBTLE)]))
+        .nest("& [data-dt-box]", pairs(&[("width", ctl!(36)), ("padding-inline-end", "0")]))
         .nest("& [data-dt-box] input", pairs(&[("display", "block")]))
         .nest("& [data-dt-empty] td", pairs(&[("height", sp!(96)), ("text-align", "center"), ("color", MUTED), ("border-bottom", "0")]))
         // Sortable headers.
@@ -438,9 +438,9 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "inline-flex"),
                 ("align-items", "center"),
-                ("gap", sp!(4)),
-                ("margin", sp!(0, -8)),
-                ("padding", sp!(6, 8)),
+                ("gap", gap!(4)),
+                ("margin", gap!(0, -8)),
+                ("padding", pad!(6, 8)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "none"),
@@ -484,7 +484,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("display", "inline-flex"),
                 ("align-items", "center"),
-                ("padding", sp!(2, 8)),
+                ("padding", pad!(2, 8)),
                 ("border", "1px solid transparent"),
                 ("border-radius", "var(--radius-md)"),
                 ("font-size", fs!(12)),
@@ -514,7 +514,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-dt-badge=info]",
             pairs(&[("background", "color-mix(in srgb, #2563eb 14%, transparent)"), ("color", "color-mix(in srgb, #2563eb 80%, var(--color-text))")]),
         )
-        .nest("& [data-dt-progress]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("min-width", "120px")]))
+        .nest("& [data-dt-progress]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-width", "120px")]))
         .nest(
             "& [data-dt-progress] progress",
             pairs(&[
@@ -535,15 +535,15 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         // The footer: selection count, rows per page, page and the page buttons.
         .nest(
             "& [data-dt-footer]",
-            pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", sp!(8, 24)), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(8, 24)), ("color", MUTED)]),
         )
         .nest("& [data-dt-status]", pairs(&[("flex", "1"), ("min-width", "max-content")]))
-        .nest("& [data-dt-sizes]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", TEXT), ("font-weight", "500")]))
+        .nest("& [data-dt-sizes]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", TEXT), ("font-weight", "500")]))
         .nest(
             "& [data-dt-sizes] select",
             pairs(&[
-                ("height", sp!(32)),
-                ("padding", sp!(0, 6)),
+                ("height", ctl!(32)),
+                ("padding", pad!(0, 6)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", SURFACE),
@@ -552,8 +552,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-dt-page]", pairs(&[("color", TEXT), ("font-weight", "500"), ("white-space", "nowrap")]))
-        .nest("& [data-dt-nav]", pairs(&[("display", "flex"), ("gap", sp!(4))]))
-        .nest("& [data-dt-nav] button", pairs(&[("width", sp!(32)), ("padding", "0")]))
+        .nest("& [data-dt-nav]", pairs(&[("display", "flex"), ("gap", gap!(4))]))
+        .nest("& [data-dt-nav] button", pairs(&[("width", ctl!(32)), ("padding", "0")]))
         // Pinned columns stay put while the rest scroll sideways under them; the browser
         // sets each one's offset. They need a background of their own.
         .nest("& [data-pin]", pairs(&[("position", "sticky"), ("z-index", "1"), ("background", BG_UNDER)]))
@@ -570,7 +570,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Nested rows: the tree column's content steps in by depth.
         .nest(
             "& [data-dt-node]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(4)), ("padding-inline-start", "calc(var(--dt-depth, 0) * 20px * var(--space-scale, 1))")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(4)), ("padding-inline-start", "calc(var(--dt-depth, 0) * 20px * var(--space-scale, 1))")]),
         )
         .nest(
             "& [data-dt-twisty]",
@@ -598,7 +598,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-twisty][data-loading] svg", pairs(&[("opacity", "0.4")]))
         .nest(
             "& [data-dt-more]",
-            pairs(&[("display", "flex"), ("justify-content", "center"), ("align-items", "center"), ("min-height", sp!(40)), ("padding", sp!(8)), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("justify-content", "center"), ("align-items", "center"), ("min-height", ctl!(40)), ("padding", pad!(8)), ("color", MUTED)]),
         )
         .nest("& [data-dt-more][hidden], & [data-dt-more] [hidden]", pairs(&[("display", "none")]))
         .nest("& [data-dt-pad] td", pairs(&[("padding", "0"), ("border", "0")]))
@@ -609,19 +609,19 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 // Small inline icons, decorative: the buttons around them are labelled.
-const CHEVRON: &str = r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
-const SORT_ARROW: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>"#;
-const SORT_BOTH: &str = r#"<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>"#;
-const PLUS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
-const DOWNLOAD: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
-const VIEWS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3.5h11M2.5 8h11M2.5 12.5h6"/><path d="m11 11 1.5 1.5L15 10"/></svg>"#;
-const COLUMNS: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12M5 2.5v11"/></svg>"#;
+const CHEVRON: &str = r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const SORT_ARROW: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>"#;
+const SORT_BOTH: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>"#;
+const PLUS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
+const DOWNLOAD: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
+const VIEWS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3.5h11M2.5 8h11M2.5 12.5h6"/><path d="m11 11 1.5 1.5L15 10"/></svg>"#;
+const COLUMNS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12M5 2.5v11"/></svg>"#;
 // Labels (looked up where they're used): "Go to first page", "Go to previous page", "Go to next page", "Go to last page"
 const PAGE_BUTTONS: &[(&str, &str, &str)] = &[
-    ("first", "Go to first page", r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3.5 4 8l4.5 4.5M12.5 3.5 8 8l4.5 4.5"/></svg>"#),
-    ("prev", "Go to previous page", r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>"#),
-    ("next", "Go to next page", r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#),
-    ("last", "Go to last page", r#"<svg data-flip width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 3.5 8 8l-4.5 4.5M7.5 3.5 12 8l-4.5 4.5"/></svg>"#),
+    ("first", "Go to first page", r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3.5 4 8l4.5 4.5M12.5 3.5 8 8l4.5 4.5"/></svg>"#),
+    ("prev", "Go to previous page", r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>"#),
+    ("next", "Go to next page", r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#),
+    ("last", "Go to last page", r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 3.5 8 8l-4.5 4.5M7.5 3.5 12 8l-4.5 4.5"/></svg>"#),
 ];
 
 // ---------------------------------------------------------------- columns
@@ -1811,7 +1811,7 @@ fn filter_control(cx: &mut RenderCx<'_>, node: &Node, id: &Val, c: &Column, loca
             if let Some(l) = locale {
                 cal.props.insert("locale".into(), lit(l.to_string()));
             }
-            cal.style = StyleBlock::from_pairs(&[("border", "0"), ("padding", sp!(4))]);
+            cal.style = StyleBlock::from_pairs(&[("border", "0"), ("padding", pad!(4))]);
             cx.render(&cal)?;
         }
         _ => {

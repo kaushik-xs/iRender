@@ -66,7 +66,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     let tag = pairs(&[
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("padding", sp!(1, 8)),
+        ("padding", pad!(1, 8)),
         ("border-radius", "999px"),
         ("background", "color-mix(in srgb, var(--tone) 12%, transparent)"),
         ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"),
@@ -77,7 +77,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     let b = pairs(&[("color", TEXT), ("font-size", fs!(14))])
         .nest(
             "& [data-kb-board]",
-            pairs(&[("display", "flex"), ("align-items", "flex-start"), ("gap", sp!(12)), ("overflow-x", "auto"), ("padding-bottom", sp!(8)), ("scrollbar-width", "thin")]),
+            pairs(&[("display", "flex"), ("align-items", "flex-start"), ("gap", gap!(12)), ("overflow-x", "auto"), ("padding-bottom", pad!(8)), ("scrollbar-width", "thin")]),
         )
         .nest(
             "& [data-kb-column]",
@@ -86,9 +86,9 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("flex", "0 0 var(--kb-width, 280px)"),
                 ("display", "flex"),
                 ("flex-direction", "column"),
-                ("gap", sp!(8)),
+                ("gap", gap!(8)),
                 ("box-sizing", "border-box"),
-                ("padding", sp!(10)),
+                ("padding", pad!(10)),
                 ("border-radius", "var(--radius-lg)"),
                 ("background", "color-mix(in srgb, var(--color-text) 3.5%, var(--color-surface, #fff))"),
                 ("transition", "background .15s, box-shadow .15s"),
@@ -97,33 +97,33 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         // A long press picks a card up, rather than selecting its text.
         .nest("@media (pointer: coarse)", pairs(&[]).nest("& [data-kb-card]", pairs(&[("user-select", "none"), ("-webkit-touch-callout", "none")])))
         .nest("& [data-kb-column][data-over-drop]", pairs(&[("box-shadow", "inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 45%, transparent)")]))
-        .nest("& [data-kb-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(2, 4))]))
+        .nest("& [data-kb-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(2, 4))]))
         .nest("& [data-kb-head] h3", pairs(&[("margin", "0"), ("font-size", fs!(13)), ("font-weight", "600"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest("& [data-kb-dot]", pairs(&[("flex", "none"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
         .nest(
             "& [data-kb-count]",
             // "2 / 3" reads left to right on any page.
-            pairs(&[("direction", "ltr"), ("unicode-bidi", "isolate"), ("padding", sp!(0, 7)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
+            pairs(&[("direction", "ltr"), ("unicode-bidi", "isolate"), ("padding", pad!(0, 7)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
         )
         .nest("& [data-over] [data-kb-count]", pairs(&[("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 14%, transparent)"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "600")]))
         .nest(
             "& [data-kb-fold]",
-            pairs(&[("margin-inline-start", "auto"), ("display", "inline-flex"), ("padding", sp!(4)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
+            pairs(&[("margin-inline-start", "auto"), ("display", "inline-flex"), ("padding", pad!(4)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
         )
         .nest("& [data-kb-fold]:hover", pairs(&[("background", ACCENT), ("color", TEXT)]))
         .nest("& [data-kb-fold]:focus-visible", forms::focus_ring())
         // Folded: a narrow strip with the title down its side.
         .nest("& [data-kb-column][data-collapsed]", pairs(&[("flex-basis", "44px"), ("align-items", "center")]))
         // Swimlanes: the columns' headers in a row, then a row of cells per lane.
-        .nest("& [data-kb-board][data-kb-lanes]", pairs(&[("flex-direction", "column"), ("align-items", "stretch"), ("gap", sp!(8))]))
-        .nest("& :is([data-kb-heads], [data-kb-cells])", pairs(&[("display", "flex"), ("align-items", "stretch"), ("gap", sp!(12)), ("width", "max-content")]))
+        .nest("& [data-kb-board][data-kb-lanes]", pairs(&[("flex-direction", "column"), ("align-items", "stretch"), ("gap", gap!(8))]))
+        .nest("& :is([data-kb-heads], [data-kb-cells])", pairs(&[("display", "flex"), ("align-items", "stretch"), ("gap", gap!(12)), ("width", "max-content")]))
         .nest(
             "& [data-kb-colhead]",
             pairs(&[
                 ("--tone", MUTED),
                 ("flex", "0 0 var(--kb-width, 280px)"),
                 ("box-sizing", "border-box"),
-                ("padding", sp!(6, 10)),
+                ("padding", pad!(6, 10)),
                 ("border-radius", "var(--radius-lg)"),
                 ("background", "color-mix(in srgb, var(--color-text) 3.5%, var(--color-surface, #fff))"),
             ]),
@@ -132,15 +132,15 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kb-lanes] [data-kb-column]", pairs(&[("border-radius", "var(--radius-md)"), ("min-height", "56px")]))
         .nest(
             "& [data-kb-lane-head]",
-            pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("width", "fit-content"), ("padding", sp!(6, 2, 4))]),
+            pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("width", "fit-content"), ("padding", pad!(6, 2, 4))]),
         )
         .nest(
             "& [data-kb-lane-fold]",
             pairs(&[
                 ("display", "inline-flex"),
                 ("align-items", "center"),
-                ("gap", sp!(6)),
-                ("padding", sp!(2, 6)),
+                ("gap", gap!(6)),
+                ("padding", pad!(2, 6)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "none"),
@@ -167,8 +167,8 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kb-lane-row][data-over-drop=after]", pairs(&[("box-shadow", "0 3px 0 var(--color-primary)")]))
         .nest("& [data-kb-head][data-over-drop]", pairs(&[("box-shadow", "inset 3px 0 0 var(--color-primary)"), ("border-radius", "var(--radius-sm)")]))
         // `fields`: a line each.
-        .nest("& [data-kb-fields]", pairs(&[("display", "grid"), ("gap", sp!(4)), ("font-size", fs!(12))]))
-        .nest("& [data-kb-field]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(6)), ("min-width", "0")]))
+        .nest("& [data-kb-fields]", pairs(&[("display", "grid"), ("gap", gap!(4)), ("font-size", fs!(12))]))
+        .nest("& [data-kb-field]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("min-width", "0")]))
         .nest("& [data-kb-field-label]", pairs(&[("color", MUTED)]))
         .nest("& [data-kb-field-value]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest(
@@ -180,15 +180,15 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-collapsed] [data-kb-head] h3", pairs(&[("writing-mode", "vertical-rl"), ("overflow", "visible")]))
         .nest("& [data-collapsed] [data-kb-fold]", pairs(&[("margin", "0"), ("order", "-1"), ("transform", "rotate(180deg)")]))
         .nest("& [data-collapsed] :is([data-kb-cards], [data-kb-add], [data-kb-name])", pairs(&[("display", "none")]))
-        .nest("& [data-kb-cards]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("min-height", "48px")]))
-        .nest("& [data-kb-empty]", pairs(&[("margin", "0"), ("padding", sp!(12, 4)), ("color", MUTED), ("font-size", fs!(13)), ("text-align", "center")]))
+        .nest("& [data-kb-cards]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-height", "48px")]))
+        .nest("& [data-kb-empty]", pairs(&[("margin", "0"), ("padding", pad!(12, 4)), ("color", MUTED), ("font-size", fs!(13)), ("text-align", "center")]))
         .nest(
             "& [data-kb-card]",
             pairs(&[
                 ("display", "flex"),
                 ("flex-direction", "column"),
-                ("gap", sp!(8)),
-                ("padding", sp!(10, 12)),
+                ("gap", gap!(8)),
+                ("padding", pad!(10, 12)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "var(--color-card, var(--color-surface, #fff))"),
@@ -207,9 +207,9 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-kb-desc]",
             pairs(&[("margin", "0"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
         )
-        .nest("& [data-kb-tags]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(4))]))
+        .nest("& [data-kb-tags]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(4))]))
         .nest("& [data-kb-tags] span, & [data-kb-priority], & [data-kb-badge]", tag)
-        .nest("& [data-kb-foot]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(12))]))
+        .nest("& [data-kb-foot]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", MUTED), ("font-size", fs!(12))]))
         .nest(
             "& [data-kb-avatar]",
             pairs(&[
@@ -227,14 +227,14 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-kb-avatar] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
-        .nest("& [data-kb-drop]", pairs(&[("height", "2px"), ("margin", sp!(-5, 2)), ("border-radius", "2px"), ("background", PRIMARY)]))
+        .nest("& [data-kb-drop]", pairs(&[("height", "2px"), ("margin", gap!(-5, 2)), ("border-radius", "2px"), ("background", PRIMARY)]))
         .nest(
             "& [data-kb-add]",
             pairs(&[
                 ("display", "flex"),
                 ("align-items", "center"),
-                ("gap", sp!(6)),
-                ("padding", sp!(6, 8)),
+                ("gap", gap!(6)),
+                ("padding", pad!(6, 8)),
                 ("border", "0"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "transparent"),
@@ -251,7 +251,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("width", "100%"),
-                ("padding", sp!(8, 10)),
+                ("padding", pad!(8, 10)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),
                 ("background", "var(--color-card, var(--color-surface, #fff))"),
@@ -472,7 +472,7 @@ impl Component for Kanban {
     }
 }
 
-const LANE_ICON: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>"#;
+const LANE_ICON: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>"#;
 const GRIP: &str = r#"<svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true"><circle cx="2.5" cy="2.5" r="1.2"/><circle cx="7.5" cy="2.5" r="1.2"/><circle cx="2.5" cy="7" r="1.2"/><circle cx="7.5" cy="7" r="1.2"/><circle cx="2.5" cy="11.5" r="1.2"/><circle cx="7.5" cy="11.5" r="1.2"/></svg>"#;
 
 /// How the board draws its columns and cards.
@@ -594,7 +594,7 @@ fn column_head(cx: &mut RenderCx<'_>, node: &Node, look: &Look<'_>, col: &Json, 
             .attr("aria-expanded", if folded { "false" } else { "true" })
             .attr("aria-label", cx.label_with(if folded { "Show {name}" } else { "Hide {name}" }, &[("name", &title)]));
         cx.open(&b, node)?;
-        cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#);
+        cx.markup(r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#);
         cx.close("button");
     }
     cx.close("header");
@@ -655,7 +655,7 @@ fn column_cell(
         let mut b = Element::new("button");
         b.attr("type", "button").attr("data-kb-add", true);
         cx.open(&b, node)?;
-        cx.markup(r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#);
+        cx.markup(r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#);
         let mut l = Element::new("span");
         l.text(look.add.clone());
         cx.open(&l, node)?;
