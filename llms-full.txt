@@ -559,7 +559,7 @@ ui-tile: One tile of a `ui-dashboard-grid`: its place (`x`, `y`, `w`, `h` in gri
   when         any  Whether it's on the dashboard, e.g. `{{ includes(widgets, 'sales') }}`: hidden, it leaves the layout and the others close up; shown again, it comes back to its place (or the first free one)
   layouts      any  Its place at the grid's smaller `breakpoints`: `{ md: { x, y, w, h } }` (default: worked out from the largest)
   children: yes
-ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.
+ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events. Children, if any, are each card's content, with the card as `card` (and its place in its cell as `index`).
   columns      any (required)  The columns, in order: `{ id, title, tone, limit }` (or plain names). `limit` marks a column over it
   cards        any (required)  The cards, in order: `{ id, column, title, description, tags, assignee, due, priority }`, usually from state, e.g. `{{ tasks }}`
   bindCards    statekey  State key the cards are in: moves and new cards are written back to it
@@ -581,7 +581,7 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   locale       string  Locale for `date` fields (default: the document's `lang`)
   filter       any  Shows only the cards that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`. Applied in the browser
   parts: board
-  children: no
+  children: yes
 ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
   events       any (required)  The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)
   view         one of: day, week, month, year, list  The view to start in: `day`, `week`, `month` (default), `year` or `list`
@@ -2409,6 +2409,8 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **Fields.** `fields` adds lines to each card, in order: `{ field, label, cell }` (a dotted field works), `cell` being `text` (default), `badge` (a pill in `tones`' tone for its value), `progress` (a bar, 0–100) or `date` (written in `locale`). A card without the field leaves its line out.
 
 **Settings from state.** `swimlanes` and `fields` may use state, so a board's settings can change them: `swimlanes: "{{ laneBy == 'none' ? null : laneBy }}"` from a select, or `fields: "{{ detailed ? long : short }}"` with the two lists in state. The board redraws with the new lanes or lines, and keeps them as cards move (block crm-01).
+
+**Your own cards.** By default the board draws each card: its title, description, `fields`, tags, priority, due date and assignee. Give `ui-kanban` children and they are each card's content instead, with the card in scope as `card` (and its place in its cell as `index`), so a card can be any of the page's components: an avatar, stars, badges, a list, a button. The server draws them that way too. The board still owns the card itself: it's dragged and moved with Alt and the arrows, named for screen readers from `title`, `priority`, `due` and `assignee`, and opened by a click or Enter, except a click on a link or control inside it, which does its own thing. The block [`kanban-02`](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/kanban-02.yaml) is a hiring pipeline built this way.
 
 **Moving columns.** With `reorderable`, each column's header has a grip: drag it onto another header (its first half puts it before that column, its second after), or focus it and press Left or Right. By touch, hold the grip for a moment first; the header then follows the finger. With `swimlanes`, each lane's header has a grip too (not the lane of cards without a value, which stays last): drag it onto another lane (its top half puts it before, its bottom half after), or focus it and press Up or Down. The lanes' new order goes to `bindLanes`, the state key `lanes` reads, written as `lanes` had them (values, or `{ value, label }`s), with a `lanes` event of `{ lane, from, to, lanes }`. The columns' new order goes to `bindColumns` (the state key `columns` reads), with a `columns` event, and is announced.
 

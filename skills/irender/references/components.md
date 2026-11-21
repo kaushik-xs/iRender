@@ -394,7 +394,7 @@ ui-tile: One tile of a `ui-dashboard-grid`: its place (`x`, `y`, `w`, `h` in gri
   when         any  Whether it's on the dashboard, e.g. `{{ includes(widgets, 'sales') }}`: hidden, it leaves the layout and the others close up; shown again, it comes back to its place (or the first free one)
   layouts      any  Its place at the grid's smaller `breakpoints`: `{ md: { x, y, w, h } }` (default: worked out from the largest)
   children: yes
-ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events.
+ui-kanban: A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. The new order goes to `bindCards`, with `move`, `add` and `open` events. Children, if any, are each card's content, with the card as `card` (and its place in its cell as `index`).
   columns      any (required)  The columns, in order: `{ id, title, tone, limit }` (or plain names). `limit` marks a column over it
   cards        any (required)  The cards, in order: `{ id, column, title, description, tags, assignee, due, priority }`, usually from state, e.g. `{{ tasks }}`
   bindCards    statekey  State key the cards are in: moves and new cards are written back to it
@@ -416,7 +416,7 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   locale       string  Locale for `date` fields (default: the document's `lang`)
   filter       any  Shows only the cards that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`. Applied in the browser
   parts: board
-  children: no
+  children: yes
 ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
   events       any (required)  The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)
   view         one of: day, week, month, year, list  The view to start in: `day`, `week`, `month` (default), `year` or `list`

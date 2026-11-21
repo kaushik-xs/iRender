@@ -1,0 +1,107 @@
+# Block: a hiring pipeline. The board's children are each card's content, built from the
+# kit's own components with the candidate as `card`: an avatar, their name and role, the
+# panel's score as stars, their skills as badges, and where they're based. Candidates
+# still move by dragging (or Alt and the arrow keys), and the one clicked (or opened with
+# Enter) shows beside the board. The star on a card is its own control: it shortlists
+# the candidate without opening them.
+#
+#   cargo run -p irender-cli -- render examples/blocks/kanban-02.yaml --ui-kit --icon-kit -o kanban-02.html
+version: 1
+state:
+  candidate: null
+  shortlist: [ C-203, C-204, C-206, C-208 ]
+  stages:
+    - { id: applied, title: Applied, tone: info }
+    - { id: screen, title: Phone screen, tone: primary }
+    - { id: interview, title: Interviews, tone: warning, limit: 3 }
+    - { id: offer, title: Offer, tone: success }
+  people:
+    - { id: C-201, column: applied, title: Priya Nair, role: Frontend engineer, initials: PN, score: 0, skills: [ React, CSS ], place: Bengaluru, days: 2 }
+    - { id: C-202, column: applied, title: Tomás Ruiz, role: Product designer, initials: TR, score: 0, skills: [ Figma, Research ], place: Remote, days: 1 }
+    - { id: C-203, column: applied, title: Wei Chen, role: Data engineer, initials: WC, score: 0, skills: [ Rust, SQL, Kafka ], place: Singapore, days: 5 }
+    - { id: C-204, column: screen, title: Amara Okafor, role: Frontend engineer, initials: AO, score: 4, skills: [ TypeScript, Testing ], place: Lagos, days: 3 }
+    - { id: C-205, column: screen, title: Lukas Berg, role: Site reliability, initials: LB, score: 3, skills: [ Kubernetes ], place: Berlin, days: 6 }
+    - { id: C-206, column: interview, title: Sofia Rossi, role: Product designer, initials: SR, score: 4.5, skills: [ Prototyping, Figma ], place: Milan, days: 4 }
+    - { id: C-207, column: interview, title: Arjun Mehta, role: Data engineer, initials: AM, score: 3.5, skills: [ Python, Airflow ], place: Pune, days: 8 }
+    - { id: C-208, column: offer, title: Hana Sato, role: Engineering manager, initials: HS, score: 5, skills: [ Leadership, Go ], place: Tokyo, days: 1 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 28px 16px 64px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 32px 24px 80px }
+  children:
+    - type: stack
+      style: { max-width: 1400px, margin: 0 auto, gap: 20px }
+      children:
+        - type: stack
+          style: { gap: 6px }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: iRender, href: "#" }, { label: Hiring, href: "#" }, { label: Q1 roles } ] } }
+            - { type: ui-heading, props: { level: 2, text: "Hiring pipeline: Q1 roles" } }
+            - { type: ui-text, props: { variant: muted, text: "8 candidates · drag one to the next stage, or focus it and press Alt with an arrow key" } }
+        - type: element
+          style: { display: grid, gap: 20px, grid-template-columns: "minmax(0, 1fr)", "@xl": { grid-template-columns: "minmax(0, 1fr) 300px" }, align-items: start }
+          children:
+            - type: ui-kanban
+              props:
+                label: Hiring pipeline
+                columns: "{{ stages }}"
+                cards: "{{ people }}"
+                bindCards: people
+                bindCard: candidate
+                columnWidth: 250
+                emptyText: No candidates
+              # Each card: the candidate as `card`.
+              children:
+                - type: element
+                  style: { display: flex, align-items: center, gap: 10px }
+                  children:
+                    - { type: ui-avatar, props: { fallback: "{{ card.initials }}", alt: "{{ card.title }}", size: 32 } }
+                    - type: stack
+                      style: { gap: 1px, min-width: 0, flex: 1 }
+                      children:
+                        - { type: text, props: { value: "{{ card.title }}" }, style: { font-weight: 600, font-size: 14px } }
+                        - { type: text, props: { value: "{{ card.role }}" }, style: { color: $color.muted, font-size: 12px } }
+                - type: if
+                  props: { when: "{{ card.score > 0 }}" }
+                  children:
+                    - { type: ui-rating, props: { value: "{{ card.score }}", size: 14, label: Panel score } }
+                - type: element
+                  style: { display: flex, flex-wrap: wrap, gap: 4px }
+                  children:
+                    - type: list
+                      props: { items: "{{ card.skills }}", as: skill }
+                      children:
+                        - { type: ui-badge, props: { text: "{{ skill }}", variant: secondary } }
+                - type: element
+                  style: { display: flex, align-items: center, justify-content: space-between, gap: 8px, color: $color.muted, font-size: 12px }
+                  children:
+                    - { type: text, props: { value: "{{ card.place + ' · ' + card.days + 'd in stage' }}" } }
+                    - type: ui-button
+                      props: { label: "{{ includes(shortlist, card.id) ? '★' : '☆' }}", variant: ghost, size: sm }
+                      attrs: { aria-label: "{{ 'Shortlist ' + card.title }}", aria-pressed: "{{ includes(shortlist, card.id) }}", title: Shortlist }
+                      on:
+                        click: { action: set_state, key: shortlist, value: "{{ toggle(shortlist, card.id) }}" }
+            - type: ui-card
+              props: { title: "{{ candidate ? candidate.title : 'No candidate open' }}", description: "{{ candidate ? candidate.role + ' · ' + candidate.place : 'Click a candidate, or press Enter on one, to see them here.' }}" }
+              children:
+                - type: if
+                  props: { when: "{{ candidate }}" }
+                  children:
+                    - type: stack
+                      style: { gap: 12px, font-size: 14px }
+                      children:
+                        - { type: ui-rating, props: { value: "{{ candidate.score }}", label: Panel score } }
+                        - type: element
+                          style: { display: flex, flex-wrap: wrap, gap: 4px }
+                          children:
+                            - type: list
+                              props: { items: "{{ candidate.skills }}", as: skill }
+                              children:
+                                - { type: ui-badge, props: { text: "{{ skill }}", variant: outline } }
+                        - { type: text, props: { value: "{{ includes(shortlist, candidate.id) ? 'On the shortlist' : 'Not shortlisted' }}" }, style: { color: $color.muted } }

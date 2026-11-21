@@ -433,10 +433,10 @@ root: …
 
 ```yaml
 "No {field}": "No {field}"
-"card": "card"
 "{priority} priority": "{priority} priority"
 "due {date}": "due {date}"
 "assigned to {name}": "assigned to {name}"
+"card": "card"
 "Move column {name}": "Move column {name}"
 "Drag, or press Left or Right, to move the column": "Drag, or press Left or Right, to move the column"
 "Limit {limit}": "Limit {limit}"

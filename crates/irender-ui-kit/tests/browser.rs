@@ -6593,6 +6593,87 @@ fn kanban_lanes_fields_and_columns_in_chrome() {
     );
 }
 
+/// A board whose children are the cards' content: drawn on the server and again in the
+/// browser with the card in scope, in each cell (and lane), still moved by Alt and the
+/// arrows, named and focusable as the board's own, with a control inside left to itself.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn kanban_card_template_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "open": null, "likes": 0,
+            "tasks": [
+                { "id": "a", "column": "todo", "title": "Alpha", "points": 3, "who": "Asha" },
+                { "id": "b", "column": "todo", "title": "Bravo", "points": 5, "who": "Ravi" },
+                { "id": "c", "column": "done", "title": "Charlie", "points": 1, "who": "Asha" } ] },
+        "root": { "type": "ui-kanban", "props": { "columns": [ { "id": "todo", "title": "To do" }, { "id": "done", "title": "Done" } ],
+            "cards": "{{ tasks }}", "bindCards": "tasks", "bindCard": "open", "swimlanes": "who" },
+            "children": [
+                { "type": "element", "props": { "tag": "strong" }, "attrs": { "data-t": true }, "children": [ { "type": "text", "props": { "value": "{{ card.title }}" } } ] },
+                { "type": "element", "props": { "tag": "span" }, "attrs": { "data-p": true }, "children": [ { "type": "text", "props": { "value": "{{ card.points + ' pts · #' + (index + 1) }}" } } ] },
+                { "type": "ui-button", "props": { "label": "Like" }, "on": { "click": { "action": "set_state", "key": "likes", "value": "{{ likes + 1 }}" } } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const K = document.querySelector("[data-i-x=ui-kanban]"), $ = (s) => K.querySelector(s), $$ = (s) => [...K.querySelectorAll(s)];
+      // Each cell (lane / column): its cards' own content.
+      const board = () => $$("[data-kb-board] [data-kb-column]").map((c) => c.getAttribute("data-kb-lane") + "/" + c.getAttribute("data-kb-column") + ":" +
+        [...c.querySelectorAll("[data-kb-card]")].map((x) => x.querySelector("[data-t]").textContent + "(" + x.querySelector("[data-p]").textContent + ")").join(",")).join(" ");
+      const card = (id) => $(`[data-kb-card="${id}"]`);
+      try {
+        log("drawn", board());
+        log("own", card("a").getAttribute("aria-label"), card("a").getAttribute("aria-roledescription"), card("a").draggable, $$("[data-kb-card]").map((x) => x.tabIndex).join(","), $$("[data-kb-proto] [data-kb-card]").length);
+        // Alt+Right on Alpha: into Done, in Asha's lane, drawn from the template there.
+        card("a").focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", altKey: true, bubbles: true, cancelable: true })); await wait(0);
+        log("moved", board(), document.activeElement.getAttribute("data-kb-card"), S().tasks.map((t) => t.id + "@" + t.column).join(" "));
+        // The Like button in Bravo does its own thing; the card doesn't open.
+        card("b").querySelector("button").click(); await wait(0);
+        log("like", S().likes, S().open);
+        // Enter on Bravo opens it.
+        card("b").focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); await wait(0);
+        log("open", S().open?.id);
+        // A card changed in state: its content follows.
+        root.__irender.set("tasks", S().tasks.map((t) => (t.id === "b" ? { ...t, title: "Bravo 2", points: 8 } : t))); await wait(0);
+        log("changed", board());
+        // Dragged with the mouse into Ravi's Done.
+        const dt = new DataTransfer(), cell = $('[data-kb-lane="Ravi"][data-kb-column="done"] [data-kb-cards]'), r = cell.getBoundingClientRect();
+        card("c").dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+        cell.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+        cell.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientY: r.bottom - 2 }));
+        $("[data-kb-board]").dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt })); await wait(0);
+        log("dragged", dt.getData("text/plain"), board());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    // The server draws the cards from the template too.
+    assert!(html.contains("3 pts · #1") && html.contains("Charlie"), "server cards");
+    let html = html.replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("kanban-card-template", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "drawn Asha/todo:Alpha(3 pts · #1) Asha/done:Charlie(1 pts · #1) Ravi/todo:Bravo(5 pts · #1) Ravi/done:",
+            // Named and movable as the board's own cards, one tab stop; none in the template.
+            "own Alpha card true 0,-1,-1 0",
+            // Alpha keeps its place (first) in Done; the lanes follow the cards' new order.
+            "moved Ravi/todo:Bravo(5 pts · #1) Ravi/done: Asha/todo: Asha/done:Alpha(3 pts · #1),Charlie(1 pts · #2) a b@todo a@done c@done",
+            "like 1 ",
+            "open b",
+            "changed Ravi/todo:Bravo 2(8 pts · #1) Ravi/done: Asha/todo: Asha/done:Alpha(3 pts · #1),Charlie(1 pts · #2)",
+            "dragged Charlie Ravi/todo:Bravo 2(8 pts · #1) Ravi/done:Charlie(1 pts · #1) Asha/todo: Asha/done:Alpha(3 pts · #1)",
+        ],
+        "\n{result}"
+    );
+}
+
 /// Moving swimlanes with `reorderable`: a grip on each lane's header (not the lane of
 /// cards without a value), Up and Down on it, dragging it, and by touch after a hold,
 /// the order written to `bindLanes` as `lanes` had it.

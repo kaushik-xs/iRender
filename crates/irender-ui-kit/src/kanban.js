@@ -26,6 +26,10 @@
   const $ = (s, from = el) => from.querySelector(s);
   const $$ = (s, from = el) => [...from.querySelectorAll(s)];
   const board = $("[data-kb-board]");
+  // With children, the cards' content is the page's own: a hidden list holding their
+  // template, copied into each cell and given that cell's cards.
+  const proto = $("[data-kb-proto]");
+  let supplies = [];
   const live = $("[data-kb-live]");
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
   const env = () => {
@@ -146,10 +150,12 @@
     } else row.append(make("span", { "data-kb-field-value": "" }, String(v)));
     return row;
   }
+  // What a card is called: its title, priority, due date and assignee.
+  const labelOf = (c) =>
+    [c.title, c.priority && L("{priority} priority", { priority: String(c.priority) }), c.due && L("due {date}", { date: String(c.due) }), assignee(c)?.name && L("assigned to {name}", { name: assignee(c).name })].filter(Boolean).join(", ");
   function card(c) {
     const a = make("article", { "data-kb-card": key(c.id), tabindex: -1, draggable: cfg.movable ? "true" : null, "aria-roledescription": L("card") });
-    const label = [c.title, c.priority && L("{priority} priority", { priority: String(c.priority) }), c.due && L("due {date}", { date: String(c.due) }), assignee(c)?.name && L("assigned to {name}", { name: assignee(c).name })].filter(Boolean).join(", ");
-    a.setAttribute("aria-label", label);
+    a.setAttribute("aria-label", labelOf(c));
     a.append(make("div", { "data-kb-title": "" }, String(c.title ?? "")));
     if (c.description) a.append(make("p", { "data-kb-desc": "" }, String(c.description)));
     const list = resolve(cfg.fields);
@@ -212,15 +218,29 @@
     const name = lane?.key == null ? title : `${title}, ${lane.name}`;
     const section = make("section", { "data-kb-column": id, "data-kb-lane": lane?.key ?? null, "data-tone": col.tone ?? null, "data-over": over, "data-collapsed": collapsed.has(id), "aria-label": `${name}, ${L(["{n} card", "{n} cards"], { n: mine.length })}` });
     if (withHead) section.append(header(col, mine));
-    const list = make("div", { "data-kb-cards": "", role: "list" });
-    for (const c of mine) {
-      const item = card(c);
-      item.setAttribute("role", "listitem");
-      list.append(item);
+    let list;
+    if (proto) {
+      // The template's copy, filled by the runtime (its cards are finished by `own`).
+      list = proto.cloneNode(true);
+      list.removeAttribute("data-kb-proto");
+      list.removeAttribute("hidden");
+      list.setAttribute("data-kb-cards", "");
+      list.setAttribute("role", "list");
+      supplies.push([list, mine]);
+    } else {
+      list = make("div", { "data-kb-cards": "", role: "list" });
+      for (const c of mine) {
+        const item = card(c);
+        item.setAttribute("role", "listitem");
+        list.append(item);
+      }
     }
     const here = cellKey(id, lane?.key);
-    if (!mine.length && adding !== here) list.append(make("p", { "data-kb-empty": "" }, cfg.emptyText ?? L("No cards")));
+    const empty = !mine.length && adding !== here ? make("p", { "data-kb-empty": "" }, cfg.emptyText ?? L("No cards")) : null;
+    // The runtime owns a template list's children, so its note goes after it.
+    if (empty && !proto) list.append(empty);
     section.append(list);
+    if (empty && proto) section.append(empty);
     if (cfg.addable) {
       if (adding === here) {
         section.append(make("textarea", { "data-kb-name": "", rows: 2, placeholder: L("Card title, then Enter"), "aria-label": L("New card in {name}", { name }) }));
@@ -240,6 +260,7 @@
     const grip = el.contains(document.activeElement) ? document.activeElement.getAttribute("data-kb-grip") : null;
     const laneGrip = el.contains(document.activeElement) ? document.activeElement.getAttribute("data-kb-lane-grip") : null;
     board.toggleAttribute("data-kb-lanes", !!laneField);
+    supplies = [];
     if (!laneField) {
       board.replaceChildren(...cols.map((col) => cell(col, null, all.filter((c) => key(c.column) === key(col.id)), true)));
     } else {
@@ -275,14 +296,28 @@
       });
       board.replaceChildren(heads, ...rows);
     }
-    // One tab stop: the focused card, else the first.
-    const stop = (focusId && $(`[data-kb-card="${CSS.escape(focusId)}"]`)) || $("[data-kb-card]");
-    if (stop) stop.tabIndex = 0;
+    // Template cards: the runtime draws them now (or at its first update).
+    if (proto) api.lists(supplies);
+    own();
     if (hadFocus && focusId) $(`[data-kb-card="${CSS.escape(focusId)}"]`)?.focus();
     if (grip) $(`[data-kb-grip="${CSS.escape(grip)}"]`)?.focus();
     if (laneGrip !== null) $(`[data-kb-lane-grip="${CSS.escape(laneGrip)}"]`)?.focus();
     const box = $("[data-kb-name]");
     if (box && document.activeElement !== box) box.focus();
+  }
+
+  // Template cards, once drawn, as the board's own: movable, named, and one tab stop
+  // for all the cards (the focused one, else the first).
+  function own() {
+    for (const a of $$("[data-kb-own]")) {
+      const c = cardOf(a.getAttribute("data-kb-card"));
+      a.setAttribute("aria-roledescription", L("card"));
+      if (c) a.setAttribute("aria-label", labelOf(c));
+      if (cfg.movable) a.setAttribute("draggable", "true");
+      a.tabIndex = -1;
+    }
+    const stop = (focusId && $(`[data-kb-card="${CSS.escape(focusId)}"]`)) || $("[data-kb-card]");
+    if (stop) stop.tabIndex = 0;
   }
 
   // ---- reading and writing the cards
@@ -405,6 +440,8 @@
       return draw();
     }
     const c = t.closest("[data-kb-card]");
+    // A link or control in a card's own content does its own thing.
+    if (c && t.closest("a[href], button, input, select, textarea, label, summary") && c.contains(t.closest("a[href], button, input, select, textarea, label, summary"))) return;
     if (c) {
       focusId = c.getAttribute("data-kb-card");
       for (const x of $$("[data-kb-card]")) x.tabIndex = x === c ? 0 : -1;
@@ -555,7 +592,7 @@
     if (!cfg.movable || !c) return;
     dragId = c.getAttribute("data-kb-card");
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", c.querySelector("[data-kb-title]").textContent);
+    e.dataTransfer.setData("text/plain", String(cardOf(dragId)?.title ?? c.textContent.trim()));
     requestAnimationFrame(() => c.setAttribute("data-dragging", ""));
   });
   // The cell a card would drop into from over `target`, if it takes cards.
@@ -710,6 +747,8 @@
   return {
     update() {
       const now = [resolve(cfg.columns), resolve(cfg.cards), resolve(cfg.lanes), resolve(cfg.swimlanes), resolve(cfg.fields), JSON.stringify(filter())];
+      // Template cards the runtime has just drawn.
+      if (proto) own();
       if (last && now.every((x, n) => x === last[n])) return;
       last = now;
       draw();

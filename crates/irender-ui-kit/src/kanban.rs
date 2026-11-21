@@ -5,13 +5,16 @@
 
 use crate::data_table::dynamic;
 use crate::status::tone_rules;
-use crate::{ACCENT, BORDER, MUTED, PRIMARY, TEXT, forms, lit};
-use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, expr};
-use irender_html::{Component, Element, RenderCx, RenderError};
+use crate::{ACCENT, BORDER, MUTED, PRIMARY, TEXT, expr_val, forms, lit};
+use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val, expr, expr::Expr};
+use irender_html::{ClientList, Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
 
 const SCRIPT: &str = include_str!("kanban.js");
+/// The names a card and its place in its cell are in scope under, in a card template.
+const CARD: &str = "card";
+const CARD_INDEX: &str = "index";
 
 pub struct Kanban;
 
@@ -285,10 +288,11 @@ impl Component for Kanban {
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
             doc: "A board of columns with cards to drag between them (or move with Alt and the arrow keys), add to, and open. \
-                  The new order goes to `bindCards`, with `move`, `add` and `open` events.",
+                  The new order goes to `bindCards`, with `move`, `add` and `open` events. \
+                  Children, if any, are each card's content, with the card as `card` (and its place in its cell as `index`).",
             props: PROPS,
             parts: &["board"],
-            children: false,
+            children: true,
             open_props: false,
         }
     }
@@ -373,6 +377,7 @@ impl Component for Kanban {
             collapsible,
             reorderable,
             fields: &fields,
+            template: (!node.children.is_empty()).then_some(node),
         };
         let mut first = true;
         let column_cards = |id: &str| cards.iter().filter(|c| text(c.get("column")) == id).collect::<Vec<_>>();
@@ -440,6 +445,24 @@ impl Component for Kanban {
             }
         }
         cx.close("div");
+        // With children, the card template: a hidden list the script copies into each
+        // cell and gives that cell's cards, keyed by id.
+        if look.template.is_some() {
+            let none = Val::Lit(Json::Array(Vec::new()));
+            let key = cx.item_val_js(&expr_val(Expr::Path(vec![CARD.into(), "id".into()])), CARD, CARD_INDEX);
+            let mut proto = Element::new("div");
+            proto.attr("data-kb-proto", true).attr("hidden", true).list(ClientList { items: &none, item: CARD.into(), index: CARD_INDEX.into(), key: Some(key) });
+            cx.open(&proto, node)?;
+            cx.item_template_with(CARD, CARD_INDEX, |cx| {
+                let mut a = Element::new("article");
+                a.attr("data-kb-card", expr_val(Expr::Path(vec![CARD.into(), "id".into()]))).attr("data-kb-own", true).attr("role", "listitem");
+                cx.open(&a, node)?;
+                cx.children(node)?;
+                cx.close("article");
+                Ok(())
+            })?;
+            cx.close("div");
+        }
         let mut live = Element::new("div");
         live.attr("data-kb-live", true).attr("role", "status").attr("aria-live", "polite");
         cx.open(&live, node)?;
@@ -461,6 +484,8 @@ struct Look<'a> {
     collapsible: bool,
     reorderable: bool,
     fields: &'a [Json],
+    /// The component, when its children are the cards' content.
+    template: Option<&'a Node>,
 }
 
 fn col_id(col: &Json) -> String {
@@ -615,8 +640,8 @@ fn column_cell(
     let mut list = Element::new("div");
     list.attr("data-kb-cards", true).attr("role", "list");
     cx.open(&list, node)?;
-    for c in mine {
-        card(cx, node, c, look.movable, *first, look.fields)?;
+    for (i, c) in mine.iter().enumerate() {
+        card(cx, node, c, i, look, *first)?;
         *first = false;
     }
     if mine.is_empty() {
@@ -642,7 +667,8 @@ fn column_cell(
 }
 
 /// One card, as `kanban.js` draws it.
-fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool, fields: &[Json]) -> Result<(), RenderError> {
+fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, i: usize, look: &Look<'_>, first: bool) -> Result<(), RenderError> {
+    let (movable, fields) = (look.movable, look.fields);
     let title = text(c.get("title"));
     let who = c.get("assignee").filter(|a| !a.is_null() && *a != &json!(""));
     let who_name = who.map(|w| if w.is_object() { text(w.get("name")) } else { expr::stringify(w) });
@@ -665,6 +691,14 @@ fn card(cx: &mut RenderCx<'_>, node: &Node, c: &Json, movable: bool, first: bool
         .attr("role", "listitem");
     if movable {
         a.attr("draggable", "true");
+    }
+    if let Some(t) = look.template {
+        // The page's own content for it, with the card in scope.
+        a.attr("data-kb-own", true);
+        cx.open(&a, node)?;
+        cx.with_scope(vec![(CARD.into(), c.clone()), (CARD_INDEX.into(), json!(i))], |cx| cx.children(t))?;
+        cx.close("article");
+        return Ok(());
     }
     cx.open(&a, node)?;
     let mut t = Element::new("div");

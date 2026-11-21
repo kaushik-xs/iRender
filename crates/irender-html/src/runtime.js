@@ -168,6 +168,11 @@
             listEl.__supply = { items, offset };
             if (root.__irender) update();
           },
+          // Several at once, `[listEl, items, offset?]`s, with one redraw.
+          lists: (entries) => {
+            for (const [listEl, items, offset = 0] of entries) listEl.__supply = { items, offset };
+            if (root.__irender && entries.length) update();
+          },
         }) || {};
       }
       for (const el of within(n, "[data-i-on]")) {

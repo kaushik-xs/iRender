@@ -729,6 +729,7 @@ impl<'a> RenderCx<'a> {
     /// (window.__irenderBehaviors ||= {})["name"] = (el, api) => {
     ///   // api.config, api.state, api.set(key, value), api.emit(event, detail),
     ///   // api.list(listEl, items, offset) to supply a list's items itself
+    ///   // api.lists([[listEl, items, offset], ...]) for several lists, with one redraw
     ///   return { update(state) { /* after every state change */ } };
     /// };
     /// ```
