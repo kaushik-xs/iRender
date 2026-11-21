@@ -86,8 +86,9 @@ root:
     - type: stack
       props: { direction: row, gap: 16, align: center }
       style:
+        # Below the examples' bar when the site puts one at the top (`--site-nav`).
         position: sticky
-        top: 0
+        top: "var(--site-nav, 0px)"
         z-index: 10
         flex-wrap: wrap
         padding: 12px 16px

@@ -4,7 +4,7 @@
 # the page (`""` or `"../"`), `current`, the page's href, `main` and `more`, the
 # pages, from index.data.json, `theme`, for the Theme button (pages with the UI kit's
 # theme), and `sticky`, to keep it at the top while the page
-# scrolls (on pages whose own layout allows it). It's rendered with the UI and chart
+# scrolls (every page has it). It's rendered with the UI and chart
 # kits, for the Theme button.
 version: 1
 root:

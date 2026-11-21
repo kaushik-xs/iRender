@@ -26,10 +26,14 @@ MAIN = {
     "icons/index.html": "Icons",
     "dashboard.html": "Dashboard",
 }
-# Pages where the bar stays at the top while they scroll. Their layout reads its height
-# from `--site-nav` (sticky sidebars sit below it).
-STICKY = {"ui-kit.html"}
-STICKY_HEIGHT = "<style>:root { --site-nav: 48px; }</style>"
+# The bar stays at the top while a page scrolls. Its height goes in `--site-nav`, kept
+# up as it wraps onto more rows on a narrow screen, so a page's own sticky parts (the UI
+# kit's sidebar) sit below it.
+STICKY_HEIGHT = (
+    "<style>:root { --site-nav: 48px; }</style>"
+    "<script>(() => { const n = document.querySelector('[data-site-nav]');"
+    " if (n) new ResizeObserver(() => document.documentElement.style.setProperty('--site-nav', n.offsetHeight + 'px')).observe(n); })();</script>"
+)
 
 
 def main():
@@ -55,7 +59,7 @@ def main():
         depth = page.count("/")
         # The Theme button needs the UI kit's theme script, which an embed leaves out.
         theme = "irender-theme-options" in html
-        data = {"root": "../" * depth, "current": page, "main": main_pages, "more": more, "sticky": page in STICKY, "theme": theme}
+        data = {"root": "../" * depth, "current": page, "main": main_pages, "more": more, "sticky": True, "theme": theme}
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
             json.dump(data, tmp)
         try:
@@ -65,7 +69,7 @@ def main():
             ).stdout
         finally:
             os.unlink(tmp.name)
-        insert = nav + (STICKY_HEIGHT if page in STICKY else "")
+        insert = nav + STICKY_HEIGHT
         html, n = re.subn(r"(<body[^>]*>)", lambda m: m.group(1) + insert, html, count=1)
         if n:
             with open(path, "w") as f:
