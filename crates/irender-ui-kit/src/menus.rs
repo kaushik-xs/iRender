@@ -36,7 +36,7 @@ static CHECKABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("padding-inline-start", sp!(6))])
         .nest("& [data-ui-indicator]::before", pairs(&[("content", "''")]))
         .nest("&[role=menuitemcheckbox][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'✓'")]))
-        .nest("&[role=menuitemradio][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'●'"), ("font-size", "8px")]))
+        .nest("&[role=menuitemradio][aria-checked=true] [data-ui-indicator]::before", pairs(&[("content", "'●'"), ("font-size", fs!(8))]))
 });
 
 /// A menu item's text and shortcut.
@@ -128,7 +128,7 @@ impl Component for MenuSub {
         cx.close("button");
 
         let mut menu = cx.part("div", node, "menu");
-        let place = crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-inline").set("margin", "-5px 4px"), "right span-bottom");
+        let place = crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-inline").set("margin", sp!(-5, 4)), "right span-bottom");
         menu.base_style_ref(&MENU)
             .base_style(place)
             .attr("popover", "auto")
@@ -380,7 +380,7 @@ impl Component for Menubar {
             cx.close("button");
             let mut m = cx.element("div", menu);
             m.base_style_ref(&MENU)
-                .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-block, flip-inline").set("margin", "6px 0"), "bottom span-right"))
+                .base_style(crate::with_area(StyleBlock::new().set("position-anchor", anchor).set("position-try-fallbacks", "flip-block, flip-inline").set("margin", concat!(sp!(6), " 0")), "bottom span-right"))
                 .attr("popover", "auto")
                 .attr("id", id.clone())
                 .attr("role", "menu")
@@ -490,7 +490,7 @@ static NAV_PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     popover_base()
         .set("max-width", "calc(100vw - 16px)")
         .set("padding", sp!(8))
-        .set("margin", "8px 0")
+        .set("margin", concat!(sp!(8), " 0"))
         .set("font-size", fs!(14))
         .set("position-try-fallbacks", "flip-inline")
 });

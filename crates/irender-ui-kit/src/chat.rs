@@ -355,7 +355,7 @@ const TYPING_PROPS: &[PropDef] =
 
 static TYPING: LazyLock<StyleBlock> = LazyLock::new(|| {
     let dot = |delay: &str| StyleBlock::from_pairs(&[("animation-delay", delay)]);
-    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", "4px"), ("height", "1.5em")])
+    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", sp!(4)), ("height", "1.5em")])
         .nest(
             "& > span",
             StyleBlock::from_pairs(&[

@@ -253,7 +253,7 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("inset", "auto"),
-                ("margin", "6px 0"),
+                ("margin", concat!(sp!(6), " 0")),
                 ("padding", sp!(12)),
                 ("border", "1px solid var(--color-border)"),
                 ("border-radius", "var(--radius-md)"),

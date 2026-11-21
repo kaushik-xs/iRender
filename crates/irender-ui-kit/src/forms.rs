@@ -383,7 +383,7 @@ static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("appearance", "none"),
         ("position", "relative"),
         ("flex-shrink", "0"),
-        ("width", "36px"),
+        ("width", sp!(36)),
         ("height", sp!(20)),
         ("margin", "0"),
         ("border", "1px solid transparent"),
@@ -399,8 +399,9 @@ static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("position", "absolute"),
             ("top", "1px"),
             ("inset-inline-start", "1px"),
-            ("width", "16px"),
-            ("height", "16px"),
+            // The track's height less a 1px gap each side, at any density.
+            ("height", "calc(100% - 2px)"),
+            ("aspect-ratio", "1"),
             ("border-radius", "999px"),
             ("background", SURFACE),
             ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.2)"),
@@ -408,7 +409,7 @@ static SWITCH: LazyLock<StyleBlock> = LazyLock::new(|| {
         ]),
     )
     .nest(":checked", StyleBlock::from_pairs(&[("background", PRIMARY)]))
-    .nest(":checked::before", StyleBlock::from_pairs(&[("transform", "translateX(calc(16px * var(--ui-dir, 1)))")]))
+    .nest(":checked::before", StyleBlock::from_pairs(&[("transform", "translateX(calc(16px * var(--space-scale, 1) * var(--ui-dir, 1)))")]))
     .nest(":focus-visible", focus_ring())
 });
 

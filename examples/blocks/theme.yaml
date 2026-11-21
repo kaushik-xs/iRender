@@ -150,8 +150,10 @@ root:
               style: { width: 100% }
               on: { click: { action: set_state, key: toast, value: { title: Account created, description: "Welcome aboard, {{ email || 'friend' }}." } } }
 
+        # A choice on a node applies inside it: this card stays compact at any density.
         - type: ui-card
-          props: { title: Team members, description: Invite your team members to collaborate. }
+          props: { title: Team members, description: Invite your team members to collaborate. Always compact. }
+          attrs: { data-theme-density: compact }
           style: { box-shadow: $shadow.card }
           children:
             - type: list

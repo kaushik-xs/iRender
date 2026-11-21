@@ -179,7 +179,7 @@ text: Text content.
   children: no
 stack: Flex layout container.
   direction    one of: row, column, row-reverse, column-reverse  Default `column`
-  gap          any  Number (px), CSS length or `$token`
+  gap          any  Number (px, following the theme's `space.scale`), CSS length or `$token`
   align        any  `align-items`
   justify      any  `justify-content`
   wrap         bool  Wrap children onto multiple lines
@@ -1480,6 +1480,8 @@ theme:
 
 - A choice applies through `data-theme-<option>` on `<html>` (`data-theme-palette="rose"`); its `modes` give its own values under a variant, so a palette has its own dark colours. A token a choice sets without a dark value keeps it in dark mode.
 - The default choice (`default`, or the first) is part of the base tokens: a page with nothing chosen looks like it.
+- A choice also applies to part of a page: `attrs: { data-theme-density: compact }` on a node makes everything inside it compact, and `data-theme-palette: zinc` there undoes a palette picked for the page. Each choice sets every token its option touches, and tokens computed from them again, so this works for the default choice too.
+- The built-in `space.*` and `font.size.*` tokens follow `space.scale` and `font.scale` (`$space.md` is `calc(16px * var(--space-scale, 1))`), so a density or text-size option reaches styles that use them.
 - Option and choice names use lowercase letters, digits and `-`. Mistakes are reported with their paths, like other theme errors.
 - [irender-ui-kit](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-ui-kit/README.md#theme-options) ships options (palette, radius, density, text size, font) and `ui-theme-option`, which picks one, remembers it and applies it before the page shows. The [chart kit](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-chart-kit/README.md#theme) adds chart colour schemes. A document adds choices to these or options of its own.
 
@@ -2003,7 +2005,7 @@ theme:
 
 - **Picking:** `ui-theme-option` shows one button per choice; `swatch` names a token shown as a colour dot, or a list of them: `ui-theme-panel` shows a chart scheme's first four colours. A choice is kept in `localStorage` (`irender-theme-options`) and applied before the page shows on every page rendered with the kit, like `ui-theme-toggle`'s mode. Picking the default clears it. Pages already open follow at once, other tabs and pages in iframes included, so a picker on one page restyles the rest.
 - **A Theme button:** `{ type: ui-popover, props: { trigger: Theme }, children: [ { type: ui-theme-panel } ] }` gives every option and the mode, including ones the document adds. The examples index, the blocks page and the dashboard block have one.
-- **Scales:** the kit's paddings, gaps, margins and control heights are `calc(Npx * var(--space-scale, 1))`, and its font sizes `calc(Npx * var(--font-scale, 1))`, so density and text size reach every component. Use the same tokens in your own styles to follow them: `padding: "calc(16px * var(--space-scale, 1))"`.
+- **Scales:** the kit's paddings, gaps, margins and control heights are `calc(Npx * var(--space-scale, 1))`, and its font sizes `calc(Npx * var(--font-scale, 1))`, so density and text size reach every component, and charts, flow diagrams and the built-in `button` and `input` follow them too. Use `$space.*` and `$font.size.*`, or the scales directly, in your own styles to follow them: `padding: "$space.md"`, `padding: "calc(12px * var(--space-scale, 1))"`. Set a choice on a node to change one part of the page: `attrs: { data-theme-density: compact }` on a table's card.
 - **Custom colours:** `ui-theme-colors` takes a primary and a second brand colour as hex (`#rgb` or `#rrggbb`, nothing else), typed or picked. They're kept in `localStorage` (`irender-theme-custom`) and set on `<html>` while the palette's `custom` choice is picked, with a hover shade, a ring and dark or light text on them (whichever reads better) derived from each. A gradient end after each makes its fills a 135° gradient (darker on hover, text chosen for both ends); clearing it goes back to the plain colour. The backgrounds are kept per mode (`card` for light, `card-dark` for dark): the fields show and set the mode showing, and the heading says which. Clearing a field goes back to the theme's colour. The chart kit's `custom` chart colours are built from the same two, and setting a colour picks them too unless a chart scheme was picked by hand; Reset puts both back. In script: `window.__irenderTheme.custom()` and `.setCustom("primary", "#1e3a8a")`.
 - **Your own:** add choices to an option (`theme.options.palette.choices.brand`) or options of your own (`theme.options.shadow`); `ui-theme-option` picks those too. The [theme block](https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/theme.yaml) does both.
 - **In script:** `window.__irenderTheme.option("palette")` and `.setOption("palette", "rose")`; changes fire `irender:theme-option`.

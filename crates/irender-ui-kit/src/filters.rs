@@ -143,7 +143,7 @@ fn badge() -> StyleBlock {
         ("justify-content", "center"),
         ("min-width", "18px"),
         ("height", "18px"),
-        ("padding", "0 5px"),
+        ("padding", sp!(0, 5)),
         ("box-sizing", "border-box"),
         ("border-radius", "999px"),
         ("background", PRIMARY_FILL),

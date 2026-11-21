@@ -14,7 +14,7 @@ text: Text content.
   children: no
 stack: Flex layout container.
   direction    one of: row, column, row-reverse, column-reverse  Default `column`
-  gap          any  Number (px), CSS length or `$token`
+  gap          any  Number (px, following the theme's `space.scale`), CSS length or `$token`
   align        any  `align-items`
   justify      any  `justify-content`
   wrap         bool  Wrap children onto multiple lines

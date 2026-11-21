@@ -58,7 +58,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     let tag = pairs(&[
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("padding", "1px 8px"),
+        ("padding", sp!(1, 8)),
         ("border-radius", "999px"),
         ("background", "color-mix(in srgb, var(--tone) 12%, transparent)"),
         ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"),
@@ -95,12 +95,12 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "& [data-kb-count]",
             // "2 / 3" reads left to right on any page.
-            pairs(&[("direction", "ltr"), ("unicode-bidi", "isolate"), ("padding", "0 7px"), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
+            pairs(&[("direction", "ltr"), ("unicode-bidi", "isolate"), ("padding", sp!(0, 7)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
         )
         .nest("& [data-over] [data-kb-count]", pairs(&[("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 14%, transparent)"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "600")]))
         .nest(
             "& [data-kb-fold]",
-            pairs(&[("margin-inline-start", "auto"), ("display", "inline-flex"), ("padding", "4px"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
+            pairs(&[("margin-inline-start", "auto"), ("display", "inline-flex"), ("padding", sp!(4)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
         )
         .nest("& [data-kb-fold]:hover", pairs(&[("background", ACCENT), ("color", TEXT)]))
         .nest("& [data-kb-fold]:focus-visible", forms::focus_ring())
@@ -196,7 +196,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-kb-desc]",
             pairs(&[("margin", "0"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
         )
-        .nest("& [data-kb-tags]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", "4px")]))
+        .nest("& [data-kb-tags]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", sp!(4))]))
         .nest("& [data-kb-tags] span, & [data-kb-priority], & [data-kb-badge]", tag)
         .nest("& [data-kb-foot]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(12))]))
         .nest(
@@ -216,7 +216,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-kb-avatar] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
-        .nest("& [data-kb-drop]", pairs(&[("height", "2px"), ("margin", "-5px 2px"), ("border-radius", "2px"), ("background", PRIMARY)]))
+        .nest("& [data-kb-drop]", pairs(&[("height", "2px"), ("margin", sp!(-5, 2)), ("border-radius", "2px"), ("background", PRIMARY)]))
         .nest(
             "& [data-kb-add]",
             pairs(&[

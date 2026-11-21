@@ -55,7 +55,7 @@ static RATING: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-full]",
             pairs(&[("position", "absolute"), ("inset", "0"), ("color", AMBER), ("clip-path", "inset(0 calc(100% - min(100%, max(0%, var(--ui-value) * 1%))) 0 0)")]),
         )
-        .nest("& [data-score]", pairs(&[("margin-inline-start", "6px"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1"), ("font-variant-numeric", "tabular-nums")]))
+        .nest("& [data-score]", pairs(&[("margin-inline-start", sp!(6)), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1"), ("font-variant-numeric", "tabular-nums")]))
 });
 
 impl Component for Rating {
@@ -211,7 +211,7 @@ const CHECKLIST_PROPS: &[PropDef] = &[
 
 static CHECKLIST: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(8)), ("color", MUTED), ("font-size", fs!(13))])
-        .nest("& [data-meter]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(4, 1fr)"), ("gap", "4px")]))
+        .nest("& [data-meter]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(4, 1fr)"), ("gap", sp!(4))]))
         .nest("& [data-meter] span", pairs(&[("height", "4px"), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 12%, transparent)"), ("transition", "background .2s")]))
         .nest("&[data-strength='1'] [data-meter] span:nth-child(-n+1)", pairs(&[("background", "var(--color-destructive, #dc2626)")]))
         .nest("&[data-strength='2'] [data-meter] span:nth-child(-n+2)", pairs(&[("background", "var(--color-warning, #d97706)")]))
@@ -231,7 +231,7 @@ static CHECKLIST: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("border", "0"),
                 ("background", "var(--color-success, #16a34a)"),
                 ("color", "var(--color-surface, #fff)"),
-                ("font-size", "10px"),
+                ("font-size", fs!(10)),
                 ("font-weight", "700"),
                 ("line-height", "1"),
             ]),

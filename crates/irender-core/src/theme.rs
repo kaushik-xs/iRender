@@ -20,8 +20,9 @@ pub struct ThemeSpec {
     pub variants: IndexMap<String, String>,
     /// Sets of token overrides people choose between on the page, such as a palette,
     /// a corner radius or a density: `{"palette": {"choices": {"rose": {"tokens": …}}}}`.
-    /// A choice applies through `data-theme-<option>` on `<html>`; the default one is
-    /// part of the base tokens, so a page with nothing chosen looks like it.
+    /// A choice applies through `data-theme-<option>` on `<html>`, or on any element
+    /// for the part of the page inside it; the default one is part of the base
+    /// tokens, so a page with nothing chosen looks like it.
     pub options: IndexMap<String, OptionSpec>,
 }
 
@@ -108,15 +109,19 @@ impl Default for Theme {
             ("radius.sm", "4px"),
             ("radius.md", "8px"),
             ("radius.lg", "12px"),
-            ("space.xs", "4px"),
-            ("space.sm", "8px"),
-            ("space.md", "16px"),
-            ("space.lg", "24px"),
-            ("space.xl", "32px"),
+            // Spacing and font sizes follow `space.scale` and `font.scale`, which a
+            // density or text size option sets.
+            ("space.scale", "1"),
+            ("space.xs", "calc(4px * var(--space-scale, 1))"),
+            ("space.sm", "calc(8px * var(--space-scale, 1))"),
+            ("space.md", "calc(16px * var(--space-scale, 1))"),
+            ("space.lg", "calc(24px * var(--space-scale, 1))"),
+            ("space.xl", "calc(32px * var(--space-scale, 1))"),
             ("font.body", "system-ui, -apple-system, 'Segoe UI', sans-serif"),
-            ("font.size.sm", "14px"),
-            ("font.size.md", "16px"),
-            ("font.size.lg", "20px"),
+            ("font.scale", "1"),
+            ("font.size.sm", "calc(14px * var(--font-scale, 1))"),
+            ("font.size.md", "calc(16px * var(--font-scale, 1))"),
+            ("font.size.lg", "calc(20px * var(--font-scale, 1))"),
         ]);
         let mut modes = IndexMap::new();
         modes.insert(

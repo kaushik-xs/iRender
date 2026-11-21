@@ -379,7 +379,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-first]", pairs(&[("display", "block"), ("font-size", "0"), ("text-transform", "uppercase")]))
         .nest("& [data-first]::first-letter", pairs(&[("font-size", fs!(11))]))
         .nest("& [data-mark][data-dot]::after", pairs(&[("content", "''"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
-        .nest("& [data-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(6)), ("min-width", "0"), ("padding-top", "4px")]))
+        .nest("& [data-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", sp!(6)), ("min-width", "0"), ("padding-top", sp!(4))]))
         .nest("& [data-line]", pairs(&[("line-height", "1.45")]))
         .nest("& [data-line] b", pairs(&[("font-weight", "600")]))
         .nest("& [data-line] time", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("margin-inline-start", sp!(6)), ("white-space", "nowrap")]))

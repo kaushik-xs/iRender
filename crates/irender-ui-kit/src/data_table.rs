@@ -210,7 +210,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[
                 ("box-sizing", "border-box"),
                 ("inset", "auto"),
-                ("margin", "6px 0"),
+                ("margin", concat!(sp!(6), " 0")),
                 ("min-width", sp!(200)),
                 ("max-height", "min(360px, 70vh)"),
                 ("overflow-y", "auto"),
@@ -570,7 +570,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Nested rows: the tree column's content steps in by depth.
         .nest(
             "& [data-dt-node]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(4)), ("padding-inline-start", "calc(var(--dt-depth, 0) * 20px)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(4)), ("padding-inline-start", "calc(var(--dt-depth, 0) * 20px * var(--space-scale, 1))")]),
         )
         .nest(
             "& [data-dt-twisty]",

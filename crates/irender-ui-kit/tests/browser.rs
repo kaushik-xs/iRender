@@ -1411,6 +1411,99 @@ fn theme_options_apply_and_persist_in_chrome() {
     );
 }
 
+/// The switch scales whole with density: its knob keeps a 1px gap all round, off and on.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn switch_knob_fits_its_track_at_every_density_in_chrome() {
+    let switches: Vec<_> = ["compact", "default", "comfortable"].iter().flat_map(|d| [false, true].map(|on| serde_json::json!(
+        { "type": "stack", "attrs": { "data-theme-density": d }, "children": [
+            { "type": "ui-switch", "props": { "label": "S", "checked": on }, "attrs": { "data-probe": format!("{d} {}", if on { "on" } else { "off" }) } } ] }))).collect();
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "stack", "children": switches } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    // The knob is a pseudo-element: its box from its computed size and offset.
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", () => {
+      const out = [...document.querySelectorAll("[data-probe]")].map((p) => {
+        const input = p.matches("input") ? p : p.querySelector("input");
+        const t = getComputedStyle(input), k = getComputedStyle(input, "::before");
+        const inner = [parseFloat(t.width) - 2, parseFloat(t.height) - 2];
+        const size = [parseFloat(k.width), parseFloat(k.height)];
+        const shift = new DOMMatrix(k.transform).m41;
+        const left = 1 + shift, top = 1;
+        const gaps = [left, inner[0] - size[0] - left, top, inner[1] - size[1] - top].map((g) => Math.round(g * 10) / 10);
+        return `${p.dataset.probe}: ${size[0] === size[1] ? "round" : "oval"} ${gaps.join(" ")}`;
+      });
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = html.replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("switch-density", &html) else { return };
+    assert_eq!(result.lines().count(), 6, "{result}");
+    for line in result.lines() {
+        let (_, gaps) = line.split_once(": ").unwrap();
+        let mut g = gaps.split(' ');
+        assert_eq!(g.next(), Some("round"), "{result}");
+        let g: Vec<f64> = g.map(|v| v.parse().unwrap()).collect();
+        // Top and bottom 1px; the knob at one end with 1px to spare.
+        assert!((g[2] - 1.0).abs() < 0.2 && (g[3] - 1.0).abs() < 0.2, "{result}");
+        let end = if line.contains(" on:") { g[1] } else { g[0] };
+        assert!((end - 1.0).abs() < 0.2, "{result}");
+    }
+}
+
+/// A choice set on a node applies inside it only: density and text size reach the
+/// kit's components, the built-ins and `$space.*` tokens there, and the default
+/// palette there undoes the one picked for the page.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn theme_choices_on_a_node_apply_inside_it_in_chrome() {
+    let probes = |p: &str| serde_json::json!([
+        { "type": "ui-button", "props": { "label": "Probe" }, "attrs": { "id": format!("{p}-button") } },
+        { "type": "button", "props": { "label": "Built-in" }, "attrs": { "id": format!("{p}-builtin") } },
+        { "type": "stack", "style": { "padding": "$space.md" }, "attrs": { "id": format!("{p}-box") } } ]);
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "stack", "children": [
+            { "type": "stack", "children": probes("page") },
+            { "type": "stack", "attrs": { "data-theme-density": "compact", "data-theme-palette": "zinc", "data-theme-text-size": "large" }, "children": probes("part") } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const cs = (id) => getComputedStyle(document.getElementById(id));
+      const line = (p) => [
+        Math.round(document.getElementById(`${p}-button`).getBoundingClientRect().height),
+        cs(`${p}-button`).fontSize, cs(`${p}-button`).backgroundColor,
+        cs(`${p}-builtin`).paddingTop, cs(`${p}-box`).paddingTop,
+      ].join(" ");
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = `${line("page")}\n${line("part")}`;
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = html
+        .replace("<head>", r#"<head><script>localStorage.setItem("irender-theme-options", '{"palette":"rose"}'); localStorage.removeItem("irender-theme")</script>"#)
+        .replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("theme-choices-on-a-node", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "36 14px rgb(225, 29, 72) 8px 16px",
+            // 0.8 × the spacing, 1.125 × the text, and zinc's primary again.
+            "29 15.75px rgb(24, 24, 27) 6.4px 12.8px",
+        ],
+        "\n{result}"
+    );
+}
+
 /// Custom backgrounds are kept per mode and set the page's, cards' and popovers'
 /// colours; a gradient end turns the brand fills into a gradient, and clearing it
 /// goes back to the plain colour.

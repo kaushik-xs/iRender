@@ -142,7 +142,8 @@ _Last updated: 2026-11-19._
 - [ ] **Theme options:**
   - [ ] Picking and applying them needs irender-ui-kit (its picker and early script), like the mode. Without the kit a page shows the default choices.
   - [ ] A document can't read the current choice from `state` (to show "Rose" in text, say); the picker and `window.__irenderTheme.option()` know it. Idea: an option to mirror choices into state keys.
-  - [ ] The kit's icon sizes, 1px borders, the switch's knob and other small fixed sizes don't follow `space.scale`; everything else does.
+  - [x] Density and text size reach everything (2026-11-21): `$space.*` and `$font.size.*` follow `space.scale` and `font.scale`, and so do the built-in `button`, `input` and numeric `stack` gaps, charts (text, tooltip padding), flow diagrams, the switch and the kit's remaining paddings. A choice also applies to part of a page through `data-theme-<option>` on a node (theme block). Not done yet: the kit's icon sizes, 1px borders and a few hairline offsets stay fixed; charts' symbol and legend marker sizes don't scale; `ui-theme-option` only picks the page's choice, not a part's.
+  - [ ] Finer controls: separate padding, gap, control-height and icon-size scales; heading font, weight, line height and letter spacing; border width, shadow level and separate radii for controls and cards; card style and sidebar/header tints; motion speed.
   - [ ] A swatch shows a choice's light value, in dark mode too.
   - [ ] Custom gradients are always 135° from the colour to its end; a theme's `gradient.*` token can be any CSS background. The built-in `button` (without the kit) ignores gradients.
   - [ ] Custom backgrounds don't change the text colour on them, so a dark card in light mode needs a custom text colour that doesn't exist yet. Idea: derive `color.text` per background like `on-primary`.

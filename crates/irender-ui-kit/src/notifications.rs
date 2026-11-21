@@ -67,20 +67,20 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("inset-inline-end", "-6px"),
                 ("min-width", "18px"),
                 ("height", "18px"),
-                ("padding", "0 5px"),
+                ("padding", sp!(0, 5)),
                 ("box-sizing", "border-box"),
                 ("border", "2px solid var(--color-surface, #fff)"),
                 ("border-radius", "999px"),
                 ("background", "var(--color-destructive, #dc2626)"),
                 ("color", "#fff"),
-                ("font-size", "10px"),
+                ("font-size", fs!(10)),
                 ("font-weight", "700"),
                 ("line-height", "14px"),
                 ("text-align", "center"),
             ]),
         )
         .nest("& [data-nt-count][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", "8px 0").set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline").nest("&:dir(rtl)", StyleBlock::new().set("position-area", "bottom span-right")))
+        .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", concat!(sp!(8), " 0")).set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline").nest("&:dir(rtl)", StyleBlock::new().set("position-area", "bottom span-right")))
         .nest("& [data-nt-panel][popover]:popover-open, & [data-nt-panel]:not([popover])", pairs(&[("display", "flex"), ("flex-direction", "column")]))
         .nest("& [data-nt-panel]:not([popover])", pairs(&[("width", "100%"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)")]))
         .nest("& [data-nt-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", sp!(8)), ("padding", sp!(12, 14, 8))]))

@@ -92,6 +92,8 @@ theme:
 
 - A choice applies through `data-theme-<option>` on `<html>` (`data-theme-palette="rose"`); its `modes` give its own values under a variant, so a palette has its own dark colours. A token a choice sets without a dark value keeps it in dark mode.
 - The default choice (`default`, or the first) is part of the base tokens: a page with nothing chosen looks like it.
+- A choice also applies to part of a page: `attrs: { data-theme-density: compact }` on a node makes everything inside it compact, and `data-theme-palette: zinc` there undoes a palette picked for the page. Each choice sets every token its option touches, and tokens computed from them again, so this works for the default choice too.
+- The built-in `space.*` and `font.size.*` tokens follow `space.scale` and `font.scale` (`$space.md` is `calc(16px * var(--space-scale, 1))`), so a density or text-size option reaches styles that use them.
 - Option and choice names use lowercase letters, digits and `-`. Mistakes are reported with their paths, like other theme errors.
 - [irender-ui-kit](crates/irender-ui-kit/README.md#theme-options) ships options (palette, radius, density, text size, font) and `ui-theme-option`, which picks one, remembers it and applies it before the page shows. The [chart kit](crates/irender-chart-kit/README.md#theme) adds chart colour schemes. A document adds choices to these or options of its own.
 

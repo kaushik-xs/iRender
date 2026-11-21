@@ -614,7 +614,7 @@ fn theme_option_lists_its_choices_with_swatches() {
     assert!(body.contains(r#"<button type="button" data-choice="rose" aria-pressed="false"><span aria-hidden="true"><span></span></span>Rose</button>"#), "{body}");
     assert!(page.css.contains("background: #e11d48;"), "rose's swatch");
     // The kit's options are in the theme CSS, each with its dark colours.
-    assert!(page.css.contains(r#":root[data-theme-palette="rose"] {"#) && page.css.contains(r#":root[data-theme-density="compact"] {"#));
+    assert!(page.css.contains(r#":root[data-theme-palette="rose"], [data-theme-palette="rose"] {"#) && page.css.contains(r#":root[data-theme-density="compact"], [data-theme-density="compact"] {"#));
     let err = render_with(json!({ "type": "ui-theme-option", "props": { "option": "nope" } }), json!({}), json!({})).unwrap_err();
     assert!(err.message.contains("`nope` is not a theme option (options: `palette`, `radius`, `density`, `text-size`, `font`)"), "{err}");
 }

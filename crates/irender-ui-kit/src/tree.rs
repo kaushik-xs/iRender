@@ -134,7 +134,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [aria-checked=true] > [data-tree-row] [data-tree-check] [data-on]", pairs(&[("display", "block")]))
         .nest("& [aria-checked=mixed] > [data-tree-row] [data-tree-check] [data-some]", pairs(&[("display", "block")]))
         .nest("& [data-tree-label]", pairs(&[("flex", "1 1 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
-        .nest("& [data-tree-name]", pairs(&[("flex", "1 1 auto"), ("height", sp!(28)), ("margin", "2px 0")]))
+        .nest("& [data-tree-name]", pairs(&[("flex", "1 1 auto"), ("height", sp!(28)), ("margin", concat!(sp!(2), " 0"))]))
         .nest("& [data-tree-label] mark", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 18%, transparent)"), ("color", "inherit"), ("border-radius", "2px")]))
         .nest("& [data-tree-count]", pairs(&[("flex", "none"), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "400"), ("font-variant-numeric", "tabular-nums")]))
         .nest("& [data-tree-actions]", pairs(&[("display", "flex"), ("flex", "none"), ("gap", sp!(2)), ("opacity", "0")]))

@@ -219,33 +219,73 @@ impl<'t> StyleCompiler<'t> {
                 None => {}
             }
         }
-        // Theme options: each choice on `:root[data-theme-<option>=…]`, then its own
-        // overrides per variant, after the base modes so a chosen palette's dark colours
-        // win over the base dark ones.
+        // Theme options: each choice on `[data-theme-<option>=…]`, on the root or on any
+        // element below it (`attrs: {data-theme-density: compact}` makes one part of the
+        // page denser), then its own overrides per variant, after the base modes so a
+        // chosen palette's dark colours win over the base dark ones.
         for (name, option) in self.theme.options() {
             let attr = irender_core::theme::ThemeOption::attribute(name);
+            // Every token a choice of the option sets: each choice sets them all, so
+            // the default one on an element undoes a choice made further up.
+            let keys: Vec<&String> = {
+                let mut keys = Vec::new();
+                for k in option.choices.values().flat_map(|c| c.tokens.keys()) {
+                    if !keys.contains(&k) {
+                        keys.push(k);
+                    }
+                }
+                keys
+            };
             for (choice, c) in &option.choices {
-                let on = format!(":root[{attr}=\"{choice}\"]");
-                if !c.tokens.is_empty() {
+                let own = format!("[{attr}=\"{choice}\"]");
+                let on = format!(":root{own}, {own}");
+                let inherited = self.inherited_tokens(&keys, &c.tokens);
+                let mut tokens = c.tokens.clone();
+                for k in &inherited {
+                    if let Some(v) = self.theme.tokens().get(k) {
+                        tokens.insert(k.clone(), v.clone());
+                    }
+                }
+                if !tokens.is_empty() {
                     let _ = writeln!(css, "{on} {{");
-                    vars(&c.tokens, &mut css);
+                    vars(&tokens, &mut css);
                     css.push_str("}\n");
                 }
-                for (mode, tokens) in &c.modes {
+                let modes = self.theme.modes().keys().chain(c.modes.keys());
+                let mut seen = Vec::new();
+                for mode in modes {
+                    if seen.contains(&mode) {
+                        continue;
+                    }
+                    seen.push(mode);
+                    let mut tokens = c.modes.get(mode).cloned().unwrap_or_default();
+                    if let Some(base) = self.theme.modes().get(mode) {
+                        for k in &inherited {
+                            if let (Some(v), false) = (base.get(k), tokens.contains_key(k)) {
+                                tokens.insert(k.clone(), v.clone());
+                            }
+                        }
+                    }
+                    if tokens.is_empty() {
+                        continue;
+                    }
                     match self.theme.condition(mode) {
                         Some(Condition::AtRule(rule)) => {
                             let _ = writeln!(css, "{rule} {{\n{on} {{");
-                            vars(tokens, &mut css);
+                            vars(&tokens, &mut css);
                             css.push_str("}\n}\n");
                         }
                         Some(Condition::Selector(s)) => {
-                            // `[data-theme=dark] &` applies to the root itself here.
+                            // `[data-theme=dark] &` applies to the root itself, or below it.
                             let sel = match s.trim_end().strip_suffix('&') {
-                                Some(prefix) if !prefix.trim().is_empty() => format!("{}[{attr}=\"{choice}\"]", prefix.trim()),
-                                _ => s.replace('&', &on),
+                                Some(prefix) if !prefix.trim().is_empty() => {
+                                    let p = prefix.trim();
+                                    format!("{p}{own}, {p} {own}")
+                                }
+                                _ => format!("{}, {}", s.replace('&', &format!(":root{own}")), s.replace('&', &own)),
                             };
                             let _ = writeln!(css, "{sel} {{");
-                            vars(tokens, &mut css);
+                            vars(&tokens, &mut css);
                             css.push_str("}\n");
                         }
                         None => {}
@@ -254,6 +294,31 @@ impl<'t> StyleCompiler<'t> {
             }
         }
         css
+    }
+
+    /// The base tokens a choice declares again: those other choices of its option set,
+    /// and those computed from what it sets (`space.md` from `space.scale`), which an
+    /// element has to work out again under its own value.
+    fn inherited_tokens(&self, keys: &[&String], own: &IndexMap<String, String>) -> Vec<String> {
+        let mut out: Vec<String> = keys.iter().filter(|k| !own.contains_key(**k)).map(|k| k.to_string()).collect();
+        let uses = |v: &str, k: &str| {
+            let var = format!("var({}", Theme::var_name(k));
+            v.match_indices(&var).any(|(i, _)| matches!(v[i + var.len()..].chars().next(), Some(',' | ')' | ' ')))
+        };
+        loop {
+            let more: Vec<String> = self
+                .theme
+                .tokens()
+                .iter()
+                .filter(|(k, _)| !own.contains_key(*k) && !out.contains(k))
+                .filter(|(_, v)| own.keys().chain(out.iter()).any(|k| uses(v, k)))
+                .map(|(k, _)| k.clone())
+                .collect();
+            if more.is_empty() {
+                return out;
+            }
+            out.extend(more);
+        }
     }
 
     /// The complete stylesheet.
@@ -404,9 +469,36 @@ mod tests {
         .unwrap();
         let theme = Theme::resolve(&spec, &mut irender_core::Diagnostics::default());
         let css = StyleCompiler::new(&theme).theme_css();
-        assert!(css.contains(":root[data-theme-palette=\"rose\"] {\n  --color-primary: #e11d48;\n}"), "{css}");
+        let rose = ":root[data-theme-palette=\"rose\"], [data-theme-palette=\"rose\"]";
+        assert!(css.contains(&format!("{rose} {{\n  --color-primary: #e11d48;\n}}")), "{css}");
         // Its dark colours come after the base dark mode, so they win in dark mode.
-        let dark = css.find("@media (prefers-color-scheme: dark) {\n:root[data-theme-palette=\"rose\"] {\n  --color-primary: #fb7185;").unwrap();
+        let dark = css.find(&format!("@media (prefers-color-scheme: dark) {{\n{rose} {{\n  --color-primary: #fb7185;")).unwrap();
         assert!(dark > css.find("@media (prefers-color-scheme: dark) {\n:root {").unwrap(), "{css}");
+    }
+
+    #[test]
+    fn a_choice_on_an_element_sets_everything_its_option_touches() {
+        let spec: irender_core::theme::ThemeSpec = serde_json::from_value(serde_json::json!({
+            "modes": { "dark": { "color": { "primary": "#fafafa" } } },
+            "options": {
+                "palette": { "default": "zinc", "choices": {
+                    "zinc": {},
+                    "rose": { "tokens": { "color": { "primary": "#e11d48" } } } } },
+                "density": { "choices": { "compact": { "tokens": { "space": { "scale": 0.8 } } } } }
+            }
+        }))
+        .unwrap();
+        let theme = Theme::resolve(&spec, &mut irender_core::Diagnostics::default());
+        let css = StyleCompiler::new(&theme).theme_css();
+        // The default sets what the others do, light and dark, so it undoes a choice
+        // made on an element further up.
+        let zinc = ":root[data-theme-palette=\"zinc\"], [data-theme-palette=\"zinc\"]";
+        assert!(css.contains(&format!("{zinc} {{\n  --color-primary: #4f46e5;\n}}")), "{css}");
+        assert!(css.contains(&format!("@media (prefers-color-scheme: dark) {{\n{zinc} {{\n  --color-primary: #fafafa;")), "{css}");
+        // Tokens computed from the scale are worked out again under the element's own.
+        let compact = css.split("[data-theme-density=\"compact\"] {\n").nth(1).unwrap();
+        let compact = &compact[..compact.find('}').unwrap()];
+        assert!(compact.contains("--space-scale: 0.8;") && compact.contains("--space-md: calc(16px * var(--space-scale, 1));"), "{compact}");
+        assert!(!compact.contains("--font-size-md"), "{compact}");
     }
 }

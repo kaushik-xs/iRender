@@ -673,7 +673,7 @@ static KBD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("unicode-bidi", "isolate"),
         ("display", "inline-flex"),
         ("align-items", "center"),
-        ("padding", "1px 6px"),
+        ("padding", sp!(1, 6)),
         ("border", "1px solid var(--color-border)"),
         ("border-bottom-width", "2px"),
         ("border-radius", "var(--radius-sm)"),
