@@ -165,7 +165,7 @@ Edge templates have these props:
 - **`animated`:** moving dashes.
 - **`floating`:** the edge attaches to the two boxes' borders, facing each other, instead of to ports. This suits ER diagrams. A floating edge from a node to itself, such as a `parent_id`, is drawn as a loop off its top-right corner.
 
-A template's `style` styles the path. Its children are the label, which sits at the middle of the path. Without children, the label is `edge.label`.
+A template's `style` styles the path. Its children are the label, which sits at the middle of the path, or, when that would cover another label or a node, at the nearest free point along it. Without children, the label is `edge.label`.
 
 ## `ui-flow`
 

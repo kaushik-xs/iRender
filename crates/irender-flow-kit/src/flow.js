@@ -715,9 +715,34 @@
       return t === "arrow" || t === "arrowclosed" ? `url(#${uid}-${t})` : null;
     };
 
+    // Labels go at their edges' middles, unless one would cover a label placed before
+    // it or a node: then at the nearest free point along its own edge, either way.
+    // Containers don't count, as labels inside them are where they belong.
+    function placeLabels(list) {
+      const parents = new Set(nodes.map((n) => str(n.parentId)).filter((id) => byId.has(id)));
+      const taken = [];
+      for (const [id, g] of geo) if (!parents.has(id) && g.w) taken.push({ x: g.x, y: g.y, w: g.w, h: g.h });
+      const free = (b) => !taken.some((o) => b.x < o.x + o.w + 2 && o.x < b.x + b.w + 2 && b.y < o.y + o.h + 2 && o.y < b.y + b.h + 2);
+      for (const l of list) {
+        const w = l.el.offsetWidth, h = l.el.offsetHeight;
+        const box = (x, y) => ({ x: x - w / 2, y: y - h / 2, w, h });
+        let best = box(l.x, l.y);
+        if (!free(best)) {
+          const len = l.path.getTotalLength();
+          for (const f of [0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+            const q = l.path.getPointAtLength(len * f);
+            if (free(box(q.x, q.y))) { best = box(q.x, q.y); break; }
+          }
+        }
+        taken.push(best);
+        l.el.style.transform = `translate(${best.x + w / 2}px, ${best.y + h / 2}px) translate(-50%, -50%)`;
+      }
+    }
+
     function drawEdges(sel, focusing, hits) {
       const els = edgeEls();
       const seen = new Set();
+      const labels = [];
       for (const e of edges) {
         const id = edgeId(e);
         const r = els.get(id);
@@ -785,11 +810,12 @@
           r.svg.__class = e.className;
         }
         if (r.label) {
-          r.label.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -50%)`;
+          labels.push({ el: r.label, path, x: p.x, y: p.y });
           flag(r.label, "data-dimmed", dim);
         }
       }
       for (const [id, r] of els) if (!seen.has(id)) { if (r.svg) r.svg.setAttribute("hidden", ""); if (r.label) r.label.hidden = true; }
+      placeLabels(labels);
     }
 
     // --------------------------------------------------------------- the view

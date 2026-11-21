@@ -694,3 +694,35 @@ fn shapes_outline_ports_and_floating_edges() {
         "minimap 2",
     ]);
 }
+
+/// Two labels that would land on the same spot: the second moves along its own edge,
+/// so they don't overlap, and it stays on its edge.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn edge_labels_keep_clear_of_each_other() {
+    let doc = json!({ "version": 1, "root": { "type": "stack", "children": [
+        { "type": "ui-flow", "attrs": { "id": "a" },
+          "props": { "fit": false, "viewport": { "x": 0, "y": 0, "zoom": 1 }, "controls": false, "background": "none",
+            "nodes": [
+                { "id": "1", "position": { "x": 0, "y": 0 }, "data": { "label": "One" } },
+                { "id": "2", "position": { "x": 600, "y": 0 }, "data": { "label": "Two" } } ],
+            "edges": [
+                { "id": "p", "source": "1", "target": "2", "label": "first label" },
+                { "id": "q", "source": "1", "target": "2", "label": "second label" } ] } } ] } });
+    let driver = r##"
+        const f = "a";
+        const [p, q] = [label(f, "p"), label(f, "q")].map((l) => l.getBoundingClientRect());
+        log("apart", p.right <= q.left || q.right <= p.left || p.bottom <= q.top || q.bottom <= p.top);
+        // The first keeps its edge's middle; the second's centre is on its edge.
+        const path = edge(f, "q").querySelector("path"), box = edge(f, "q").getBoundingClientRect();
+        const cx = (q.left + q.right) / 2 - box.left, cy = (q.top + q.bottom) / 2 - box.top;
+        const len = path.getTotalLength();
+        let d = Infinity;
+        for (let i = 0; i <= 200; i++) { const pt = path.getPointAtLength((len * i) / 200); d = Math.min(d, Math.hypot(pt.x - cx, pt.y - cy)); }
+        log("onEdge", d < 3);
+        const mid = edge(f, "p").querySelector("path").getPointAtLength(edge(f, "p").querySelector("path").getTotalLength() / 2);
+        log("firstMid", Math.abs((p.left + p.right) / 2 - box.left - mid.x) < 3);
+    "##;
+    let Some(lines) = run("labels", doc, driver) else { return };
+    check(&lines, &["apart true", "onEdge true", "firstMid true"]);
+}
