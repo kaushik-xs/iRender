@@ -446,6 +446,8 @@ root: …
 "Card title, then Enter": "Card title, then Enter"
 "New card in {name}": "New card in {name}"
 "Add card": "Add card"
+"Move lane {name}": "Move lane {name}"
+"Drag, or press Up or Down, to move the lane": "Drag, or press Up or Down, to move the lane"
 "{title} moved to position {n} in {column}": "{title} moved to position {n} in {column}"
 "{title} moved to {column}, position {n}": "{title} moved to {column}, position {n}"
 "Added {title} to {column}": "Added {title} to {column}"

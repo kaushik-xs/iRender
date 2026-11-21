@@ -4,12 +4,14 @@
 # where its status badge follows the column it's in. Add card asks for a title. The
 # board is split into a lane per assignee (dragging a card to another lane reassigns it,
 # as does Alt+Down past a cell's end), each card shows its story points, and a column's
-# grip moves the column (dragged, or Left and Right on it).
+# grip moves the column (dragged, or Left and Right on it). A lane's grip moves the lane
+# (dragged, or Up and Down on it), its order kept in `lanes` (`bindLanes`).
 #
 #   cargo run -p irender-cli -- render examples/blocks/kanban-01.yaml --ui-kit --icon-kit -o kanban-01.html
 version: 1
 state:
   task: null
+  lanes: []
   columns:
     - { id: todo, title: To do, tone: info }
     - { id: doing, title: In progress, tone: primary, limit: 3 }
@@ -66,6 +68,8 @@ root:
                 bindColumns: columns
                 reorderable: true
                 swimlanes: assignee
+                lanes: "{{ lanes }}"
+                bindLanes: lanes
                 fields: [ { field: points, label: Points } ]
                 cards: "{{ tasks }}"
                 bindCards: tasks

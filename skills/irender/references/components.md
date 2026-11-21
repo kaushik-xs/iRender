@@ -410,8 +410,9 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   swimlanes    string  A card field to split the board by: a row of columns per value, e.g. `assignee`; moving a card to a lane writes it. May use state (null: no lanes)
   lanes        any  With `swimlanes`, the lanes in order: values or `{ value, label }` (default: the values as cards have them)
   fields       any  More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`. May use state, e.g. a list picked by a setting
-  reorderable  bool  A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)
+  reorderable  bool  A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`); with lanes, one on each lane's header moves the lane, or Up and Down (with `bindLanes`)
   bindColumns  statekey  State key the columns are in: a moved column's new order is written back to it
+  bindLanes    statekey  State key `lanes` reads: a moved lane's new order is written back to it
   locale       string  Locale for `date` fields (default: the document's `lang`)
   filter       any  Shows only the cards that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`. Applied in the browser
   parts: board

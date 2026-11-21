@@ -6593,6 +6593,80 @@ fn kanban_lanes_fields_and_columns_in_chrome() {
     );
 }
 
+/// Moving swimlanes with `reorderable`: a grip on each lane's header (not the lane of
+/// cards without a value), Up and Down on it, dragging it, and by touch after a hold,
+/// the order written to `bindLanes` as `lanes` had it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn kanban_move_lanes_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": {
+            "order": [ { "value": "Ravi", "label": "Ravi K" }, "Asha" ],
+            "tasks": [
+                { "id": "a", "column": "todo", "title": "Alpha", "assignee": "Asha" },
+                { "id": "b", "column": "todo", "title": "Bravo", "assignee": "Ravi" },
+                { "id": "c", "column": "todo", "title": "Charlie", "assignee": "Meera" },
+                { "id": "d", "column": "todo", "title": "Delta" } ] },
+        "root": { "type": "ui-kanban", "props": { "columns": [ { "id": "todo", "title": "To do" } ], "cards": "{{ tasks }}", "bindCards": "tasks",
+            "swimlanes": "assignee", "lanes": "{{ order }}", "bindLanes": "order", "reorderable": true } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const K = document.querySelector("[data-i-x=ui-kanban]"), $ = (s) => K.querySelector(s), $$ = (s) => [...K.querySelectorAll(s)];
+      const lanes = () => $$("[data-kb-lane-fold]").map((b) => b.textContent).join(",");
+      const order = () => JSON.stringify(S().order);
+      const row = (k) => $(`[data-kb-lane-row="${k}"]`);
+      try {
+        log("grips", $$("[data-kb-lane-grip]").map((g) => g.getAttribute("aria-label")).join(", "));
+        // Up on Asha's grip: Asha first, the order written with Ravi's label kept.
+        $('[data-kb-lane-grip="Asha"]').focus();
+        document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })); await wait(0);
+        log("up", lanes(), order(), document.activeElement.getAttribute("data-kb-lane-grip"));
+        // Dragging Meera's grip onto the top half of Asha's lane: Meera first.
+        const dt = new DataTransfer(), ar = row("Asha").getBoundingClientRect();
+        $('[data-kb-lane-grip="Meera"]').dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+        row("Asha").dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt, clientX: ar.left + 40, clientY: ar.top + 4 }));
+        log("over", row("Asha").getAttribute("data-over-drop"));
+        row("Asha").dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt, clientX: ar.left + 40, clientY: ar.top + 4 }));
+        $("[data-kb-board]").dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt })); await wait(0);
+        log("dragged", lanes(), order());
+        // By touch: hold Meera's grip, then let go on the lane of cards without a value: last.
+        const touch = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 5, pointerType: "touch", isPrimary: true, clientX: x, clientY: y }));
+        const g = $('[data-kb-lane-grip="Meera"]'), gr = g.getBoundingClientRect(), nr = row("").getBoundingClientRect();
+        touch(g, "pointerdown", gr.left + 4, gr.top + 4); await wait(350);
+        log("held", $$("[data-touch-ghost]").length, $("[data-touch-dragging]")?.hasAttribute("data-kb-lane-head"));
+        touch(g, "pointermove", nr.left + 40, nr.top + 6); await wait(0);
+        touch(g, "pointerup", nr.left + 40, nr.top + 6); await wait(0);
+        log("touched", lanes(), order());
+        await wait(60);
+        log("said", $("[data-kb-live]").textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("kanban-move-lanes", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // No grip on the lane of cards without an assignee.
+            "grips Move lane Ravi K, Move lane Asha, Move lane Meera",
+            "up Asha,Ravi K,Meera,No assignee [\"Asha\",{\"value\":\"Ravi\",\"label\":\"Ravi K\"},\"Meera\"] Asha",
+            "over before",
+            "dragged Meera,Asha,Ravi K,No assignee [\"Meera\",\"Asha\",{\"value\":\"Ravi\",\"label\":\"Ravi K\"}]",
+            "held 1 true",
+            "touched Asha,Ravi K,Meera,No assignee [\"Asha\",{\"value\":\"Ravi\",\"label\":\"Ravi K\"},\"Meera\"]",
+            "said Meera moved to position 3 of 3",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `swimlanes` and `fields` from state: a setting changes the lanes and what each card
 /// shows, and a later move keeps them.
 #[test]

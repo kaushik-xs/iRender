@@ -40,8 +40,13 @@ const PROPS: &[PropDef] = &[
         PropKind::Any,
         "More of each card, a line each: `{ field, label, cell }`, `cell` being `text` (default), `badge` (with `tones`), `progress` (0–100) or `date`. May use state, e.g. a list picked by a setting",
     ),
-    PropDef::new("reorderable", PropKind::Bool, "A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`)"),
+    PropDef::new(
+        "reorderable",
+        PropKind::Bool,
+        "A grip on each column's header moves the column: dragged, or Left and Right on it (with `bindColumns`); with lanes, one on each lane's header moves the lane, or Up and Down (with `bindLanes`)",
+    ),
     PropDef::new("bindColumns", PropKind::StateKey, "State key the columns are in: a moved column's new order is written back to it"),
+    PropDef::new("bindLanes", PropKind::StateKey, "State key `lanes` reads: a moved lane's new order is written back to it"),
     PropDef::new("locale", PropKind::String, "Locale for `date` fields (default: the document's `lang`)"),
     PropDef::new(
         "filter",
@@ -149,11 +154,14 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kb-lane-head] [data-kb-count]", pairs(&[("color", MUTED), ("font-size", fs!(12))]))
         // A column's grip, to move it.
         .nest(
-            "& [data-kb-grip]",
+            "& :is([data-kb-grip], [data-kb-lane-grip])",
             pairs(&[("flex", "none"), ("display", "grid"), ("place-items", "center"), ("width", "18px"), ("height", "22px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", MUTED), ("cursor", "grab"), ("opacity", ".7")]),
         )
-        .nest("& [data-kb-grip]:hover", pairs(&[("background", ACCENT), ("opacity", "1")]))
-        .nest("& [data-kb-grip]:focus-visible", forms::focus_ring())
+        .nest("& :is([data-kb-grip], [data-kb-lane-grip]):hover", pairs(&[("background", ACCENT), ("opacity", "1")]))
+        .nest("& :is([data-kb-grip], [data-kb-lane-grip]):focus-visible", forms::focus_ring())
+        // A lane dragged over a row: a line above or below it, where it goes.
+        .nest("& [data-kb-lane-row][data-over-drop=before]", pairs(&[("box-shadow", "0 -3px 0 var(--color-primary)")]))
+        .nest("& [data-kb-lane-row][data-over-drop=after]", pairs(&[("box-shadow", "0 3px 0 var(--color-primary)")]))
         .nest("& [data-kb-head][data-over-drop]", pairs(&[("box-shadow", "inset 3px 0 0 var(--color-primary)"), ("border-radius", "var(--radius-sm)")]))
         // `fields`: a line each.
         .nest("& [data-kb-fields]", pairs(&[("display", "grid"), ("gap", sp!(4)), ("font-size", fs!(12))]))
@@ -340,6 +348,7 @@ impl Component for Kanban {
             "filter": node.prop("filter").map(|f| dynamic(cx, node, "filter", f)).transpose()?,
             "reorderable": reorderable,
             "bindColumns": cx.prop_string(node, "bindColumns"),
+            "bindLanes": cx.prop_string(node, "bindLanes"),
             "locale": crate::locale(cx, node),
         });
         let mut root = cx.element("div", node);

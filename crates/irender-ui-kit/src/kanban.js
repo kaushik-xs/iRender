@@ -11,7 +11,9 @@
 // card's cell is its column and its lane (the field's value), and moving it to another
 // lane writes the field. Up and Down go on into the next lane at a cell's ends, and Alt
 // with them moves a card there. With `reorderable`, a grip on each column's header moves
-// the column (dragged, by touch after a hold, or Left and Right on it), writing the order to `bindColumns`.
+// the column (dragged, by touch after a hold, or Left and Right on it), writing the order to `bindColumns`;
+// with lanes, a grip on each lane's header moves the lane (Up and Down on it), writing
+// the lanes' order to `bindLanes`.
 // With `filter` (`{ field: condition }`, as the data table's and `ui-chart`'s), only the
 // cards that pass are drawn; moves place a card among the ones shown and keep the rest.
 (window.__irenderBehaviors ||= {})["ui-kanban"] = (el, api) => {
@@ -236,6 +238,7 @@
     const cols = columns(), all = cards();
     const hadFocus = el.contains(document.activeElement) && document.activeElement.matches("[data-kb-card]");
     const grip = el.contains(document.activeElement) ? document.activeElement.getAttribute("data-kb-grip") : null;
+    const laneGrip = el.contains(document.activeElement) ? document.activeElement.getAttribute("data-kb-lane-grip") : null;
     board.toggleAttribute("data-kb-lanes", !!laneField);
     if (!laneField) {
       board.replaceChildren(...cols.map((col) => cell(col, null, all.filter((c) => key(c.column) === key(col.id)), true)));
@@ -255,6 +258,12 @@
         const b = make("button", { type: "button", "data-kb-lane-fold": lane.key, "aria-expanded": folded ? "false" : "true" });
         b.innerHTML = svg.lane;
         b.append(make("span", {}, lane.name));
+        // `reorderable`: a grip to move the lane; the lane of cards without a value stays last.
+        if (cfg.reorderable && lane.key !== "") {
+          const g = make("button", { type: "button", "data-kb-lane-grip": lane.key, draggable: "true", "aria-label": L("Move lane {name}", { name: lane.name }), title: L("Drag, or press Up or Down, to move the lane") });
+          g.innerHTML = svg.grip;
+          head.append(g);
+        }
         head.append(b, make("span", { "data-kb-count": "" }, String(mine.length)));
         row.append(head);
         if (!folded) {
@@ -271,6 +280,7 @@
     if (stop) stop.tabIndex = 0;
     if (hadFocus && focusId) $(`[data-kb-card="${CSS.escape(focusId)}"]`)?.focus();
     if (grip) $(`[data-kb-grip="${CSS.escape(grip)}"]`)?.focus();
+    if (laneGrip !== null) $(`[data-kb-lane-grip="${CSS.escape(laneGrip)}"]`)?.focus();
     const box = $("[data-kb-name]");
     if (box && document.activeElement !== box) box.focus();
   }
@@ -357,6 +367,24 @@
     say(L("{name} moved to position {n} of {count}", { name: String(titleOf(id)), n: to + 1, count: next.length }));
   }
 
+  // Lane `k` moved to place `to` among the lanes (not the one without a value, which
+  // stays last), the order written to `bindLanes` as `lanes` has them: values, or the
+  // `{ value, label }`s given.
+  function moveLane(k, to) {
+    const order = lanes().filter((l) => l.key !== "");
+    const from = order.findIndex((l) => l.key === k);
+    to = Math.max(0, Math.min(order.length - 1, to));
+    if (from < 0 || from === to) return;
+    const [l] = order.splice(from, 1);
+    order.splice(to, 0, l);
+    const given = Array.isArray(resolve(cfg.lanes)) ? resolve(cfg.lanes) : [];
+    const entry = (x) => given.find((g) => laneKey(isObj(g) && "value" in g ? g.value : g) === x.key) ?? x.value;
+    const next = order.map(entry);
+    if (cfg.bindLanes) api.set(cfg.bindLanes, next);
+    api.emit("lanes", { lane: l.value, from, to, lanes: next });
+    say(L("{name} moved to position {n} of {count}", { name: l.name, n: to + 1, count: order.length }));
+  }
+
   // ---- events
   const cellOf = (t) => t.closest("[data-kb-column]");
   el.addEventListener("click", (e) => {
@@ -394,6 +422,16 @@
         draw();
         $(`[data-kb-column="${CSS.escape(s.getAttribute("data-kb-column"))}"]${s.hasAttribute("data-kb-lane") ? `[data-kb-lane="${CSS.escape(s.getAttribute("data-kb-lane"))}"]` : ""} [data-kb-add]`)?.focus();
       }
+      return;
+    }
+    // A lane's grip: Up and Down move the lane.
+    const lg = e.target.closest?.("[data-kb-lane-grip]");
+    if (lg) {
+      const dir = { ArrowUp: -1, ArrowDown: 1 }[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      const k = lg.getAttribute("data-kb-lane-grip");
+      moveLane(k, lanes().findIndex((l) => l.key === k) + dir);
       return;
     }
     // A column's grip: Left and Right move the column.
@@ -463,10 +501,10 @@
   });
 
   // ---- dragging cards (and, with `reorderable`, columns by their grip)
-  let dragId = null, dragCol = null;
+  let dragId = null, dragCol = null, dragLane = null;
   const clear = () => {
     $$("[data-kb-drop]").forEach((x) => x.remove());
-    $$("[data-kb-column][data-over-drop], [data-kb-colhead][data-over-drop], [data-kb-head][data-over-drop]").forEach((x) => x.removeAttribute("data-over-drop"));
+    $$("[data-kb-column][data-over-drop], [data-kb-colhead][data-over-drop], [data-kb-head][data-over-drop], [data-kb-lane-row][data-over-drop]").forEach((x) => x.removeAttribute("data-over-drop"));
   };
   // Where in `list` a pointer at `y` would drop: the index among its cards (not the dragged one).
   const slot = (list, y) => {
@@ -480,7 +518,32 @@
   // The column a dragged column would go before: the one whose header the pointer is over.
   const headAt = (target) => target?.closest?.("[data-kb-colhead], [data-kb-column]:not([data-kb-lane])");
   const headId = (h) => h.getAttribute("data-kb-colhead") ?? h.getAttribute("data-kb-column");
+  // A dragged lane over the row `row`: marked above or below, as it would go.
+  const rowAt = (target) => target?.closest?.("[data-kb-lane-row]");
+  const laneSide = (row, y) => {
+    const r = row.getBoundingClientRect();
+    return y > r.top + r.height / 2 ? "after" : "before";
+  };
+  const showLaneDrop = (row, y) => {
+    clear();
+    row.setAttribute("data-over-drop", laneSide(row, y));
+  };
+  function dropLane(row, y) {
+    const order = lanes().filter((l) => l.key !== "").map((l) => l.key);
+    const k = row.getAttribute("data-kb-lane-row"), from = order.indexOf(dragLane);
+    // Onto the lane without a value: last.
+    let to = k === "" ? order.length : order.indexOf(k) + (laneSide(row, y) === "after" ? 1 : 0);
+    if (from < to) to--;
+    moveLane(dragLane, to);
+  }
   board.addEventListener("dragstart", (e) => {
+    const lg = e.target.closest?.("[data-kb-lane-grip]");
+    if (lg && cfg.reorderable) {
+      dragLane = lg.getAttribute("data-kb-lane-grip");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", lg.closest("[data-kb-lane-head]")?.textContent ?? dragLane);
+      return;
+    }
     const g = e.target.closest?.("[data-kb-grip]");
     if (g && cfg.reorderable) {
       dragCol = g.getAttribute("data-kb-grip");
@@ -523,6 +586,13 @@
     moveColumn(dragCol, to + (past ? 1 : 0) - (from < to + (past ? 1 : 0) ? 1 : 0));
   }
   board.addEventListener("dragover", (e) => {
+    if (dragLane !== null) {
+      const row = rowAt(e.target);
+      if (!row) return;
+      e.preventDefault();
+      showLaneDrop(row, e.clientY);
+      return;
+    }
     if (dragCol !== null) {
       const h = headAt(e.target);
       if (!h) return;
@@ -539,6 +609,14 @@
   });
   board.addEventListener("dragleave", (e) => !board.contains(e.relatedTarget) && clear());
   board.addEventListener("drop", (e) => {
+    if (dragLane !== null) {
+      const row = rowAt(e.target);
+      clear();
+      if (!row) return;
+      e.preventDefault();
+      dropLane(row, e.clientY);
+      return;
+    }
     if (dragCol !== null) {
       const h = headAt(e.target);
       clear();
@@ -557,7 +635,7 @@
   const endDrag = () => {
     clear();
     $$("[data-dragging]").forEach((x) => x.removeAttribute("data-dragging"));
-    dragId = dragCol = null;
+    dragId = dragCol = dragLane = null;
   };
   board.addEventListener("dragend", endDrag);
   // By touch: hold a card, then drag it.
@@ -595,6 +673,27 @@
     drop(x, y, under) {
       const h = headAt(under);
       if (h && dragCol !== null) dropCol(h, x);
+    },
+    end: endDrag,
+  });
+
+  // And a lane by its grip: the lane's header follows the finger.
+  window.__irenderTouchDrag(board, {
+    scroller: board,
+    pick: (t) => {
+      const g = cfg.reorderable ? t.closest("[data-kb-lane-grip]") : null;
+      return g ? g.closest("[data-kb-lane-head]") ?? g : null;
+    },
+    start(h) {
+      dragLane = h.querySelector("[data-kb-lane-grip]")?.getAttribute("data-kb-lane-grip") ?? null;
+    },
+    over(x, y, under) {
+      const row = rowAt(under);
+      row ? showLaneDrop(row, y) : clear();
+    },
+    drop(x, y, under) {
+      const row = rowAt(under);
+      if (row && dragLane !== null) dropLane(row, y);
     },
     end: endDrag,
   });
