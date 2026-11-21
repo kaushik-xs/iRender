@@ -11,7 +11,7 @@
 // card's cell is its column and its lane (the field's value), and moving it to another
 // lane writes the field. Up and Down go on into the next lane at a cell's ends, and Alt
 // with them moves a card there. With `reorderable`, a grip on each column's header moves
-// the column (dragged, or Left and Right on it), writing the order to `bindColumns`.
+// the column (dragged, by touch after a hold, or Left and Right on it), writing the order to `bindColumns`.
 // With `filter` (`{ field: condition }`, as the data table's and `ui-chart`'s), only the
 // cards that pass are drawn; moves place a card among the ones shown and keep the rest.
 (window.__irenderBehaviors ||= {})["ui-kanban"] = (el, api) => {
@@ -510,13 +510,24 @@
     items[at] ? list.insertBefore(line, items[at]) : list.append(line);
   }
   const dropIn = (col, y) => move(dragId, col.getAttribute("data-kb-column"), slot($("[data-kb-cards]", col), y).at, laneField ? col.getAttribute("data-kb-lane") ?? "" : undefined);
+  // A dragged column over the header `h`: marked as where it goes.
+  const showColDrop = (h) => {
+    clear();
+    (h.querySelector("[data-kb-head]") ?? h).setAttribute("data-over-drop", "");
+  };
+  // A dragged column let go at `x` over the header `h`: before it, or after it past its middle.
+  function dropCol(h, x) {
+    const to = columns().findIndex((c) => key(c.id) === headId(h)), r = h.getBoundingClientRect();
+    const past = (side("ArrowRight") === "ArrowRight") === x > r.left + r.width / 2;
+    const from = columns().findIndex((c) => key(c.id) === dragCol);
+    moveColumn(dragCol, to + (past ? 1 : 0) - (from < to + (past ? 1 : 0) ? 1 : 0));
+  }
   board.addEventListener("dragover", (e) => {
     if (dragCol !== null) {
       const h = headAt(e.target);
       if (!h) return;
       e.preventDefault();
-      clear();
-      (h.querySelector("[data-kb-head]") ?? h).setAttribute("data-over-drop", "");
+      showColDrop(h);
       return;
     }
     if (dragId === null) return;
@@ -533,11 +544,7 @@
       clear();
       if (!h) return;
       e.preventDefault();
-      // Before the column dropped on, or after it past its middle.
-      const to = columns().findIndex((c) => key(c.id) === headId(h)), r = h.getBoundingClientRect();
-      const past = (side("ArrowRight") === "ArrowRight") === e.clientX > r.left + r.width / 2;
-      const from = columns().findIndex((c) => key(c.id) === dragCol);
-      moveColumn(dragCol, to + (past ? 1 : 0) - (from < to + (past ? 1 : 0) ? 1 : 0));
+      dropCol(h, e.clientX);
       return;
     }
     if (dragId === null) return;
@@ -568,6 +575,26 @@
     drop(x, y, under) {
       const col = columnAt(under);
       if (col && dragId !== null) dropIn(col, y);
+    },
+    end: endDrag,
+  });
+  // And a column by its grip, with `reorderable`: the header follows the finger.
+  window.__irenderTouchDrag(board, {
+    scroller: board,
+    pick: (t) => {
+      const g = cfg.reorderable ? t.closest("[data-kb-grip]") : null;
+      return g ? g.closest("[data-kb-head]") ?? g : null;
+    },
+    start(h) {
+      dragCol = h.querySelector("[data-kb-grip]")?.getAttribute("data-kb-grip") ?? null;
+    },
+    over(x, y, under) {
+      const h = headAt(under);
+      h ? showColDrop(h) : clear();
+    },
+    drop(x, y, under) {
+      const h = headAt(under);
+      if (h && dragCol !== null) dropCol(h, x);
     },
     end: endDrag,
   });

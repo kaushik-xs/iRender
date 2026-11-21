@@ -48,7 +48,7 @@ _Last updated: 2026-11-19._
     - [x] Baselines (2026-11-20): `baselineStart` and `baselineEnd` drawn as a thin bar under each task (a hollow diamond for a milestone), groups' from their tasks', tooltips saying how many days late or early; `baselines: false` hides them (block gantt-01's switch). Not done yet: no way to save the current dates as the baseline, other than the host copying them.
     - [x] The axis's dates are in the document's `lang` (2026-11-20).
   - [x] **Kanban board** (2026-11-18): `ui-kanban`, cards dragged between columns or moved with Alt and the arrow keys, written to `bindCards` with `move` events; limits, folding, Add card, and `bindCard` following its card (block kanban-01, gallery section). Not done yet:
-    - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved; moving a column has no touch drag (the grip's keys work). `swimlanes` and `fields` may use state (2026-11-19; block crm-01's Board settings).
+    - [x] Swimlanes by a card field, card `fields` (text, badge, progress, date) and moving columns by a grip (2026-11-20; block kanban-01). Not done yet: a card is still drawn by the board, not from a template of the page's own components; a lane folds but can't be moved. Columns move by touch too, holding the grip (2026-11-21). `swimlanes` and `fields` may use state (2026-11-19; block crm-01's Board settings).
     - [x] `filter` on the board (2026-11-20), as the data table and charts have; crm-01's board has a filter panel. Applied in the browser only: the server's first drawing shows every card.
   - [x] **Dashboard grid** (2026-11-19): `ui-dashboard-grid` + `ui-tile`, tiles dragged by their header and resized from their corner (pointer events, so touch too) or with the arrow keys, pushing the others aside and floating up, locked tiles, the layout in `bind`, and one column on a narrow grid (block dashboard-02, gallery section). Not done yet:
     - [x] A layout per width (2026-11-20): `breakpoints` with each size's columns, tiles' `layouts` per size, the rest worked out from the widest, all in the page's CSS, and `bind` keeping each size's (block dashboard-02's tablet layout).
@@ -94,14 +94,14 @@ _Last updated: 2026-11-19._
   - [ ] The navigation menu's panels don't share one animated viewport that morphs between items, as Radix's does; each panel opens on its own.
   - [x] Submenus keep a "safe triangle" (2026-11-20): heading diagonally for an open submenu across other items doesn't close it; stopping on another item does, after 400ms.
   - [x] Checkbox and radio items can keep the menu open (`keepOpen`, 2026-11-20).
-- [ ] **`ui-context-menu` gaps** (shipped 2026-11-18):
+- [x] **`ui-context-menu` gaps** (shipped 2026-11-18):
   - [x] Submenus, checkbox and radio items (2026-11-18), in every menu.
   - [x] A long press (500ms) by touch opens it, for iOS Safari, which sends no `contextmenu` (2026-11-20).
   - [x] Right-clicking a data table row selects it (2026-11-20), or keeps the selection on a selected row, as file lists do; block data-table-01's row menu acts on the selection.
-- [ ] **`ui-command` gaps:**
+- [x] **`ui-command` gaps:**
   - [x] Ranked, fuzzy matching (2026-11-20): best match first in each group and of the groups, letters in order, keywords, matched letters marked; `rank: false` for document order.
   - [x] Pages (`ui-command-page`, an item's `page`, Backspace back) and `bindSearch` (2026-11-20). A loading state for items fetched as you type: `loading` and `loadingText` (2026-11-20; gallery).
-- [ ] **`ui-sidebar` gaps:**
+- [x] **`ui-sidebar` gaps:**
   - [x] `remember` keeps it open or closed across reloads, in localStorage (2026-11-20; blocks sidebar-07, dashboard-01). The server can't read it (shadcn's cookie can), so a page drawn closed but remembered open opens as its script runs.
   - [x] Group and item actions (2026-11-20): `ui-sidebar-action`, a button or a ⋯ menu, shown always or on hover (block sidebar-07, gallery).
   - [x] The phone sheet keeps Tab inside the panel and swipes closed (2026-11-20). Tried with touch pointer events in Chrome, WebKit and Firefox, not on a real phone.

@@ -6456,6 +6456,15 @@ fn kanban_lanes_fields_and_columns_in_chrome() {
         log("column dragged", S().cols.map((c) => c.id).join(","));
         await wait(60);
         log("said", $("[data-kb-live]").textContent);
+        // By touch: hold To do's grip, then drag it onto the first header's left half.
+        const touch = (t, type, x, y) => t.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, pointerId: 5, pointerType: "touch", isPrimary: true, clientX: x, clientY: y }));
+        const tg = $('[data-kb-grip="todo"]'), gr = tg.getBoundingClientRect(), hr = $$("[data-kb-colhead]")[0].getBoundingClientRect();
+        touch(tg, "pointerdown", gr.left + 4, gr.top + 4); await wait(350);
+        log("held", $$("[data-touch-ghost]").length, $("[data-touch-dragging]")?.hasAttribute("data-kb-head"));
+        touch(tg, "pointermove", hr.left + 8, hr.top + 8); await wait(0);
+        log("over", $$("[data-kb-head][data-over-drop]").length);
+        touch(tg, "pointerup", hr.left + 8, hr.top + 8); await wait(0);
+        log("column touched", S().cols.map((c) => c.id).join(","), $$("[data-touch-ghost]").length);
       } catch (e) { log("EXCEPTION", e.stack); }
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
     });
@@ -6482,6 +6491,10 @@ fn kanban_lanes_fields_and_columns_in_chrome() {
             "column right doing,todo,done Doing 2, To do 1, Done 1 todo",
             "column dragged done,doing,todo",
             "said Done moved to position 1 of 3",
+            // The header follows the finger; dropped on the first, To do goes first.
+            "held 1 true",
+            "over 1",
+            "column touched todo,done,doing 0",
         ],
         "\n{result}"
     );
