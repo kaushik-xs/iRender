@@ -85,18 +85,24 @@
     // Sequential: the first hue, receding into the surface at the low end.
     const low = color(`color-mix(in oklab, ${palette[0]} 12%, ${surface})`);
     probe.remove();
-    return { text, muted, border, surface, palette, seq: [low, palette[0]], dark, font: cs.fontFamily };
+    // The theme's text size and density (`font.scale`, `space.scale`), as at `el`.
+    const scale = (name) => parseFloat(cs.getPropertyValue(name)) || 1;
+    return { text, muted, border, surface, palette, seq: [low, palette[0]], dark, font: cs.fontFamily, fontScale: scale("--font-scale"), spaceScale: scale("--space-scale") };
   }
+
+  // A font size in px that follows the theme's `font.scale`.
+  const px = (t) => (n) => Math.round(n * t.fontScale * 10) / 10;
 
   const compact = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
 
   // Defaults for every chart, as an ECharts theme: recessive axes and grid lines,
   // text in text colours, a tooltip that looks like the page's popovers.
   function echartsTheme(t) {
+    const fs = px(t);
     const axis = {
       axisLine: { lineStyle: { color: t.border } },
       axisTick: { show: false },
-      axisLabel: { color: t.muted },
+      axisLabel: { color: t.muted, fontSize: fs(12) },
       splitLine: { lineStyle: { color: t.border } },
       splitArea: { show: false },
       nameTextStyle: { color: t.muted },
@@ -105,15 +111,15 @@
     const value = {
       ...axis,
       axisLine: { show: false, lineStyle: { color: t.border } },
-      axisLabel: { color: t.muted, hideOverlap: true, formatter: (v) => (Math.abs(v) >= 1e4 ? compact.format(v) : v.toLocaleString()) },
+      axisLabel: { color: t.muted, fontSize: fs(12), hideOverlap: true, formatter: (v) => (Math.abs(v) >= 1e4 ? compact.format(v) : v.toLocaleString()) },
     };
     return {
       color: t.palette,
       backgroundColor: "transparent",
-      textStyle: { color: t.text, fontFamily: t.font },
-      title: { textStyle: { color: t.text }, subtextStyle: { color: t.muted } },
+      textStyle: { color: t.text, fontFamily: t.font, fontSize: fs(12) },
+      title: { textStyle: { color: t.text, fontSize: fs(18) }, subtextStyle: { color: t.muted, fontSize: fs(12) } },
       legend: {
-        textStyle: { color: t.muted },
+        textStyle: { color: t.muted, fontSize: fs(12) },
         pageTextStyle: { color: t.muted },
         pageIconColor: t.text,
         pageIconInactiveColor: t.border,
@@ -123,8 +129,8 @@
         backgroundColor: t.surface,
         borderColor: t.border,
         borderWidth: 1,
-        padding: [8, 10],
-        textStyle: { color: t.text, fontSize: 12 },
+        padding: [8 * t.spaceScale, 10 * t.spaceScale],
+        textStyle: { color: t.text, fontSize: fs(12) },
         extraCssText: "border-radius:8px;box-shadow:0 4px 12px rgb(0 0 0 / 0.1);",
         axisPointer: {
           lineStyle: { color: t.muted },
@@ -727,7 +733,7 @@
         const line = (yy) => ({ type: "line", shape: { x1: 0, y1: Math.round(yy) + 0.5, x2: api.getWidth(), y2: Math.round(yy) + 0.5 }, style: { stroke: t.border, lineWidth: 1 } });
         return { type: "group", children: [line(mid - h / 2), line(mid + h / 2)] };
       },
-      ...(marks.length ? { markLine: { silent: true, symbol: "none", animation: false, label: { show: true, position: "end", distance: 6, formatter: "{b}", fontSize: 11 }, data: marks } } : {}),
+      ...(marks.length ? { markLine: { silent: true, symbol: "none", animation: false, label: { show: true, position: "end", distance: 6, formatter: "{b}", fontSize: px(t)(11) }, data: marks } } : {}),
       ...(offDays.length ? { markArea: { silent: true, animation: false, itemStyle: { color: fade(t.text, 0.05) }, data: offDays } } : {}),
     });
     d.rowsBy.unshift(shown.map((i) => i.row));
@@ -735,7 +741,7 @@
     const pad = Number.isFinite(hi - lo) ? Math.max(DAY / 2, (hi - lo) * 0.02) : 0;
     o.xAxis = {
       type: "time", position: "top", min: Number.isFinite(lo) ? lo - pad : undefined, max: Number.isFinite(hi) ? hi + pad : undefined,
-      axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: t.muted, hideOverlap: true, fontSize: 11, formatter: axisDate },
+      axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: t.muted, hideOverlap: true, fontSize: px(t)(11), formatter: axisDate },
       splitLine: { show: true, lineStyle: { color: fade(t.border, 0.6) } },
     };
     o.yAxis = {
@@ -768,7 +774,8 @@
   let ruler;
   const textWidth = (text) => {
     ruler ??= document.createElement("canvas").getContext("2d");
-    ruler.font = `12px ${getComputedStyle(document.body).fontFamily}`;
+    const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--font-scale")) || 1;
+    ruler.font = `${12 * scale}px ${getComputedStyle(document.body).fontFamily}`;
     return ruler.measureText(text).width;
   };
 
@@ -994,7 +1001,7 @@
         axisLine: { roundCap: true, lineStyle: { width: 12, color: [[1, t.border]] } },
         pointer: { show: false }, axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
         anchor: { show: false }, title: { color: t.muted, offsetCenter: [0, "35%"] },
-        detail: { valueAnimation: true, color: t.text, fontSize: 28, fontWeight: 600, offsetCenter: [0, "0%"] },
+        detail: { valueAnimation: true, color: t.text, fontSize: px(t)(28), fontWeight: 600, offsetCenter: [0, "0%"] },
       }];
       tooltip("item");
     } else if (type === "tree" || type === "treemap" || type === "sunburst") {
@@ -1452,7 +1459,7 @@
         const trail = [L("All"), ...path().slice(0, d.depth)].map(String).join("  ›  ");
         o.graphic = [{
           type: "text", id: "drill-up", left: 4, top: 2, z: 100, cursor: "pointer",
-          style: { text: `‹  ${trail}`, fill: theme.muted, font: `12px ${theme.font}` },
+          style: { text: `‹  ${trail}`, fill: theme.muted, font: `${px(theme)(12)}px ${theme.font}` },
           onclick: () => drillTo(path().slice(0, d.depth - 1)),
         }];
         if (o.grid) o.grid.top = (o.grid.top ?? 16) + 24;
@@ -1855,35 +1862,43 @@
     // it, each moved on as far as it must to start when what it waits for ends.
     function pushed(list, key, v) {
       const out = new Map([[key, v]]);
-      if (!current().cascade) return out;
+      const mode = current().cascade;
+      if (!mode) return out;
+      // `cascade: "both"` also pulls a task back, to start when the last thing it waits
+      // for ends.
+      const pull = mode === "both";
       const rows = new Map(list.map((r) => [keyOf(r), r]));
       const now = (k) => out.get(k) ?? { start: at(rows.get(k), "start"), end: at(rows.get(k), "end") };
       const queue = [key];
       for (let guard = 0; queue.length && guard < 1000; guard++) {
-        const k = queue.shift(), done = span(now(k));
+        const k = queue.shift();
         for (const r of list) {
           if (!afterKeys(r).includes(k)) continue;
           const rk = keyOf(r), mine = now(rk), a = ms(mine.start);
-          if (Number.isNaN(a) || Number.isNaN(done.b) || a >= done.b) continue;
+          // When it can start: once all it waits for have ended.
+          const ends = afterKeys(r).filter((x) => rows.has(x) && x !== rk).map((x) => span(now(x)).b).filter((x) => !Number.isNaN(x));
+          if (Number.isNaN(a) || !ends.length) continue;
+          const ready = Math.max(...ends);
+          if (a >= ready && !pull) continue;
+          let next;
           const cal = workCalendar(current());
           if (cal && dateOnly(mine.start) && (blank(mine.end) || dateOnly(mine.end))) {
             // The first working day once it ends, keeping the task's working days.
-            const a2 = cal.snap(addDays(done.b, 0)), b = blank(mine.end) ? null : ms(mine.end);
-            out.set(rk, { start: daysFrom(mine.start, a2), end: b === null ? mine.end : daysFrom(mine.end, cal.add(a2, Math.max(0, cal.count(a, addDays(b, 1)) - 1))) });
-            queue.push(rk);
-            continue;
+            const a2 = cal.snap(addDays(ready, 0)), b = blank(mine.end) ? null : ms(mine.end);
+            if (a2 === a) continue;
+            next = { start: daysFrom(mine.start, a2), end: b === null ? mine.end : daysFrom(mine.end, cal.add(a2, Math.max(0, cal.count(a, addDays(b, 1)) - 1))) };
+          } else if (stepOf(r) < DAY) {
+            // Times of day with `snap`: the step after it ends.
+            const step = stepOf(r), d = Math.ceil((ready - a) / step - 1e-6) * step;
+            if (!d) continue;
+            next = { start: timeShift(mine.start, d), end: blank(mine.end) ? mine.end : timeShift(mine.end, d) };
+          } else {
+            // Whole days (a day changing clocks is an hour short or long).
+            const n = Math.ceil((ready - a) / DAY - 0.1);
+            if (!n) continue;
+            next = { start: dayShift(mine.start, n), end: blank(mine.end) ? mine.end : dayShift(mine.end, n) };
           }
-          // Times of day with `snap`: on to the step after it ends.
-          const step = stepOf(r);
-          if (step < DAY) {
-            const d = Math.ceil((done.b - a) / step - 1e-6) * step;
-            out.set(rk, { start: timeShift(mine.start, d), end: blank(mine.end) ? mine.end : timeShift(mine.end, d) });
-            queue.push(rk);
-            continue;
-          }
-          // Whole days (a day changing clocks is an hour short or long).
-          const n = Math.ceil((done.b - a) / DAY - 0.1);
-          out.set(rk, { start: dayShift(mine.start, n), end: blank(mine.end) ? mine.end : dayShift(mine.end, n) });
+          out.set(rk, next);
           queue.push(rk);
         }
       }
@@ -2111,7 +2126,7 @@
       // With `visibleRows`, a window of them: each row where the axis puts it, the rest hidden.
       const n = g.visible || Math.max(1, g.shown.length), h = (el.clientHeight - g.head - g.bottom) / n;
       const first = g.visible ? firstRow() : 0;
-      Object.assign(table.style, { position: "absolute", left: "0", top: "0", width: `${g.tableWidth}px`, height: "0", font: `12px ${theme.font}`, color: theme.text });
+      Object.assign(table.style, { position: "absolute", left: "0", top: "0", width: `${g.tableWidth}px`, height: "0", font: `${px(theme)(12)}px ${theme.font}`, color: theme.text });
       const had = table.contains(document.activeElement) ? document.activeElement.getAttribute("data-key") : null;
       const make = (role, attrs, style) => {
         const x = document.createElement("div");

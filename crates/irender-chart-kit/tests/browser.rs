@@ -520,6 +520,40 @@ fn gantt_snap_in_chrome() {
     assert_eq!(lines, expected, "\n{}", lines.join("\n"));
 }
 
+/// A gantt's `cascade: "both"`: moving a task back pulls the tasks waiting on it back to
+/// start when the last thing they wait for ends; `cascade: true` only pushes.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gantt_cascade_pull_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let tasks = json!([
+        { "id": "a", "name": "A", "start": "2026-03-02", "end": "2026-03-04" },
+        { "id": "e", "name": "E", "start": "2026-03-02", "end": "2026-03-06" },
+        { "id": "b", "name": "B", "start": "2026-03-09", "end": "2026-03-10", "after": "a" },
+        { "id": "d", "name": "D", "start": "2026-03-09", "end": "2026-03-09", "after": ["a", "e"] } ]);
+    let chart = |id: &str, key: &str, cascade: Json| json!({ "type": "ui-chart", "attrs": { "id": id }, "props": { "type": "gantt", "data": format!("{{{{ {key} }}}}"), "bindData": key, "cascade": cascade, "today": false } });
+    let doc = json!({ "version": 1, "state": { "both": tasks, "push": tasks },
+        "root": { "type": "stack", "children": [chart("both", "both", json!("both")), chart("push", "push", json!(true))] } });
+    let body = r##"
+    await ready(["both", "push"]);
+    const dates = (k) => S()[k].map((t) => `${t.id} ${t.start.slice(8)}–${t.end.slice(8)}`).join(", ");
+    const back = (id) => { el(id).querySelector("[data-gantt-table] [role=row][data-key]").focus(); document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", altKey: true, bubbles: true, cancelable: true })); };
+    back("both"); await wait(100);
+    log("both", dates("both"));
+    back("push"); await wait(100);
+    log("push", dates("push"));
+"##;
+    let Some(lines) = run("gantt-cascade-pull", &engine, doc, &driver(body)) else { return };
+    let expected = [
+        // B comes back to start as A ends; D only as far as E, which ends later, lets it.
+        "both a 01–03, e 02–06, b 04–05, d 07–07",
+        "push a 01–03, e 02–06, b 09–10, d 09–09",
+    ];
+    assert_eq!(lines, expected, "\n{}", lines.join("\n"));
+}
+
 /// A gantt with `workdays` and `holidays`: lengths in working days, days off shaded, and
 /// a moved task (and, with `cascade`, those that wait on it) landing on working days and
 /// keeping its working days.

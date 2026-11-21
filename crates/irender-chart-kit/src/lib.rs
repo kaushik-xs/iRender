@@ -164,7 +164,11 @@ const CHART_PROPS: &[PropDef] = &[
         PropKind::Any,
         "Gantt: the step a task with times of day moves and stretches by, in minutes or as `\"15m\"`, `\"1h\"` or `\"1d\"` (default a day); tasks in whole days move by days",
     ),
-    PropDef::new("cascade", PropKind::Bool, "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends"),
+    PropDef::new(
+        "cascade",
+        PropKind::Any,
+        "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends; `\"both\"` also pulls them back to start when it ends",
+    ),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
     PropDef::new("horizontal", PropKind::Bool, "Bars along the x axis"),

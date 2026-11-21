@@ -1078,7 +1078,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   critical     bool  Gantt: mark the critical path, the tasks with no slack whose delay would move the plan's end (ringed, their links in red)
   baselines    bool  Gantt: draw each task's `baselineStart` and `baselineEnd` (its planned dates) as a thin bar under it, with how late or early it is (default true)
   snap         any  Gantt: the step a task with times of day moves and stretches by, in minutes or as `"15m"`, `"1h"` or `"1d"` (default a day); tasks in whole days move by days
-  cascade      bool  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends
+  cascade      any  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends; `"both"` also pulls them back to start when it ends
   stack        bool  Stack the series
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis
