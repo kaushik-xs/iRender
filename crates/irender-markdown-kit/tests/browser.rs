@@ -592,3 +592,85 @@ fn code_fences_in_chrome() {
         "\n{result}"
     );
 }
+
+/// `maxLength` in rich text: an edit that takes the Markdown past it is taken back, the
+/// caret staying where it was; text already over it can still be cut; a paste is cut to
+/// what fits.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn rich_text_max_length_in_chrome() {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return;
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "doc": "Hello" },
+        "root": { "type": "ui-markdown-editor", "props": { "bind": "doc", "maxLength": 12 } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 20));
+      try {
+        const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+        const rich = document.querySelector("[data-md-rich]");
+        const count = document.querySelector("[data-md-count]");
+        const type = (t) => document.execCommand("insertText", false, t);
+        const show = (label) => out.push(label + " " + JSON.stringify(S().doc) + " " + count.textContent + (count.hasAttribute("data-over") ? " over" : ""));
+        const end = () => {
+          rich.focus();
+          const r = document.createRange(); r.selectNodeContents(rich.lastElementChild); r.collapse(false);
+          getSelection().removeAllRanges(); getSelection().addRange(r);
+        };
+        // Firefox leaves a made-up paste event's clipboard empty.
+        const paste = (text, html = "") => {
+          const e = new Event("paste", { bubbles: true, cancelable: true });
+          Object.defineProperty(e, "clipboardData", { value: { getData: (t) => ({ "text/plain": text, "text/html": html })[t] ?? "" } });
+          rich.dispatchEvent(e);
+        };
+        end(); await frame(); type(" there, world"); await frame(); show("too long");
+        type(" you"); await frame(); show("fits");
+        type("!!!"); await frame(); show("full");
+        type("?"); await frame(); show("past");
+        // Bold adds four characters of Markdown.
+        const r = document.createRange(); r.setStart(rich.querySelector("p").firstChild, 0); r.setEnd(rich.querySelector("p").firstChild, 5);
+        getSelection().removeAllRanges(); getSelection().addRange(r);
+        document.querySelector("[data-md=bold]").click(); await frame(); show("bold");
+        out.push("selected " + JSON.stringify(getSelection().toString()));
+
+        root.__irender.set("doc", ""); await frame();
+        end(); paste("wonderful world today"); await frame(); show("paste");
+        // Formatted text that fits keeps its formatting; past the limit, its text is cut.
+        root.__irender.set("doc", ""); await frame();
+        end(); paste("big news", "<strong>big</strong> news"); await frame(); show("html paste");
+        root.__irender.set("doc", ""); await frame();
+        end(); paste("big news today", "<p><strong>big</strong> news today</p>"); await frame(); show("long html paste");
+
+        // Over the limit already: cutting is fine, adding isn't.
+        root.__irender.set("doc", "Far too long already"); await frame(); show("loaded");
+        end(); document.execCommand("delete"); await frame(); show("cut");
+        type("y"); await frame(); show("added");
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r##"too long "Hello" 5/12"##,
+            r##"fits "Hello you" 9/12"##,
+            r##"full "Hello you!!!" 12/12"##,
+            r##"past "Hello you!!!" 12/12"##,
+            // Bold would make it 16; the selection stays.
+            r##"bold "Hello you!!!" 12/12"##,
+            r##"selected "Hello""##,
+            r##"paste "wonderful wo" 12/12"##,
+            r##"html paste "**big** news" 12/12"##,
+            r##"long html paste "big news tod" 12/12"##,
+            r##"loaded "Far too long already" 20/12 over"##,
+            r##"cut "Far too long alread" 19/12 over"##,
+            r##"added "Far too long alread" 19/12 over"##,
+        ],
+        "\n{result}"
+    );
+}

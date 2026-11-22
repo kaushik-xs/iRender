@@ -67,7 +67,7 @@ Markdown it can't show the same way is written back in a standard form on the fi
 | `placeholder` | Shown while it's empty. |
 | `label` | The editor's name for screen readers (default `Text` in rich text, `Markdown` in the text area). |
 | `rows` | Visible lines (default 10); in rich text, its least height. |
-| `maxLength` | A limit, shown as a count under the editor. Rich text can go over it (the count turns red); the text area stops at it. |
+| `maxLength` | A limit on the Markdown's length, shown as a count under the editor. Typing stops at it and a paste is cut to fit, in rich text and the text area alike; in rich text, formatting that would take it past the limit isn't applied. Text that starts out longer shows a red count and can be cut, not added to. |
 | `toolbar` | `false` hides the toolbar. |
 | `name`, `disabled` | As on `textarea`. |
 

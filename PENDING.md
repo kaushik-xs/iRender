@@ -114,7 +114,7 @@ _Last updated: 2026-11-19._
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [x] Table, Image and Rule on the toolbar (2026-11-21): a table to fill in with Tab between its cells, an image from a bar for its address and description, a rule; in the Markdown tab, their Markdown. Not done yet: no columns added or removed from the toolbar (a row is).
   - [x] Undo takes back every change (2026-11-22): the rich editor keeps its own history (content and caret, typing merged into one step), for ⌘Z, ⌘⇧Z, Ctrl+Y and the Edit menu, so quoting, leaving a quote or code block, ticking a task and a table's new row are undone too, alike in every browser. Not done yet: the history is kept for the page's life only, and holds the last 100 steps.
-  - [ ] `maxLength` isn't enforced while typing rich text; the count turns red past it.
+  - [x] `maxLength` holds in rich text (2026-11-22): an edit that takes the Markdown past it is taken back, caret and all, and a paste is cut to fit. Not done yet: the limit counts Markdown, so formatting costs characters (bold four), and a formatted paste past it comes in as plain text.
   - [ ] No "add link" on a bare pasted URL (it stays text until the link button is used); no headings other than `##` from the toolbar (`#`…`######` typed work).
 - [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
   - [x] Messages show their content as Markdown when irender-markdown-kit is registered, rendered on the server and again as a reply streams (2026-11-18).

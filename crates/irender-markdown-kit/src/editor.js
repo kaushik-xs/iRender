@@ -19,7 +19,8 @@
 // one adding a row; Image asks for an address and a description in a bar like the
 // link's; Rule adds a horizontal rule. Pasted pages and documents keep only what
 // Markdown can hold. Undo and redo use the editor's own history, so they take back
-// every change the same way in every browser.
+// every change the same way in every browser; an edit past `maxLength` is taken back
+// the same way.
 (() => {
   // Markdown from HTML: what the rich editor holds, or a pasted page. Anything Markdown
   // can't say (colours, fonts, layout) is dropped and its text kept.
@@ -219,8 +220,13 @@
       box.contentEditable = "false";
       box.setAttribute("aria-label", L("Done"));
     };
+    const chars = (t) => Array.from(t).length;
+    // How much more Markdown fits, the selection being replaced.
+    const room = () => (max ? max - chars(area.value) + chars(getSelection().toString()) : Infinity);
     const empty = () => rich.toggleAttribute("data-empty", rich.textContent.trim() === "" && !rich.querySelector("img, hr, li, input"));
     const sync = (e) => {
+      // A word being composed (an input method) is taken when it's done.
+      if (e?.isComposing) return;
       // A task item made by Enter has the class but no box yet.
       for (const li of rich.querySelectorAll("li.task")) {
         if (li.firstElementChild?.nodeName !== "INPUT") {
@@ -234,6 +240,12 @@
         }
       }
       if (!rich.firstChild) rich.innerHTML = "<p><br></p>";
+      // An edit that takes the Markdown past `maxLength`, and makes it longer, is taken
+      // back: the limit holds as in the text area, and text already over it can be cut.
+      if (max && now) {
+        const n = chars(toMarkdown(rich));
+        if (n > max && n > chars(area.value)) return restore(now);
+      }
       remember(e?.inputType);
       publish();
     };
@@ -701,6 +713,9 @@
       // only the first is taken.
       let asked = false;
       rich.addEventListener("beforeinput", (e) => {
+        // Where the caret is before an edit, to put it back if the edit is undone (the
+        // browser may not have reported it moving yet).
+        moved();
         if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") return;
         e.preventDefault();
         if (asked) return;
@@ -714,6 +729,7 @@
         else travel(e.inputType === "historyUndo");
       });
       rich.addEventListener("change", sync);
+      rich.addEventListener("compositionend", () => sync());
       // A box is ticked by a click, without the caret going into it.
       rich.addEventListener("mousedown", (e) => {
         if (e.target.matches?.("input[type=checkbox]")) e.preventDefault();
@@ -728,14 +744,20 @@
         const text = e.clipboardData?.getData("text/plain") ?? "";
         if (!html && !text) return;
         e.preventDefault();
-        if (html) {
-          // Parsed inert (no scripts run, no images load), then kept to what Markdown holds.
-          const doc = new DOMParser().parseFromString(html, "text/html");
-          exec("insertHTML", md.render(toMarkdown(doc.body)));
-        } else if (closest("pre")) exec("insertText", text);
-        else exec("insertHTML", md.render(text.replace(/\r\n?/g, "\n")).replace(/^<p>([\s\S]*)<\/p>$/, "$1"));
+        // Parsed inert (no scripts run, no images load), then kept to what Markdown holds.
+        const kept = html && toMarkdown(new DOMParser().parseFromString(html, "text/html").body);
+        // Past `maxLength`, as much of the text as fits, the way a text area takes it.
+        const fits = room();
+        if (kept && chars(kept) <= fits) exec("insertHTML", md.render(kept));
+        else {
+          const cut = Array.from(text).slice(0, Math.max(0, fits)).join("");
+          if (!cut) return;
+          if (closest("pre")) exec("insertText", cut);
+          else exec("insertHTML", md.render(cut.replace(/\r\n?/g, "\n")).replace(/^<p>([\s\S]*)<\/p>$/, "$1"));
+        }
       });
       rich.addEventListener("keydown", (e) => {
+        moved();
         const mod = e.metaKey || e.ctrlKey;
         const key = e.key.toLowerCase();
         // ⌘U is kept from the browser: Markdown has no underline.
@@ -905,7 +927,10 @@
 
     const run = (cmd) => {
       if (area.disabled) return;
-      if (isRich()) return richRun[cmd]?.();
+      if (isRich()) {
+        moved();
+        return richRun[cmd]?.();
+      }
       ({
         bold: () => wrap("**", "**", L("bold text")),
         italic: () => wrap("_", "_", L("italic text")),
