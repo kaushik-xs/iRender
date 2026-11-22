@@ -637,8 +637,8 @@
     new ResizeObserver(() => {
       if (frame.clientWidth === widthWas) return;
       widthWas = frame.clientWidth;
-      room();
-      view.reset();
+      // After the observer's done: it watches the height this sets.
+      requestAnimationFrame(() => (room(), view.reset()));
     }).observe(frame);
     draw();
     return { update: () => draw() };
