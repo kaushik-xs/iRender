@@ -151,18 +151,18 @@ static PAGE_LINK: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("min-width", ctl!(36)),
         ("height", ctl!(36)),
         ("padding", pad!(0, 10)),
-        ("border", "1px solid transparent"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid transparent"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("color", TEXT),
         ("font-size", fs!(14)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
         ("text-decoration", "none"),
         ("transition", "background-color .15s"),
     ])
     .nest(":hover", StyleBlock::from_pairs(&[("background", ACCENT)]))
     .nest(
         "&[aria-current=page]",
-        StyleBlock::from_pairs(&[("border-color", "var(--color-border)"), ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)")]),
+        StyleBlock::from_pairs(&[("border-color", "var(--color-border)"), ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))")]),
     )
     .nest("&[aria-disabled=true]", StyleBlock::from_pairs(&[("opacity", "0.5"), ("pointer-events", "none")]))
 });

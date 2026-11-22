@@ -85,13 +85,13 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 
 /// How rendered Markdown looks, on the element that holds it.
 static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    irender_html::code_token_styles(pairs(&[("color", TEXT), ("font-size", fs!(14)), ("line-height", "1.65"), ("overflow-wrap", "anywhere")]))
+    irender_html::code_token_styles(pairs(&[("color", TEXT), ("font-size", fs!(14)), ("line-height", "calc(var(--font-leading, 1.5) + 0.15)"), ("overflow-wrap", "anywhere")]))
         .nest("& > :first-child", pairs(&[("margin-top", "0")]))
         .nest("& > :last-child", pairs(&[("margin-bottom", "0")]))
         .nest("& :is(p, ul, ol, blockquote, pre, table)", pairs(&[("margin", "0.75em 0")]))
-        .nest("& :is(h1, h2, h3, h4, h5, h6)", pairs(&[("margin", "1.2em 0 0.5em"), ("line-height", "1.25"), ("font-weight", "600")]))
+        .nest("& :is(h1, h2, h3, h4, h5, h6)", pairs(&[("margin", "1.2em 0 0.5em"), ("font-family", "var(--font-heading, inherit)"), ("line-height", "1.25"), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& h1", pairs(&[("font-size", "1.75em")]))
-        .nest("& h2", pairs(&[("font-size", "1.4em"), ("padding-bottom", "0.2em"), ("border-bottom", "1px solid var(--color-border, #e4e4e7)")]))
+        .nest("& h2", pairs(&[("font-size", "1.4em"), ("padding-bottom", "0.2em"), ("border-bottom", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)")]))
         .nest("& h3", pairs(&[("font-size", "1.2em")]))
         .nest("& :is(h4, h5, h6)", pairs(&[("font-size", "1em")]))
         .nest("& :is(ul, ol)", pairs(&[("padding-inline-start", "1.5em")]))
@@ -129,7 +129,7 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("width", "26px"),
                 ("height", "26px"),
                 ("padding", "0"),
-                ("border", "1px solid var(--color-border, #e4e4e7)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"),
                 ("border-radius", "var(--radius-sm, 4px)"),
                 ("background", "var(--color-surface, #fff)"),
                 ("color", MUTED),
@@ -149,11 +149,11 @@ static PROSE: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
         )
         .nest("& blockquote", pairs(&[("padding-inline-start", "1em"), ("border-inline-start", "3px solid var(--color-border, #e4e4e7)"), ("color", MUTED)]))
-        .nest("& hr", pairs(&[("margin", "1.5em 0"), ("border", "0"), ("border-top", "1px solid var(--color-border, #e4e4e7)")]))
+        .nest("& hr", pairs(&[("margin", "1.5em 0"), ("border", "0"), ("border-top", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)")]))
         .nest("& img", pairs(&[("max-width", "100%"), ("border-radius", "var(--radius-md, 8px)")]))
         .nest("& table", pairs(&[("width", "100%"), ("border-collapse", "collapse"), ("font-size", "0.95em")]))
-        .nest("& :is(th, td)", pairs(&[("padding", "0.4em 0.75em"), ("border", "1px solid var(--color-border, #e4e4e7)"), ("text-align", "start")]))
-        .nest("& th", pairs(&[("font-weight", "600"), ("background", SUBTLE)]))
+        .nest("& :is(th, td)", pairs(&[("padding", "0.4em 0.75em"), ("border", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"), ("text-align", "start")]))
+        .nest("& th", pairs(&[("font-weight", "var(--font-weight-semibold, 600)"), ("background", SUBTLE)]))
 });
 
 // ---------------------------------------------------------------- ui-markdown
@@ -254,7 +254,7 @@ static EDITOR_ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("border", "1px solid var(--color-border, #e4e4e7)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"),
         ("border-radius", "var(--radius-md, 8px)"),
         ("background", "var(--color-surface, transparent)"),
         ("color", TEXT),
@@ -276,7 +276,7 @@ static BAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("align-items", "center"),
         ("gap", gap!(2)),
         ("padding", pad!(4)),
-        ("border-bottom", "1px solid var(--color-border, #e4e4e7)"),
+        ("border-bottom", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"),
         ("background", SUBTLE),
     ])
 });
@@ -294,7 +294,7 @@ static TOOL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("color", "inherit"),
         ("font", "inherit"),
         ("font-size", fs!(13)),
-        ("font-weight", "600"),
+        ("font-weight", "var(--font-weight-semibold, 600)"),
         ("cursor", "pointer"),
     ])
     .nest(":hover", pairs(&[("background", "color-mix(in srgb, var(--color-primary, currentColor) 10%, transparent)")]))
@@ -314,7 +314,7 @@ static BODY: LazyLock<StyleBlock> = LazyLock::new(|| {
     // Fills the editor, so a taller editor gets a taller text area.
     pairs(&[("display", "grid"), ("flex", "1"), ("min-height", "0")])
         .nest("&[data-mode=split]", pairs(&[("grid-template-columns", "1fr 1fr")]))
-        .nest("&[data-mode=split] > [data-md-preview]", pairs(&[("border-inline-start", "1px solid var(--color-border, #e4e4e7)")]))
+        .nest("&[data-mode=split] > [data-md-preview]", pairs(&[("border-inline-start", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)")]))
         .nest("&[data-mode=tabs][data-view=write] > [data-md-preview]", pairs(&[("display", "none")]))
         .nest("&[data-mode=tabs][data-view=preview] > textarea", pairs(&[("display", "none")]))
         .nest("&[data-view=rich] > textarea", pairs(&[("display", "none")]))
@@ -336,7 +336,7 @@ static LINKBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("align-items", "center"),
         ("gap", gap!(4)),
         ("padding", pad!(4)),
-        ("border-bottom", "1px solid var(--color-border, #e4e4e7)"),
+        ("border-bottom", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"),
     ])
     .nest("&[hidden]", pairs(&[("display", "none")]))
     .nest(
@@ -346,7 +346,7 @@ static LINKBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("min-width", "0"),
             ("height", ctl!(28)),
             ("padding", "0 8px"),
-            ("border", "1px solid var(--color-border, #e4e4e7)"),
+            ("border", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"),
             ("border-radius", "var(--radius-sm, 4px)"),
             ("background", "transparent"),
             ("color", "inherit"),
@@ -369,7 +369,7 @@ static AREA: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("color", "inherit"),
         ("font-family", "ui-monospace, SFMono-Regular, Menlo, monospace"),
         ("font-size", fs!(13)),
-        ("line-height", "1.6"),
+        ("line-height", "calc(var(--font-leading, 1.5) + 0.1)"),
         ("tab-size", "2"),
     ])
     .nest("::placeholder", pairs(&[("color", MUTED)]))
@@ -382,11 +382,11 @@ static FOOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("justify-content", "space-between"),
         ("gap", gap!(8)),
         ("padding", "4px 10px"),
-        ("border-top", "1px solid var(--color-border, #e4e4e7)"),
+        ("border-top", "var(--border-width, 1px) solid var(--color-border, #e4e4e7)"),
         ("color", MUTED),
         ("font-size", fs!(12)),
     ])
-    .nest("& [data-md-count][data-over]", pairs(&[("color", "var(--color-destructive, #dc2626)"), ("font-weight", "600")]))
+    .nest("& [data-md-count][data-over]", pairs(&[("color", "var(--color-destructive, #dc2626)"), ("font-weight", "var(--font-weight-semibold, 600)")]))
 });
 
 /// A built-in `textarea`, so the text binds to state like any other field.

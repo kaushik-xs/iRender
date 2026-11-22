@@ -76,11 +76,11 @@ static GRID: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("min-width", "0"),
                 ("min-height", "0"),
                 ("box-sizing", "border-box"),
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-lg)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("--ui-bg", BG_CARD),
                 ("background", BG_CARD),
-                ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+                ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))"),
                 ("overflow", "hidden"),
             ]),
         )
@@ -98,12 +98,12 @@ static GRID: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("user-select", "none"),
                 ("touch-action", "none"),
                 ("outline", "none"),
-                ("border-radius", "var(--radius-lg) var(--radius-lg) 0 0"),
+                ("border-radius", "var(--radius-card, var(--radius-lg)) var(--radius-card, var(--radius-lg)) 0 0"),
             ]),
         )
         .nest("& [data-dg-head][data-dg-handle]", pairs(&[("cursor", "grab")]))
         .nest("& [data-dg-head]:focus-visible", forms::focus_ring().set("border-color", BORDER))
-        .nest("& [data-dg-head] h3", pairs(&[("margin", "0"), ("flex", "1"), ("min-width", "0"), ("font-size", fs!(14)), ("font-weight", "600"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest("& [data-dg-head] h3", pairs(&[("margin", "0"), ("flex", "1"), ("min-width", "0"), ("font-size", fs!(14)), ("font-weight", "var(--font-weight-semibold, 600)"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest("& [data-dg-head] [data-dg-grip]", pairs(&[("flex", "none"), ("display", "grid"), ("color", MUTED), ("opacity", ".6")]))
         .nest(
             "& [data-dg-body]",
@@ -159,7 +159,7 @@ static GRID: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "& [data-dg-ghost]",
             pairs(&[
-                ("border-radius", "var(--radius-lg)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("background", "color-mix(in srgb, var(--color-primary) 10%, transparent)"),
                 ("border", "1.5px dashed color-mix(in srgb, var(--color-primary) 45%, transparent)"),
                 ("pointer-events", "none"),

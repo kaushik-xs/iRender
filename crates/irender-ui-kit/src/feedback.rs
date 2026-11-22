@@ -46,8 +46,8 @@ static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("row-gap", gap!(2)),
         ("align-items", "start"),
         ("padding-block", pad!(14, 14)), ("padding-inline", pad!(16, 40)),
-        ("border", "1px solid color-mix(in srgb, var(--tone) var(--tint), var(--color-border))"),
-        ("border-radius", "var(--radius-lg)"),
+        ("border", "var(--border-width, 1px) solid color-mix(in srgb, var(--tone) var(--tint), var(--color-border))"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("--ui-bg", &format!("color-mix(in srgb, var(--tone) var(--wash), {BG_POPOVER})")),
         ("background", "var(--ui-bg)"),
         ("color", TEXT),
@@ -94,7 +94,7 @@ static TOAST: LazyLock<StyleBlock> = LazyLock::new(|| {
     b
 });
 static TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("font-weight", "600"), ("color", "color-mix(in srgb, var(--tone) calc(var(--tint) + 5%), var(--color-text))")])
+    StyleBlock::from_pairs(&[("font-weight", "var(--font-weight-semibold, 600)"), ("color", "color-mix(in srgb, var(--tone) calc(var(--tint) + 5%), var(--color-text))")])
 });
 static DESCRIPTION: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("color", "color-mix(in srgb, var(--color-text) 78%, var(--ui-bg))")]));

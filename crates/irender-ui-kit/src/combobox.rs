@@ -79,10 +79,10 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", gap!(4)),
                 ("min-height", ctl!(36)),
                 ("padding-block", pad!(2, 2)), ("padding-inline", pad!(8, 4)),
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-md)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "transparent"),
-                ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+                ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))"),
                 ("cursor", "default"),
                 ("transition", "border-color .15s, box-shadow .15s"),
             ]),
@@ -129,7 +129,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", PRIMARY_TINT),
                 ("color", PRIMARY_TEXT),
                 ("font-size", fs!(12)),
-                ("font-weight", "500"),
+                ("font-weight", "var(--font-weight-medium, 500)"),
             ]),
         )
         .nest(
@@ -205,13 +205,13 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("inset", "auto"),
                 ("padding", pad!(4)),
                 ("overflow-y", "auto"),
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-md)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-card, var(--radius-md))"),
                 ("--ui-bg", BG_POPOVER),
                 ("background", BG_POPOVER),
                 ("color", TEXT),
                 ("font-size", fs!(14)),
-                ("box-shadow", "0 6px 18px rgb(0 0 0 / 0.12)"),
+                ("box-shadow", "var(--elevation-popover, 0 6px 18px rgb(0 0 0 / 0.12))"),
             ]),
         )
         .nest(
@@ -227,21 +227,21 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [role=option][data-active]", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 10%, transparent)")]))
-        .nest("& [role=option][aria-selected=true]", pairs(&[("font-weight", "500")]))
+        .nest("& [role=option][aria-selected=true]", pairs(&[("font-weight", "var(--font-weight-medium, 500)")]))
         .nest(
             "& [role=option][aria-selected=true]::after",
             pairs(&[("content", "'✓'"), ("grid-column", "2"), ("grid-row", "1"), ("color", PRIMARY)]),
         )
-        .nest("& [role=option][data-create]", pairs(&[("color", PRIMARY), ("font-weight", "500")]))
+        .nest("& [role=option][data-create]", pairs(&[("color", PRIMARY), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [role=option][aria-disabled=true]", pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
         .nest("& [data-ui-description]", pairs(&[("grid-column", "1"), ("font-size", fs!(12)), ("font-weight", "400"), ("color", MUTED)]))
         .nest(
             "& [data-ui-group-label]",
-            pairs(&[("padding", pad!(6, 8, 4)), ("font-size", fs!(12)), ("font-weight", "600"), ("color", MUTED)]),
+            pairs(&[("padding", pad!(6, 8, 4)), ("font-size", fs!(12)), ("font-weight", "var(--font-weight-semibold, 600)"), ("color", MUTED)]),
         )
         .nest(
             "& [role=group]:not(:first-child)",
-            pairs(&[("margin-top", gap!(4)), ("padding-top", pad!(4)), ("border-top", "1px solid var(--color-border)")]),
+            pairs(&[("margin-top", gap!(4)), ("padding-top", pad!(4)), ("border-top", "var(--border-width, 1px) solid var(--color-border)")]),
         )
         .nest("& [data-ui-message]", pairs(&[("padding", pad!(8)), ("text-align", "center"), ("color", MUTED)]))
         .nest(

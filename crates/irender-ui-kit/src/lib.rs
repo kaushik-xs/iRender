@@ -228,8 +228,16 @@ pub fn register(registry: &mut Registry) {
         .register(data_table::Child::DETAIL)
         // A Light or Dark choice made with `ui-theme-toggle` holds on every page, with a
         // toggle on it or not.
-        .early_js("ui-theme", disclosure::THEME_EARLY_SCRIPT);
+        .early_js("ui-theme", disclosure::THEME_EARLY_SCRIPT)
+        .global_css("ui-body", BODY);
 }
+
+/// The page's text: the theme's font, and its line height and letter spacing once a
+/// theme option sets them (until then `var()` without a fallback leaves the page's
+/// own). Also on an element that picks one of them for its part of the page, as an
+/// inherited value isn't worked out again below the body. No specificity, so a
+/// document's styles always win.
+const BODY: &str = ":where(body, [data-theme-font], [data-theme-line-height], [data-theme-letter-spacing]) { font-family: var(--font-body, system-ui, sans-serif); line-height: var(--font-leading); letter-spacing: var(--font-tracking); }";
 
 // Colours. Tokens the default theme has are used directly; the others fall back
 // to mixes of text and surface so they follow light and dark mode on their own.

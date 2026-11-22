@@ -55,7 +55,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-width", "0"), ("color", TEXT), ("font-size", fs!(14))])
         .nest("& [data-tree-head]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(8))]))
-        .nest("& [data-tree-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
+        .nest("& [data-tree-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& [data-tree-search]", pairs(&[("flex", "1 1 160px")]))
         .nest(
             "& [data-tree-bulk]",
@@ -64,12 +64,12 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("align-items", "center"),
                 ("gap", gap!(8)),
                 ("padding-block", pad!(4, 4)), ("padding-inline", pad!(12, 4)),
-                ("border-radius", "var(--radius-md)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", ACCENT),
                 ("font-size", fs!(13)),
             ]),
         )
-        .nest("& [data-tree-bulk] > span", pairs(&[("margin-inline-end", "auto"), ("font-weight", "500")]))
+        .nest("& [data-tree-bulk] > span", pairs(&[("margin-inline-end", "auto"), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [hidden]", pairs(&[("display", "none")]))
         .nest("& [data-tree-empty]", pairs(&[("margin", "0"), ("padding", pad!(16, 8)), ("color", MUTED), ("text-align", "center")]))
         .nest(
@@ -86,7 +86,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("min-height", ctl!(32)),
         ("padding", pad!(0, 4)),
         ("padding-inline-start", "calc(var(--depth, 0) * 18px * var(--space-scale, 1) + 4px)"),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("cursor", "pointer"),
         ("user-select", "none"),
     ]);
@@ -97,7 +97,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-tree-row]:hover", pairs(&[("background", ACCENT)]))
         // A long press picks a node up, rather than selecting its text.
         .nest("@media (pointer: coarse)", pairs(&[]).nest("& [data-tree-row][draggable=true]", pairs(&[("user-select", "none"), ("-webkit-touch-callout", "none")])))
-        .nest("& [aria-selected=true] > [data-tree-row]", pairs(&[("background", ACCENT), ("color", PRIMARY), ("font-weight", "500")]))
+        .nest("& [aria-selected=true] > [data-tree-row]", pairs(&[("background", ACCENT), ("color", PRIMARY), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [role=treeitem]:focus-visible > [data-tree-row]", forms::focus_ring().set("outline-offset", "-2px"))
         .nest(
             "& [data-tree-twisty]",
@@ -121,7 +121,7 @@ static TREE: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("width", "16px"),
                 ("height", "16px"),
                 ("box-sizing", "border-box"),
-                ("border", "1px solid var(--color-border)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
                 ("border-radius", "4px"),
                 ("color", "var(--color-on-primary, #fff)"),
             ]),

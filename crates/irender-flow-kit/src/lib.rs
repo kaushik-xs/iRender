@@ -842,14 +842,14 @@ static CARD: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
         ("min-width", "120px"),
         ("padding", "calc(10px * var(--space-scale, 1) * var(--space-inset, 1)) calc(14px * var(--space-scale, 1) * var(--space-inset, 1))"),
-        ("border", &format!("1px solid {BORDER}")),
+        ("border", &format!("var(--border-width, 1px) solid {BORDER}")),
         ("border-radius", "var(--radius-md, 8px)"),
         ("background", SURFACE),
         ("color", TEXT),
         ("font-size", "calc(12px * var(--font-scale, 1))"),
         ("line-height", "1.4"),
         ("text-align", "center"),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.06)"),
+        ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.06))"),
     ])
 });
 
@@ -1001,11 +1001,11 @@ static CONTROLS: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("bottom", "12px"),
         ("display", "flex"),
         ("flex-direction", "column"),
-        ("border", &format!("1px solid {BORDER}")),
+        ("border", &format!("var(--border-width, 1px) solid {BORDER}")),
         ("border-radius", "var(--radius-md, 8px)"),
         ("overflow", "hidden"),
         ("background", SURFACE),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.06)"),
+        ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.06))"),
         ("cursor", "default"),
     ])
 });
@@ -1018,7 +1018,7 @@ static CONTROL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("height", "28px"),
         ("padding", "0"),
         ("border", "none"),
-        ("border-bottom", &format!("1px solid {BORDER}")),
+        ("border-bottom", &format!("var(--border-width, 1px) solid {BORDER}")),
         ("background", "transparent"),
         ("color", TEXT),
         ("cursor", "pointer"),
@@ -1036,11 +1036,11 @@ static MINIMAP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("bottom", "12px"),
         ("width", "180px"),
         ("height", "120px"),
-        ("border", &format!("1px solid {BORDER}")),
+        ("border", &format!("var(--border-width, 1px) solid {BORDER}")),
         ("border-radius", "var(--radius-md, 8px)"),
         ("overflow", "hidden"),
         ("background", SURFACE),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.06)"),
+        ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.06))"),
         ("cursor", "pointer"),
     ])
     .nest("& rect", pairs(&[("fill", "var(--color-border, #d4d4d8)")]))

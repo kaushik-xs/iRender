@@ -35,7 +35,7 @@ static TRACK: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("overscroll-behavior-x", "contain"),
         ("scroll-snap-type", "x mandatory"),
         ("scrollbar-width", "none"),
-        ("border-radius", "var(--radius-lg)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
     ])
     .nest("&::-webkit-scrollbar", StyleBlock::from_pairs(&[("display", "none")]))
     .nest("& [data-slide]", StyleBlock::from_pairs(&[("min-width", "0"), ("scroll-snap-align", "start")]))
@@ -71,7 +71,7 @@ static PLAY: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "28px"),
         ("height", "28px"),
         ("padding", "0"),
-        ("border", "1px solid"),
+        ("border", "var(--border-width, 1px) solid"),
         ("border-color", BORDER),
         ("border-radius", "999px"),
         ("background", SURFACE),
@@ -94,7 +94,7 @@ static ARROW: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
             ("width", "32px"),
             ("height", "32px"),
             ("padding", "0"),
-            ("border", "1px solid"),
+            ("border", "var(--border-width, 1px) solid"),
             ("border-color", BORDER),
             ("border-radius", "999px"),
             ("background", SURFACE),

@@ -133,7 +133,7 @@ static MESSAGE_AVATAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("background", SUBTLE),
         ("color", MUTED),
         ("font-size", fs!(12)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
     ])
     .nest("& > img", StyleBlock::from_pairs(&[("position", "absolute"), ("inset", "0"), ("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
 });
@@ -156,17 +156,17 @@ static MESSAGE_UI: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static MESSAGE_META: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "flex"), ("align-items", "baseline"), ("gap", gap!(6)), ("font-size", fs!(12)), ("color", MUTED)])
-        .nest("& > :first-child", StyleBlock::from_pairs(&[("font-weight", "500"), ("color", TEXT)]))
+        .nest("& > :first-child", StyleBlock::from_pairs(&[("font-weight", "var(--font-weight-medium, 500)"), ("color", TEXT)]))
         .nest("& > :empty", StyleBlock::from_pairs(&[("display", "none")]))
 });
 static BUBBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("padding", pad!(8, 12)),
-        ("border-radius", "var(--radius-lg)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("background", SECONDARY),
         ("color", ON_SECONDARY),
         ("font-size", fs!(14)),
-        ("line-height", "1.5"),
+        ("line-height", "var(--font-leading, 1.5)"),
         ("white-space", "pre-wrap"),
         ("overflow-wrap", "anywhere"),
     ])
@@ -188,7 +188,7 @@ static THREAD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("padding", pad!(2, 4)),
                 ("border-radius", "var(--radius-sm)"),
                 ("color", PRIMARY),
-                ("font-weight", "500"),
+                ("font-weight", "var(--font-weight-medium, 500)"),
                 ("cursor", "pointer"),
                 ("list-style", "none"),
             ]),
@@ -451,7 +451,7 @@ static LATEST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "32px"),
         ("height", "32px"),
         ("padding", "0"),
-        ("border", "1px solid var(--color-border)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
         ("border-radius", "999px"),
         ("background", SURFACE),
         ("color", TEXT),
@@ -583,7 +583,7 @@ static SUGGESTIONS: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& > button",
             StyleBlock::from_pairs(&[
                 ("padding", pad!(6, 12)),
-                ("border", "1px solid var(--color-border)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
                 ("border-radius", "999px"),
                 ("background", SURFACE),
                 ("color", TEXT),
@@ -601,11 +601,11 @@ static BOX: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "grid"),
         ("gap", gap!(8)),
         ("padding", pad!(8)),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-lg)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("--ui-bg", BG_CARD),
         ("background", BG_CARD),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+        ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))"),
         ("transition", "box-shadow .15s, border-color .15s"),
     ])
     .nest(

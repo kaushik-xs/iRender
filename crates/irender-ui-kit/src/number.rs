@@ -43,11 +43,11 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("box-sizing", "border-box"),
         ("width", "100%"),
         ("height", "36px"),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("color", TEXT),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+        ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))"),
         ("overflow", "hidden"),
         ("transition", "border-color .15s, box-shadow .15s"),
     ])
@@ -94,8 +94,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("cursor", "pointer"),
         ]),
     )
-    .nest("& [data-num-step='-1']", pairs(&[("border-inline-end", "1px solid var(--color-border)")]))
-    .nest("& [data-num-step='1']", pairs(&[("border-inline-start", "1px solid var(--color-border)")]))
+    .nest("& [data-num-step='-1']", pairs(&[("border-inline-end", "var(--border-width, 1px) solid var(--color-border)")]))
+    .nest("& [data-num-step='1']", pairs(&[("border-inline-start", "var(--border-width, 1px) solid var(--color-border)")]))
     .nest("& [data-num-step]:hover", pairs(&[("background", "color-mix(in srgb, var(--color-text) 9%, transparent)")]))
     .nest("& [data-num-step]:focus-visible", forms::focus_ring().set("outline-offset", "-2px"))
 });

@@ -121,7 +121,7 @@ static BADGE: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("background", "color-mix(in srgb, var(--tone) 12%, transparent)"),
             ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"),
             ("font-size", fs!(12)),
-            ("font-weight", "500"),
+            ("font-weight", "var(--font-weight-medium, 500)"),
             ("line-height", "1.5"),
             ("white-space", "nowrap"),
         ])
@@ -243,7 +243,7 @@ static RING: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& [data-arc]", pairs(&[("transition", "none")])))
-        .nest("& [data-ring-text]", pairs(&[("position", "relative"), ("font-weight", "600"), ("font-variant-numeric", "tabular-nums"), ("line-height", "1")])),
+        .nest("& [data-ring-text]", pairs(&[("position", "relative"), ("font-weight", "var(--font-weight-semibold, 600)"), ("font-variant-numeric", "tabular-nums"), ("line-height", "1")])),
         "&",
     )
 });
@@ -372,7 +372,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "color-mix(in srgb, var(--tone) 14%, var(--color-surface, #fff))"),
                 ("color", "color-mix(in srgb, var(--tone) 85%, var(--color-text))"),
                 ("font-size", fs!(11)),
-                ("font-weight", "600"),
+                ("font-weight", "var(--font-weight-semibold, 600)"),
             ]),
         )
         .nest("& [data-mark] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
@@ -381,7 +381,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-mark][data-dot]::after", pairs(&[("content", "''"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
         .nest("& [data-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(6)), ("min-width", "0"), ("padding-top", pad!(4))]))
         .nest("& [data-line]", pairs(&[("line-height", "1.45")]))
-        .nest("& [data-line] b", pairs(&[("font-weight", "600")]))
+        .nest("& [data-line] b", pairs(&[("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& [data-line] time", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("margin-inline-start", gap!(6)), ("white-space", "nowrap")]))
         .nest("& [data-changes]", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", gap!(4))]))
         .nest("& [data-changes] li", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(6)), ("font-size", fs!(13))]))
@@ -395,7 +395,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-arrow]", pairs(&[("color", MUTED)]))
         .nest(
             "& blockquote",
-            pairs(&[("margin", "0"), ("padding", pad!(8, 12)), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-md)"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]),
+            pairs(&[("margin", "0"), ("padding", pad!(8, 12)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-control, var(--radius-md))"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]),
         ),
         "&",
     )

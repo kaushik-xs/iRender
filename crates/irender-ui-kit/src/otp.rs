@@ -73,17 +73,17 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("width", ctl!(40)),
                 ("height", ctl!(40)),
                 ("margin-inline-start", "-1px"),
-                ("border", "1px solid var(--color-border)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
                 ("background", "transparent"),
                 ("font-size", fs!(16)),
-                ("font-weight", "500"),
+                ("font-weight", "var(--font-weight-medium, 500)"),
                 ("font-variant-numeric", "tabular-nums"),
                 ("transition", "border-color .15s, box-shadow .15s"),
             ]),
         )
-        .nest("& [data-otp-slot]:first-child", pairs(&[("margin-inline-start", "0"), ("border-radius", "var(--radius-md) 0 0 var(--radius-md)")]))
-        .nest("& [data-otp-slot]:last-child", pairs(&[("border-radius", "0 var(--radius-md) var(--radius-md) 0")]))
-        .nest("& [data-otp-slot]:only-child", pairs(&[("border-radius", "var(--radius-md)")]))
+        .nest("& [data-otp-slot]:first-child", pairs(&[("margin-inline-start", "0"), ("border-radius", "var(--radius-control, var(--radius-md)) 0 0 var(--radius-control, var(--radius-md))")]))
+        .nest("& [data-otp-slot]:last-child", pairs(&[("border-radius", "0 var(--radius-control, var(--radius-md)) var(--radius-control, var(--radius-md)) 0")]))
+        .nest("& [data-otp-slot]:only-child", pairs(&[("border-radius", "var(--radius-control, var(--radius-md))")]))
         .nest(
             "& [data-otp-slot][data-active]",
             pairs(&[

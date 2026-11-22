@@ -83,7 +83,7 @@ static BADGE: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
             ("border", border),
             ("border-radius", "999px"),
             ("font-size", fs!(12)),
-            ("font-weight", "500"),
+            ("font-weight", "var(--font-weight-medium, 500)"),
             ("line-height", "16px"),
             ("font-variant-numeric", "tabular-nums"),
             ("white-space", "nowrap"),
@@ -100,17 +100,17 @@ static BADGE: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
         base(
             &format!("color-mix(in srgb, {tone} 12%, {BG_UNDER})"),
             &format!("color-mix(in srgb, {tone} 80%, var(--color-text))"),
-            &format!("1px solid color-mix(in srgb, {tone} 22%, transparent)"),
+            &format!("var(--border-width, 1px) solid color-mix(in srgb, {tone} 22%, transparent)"),
         )
         .nest("& [data-dot]", StyleBlock::from_pairs(&[("background", tone)]))
     };
     let tone = |name: &str| crate::NOTICES.iter().find(|(n, ..)| *n == name).map(|(_, c, _)| *c).unwrap_or(MUTED);
     vec![
-        base(PRIMARY_FILL, ON_PRIMARY, "1px solid transparent"),
-        base(SECONDARY, ON_SECONDARY, "1px solid transparent"),
+        base(PRIMARY_FILL, ON_PRIMARY, "var(--border-width, 1px) solid transparent"),
+        base(SECONDARY, ON_SECONDARY, "var(--border-width, 1px) solid transparent"),
         soft(tone("destructive")),
-        base("transparent", TEXT, "1px solid var(--color-border)").nest("& [data-dot]", StyleBlock::from_pairs(&[("background", MUTED)])),
-        base(BRAND_2_FILL, ON_BRAND_2, "1px solid transparent"),
+        base("transparent", TEXT, "var(--border-width, 1px) solid var(--color-border)").nest("& [data-dot]", StyleBlock::from_pairs(&[("background", MUTED)])),
+        base(BRAND_2_FILL, ON_BRAND_2, "var(--border-width, 1px) solid transparent"),
         soft(tone("info")),
         soft(tone("success")),
         soft(tone("warning")),
@@ -167,8 +167,8 @@ const CARD_PROPS: &[PropDef] = &[
     PropDef::new("tag", PropKind::Tag, "HTML tag (default `div`, or `a` with `href`), e.g. `article`, `section`"),
 ];
 
-const CARD_SHADOW: &str = "0 1px 2px rgb(0 0 0 / 0.04), 0 2px 6px -2px rgb(0 0 0 / 0.06)";
-const CARD_SHADOW_RAISED: &str = "0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -6px rgb(0 0 0 / 0.14)";
+const CARD_SHADOW: &str = "var(--elevation-card, 0 1px 2px rgb(0 0 0 / 0.04), 0 2px 6px -2px rgb(0 0 0 / 0.06))";
+const CARD_SHADOW_RAISED: &str = "var(--elevation-card-raised, 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -6px rgb(0 0 0 / 0.14))";
 
 static CARD: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
     let base = |bg: &str, border: &str, shadow: &str| {
@@ -178,7 +178,7 @@ static CARD: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
             ("gap", gap!(16)),
             ("padding", pad!(24)),
             ("border", border),
-            ("border-radius", "var(--radius-lg)"),
+            ("border-radius", "var(--radius-card, var(--radius-lg))"),
             ("--ui-bg", bg),
             ("background", bg),
             ("color", TEXT),
@@ -203,12 +203,12 @@ static CARD: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
         .nest("&[href]:focus-visible", StyleBlock::from_pairs(&[("outline", "2px solid var(--color-ring)"), ("outline-offset", "2px")]))
         .nest("@media (prefers-reduced-motion: reduce)", StyleBlock::from_pairs(&[("transition", "none"), ("translate", "none")]))
     };
-    let border = "1px solid var(--color-border)";
+    let border = "var(--border-width, 1px) solid var(--color-border)";
     vec![
         base(BG_CARD, border, CARD_SHADOW),
-        base(BG_CARD, "1px solid color-mix(in srgb, var(--color-border) 60%, transparent)", CARD_SHADOW_RAISED),
+        base(BG_CARD, "var(--border-width, 1px) solid color-mix(in srgb, var(--color-border) 60%, transparent)", CARD_SHADOW_RAISED),
         base(BG_CARD, border, "none"),
-        base(SUBTLE, "1px solid transparent", "none"),
+        base(SUBTLE, "var(--border-width, 1px) solid transparent", "none"),
     ]
 });
 static CARD_HEADER: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -225,7 +225,7 @@ static CARD_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("justify-content", "center"),
         ("width", "40px"),
         ("height", "40px"),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "color-mix(in srgb, var(--color-primary) 10%, var(--ui-bg))"),
         ("color", PRIMARY),
         ("font-size", fs!(18)),
@@ -234,14 +234,15 @@ static CARD_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
 static CARD_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("margin", "0"),
+        ("font-family", "var(--font-heading, inherit)"),
         ("font-size", fs!(16)),
-        ("font-weight", "600"),
+        ("font-weight", "var(--font-weight-semibold, 600)"),
         ("line-height", "1.3"),
-        ("letter-spacing", "-0.01em"),
+        ("letter-spacing", "calc(-0.01em + var(--font-tracking, 0em))"),
     ])
 });
 static CARD_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("line-height", "1.5"), ("color", MUTED)])
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(14)), ("line-height", "var(--font-leading, 1.5)"), ("color", MUTED)])
 });
 
 impl Component for Card {
@@ -361,9 +362,9 @@ static ALERT: LazyLock<Vec<StyleBlock>> = LazyLock::new(|| {
                 ("row-gap", gap!(4)),
                 ("align-items", "start"),
                 ("padding", pad!(14, 16)),
-                ("border", &format!("1px solid color-mix(in srgb, var(--tone) {edge}, var(--color-border))")),
+                ("border", &format!("var(--border-width, 1px) solid color-mix(in srgb, var(--tone) {edge}, var(--color-border))")),
                 ("border-inline-start", "3px solid var(--tone)"),
-                ("border-radius", "var(--radius-lg)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("--ui-bg", &format!("color-mix(in srgb, var(--tone) {wash}, {BG_CARD})")),
                 ("background", "var(--ui-bg)"),
                 ("color", TEXT),
@@ -392,7 +393,7 @@ static ALERT_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
 });
 static ALERT_TITLE: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("font-weight", "600"), ("color", "color-mix(in srgb, var(--tone) 35%, var(--color-text))")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("font-weight", "var(--font-weight-semibold, 600)"), ("color", "color-mix(in srgb, var(--tone) 35%, var(--color-text))")]));
 static ALERT_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("margin", "0"), ("color", "color-mix(in srgb, var(--color-text) 78%, var(--ui-bg))")])
 });
@@ -503,7 +504,7 @@ static AVATAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("background", SUBTLE),
         ("color", MUTED),
         ("font-size", fs!(14)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
     ])
 });
 static AVATAR_IMAGE: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -627,7 +628,7 @@ const PULSE: &str = "@keyframes ui-pulse {\n  50% { opacity: 0.5; }\n}";
 static SKELETON: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("background", SUBTLE),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("animation", "ui-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"),
     ])
     // People who ask their system for less motion get a still placeholder.
@@ -674,14 +675,14 @@ static KBD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("padding", pad!(1, 6)),
-        ("border", "1px solid var(--color-border)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
         ("border-bottom-width", "2px"),
         ("border-radius", "var(--radius-sm)"),
         ("background", SUBTLE),
         ("color", TEXT),
         ("font-family", MONO),
         ("font-size", fs!(12)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
     ])
 });
 
@@ -823,20 +824,20 @@ static TABLE: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("padding", pad!(0, 8)),
             ("text-align", "start"),
             ("vertical-align", "middle"),
-            ("font-weight", "500"),
+            ("font-weight", "var(--font-weight-medium, 500)"),
             ("white-space", "nowrap"),
-            ("border-bottom", "1px solid var(--color-border)"),
+            ("border-bottom", "var(--border-width, 1px) solid var(--color-border)"),
         ]),
     )
     .nest(
         "& td",
-        StyleBlock::from_pairs(&[("padding", pad!(8)), ("vertical-align", "middle"), ("border-bottom", "1px solid var(--color-border)")]),
+        StyleBlock::from_pairs(&[("padding", pad!(8)), ("vertical-align", "middle"), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)")]),
     )
     .nest("& tbody tr:last-child td", StyleBlock::from_pairs(&[("border-bottom", "0")]))
     .nest("& tbody tr:hover", StyleBlock::from_pairs(&[("background", SUBTLE)]))
     .nest(
         "& tfoot td",
-        StyleBlock::from_pairs(&[("background", SUBTLE), ("font-weight", "500"), ("border-top", "1px solid var(--color-border)")]),
+        StyleBlock::from_pairs(&[("background", SUBTLE), ("font-weight", "var(--font-weight-medium, 500)"), ("border-top", "var(--border-width, 1px) solid var(--color-border)")]),
     )
 });
 
@@ -887,18 +888,19 @@ static HEADINGS: LazyLock<[StyleBlock; 4]> = LazyLock::new(|| {
         StyleBlock::from_pairs(&[
             ("margin", "0"),
             ("color", TEXT),
+            ("font-family", "var(--font-heading, inherit)"),
             ("font-size", size),
             ("font-weight", weight),
             ("line-height", "1.2"),
-            ("letter-spacing", "-0.02em"),
+            ("letter-spacing", "calc(-0.02em + var(--font-tracking, 0em))"),
             ("scroll-margin-top", "80px"),
         ])
     };
     [
-        base("36px", "800"),
-        base("30px", "600").set("padding-bottom", pad!(8)).set("border-bottom", "1px solid var(--color-border)"),
-        base("24px", "600"),
-        base("20px", "600"),
+        base(fs!(36), "calc(var(--font-weight-bold, 700) + 100)"),
+        base(fs!(30), "var(--font-weight-semibold, 600)").set("padding-bottom", pad!(8)).set("border-bottom", "var(--border-width, 1px) solid var(--color-border)"),
+        base(fs!(24), "var(--font-weight-semibold, 600)"),
+        base(fs!(20), "var(--font-weight-semibold, 600)"),
     ]
 });
 
@@ -934,8 +936,8 @@ static TEXTS: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
     [
         base(&[("line-height", "1.75")]),
         base(&[("font-size", fs!(20)), ("color", MUTED)]),
-        base(&[("font-size", fs!(18)), ("font-weight", "600")]),
-        base(&[("font-size", fs!(14)), ("font-weight", "500"), ("line-height", "1")]),
+        base(&[("font-size", fs!(18)), ("font-weight", "var(--font-weight-semibold, 600)")]),
+        base(&[("font-size", fs!(14)), ("font-weight", "var(--font-weight-medium, 500)"), ("line-height", "1")]),
         base(&[("font-size", fs!(14)), ("color", MUTED)]),
         base(&[
             ("padding", pad!(2, 5)),
@@ -943,7 +945,7 @@ static TEXTS: LazyLock<[StyleBlock; 7]> = LazyLock::new(|| {
             ("background", SUBTLE),
             ("font-family", MONO),
             ("font-size", "0.875em"),
-            ("font-weight", "600"),
+            ("font-weight", "var(--font-weight-semibold, 600)"),
         ]),
         base(&[("padding-inline-start", pad!(24)), ("border-inline-start", "2px solid var(--color-border)"), ("font-style", "italic")]),
     ]
@@ -1032,8 +1034,8 @@ static EMPTY: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("justify-content", "center"),
         ("gap", gap!(12)),
         ("padding", pad!(48, 24)),
-        ("border", "1px dashed var(--color-border)"),
-        ("border-radius", "var(--radius-lg)"),
+        ("border", "var(--border-width, 1px) dashed var(--color-border)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("color", TEXT),
         ("text-align", "center"),
     ])
@@ -1045,13 +1047,13 @@ static EMPTY_ICON: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("justify-content", "center"),
         ("width", "40px"),
         ("height", ctl!(40)),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", SUBTLE),
         ("font-size", fs!(20)),
     ])
 });
 static EMPTY_TITLE: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("margin", "0"), ("font-size", fs!(18)), ("font-weight", "500"), ("line-height", "1.2")])
+    StyleBlock::from_pairs(&[("margin", "0"), ("font-family", "var(--font-heading, inherit)"), ("font-size", fs!(18)), ("font-weight", "var(--font-weight-medium, 500)"), ("line-height", "1.2")])
 });
 static EMPTY_DESCRIPTION: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("margin", "0"), ("max-width", "40ch"), ("font-size", fs!(14)), ("color", MUTED)])
@@ -1112,7 +1114,7 @@ static SCROLL_AREA: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("overscroll-behavior", "contain"),
         ("scrollbar-width", "thin"),
         ("scrollbar-color", "color-mix(in srgb, var(--color-text) 25%, transparent) transparent"),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
     ])
     .nest(
         ":focus-visible",

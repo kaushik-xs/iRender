@@ -21,7 +21,7 @@ const PROPS: &[PropDef] = &[
 
 static STYLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[])
-        .nest("& a[aria-current=location]", StyleBlock::from_pairs(&[("color", TEXT), ("font-weight", "600"), ("background", ACCENT)]))
+        .nest("& a[aria-current=location]", StyleBlock::from_pairs(&[("color", TEXT), ("font-weight", "var(--font-weight-semibold, 600)"), ("background", ACCENT)]))
 });
 
 impl Component for ScrollSpy {

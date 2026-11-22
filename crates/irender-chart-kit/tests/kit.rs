@@ -242,7 +242,9 @@ fn a_gantt_starts_as_tall_as_its_rows_and_grows_in_the_browser() {
     let rows = json!([{ "name": "a", "start": "2026-01-05", "end": "2026-01-09" }, { "name": "b", "start": "2026-01-12" }]);
     let tall = |props: Json| {
         let page = render_with(json!({ "type": "ui-chart", "props": props }), json!({}), json!({})).unwrap();
-        let rule = page.css.split("height:").nth(1).map(|h| h[..h.find(';').unwrap_or(h.len())].trim().trim_end_matches('}').to_string());
+        // The first `height:` that isn't the end of `line-height:`.
+        let at = page.css.match_indices("height:").map(|(i, _)| i).find(|&i| !page.css[..i].ends_with('-'));
+        let rule = at.map(|i| &page.css[i + 7..]).map(|h| h[..h.find(';').unwrap_or(h.len())].trim().trim_end_matches('}').to_string());
         (rule, configs(&page).remove(0)["autoHeight"].clone())
     };
     // A heading band, two rows of 34px, and the foot.

@@ -55,7 +55,8 @@ fn neutral(light: [&str; 10], dark: [&str; 10]) -> Json {
 }
 
 /// The theme options the kit offers: palettes after shadcn/ui's themes, corner radius,
-/// density, padding, gaps, control and icon sizes, text size and font. `ui-theme-option` picks them; a document can add
+/// density, padding, gaps, control and icon sizes, text size, font and the rest of
+/// the typography, borders, shadows, and control and card radii. `ui-theme-option` picks them; a document can add
 /// choices or options of its own under `theme.options`.
 fn options() -> Json {
     let mut palette = json!({
@@ -97,6 +98,14 @@ fn options() -> Json {
         json!({ "label": label, "tokens": { group: { key: v } } })
     };
     let font = |label: &str, family: &str| json!({ "label": label, "tokens": { "font": { "body": family } } });
+    let set = |label: &str, tokens: Json| json!({ "label": label, "tokens": tokens });
+    const SANS: &str = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+    const SERIF: &str = "ui-serif, Georgia, Cambria, 'Times New Roman', serif";
+    const MONO: &str = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    let weights = |label: &str, m: u32, s: u32, b: u32| set(label, json!({ "font": { "weight": { "medium": m, "semibold": s, "bold": b } } }));
+    let elevation = |label: &str, control: &str, card: &str, raised: &str, popover: &str, dialog: &str| {
+        set(label, json!({ "elevation": { "control": control, "card": card, "card-raised": raised, "popover": popover, "dialog": dialog } }))
+    };
     json!({
         "palette": { "label": "Colour", "default": "zinc", "choices": palette },
         "radius": { "label": "Radius", "default": "0-5", "choices": {
@@ -105,6 +114,38 @@ fn options() -> Json {
             "0-5": radius("0.5", "6px", "8px", "10px"),
             "0-75": radius("0.75", "10px", "12px", "14px"),
             "1": radius("1.0", "12px", "16px", "20px"),
+        } },
+        // Shape: border width, shadows, and corner radii for controls and cards apart
+        // from the overall radius, which they follow until picked.
+        "border": { "label": "Borders", "default": "thin", "choices": {
+            "thin": set("Thin", json!({ "border": { "width": "1px" } })),
+            "medium": set("Medium", json!({ "border": { "width": "1.5px" } })),
+            "thick": set("Thick", json!({ "border": { "width": "2px" } })),
+        } },
+        "elevation": { "label": "Shadows", "default": "default", "choices": {
+            "flat": elevation("Flat", "none", "none", "none", "0 2px 8px rgb(0 0 0 / 0.08)", "0 4px 16px rgb(0 0 0 / 0.12)"),
+            "default": elevation("Default", "0 1px 2px rgb(0 0 0 / 0.05)",
+                "0 1px 2px rgb(0 0 0 / 0.04), 0 2px 6px -2px rgb(0 0 0 / 0.06)",
+                "0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -6px rgb(0 0 0 / 0.14)",
+                "0 6px 18px rgb(0 0 0 / 0.12)", "0 10px 30px rgb(0 0 0 / 0.2)"),
+            "raised": elevation("Raised", "0 1px 3px rgb(0 0 0 / 0.1)",
+                "0 2px 4px rgb(0 0 0 / 0.06), 0 8px 20px -4px rgb(0 0 0 / 0.12)",
+                "0 2px 4px rgb(0 0 0 / 0.08), 0 16px 36px -8px rgb(0 0 0 / 0.2)",
+                "0 10px 28px rgb(0 0 0 / 0.18)", "0 16px 48px rgb(0 0 0 / 0.28)"),
+        } },
+        "control-radius": { "label": "Control radius", "default": "radius", "choices": {
+            "radius": set("Same as radius", json!({ "radius": { "control": "var(--radius-md)" } })),
+            "square": set("Square", json!({ "radius": { "control": "0px" } })),
+            "small": set("Small", json!({ "radius": { "control": "4px" } })),
+            "large": set("Large", json!({ "radius": { "control": "12px" } })),
+            "round": set("Round", json!({ "radius": { "control": "18px" } })),
+        } },
+        "card-radius": { "label": "Card radius", "default": "radius", "choices": {
+            "radius": set("Same as radius", json!({ "radius": { "card": "var(--radius-lg)" } })),
+            "square": set("Square", json!({ "radius": { "card": "0px" } })),
+            "small": set("Small", json!({ "radius": { "card": "6px" } })),
+            "large": set("Large", json!({ "radius": { "card": "16px" } })),
+            "x-large": set("Extra large", json!({ "radius": { "card": "24px" } })),
         } },
         "density": { "label": "Density", "default": "default", "choices": {
             "compact": scale("Compact", "space.scale", 0.8),
@@ -138,9 +179,33 @@ fn options() -> Json {
             "large": scale("Large", "font.scale", 1.125),
         } },
         "font": { "label": "Font", "default": "sans", "choices": {
-            "sans": font("Sans", "system-ui, -apple-system, 'Segoe UI', sans-serif"),
-            "serif": font("Serif", "ui-serif, Georgia, Cambria, 'Times New Roman', serif"),
-            "mono": font("Mono", "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"),
+            "sans": font("Sans", SANS),
+            "serif": font("Serif", SERIF),
+            "mono": font("Mono", MONO),
+        } },
+        // Typography beyond the font: headings, weights, line height and tracking.
+        // Headings keep the text's font until one is picked.
+        "heading-font": { "label": "Heading font", "default": "text", "choices": {
+            "text": set("Same as text", json!({})),
+            "sans": set("Sans", json!({ "font": { "heading": SANS } })),
+            "serif": set("Serif", json!({ "font": { "heading": SERIF } })),
+            "mono": set("Mono", json!({ "font": { "heading": MONO } })),
+        } },
+        "font-weight": { "label": "Weight", "default": "default", "choices": {
+            "lighter": weights("Lighter", 400, 500, 600),
+            "default": weights("Default", 500, 600, 700),
+            "bolder": weights("Bolder", 600, 700, 800),
+        } },
+        "line-height": { "label": "Line height", "default": "default", "choices": {
+            "tight": scale("Tight", "font.leading", 1.35),
+            // Nothing: the page's own line height until one is picked.
+            "default": set("Default", json!({})),
+            "relaxed": scale("Relaxed", "font.leading", 1.7),
+        } },
+        "letter-spacing": { "label": "Letter spacing", "default": "default", "choices": {
+            "tight": set("Tight", json!({ "font": { "tracking": "-0.01em" } })),
+            "default": set("Default", json!({})),
+            "wide": set("Wide", json!({ "font": { "tracking": "0.025em" } })),
         } },
     })
 }

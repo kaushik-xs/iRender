@@ -50,8 +50,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("width", "36px"),
                 ("height", "36px"),
                 ("padding", "0"),
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-md)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "transparent"),
                 ("color", TEXT),
                 ("cursor", "pointer"),
@@ -74,7 +74,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "var(--color-destructive, #dc2626)"),
                 ("color", "#fff"),
                 ("font-size", fs!(10)),
-                ("font-weight", "700"),
+                ("font-weight", "var(--font-weight-bold, 700)"),
                 ("line-height", "14px"),
                 ("text-align", "center"),
             ]),
@@ -82,25 +82,25 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-nt-count][hidden]", pairs(&[("display", "none")]))
         .nest("& [data-nt-panel][popover]", popover_base().set("width", "min(380px, calc(100vw - 24px))").set("padding", "0").set("margin", concat!(gap!(8), " 0")).set("position-area", "bottom span-left").set("position-try-fallbacks", "flip-block, flip-inline").nest("&:dir(rtl)", StyleBlock::new().set("position-area", "bottom span-right")))
         .nest("& [data-nt-panel][popover]:popover-open, & [data-nt-panel]:not([popover])", pairs(&[("display", "flex"), ("flex-direction", "column")]))
-        .nest("& [data-nt-panel]:not([popover])", pairs(&[("width", "100%"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)")]))
+        .nest("& [data-nt-panel]:not([popover])", pairs(&[("width", "100%"), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-card, var(--radius-lg))")]))
         .nest("& [data-nt-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(12, 14, 8))]))
-        .nest("& [data-nt-head] h3", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
+        .nest("& [data-nt-head] h3", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest(
             "& [data-nt-mark-all]",
-            pairs(&[("padding", pad!(4, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("font-weight", "500"), ("cursor", "pointer")]),
+            pairs(&[("padding", pad!(4, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", PRIMARY), ("font", "inherit"), ("font-size", fs!(13)), ("font-weight", "var(--font-weight-medium, 500)"), ("cursor", "pointer")]),
         )
         .nest("& [data-nt-mark-all]:hover", pairs(&[("background", ACCENT)]))
         .nest("& [data-nt-mark-all]:disabled", pairs(&[("color", MUTED), ("cursor", "default"), ("background", "transparent")]))
         .nest("& [data-nt-mark-all]:focus-visible, & [data-nt-tab]:focus-visible", forms::focus_ring())
-        .nest("& [data-nt-tabs]", pairs(&[("display", "flex"), ("gap", gap!(4)), ("padding", pad!(0, 14, 8)), ("border-bottom", "1px solid var(--color-border)")]))
+        .nest("& [data-nt-tabs]", pairs(&[("display", "flex"), ("gap", gap!(4)), ("padding", pad!(0, 14, 8)), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)")]))
         .nest(
             "& [data-nt-tab]",
             pairs(&[("padding", pad!(4, 10)), ("border", "0"), ("border-radius", "999px"), ("background", "transparent"), ("color", MUTED), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer")]),
         )
-        .nest("& [data-nt-tab][aria-pressed=true]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", TEXT), ("font-weight", "500")]))
+        .nest("& [data-nt-tab][aria-pressed=true]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", TEXT), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-nt-list]", pairs(&[("margin", "0"), ("padding", pad!(4)), ("list-style", "none"), ("max-height", "min(420px, 60vh)"), ("overflow-y", "auto")]))
         .nest("& [data-nt-panel]:not([popover]) [data-nt-list]", pairs(&[("max-height", "none")]))
-        .nest("& [data-nt-item]", pairs(&[("--tone", PRIMARY), ("position", "relative"), ("display", "flex"), ("align-items", "flex-start"), ("border-radius", "var(--radius-md)")]))
+        .nest("& [data-nt-item]", pairs(&[("--tone", PRIMARY), ("position", "relative"), ("display", "flex"), ("align-items", "flex-start"), ("border-radius", "var(--radius-control, var(--radius-md))")]))
         .nest("& [data-nt-item]:hover", pairs(&[("background", ACCENT)]))
         .nest(
             "& [data-nt-open]",
@@ -112,7 +112,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", gap!(10)),
                 ("padding", pad!(10)),
                 ("border", "0"),
-                ("border-radius", "var(--radius-md)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "transparent"),
                 ("color", TEXT),
                 ("font", "inherit"),
@@ -134,14 +134,14 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "color-mix(in srgb, var(--tone) 14%, var(--color-surface, #fff))"),
                 ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"),
                 ("font-size", fs!(12)),
-                ("font-weight", "600"),
+                ("font-weight", "var(--font-weight-semibold, 600)"),
             ]),
         )
         .nest("& [data-nt-mark] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
         .nest("& [data-nt-mark][data-dot]::after", pairs(&[("content", "''"), ("width", "10px"), ("height", "10px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
         .nest("& [data-nt-text]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0"), ("padding-inline-end", pad!(48))]))
         .nest("& [data-nt-title]", pairs(&[("line-height", "1.35"), ("overflow-wrap", "anywhere")]))
-        .nest("& [data-unread] [data-nt-title]", pairs(&[("font-weight", "600")]))
+        .nest("& [data-unread] [data-nt-title]", pairs(&[("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest(
             "& [data-nt-body]",
             pairs(&[("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
@@ -163,8 +163,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("@media (hover: none)", pairs(&[]).nest("& [data-nt-archive]", pairs(&[("opacity", "1")])))
         .nest("& [data-nt-empty]", pairs(&[("margin", "0"), ("padding", pad!(28, 16)), ("color", MUTED), ("text-align", "center")]))
         .nest("& [data-nt-empty][hidden]", pairs(&[("display", "none")]))
-        .nest("& [data-nt-foot]", pairs(&[("padding", pad!(8, 14)), ("border-top", "1px solid var(--color-border)"), ("text-align", "center")]))
-        .nest("& [data-nt-foot] a", pairs(&[("color", PRIMARY), ("font-size", fs!(13)), ("font-weight", "500"), ("text-decoration", "none")]))
+        .nest("& [data-nt-foot]", pairs(&[("padding", pad!(8, 14)), ("border-top", "var(--border-width, 1px) solid var(--color-border)"), ("text-align", "center")]))
+        .nest("& [data-nt-foot] a", pairs(&[("color", PRIMARY), ("font-size", fs!(13)), ("font-weight", "var(--font-weight-medium, 500)"), ("text-decoration", "none")]))
         .nest("& [data-nt-foot] a:hover", pairs(&[("text-decoration", "underline")]))
         .nest(
             "& [data-nt-live]",

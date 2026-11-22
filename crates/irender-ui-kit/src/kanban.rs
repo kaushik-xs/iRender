@@ -71,7 +71,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("background", "color-mix(in srgb, var(--tone) 12%, transparent)"),
         ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"),
         ("font-size", fs!(11)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
         ("line-height", "1.6"),
     ]);
     let b = pairs(&[("color", TEXT), ("font-size", fs!(14))])
@@ -89,7 +89,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", gap!(8)),
                 ("box-sizing", "border-box"),
                 ("padding", pad!(10)),
-                ("border-radius", "var(--radius-lg)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("background", "color-mix(in srgb, var(--color-text) 3.5%, var(--color-surface, #fff))"),
                 ("transition", "background .15s, box-shadow .15s"),
             ]),
@@ -98,14 +98,14 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("@media (pointer: coarse)", pairs(&[]).nest("& [data-kb-card]", pairs(&[("user-select", "none"), ("-webkit-touch-callout", "none")])))
         .nest("& [data-kb-column][data-over-drop]", pairs(&[("box-shadow", "inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 45%, transparent)")]))
         .nest("& [data-kb-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(2, 4))]))
-        .nest("& [data-kb-head] h3", pairs(&[("margin", "0"), ("font-size", fs!(13)), ("font-weight", "600"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest("& [data-kb-head] h3", pairs(&[("margin", "0"), ("font-size", fs!(13)), ("font-weight", "var(--font-weight-semibold, 600)"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest("& [data-kb-dot]", pairs(&[("flex", "none"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
         .nest(
             "& [data-kb-count]",
             // "2 / 3" reads left to right on any page.
             pairs(&[("direction", "ltr"), ("unicode-bidi", "isolate"), ("padding", pad!(0, 7)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]),
         )
-        .nest("& [data-over] [data-kb-count]", pairs(&[("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 14%, transparent)"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "600")]))
+        .nest("& [data-over] [data-kb-count]", pairs(&[("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 14%, transparent)"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest(
             "& [data-kb-fold]",
             pairs(&[("margin-inline-start", "auto"), ("display", "inline-flex"), ("padding", pad!(4)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),
@@ -124,12 +124,12 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("flex", "0 0 var(--kb-width, 280px)"),
                 ("box-sizing", "border-box"),
                 ("padding", pad!(6, 10)),
-                ("border-radius", "var(--radius-lg)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("background", "color-mix(in srgb, var(--color-text) 3.5%, var(--color-surface, #fff))"),
             ]),
         )
         .nest("& [data-kb-colhead][data-collapsed]", pairs(&[("flex-basis", "44px")]))
-        .nest("& [data-kb-lanes] [data-kb-column]", pairs(&[("border-radius", "var(--radius-md)"), ("min-height", "56px")]))
+        .nest("& [data-kb-lanes] [data-kb-column]", pairs(&[("border-radius", "var(--radius-control, var(--radius-md))"), ("min-height", "56px")]))
         .nest(
             "& [data-kb-lane-head]",
             pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("width", "fit-content"), ("padding", pad!(6, 2, 4))]),
@@ -146,7 +146,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "none"),
                 ("color", TEXT),
                 ("font", "inherit"),
-                ("font-weight", "600"),
+                ("font-weight", "var(--font-weight-semibold, 600)"),
                 ("cursor", "pointer"),
             ]),
         )
@@ -189,10 +189,10 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("flex-direction", "column"),
                 ("gap", gap!(8)),
                 ("padding", pad!(10, 12)),
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-md)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "var(--color-card, var(--color-surface, #fff))"),
-                ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+                ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))"),
                 ("cursor", "pointer"),
                 ("outline", "none"),
                 ("transition", "box-shadow .15s, border-color .15s, opacity .15s"),
@@ -202,7 +202,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-kb-card]:hover", pairs(&[("border-color", "color-mix(in srgb, var(--color-text) 22%, transparent)"), ("box-shadow", "0 2px 6px rgb(0 0 0 / 0.08)")]))
         .nest("& [data-kb-card]:focus-visible", forms::focus_ring().set("outline-offset", "1px"))
         .nest("& [data-kb-card][data-dragging]", pairs(&[("opacity", "0.35")]))
-        .nest("& [data-kb-title]", pairs(&[("font-weight", "500"), ("line-height", "1.35"), ("overflow-wrap", "anywhere")]))
+        .nest("& [data-kb-title]", pairs(&[("font-weight", "var(--font-weight-medium, 500)"), ("line-height", "1.35"), ("overflow-wrap", "anywhere")]))
         .nest(
             "& [data-kb-desc]",
             pairs(&[("margin", "0"), ("color", MUTED), ("font-size", fs!(13)), ("line-height", "1.4"), ("display", "-webkit-box"), ("-webkit-line-clamp", "2"), ("-webkit-box-orient", "vertical"), ("overflow", "hidden")]),
@@ -223,7 +223,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "color-mix(in srgb, var(--color-primary) 14%, var(--color-surface, #fff))"),
                 ("color", TEXT),
                 ("font-size", fs!(10)),
-                ("font-weight", "600"),
+                ("font-weight", "var(--font-weight-semibold, 600)"),
             ]),
         )
         .nest("& [data-kb-avatar] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
@@ -236,7 +236,7 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", gap!(6)),
                 ("padding", pad!(6, 8)),
                 ("border", "0"),
-                ("border-radius", "var(--radius-md)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "transparent"),
                 ("color", MUTED),
                 ("font", "inherit"),
@@ -252,8 +252,8 @@ static BOARD: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("box-sizing", "border-box"),
                 ("width", "100%"),
                 ("padding", pad!(8, 10)),
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-md)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "var(--color-card, var(--color-surface, #fff))"),
                 ("color", TEXT),
                 ("font", "inherit"),

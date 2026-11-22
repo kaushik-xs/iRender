@@ -62,7 +62,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("align-items", "center"),
             ("gap", gap!(4)),
             ("padding", pad!(10, 0)),
-            ("border-inline-end", "1px solid var(--color-border)"),
+            ("border-inline-end", "var(--border-width, 1px) solid var(--color-border)"),
             ("background", "var(--color-sidebar, color-mix(in srgb, var(--color-text) 3%, var(--color-surface, #fff)))"),
             ("min-height", "0"),
             // Not a scroll box: that would clip the labels shown beside the icons.
@@ -81,12 +81,12 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("height", "40px"),
             ("padding", "0"),
             ("border", "0"),
-            ("border-radius", "var(--radius-md)"),
+            ("border-radius", "var(--radius-control, var(--radius-md))"),
             ("background", "transparent"),
             ("color", MUTED),
             ("font", "inherit"),
             ("font-size", fs!(15)),
-            ("font-weight", "600"),
+            ("font-weight", "var(--font-weight-semibold, 600)"),
             ("text-decoration", "none"),
             ("cursor", "pointer"),
             ("transition", "background .15s, color .15s"),
@@ -114,7 +114,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("background", TEXT),
             ("color", SURFACE),
             ("font-size", fs!(12)),
-            ("font-weight", "500"),
+            ("font-weight", "var(--font-weight-medium, 500)"),
             ("white-space", "nowrap"),
             ("transform", "translateY(-50%)"),
             ("opacity", "0"),
@@ -138,7 +138,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("background", "var(--color-destructive, #dc2626)"),
             ("color", "#fff"),
             ("font-size", fs!(9)),
-            ("font-weight", "700"),
+            ("font-weight", "var(--font-weight-bold, 700)"),
             ("line-height", "12px"),
             ("text-align", "center"),
         ]),
@@ -150,7 +150,7 @@ static LAYOUT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("width", "var(--rail-panel, 260px)"),
             ("min-height", "0"),
             ("overflow", "hidden"),
-            ("border-inline-end", "1px solid var(--color-border)"),
+            ("border-inline-end", "var(--border-width, 1px) solid var(--color-border)"),
             ("background", "var(--color-surface, #fff)"),
             ("transition", "width .2s ease"),
         ]),
@@ -183,7 +183,7 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("box-sizing", "border-box"), ("width", "var(--rail-panel, 260px)"), ("height", "100%"), ("padding", pad!(14, 12)), ("overflow-y", "auto")])
         .nest("&[hidden]", pairs(&[("display", "none")]))
         .nest("& [data-rail-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("padding", pad!(0, 4, 4))]))
-        .nest("& [data-rail-head] h2", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "600")]))
+        .nest("& [data-rail-head] h2", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("font-size", fs!(15)), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest(
             "& [data-rail-fold]",
             pairs(&[("display", "grid"), ("place-items", "center"), ("width", "28px"), ("height", "28px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", MUTED), ("cursor", "pointer")]),

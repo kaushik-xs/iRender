@@ -303,10 +303,10 @@ static MENUBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "fit-content"),
         ("max-width", "100%"),
         ("padding", pad!(4)),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "var(--color-surface)"),
-        ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)"),
+        ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))"),
     ])
     .nest(
         "& > [data-ui-menubar-trigger]",
@@ -318,7 +318,7 @@ static MENUBAR: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("color", TEXT),
             ("font", "inherit"),
             ("font-size", fs!(14)),
-            ("font-weight", "500"),
+            ("font-weight", "var(--font-weight-medium, 500)"),
             ("cursor", "pointer"),
         ]),
     )
@@ -450,11 +450,11 @@ static NAV: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("height", ctl!(36)),
                 ("padding", pad!(0, 12)),
                 ("border", "0"),
-                ("border-radius", "var(--radius-md)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("background", "transparent"),
                 ("color", "inherit"),
                 ("font", "inherit"),
-                ("font-weight", "500"),
+                ("font-weight", "var(--font-weight-medium, 500)"),
                 ("text-decoration", "none"),
                 ("cursor", "pointer"),
             ]),
@@ -475,14 +475,14 @@ static NAV: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("flex-direction", "column"),
                 ("gap", gap!(4)),
                 ("padding", pad!(10, 12)),
-                ("border-radius", "var(--radius-md)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
                 ("color", "inherit"),
                 ("text-decoration", "none"),
                 ("line-height", "1.3"),
             ]),
         )
         .nest("& [data-ui-nav-panel] [data-ui-nav-link]:hover, & [data-ui-nav-panel] [data-ui-nav-link]:focus-visible", pairs(&[("background", SUBTLE), ("outline", "none")]))
-        .nest("& [data-ui-nav-panel] [data-ui-nav-link] > span:first-child", pairs(&[("font-weight", "500")]))
+        .nest("& [data-ui-nav-panel] [data-ui-nav-link] > span:first-child", pairs(&[("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-ui-nav-panel] [data-ui-nav-link] > span + span", pairs(&[("color", MUTED), ("font-size", fs!(13))]))
 });
 

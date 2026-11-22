@@ -74,7 +74,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("gap", gap!(6)),
                 ("padding", pad!(24, 16)),
                 ("border", "1.5px dashed var(--color-border)"),
-                ("border-radius", "var(--radius-lg)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("text-align", "center"),
                 ("cursor", "pointer"),
                 ("transition", "border-color .15s, background .15s"),
@@ -88,7 +88,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("opacity", "0"), ("pointer-events", "none")]),
         )
         .nest("& [data-up-zone] svg", pairs(&[("color", MUTED)]))
-        .nest("& [data-up-label]", pairs(&[("font-weight", "500")]))
+        .nest("& [data-up-label]", pairs(&[("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-up-hint]", pairs(&[("color", MUTED), ("font-size", fs!(13))]))
         .nest("& [data-up-errors]", pairs(&[("margin", "0"), ("padding-inline-start", pad!(18)), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(13))]))
         .nest("& [data-up-bar]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", MUTED), ("font-size", fs!(13))]))
@@ -106,15 +106,15 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
     let kind = |c: &str| pairs(&[("color", c)]);
     pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none")])
         .nest("&[data-view=grid]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(auto-fill, minmax(150px, 1fr))"), ("gap", gap!(12))]))
-        .nest("&[data-view=list]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)")]))
+        .nest("&[data-view=list]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-card, var(--radius-lg))")]))
         .nest("& [data-up-file]", pairs(&[("position", "relative"), ("min-width", "0")]))
         .nest(
             "&[data-view=grid] [data-up-file]",
-            pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-lg)"), ("overflow", "hidden")]),
+            pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-card, var(--radius-lg))"), ("overflow", "hidden")]),
         )
         .nest(
             "&[data-view=list] [data-up-file]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(12)), ("padding", pad!(8, 12)), ("border-top", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(12)), ("padding", pad!(8, 12)), ("border-top", "var(--border-width, 1px) solid var(--color-border)")]),
         )
         .nest("&[data-view=list] [data-up-file]:first-child", pairs(&[("border-top", "0")]))
         // The part that opens the preview: the thumbnail and name.
@@ -139,10 +139,10 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-up-thumb]",
             pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "center"), ("flex", "none"), ("background", "color-mix(in srgb, var(--color-text) 4%, transparent)"), ("overflow", "hidden")]),
         )
-        .nest("&[data-view=grid] [data-up-thumb]", pairs(&[("height", "110px"), ("border-bottom", "1px solid var(--color-border)")]))
+        .nest("&[data-view=grid] [data-up-thumb]", pairs(&[("height", "110px"), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)")]))
         .nest("&[data-view=list] [data-up-thumb]", pairs(&[("width", "36px"), ("height", "36px"), ("border-radius", "var(--radius-sm)")]))
         .nest("& [data-up-thumb] img", pairs(&[("width", "100%"), ("height", "100%"), ("object-fit", "cover")]))
-        .nest("& [data-up-thumb] [data-ext]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", "2px"), ("font-size", fs!(10)), ("font-weight", "700"), ("letter-spacing", ".04em")]))
+        .nest("& [data-up-thumb] [data-ext]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", "2px"), ("font-size", fs!(10)), ("font-weight", "var(--font-weight-bold, 700)"), ("letter-spacing", ".04em")]))
         .nest("&[data-view=list] [data-up-thumb] [data-ext] b", pairs(&[("display", "none")]))
         .nest("& [data-kind=pdf] [data-ext]", kind("#dc2626"))
         .nest("& [data-kind=sheet] [data-ext]", kind("#16a34a"))
@@ -152,7 +152,7 @@ static FILES: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& :is([data-kind=text], [data-kind=other]) [data-ext]", kind(MUTED))
         .nest("& [data-up-meta]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0")]))
         .nest("&[data-view=grid] [data-up-meta]", pairs(&[("padding", pad!(8, 10))]))
-        .nest("& [data-up-name]", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-weight", "500")]))
+        .nest("& [data-up-name]", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-up-size]", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums")]))
         .nest("& [data-up-error]", pairs(&[("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(12))]))
         .nest(
@@ -197,9 +197,9 @@ static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[open]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "0")]))
         .nest(
             "& [data-up-head]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding-block", pad!(14, 14)), ("padding-inline", pad!(20, 56)), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding-block", pad!(14, 14)), ("padding-inline", pad!(20, 56)), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)")]),
         )
-        .nest("& [data-up-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-size", fs!(16)), ("font-weight", "600")]))
+        .nest("& [data-up-title]", pairs(&[("margin-block", "0 0"), ("margin-inline", "0 auto"), ("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("font-size", fs!(16)), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& [data-up-count]", pairs(&[("color", MUTED), ("font-size", fs!(13)), ("white-space", "nowrap")]))
         .nest(
             "& [data-up-body]",
@@ -210,8 +210,8 @@ static PREVIEW: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-up-body] pre", pairs(&[("align-self", "stretch"), ("width", "100%"), ("margin", "0"), ("padding", pad!(16)), ("box-sizing", "border-box"), ("white-space", "pre-wrap"), ("font-size", fs!(13))]))
         .nest("& [data-up-body] [data-up-sheet]", pairs(&[("align-self", "stretch"), ("width", "100%"), ("overflow", "auto")]))
         .nest("& [data-up-body] table", pairs(&[("border-collapse", "collapse"), ("font-size", fs!(13)), ("background", "var(--color-surface, #fff)")]))
-        .nest("& [data-up-body] :is(th, td)", pairs(&[("padding", pad!(4, 10)), ("border", "1px solid var(--color-border)"), ("white-space", "nowrap"), ("text-align", "start")]))
-        .nest("& [data-up-body] th", pairs(&[("position", "sticky"), ("top", "0"), ("background", ACCENT), ("color", MUTED), ("font-weight", "500")]))
+        .nest("& [data-up-body] :is(th, td)", pairs(&[("padding", pad!(4, 10)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("white-space", "nowrap"), ("text-align", "start")]))
+        .nest("& [data-up-body] th", pairs(&[("position", "sticky"), ("top", "0"), ("background", ACCENT), ("color", MUTED), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-up-body] [data-up-none]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", gap!(12)), ("color", MUTED)]))
         .nest("& [data-up-body] [data-up-note]", pairs(&[("position", "sticky"), ("inset-inline-start", "0"), ("padding", pad!(8, 12)), ("color", MUTED), ("font-size", fs!(12))]))
 });

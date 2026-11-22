@@ -84,6 +84,8 @@ pub struct Registry {
     components: IndexMap<&'static str, Arc<dyn Component>>,
     /// Early scripts added to every page, whatever components it uses.
     early: IndexMap<&'static str, &'static str>,
+    /// Page-level CSS added to every page, likewise.
+    css: IndexMap<&'static str, &'static str>,
 }
 
 impl Registry {
@@ -125,6 +127,18 @@ impl Registry {
 
     pub(crate) fn early_scripts(&self) -> &IndexMap<&'static str, &'static str> {
         &self.early
+    }
+
+    /// Adds page-level CSS to every page rendered with this registry, like
+    /// [`RenderCx::global_css`] but whatever components the page uses: for a kit's
+    /// defaults on the page itself, such as the body's font.
+    pub fn global_css(&mut self, name: &'static str, css: &'static str) -> &mut Self {
+        self.css.insert(name, css);
+        self
+    }
+
+    pub(crate) fn global_styles(&self) -> &IndexMap<&'static str, &'static str> {
+        &self.css
     }
 
     pub fn get(&self, name: &str) -> Option<&Arc<dyn Component>> {

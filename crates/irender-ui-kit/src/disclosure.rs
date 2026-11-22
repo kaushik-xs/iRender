@@ -35,7 +35,7 @@ fn summary_rules(block: StyleBlock) -> StyleBlock {
                 ("gap", gap!(16)),
                 ("list-style", "none"),
                 ("cursor", "pointer"),
-                ("font-weight", "500"),
+                ("font-weight", "var(--font-weight-medium, 500)"),
             ]),
         )
         .nest("& > summary::-webkit-details-marker", StyleBlock::from_pairs(&[("display", "none")]))
@@ -87,7 +87,7 @@ const ACCORDION_ITEM_PROPS: &[PropDef] = &[
 ];
 
 static ACCORDION_ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
-    summary_rules(StyleBlock::from_pairs(&[("border-bottom", "1px solid var(--color-border)")]))
+    summary_rules(StyleBlock::from_pairs(&[("border-bottom", "var(--border-width, 1px) solid var(--color-border)")]))
         .nest("& > summary", StyleBlock::from_pairs(&[("padding", pad!(16, 0)), ("font-size", fs!(14))]))
         .nest("& > summary:hover", StyleBlock::from_pairs(&[("text-decoration", "underline")]))
 });
@@ -144,7 +144,7 @@ static COLLAPSIBLE: LazyLock<StyleBlock> = LazyLock::new(|| {
     summary_rules(StyleBlock::new())
         .nest(
             "& > summary",
-            StyleBlock::from_pairs(&[("padding", pad!(8, 12)), ("border-radius", "var(--radius-md)"), ("font-size", fs!(14))]),
+            StyleBlock::from_pairs(&[("padding", pad!(8, 12)), ("border-radius", "var(--radius-control, var(--radius-md))"), ("font-size", fs!(14))]),
         )
         .nest("& > summary:hover", StyleBlock::from_pairs(&[("background", ACCENT)]))
         .nest("& > div", StyleBlock::from_pairs(&[("padding", pad!(8, 12, 0))]))
@@ -186,7 +186,7 @@ static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("gap", gap!(2)),
         ("width", "fit-content"),
         ("padding", pad!(3)),
-        ("border-radius", "var(--radius-lg)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("background", SUBTLE),
         ("color", MUTED),
     ])
@@ -198,13 +198,13 @@ static TAB: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("justify-content", "center"),
         ("height", ctl!(30)),
         ("padding", pad!(0, 12)),
-        ("border", "1px solid transparent"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid transparent"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("color", "inherit"),
         ("font-family", "inherit"),
         ("font-size", fs!(14)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
         ("white-space", "nowrap"),
         ("cursor", "pointer"),
         ("transition", "background-color .15s, color .15s"),
@@ -335,13 +335,13 @@ static TOGGLE: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("align-items", "center"),
         ("justify-content", "center"),
         ("gap", gap!(8)),
-        ("border", "1px solid transparent"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid transparent"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("color", TEXT),
         ("font-family", "inherit"),
         ("font-size", fs!(14)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
         ("white-space", "nowrap"),
         ("cursor", "pointer"),
         ("transition", "background-color .15s, color .15s"),
@@ -354,7 +354,7 @@ static TOGGLE: LazyLock<StyleBlock> = LazyLock::new(|| {
 static TOGGLE_VARIANT_STYLES: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
     [
         StyleBlock::new(),
-        StyleBlock::from_pairs(&[("border-color", "var(--color-border)"), ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.05)")]),
+        StyleBlock::from_pairs(&[("border-color", "var(--color-border)"), ("box-shadow", "var(--elevation-control, 0 1px 2px rgb(0 0 0 / 0.05))")]),
     ]
 });
 static TOGGLE_SIZE_STYLES: LazyLock<[StyleBlock; 3]> = LazyLock::new(|| {
@@ -687,8 +687,8 @@ static COLOR_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", ctl!(32)),
         ("height", ctl!(32)),
         ("padding", "2px"),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("cursor", "pointer"),
     ])
@@ -699,8 +699,8 @@ static HEX_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("width", "100%"),
         ("height", ctl!(32)),
         ("padding", pad!(0, 8)),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-md)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("color", "inherit"),
         ("font-family", crate::MONO),
@@ -828,7 +828,7 @@ const THEME_PANEL_PROPS: &[PropDef] = &[
 static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(16))]));
 static PANEL_ROW: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8))]));
 static PANEL_LABEL: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("font-size", fs!(14)), ("font-weight", "500"), ("line-height", "1")]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("font-size", fs!(14)), ("font-weight", "var(--font-weight-medium, 500)"), ("line-height", "1")]));
 
 /// The token a picker shows as a swatch: the primary for a palette, the first series
 /// colour for chart colours, or the first colour a choice sets.

@@ -58,10 +58,22 @@ root:
               - { colors: true, label: Custom colours }
               - { option: chart, label: Chart colours, swatch: [color.chart-1, color.chart-2, color.chart-3, color.chart-4] }
               - { option: radius, label: Radius }
+              - { option: control-radius, label: Control radius }
+              - { option: card-radius, label: Card radius }
+              - { option: border, label: Borders }
+              - { option: elevation, label: Shadows }
+              - { option: shadow, label: Card shadow }
               - { option: density, label: Density }
+              - { option: padding, label: Padding }
+              - { option: gap, label: Gaps }
+              - { option: control-size, label: Control size }
+              - { option: icon-size, label: Icon size }
               - { option: text-size, label: Text size }
               - { option: font, label: Font }
-              - { option: shadow, label: Shadow }
+              - { option: heading-font, label: Heading font }
+              - { option: font-weight, label: Weight }
+              - { option: line-height, label: Line height }
+              - { option: letter-spacing, label: Letter spacing }
           style: { display: flex, flex-direction: column, gap: 20 }
           children:
             - type: stack

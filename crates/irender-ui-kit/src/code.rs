@@ -58,17 +58,17 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("flex-direction", "column"),
         ("margin", "0"),
         ("min-width", "0"),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-lg)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("background", CODE_BG),
         ("color", TEXT),
         ("overflow", "hidden"),
     ]))
     .nest(
         "& [data-code-head]",
-        pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-height", "36px"), ("padding-block", pad!(0, 0)), ("padding-inline", pad!(14, 6)), ("border-bottom", "1px solid var(--color-border)"), ("font-size", fs!(13)), ("color", MUTED)]),
+        pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-height", "36px"), ("padding-block", pad!(0, 0)), ("padding-inline", pad!(14, 6)), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)"), ("font-size", fs!(13)), ("color", MUTED)]),
     )
-    .nest("& [data-code-title]", pairs(&[("color", TEXT), ("font-weight", "500"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+    .nest("& [data-code-title]", pairs(&[("color", TEXT), ("font-weight", "var(--font-weight-medium, 500)"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
     .nest("& [data-code-lang]", pairs(&[("margin-inline-start", "auto"), ("font-family", FONT), ("font-size", fs!(12)), ("text-transform", "lowercase")]))
     // With no bar, the copy button floats in the corner.
     .nest("& > [data-code-copy]", pairs(&[("position", "absolute"), ("top", "6px"), ("inset-inline-end", "6px"), ("z-index", "1"), ("background", CODE_BG)]))
@@ -135,12 +135,12 @@ static BLOCK: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 
 static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
-    irender_html::code_token_styles(pairs(&[("display", "flex"), ("flex-direction", "column"), ("min-width", "0"), ("border", "1px solid var(--color-border)"), ("border-radius", "var(--radius-md)"), ("background", SURFACE), ("color", TEXT), ("overflow", "hidden")]))
+    irender_html::code_token_styles(pairs(&[("display", "flex"), ("flex-direction", "column"), ("min-width", "0"), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", SURFACE), ("color", TEXT), ("overflow", "hidden")]))
         .nest("&:focus-within", pairs(&[("border-color", "var(--color-ring, var(--color-muted))"), ("box-shadow", "0 0 0 3px color-mix(in srgb, var(--color-ring, var(--color-muted)) 25%, transparent)")]))
         .nest("&[data-invalid]", pairs(&[("border-color", "var(--color-destructive, #dc2626)")]))
         .nest(
             "& [data-je-bar]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-height", "34px"), ("padding-block", pad!(0, 0)), ("padding-inline", pad!(12, 6)), ("border-bottom", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("font-size", fs!(12)), ("color", MUTED)]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-height", "34px"), ("padding-block", pad!(0, 0)), ("padding-inline", pad!(12, 6)), ("border-bottom", format!("var(--border-width, 1px) solid {BORDER}").as_str()), ("background", CODE_BG), ("font-size", fs!(12)), ("color", MUTED)]),
         )
         .nest("& [data-je-status]", pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(6))]))
         .nest("& [data-je-status]::before", pairs(&[("content", "''"), ("width", "7px"), ("height", "7px"), ("border-radius", "50%"), ("background", "var(--color-success, #16a34a)")]))
@@ -149,10 +149,10 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-je-area]", pairs(&[("position", "relative"), ("display", "flex"), ("min-height", "0"), ("font-family", FONT), ("font-size", fs!(13)), ("line-height", "20px")]))
         .nest(
             "& [data-je-gutter-box]",
-            pairs(&[("flex", "0 0 auto"), ("min-width", "3ch"), ("padding-block", pad!(10, 10)), ("padding-inline", pad!(12, 10)), ("overflow", "hidden"), ("border-inline-end", format!("1px solid {BORDER}").as_str()), ("background", CODE_BG), ("color", MUTED), ("text-align", "end"), ("user-select", "none")]),
+            pairs(&[("flex", "0 0 auto"), ("min-width", "3ch"), ("padding-block", pad!(10, 10)), ("padding-inline", pad!(12, 10)), ("overflow", "hidden"), ("border-inline-end", format!("var(--border-width, 1px) solid {BORDER}").as_str()), ("background", CODE_BG), ("color", MUTED), ("text-align", "end"), ("user-select", "none")]),
         )
         .nest("& [data-je-gutter] span", pairs(&[("display", "block"), ("opacity", ".7")]))
-        .nest("& [data-je-gutter] span[data-err]", pairs(&[("opacity", "1"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "700")]))
+        .nest("& [data-je-gutter] span[data-err]", pairs(&[("opacity", "1"), ("color", "var(--color-destructive, #dc2626)"), ("font-weight", "var(--font-weight-bold, 700)")]))
         .nest("& [data-je-stack]", pairs(&[("position", "relative"), ("flex", "1"), ("min-width", "0"), ("display", "grid")]))
         // The highlighted copy and the text area over it share every metric.
         .nest(
@@ -186,7 +186,7 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& textarea::placeholder", pairs(&[("color", MUTED)]))
         .nest(
             "& [data-je-error]",
-            pairs(&[("margin", "0"), ("padding", pad!(6, 12)), ("border-top", "1px solid color-mix(in srgb, var(--color-destructive, #dc2626) 35%, transparent)"), ("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 7%, var(--color-surface, #fff))"), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(12))]),
+            pairs(&[("margin", "0"), ("padding", pad!(6, 12)), ("border-top", "var(--border-width, 1px) solid color-mix(in srgb, var(--color-destructive, #dc2626) 35%, transparent)"), ("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 7%, var(--color-surface, #fff))"), ("color", "var(--color-destructive, #dc2626)"), ("font-size", fs!(12))]),
         )
         .nest("& [data-je-error]:empty", pairs(&[("display", "none")]))
         .nest("& [data-je-hint]", pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]))

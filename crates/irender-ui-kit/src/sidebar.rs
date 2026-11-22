@@ -98,7 +98,7 @@ static MAIN: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Inset: the main area is a raised panel next to the sidebar.
         .nest(
             "[data-variant=inset] > &",
-            pairs(&[("margin", gap!(8)), ("border-radius", "var(--radius-lg)"), ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)")]),
+            pairs(&[("margin", gap!(8)), ("border-radius", "var(--radius-card, var(--radius-lg))"), ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)")]),
         )
         .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=left] > &", pairs(&[("margin-inline-start", "0")])))
         .nest(WIDE, wide("[data-variant=inset][data-state=expanded][data-side=right] > &", pairs(&[("margin-inline-end", "0")])))
@@ -195,8 +195,8 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("font-size", fs!(14)),
         ("transition", "width .2s ease-out"),
     ])
-    .nest("[data-side=left]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-end", "1px solid var(--color-border)")]))
-    .nest("[data-side=right]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-start", "1px solid var(--color-border)")]))
+    .nest("[data-side=left]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-end", "var(--border-width, 1px) solid var(--color-border)")]))
+    .nest("[data-side=right]:not([data-variant=inset]):not([data-variant=floating]) > &", pairs(&[("border-inline-start", "var(--border-width, 1px) solid var(--color-border)")]))
     .nest("[data-variant=floating] > &", pairs(&[("padding", pad!(8)), ("background", "transparent")]))
     // As specific as the border rules above, and after them, so it takes the border too.
     .nest(WIDE, wide("[data-collapsible=offcanvas][data-state=collapsed][data-side] > &", pairs(&[("width", "0"), ("border", "0"), ("padding", "0")])))
@@ -217,15 +217,15 @@ static PANEL: LazyLock<StyleBlock> = LazyLock::new(|| {
                 // flex-start` would shrink a fixed box to its content.
                 ("align-self", "stretch"),
                 ("height", "auto"),
-                ("border-inline-end", "1px solid var(--color-border)"),
+                ("border-inline-end", "var(--border-width, 1px) solid var(--color-border)"),
                 ("background", SIDEBAR_BG),
-                ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
+                ("box-shadow", "var(--elevation-dialog, 0 10px 30px rgb(0 0 0 / 0.2))"),
                 ("transform", "translateX(calc(-100% * var(--ui-dir, 1)))"),
                 ("visibility", "hidden"),
                 ("transition", "transform .2s ease-out, visibility .2s"),
             ]),
         )
-        .nest(format!("[data-side=right]{CLOSES} > &"), pairs(&[("inset-inline-start", "auto"), ("inset-inline-end", "0"), ("border-inline-end", "0"), ("border-inline-start", "1px solid var(--color-border)"), ("transform", "translateX(calc(100% * var(--ui-dir, 1)))")]))
+        .nest(format!("[data-side=right]{CLOSES} > &"), pairs(&[("inset-inline-start", "auto"), ("inset-inline-end", "0"), ("border-inline-end", "0"), ("border-inline-start", "var(--border-width, 1px) solid var(--color-border)"), ("transform", "translateX(calc(100% * var(--ui-dir, 1)))")]))
         .nest(format!("[data-mobile-open]{CLOSES} > &"), pairs(&[("transform", "none"), ("visibility", "visible"), ("touch-action", "pan-y")]))
         // Following a swipe: no easing behind the finger.
         .nest(format!("[data-mobile-open]{CLOSES} > &[data-dragging]"), pairs(&[("transition", "none")])),
@@ -239,8 +239,8 @@ static INNER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest(
             "[data-variant=floating] > * > &",
             pairs(&[
-                ("border", "1px solid var(--color-border)"),
-                ("border-radius", "var(--radius-lg)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-card, var(--radius-lg))"),
                 ("background", SIDEBAR_BG),
                 ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.08)"),
             ]),
@@ -350,7 +350,7 @@ static GROUP_LABEL: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("height", ctl!(32)),
         ("padding", pad!(0, 8)),
         ("font-size", fs!(12)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
         ("color", "color-mix(in srgb, var(--color-text) 70%, transparent)"),
         ("white-space", "nowrap"),
         ("transition", "margin .2s, opacity .2s"),
@@ -436,7 +436,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("min-height", ctl!(32)),
         ("padding", pad!(6, 8)),
         ("border", "0"),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("color", "inherit"),
         ("font", "inherit"),
@@ -451,7 +451,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&::-webkit-details-marker", pairs(&[("display", "none")]))
     .nest(":hover", pairs(&[("background", ACCENT)]))
     .nest(":focus-visible", pairs(&[("outline", "2px solid"), ("outline-color", RING), ("outline-offset", "-2px")]))
-    .nest("&[aria-current=page]", pairs(&[("background", ACCENT), ("font-weight", "500")]))
+    .nest("&[aria-current=page]", pairs(&[("background", ACCENT), ("font-weight", "var(--font-weight-medium, 500)")]))
     .nest("& [data-icon]", pairs(&[("display", "inline-flex"), ("width", "calc(16px * var(--size-icon, 1))"), ("justify-content", "center"), ("flex-shrink", "0")]))
     // Collapsed to icons: a square button with the icon alone; the label stays for
     // screen readers.
@@ -469,7 +469,7 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("background", TEXT),
         ("color", SURFACE),
         ("font-size", fs!(12)),
-        ("font-weight", "500"),
+        ("font-weight", "var(--font-weight-medium, 500)"),
         ("white-space", "nowrap"),
         ("transform", "translateY(-50%)"),
         ("opacity", "0"),
@@ -512,7 +512,7 @@ static SUB: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("gap", gap!(4)),
         ("margin-block", gap!(4, 0)), ("margin-inline", gap!(14, 0)),
         ("padding-block", pad!(2, 2)), ("padding-inline", pad!(10, 0)),
-        ("border-inline-start", "1px solid var(--color-border)"),
+        ("border-inline-start", "var(--border-width, 1px) solid var(--color-border)"),
         ("list-style", "none"),
     ])
     .nest(WIDE, wide(format!("{ICONS} &"), pairs(&[("display", "none")])))
@@ -740,7 +740,7 @@ static TRIGGER: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("height", ctl!(28)),
         ("padding", "0"),
         ("border", "0"),
-        ("border-radius", "var(--radius-md)"),
+        ("border-radius", "var(--radius-control, var(--radius-md))"),
         ("background", "transparent"),
         ("color", "inherit"),
         ("cursor", "pointer"),

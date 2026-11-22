@@ -74,7 +74,7 @@ static GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("place-items", "center"),
                 ("width", "12px"),
                 ("height", "18px"),
-                ("border", "1px solid var(--color-border)"),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
                 ("border-radius", "var(--radius-sm)"),
                 ("background", "var(--color-surface)"),
                 ("color", MUTED),

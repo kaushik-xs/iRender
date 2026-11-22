@@ -207,7 +207,13 @@ impl<'a> RenderCx<'a> {
             data,
             scopes: Vec::new(),
             contexts: Vec::new(),
-            styles: StyleCompiler::new(theme),
+            styles: {
+                let mut styles = StyleCompiler::new(theme);
+                for (name, css) in registry.global_styles() {
+                    styles.global(name, css);
+                }
+                styles
+            },
             out: String::new(),
             interactive: false,
             scripts: IndexMap::new(),

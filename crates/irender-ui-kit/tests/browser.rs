@@ -1458,6 +1458,59 @@ fn padding_gap_control_and_icon_sizes_scale_their_own_in_chrome() {
     );
 }
 
+/// The typography and shape options on part of the page: heading font, weights, line
+/// height and letter spacing for text, border width, shadows and the two radii.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn typography_and_shape_options_apply_in_chrome() {
+    let probes = |p: &str| serde_json::json!([
+        { "type": "ui-card", "props": { "title": "Title", "description": "Some words" }, "attrs": { "id": format!("{p}-card") } },
+        { "type": "ui-button", "props": { "label": "Probe", "variant": "outline" }, "attrs": { "id": format!("{p}-button") } },
+        { "type": "text", "props": { "value": "Plain" }, "attrs": { "id": format!("{p}-text") } } ]);
+    let doc = serde_json::json!({ "version": 1,
+        "root": { "type": "stack", "children": [
+            { "type": "stack", "children": probes("page") },
+            { "type": "stack", "attrs": {
+                "data-theme-heading-font": "serif", "data-theme-font-weight": "bolder", "data-theme-line-height": "relaxed",
+                "data-theme-letter-spacing": "wide", "data-theme-border": "thick", "data-theme-elevation": "flat",
+                "data-theme-control-radius": "round", "data-theme-card-radius": "x-large" },
+              "children": probes("part") } ] } });
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test");
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const cs = (sel) => getComputedStyle(document.querySelector(sel));
+      const line = (p) => {
+        const title = cs(`#${p}-card h3`), desc = cs(`#${p}-card p`), card = cs(`#${p}-card`), button = cs(`#${p}-button`), text = cs(`#${p}-text`);
+        return [
+          /serif/.test(title.fontFamily) && !/sans-serif/.test(title.fontFamily) ? "serif" : "same",
+          title.fontWeight, desc.lineHeight, text.letterSpacing,
+          card.borderTopWidth, card.borderTopLeftRadius, card.boxShadow === "none" ? "flat" : "shadow",
+          button.borderTopWidth, button.borderTopLeftRadius,
+        ].join(" ");
+      };
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = `${line("page")}\n${line("part")}`;
+      document.body.append(pre);
+    });
+    </script>"##;
+    let html = html.replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("typography-shape", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "same 600 21px normal 1px 10px shadow 1px 8px",
+            // Serif headings, bolder (semibold is 700), 1.7 × 14px lines, wide tracking
+            // (0.025em of 16px), 2px borders, no card shadow, 24px cards, 18px controls.
+            "serif 700 23.8px 0.4px 2px 24px flat 2px 18px",
+        ],
+        "\n{result}"
+    );
+}
+
 /// The switch scales whole with density: its knob keeps a 1px gap all round, off and on.
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]

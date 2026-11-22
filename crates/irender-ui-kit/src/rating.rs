@@ -217,7 +217,7 @@ static CHECKLIST: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-strength='2'] [data-meter] span:nth-child(-n+2)", pairs(&[("background", "var(--color-warning, #d97706)")]))
         .nest("&[data-strength='3'] [data-meter] span:nth-child(-n+3)", pairs(&[("background", "var(--color-warning, #d97706)")]))
         .nest("&[data-strength='4'] [data-meter] span", pairs(&[("background", "var(--color-success, #16a34a)")]))
-        .nest("& [data-strength-text]", pairs(&[("font-weight", "500")]))
+        .nest("& [data-strength-text]", pairs(&[("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& ul", pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("gap", gap!(4))]))
         .nest("& li", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("transition", "color .15s")]))
         .nest("& li::before", pairs(&[("content", "''"), ("flex", "none"), ("width", "14px"), ("height", "14px"), ("border-radius", "50%"), ("border", "1.5px solid currentColor"), ("box-sizing", "border-box")]))
@@ -232,7 +232,7 @@ static CHECKLIST: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("background", "var(--color-success, #16a34a)"),
                 ("color", "var(--color-surface, #fff)"),
                 ("font-size", fs!(10)),
-                ("font-weight", "700"),
+                ("font-weight", "var(--font-weight-bold, 700)"),
                 ("line-height", "1"),
             ]),
         )

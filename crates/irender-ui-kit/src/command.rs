@@ -69,11 +69,11 @@ fn palette_style(framed: bool) -> StyleBlock {
         ("font-size", fs!(14)),
     ]);
     if framed {
-        root = root.set("border", "1px solid var(--color-border)").set("border-radius", "var(--radius-lg)");
+        root = root.set("border", "var(--border-width, 1px) solid var(--color-border)").set("border-radius", "var(--radius-card, var(--radius-lg))");
     }
     root.nest(
             "& [data-ui-search]",
-            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(0, 12)), ("border-bottom", "1px solid var(--color-border)")]),
+            pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("padding", pad!(0, 12)), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)")]),
         )
         .nest("& [data-ui-search-icon]", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
         .nest(
@@ -94,12 +94,12 @@ fn palette_style(framed: bool) -> StyleBlock {
         // The open page's crumb: its title, a click (or Backspace) going back.
         .nest(
             "& [data-ui-crumb]",
-            pairs(&[("flex", "none"), ("padding", pad!(2, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", ACCENT), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("font-weight", "500"), ("cursor", "pointer"), ("white-space", "nowrap")]),
+            pairs(&[("flex", "none"), ("padding", pad!(2, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", ACCENT), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("font-weight", "var(--font-weight-medium, 500)"), ("cursor", "pointer"), ("white-space", "nowrap")]),
         )
         .nest("& [data-ui-crumb]::before", pairs(&[("content", "'‹ '"), ("color", MUTED)]))
         .nest("& [data-ui-command-input]::placeholder", pairs(&[("color", MUTED)]))
         .nest("& [role=listbox]", pairs(&[("position", "relative"), ("max-height", "300px"), ("overflow-y", "auto"), ("overscroll-behavior", "contain"), ("padding", pad!(4))]))
-        .nest("& [data-ui-heading]", pairs(&[("padding", pad!(6, 8)), ("font-size", fs!(12)), ("font-weight", "500"), ("color", MUTED)]))
+        .nest("& [data-ui-heading]", pairs(&[("padding", pad!(6, 8)), ("font-size", fs!(12)), ("font-weight", "var(--font-weight-medium, 500)"), ("color", MUTED)]))
         .nest(
             "& [role=option]",
             pairs(&[
@@ -170,12 +170,12 @@ static DIALOG: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Near the top, as palettes open, so the list grows down.
         ("margin", "12vh auto auto"),
         ("padding", "0"),
-        ("border", "1px solid var(--color-border)"),
-        ("border-radius", "var(--radius-lg)"),
+        ("border", "var(--border-width, 1px) solid var(--color-border)"),
+        ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("--ui-bg", BG_DIALOG),
         ("background", BG_DIALOG),
         ("color", TEXT),
-        ("box-shadow", "0 10px 30px rgb(0 0 0 / 0.2)"),
+        ("box-shadow", "var(--elevation-dialog, 0 10px 30px rgb(0 0 0 / 0.2))"),
         ("overflow", "hidden"),
     ])
     .nest("::backdrop", pairs(&[("background", "rgb(0 0 0 / 0.5)")]))

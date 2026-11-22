@@ -131,7 +131,8 @@
         borderWidth: 1,
         padding: [8 * t.inset, 10 * t.inset],
         textStyle: { color: t.text, fontSize: fs(12) },
-        extraCssText: "border-radius:8px;box-shadow:0 4px 12px rgb(0 0 0 / 0.1);",
+        // Like the page's popovers: its card radius, popover shadow and border width.
+        extraCssText: "border-radius:var(--radius-card, 8px);box-shadow:var(--elevation-popover, 0 4px 12px rgb(0 0 0 / 0.1));border-width:var(--border-width, 1px);",
         axisPointer: {
           lineStyle: { color: t.muted },
           crossStyle: { color: t.muted },
