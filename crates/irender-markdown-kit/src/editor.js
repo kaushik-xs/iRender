@@ -18,7 +18,8 @@
 // under the current one), and Tab and Shift+Tab move between its cells, Tab in the last
 // one adding a row; Image asks for an address and a description in a bar like the
 // link's; Rule adds a horizontal rule. Pasted pages and documents keep only what
-// Markdown can hold.
+// Markdown can hold. Undo and redo use the editor's own history, so they take back
+// every change the same way in every browser.
 (() => {
   // Markdown from HTML: what the rich editor holds, or a pasted page. Anything Markdown
   // can't say (colours, fonts, layout) is dropped and its text kept.
@@ -210,6 +211,8 @@
       rich.innerHTML = area.value.trim() === "" ? "<p><br></p>" : md.render(area.value);
       for (const box of rich.querySelectorAll("li.task > input[type=checkbox]")) fixBox(box);
       empty();
+      // Markdown changed elsewhere (the Markdown tab, or state) is one step to undo.
+      remember();
     };
     const fixBox = (box) => {
       box.disabled = false;
@@ -217,7 +220,7 @@
       box.setAttribute("aria-label", L("Done"));
     };
     const empty = () => rich.toggleAttribute("data-empty", rich.textContent.trim() === "" && !rich.querySelector("img, hr, li, input"));
-    const sync = () => {
+    const sync = (e) => {
       // A task item made by Enter has the class but no box yet.
       for (const li of rich.querySelectorAll("li.task")) {
         if (li.firstElementChild?.nodeName !== "INPUT") {
@@ -231,6 +234,11 @@
         }
       }
       if (!rich.firstChild) rich.innerHTML = "<p><br></p>";
+      remember(e?.inputType);
+      publish();
+    };
+    // Writes the Markdown for what the editor shows.
+    const publish = () => {
       const text = toMarkdown(rich);
       empty();
       if (text === area.value) return;
@@ -261,6 +269,73 @@
       getSelection().removeAllRanges();
       getSelection().addRange(r);
     };
+
+    // Undo and redo. The editor keeps its own history of what it shows and where the
+    // caret is: the browser's leaves out the changes made to the page directly (quoting,
+    // leaving a quote or code block, ticking a task, adding a row).
+    const done = [], undone = [];
+    let now = null, lastKind = null, lastAt = 0;
+    const pathTo = (node, at) => {
+      const path = [at];
+      for (; node && node !== rich; node = node.parentNode) path.unshift([...node.parentNode.childNodes].indexOf(node));
+      return node === rich ? path : null;
+    };
+    const nodeAt = (path) => {
+      let n = rich;
+      for (const i of path.slice(0, -1)) n = n?.childNodes[i];
+      return n ? [n, Math.min(path.at(-1), n.nodeType === 3 ? n.length : n.childNodes.length)] : null;
+    };
+    const snap = () => {
+      // A box's tick isn't in the markup until it's an attribute.
+      for (const box of rich.querySelectorAll("input[type=checkbox]")) box.toggleAttribute("checked", box.checked);
+      const r = caretRange();
+      return { html: rich.innerHTML, from: r && pathTo(r.startContainer, r.startOffset), to: r && pathTo(r.endContainer, r.endOffset) };
+    };
+    // After a change: what was there before goes on the history, unless it's more of the
+    // same typing.
+    const remember = (kind) => {
+      const next = snap();
+      if (now && next.html === now.html) return;
+      const t = Date.now();
+      const more = kind && kind === lastKind && /^(insertText|deleteContent)/.test(kind) && t - lastAt < 1000;
+      if (now && !more) {
+        done.push(now);
+        if (done.length > 100) done.shift();
+      }
+      undone.length = 0;
+      now = next;
+      lastKind = kind;
+      lastAt = t;
+    };
+    const restore = (s) => {
+      rich.innerHTML = s.html;
+      for (const box of rich.querySelectorAll("li.task > input[type=checkbox]")) fixBox(box);
+      const a = s.from && nodeAt(s.from), b = s.to && nodeAt(s.to);
+      if (a && b) {
+        const r = document.createRange();
+        r.setStart(...a);
+        r.setEnd(...b);
+        getSelection().removeAllRanges();
+        getSelection().addRange(r);
+      }
+      now = s;
+      lastKind = null;
+      empty();
+      publish();
+      pressed();
+    };
+    const travel = (back) => {
+      const from = back ? done : undone, to = back ? undone : done;
+      if (!from.length) return;
+      to.push(now);
+      restore(from.pop());
+    };
+    // The caret moved: an undo puts it back here.
+    const moved = () => {
+      const r = now && caretRange();
+      if (r) Object.assign(now, { from: pathTo(r.startContainer, r.startOffset), to: pathTo(r.endContainer, r.endOffset) });
+    };
+
     const exec = (cmd, value = null) => {
       rich.focus();
       document.execCommand(cmd, false, value);
@@ -620,7 +695,24 @@
     if (rich) {
       document.execCommand("defaultParagraphSeparator", false, "p");
       fill();
-      rich.addEventListener("input", sync);
+      // The Edit menu's Undo and Redo. `execCommand("undo")` can't be stopped in Chrome
+      // and Firefox, so after the browser's own undo the editor's state is put back over
+      // it; WebKit asks again for each older step of its own when one is refused, and
+      // only the first is taken.
+      let asked = false;
+      rich.addEventListener("beforeinput", (e) => {
+        if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") return;
+        e.preventDefault();
+        if (asked) return;
+        travel(e.inputType === "historyUndo");
+        asked = true;
+        setTimeout(() => (asked = false));
+      });
+      rich.addEventListener("input", (e) => {
+        if (e.inputType !== "historyUndo" && e.inputType !== "historyRedo") sync(e);
+        else if (asked) restore(now);
+        else travel(e.inputType === "historyUndo");
+      });
       rich.addEventListener("change", sync);
       // A box is ticked by a click, without the caret going into it.
       rich.addEventListener("mousedown", (e) => {
@@ -654,6 +746,12 @@
           richRun[cmd]?.();
           return;
         }
+        // ⌘Z, ⌘⇧Z and Ctrl+Y.
+        if (mod && !e.altKey && (key === "z" || (key === "y" && e.ctrlKey && !e.shiftKey))) {
+          e.preventDefault();
+          travel(key === "z" && !e.shiftKey);
+          return;
+        }
         if (e.key === " " && !mod && autoformat()) {
           e.preventDefault();
           return;
@@ -671,7 +769,10 @@
           exec(e.shiftKey ? "outdent" : "indent");
         }
       });
-      document.addEventListener("selectionchange", pressed);
+      document.addEventListener("selectionchange", () => {
+        moved();
+        pressed();
+      });
       rich.addEventListener("keyup", pressed);
     }
 

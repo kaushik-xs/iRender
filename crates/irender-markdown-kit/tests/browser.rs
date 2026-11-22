@@ -379,6 +379,101 @@ fn rich_text_tables_images_and_rules_in_chrome() {
     );
 }
 
+/// Undo and redo in rich text take back every change, including those made to the page
+/// directly: quoting, leaving a quote or a code block, ticking a task and adding a row.
+/// Typing in a row is one step, and the browser's own undo uses the same history.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn rich_text_undo_and_redo_in_chrome() {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return;
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "doc": "Intro" },
+        "root": { "type": "ui-markdown-editor", "props": { "bind": "doc" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 20));
+      try {
+        const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+        const rich = document.querySelector("[data-md-rich]");
+        const tool = (name) => document.querySelector(`[data-md=${name}]`).click();
+        const key = (k, mods = {}) => rich.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods }));
+        const mac = /Mac/.test(navigator.platform);
+        const undo = () => key("z", mac ? { metaKey: true } : { ctrlKey: true });
+        const redo = () => key("z", { shiftKey: true, ...(mac ? { metaKey: true } : { ctrlKey: true }) });
+        const enter = () => { if (key("Enter")) document.execCommand("insertParagraph"); };
+        const type = (t) => document.execCommand("insertText", false, t);
+        const show = (label) => out.push(label + " " + JSON.stringify(S().doc));
+        const end = (n = rich.lastElementChild) => {
+          rich.focus();
+          const r = document.createRange(); r.selectNodeContents(n); r.collapse(false);
+          getSelection().removeAllRanges(); getSelection().addRange(r);
+        };
+        const load = async (text) => { root.__irender.set("doc", text); await frame(); };
+
+        // Typing in a row is one step; quoting is another.
+        end(); type(" one"); type(" two"); tool("quote"); await frame(); show("quoted");
+        undo(); show("undo"); out.push("caret " + JSON.stringify(getSelection().anchorNode?.textContent) + " in " + rich.contains(getSelection().anchorNode));
+        redo(); show("redo");
+        undo(); undo(); show("typing undone");
+        redo(); show("typing redone");
+
+        await load("> a"); end(rich.querySelector("blockquote p"));
+        enter(); enter(); type("b"); await frame(); show("left quote");
+        undo(); undo(); show("undo");
+
+        await load("```\ncode\n```"); end(rich.querySelector("code"));
+        enter(); enter(); await frame(); show("left code");
+        undo(); show("undo");
+
+        await load("- [ ] task");
+        rich.querySelector("input[type=checkbox]").click(); await frame(); show("ticked");
+        undo(); out.push("undo " + JSON.stringify(S().doc) + " box " + rich.querySelector("input[type=checkbox]").checked);
+        redo(); out.push("redo " + JSON.stringify(S().doc) + " box " + rich.querySelector("input[type=checkbox]").checked);
+
+        await load("| a | b |\n| --- | --- |\n| 1 | 2 |");
+        const cells = rich.querySelectorAll("td"); end(cells[cells.length - 1]);
+        key("Tab"); await frame(); out.push("rows " + rich.querySelectorAll("tbody tr").length);
+        undo(); out.push("undo rows " + rich.querySelectorAll("tbody tr").length);
+
+        // The browser's own undo (the Edit menu's) goes to the same history.
+        await load("Plain"); end(); tool("quote"); await frame();
+        document.execCommand("undo"); await frame(); show("browser undo");
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r##"quoted "> Intro one two""##,
+            // The caret goes back into the text.
+            r##"undo "Intro one two""##,
+            r##"caret "Intro one two" in true"##,
+            r##"redo "> Intro one two""##,
+            r##"typing undone "Intro""##,
+            r##"typing redone "Intro one two""##,
+            // Undoing the "b", then leaving the quote.
+            r##"left quote "> a\n\nb""##,
+            r##"undo "> a""##,
+            // Back in the code block, on its new line.
+            r##"left code "```\ncode\n```""##,
+            r##"undo "```\ncode\n\n```""##,
+            r##"ticked "- [x] task""##,
+            r##"undo "- [ ] task" box false"##,
+            r##"redo "- [x] task" box true"##,
+            "rows 2",
+            "undo rows 1",
+            r##"browser undo "Plain""##,
+        ],
+        "\n{result}"
+    );
+}
+
 /// Chat messages show their content as Markdown when the kit is registered: rendered on
 /// the server, and redrawn as a reply streams into state.
 #[test]
