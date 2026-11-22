@@ -36,7 +36,7 @@ fn pairs(p: &[(&str, &str)]) -> StyleBlock {
 }
 
 static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
-    pairs(&[("position", "relative"), ("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(8)), ("color", TEXT)])
+    pairs(&[("position", "relative"), ("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(8)), ("max-width", "100%"), ("color", TEXT)])
         // The real field: over the boxes, taking every click and key, drawn by them.
         .nest(
             "& [data-otp-input]",
@@ -62,7 +62,18 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-otp-input]:disabled", pairs(&[("cursor", "not-allowed")]))
         .nest("&:has([data-otp-input]:disabled)", pairs(&[("opacity", "0.5")]))
         // A code reads left to right in every language.
-        .nest("& [data-otp-group]", pairs(&[("display", "flex"), ("direction", "ltr")]))
+        // The boxes are a control's size, narrower where there isn't room, and overlap by
+        // their border.
+        .nest(
+            "& [data-otp-group]",
+            pairs(&[
+                ("display", "grid"),
+                ("grid-auto-flow", "column"),
+                ("grid-auto-columns", concat!("minmax(27px, calc(", ctl!(40), " + 2 * var(--border-width, 1px) - 1px))")),
+                ("padding-left", "1px"),
+                ("direction", "ltr"),
+            ]),
+        )
         .nest(
             "& [data-otp-slot]",
             pairs(&[
@@ -70,7 +81,6 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("display", "flex"),
                 ("align-items", "center"),
                 ("justify-content", "center"),
-                ("width", ctl!(40)),
                 ("height", ctl!(40)),
                 ("margin-inline-start", "-1px"),
                 ("border", "var(--border-width, 1px) solid var(--color-border)"),
@@ -81,7 +91,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("transition", "border-color .15s, box-shadow .15s"),
             ]),
         )
-        .nest("& [data-otp-slot]:first-child", pairs(&[("margin-inline-start", "0"), ("border-radius", "var(--radius-control, var(--radius-md)) 0 0 var(--radius-control, var(--radius-md))")]))
+        .nest("& [data-otp-slot]:first-child", pairs(&[("border-radius", "var(--radius-control, var(--radius-md)) 0 0 var(--radius-control, var(--radius-md))")]))
         .nest("& [data-otp-slot]:last-child", pairs(&[("border-radius", "0 var(--radius-control, var(--radius-md)) var(--radius-control, var(--radius-md)) 0")]))
         .nest("& [data-otp-slot]:only-child", pairs(&[("border-radius", "var(--radius-control, var(--radius-md))")]))
         .nest(

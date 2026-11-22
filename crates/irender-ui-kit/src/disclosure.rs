@@ -178,22 +178,29 @@ const TAB_PANEL_PROPS: &[PropDef] = &[
 ];
 
 static TABS: LazyLock<StyleBlock> =
-    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8))]));
+    LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-width", "0")]));
+// More tabs than fit scroll within the list.
 static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
+        ("box-sizing", "border-box"),
         ("display", "inline-flex"),
         ("align-items", "center"),
         ("gap", gap!(2)),
         ("width", "fit-content"),
+        ("max-width", "100%"),
+        ("overflow-x", "auto"),
+        ("scrollbar-width", "none"),
         ("padding", pad!(3)),
         ("border-radius", "var(--radius-card, var(--radius-lg))"),
         ("background", SUBTLE),
         ("color", MUTED),
     ])
+    .nest("&::-webkit-scrollbar", StyleBlock::from_pairs(&[("display", "none")]))
 });
 static TAB: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("display", "inline-flex"),
+        ("flex-shrink", "0"),
         ("align-items", "center"),
         ("justify-content", "center"),
         ("height", ctl!(30)),
@@ -210,7 +217,8 @@ static TAB: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("transition", "background-color .15s, color .15s"),
     ])
     .nest(":hover", StyleBlock::from_pairs(&[("color", TEXT)]))
-    .nest(":focus-visible", focus_outline())
+    // Within the list's padding, which the scrolling would clip it to.
+    .nest(":focus-visible", focus_outline().set("outline-offset", "0"))
     .nest(
         "&[aria-selected=true]",
         StyleBlock::from_pairs(&[("background", SURFACE), ("color", TEXT), ("box-shadow", "0 1px 2px rgb(0 0 0 / 0.08)")]),
@@ -365,7 +373,16 @@ static TOGGLE_SIZE_STYLES: LazyLock<[StyleBlock; 3]> = LazyLock::new(|| {
     ]
 });
 static TOGGLE_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(4)), ("width", "fit-content")])
+    // Wraps when it's wider than what it's in, but isn't squeezed by what's beside it.
+    StyleBlock::from_pairs(&[
+        ("display", "inline-flex"),
+        ("flex-wrap", "wrap"),
+        ("flex-shrink", "0"),
+        ("align-items", "center"),
+        ("gap", gap!(4)),
+        ("width", "fit-content"),
+        ("max-width", "100%"),
+    ])
 });
 
 impl Component for Toggle {
@@ -585,8 +602,6 @@ impl Component for ThemeOption {
         let mut group = cx.element("div", node);
         group
             .base_style_ref(&TOGGLE_GROUP)
-            // A palette's choices are more than a phone's width.
-            .base_style(StyleBlock::new().set("flex-wrap", "wrap"))
             .attr("role", "group")
             .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(option.label.clone())))
             .behavior("ui-theme-option", json!({ "option": name, "fallback": option.default }));

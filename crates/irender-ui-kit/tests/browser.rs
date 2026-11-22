@@ -7639,3 +7639,71 @@ fn theme_options_and_hover_cards_fit_in_chrome() {
         "\n{result}"
     );
 }
+
+/// In a narrow place a tab list scrolls within itself, a toggle group wraps and a code's
+/// boxes get narrower; where there's room, each is as wide as it wants to be, and a
+/// toggle group in a row isn't squeezed by what's beside it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn tabs_toggles_and_codes_fit_in_chrome() {
+    let labels = ["Overview", "Past performance", "Key personnel", "Focus documents", "Settings"];
+    let tabs = serde_json::json!({ "type": "ui-tabs", "props": { "bind": "tab" }, "children":
+        labels.map(|l| serde_json::json!({ "type": "ui-tab-panel", "props": { "value": l, "label": l } })) });
+    let group = serde_json::json!({ "type": "ui-toggle-group", "props": { "bind": "view", "variant": "outline", "options": labels } });
+    let code = serde_json::json!({ "type": "ui-input-otp", "props": { "bind": "code", "length": 8, "groups": [4, 4], "label": "Code" } });
+    let place = |id: &str, width: &str| serde_json::json!({ "type": "element", "attrs": { "id": id }, "style": { "width": width },
+        "children": [tabs.clone(), group.clone(), code.clone()] });
+    let doc = serde_json::json!({ "version": 1, "state": { "tab": "Overview", "view": null, "code": "" }, "root": { "type": "element", "children": [
+        place("narrow", "290px"), place("wide", "900px"),
+        { "type": "element", "attrs": { "id": "row" }, "style": { "display": "flex", "width": "500px" }, "children": [
+            { "type": "ui-toggle-group", "props": { "bind": "view", "options": ["One", "Two", "Three"] } },
+            { "type": "ui-input", "props": { "bind": "code" }, "style": { "width": "100%" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      for (const id of ["narrow", "wide"]) {
+        const at = document.getElementById(id), width = at.clientWidth;
+        const list = at.querySelector("[role=tablist]"), group = at.querySelector("[role=group]"), otp = at.querySelector("[data-otp-input]").parentElement;
+        const rows = new Set([...group.children].map((b) => b.offsetTop)).size;
+        const slots = [...otp.querySelectorAll("[data-otp-slot]")].map((s) => s.getBoundingClientRect());
+        const even = slots.every((s) => Math.abs(s.width - slots[0].width) < 0.6);
+        out.push(`${id} tabs fit=${list.offsetWidth <= width} scrolls=${list.scrollWidth > list.clientWidth} tall=${list.scrollHeight > list.clientHeight}`);
+        out.push(`${id} group fit=${group.offsetWidth <= width} wraps=${rows > 1}`);
+        out.push(`${id} code fit=${slots.at(-1).right <= at.getBoundingClientRect().right + 0.6} even=${even} full=${Math.round(slots[0].width) === 42}`);
+        // Going to the last tab brings it into view.
+        const last = list.lastElementChild;
+        last.focus();
+        await new Promise((r) => setTimeout(r, 100));
+        out.push(`${id} last ${last.getBoundingClientRect().right <= list.getBoundingClientRect().right + 0.6}`);
+      }
+      const row = document.querySelector("#row > [role=group]");
+      out.push(`row wraps=${new Set([...row.children].map((b) => b.offsetTop)).size > 1}`);
+      out.push(`sideways ${document.querySelector("#narrow").scrollWidth - document.querySelector("#narrow").clientWidth}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("fits", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "narrow tabs fit=true scrolls=true tall=false",
+            "narrow group fit=true wraps=true",
+            "narrow code fit=true even=true full=false",
+            "narrow last true",
+            "wide tabs fit=true scrolls=false tall=false",
+            "wide group fit=true wraps=false",
+            "wide code fit=true even=true full=true",
+            "wide last true",
+            "row wraps=false",
+            "sideways 0",
+        ],
+        "\n{result}"
+    );
+}

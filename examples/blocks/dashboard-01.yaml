@@ -178,7 +178,8 @@ root:
           style: { position: relative, padding: 0 24px }
           children:
             - type: element
-              style: { position: absolute, top: 0, right: 24, display: flex, gap: 8 }
+              # Beside the tabs when there's room for both, otherwise above them.
+              style: { display: flex, flex-wrap: wrap, gap: 8, margin-bottom: 12px, "@xl": { position: absolute, top: 0, right: 24px, margin-bottom: 0 } }
               children:
                 - type: ui-dropdown-menu
                   props: { trigger: Customize Columns, triggerSize: sm, align: end }
