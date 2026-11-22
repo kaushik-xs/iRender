@@ -230,7 +230,7 @@ const EDITOR_PROPS: &[PropDef] = &[
 /// The toolbar: command, its name, what it shows, and its shortcut.
 // Labels (looked up where they're used): "Heading", "Bold", "Italic", "Strikethrough", "Quote", "Code", "Link", "Bulleted list", "Numbered list", "Task list", "Table", "Image", "Horizontal rule"
 const TOOLS: &[(&str, &str, &str, &str)] = &[
-    ("heading", "Heading", "H", ""),
+    ("heading", "Heading", "H", "⌘⌥1–6"),
     ("bold", "Bold", "B", "⌘B"),
     ("italic", "Italic", "I", "⌘I"),
     ("strike", "Strikethrough", "S", "⌘⇧X"),

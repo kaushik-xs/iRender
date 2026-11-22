@@ -674,3 +674,97 @@ fn rich_text_max_length_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Headings of every level, from the button (## → ### → text) and ⌘⌥1–6 / ⌘⌥0, in rich
+/// text and the Markdown tab; and pasted addresses: over text they link it, alone they
+/// are a link written `<…>`, and a pasted line keeps the spaces at its ends.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn rich_text_headings_and_pasted_links_in_chrome() {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return;
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "doc": "Title" },
+        "root": { "type": "ui-markdown-editor", "props": { "bind": "doc" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 20));
+      try {
+        const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+        const rich = document.querySelector("[data-md-rich]");
+        const area = document.querySelector("textarea");
+        const tool = (name) => document.querySelector(`[data-md=${name}]`).click();
+        const mac = /Mac/.test(navigator.platform);
+        const level = (n, target = rich) => target.dispatchEvent(new KeyboardEvent("keydown", { key: "x", code: "Digit" + n, altKey: true, bubbles: true, cancelable: true, ...(mac ? { metaKey: true } : { ctrlKey: true }) }));
+        const show = (label) => out.push(label + " " + JSON.stringify(S().doc));
+        const paste = (text) => {
+          const e = new Event("paste", { bubbles: true, cancelable: true });
+          Object.defineProperty(e, "clipboardData", { value: { getData: (t) => (t === "text/plain" ? text : "") } });
+          rich.dispatchEvent(e);
+        };
+        const end = () => {
+          rich.focus();
+          const r = document.createRange(); r.selectNodeContents(rich.lastElementChild); r.collapse(false);
+          getSelection().removeAllRanges(); getSelection().addRange(r);
+        };
+        end();
+        tool("heading"); await frame(); show("button");
+        tool("heading"); await frame(); show("again");
+        tool("heading"); await frame(); show("off");
+        level(4); await frame(); show("level 4");
+        out.push("pressed " + document.querySelector("[data-md=heading]").getAttribute("aria-pressed"));
+        tool("heading"); await frame(); show("button on h4");
+        level(1); await frame(); level(0); await frame(); show("level 0");
+        out.push("title " + document.querySelector("[data-md=heading]").title);
+
+        // Pasted addresses.
+        root.__irender.set("doc", "Read the docs"); await frame();
+        const t = rich.querySelector("p").firstChild;
+        const r = document.createRange(); r.setStart(t, 9); r.setEnd(t, 13);
+        getSelection().removeAllRanges(); getSelection().addRange(r);
+        paste("https://example.com/docs"); await frame(); show("over text");
+        end(); paste(" or https://example.com/faq "); await frame(); paste("now"); await frame(); show("alone");
+        out.push("links " + rich.querySelectorAll("a").length);
+
+        // The Markdown tab.
+        root.__irender.set("doc", "One\nTwo"); await frame();
+        document.querySelector("[data-md-view=source]").click(); await frame();
+        area.setSelectionRange(0, 7);
+        tool("heading"); out.push("md button " + JSON.stringify(area.value));
+        tool("heading"); out.push("md again " + JSON.stringify(area.value));
+        tool("heading"); out.push("md off " + JSON.stringify(area.value));
+        area.setSelectionRange(0, 0); level(5, area); out.push("md level 5 " + JSON.stringify(area.value));
+        level(0, area); out.push("md level 0 " + JSON.stringify(area.value));
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r######"button "## Title""######,
+            r######"again "### Title""######,
+            r######"off "Title""######,
+            r######"level 4 "#### Title""######,
+            "pressed true",
+            // On another level, the button takes the heading off.
+            r######"button on h4 "Title""######,
+            r######"level 0 "Title""######,
+            "title Heading (⌘⌥1–6)",
+            r######"over text "Read the [docs](https://example.com/docs)""######,
+            // The spaces around the pasted line stay.
+            r######"alone "Read the [docs](https://example.com/docs) or <https://example.com/faq> now""######,
+            "links 2",
+            r######"md button "## One\n## Two""######,
+            r######"md again "### One\n### Two""######,
+            r######"md off "One\nTwo""######,
+            r######"md level 5 "##### One\nTwo""######,
+            r######"md level 0 "One\nTwo""######,
+        ],
+        "\n{result}"
+    );
+}

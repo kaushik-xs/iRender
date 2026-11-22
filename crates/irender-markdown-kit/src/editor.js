@@ -67,7 +67,9 @@
         } else if (tag === "A") {
           const text = inline(n);
           const href = n.getAttribute("href") || "";
-          out += href && text.trim() ? around("[", text, `](${href.replace(/[()\s]/g, encodeURIComponent)})`) : text;
+          // A link that reads as its own address is written as one.
+          if (/^https?:\/\/[^\s<>]+$/i.test(href) && n.textContent.trim() === href) out += `<${href}>`;
+          else out += href && text.trim() ? around("[", text, `](${href.replace(/[()\s]/g, encodeURIComponent)})`) : text;
         } else {
           let inner = inline(n);
           const bold = tag === "STRONG" || tag === "B" || /font-weight:\s*(bold|[6-9]00)/.test(style);
@@ -224,9 +226,11 @@
     // How much more Markdown fits, the selection being replaced.
     const room = () => (max ? max - chars(area.value) + chars(getSelection().toString()) : Infinity);
     const empty = () => rich.toggleAttribute("data-empty", rich.textContent.trim() === "" && !rich.querySelector("img, hr, li, input"));
+    // Several edits made as one (a paste), recorded once at the end.
+    let batch = false;
     const sync = (e) => {
       // A word being composed (an input method) is taken when it's done.
-      if (e?.isComposing) return;
+      if (e?.isComposing || batch) return;
       // A task item made by Enter has the class but no box yet.
       for (const li of rich.querySelectorAll("li.task")) {
         if (li.firstElementChild?.nodeName !== "INPUT") {
@@ -361,6 +365,32 @@
     const toggleBlock = (tag) => {
       const cur = closest("h1, h2, h3, h4, h5, h6, pre");
       exec("formatBlock", cur && cur.nodeName === tag.toUpperCase() ? "p" : tag);
+    };
+    // A caret at the end of a link, or just after it, goes into new text after it, so
+    // what's typed next isn't part of the link (Firefox adds it to the link otherwise).
+    const pastLink = () => {
+      const r = caretRange();
+      if (!r?.collapsed) return;
+      let a = closest("a");
+      if (a) {
+        const rest = document.createRange();
+        rest.setStart(r.startContainer, r.startOffset);
+        rest.setEnd(a, a.childNodes.length);
+        if (rest.toString() !== "") return;
+      } else {
+        const { startContainer: c, startOffset: o } = r;
+        a = c.nodeType === 3 ? (o === 0 ? c.previousSibling : null) : c.childNodes[o - 1];
+        if (a?.nodeName !== "A") return;
+      }
+      const t = document.createTextNode("");
+      a.after(t);
+      place(t, 0);
+    };
+    // A heading's level, or text (0); the button goes ## → ### → text.
+    const richHeading = (level) => {
+      const cur = closest("h1, h2, h3, h4, h5, h6");
+      level ??= !cur ? 2 : cur.nodeName === "H2" ? 3 : 0;
+      exec("formatBlock", level ? "h" + level : "p");
     };
     const richQuote = () => {
       const q = closest("blockquote");
@@ -598,7 +628,7 @@
       strike: () => exec("strikeThrough"),
       code: richCode,
       link: openLink,
-      heading: () => toggleBlock("h2"),
+      heading: () => richHeading(),
       quote: richQuote,
       bullets: () => listOf(false),
       numbers: () => listOf(true),
@@ -746,15 +776,27 @@
         e.preventDefault();
         // Parsed inert (no scripts run, no images load), then kept to what Markdown holds.
         const kept = html && toMarkdown(new DOMParser().parseFromString(html, "text/html").body);
+        // An address pasted over text makes the text a link to it.
+        const url = !closest("pre") && text.trim().match(/^https?:\/\/[^\s<>]+$/i)?.[0];
+        if (url && !getSelection().isCollapsed && getSelection().toString().trim()) return exec("createLink", url);
         // Past `maxLength`, as much of the text as fits, the way a text area takes it.
         const fits = room();
-        if (kept && chars(kept) <= fits) exec("insertHTML", md.render(kept));
-        else {
-          const cut = Array.from(text).slice(0, Math.max(0, fits)).join("");
-          if (!cut) return;
-          if (closest("pre")) exec("insertText", cut);
-          else exec("insertHTML", md.render(cut.replace(/\r\n?/g, "\n")).replace(/^<p>([\s\S]*)<\/p>$/, "$1"));
+        if (kept && chars(kept) <= fits) return exec("insertHTML", md.render(kept));
+        const cut = Array.from(text).slice(0, Math.max(0, fits)).join("");
+        if (!cut) return;
+        if (closest("pre")) return exec("insertText", cut);
+        // A line keeps the spaces at its ends, which Markdown would drop.
+        const [, lead, mid, trail] = cut.replace(/\r\n?/g, "\n").match(/^([ \t]*)([\s\S]*?)([ \t]*)$/);
+        batch = true;
+        try {
+          if (lead && !mid.includes("\n")) exec("insertText", lead);
+          if (mid) exec("insertHTML", md.render(mid).replace(/^<p>([\s\S]*)<\/p>\n?$/, "$1"));
+          pastLink();
+          if (trail && !mid.includes("\n")) exec("insertText", trail);
+        } finally {
+          batch = false;
         }
+        sync();
       });
       rich.addEventListener("keydown", (e) => {
         moved();
@@ -768,6 +810,7 @@
           richRun[cmd]?.();
           return;
         }
+        if (headingKey(e)) return;
         // ⌘Z, ⌘⇧Z and Ctrl+Y.
         if (mod && !e.altKey && (key === "z" || (key === "y" && e.ctrlKey && !e.shiftKey))) {
           e.preventDefault();
@@ -869,16 +912,31 @@
     const prefixLines = (kind) => {
       const [start, end] = lineRange();
       const lines = area.value.slice(start, end).split("\n");
-      const pattern = { heading: /^#{1,6}\s/, quote: /^>\s?/, bullets: /^\s*[-*+]\s(?!\[)/, numbers: /^\s*\d+[.)]\s/, tasks: /^\s*[-*+]\s\[[ xX]\]\s/ }[kind];
+      const pattern = { quote: /^>\s?/, bullets: /^\s*[-*+]\s(?!\[)/, numbers: /^\s*\d+[.)]\s/, tasks: /^\s*[-*+]\s\[[ xX]\]\s/ }[kind];
       const all = lines.filter((l) => l.trim() !== "").every((l) => pattern.test(l));
       const out = lines.map((l, i) => {
         if (all) return l.replace(pattern, "");
         if (l.trim() === "" && lines.length > 1) return l;
-        const bare = kind === "heading" || kind === "quote" ? l : l.replace(LIST, "$1");
+        const bare = kind === "quote" ? l : l.replace(LIST, "$1");
         const lead = (bare.match(/^\s*/) || [""])[0];
         const rest = bare.slice(lead.length);
-        const mark = { heading: "## ", quote: "> ", bullets: "- ", numbers: `${i + 1}. `, tasks: "- [ ] " }[kind];
-        return kind === "heading" || kind === "quote" ? mark + bare : lead + mark + rest;
+        const mark = { quote: "> ", bullets: "- ", numbers: `${i + 1}. `, tasks: "- [ ] " }[kind];
+        return kind === "quote" ? mark + bare : lead + mark + rest;
+      });
+      const text = out.join("\n");
+      replace(start, end, text, start, start + text.length);
+    };
+    // The selected lines' heading level, or none (0); the button goes ## → ### → none.
+    const headingLines = (level) => {
+      const [start, end] = lineRange();
+      const lines = area.value.slice(start, end).split("\n");
+      const levels = new Set(lines.filter((l) => l.trim() !== "").map((l) => l.match(/^(#{1,6})\s/)?.[1].length ?? 0));
+      const was = levels.size === 1 ? [...levels][0] : 0;
+      level ??= was === 0 ? 2 : was === 2 ? 3 : 0;
+      const out = lines.map((l) => {
+        if (l.trim() === "" && lines.length > 1) return l;
+        const bare = l.replace(/^#{1,6}\s+/, "");
+        return level ? "#".repeat(level) + " " + bare : bare;
       });
       const text = out.join("\n");
       replace(start, end, text, start, start + text.length);
@@ -925,6 +983,19 @@
       replace(a, b, `![${alt}](https://)`, at, at + 8);
     };
 
+    // ⌘⌥1 to ⌘⌥6 make a heading of that level, ⌘⌥0 text. By the key, not its character:
+    // with ⌥ a Mac types a symbol.
+    const headingKey = (e) => {
+      const n = (e.metaKey || e.ctrlKey) && e.altKey && !e.shiftKey && e.code?.match(/^(?:Digit|Numpad)([0-6])$/)?.[1];
+      if (!n || area.disabled) return false;
+      e.preventDefault();
+      e.stopPropagation();
+      if (isRich()) {
+        moved();
+        richHeading(+n);
+      } else headingLines(+n);
+      return true;
+    };
     const run = (cmd) => {
       if (area.disabled) return;
       if (isRich()) {
@@ -937,7 +1008,7 @@
         strike: () => wrap("~~", "~~", L("struck text")),
         code,
         link,
-        heading: () => prefixLines("heading"),
+        heading: () => headingLines(),
         quote: () => prefixLines("quote"),
         bullets: () => prefixLines("bullets"),
         numbers: () => prefixLines("numbers"),
@@ -982,6 +1053,7 @@
     };
 
     area.addEventListener("keydown", (e) => {
+      if (headingKey(e)) return;
       const mod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
       const shortcut = mod && !e.altKey && (e.shiftKey ? { x: "strike" } : { b: "bold", i: "italic", e: "code", k: "link" })[key];
