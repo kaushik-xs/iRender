@@ -585,6 +585,8 @@ impl Component for ThemeOption {
         let mut group = cx.element("div", node);
         group
             .base_style_ref(&TOGGLE_GROUP)
+            // A palette's choices are more than a phone's width.
+            .base_style(StyleBlock::new().set("flex-wrap", "wrap"))
             .attr("role", "group")
             .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(option.label.clone())))
             .behavior("ui-theme-option", json!({ "option": name, "fallback": option.default }));

@@ -7588,3 +7588,54 @@ fn tree_rename_icons_and_lazy_children_in_chrome() {
         "\n{result}"
     );
 }
+
+/// Neither a palette's choices nor a hidden hover card makes a narrow page scroll
+/// sideways: the choices wrap, and the card is kept on screen, above a trigger that's low.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn theme_options_and_hover_cards_fit_in_chrome() {
+    let card = |id: &str| serde_json::json!({ "type": "ui-hover-card", "attrs": { "id": id }, "props": { "trigger": "Trigger" },
+        "children": [{ "type": "text", "props": { "value": "Card" } }] });
+    let doc = serde_json::json!({ "version": 1, "root": { "type": "element", "style": { "position": "relative", "height": "100vh" }, "children": [
+        { "type": "element", "attrs": { "id": "narrow" }, "style": { "width": "350px" }, "children": [
+            { "type": "ui-theme-option", "props": { "option": "palette", "swatch": "color.primary" } } ] },
+        { "type": "element", "style": { "display": "flex", "justify-content": "space-between" }, "children": [card("start"), card("end")] },
+        { "type": "element", "style": { "position": "absolute", "bottom": "0", "left": "0" }, "children": [card("low")] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const out = [];
+      const box = (id) => document.getElementById(id).querySelector("[data-ui-card]").getBoundingClientRect();
+      const trigger = (id) => document.getElementById(id).firstElementChild.getBoundingClientRect();
+      const group = document.querySelector("#narrow > [role=group]");
+      const rows = new Set([...group.children].map((b) => b.offsetTop));
+      out.push(`choices fit=${group.scrollWidth <= 350 && group.offsetWidth <= 350} wrap=${rows.size > 1}`);
+      const inside = (id) => { const r = box(id); return r.left >= 0 && r.right <= innerWidth; };
+      out.push(`start below=${box("start").top >= trigger("start").bottom} aligned=${Math.abs(box("start").left - trigger("start").left) < 1}`);
+      out.push(`end inside=${inside("end")} below=${box("end").top >= trigger("end").bottom}`);
+      out.push(`low inside=${inside("low")} above=${box("low").bottom <= trigger("low").top}`);
+      out.push(`sideways ${document.documentElement.scrollWidth - document.documentElement.clientWidth}`);
+      out.push(`hidden ${getComputedStyle(document.querySelector("#start [data-ui-card]")).visibility}`);
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("hover-card-fit", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "choices fit=true wrap=true",
+            "start below=true aligned=true",
+            "end inside=true below=true",
+            "low inside=true above=true",
+            "sideways 0",
+            "hidden hidden",
+        ],
+        "\n{result}"
+    );
+}

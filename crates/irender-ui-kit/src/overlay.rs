@@ -887,7 +887,8 @@ const HOVER_CARD_PROPS: &[PropDef] = &[
 ];
 
 static CARD_WRAP: LazyLock<StyleBlock> = LazyLock::new(|| {
-    StyleBlock::from_pairs(&[("position", "relative"), ("display", "inline-block")])
+    // Each card's anchor is its own trigger, whatever else on the page has the same name.
+    StyleBlock::from_pairs(&[("position", "relative"), ("display", "inline-block"), ("anchor-scope", "--ui-hover-card")])
         .nest(
             "&:hover > [data-ui-card]",
             StyleBlock::from_pairs(&[("opacity", "1"), ("visibility", "visible"), ("transition-delay", "0.4s")]),
@@ -896,6 +897,7 @@ static CARD_WRAP: LazyLock<StyleBlock> = LazyLock::new(|| {
 });
 static CARD_TRIGGER: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
+        ("anchor-name", "--ui-hover-card"),
         ("color", "inherit"),
         ("font-weight", "var(--font-weight-medium, 500)"),
         ("text-decoration", "underline"),
@@ -911,7 +913,7 @@ static CARD_POP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("z-index", "50"),
         ("top", "calc(100% + 8px)"),
         ("inset-inline-start", "0"),
-        ("width", "320px"),
+        ("width", "min(320px, calc(100vw - 24px))"),
         ("padding", pad!(16)),
         ("border", "var(--border-width, 1px) solid var(--color-border)"),
         ("border-radius", "var(--radius-card, var(--radius-lg))"),
@@ -924,6 +926,23 @@ static CARD_POP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("visibility", "hidden"),
         ("transition", "opacity .15s, visibility .15s"),
     ])
+    // Kept on screen, and out of the page's width while it's hidden.
+    .nest(
+        "@supports (anchor-scope: all) and (position-area: bottom)",
+        crate::with_area(
+            StyleBlock::from_pairs(&[
+                ("position", "fixed"),
+                ("inset", "auto"),
+                ("margin", "8px 0"),
+                ("margin-inline-end", "12px"),
+                ("position-anchor", "--ui-hover-card"),
+                // Near the far edge it slides back on screen by itself. Not `flip-inline`:
+                // Firefox 159 doesn't show a card on hover once it has flipped that way.
+                ("position-try-fallbacks", "flip-block"),
+            ]),
+            "bottom span-right",
+        ),
+    )
 });
 
 impl Component for HoverCard {
