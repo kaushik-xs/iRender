@@ -75,14 +75,23 @@ fn drive(name: &str, html: &str) -> Option<String> {
 
     // `--no-sandbox`: CI runners (e.g. Ubuntu 24.04) block the sandbox's user
     // namespaces, and the page is one this test just generated.
-    let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=600,800", "--virtual-time-budget=5000", "--dump-dom"])
-        .arg(format!("file://{}", file.display()))
-        .output()
-        .unwrap();
+    let load = || {
+        let out = Command::new(&chrome)
+            .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=600,800", "--virtual-time-budget=5000", "--dump-dom"])
+            .arg(format!("file://{}", file.display()))
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    const RESULT: &str = "<pre id=\"result\">";
+    // On a very busy machine Chrome now and then gives the page back before its driver is
+    // done, so without a result it's loaded once more.
+    let mut dom = load();
+    if !dom.contains(RESULT) {
+        dom = load();
+    }
     let _ = std::fs::remove_dir_all(&dir);
-    let dom = String::from_utf8_lossy(&out.stdout);
-    let start = dom.find("<pre id=\"result\">").unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + 17;
+    let start = dom.find(RESULT).unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + RESULT.len();
     Some(
         dom[start..start + dom[start..].find("</pre>").unwrap()]
             .replace("&lt;", "<")
@@ -155,13 +164,17 @@ window.addEventListener("load", () => {
   snap("set todos");
   document.querySelectorAll("ul > li")[1].click();
   snap("clicked b");
-  setTimeout(() => {
+  // The fetched list arrives when it does: the virtual clock can run past it on a busy machine.
+  const until = performance.now() + 4000;
+  const finish = () => {
+    if (!texts("ol > li") && performance.now() < until) return setTimeout(finish, 50);
     out.push("remote " + texts("ol > li"));
     const pre = document.createElement("pre");
     pre.id = "result";
     pre.textContent = out.join("\n");
     document.body.append(pre);
-  }, 200);
+  };
+  finish();
 });
 </script>"##;
 

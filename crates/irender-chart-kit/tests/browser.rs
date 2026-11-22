@@ -45,18 +45,27 @@ fn run(name: &str, engine: &Engine, doc: Json, driver: &str) -> Option<Vec<Strin
     let file = dir.join("page.html");
     std::fs::write(&file, html).unwrap();
     // `--no-sandbox`: CI runners block the sandbox's user namespaces; the page is ours.
-    let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--allow-file-access-from-files", "--window-size=1000,900"])
-        // Headless virtual time runs one animation frame, so ECharts' animations would
-        // never finish; this turns them off through the kit's reduced-motion path.
-        .arg("--force-prefers-reduced-motion")
-        .args(["--virtual-time-budget=15000", "--dump-dom"])
-        .arg(format!("file://{}", file.display()))
-        .output()
-        .unwrap();
+    let load = || {
+        let out = Command::new(&chrome)
+            .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--allow-file-access-from-files", "--window-size=1000,900"])
+            // Headless virtual time runs one animation frame, so ECharts' animations would
+            // never finish; this turns them off through the kit's reduced-motion path.
+            .arg("--force-prefers-reduced-motion")
+            .args(["--virtual-time-budget=15000", "--dump-dom"])
+            .arg(format!("file://{}", file.display()))
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    const RESULT: &str = "<pre id=\"result\">";
+    // On a very busy machine Chrome now and then gives the page back before its driver is
+    // done, so without a result it's loaded once more.
+    let mut dom = load();
+    if !dom.contains(RESULT) {
+        dom = load();
+    }
     let _ = std::fs::remove_dir_all(&dir);
-    let dom = String::from_utf8_lossy(&out.stdout);
-    let start = dom.find("<pre id=\"result\">").unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + 17;
+    let start = dom.find(RESULT).unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + RESULT.len();
     let result = dom[start..start + dom[start..].find("</pre>").unwrap()].replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
     Some(result.lines().map(String::from).collect())
 }

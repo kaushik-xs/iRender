@@ -153,7 +153,7 @@ _Last updated: 2026-11-19._
   - [ ] A swatch shows a choice's light value, in dark mode too.
   - [ ] Custom gradients are always 135° from the colour to its end; a theme's `gradient.*` token can be any CSS background. The built-in `button` (without the kit) ignores gradients.
   - [ ] Custom backgrounds don't change the text colour on them, so a dark card in light mode needs a custom text colour that doesn't exist yet. Idea: derive `color.text` per background like `on-primary`.
-- [ ] **Intermittent core browser test:** `conditionals_lists_and_mount_actions_in_chrome` failed 1 run in 20 on a busy machine (2026-11-22): it read the page before a fetched list arrived.
+- [x] **Intermittent core browser test** (2026-11-22): `conditionals_lists_and_mount_actions_in_chrome` waited a fixed 200ms for a fetched list (13 failures in 336 under heavy load, then 0 in 336 once it waits for the rows). Every kit's browser harness also loads a page again when Chrome gives it back with no result.
 - [ ] **Pages rendered without the kit ignore `ui-theme-toggle`'s choice.** Every kit page applies it now, and since 2026-11-22 every example page uses the kit; a page rendered without `--ui-kit` still follows the system.
 
 ## Flow kit next phases
