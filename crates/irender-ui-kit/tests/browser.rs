@@ -146,14 +146,23 @@ fn drive(name: &str, html: &str) -> Option<String> {
     std::fs::write(&file, html).unwrap();
     // The budget is virtual time, which runs ahead while the page is idle, so a large one
     // costs nothing on a quiet machine and leaves room on a loaded one.
-    let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1000,900", "--virtual-time-budget=30000", "--dump-dom"])
-        .arg(format!("file://{}", file.display()))
-        .output()
-        .unwrap();
+    let load = || {
+        let out = Command::new(&chrome)
+            .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--blink-settings=preferredColorScheme=1", "--window-size=1000,900", "--virtual-time-budget=30000", "--dump-dom"])
+            .arg(format!("file://{}", file.display()))
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    const RESULT: &str = "<pre id=\"result\">";
+    // On a very busy machine Chrome now and then gives the page back before its driver is
+    // done, so without a result it's loaded once more.
+    let mut dom = load();
+    if !dom.contains(RESULT) {
+        dom = load();
+    }
     let _ = std::fs::remove_dir_all(&dir);
-    let dom = String::from_utf8_lossy(&out.stdout);
-    let start = dom.find("<pre id=\"result\">").unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + 17;
+    let start = dom.find(RESULT).unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + RESULT.len();
     Some(dom[start..start + dom[start..].find("</pre>").unwrap()].replace("&quot;", "\"").replace("&amp;", "&"))
 }
 
