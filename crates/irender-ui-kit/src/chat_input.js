@@ -2,7 +2,8 @@
 // the `messages` key, emits `send` (so the document's `on.send` actions run), and with
 // an `endpoint` POSTs `{ messages }` and adds the reply: a JSON message, plain text, or
 // server-sent events streamed into it chunk by chunk, any of which may carry the reply's
-// UI, as `ui` JSON or server-rendered `html`. While a reply streams, the send button stops it.
+// UI, as `ui` JSON or server-rendered `html`. While a reply streams, the send button stops it,
+// and the message has `streaming: true`, so its Markdown shows formatted as it arrives.
 //
 // With `threads` and `thread`, the messages live in the threads (`{ id, title, messages }`)
 // and `messages` shows the current one's. Sending with no current thread starts one,
@@ -53,13 +54,19 @@
   // `change(message)` returns the fields to update.
   const replyInto = (tid, rid) => {
     let added = false;
-    return (change) => {
+    const reply = (change) => {
       req.started = true;
       if (added) return write(tid, read(tid).map((m) => (m.id === rid ? { ...m, ...change(m) } : m)));
       added = true;
       write(tid, [...read(tid), { id: rid, role: "assistant", content: "", ...change({ content: "" }) }]);
       sync();
     };
+    // A streamed reply is `streaming` until it ends, so its Markdown shows finished.
+    reply.done = () => {
+      if (added && read(tid).some((m) => m.id === rid && m.streaming))
+        write(tid, read(tid).map((m) => (m.id === rid ? (({ streaming, ...rest }) => rest)(m) : m)));
+    };
+    return reply;
   };
   // A chunk: text, or JSON with `content`, `delta`, `text` or OpenAI's
   // `choices[0].delta.content`, and maybe the reply's UI: `ui` (JSON, for the page to
@@ -81,7 +88,7 @@
     req = { tid, controller: new AbortController(), started: false };
     sync();
     const reply = replyInto(tid, id());
-    const append = (text) => text && reply((m) => ({ content: (m.content ?? "") + text }));
+    const append = (text) => text && reply((m) => ({ content: (m.content ?? "") + text, streaming: true }));
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -123,6 +130,7 @@
         api.emit("irender:error", { error: String(error) });
       }
     } finally {
+      reply.done();
       req = null;
       sync();
     }

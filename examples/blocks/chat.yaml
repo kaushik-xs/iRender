@@ -321,7 +321,7 @@ root:
                 waiting: waiting
                 endpoint: ../api/chat
                 placeholder: "How can I help you today?"
-                suggestions: [Chart this year’s sales, Show me photos of Lisbon, Write a project update, Explain a concept simply]
+                suggestions: [Chart this year’s sales, Compare plans in a table, Show me photos of Lisbon, Write a project update, Explain a concept simply]
               children:
                 - { type: ui-button, props: { icon: add, variant: ghost, size: icon }, attrs: { aria-label: Add files } }
                 - type: ui-dropdown-menu

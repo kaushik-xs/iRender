@@ -51,6 +51,19 @@ UI_REPLIES = {
     "chart": ("Here are this year's sales by month. Switch the range above the chart.", "chart.json"),
     "photos": ("Here are a few of Lisbon's sights. Scroll or use the arrows for more.", "photos.yaml"),
 }
+# Asked for a "table": formatting of every kind, streamed a few characters at a time, so
+# each piece stops partway through something.
+TABLE_REPLY = (
+    "Here are the **three plans** side by side, from the [pricing page](https://example.com/pricing):\n\n"
+    "| Plan | Price | Best for |\n| --- | --- | --- |\n"
+    "| **Starter** | $0 | Trying it _out_ |\n"
+    "| **Team** | $12 | Groups of up to `20` |\n"
+    "| **Business** | $30 | ~~Everyone~~ Larger companies |\n\n"
+    "Most teams your size pick **Team**. To switch:\n\n"
+    "1. Open *Settings*, then **Billing**\n"
+    "2. Pick the plan, or run `acme plan set team`\n\n"
+    "```bash\nacme plan set team --seats 12\n```\n"
+)
 _rendered = {}
 # Uploaded files, in memory for this run: id -> (name, type, bytes).
 UPLOADS = {}
@@ -280,6 +293,7 @@ class Handler(SimpleHTTPRequestHandler):
         said = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
         ui = next((v for k, v in UI_REPLIES.items() if k in said.lower()), None)
         extra = None
+        pieces, pause = None, 0.04
         if ui:
             reply = ui[0]
             try:
@@ -290,6 +304,8 @@ class Handler(SimpleHTTPRequestHandler):
                     extra = {"html": render_reply(ui[1])}
             except (OSError, subprocess.CalledProcessError) as e:
                 reply += f" (The UI didn't render: {e}. Build the CLI or set IRENDER.)"
+        elif "table" in said.lower():
+            pieces, pause = [TABLE_REPLY[i : i + 4] for i in range(0, len(TABLE_REPLY), 4)], 0.03
         else:
             # Markdown, which the chat shows formatted as it streams in.
             reply = (
@@ -297,6 +313,7 @@ class Handler(SimpleHTTPRequestHandler):
                 f"at a time as server-sent events, like a model's would be.\n\n"
                 f"Things to try:\n\n"
                 f"- Ask for a **chart** to get a reply with a chart in it\n"
+                f"- Ask for a **table** to see a table, links and code format as they arrive\n"
                 f"- Ask for **photos** to get a carousel\n\n"
                 f"The conversation so far has {len(messages)} messages."
             )
@@ -306,10 +323,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         try:
             time.sleep(0.6)
-            for word in reply.split(" "):
-                self.wfile.write(f"data: {json.dumps({'content': word + ' '})}\n\n".encode())
+            for piece in pieces or [word + " " for word in reply.split(" ")]:
+                self.wfile.write(f"data: {json.dumps({'content': piece})}\n\n".encode())
                 self.wfile.flush()
-                time.sleep(0.04)
+                time.sleep(pause)
             if extra:
                 self.wfile.write(f"data: {json.dumps(extra)}\n\n".encode())
             self.wfile.write(b"data: [DONE]\n\n")

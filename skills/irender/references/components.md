@@ -881,6 +881,7 @@ ui-message: One chat message: a bubble with the sender's avatar, name and time, 
   role         one of: assistant, user, system  Who it's from: `assistant` (default, on the left), `user` (on the right) or `system` (centred)
   content      any  The text, as Markdown with `markdown` (headings, lists, code, tables, links); otherwise plain, line breaks kept
   markdown     bool  Show `content` as Markdown (default: when irender-markdown-kit is registered)
+  streaming    any  The content is still arriving: Markdown formatting left open at its end shows as it will once closed
   name         any  Sender's name, shown above the bubble
   time         any  When it was sent, as text, shown after the name
   avatar       any  Avatar image URL

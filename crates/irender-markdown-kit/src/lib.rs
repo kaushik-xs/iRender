@@ -163,6 +163,11 @@ pub struct Markdown;
 const MARKDOWN_PROPS: &[PropDef] = &[
     PropDef::new("text", PropKind::Any, "The Markdown; may use state, and then follows it in the browser").required(),
     PropDef::new("tag", PropKind::Tag, "HTML tag (default `div`)"),
+    PropDef::new(
+        "streaming",
+        PropKind::Any,
+        "The text is still arriving (a streamed reply): in the browser, formatting left open at its end shows as it will once closed. May use state",
+    ),
 ];
 
 impl Component for Markdown {
@@ -192,7 +197,11 @@ impl Component for Markdown {
         if cx.is_reactive(&text) || html.contains("<pre><code") {
             cx.global_js(irender_html::CODE_JS_KEY, irender_html::CODE_JS);
             cx.global_js("ui-markdown", VIEW);
-            el.behavior("ui-markdown", json!({ "text": cx.is_reactive(&text).then(|| cx.val_js(&text)) }));
+            let mut config = json!({ "text": cx.is_reactive(&text).then(|| cx.val_js(&text)) });
+            if let Some(s) = node.prop("streaming").filter(|_| cx.is_reactive(&text)) {
+                config["streaming"] = json!(cx.val_js(s));
+            }
+            el.behavior("ui-markdown", config);
         }
         cx.open(&el, node)?;
         cx.markup(&html);

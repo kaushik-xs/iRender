@@ -1875,6 +1875,8 @@ fn chat_sends_and_streams_replies_in_chrome() {
       await until(() => send.getAttribute("aria-label") === "Send");
       await wait(20);
       out.push(`reply ${bubbles()}`);
+      // The reply isn't still arriving.
+      out.push(`streaming ${S().messages.some((m) => "streaming" in m)}`);
       out.push(`after waiting=${S().waiting} typing=${!!log.querySelector("[aria-label=Typing]")} send=${send.getAttribute("aria-label")} suggestions=${!form.querySelector("[data-suggestions]").hidden} bottom=${log.scrollHeight - log.scrollTop - log.clientHeight < 2}`);
       other.querySelector("[data-suggestion]").click();
       await until(() => S().json.length >= 2);
@@ -1898,6 +1900,7 @@ fn chat_sends_and_streams_replies_in_chrome() {
             "sent 2 last=Hello draft=\"\" box=\"\" waiting=true typing=true stop=Stop",
             // Thread, its reply and Hello.
             "reply assistant:Thread | user:Hello | assistant:Hi there (3)",
+            "streaming false",
             "after waiting=false typing=false send=Send suggestions=false bottom=true",
             "json user:Go | assistant:JSON reply to 1@Bot",
         ],

@@ -31,7 +31,7 @@ const REPLY_INDEX: &str = "ui_reply_index";
 
 /// The message fields a list item passes on to its `ui-message`.
 /// `role` comes first.
-const FIELDS: &[&str] = &["role", "content", "name", "avatar", "initials", "time", "html", "ui"];
+const FIELDS: &[&str] = &["role", "content", "name", "avatar", "initials", "time", "html", "ui", "streaming"];
 
 const ROLES: &[&str] = &["assistant", "user", "system"];
 
@@ -83,6 +83,7 @@ const MESSAGE_PROPS: &[PropDef] = &[
     PropDef::new("role", PropKind::Enum(ROLES), "Who it's from: `assistant` (default, on the left), `user` (on the right) or `system` (centred)"),
     PropDef::new("content", PropKind::Any, "The text, as Markdown with `markdown` (headings, lists, code, tables, links); otherwise plain, line breaks kept"),
     PropDef::new("markdown", PropKind::Bool, "Show `content` as Markdown (default: when irender-markdown-kit is registered)"),
+    PropDef::new("streaming", PropKind::Any, "The content is still arriving: Markdown formatting left open at its end shows as it will once closed"),
     PropDef::new("name", PropKind::Any, "Sender's name, shown above the bubble"),
     PropDef::new("time", PropKind::Any, "When it was sent, as text, shown after the name"),
     PropDef::new("avatar", PropKind::Any, "Avatar image URL"),
@@ -279,7 +280,11 @@ impl Component for Message {
         }
         cx.open(&bubble, node)?;
         if let (Some(c), true) = (content, markdown) {
-            let mut md = synthetic(node, "ui-markdown", vec![("text", c.clone())], Vec::new(), Vec::new());
+            let mut props = vec![("text", c.clone())];
+            if let Some(s) = node.prop("streaming") {
+                props.push(("streaming", s.clone()));
+            }
+            let mut md = synthetic(node, "ui-markdown", props, Vec::new(), Vec::new());
             md.style = irender_core::StyleBlock::from_pairs(&[("color", "inherit"), ("font-size", "inherit"), ("line-height", "inherit")]);
             cx.render(&md)?;
         }

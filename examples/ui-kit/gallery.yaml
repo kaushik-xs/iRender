@@ -70,6 +70,17 @@ state:
         - { id: 32, role: assistant, name: Assistant, initials: AI, content: "No, that's booked in Q4." }
   chatDraft: ""
   chatWaiting: false
+  # A reply as it arrives, each piece stopping partway through something.
+  arrivedAt: 3
+  arriving:
+    - "The **launch pl"
+    - "The **launch plan** is ready. See [the docs](https://exam"
+    - "The **launch plan** is ready. See [the docs](https://example.com) and run `acme rel"
+    - "The **launch plan** is ready. See [the docs](https://example.com) and run `acme release`.\n\n| Step | Ow"
+    - "The **launch plan** is ready. See [the docs](https://example.com) and run `acme release`.\n\n| Step | Owner |\n| --"
+    - "The **launch plan** is ready. See [the docs](https://example.com) and run `acme release`.\n\n| Step | Owner |\n| --- | --- |\n| **Dra"
+    - "The **launch plan** is ready. See [the docs](https://example.com) and run `acme release`.\n\n| Step | Owner |\n| --- | --- |\n| **Draft** | Asha |\n\nThen _ship i"
+    - "The **launch plan** is ready. See [the docs](https://example.com) and run `acme release`.\n\n| Step | Owner |\n| --- | --- |\n| **Draft** | Asha |\n\nThen _ship it_."
   sidebar: true
   invoiceFilters: { status: [Paid, Pending] }
   invoiceViews:
@@ -2756,7 +2767,7 @@ root:
                                 waiting: chatWaiting
                                 endpoint: api/chat
                                 placeholder: Ask about the report…
-                                suggestions: [What drove the growth?, Compare with last year]
+                                suggestions: [What drove the growth?, Compare the plans in a table]
                               children:
                                 - { type: ui-button, props: { label: "+", variant: ghost, size: icon }, attrs: { aria-label: Attach } }
                     - type: stack
@@ -2766,6 +2777,31 @@ root:
                         - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, margin: 0 8px } }
                         - { type: ui-typing-indicator }
                         - { type: ui-text, props: { variant: muted, text: "ui-typing-indicator on its own" } }
+
+                # The same text with and without `streaming`; the chat's input sets it on a
+                # reply while it arrives.
+                - { type: ui-label, props: { text: A reply as it arrives } }
+                - type: ui-card
+                  style: { padding: 16px, gap: 16 }
+                  children:
+                    - type: stack
+                      props: { direction: row, gap: 12, align: center }
+                      children:
+                        - { type: ui-slider, props: { bind: arrivedAt, min: 0, max: 7 }, attrs: { aria-label: How much of the reply has arrived } }
+                        - { type: ui-text, props: { variant: muted, text: "{{ (arrivedAt + 1) + ' of ' + arriving.length }}" }, style: { white-space: nowrap } }
+                    - type: element
+                      style: { display: grid, gap: 16, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" }, align-items: start }
+                      children:
+                        - type: stack
+                          props: { gap: 8 }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: "With streaming: true" } }
+                            - { type: ui-message, props: { role: assistant, initials: AI, content: "{{ arriving[arrivedAt] }}", streaming: true } }
+                        - type: stack
+                          props: { gap: 8 }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: Without } }
+                            - { type: ui-message, props: { role: assistant, initials: AI, content: "{{ arriving[arrivedAt] }}" } }
 
                 - { type: ui-label, props: { text: A message written in the document } }
                 - type: ui-message

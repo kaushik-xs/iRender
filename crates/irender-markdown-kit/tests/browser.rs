@@ -510,6 +510,12 @@ fn chat_messages_as_markdown_in_chrome() {
           await wait(10);
         }
         log("streamed", shown(reply()), reply().querySelector("[data-markdown]").innerHTML.replace(/\n/g, ""));
+        // While it's `streaming`, formatting left open shows as it will once closed.
+        const last = (fields) => { const list = S().chat; root.__irender.set("chat", [...list.slice(0, -1), { ...list.at(-1), ...fields }]); };
+        last({ content: "Nearly **do", streaming: true }); await wait(10);
+        log("arriving", reply().querySelector("[data-markdown]").innerHTML);
+        last({ streaming: undefined }); await wait(10);
+        log("arrived", reply().querySelector("[data-markdown]").innerHTML);
       } catch (e) { log("EXCEPTION", e.stack); }
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
     });
@@ -523,6 +529,8 @@ fn chat_messages_as_markdown_in_chrome() {
             "user link https://example.com true",
             "empty reply hidden true",
             "streamed true <p>Here is <strong>the plan</strong>:</p><ol><li>Draft</li><li>Ship</li></ol>",
+            "arriving <p>Nearly <strong>do</strong></p>",
+            "arrived <p>Nearly **do</p>",
         ],
         "\n{result}"
     );
@@ -764,6 +772,51 @@ fn rich_text_headings_and_pasted_links_in_chrome() {
             r######"md off "One\nTwo""######,
             r######"md level 5 "##### One\nTwo""######,
             r######"md level 0 "One\nTwo""######,
+        ],
+        "\n{result}"
+    );
+}
+
+/// `ui-markdown` with `streaming`: formatting left open at the text's end shows as it
+/// will once closed, and the text as it is when `streaming` is off.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn streaming_markdown_in_chrome() {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return;
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "text": "Some **bo", "busy": true },
+        "root": { "type": "ui-markdown", "props": { "text": "{{ text }}", "streaming": "{{ busy }}" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 20));
+      try {
+        const root = document.querySelector("[data-i-root]");
+        const el = document.querySelector("[data-markdown]");
+        const show = (label) => out.push(label + " " + (el.querySelector("[data-fence]") ? "fence " + el.querySelector("code").textContent : el.innerHTML.trim().replace(/\n/g, "⏎")));
+        show("bold");
+        for (const t of ["Some **bold** and `co", "See [docs](https://e", "| a | b |", "```js\nx"]) {
+          root.__irender.set("text", t); await frame(); show(JSON.stringify(t));
+        }
+        root.__irender.set("text", "Some **bo"); await frame();
+        root.__irender.set("busy", false); await frame(); show("done");
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "bold <p>Some <strong>bo</strong></p>",
+            r##""Some **bold** and `co" <p>Some <strong>bold</strong> and <code>co</code></p>"##,
+            r##""See [docs](https://e" <p>See docs</p>"##,
+            r##""| a | b |" <table>⏎<thead>⏎<tr><th>a</th><th>b</th></tr>⏎</thead>⏎</table>"##,
+            r##""```js\nx" fence x"##,
+            "done <p>Some **bo</p>",
         ],
         "\n{result}"
     );

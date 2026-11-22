@@ -495,6 +495,93 @@
     return blocks(text.split("\n"), false);
   };
 
-  if (typeof window !== "undefined") window.__irenderMarkdown = { render };
-  if (typeof module !== "undefined") module.exports = { render };
+  // ------------------------------------------------------------ streaming
+
+  // Markdown still arriving, finished at its end so it shows as it will once it has all
+  // come: open `**`, `_`, `~~` and code spans are closed (a mark with nothing after it
+  // yet is left out), a link or image still being written shows as its text, and a
+  // table's header row gets its `---` row. Only the last block can be unfinished; an
+  // open code fence already runs to the end.
+  const complete = (src) => {
+    const text = String(src ?? "").replace(/\r\n?/g, "\n");
+    const lines = text.split("\n");
+    let fenced = null;
+    let start = 0;
+    lines.forEach((l, i) => {
+      const f = fence(l);
+      if (fenced) {
+        if (f && f.c === fenced.c && f.n >= fenced.n && f.lang === "") fenced = null;
+      } else if (f) fenced = f;
+      else if (blank(l)) start = i + 1;
+    });
+    if (fenced) return text;
+    const head = lines.slice(0, start).join("\n") + (start ? "\n" : "");
+    let last = lines.slice(start).join("\n");
+    if (last.trim() === "") return text;
+
+    // A table: its last cell, and under a header row, a `---` row however much has come.
+    const rows = last.split("\n");
+    if (/^\s*\|/.test(rows[0])) {
+      if (rows.length === 1 && rows[0].trim() === "|") return head.trimEnd();
+      const bars = (row) => row.replace(/\\\|/g, "..");
+      const cells = (row) => bars(row).trim().replace(/^\|/, "").replace(/\|$/, "").split("|").length;
+      if (rows.length === 2 && /^[\s:|-]*$/.test(rows[1])) rows.pop();
+      const row = rows.pop();
+      const cut = bars(row).lastIndexOf("|") + 1;
+      rows.push(row.slice(0, cut) + (/\S/.test(row.slice(cut)) ? " " + unfinished(row.slice(cut).trim()) : row.slice(cut)));
+      if (rows.length === 1) rows.push("|" + " --- |".repeat(cells(rows[0])));
+      return head + rows.join("\n");
+    }
+    return head + unfinished(last);
+  };
+
+  // Text with its end finished: the last link or image, code span and emphasis.
+  const unfinished = (last) => {
+    // A link or image being written: its text, or nothing for an image.
+    last = last
+      .replace(/!\[[^\]\n]*(\](\([^)\n]*)?)?$/, "")
+      .replace(/\[([^\]\n]*)(\](\([^)\n]*)?)?$/, "$1");
+
+    // Code spans first: marks inside one aren't marks, so they're dots here.
+    const dots = (t, a, b) => t.slice(0, a) + ".".repeat(b - a) + t.slice(b);
+    let plain = last.replace(/\\[\s\S]/g, "..");
+    let open = null;
+    for (const m of plain.matchAll(/`+/g)) {
+      if (!open) open = m;
+      else if (m[0].length === open[0].length) {
+        plain = dots(plain, open.index, m.index + m[0].length);
+        open = null;
+      }
+    }
+    if (open && last.slice(open.index).replace(/`/g, "").trim() === "") {
+      last = last.slice(0, open.index);
+      plain = plain.slice(0, open.index);
+    } else if (open) {
+      last = last.trimEnd() + open[0];
+      plain = dots(plain.padEnd(last.length), open.index, last.length).slice(0, last.length);
+    }
+    // Marks at the very end may be half of a longer one (`**bold*`), and either close
+    // what's open, which the end does anyway, or open nothing yet: they're left out.
+    const end = plain.replace(/[*_~]+$/, "").length;
+    plain = plain.slice(0, end);
+
+    // Emphasis: a stack of open marks, each closed by the same mark.
+    const stack = [];
+    for (const m of plain.matchAll(/\*+|_+|~~/g)) {
+      const before = plain[m.index - 1], after = plain[m.index + m[0].length];
+      const run = m[0];
+      const kinds = run.length === 3 ? [run.slice(0, 2), run[0]] : run.length < 3 ? [run] : [];
+      const canClose = before !== undefined && !/\s/.test(before) && !(run[0] === "_" && word(after));
+      // Not after a letter or digit, so `2*3` isn't emphasis while it may be arithmetic.
+      const canOpen = after !== undefined && !/\s/.test(after) && !word(before);
+      const top = stack.findLastIndex((k) => k === kinds[0] || k === kinds.at(-1));
+      if (canClose && top >= 0) stack.length = kinds.length === 2 && top > 0 && kinds.includes(stack[top - 1]) ? top - 1 : top;
+      else if (canOpen) stack.push(...kinds);
+    }
+    // What's still open is closed, innermost first.
+    return last.slice(0, end).trimEnd() + stack.reverse().join("");
+  };
+
+  if (typeof window !== "undefined") window.__irenderMarkdown = { render, complete };
+  if (typeof module !== "undefined") module.exports = { render, complete };
 })();
