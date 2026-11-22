@@ -42,6 +42,7 @@ In irender-ui-kit's chat, messages use `ui-markdown` for their content whenever 
 The text shows formatted, the way `ui-markdown` and readers see it, and is edited there; nobody needs to know Markdown. Each edit writes Markdown to `bind`.
 
 - **Toolbar and shortcuts:** the same buttons and keys as below format the selection; a button lights up where the caret is in that format, and pressing it again takes it off. The link button opens a bar under the toolbar for the address (a bare `example.com` becomes `https://example.com`), with Remove link when the caret is on one.
+- **Tables, images and rules:** Table adds a table with a header row and two rows, the first header's text selected to type over; in a table it adds a row under the current one. Tab and Shift+Tab move between the cells, and Tab in the last cell adds a row. Image opens a bar for the image's address and a description (its alt text); only web addresses and paths are taken. Rule adds a horizontal rule and a paragraph after it. All three go through the browser's editing, so ⌘Z takes them back (a row added by Tab or the button is the exception).
 - **Formatting as you type:** start a line with `#` to `######`, `-`, `1.`, `>`, `[ ]` or ` ``` ` and a space, and it becomes a heading, a list, a numbered list, a quote, a task or a code block.
 - **Tasks:** tick a task's box with a click.
 - **Lists, quotes and code:** Enter on an empty list item, quote line or last code line leaves it. Tab and Shift+Tab nest list items.
@@ -52,7 +53,7 @@ Markdown it can't show the same way is written back in a standard form on the fi
 
 ### Markdown (`mode: tabs` or `split`, and the Markdown tab)
 
-- **Toolbar:** heading, bold, italic, strikethrough, quote, code, link, and bulleted, numbered and task lists. A button wraps the selection, or a placeholder word to type over. Heading, quote and the lists apply to every selected line, and pressing the button again takes them off.
+- **Toolbar:** heading, bold, italic, strikethrough, quote, code, link, bulleted, numbered and task lists, table, image and rule. A button wraps the selection, or a placeholder word to type over; table, image and rule write their Markdown on lines of their own, with the first column's name or the image's address selected. Heading, quote and the lists apply to every selected line, and pressing the button again takes them off.
 - **Shortcuts:** ⌘B bold, ⌘I italic, ⌘⇧X strikethrough, ⌘E code, ⌘K link (Ctrl on Windows and Linux).
 - **Lists:** Enter continues a list, a numbered list or a quote, and Enter on an empty item ends it. Tab and Shift+Tab indent list lines; elsewhere Tab moves focus as usual.
 - **Undo:** edits go through the browser's own editing, so ⌘Z undoes them.

@@ -70,6 +70,9 @@ fn editor_structure() {
         "{rich}"
     );
     assert!(rich.contains(r#"<div data-md-linkbar hidden><input type="url" aria-label="Link address""#), "{rich}");
+    // Table, Image and Rule, and the bar an image's address is typed in.
+    assert!(rich.contains(r#"data-md="table" aria-label="Table""#) && rich.contains(r#"data-md="rule" aria-label="Horizontal rule""#), "{rich}");
+    assert!(rich.contains(r#"<div data-md-imagebar hidden><input type="url" data-md-image-src aria-label="Image address""#), "{rich}");
     assert!(!rich.contains("data-md-preview"), "{rich}");
     let empty = plain(&render_with(json!({ "type": "ui-markdown-editor", "props": { "bind": "doc", "disabled": true } }), json!({ "doc": "" })).unwrap().body);
     assert!(empty.contains(r#"contenteditable="false""#) && empty.contains(r#"data-empty><p><br></p></div>"#), "{empty}");

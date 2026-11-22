@@ -14,8 +14,11 @@
 //
 // In rich text the same buttons and shortcuts format the selection, a link is typed in
 // a bar under the toolbar, and starting a line with `#`, `-`, `1.`, `>` or `[ ]` and a
-// space turns it into a heading, list, quote or task. Pasted pages and documents keep
-// only what Markdown can hold.
+// space turns it into a heading, list, quote or task. Table adds a table (in one, a row
+// under the current one), and Tab and Shift+Tab move between its cells, Tab in the last
+// one adding a row; Image asks for an address and a description in a bar like the
+// link's; Rule adds a horizontal rule. Pasted pages and documents keep only what
+// Markdown can hold.
 (() => {
   // Markdown from HTML: what the rich editor holds, or a pasted page. Anything Markdown
   // can't say (colours, fonts, layout) is dropped and its text kept.
@@ -189,6 +192,7 @@
     const preview = el.querySelector("[data-md-preview]");
     const rich = el.querySelector("[data-md-rich]");
     const linkbar = el.querySelector("[data-md-linkbar]");
+    const imagebar = el.querySelector("[data-md-imagebar]");
     const count = el.querySelector("[data-md-count]");
     const tabs = [...el.querySelectorAll("[data-md-view]")];
     const md = window.__irenderMarkdown;
@@ -408,6 +412,99 @@
       }
     });
 
+    // Tables: a new one with a header row and two rows, its first header cell's text
+    // selected to type over; in a table, a row under the current one.
+    const cellText = (cell) => {
+      const r = document.createRange();
+      r.selectNodeContents(cell);
+      getSelection().removeAllRanges();
+      getSelection().addRange(r);
+    };
+    const addRow = (tr) => {
+      const row = document.createElement("tr");
+      for (let i = 0; i < tr.cells.length; i++) row.append(Object.assign(document.createElement("td"), { innerHTML: "<br>" }));
+      // A header row's next row is the body's first.
+      if (tr.parentNode.nodeName === "THEAD") {
+        const body = tr.closest("table").tBodies[0] ?? tr.closest("table").createTBody();
+        body.prepend(row);
+      } else tr.after(row);
+      place(row.cells[0]);
+      sync();
+    };
+    const richTable = () => {
+      const tr = closest("tr");
+      if (tr) return addRow(tr);
+      const head = [1, 2, 3].map((n) => `<th>${esc(L("Column {n}", { n }))}</th>`).join("");
+      const row = "<tr><td><br></td><td><br></td><td><br></td></tr>";
+      exec("insertHTML", `<table><thead><tr>${head}</tr></thead><tbody>${row}${row}</tbody></table><p><br></p>`);
+      // The caret is in the paragraph after it.
+      const t = blockAt()?.previousElementSibling;
+      if (t?.nodeName === "TABLE") cellText(t.querySelector("th"));
+    };
+    // A rule, and a paragraph after it with the caret in it (Firefox leaves the caret
+    // before that paragraph's line break otherwise, so what's typed comes after one).
+    const richRule = () => {
+      exec("insertHTML", "<hr><p><br></p>");
+      const b = blockAt();
+      const hr = b?.previousElementSibling?.nodeName === "HR" ? b.previousElementSibling : b?.nodeName === "HR" ? b : null;
+      const p = hr?.nextElementSibling;
+      if (p?.nodeName === "P" && p.textContent === "") {
+        p.replaceChildren(document.createTextNode(""), document.createElement("br"));
+        place(p.firstChild, 0);
+      }
+    };
+    // Tab and Shift+Tab: the next or previous cell, its text selected; past the last, a new row.
+    const tabCell = (back) => {
+      const cell = closest("td, th");
+      if (!cell) return false;
+      const cells = [...cell.closest("table").querySelectorAll("th, td")];
+      const i = cells.indexOf(cell) + (back ? -1 : 1);
+      if (i < 0) return true;
+      if (i >= cells.length) addRow(cell.parentNode);
+      else cellText(cells[i]);
+      return true;
+    };
+
+    // The image bar: opened at the caret, which is put back when it closes.
+    let imageAt = null;
+    const imageSrc = imagebar?.querySelector("[data-md-image-src]"), imageAlt = imagebar?.querySelector("[data-md-image-alt]");
+    const openImage = () => {
+      const r = caretRange();
+      if (!r || !imagebar) return;
+      imageAt = r.cloneRange();
+      if (linkbar) linkbar.hidden = true;
+      imagebar.hidden = false;
+      imageSrc.value = "";
+      imageAlt.value = r.toString();
+      imageSrc.focus();
+    };
+    const closeImage = (act) => {
+      imagebar.hidden = true;
+      const src = imageSrc.value.trim();
+      rich.focus();
+      if (imageAt) {
+        getSelection().removeAllRanges();
+        getSelection().addRange(imageAt);
+      }
+      imageAt = null;
+      // Web addresses and paths only (a bare domain is a web address).
+      if (act !== "insert" || src === "" || /^(javascript|data|vbscript):/i.test(src)) return;
+      const href = /^([a-z][a-z0-9+.-]*:|\/|\.)/i.test(src) ? src : "https://" + src;
+      exec("insertHTML", `<img src="${esc(href)}" alt="${esc(imageAlt.value.trim())}">`);
+    };
+    for (const f of [imageSrc, imageAlt]) {
+      f?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          closeImage("insert");
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          closeImage("cancel");
+        }
+      });
+    }
+
     const richRun = {
       bold: () => exec("bold"),
       italic: () => exec("italic"),
@@ -419,6 +516,9 @@
       bullets: () => listOf(false),
       numbers: () => listOf(true),
       tasks,
+      table: richTable,
+      image: openImage,
+      rule: richRule,
     };
 
     // Which buttons are on where the caret is.
@@ -433,6 +533,7 @@
         bullets: closest("ul, ol")?.nodeName === "UL" && !closest("li.task"),
         numbers: closest("ul, ol")?.nodeName === "OL",
         tasks: !!closest("li.task"),
+        table: !!closest("table"),
       };
       for (const [k, cmd] of Object.entries(STATE)) on[k] = document.queryCommandState(cmd);
       for (const b of el.querySelectorAll("[data-md]")) b.setAttribute("aria-pressed", String(!!on[b.dataset.md]));
@@ -561,6 +662,10 @@
           e.preventDefault();
           return;
         }
+        if (e.key === "Tab" && !mod && tabCell(e.shiftKey)) {
+          e.preventDefault();
+          return;
+        }
         if (e.key === "Tab" && !mod && closest("li")) {
           e.preventDefault();
           exec(e.shiftKey ? "outdent" : "indent");
@@ -674,6 +779,29 @@
       } else wrap("`", "`", L("code"));
     };
 
+    // `text` as a block of its own: on its own lines, a blank line around it. Selects
+    // [selFrom, selTo) within it, or puts the caret after the blank line.
+    const asBlock = (text, selFrom = null, selTo = selFrom) => {
+      const { selectionStart: a, selectionEnd: b, value } = area;
+      const before = value.slice(0, a), after = value.slice(b);
+      const lead = before === "" ? "" : before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+      const tail = after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+      const at = a + lead.length;
+      if (selFrom === null) replace(a, b, lead + text + tail, at + text.length + 2, at + text.length + 2);
+      else replace(a, b, lead + text + tail, at + selFrom, at + selTo);
+    };
+    const mdTable = () => {
+      const [c1, c2, c3] = [1, 2, 3].map((n) => L("Column {n}", { n }));
+      asBlock(`| ${c1} | ${c2} | ${c3} |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |`, 2, 2 + c1.length);
+    };
+    // `![…](https://)`, the address selected to type over.
+    const mdImage = () => {
+      const { selectionStart: a, selectionEnd: b, value } = area;
+      const alt = value.slice(a, b) || L("image description");
+      const at = a + alt.length + 4;
+      replace(a, b, `![${alt}](https://)`, at, at + 8);
+    };
+
     const run = (cmd) => {
       if (area.disabled) return;
       if (isRich()) return richRun[cmd]?.();
@@ -688,6 +816,9 @@
         bullets: () => prefixLines("bullets"),
         numbers: () => prefixLines("numbers"),
         tasks: () => prefixLines("tasks"),
+        table: mdTable,
+        image: mdImage,
+        rule: () => asBlock("---"),
       })[cmd]?.();
     };
 
@@ -698,6 +829,8 @@
     el.addEventListener("click", (e) => {
       const act = e.target.closest("[data-md-link]");
       if (act && el.contains(act)) closeLink(act.dataset.mdLink);
+      const img = e.target.closest("[data-md-image]");
+      if (img && el.contains(img)) closeImage(img.dataset.mdImage);
       const tool = e.target.closest("[data-md]");
       if (tool && el.contains(tool)) {
         e.preventDefault();
@@ -711,6 +844,7 @@
       body.dataset.view = view;
       tabs.forEach((t) => t.setAttribute("aria-selected", String(t.dataset.mdView === view)));
       if (linkbar) linkbar.hidden = true;
+      if (imagebar) imagebar.hidden = true;
       if (view === "preview") draw();
       else if (view === "rich") {
         if (area.value !== written) fill();

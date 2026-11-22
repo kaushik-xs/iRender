@@ -279,6 +279,106 @@ fn rich_text_editor_in_chrome() {
     );
 }
 
+/// Table, Image and Rule: in rich text a table to fill in (Tab between its cells, Tab
+/// past the last adding a row, the button in a table adding one under the current row),
+/// an image from the bar under the toolbar, and a rule; in the Markdown tab, their
+/// Markdown, with the part to type over selected.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn rich_text_tables_images_and_rules_in_chrome() {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return;
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "doc": "Intro" },
+        "root": { "type": "ui-markdown-editor", "props": { "bind": "doc" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 20));
+      try {
+        const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+        const rich = document.querySelector("[data-md-rich]");
+        const area = document.querySelector("textarea");
+        const tool = (name) => document.querySelector(`[data-md=${name}]`).click();
+        const key = (k, mods = {}, target = rich) => target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods }));
+        const type = (t) => document.execCommand("insertText", false, t);
+        const show = (label) => out.push(label + " " + JSON.stringify(S().doc));
+        const end = () => {
+          rich.focus();
+          const r = document.createRange(); r.selectNodeContents(rich.lastElementChild || rich); r.collapse(false);
+          getSelection().removeAllRanges(); getSelection().addRange(r);
+        };
+        end();
+        tool("table"); await frame();
+        out.push("table " + rich.querySelectorAll("table tr").length + " selected " + JSON.stringify(getSelection().toString()) + " pressed " + document.querySelector("[data-md=table]").getAttribute("aria-pressed"));
+        type("Name"); key("Tab"); type("Role"); key("Tab"); type("Team");
+        key("Tab"); type("Asha"); key("Tab", { shiftKey: true }); out.push("back " + JSON.stringify(getSelection().toString()));
+        // Tab from the last cell adds a row.
+        const cells = rich.querySelectorAll("td");
+        const r = document.createRange(); r.selectNodeContents(cells[cells.length - 1]); r.collapse(false);
+        getSelection().removeAllRanges(); getSelection().addRange(r);
+        key("Tab"); await frame();
+        out.push("rows " + rich.querySelectorAll("tbody tr").length);
+        // The button inside a table: a row under the current one.
+        tool("table"); await frame();
+        out.push("rows " + rich.querySelectorAll("tbody tr").length);
+        show("filled");
+
+        end(); tool("rule"); type("After"); await frame(); show("rule");
+
+        end(); tool("image");
+        const bar = document.querySelector("[data-md-imagebar]");
+        out.push("bar " + !bar.hidden + " focused " + (document.activeElement === bar.querySelector("[data-md-image-src]")));
+        bar.querySelector("[data-md-image-src]").value = "example.com/a.png";
+        bar.querySelector("[data-md-image-alt]").value = "A chart";
+        bar.querySelector("[data-md-image=insert]").click(); await frame();
+        out.push("bar " + !bar.hidden);
+        // After "After" (Chrome, WebKit) or in a paragraph of its own (Firefox).
+        out.push("image " + /After(\n\n)?!\[A chart\]\(https:\/\/example\.com\/a\.png\)$/.test(S().doc));
+        // A script address isn't an image.
+        end(); tool("image"); bar.querySelector("[data-md-image-src]").value = "javascript:alert(1)";
+        key("Enter", {}, bar.querySelector("[data-md-image-src]")); await frame();
+        out.push("script " + rich.querySelectorAll("img").length + " bar " + !bar.hidden);
+
+        // The Markdown tab: the same tools write Markdown.
+        root.__irender.set("doc", "Intro"); await frame();
+        document.querySelector("[data-md-view=source]").click(); await frame();
+        area.setSelectionRange(5, 5); tool("table");
+        out.push("md table " + JSON.stringify(area.value) + " selected " + JSON.stringify(area.value.slice(area.selectionStart, area.selectionEnd)));
+        area.setSelectionRange(area.value.length, area.value.length); tool("rule");
+        tool("image");
+        out.push("md image " + JSON.stringify(area.value.slice(area.value.lastIndexOf("\n") + 1)) + " selected " + JSON.stringify(area.value.slice(area.selectionStart, area.selectionEnd)));
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // A header row and two rows, the first header's text selected to type over.
+            r##"table 3 selected "Column 1" pressed true"##,
+            r##"back "Team""##,
+            // Tab past the last cell adds a row; so does the button, inside the table.
+            "rows 3",
+            "rows 4",
+            r##"filled "Intro\n\n| Name | Role | Team |\n| --- | --- | --- |\n| Asha |  |  |\n|  |  |  |\n|  |  |  |\n|  |  |  |""##,
+            r##"rule "Intro\n\n| Name | Role | Team |\n| --- | --- | --- |\n| Asha |  |  |\n|  |  |  |\n|  |  |  |\n|  |  |  |\n\n---\n\nAfter""##,
+            "bar true focused true",
+            "bar false",
+            // A bare domain is a web address.
+            "image true",
+            "script 1 bar false",
+            r##"md table "Intro\n\n| Column 1 | Column 2 | Column 3 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n" selected "Column 1""##,
+            // After the rule, on a line of its own; the address selected to type over.
+            r##"md image "![image description](https://)" selected "https://""##,
+        ],
+        "\n{result}"
+    );
+}
+
 /// Chat messages show their content as Markdown when the kit is registered: rendered on
 /// the server, and redrawn as a reply streams into state.
 #[test]

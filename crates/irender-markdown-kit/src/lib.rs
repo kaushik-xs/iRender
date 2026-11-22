@@ -244,9 +244,11 @@ const TOOLS: &[(&str, &str, &str, &str)] = &[
     ("tasks", "Task list", "☑", ""),
     ("|", "", "", ""),
     ("table", "Table", "▦", ""),
-    ("image", "Image", "🖼", ""),
+    ("image", "Image", "", ""),
     ("rule", "Horizontal rule", "―", ""),
 ];
+
+const IMAGE_ICON: &str = r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="6.5" r="1.2"/><path d="m3 12 3.5-3.5 2.5 2.5 1.5-1.5L13 12"/></svg>"#;
 
 static EDITOR_ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[
@@ -455,16 +457,18 @@ impl Component for MarkdownEditor {
                     let name = cx.label(name);
                     let title = if keys.is_empty() { name.clone() } else { format!("{name} ({keys})") };
                     let mut b = Element::new("button");
-                    b.base_style_ref(&TOOL)
-                        .attr("type", "button")
-                        .attr("data-md", *cmd)
-                        .attr("aria-label", name.as_str())
-                        .attr("title", title.as_str())
-                        .text(Val::Lit(json!(shown)));
+                    b.base_style_ref(&TOOL).attr("type", "button").attr("data-md", *cmd).attr("aria-label", name.as_str()).attr("title", title.as_str());
+                    if !shown.is_empty() {
+                        b.text(Val::Lit(json!(shown)));
+                    }
                     if let Some(d) = node.prop("disabled") {
                         b.attr("disabled", d.clone());
                     }
                     cx.open(&b, node)?;
+                    // A picture, in the text's colour (an emoji would be in its own).
+                    if *cmd == "image" {
+                        cx.markup(IMAGE_ICON);
+                    }
                     cx.close("button");
                 }
             }

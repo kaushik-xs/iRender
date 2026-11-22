@@ -112,7 +112,7 @@ _Last updated: 2026-11-19._
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up; and app pages beyond shadcn's: a report builder (report-01), an incident room (incident-01) and a sales pipeline (crm-01).
 - [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** item, and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
-  - [ ] No toolbar buttons to add a table, image or rule; they come from Markdown (the Markdown tab) or a paste, and a table's cells can then be edited.
+  - [x] Table, Image and Rule on the toolbar (2026-11-21): a table to fill in with Tab between its cells, an image from a bar for its address and description, a rule; in the Markdown tab, their Markdown. Not done yet: no columns added or removed from the toolbar (a row is), and rows added by Tab aren't undone by ⌘Z.
   - [ ] Quoting, leaving a quote or code block, and ticking a task change the page directly, so ⌘Z doesn't undo them; the other edits go through the browser's editing and undo.
   - [ ] `maxLength` isn't enforced while typing rich text; the count turns red past it.
   - [ ] No "add link" on a bare pasted URL (it stays text until the link button is used); no headings other than `##` from the toolbar (`#`…`######` typed work).
