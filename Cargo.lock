@@ -413,7 +413,7 @@ dependencies = [
 
 [[package]]
 name = "irender-chart-kit"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "irender-core",
  "irender-html",
@@ -423,7 +423,7 @@ dependencies = [
 
 [[package]]
 name = "irender-cli"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "clap",
  "irender-chart-kit",
@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "irender-core"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "indexmap",
  "schemars",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "irender-flow-kit"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "irender-core",
  "irender-html",
@@ -463,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "irender-html"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "criterion",
  "indexmap",
@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "irender-icon-kit"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "indexmap",
  "irender-core",
@@ -486,7 +486,7 @@ dependencies = [
 
 [[package]]
 name = "irender-map-kit"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "irender-core",
  "irender-html",
@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "irender-markdown-kit"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "indexmap",
  "irender-core",
@@ -507,7 +507,7 @@ dependencies = [
 
 [[package]]
 name = "irender-style"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "indexmap",
  "irender-core",
@@ -517,7 +517,7 @@ dependencies = [
 
 [[package]]
 name = "irender-ui-kit"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "indexmap",
  "irender-core",
@@ -527,7 +527,7 @@ dependencies = [
 
 [[package]]
 name = "irender-wasm"
-version = "0.6.4"
+version = "0.7.0"
 dependencies = [
  "irender-chart-kit",
  "irender-core",
