@@ -1488,7 +1488,8 @@ fn typography_and_shape_options_apply_in_chrome() {
         const title = cs(`#${p}-card h3`), desc = cs(`#${p}-card p`), card = cs(`#${p}-card`), button = cs(`#${p}-button`), text = cs(`#${p}-text`);
         return [
           /serif/.test(title.fontFamily) && !/sans-serif/.test(title.fontFamily) ? "serif" : "same",
-          title.fontWeight, desc.lineHeight, text.letterSpacing,
+          // WebKit gives 23.800001px.
+          title.fontWeight, `${+parseFloat(desc.lineHeight).toFixed(2)}px`, text.letterSpacing,
           card.borderTopWidth, card.borderTopLeftRadius, card.boxShadow === "none" ? "flat" : "shadow",
           button.borderTopWidth, button.borderTopLeftRadius,
         ].join(" ");
