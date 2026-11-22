@@ -70,6 +70,374 @@ ui-button: A button in six variants and four sizes. With `href` it is a link tha
   type         one of: button, submit, reset  Default `button`
   disabled     any  Boolean or expression
   children: yes
+ui-camera: Takes photos: front and back camera, light, zoom, composing lines, a timer, retakes and several shots, made smaller before they're kept. Where there's no camera to use, the device's own picker.
+  bind         statekey (required)  State key for the photo, `{ id, url, name, type, size, width, height, at }` (`url` is a `data:` address), or with `multiple` a list of them
+  multiple     bool  Several photos
+  max          number  At most this many
+  facing       one of: back, front  The camera it starts with (default `back`)
+  ratio        any  The photo's shape, e.g. `1` or `"4 / 3"` (default the camera's)
+  maxSize      number  The photo's longer side at most, in px (default 1600)
+  quality      number  0 to 1 (default 0.8)
+  type         one of: jpeg, webp, png  Default `jpeg`
+  review       bool  Each photo is looked at first, to use or retake (default true, or false with `multiple`)
+  grid         bool  Lines for composing start shown
+  timer        number  Seconds between the button and the photo (default 0)
+  guide        one of: none, card, face, square  An outline to fill
+  stamp        any  Written along the foot of the photo, e.g. `{{ site }} · {{ now }}`; `time` is the date and time
+  files        bool  Photos can be chosen from the device too (default true)
+  autoStart    bool  The camera starts by itself, where it's been allowed
+  label        any  The button that starts it (default `Open the camera`)
+  disabled     any  Shown, not changed
+  children: no
+ui-permission-manager: What the app may use (camera, location, notifications…): why, whether it's allowed, a button to ask, and how to allow what was blocked.
+  permissions  any (required)  What's used: names, or `{ name, label, reason, required }`: `camera`, `microphone`, `geolocation`, `notifications`, `motion`, `storage` (kept when space is short), `clipboard` or `nfc`
+  bind         statekey  State key that gets each one's answer, e.g. `{ camera: granted, geolocation: prompt }`: `granted`, `denied`, `prompt` or `unsupported`
+  bindReady    statekey  State key that's true once every one that's `required` is allowed
+  title        any  Over them
+  children: no
+ui-photo-annotate: Marks on a photo: arrows, boxes, circles, freehand, text, measurements and blurring (for faces and number plates), kept apart from the picture and drawn onto a copy of it.
+  src          any (required)  The picture: an address or `data:`; may use state. An object with a `url` (a `ui-camera` photo) will do
+  bind         statekey  State key that gets the picture with the marks drawn on it (a `data:` address) as they change
+  bindMarks    statekey  State key for the marks: `[{ id, type, points, text, color }]`, points as parts of the picture, 0 to 1
+  tools        any  Which, in order: `[select, arrow, box, circle, pen, text, measure, blur]` (default all)
+  colors       any  Default red, amber, green, blue, white and black
+  width        number  Of the lines, in px of a 1000 px wide picture (default 6)
+  unit         any  For measurements, e.g. `cm`: the first one's length is typed, and the others are worked out from it (default `cm`)
+  type         one of: jpeg, png, webp  Default `jpeg`
+  quality      number  0 to 1 (default 0.85)
+  maxSize      number  The result's longer side at most, in px (default 2000)
+  readonly     bool  The marks are shown, not changed
+  label        any  Names it (default `Mark up the photo`)
+  children: no
+ui-location: Where the device is, once or as it moves, with how accurate that is; typed instead where it can't be found.
+  bind         statekey (required)  State key that gets `{ lat, lng, accuracy, altitude, heading, speed, at }`, the accuracy in metres
+  watch        bool  Follows the device as it moves, while the page is open
+  auto         bool  Found by itself, where it's been allowed
+  precise      bool  With GPS rather than a quick guess (default true)
+  enough       number  Metres: keeps trying for a while until it's as accurate as this
+  manual       bool  Can be typed instead
+  link         any  Where its Open in maps goes, with `{lat}` and `{lng}` (default OpenStreetMap); null for none
+  label        any  The button (default `Use my location`)
+  children: no
+ui-field-map: A light map to move and zoom, drawn without a library: markers (grouped when they're close), areas, lines, where the device is, and drawing on it.
+  center       any  `{ lat, lng }` or `[lat, lng]`; may use state, and the map follows it (default: what's on it)
+  zoom         any  0 (the world) to 19 (a building); may use state
+  markers      any  `[{ id, lat, lng, label, text, color, glyph }]`: `text` is shown when it's picked, `glyph` is a character in the pin
+  areas        any  `[{ id, points: [[lat, lng]], label, color }]`, or a circle: `{ lat, lng, radius }`, in metres
+  lines        any  `[{ id, points, color, width, dashed, label }]`
+  cluster      bool  Markers near each other are one, with their number, until zoomed in
+  bindSelected statekey  State key for the id of the marker, area or line picked
+  bindView     statekey  State key that gets `{ lat, lng, zoom, bounds: [[south, west], [north, east]] }` as it's moved
+  bindPoint    statekey  State key that gets `{ lat, lng }` where the map was clicked
+  bindDrawn    statekey  State key for what's drawn on it: `[{ id, type, points, radius }]`
+  draw         any  What can be drawn: `[marker, line, polygon, circle]`
+  locate       bool  A button shows where the device is
+  position     any  A dot at `{ lat, lng, accuracy, heading }`, e.g. what `ui-location` gives
+  fit          bool  Starts with everything on it in view (default true, without `center`)
+  height       any  Default 360 px
+  tiles        any  Tiles' address, with `{z}`, `{x}` and `{y}`; `none` for a plain ground (default OpenStreetMap's, which are for light use: name your own for an app)
+  attribution  any  Whose map it is (default `© OpenStreetMap contributors`)
+  darkTiles    bool  In dark mode the tiles are turned dark (default true)
+  wheel        bool  The wheel zooms without Ctrl or ⌘
+  minZoom      number  Default 1
+  maxZoom      number  Default 19
+  label        any  Names it for screen readers (default `Map`)
+  children: no
+ui-geo-checkin: Checks in and out where someone has to be: how far they are from the place, the time, how long it's been, and a photo. Children (a `ui-camera`, say) go before the button. A device can be made to lie about where it is, so it's a record, not proof.
+  bind         statekey (required)  State key for the visit that's open, `{ id, place, in: { at, lat, lng, accuracy, distance, inside, reason, photo } }` (null when there's none)
+  places       any (required)  Where one can check in: `[{ id, name, lat, lng, radius }]`, metres, or `points` for an area; may use state
+  bindLog      statekey  State key that collects the visits that have ended, with `out` and `seconds`
+  outside      one of: block, reason, allow  Away from every place: not at all (default), with a reason, or allowed
+  enough       number  The least accuracy that counts, in metres (default 100)
+  ready        any  The button waits for this, e.g. `{{ photo != null }}`
+  photo        any  Kept with it, e.g. `{{ photo }}`
+  inLabel      any  Default `Check in`
+  outLabel     any  Default `Check out`
+  children: yes
+ui-route-tracker: Records a path while the app is open and in front: distance, time and speed, with pause, and GPX to save. Draw it on a `ui-field-map`, and keep it with `ui-local-store`.
+  bind         statekey (required)  State key for the route, `{ state: idle|recording|paused|done, points: [[lat, lng, time, accuracy]], distance, seconds, started, ended }`, metres
+  step         number  Metres between points at least (default 10)
+  enough       number  Points less accurate than this are left out, in metres (default 50)
+  units        one of: metric, imperial  Default `metric`
+  awake        bool  Keeps the screen on while it records (default true): a phone stops saying where it is once it sleeps
+  download     string  A button saves it as GPX under this name, e.g. `route.gpx`
+  children: no
+ui-compass: Which way the device faces, and the way to a place from where one is. A phone's magnet is easily put off by metal.
+  bind         statekey  State key that gets the heading, degrees from north
+  heading      any  Or shown from this, e.g. a vehicle's or the wind's
+  target       any  `{ lat, lng }` to point to, from `from`
+  from         any  Where one is, e.g. what `ui-location` gives
+  size         number  In px (default 220)
+  children: no
+ui-level: A spirit level from the device's own sensors, set to zero against a surface known to be level.
+  bind         statekey  State key that gets `{ x, y, level }`, degrees off level
+  value        any  Or shown from this `{ x, y }`
+  tolerance    number  Degrees that count as level (default 0.5)
+  mode         one of: surface, edge, auto  Lying on a surface, stood on an edge, or whichever it is (default `auto`)
+  size         number  In px (default 220)
+  children: no
+ui-push-opt-in: Offers notifications at a good moment, says why, then asks; subscribes to pushes and sends the subscription to a server, by topic. The app's service worker (`irender app`) shows them.
+  publicKey    any  The server's VAPID public key; without it, only the app's own notifications are allowed for, with no pushes
+  saveUrl      any  The subscription and topics are POSTed here as JSON, `{ subscription, topics }`, and again as they change; `subscription` is null once they're off
+  topics       any  What can be chosen: `[{ value, label, description, on }]`
+  bind         statekey  State key that gets `{ state, topics, endpoint }`; `state`: on, off, denied, install (an iPhone, until the app's on the home screen) or unsupported
+  title        any  Default `Stay up to date`
+  text         any  Why, before the browser asks
+  label        any  The button (default `Turn on notifications`)
+  when         any  Waits for a good moment, e.g. `{{ ordered }}`: shown once this is true
+  remember     string  A Not now button, which keeps it away for `days` in this browser, under this name
+  days         number  Default 30
+  test         bool  Once on, a button shows one
+  children: no
+ui-app-badge: A number on the installed app's icon, and in the tab's title. Draws nothing.
+  count        any (required)  The number; none at 0, and a dot for `true`; may use state
+  title        bool  Before the page's title too, as `(3) Inbox` (default true)
+  children: no
+ui-share: Shares a link, text or files with the device's own sheet; where there's none, a list: copy, email, download and others.
+  url          any  A link (default the page's when there's nothing else); may use state
+  title        any  May use state
+  text         any  May use state
+  files        any  Files to share: `[{ url, name, type }]`, e.g. `ui-camera` photos; may use state
+  label        any  Default `Share`
+  variant      one of: primary, outline, ghost  Default `outline`
+  targets      any  Besides copying and email, where there's no share sheet: `[{ label, href }]`, with `{url}`, `{title}` and `{text}` in `href`
+  sheet        one of: auto, own  `own` always shows the list, not the device's sheet (default `auto`)
+  children: no
+ui-share-target: Takes what other apps share with this one, once it's installed: put it on the page that the document's `app.share` names.
+  bind         statekey (required)  State key that gets what was shared: `{ title, text, url, files: [{ name, type, size, url }], at }`
+  quiet        bool  Draws nothing
+  acceptLabel  any  Default `Add it`; runs `on: { accept: … }`
+  emptyText    any  Shown while nothing has been
+  children: no
+ui-contact-picker: Contacts picked from the phone's own list (Chrome on Android); anywhere else, from a contact card file (.vcf) or typed.
+  bind         statekey (required)  State key for the contact, `{ name, tel: [], email: [] }`, or with `multiple` a list of them
+  multiple     bool  Several
+  fields       any  What's asked for: `[name, tel, email, address]` (default the first three)
+  manual       bool  Can be typed (default true)
+  label        any  Default `Choose a contact`
+  children: no
+ui-passkey: Signs in, or makes the passkey to, with a fingerprint, a face or the device's PIN. The server makes the challenge and checks the answer.
+  mode         one of: signin, register  Default `signin`
+  optionsUrl   any  POSTed `body` for the server's options (WebAuthn's, as JSON)
+  verifyUrl    any  POSTed the passkey's answer as JSON; what it replies goes to `bind`
+  body         any  Sent for the options, e.g. `{ email: "{{ email }}" }`
+  bind         statekey  State key that gets the server's reply
+  autofill     bool  Offered among the browser's suggestions for a field with `autocomplete: username webauthn`
+  local        bool  Without a server, for this device only: it shows someone can unlock the device, and proves nothing to a server
+  name         any  With `local`, what it's called
+  label        any  Default `Sign in with a passkey`, or `Create a passkey`
+  variant      one of: primary, outline  Default `outline`
+  children: no
+ui-app-lock: Covers the app after a while, or once it's been out of sight, until it's opened with a passkey or a PIN. It keeps someone who picks up the device out; it doesn't encrypt anything, and a server still has to check who's asking.
+  methods      any  How it's opened: `[passkey, pin]` (default both, as the device can)
+  after        number  Minutes without anything done until it locks (default 5; 0: never)
+  hidden       number  Seconds out of sight until it locks (default 30; 0: at once)
+  digits       number  Of the PIN, 4 to 8 (default 4)
+  tries        number  Wrong PINs before it makes one wait, longer each time (default 5)
+  name         string  Kept under this name on the device (default `app`)
+  bindLocked   statekey  State key that's true while it's locked, e.g. to take things off the page
+  title        any  Default `Locked`
+  logo         any  A picture's address, over the title
+  signOutUrl   any  Where `Forgot your PIN?` goes, after the `forgot` event; it stays locked until `reset`
+  reset        any  Takes the lock off, e.g. once they've signed in again: `{{ signedInNow }}`
+  settings     bool  Draws turning it on and off, changing the PIN and locking now (default true)
+  children: no
+ui-audio-recorder: Voice notes: records with a moving waveform, pauses, plays back and goes to any point of it.
+  bind         statekey (required)  State key for the recording, `{ id, url, name, type, size, seconds, peaks, at }` (`url` is a `data:` address), or with `multiple` a list of them
+  multiple     bool  Several
+  max          number  Seconds at most (default 300)
+  bitrate      number  Bits a second (default 48000, good for voice)
+  label        any  Default `Record`
+  disabled     any  Played, not changed
+  children: no
+ui-video-recorder: Records a short video with a time limit, pauses, and plays it back to keep or take again.
+  bind         statekey (required)  State key for the video, `{ id, url, name, type, size, seconds, at }` (`url` is a `data:` address)
+  max          number  Seconds at most (default 30)
+  facing       one of: front, back  Default `front`
+  audio        bool  With sound (default true)
+  bitrate      number  Bits a second (default 1200000)
+  height       number  Of the video in px (default 720)
+  label        any  Default `Open the camera`
+  disabled     any  Played, not changed
+  children: no
+ui-screen-capture: A picture or a video of a screen, a window or a tab, which someone picks: for reporting a problem, say. Phones can't.
+  bind         statekey (required)  State key for what's taken: a picture `{ id, url, name, type, size, width, height, at }`, or a video
+  modes        any  `[picture, video]` (default both)
+  max          number  Seconds of video at most (default 60)
+  audio        bool  With the sound of what's shared, where it can be
+  children: no
+ui-voice-input: Speech to text, shown as it's heard. Some browsers send what's said to their maker's servers to do it.
+  bind         statekey (required)  State key for the text
+  append       bool  After what's there already (default true)
+  continuous   bool  Goes on past a pause, until it's stopped
+  lang         any  What's spoken, e.g. `en-GB` (default the document's)
+  transcribeUrl any  Where the browser can't (Firefox), what's said is recorded and POSTed here as `audio`; the reply is `{ text }`
+  iconOnly     bool  Only a microphone, for beside a field
+  label        any  Default `Speak`
+  children: no
+ui-read-aloud: Reads text, or a part of the page, out loud with the device's own voices, with pause and speed.
+  text         any  What's read; may use state
+  target       string  Or a part of the page, a CSS selector: each sentence is marked as it's read
+  lang         any  Default the document's
+  voice        any  A voice's name, or the start of it
+  rate         number  0.5 to 2 (default 1)
+  controls     bool  Speed can be changed
+  bindState    statekey  State key that gets `playing`, `paused` or `stopped`
+  label        any  Default `Read aloud`
+  children: no
+ui-wake-lock: Keeps the screen on: a recipe, a score, a boarding pass, a timer.
+  active       any  The screen's kept on while this is true, e.g. `{{ step > 0 }}`
+  bind         statekey  Or a state key, with a switch for it
+  label        any  The switch's (default `Keep the screen on`)
+  bindHeld     statekey  State key that's true while it's really kept on
+  children: no
+ui-swipe-actions: A row that's swiped sideways to show what can be done with it: archive, delete, call. Its children are the row.
+  start        any  Under its start, shown by swiping that way: `[{ value, label, tone, icon }]`; each runs `on: { <value>: … }`
+  end          any  Under its end
+  full         bool  Swiping all the way runs the outermost one (default true)
+  menu         bool  A button shows them too, for a mouse and the keyboard (default true)
+  label        any  Names the row in that button, e.g. `{{ m.from }}`
+  disabled     any  Doesn't swipe
+  parts: content
+  children: yes
+ui-document-scanner: Scans papers with the camera or from a picture: finds the page's edges, straightens it, cleans it up, and makes a PDF of several.
+  bind         statekey (required)  State key for the pages: `[{ id, url, width, height }]`, each a `data:` picture
+  bindPdf      statekey  State key that gets them as one PDF, `{ url, name, type, size, pages }`
+  max          number  Pages at most
+  filter       one of: colour, grey, bw, none  How it starts: brightened, grey, black and white, or as it was (default `colour`)
+  paper        one of: auto, a4, letter  The PDF's pages (default `auto`: each picture's shape)
+  maxSize      number  A page's longer side at most, in px (default 1800)
+  quality      number  0 to 1 (default 0.75)
+  name         any  The PDF's name (default `scan.pdf`)
+  label        any  Default `Scan a page`
+  children: no
+ui-nfc: Reads NFC tags held to the phone, and writes to them (Chrome on Android).
+  bind         statekey (required)  State key that gets the last tag read, `{ serial, records: [{ type, text }], text, at }`
+  bindList     statekey  State key that collects each different tag
+  write        any  Text or an address to write, with a button for it; may use state
+  lock         bool  What's written can't be changed again, ever
+  label        any  Default `Read a tag`
+  children: no
+ui-bluetooth: Connects to a Bluetooth Low Energy device, reads and follows its values, and sends to it (Chrome and Edge; not iPhones).
+  read         any (required)  What's read: `[{ key, service, characteristic, as, notify, label, unit }]`, by name (`battery_service`) or number; `as`: uint8 (default), int8, uint16, int16, uint32, float32, text, hex or heart-rate; `scale`, `offset`
+  bind         statekey  State key that gets the values by `key`
+  bindState    statekey  State key that gets `disconnected`, `connecting` or `connected`
+  commands     any  Buttons that write: `[{ label, service, characteristic, value, as }]`; `value` may use state
+  namePrefix   string  Only devices whose name starts with this are listed
+  label        any  Default `Connect a device`
+  children: no
+ui-serial: Talks to a serial port, a line at a time: scales, meters, microcontrollers (Chrome and Edge on a computer).
+  baud         number  Default 9600
+  bind         statekey  State key that gets the last line, read by `parse`
+  bindLog      statekey  State key that gets the last lines, `[{ at, text, out }]`
+  bindState    statekey  State key that gets `disconnected`, `connecting` or `connected`
+  parse        one of: text, number, json, csv  What a line is (default `text`); `number` is the first one in it
+  end          one of: lf, crlf, cr, none  Ends what's sent (default `lf`)
+  filters      any  Only these are listed: `[{ usbVendorId, usbProductId }]`
+  send         bool  A field to send lines with
+  commands     any  Buttons that send: `[{ label, text }]`; `text` may use state
+  log          bool  Shows the lines (default true)
+  max          number  Lines kept (default 200)
+  label        any  Default `Connect a port`
+  children: no
+ui-usb: Talks to a USB device that no driver has taken: label printers, scanners, instruments (Chrome and Edge).
+  filters      any (required)  Which devices are listed: `[{ vendorId, productId, classCode }]`
+  bind         statekey  State key that gets what's read last, by `as`
+  bindState    statekey  State key that gets `disconnected`, `connecting` or `connected`
+  bindDevice   statekey  State key that gets `{ name, maker, serial, vendorId, productId }`
+  interface    number  Its number (default the first that can be used)
+  as           one of: text, hex, bytes  What's read and sent are (default `text`)
+  commands     any  Buttons that send: `[{ label, value }]`; `value` may use state
+  label        any  Default `Connect a device`
+  children: no
+ui-file-handler: Opens files, from a button or, installed, when one's opened with the app (the document's `app.files`), and saves back to them.
+  bind         statekey (required)  State key that gets the file opened: `{ name, type, size, text }`, or `url` (a `data:` address) or `json` for another `as`
+  as           one of: text, json, data  Default `text`
+  accept       any  Types and their endings: `{ text/markdown: [.md] }`
+  save         any  What Save writes, to the file that was opened where the browser can, else as a new one; may use state
+  name         any  A new file's name
+  bindDirty    statekey  State key that's true while `save` isn't what's in the file
+  label        any  Default `Open a file`
+  children: no
+ui-install-prompt: Offers to install the app: the browser's own prompt where there is one, else the steps for this browser (on an iPhone, Add to Home Screen). Hidden in the installed app. Needs the document's `app`.
+  variant      one of: button, card, floating  Default `button`; `floating` is a card at the foot of the window
+  label        any  The button (default `Install the app`)
+  title        any  On the card (default the app's name)
+  text         any  Under it (default `Opens from your home screen, and works offline.`)
+  icon         any  A picture's address, on the card
+  bindState    statekey  State key that gets `available` (the browser can install it), `steps` (it's added from a menu, which the button explains), `installed` or `unavailable`
+  remember     string  A card has a Not now button, and once that's pressed stays away for `days` in this browser, under this name
+  days         number  Default 30
+  always       bool  Shown wherever it is, with the steps where there's no prompt
+  children: no
+ui-update-prompt: Says when a new version of the app has been fetched, and reloads into it when asked. `reload` comes first, for saving what's open.
+  title        any  Default `A new version is ready`
+  text         any  Under it, e.g. what's new
+  label        any  The button (default `Reload`)
+  laterLabel   any  Default `Later`; null for none
+  every        number  Minutes between looking for one, besides each time the app's opened (default 60)
+  inline       bool  In the page rather than at the foot of the window
+  show         any  Shown whether there's one or not, e.g. when the host says
+  bind         statekey  State key that's true while a new version is waiting
+  children: no
+ui-offline-indicator: Whether there's a connection: a badge, a banner or a dot, and state for the rest of the page.
+  bind         statekey  State key that gets `online`, `offline` or `reconnecting`
+  variant      one of: badge, banner, dot, none  Default `badge`; `none` only keeps the state
+  showOnline   bool  Shown when there's a connection too
+  checkUrl     any  Asked while there's doubt, as a device can be on a network that goes nowhere
+  every        number  Seconds between those (default 15)
+  offlineText  any  Default `Offline`
+  onlineText   any  Default `Online`
+  reconnectingText any  Default `Reconnecting…`
+  detail       any  After it in a banner, e.g. `What you do is kept and sent later.`
+  children: no
+ui-offline-queue: Keeps what's sent without a connection (submits, forms and uploads) and sends it once there is one, in order, even after the app's been closed. Shows what's waiting and what was refused. Each is sent with an `x-queued-id` header, so a server can tell one it has had.
+  paths        any  Addresses whose requests are kept, e.g. `[/api/inspections]`: any under them (default every one on the site)
+  methods      any  Default `[POST, PUT, PATCH, DELETE]`
+  labels       any  What to call them: `{ /api/inspections: Inspection }`
+  labelField   string  A field of what's sent that says which, e.g. `title`
+  variant      one of: list, badge, none  Default `list`
+  bind         statekey  State key that gets what's waiting: `[{ id, label, url, method, at, status, error, tries }]`
+  bindCount    statekey  State key that gets how many
+  retryEvery   number  Seconds between tries while the page is open (default 60)
+  title        any  Over the list (default `Waiting to be sent`)
+  emptyText    any  Default `Everything has been sent`
+  hideEmpty    bool  Nothing is shown when there's nothing waiting
+  children: no
+ui-local-store: Keeps state keys on the device between visits. Draws nothing. Not for secrets: anyone with the device can read them.
+  keys         any (required)  State keys to keep, e.g. `[draft, filters]`
+  name         string  What they're kept under (default the page's address)
+  where        one of: device, session  `device` (default) until cleared, `session` until the tab's closed
+  maxAge       number  Days after which they're let go (default never)
+  version      any  What's kept under another one is let go
+  sync         bool  Other tabs follow (default true)
+  bindReady    statekey  State key that's true once what was kept has been put back
+  bindSaved    statekey  State key that gets the time they were last kept
+  clear        any  When this becomes true, what's kept is let go
+  children: no
+ui-app-shell: An app's frame: a bar with the screen's title and a Back button, the screen, and tabs at the foot (down the side with room for them), clear of a phone's notch. Children are `ui-app-screen`s and one `ui-app-actions`, at the end of the bar.
+  bind         statekey (required)  State key for the screen shown, a `ui-app-screen`'s `value`
+  title        any  In the bar (default the screen's own)
+  height       any  Default the window's; px or a CSS length
+  rail         bool  With room for it, the tabs go down the side (default true)
+  bar          bool  The bar at the top (default true)
+  pullToRefresh bool  Pulling the screen down runs `on: { refresh: … }`
+  bindRefreshing statekey  State key that pulling sets to true; set it to false once it's done (default: it stops by itself)
+  history      bool  The browser's and the phone's back button go back through the screens
+  label        any  Names the tabs for screen readers (default `Main`)
+  parts: bar, main, tabs
+  children: yes
+ui-app-screen: A screen of a `ui-app-shell`.
+  value        string (required)  What `bind` holds at this screen
+  label        any (required)  Its tab, and the bar's title
+  title        any  Or the bar's title, where it's another
+  icon         any  Its tab's: an icon name (with the icon kit) or a character
+  badge        any  On its tab, e.g. a count; nothing at 0
+  parent       string  The screen its Back button goes to; it has no tab of its own
+  flush        bool  No space around its content, for a list or a map
+  children: yes
+ui-app-actions: What's at the end of a `ui-app-shell`'s bar: buttons, badges, an offline indicator.
+  children: yes
 ui-badge: A small status label.
   text         any (required)  Badge text
   icon         any  An icon name (with the icon kit) or a character, before the text
@@ -506,13 +874,22 @@ ui-image-cropper: A picture cropped, turned and zoomed in the browser, by draggi
   height       number  Of the stage in px (default 320)
   label        any  Names it (default `Crop image`)
   children: no
-ui-plan: Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked, coloured by status, and rearranged by dragging.
-  items        any (required)  What's on it: `[{ id, x, y, width, height, shape, rotation, label, sublabel, tone, color, status, points, locked }]` in the plan's units; `shape`: rect (default), circle, pin or polygon (with `points`); may use state
+ui-plan: Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked (one or several), coloured by status, and rearranged by dragging. Aircraft cabins, buses, trains, cinemas, theatres, auditoriums, stadiums, halls, car parks and offices come from a few words, on one floor or several.
+  items        any  What's on it: `[{ id, x, y, width, height, shape, rotation, label, sublabel, tone, color, status, points, locked }]` in the plan's units; `shape`: rect (default), circle, pin, seat (with `turn`, degrees) or polygon (with `points`); may use state. Any other field is kept, e.g. `price`; one with `to` (stairs, a lift) goes to that floor
+  layout       any  Seats, bays or desks from a few words: `{ kind: aircraft, rows: 30, seats: "ABC DEF" }`; `kind`: aircraft, bus, train, cinema, theatre, auditorium, stadium, hall (`style`: banquet, cabaret, classroom, theatre, ushape, boardroom, hollow or exhibition), parking or office; may use state
+  data         any  What's known of a layout's seats, by id, `{ 12A: { status: Taken } }`, or a list with `id`s; may use state
+  floors       any  Several floors or decks, the top first: `[{ id, label, title, layout, items, image, width, height }]`; `items` of the plan with a `floor` are on that one; may use state
+  bindFloor    statekey  State key for the floor shown, its `id`
+  multiple     bool  Several can be picked: `bind` is then a list of ids
+  max          number  At most this many
+  available    any  The statuses that can be picked, e.g. `[Free]` (default any)
+  bindPicked   statekey  State key that gets the picked items themselves, a list, each with its floor
+  bindTotal    statekey  State key that gets the sum of their `price`s
   width        number  The plan's width in its own units (default 1000)
   height       number  Its height (default 600)
   image        any  A drawing behind everything: a floor plan, a site map, a photo
   bindItems    statekey  State key the items are in: moved ones are written back
-  bind         statekey  State key for the picked item's id
+  bind         statekey  State key for the picked item's id, or with `multiple` a list of them
   bindItem     statekey  State key that gets the picked item itself
   tones        any  A tone per `status`: `{ Free: success, Occupied: danger }`
   grid         number  Lines drawn this far apart, which moved items keep to
@@ -612,7 +989,7 @@ ui-barcode: A barcode: Code 128, Code 39, EAN, UPC or ITF.
   download     string  A button saves it under this name, ending in `.svg` or `.png`
   label        any  Names it for screen readers (default `Barcode: {value}`)
   children: no
-ui-code-scanner: Reads QR codes and barcodes with the camera, where the browser can, or from a field (a handheld scanner types into it).
+ui-code-scanner: Reads QR codes and barcodes with the camera in any browser, from a picture, or from a field (a handheld scanner types into it).
   bind         statekey (required)  State key that gets the last code read, as text
   bindCode     statekey  State key that gets `{ value, format }`
   bindList     statekey  State key that collects each different code read, a list of texts
@@ -620,6 +997,10 @@ ui-code-scanner: Reads QR codes and barcodes with the camera, where the browser 
   continuous   bool  Keeps reading after a code
   manual       bool  A field to type the code in, for cameras and browsers that can't read it (default true)
   sound        bool  A short beep when one is read
+  picture      bool  A code can be read from a picture on the device too (default true)
+  decoder      one of: auto, native, wasm  `auto` (default) is the browser's own where it has one, else a decoder in WebAssembly, loaded the first time (Safari and Firefox)
+  library      string  Where that decoder's script is (default: zxing-wasm on jsDelivr, a fixed version)
+  wasm         string  Where its `.wasm` is
   label        any  The button that starts the camera (default `Scan a code`)
   children: no
 ui-pivot: A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell.

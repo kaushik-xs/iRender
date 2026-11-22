@@ -29,7 +29,7 @@ See [`examples/`](https://github.com/kaushik-xs/iRender/blob/main/examples/READM
 | `irender-core` | Document model (serde), expressions, theme tokens, policy, validation → IR. No HTML. |
 | `irender-style` | Compiles style blocks into hashed, deduplicated classes in cascade layers; CSS validation and minification via lightningcss. |
 | `irender-html` | Server-side renderer, component registry, built-ins, browser runtime. No web-framework dependency. |
-| `irender-cli` | `validate`, `render` (with `--timings`, `--repeat`, `--parallel`, `--minify`, `--ui-kit`, `--chart-kit`, `--flow-kit`, `--map-kit`, `--icon-kit`, `--icons`), `schema`, `components`, `icons`. |
+| `irender-cli` | `validate`, `render` (with `--timings`, `--repeat`, `--parallel`, `--minify`, `--ui-kit`, `--chart-kit`, `--flow-kit`, `--map-kit`, `--icon-kit`, `--icons`), `app` (a manifest, icons and a service worker), `schema`, `components`, `icons`. |
 | `irender-ui-kit` | Optional, shadcn-style components (`ui-button`, `ui-card`, `ui-alert`, form controls, table, pagination, a sidebar layout, …) and a matching theme. See its [README](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-ui-kit/README.md). |
 | `irender-chart-kit` | Optional charts drawn by Apache ECharts: `ui-chart` (shorthand for 23 series types including a Gantt chart, or any ECharts option), `ui-sparkline` and `ui-live-data`: filters, grouping and drill-downs in the browser, clicks, zoom, legend and brush as state, live polling, SSE and WebSocket data, themed from the document's tokens. See its [README](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-chart-kit/README.md). |
 | `irender-icon-kit` | Optional `ui-icon`: original SVG icons, outline and filled, in packs (core, arrows, status, logistics, warehouse, retail, manufacturing, accounting, agriculture, automotive, aviation, banking, construction, education, energy, finance, healthcare, hospitality, hr, insurance, it, legal, marketing, maritime, media, mining, oil-gas, public-sector, robotics, simulation, social, space, sports, telecom) drawn to one standard, a `brands` pack of social and sign-in logo marks, plus your own packs from SVG files, sanitized on load. See its [README](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-icon-kit/README.md). |
@@ -120,6 +120,33 @@ root: …
 - Dates and numbers aren't labels: they follow each component's `locale`, which defaults to `lang` (and without either, to the browser's).
 - **Right to left.** A language written right to left (Arabic, Hebrew, Persian, Urdu, …) gives the page `dir="rtl"`: the kits' layouts mirror (sidebars, menus, tables, calendars, the order of things in a row), icons that point along the line turn round, and Left and Right swap in the keyboard and in dragging. Charts and flow diagrams keep their left-to-right geometry, and codes, shortcuts and counts such as `2 / 3` read left to right.
 - A component reads a label with `cx.label("…")`, `cx.label_with("…", &[(name, value)])` or `cx.label_count(one, other, n)` on the server, and `window.__irender.label(text, vars)` in the browser (`[one, other]` for a count).
+
+### Apps
+
+`app` makes a document's pages an installable app:
+
+```yaml
+app:
+  name: Field inspections
+  shortName: Inspect
+  themeColor: "#ffffff"
+  themeColorDark: "#09090b"
+  icon: { text: FI, background: "#1d4ed8" }     # or icons: [{ src, sizes, type, purpose }]
+  shortcuts: [ { name: New, url: "./?new" } ]
+  share: { url: "./new.html", accept: ["image/*"] }
+  files: [ { url: "./", accept: { text/csv: [.csv] } } ]
+  offline: { skip: [/api/], fallback: offline.html }
+```
+
+```sh
+irender render app.yaml --ui-kit -o site/index.html
+irender app app.yaml --dir site
+```
+
+- Each rendered page links the manifest, its colours and icons, and registers the service worker. `base` is where those are from the page (default `./`).
+- `irender app` writes `manifest.webmanifest`, the icons (when they're made from letters) and `sw.js` into the folder of rendered pages. Run it last, each time they change: the service worker's version comes from what's in the folder.
+- The service worker keeps the pages and files with the endings in `offline.files`, up to `offline.maxKb` each, and the libraries the pages load from jsDelivr (and `offline.also`). Pages come from the network when it answers in time, else from what's kept. Paths in `offline.skip` always go to the network.
+- It's one app a folder, served over https (or localhost). An untrusted document can't be one.
 
 ## Form controls
 

@@ -141,7 +141,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-image-cropper` | `bind` (required), `src`, `ratio`, `round`, `width`, `maxWidth`, `type` (jpeg, png, webp), `quality`, `bindCrop`, `height`, `label` | A picture cropped, turned and zoomed in the browser, by dragging or the keys. |
 | `ui-qr-code` | `value` (required), `size`, `level` (L, M, Q, H), `logo`, `logoIcon`, `logoText`, `logoSize`, `logoShape` (rounded, circle, square), `logoBackground`, `logoColor`, `dots` (square, round), `color`, `background`, `download`, `label` | A QR code of any text, drawn in the page without a service, with a logo in it if there's one. |
 | `ui-barcode` | `value` (required), `type` (code128, code39, ean13, ean8, upca, itf), `height`, `barWidth`, `showText`, `download`, `label` | A barcode: Code 128, Code 39, EAN, UPC or ITF. |
-| `ui-code-scanner` | `bind` (required), `bindCode`, `bindList`, `formats`, `continuous`, `manual`, `sound`, `label` | Reads QR codes and barcodes with the camera, where the browser can, or from a field (a handheld scanner types into it). |
+| `ui-code-scanner` | `bind` (required), `bindCode`, `bindList`, `formats`, `continuous`, `manual`, `sound`, `picture`, `decoder` (auto, native, wasm), `library`, `wasm`, `label` | Reads QR codes and barcodes with the camera in any browser, from a picture, or from a field (a handheld scanner types into it). |
 | `ui-stat` | `label` (required), `value` (required), `format` (number, currency, percent, compact, none), `currency`, `decimals`, `unit`, `previous`, `change`, `changeAs` (percent, value), `changeLabel`, `goodWhen` (up, down, neutral), `trend`, `target`, `targetLabel`, `description`, `icon`, `href`, `variant` (card, plain), `loading`, `locale` | A figure: its label, value, change from before, a small trend line and progress to a target. Children go at the foot. |
 | `ui-description-list` + `ui-description-item` | description-list: `items`, `columns`, `layout` (stacked, inline), `divided`, `labelWidth`; description-item: `label` (required), `value`, `format` (number, currency, percent, date, datetime), `currency`, `href`, `copy`, `span`, `bind`, `edit` (text, multiline, number, date, select), `options`, `placeholder`, `locale` | Labels and their values, as at the top of a record's page. Children are `ui-description-item`s. |
 | `ui-item-group` + `ui-item` | item-group: `label`, `variant` (divided, cards, plain); item: `title`, `description`, `icon`, `image`, `initials`, `meta`, `tone` (neutral, info, success, warning, danger, primary), `href`, `selected`, `disabled`, `size` (default, sm), `variant` (plain, outline, muted) | A list of `ui-item`s (a `list` works as its child). |
@@ -149,7 +149,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-lightbox` | `images` (required), `layout` (grid, row, masonry, stack), `minWidth`, `ratio`, `max`, `captions`, `download`, `bind`, `label` | Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save. |
 | `ui-pivot` | `rows` (required), `fields`, `down`, `across`, `values`, `filter`, `bind`, `editable`, `totals` (both, rows, columns, none), `subtotals`, `heat`, `bindCell`, `export`, `height`, `title`, `emptyText`, `locale` | A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell. See [Pivot table](#pivot-table). |
 | `ui-scheduler` | `resources` (required), `events` (required), `bindEvents`, `bindEvent`, `bindDate`, `bindView`, `view` (day, week, month), `views`, `from`, `to`, `snap`, `overlap` (allow, mark, prevent), `creatable`, `newEvent`, `moveResources`, `bindClashes`, `rowLabel`, `rowHeight`, `height`, `now`, `label`, `locale` | Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked. See [Scheduler](#scheduler). |
-| `ui-plan` | `items` (required), `width`, `height`, `image`, `bindItems`, `bind`, `bindItem`, `tones`, `grid`, `filter`, `search`, `legend`, `viewHeight`, `label` | Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked, coloured by status, and rearranged by dragging. See [Plan](#plan). |
+| `ui-plan` | `items`, `layout`, `data`, `floors`, `bindFloor`, `multiple`, `max`, `available`, `bindPicked`, `bindTotal`, `width`, `height`, `image`, `bindItems`, `bind`, `bindItem`, `tones`, `grid`, `filter`, `search`, `legend`, `viewHeight`, `label` | Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked (one or several), coloured by status, and rearranged by dragging. Aircraft cabins, buses, trains, cinemas, theatres, auditoriums, stadiums, halls, car parks and offices come from a few words, on one floor or several. See [Plan](#plan). |
 | `ui-pdf` | `src` (required), `bindPage`, `bindPages`, `notes`, `bindNotes`, `tools`, `signature`, `user`, `bindNote`, `download`, `library`, `height`, `title` | A PDF on the page: zoomed, its text selected and found with the browser, and marked with highlights, boxes, notes and signatures. Drawn by pdf.js, loaded when there's one to show. See [PDF](#pdf). |
 | `ui-diff` | `before` (required), `after` (required), `mode` (text, fields), `view` (split, unified), `bindView`, `language`, `context`, `labels`, `fieldLabels`, `unchanged`, `wrap`, `title`, `height`, `label` | Two versions compared: text or code line by line, with the words that changed, or two records field by field. |
 | `ui-log` | `lines` (required), `levels`, `search`, `time` (time, datetime, relative, none), `follow`, `wrap`, `maxLines`, `bindLine`, `download`, `title`, `emptyText`, `height`, `label`, `locale` | Lines that follow as they arrive: levels to filter by, a search, wrapping, and saving. Terminal colours in the text are drawn. |
@@ -162,6 +162,41 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-tool-call` | `title` (required), `status`, `name`, `input`, `output`, `error`, `duration`, `open`, `bindApproval`, `label` | Something an assistant or a job did, or asks leave to do: what, how it went, and what went in and out. |
 | `ui-trace` | `spans` (required), `kinds`, `bindSpan`, `expanded`, `height`, `title`, `label` | The steps of a run, nested and against time: an assistant's, a job's, a request's. A step opens to what went in and out of it. |
 | `ui-questionnaire` | `questions` (required), `bind` (required), `mode` (steps, all), `bindDone`, `skippable`, `submitLabel`, `doneText`, `title`, `label` | Questions answered one at a time or together: choices, text, numbers, a scale. For an assistant's questions, surveys and intake forms. |
+| `ui-install-prompt` | `variant` (button, card, floating), `label`, `title`, `text`, `icon`, `bindState`, `remember`, `days`, `always` | Offers to install the app: the browser's own prompt where there is one, else the steps for this browser (on an iPhone, Add to Home Screen). Hidden in the installed app. Needs the document's `app`. See [Apps](#apps). |
+| `ui-update-prompt` | `title`, `text`, `label`, `laterLabel`, `every`, `inline`, `show`, `bind` | Says when a new version of the app has been fetched, and reloads into it when asked. `reload` comes first, for saving what's open. See [Apps](#apps). |
+| `ui-offline-indicator` | `bind`, `variant` (badge, banner, dot, none), `showOnline`, `checkUrl`, `every`, `offlineText`, `onlineText`, `reconnectingText`, `detail` | Whether there's a connection: a badge, a banner or a dot, and state for the rest of the page. See [Apps](#apps). |
+| `ui-offline-queue` | `paths`, `methods`, `labels`, `labelField`, `variant` (list, badge, none), `bind`, `bindCount`, `retryEvery`, `title`, `emptyText`, `hideEmpty` | Keeps what's sent without a connection (submits, forms and uploads) and sends it once there is one, in order, even after the app's been closed. Shows what's waiting and what was refused. Each is sent with an `x-queued-id` header, so a server can tell one it has had. See [Apps](#apps). |
+| `ui-local-store` | `keys` (required), `name`, `where` (device, session), `maxAge`, `version`, `sync`, `bindReady`, `bindSaved`, `clear` | Keeps state keys on the device between visits. Draws nothing. Not for secrets: anyone with the device can read them. See [Apps](#apps). |
+| `ui-app-shell` + `ui-app-screen`, `ui-app-actions` | app-shell: `bind` (required), `title`, `height`, `rail`, `bar`, `pullToRefresh`, `bindRefreshing`, `history`, `label`; app-screen: `value` (required), `label` (required), `title`, `icon`, `badge`, `parent`, `flush` | An app's frame: a bar with the screen's title and a Back button, the screen, and tabs at the foot (down the side with room for them), clear of a phone's notch. Children are `ui-app-screen`s and one `ui-app-actions`, at the end of the bar. See [Apps](#apps). |
+| `ui-camera` | `bind` (required), `multiple`, `max`, `facing` (back, front), `ratio`, `maxSize`, `quality`, `type` (jpeg, webp, png), `review`, `grid`, `timer`, `guide` (none, card, face, square), `stamp`, `files`, `autoStart`, `label`, `disabled` | Takes photos: front and back camera, light, zoom, composing lines, a timer, retakes and several shots, made smaller before they're kept. Where there's no camera to use, the device's own picker. See [Device and hardware](#device-and-hardware). |
+| `ui-permission-manager` | `permissions` (required), `bind`, `bindReady`, `title` | What the app may use (camera, location, notifications…): why, whether it's allowed, a button to ask, and how to allow what was blocked. See [Device and hardware](#device-and-hardware). |
+| `ui-photo-annotate` | `src` (required), `bind`, `bindMarks`, `tools`, `colors`, `width`, `unit`, `type` (jpeg, png, webp), `quality`, `maxSize`, `readonly`, `label` | Marks on a photo: arrows, boxes, circles, freehand, text, measurements and blurring (for faces and number plates), kept apart from the picture and drawn onto a copy of it. See [Device and hardware](#device-and-hardware). |
+| `ui-location` | `bind` (required), `watch`, `auto`, `precise`, `enough`, `manual`, `link`, `label` | Where the device is, once or as it moves, with how accurate that is; typed instead where it can't be found. See [Device and hardware](#device-and-hardware). |
+| `ui-field-map` | `center`, `zoom`, `markers`, `areas`, `lines`, `cluster`, `bindSelected`, `bindView`, `bindPoint`, `bindDrawn`, `draw`, `locate`, `position`, `fit`, `height`, `tiles`, `attribution`, `darkTiles`, `wheel`, `minZoom`, `maxZoom`, `label` | A light map to move and zoom, drawn without a library: markers (grouped when they're close), areas, lines, where the device is, and drawing on it. See [Device and hardware](#device-and-hardware). |
+| `ui-geo-checkin` | `bind` (required), `places` (required), `bindLog`, `outside` (block, reason, allow), `enough`, `ready`, `photo`, `inLabel`, `outLabel` | Checks in and out where someone has to be: how far they are from the place, the time, how long it's been, and a photo. Children (a `ui-camera`, say) go before the button. A device can be made to lie about where it is, so it's a record, not proof. See [Device and hardware](#device-and-hardware). |
+| `ui-route-tracker` | `bind` (required), `step`, `enough`, `units` (metric, imperial), `awake`, `download` | Records a path while the app is open and in front: distance, time and speed, with pause, and GPX to save. Draw it on a `ui-field-map`, and keep it with `ui-local-store`. See [Device and hardware](#device-and-hardware). |
+| `ui-compass` | `bind`, `heading`, `target`, `from`, `size` | Which way the device faces, and the way to a place from where one is. A phone's magnet is easily put off by metal. See [Device and hardware](#device-and-hardware). |
+| `ui-level` | `bind`, `value`, `tolerance`, `mode` (surface, edge, auto), `size` | A spirit level from the device's own sensors, set to zero against a surface known to be level. See [Device and hardware](#device-and-hardware). |
+| `ui-push-opt-in` | `publicKey`, `saveUrl`, `topics`, `bind`, `title`, `text`, `label`, `when`, `remember`, `days`, `test` | Offers notifications at a good moment, says why, then asks; subscribes to pushes and sends the subscription to a server, by topic. The app's service worker (`irender app`) shows them. See [Apps](#apps). |
+| `ui-app-badge` | `count` (required), `title` | A number on the installed app's icon, and in the tab's title. Draws nothing. See [Apps](#apps). |
+| `ui-share` | `url`, `title`, `text`, `files`, `label`, `variant` (primary, outline, ghost), `targets`, `sheet` (auto, own) | Shares a link, text or files with the device's own sheet; where there's none, a list: copy, email, download and others. See [Apps](#apps). |
+| `ui-share-target` | `bind` (required), `quiet`, `acceptLabel`, `emptyText` | Takes what other apps share with this one, once it's installed: put it on the page that the document's `app.share` names. See [Apps](#apps). |
+| `ui-contact-picker` | `bind` (required), `multiple`, `fields`, `manual`, `label` | Contacts picked from the phone's own list (Chrome on Android); anywhere else, from a contact card file (.vcf) or typed. See [Apps](#apps). |
+| `ui-passkey` | `mode` (signin, register), `optionsUrl`, `verifyUrl`, `body`, `bind`, `autofill`, `local`, `name`, `label`, `variant` (primary, outline) | Signs in, or makes the passkey to, with a fingerprint, a face or the device's PIN. The server makes the challenge and checks the answer. See [Apps](#apps). |
+| `ui-app-lock` | `methods`, `after`, `hidden`, `digits`, `tries`, `name`, `bindLocked`, `title`, `logo`, `signOutUrl`, `reset`, `settings` | Covers the app after a while, or once it's been out of sight, until it's opened with a passkey or a PIN. It keeps someone who picks up the device out; it doesn't encrypt anything, and a server still has to check who's asking. See [Apps](#apps). |
+| `ui-audio-recorder` | `bind` (required), `multiple`, `max`, `bitrate`, `label`, `disabled` | Voice notes: records with a moving waveform, pauses, plays back and goes to any point of it. See [Device and hardware](#device-and-hardware). |
+| `ui-video-recorder` | `bind` (required), `max`, `facing` (front, back), `audio`, `bitrate`, `height`, `label`, `disabled` | Records a short video with a time limit, pauses, and plays it back to keep or take again. See [Device and hardware](#device-and-hardware). |
+| `ui-screen-capture` | `bind` (required), `modes`, `max`, `audio` | A picture or a video of a screen, a window or a tab, which someone picks: for reporting a problem, say. Phones can't. See [Device and hardware](#device-and-hardware). |
+| `ui-voice-input` | `bind` (required), `append`, `continuous`, `lang`, `transcribeUrl`, `iconOnly`, `label` | Speech to text, shown as it's heard. Some browsers send what's said to their maker's servers to do it. See [Device and hardware](#device-and-hardware). |
+| `ui-read-aloud` | `text`, `target`, `lang`, `voice`, `rate`, `controls`, `bindState`, `label` | Reads text, or a part of the page, out loud with the device's own voices, with pause and speed. See [Device and hardware](#device-and-hardware). |
+| `ui-document-scanner` | `bind` (required), `bindPdf`, `max`, `filter` (colour, grey, bw, none), `paper` (auto, a4, letter), `maxSize`, `quality`, `name`, `label` | Scans papers with the camera or from a picture: finds the page's edges, straightens it, cleans it up, and makes a PDF of several. See [Device and hardware](#device-and-hardware). |
+| `ui-swipe-actions` | `start`, `end`, `full`, `menu`, `label`, `disabled` | A row that's swiped sideways to show what can be done with it: archive, delete, call. Its children are the row. See [Device and hardware](#device-and-hardware). |
+| `ui-wake-lock` | `active`, `bind`, `label`, `bindHeld` | Keeps the screen on: a recipe, a score, a boarding pass, a timer. See [Device and hardware](#device-and-hardware). |
+| `ui-nfc` | `bind` (required), `bindList`, `write`, `lock`, `label` | Reads NFC tags held to the phone, and writes to them (Chrome on Android). See [Device and hardware](#device-and-hardware). |
+| `ui-bluetooth` | `read` (required), `bind`, `bindState`, `commands`, `namePrefix`, `label` | Connects to a Bluetooth Low Energy device, reads and follows its values, and sends to it (Chrome and Edge; not iPhones). See [Device and hardware](#device-and-hardware). |
+| `ui-serial` | `baud`, `bind`, `bindLog`, `bindState`, `parse` (text, number, json, csv), `end` (lf, crlf, cr, none), `filters`, `send`, `commands`, `log`, `max`, `label` | Talks to a serial port, a line at a time: scales, meters, microcontrollers (Chrome and Edge on a computer). See [Device and hardware](#device-and-hardware). |
+| `ui-usb` | `filters` (required), `bind`, `bindState`, `bindDevice`, `interface`, `as` (text, hex, bytes), `commands`, `label` | Talks to a USB device that no driver has taken: label printers, scanners, instruments (Chrome and Edge). See [Device and hardware](#device-and-hardware). |
+| `ui-file-handler` | `bind` (required), `as` (text, json, data), `accept`, `save`, `name`, `bindDirty`, `label` | Opens files, from a button or, installed, when one's opened with the app (the document's `app.files`), and saves back to them. See [Device and hardware](#device-and-hardware). |
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
@@ -920,9 +955,69 @@ Unsaved changes are the `keys` (by default, those with rules) compared with how 
 
 `ui-plan` places `items` on a drawing, in the plan's own units: rectangles, circles, pins and polygons, with `image` behind them. It zooms with the wheel, a pinch, a double click or the buttons, goes between items with the arrow keys, and with `bindItems` moves them by dragging or Alt and the arrow keys, kept to `grid`. `tones` colours them by `status`, `filter` fades those that don't pass, `search` finds one, and `legend` counts them.
 
+`layout` makes the items from a few words, with walls, screens and row numbers that can't be picked:
+
+```yaml
+- type: ui-plan
+  props:
+    layout:
+      kind: aircraft          # bus, train, cinema, theatre, auditorium, stadium, hall, parking, office
+      status: Free
+      rows: 30
+      seats: "ABC DEF"        # spaces are aisles; `last` is the last row's
+      exits: [12]
+      skip: [13]
+      wings: [10, 16]
+      sections: [ { name: Business, from: 1, to: 4, seats: "AC DF", size: 1.25, price: 420 } ]
+      blocks: [ { after: 4, label: Galley } ]
+    data: { 12A: { status: Taken } }
+    bind: seats
+    multiple: true
+    max: 2
+    available: [Free]
+    bindTotal: total
+```
+
+- **Cabins** (`aircraft`, `bus`, `train`): `rows`, `first`, `seats`, `last`, `sections`, `exits`, `skip`, `missing`, `blocks`, `pitch`, `facing` (trains, with tables), `wings`, `direction` (`down` for the front at the top).
+- **`cinema`**: `rows` (a number or names), `seats` (a number, a list, or `{ A: 14, default: 20 }`), `aisles`, `cross` (after rows), `curve` 0 to 1, `sections` by `rows`, `pairs`, `wheelchair`, `missing`, `doors`, `screen`, `from: right`.
+- **`auditorium`, `theatre`**: rows in arcs: `rows` or `tiers: [{ name, rows, price, gap }]`, `blocks`, `angle`, `radius`, `sections`, `stage`.
+- **`stadium`**: `blocks`, `tiers`, `width`, `height`, `field` (`stage` for a concert), `label`.
+- **`hall`**: `style`: banquet or cabaret (`tables`, `seats`, `columns`, `stagger`), classroom (`rows`, `columns`, `seats`), theatre, ushape, boardroom or hollow (`seats` a side, `ends`), exhibition (`rows`, `columns`, `standWidth`, `standHeight`); `stage: false` leaves the stage out.
+- **`parking`**: `rows`, `bays`, `charging`, `accessible`. **`office`**: `pods`, `desks`, `columns`.
+
+A seat's id is its row and letter or number (`12A`, `C7`, `T3-2` for a table's chair); `prefix` goes before it. `data` gives what's known of each, by id. A status's tone comes before its section's.
+
+`floors` are several of them, the top first: `[{ id, label, title, layout, items, image, width, height }]`. Buttons, Page Up and Page Down go between them, an item with `to` (stairs, a lift) goes to that floor, `search` looks on all of them, and what's picked can be on any.
+
 ## PDF
 
 `ui-pdf` draws a PDF's pages with [pdf.js](https://mozilla.github.io/pdf.js/), which a page loads only when it has one to show: from jsDelivr, pinned, or from `library` (its `pdf.worker.min.mjs` beside it). `notes` (or `bindNotes`, to add and change them) mark it with highlights, boxes, notes and signatures, placed as parts of the page from 0 to 1 so they hold at any zoom. The file itself isn't changed. The browser fetches it, so it must be on the same site or allow others.
+
+## Apps
+
+A document's `app` makes its pages an installable app (see [the main README](https://github.com/kaushik-xs/iRender/blob/main/README.md#apps)). The UI kit has what goes round them:
+
+- `ui-install-prompt` offers to install it: the browser's prompt, or the steps for this browser (an iPhone has none). `ui-update-prompt` says when a new version has been fetched, and reloads into it.
+- `ui-offline-indicator` says whether there's a connection. `checkUrl` asks a server, as a device can be on a network that goes nowhere.
+- `ui-offline-queue` keeps requests under `paths` that can't reach the server (the `submit` action, forms, uploads, anything that uses `fetch`) and answers them with `202 { queued: true, id }`. They're sent in order once there's a connection, after the app's been closed too where the browser has background sync (not on iPhones, which send them when it's next opened). One the server refuses (4xx) stays, to be sent again or deleted; one it can't take now (5xx, 429) is tried later. Each has an `x-queued-id` header, so a server can tell one it has had. Events: `queued`, `sent`, `refused`, `drained`.
+- `ui-local-store` keeps state keys on the device. Not for secrets.
+- `ui-app-shell` is the frame. `history` follows the phone's back button; `pullToRefresh` runs `refresh`.
+- `ui-push-opt-in` subscribes with a VAPID `publicKey` and POSTs the subscription to `saveUrl`. Send pushes as JSON, `{ title, body, url, icon, image, tag, actions, count }`; the service worker shows them, sets the badge to `count`, and goes to `url` when one's tapped. On an iPhone, only once it's on the home screen.
+- `ui-share-target` takes what's shared with the app: name its page in `app.share`. `ui-share` shares on.
+- `ui-passkey` needs a server that makes WebAuthn options and checks the answer. With `local` there's none, and it proves nothing to one. `ui-app-lock` covers the app; it doesn't encrypt what's on the device.
+
+## Device and hardware
+
+These ask when they're used, not as the page loads, need https (or localhost), and say what's wrong and how to allow it. Pictures and recordings are kept as `data:` addresses, so a form, `ui-local-store` or `ui-offline-queue` can take them; keep videos short.
+
+- Any recent browser: `ui-camera`, `ui-photo-annotate`, `ui-document-scanner`, `ui-code-scanner` (a decoder in WebAssembly where the browser has none), `ui-location`, `ui-field-map`, `ui-geo-checkin`, `ui-route-tracker`, `ui-audio-recorder`, `ui-video-recorder`, `ui-read-aloud`, `ui-swipe-actions`, `ui-wake-lock`, `ui-file-handler` (saves as a download where files can't be written).
+- Phones and tablets with the sensors: `ui-compass`, `ui-level`. An iPhone asks first.
+- Computers: `ui-screen-capture`.
+- Chrome, Edge and Safari: `ui-voice-input`; `transcribeUrl` takes a recording in Firefox.
+- Chrome on Android: `ui-nfc`, and the phone's own list in `ui-contact-picker` (a contact card file or typing elsewhere).
+- Chrome and Edge: `ui-bluetooth`, `ui-serial`, `ui-usb`.
+
+A web app can't follow a location, or tell that it's entered a place, while it's closed. `ui-field-map` is a light map without a library, to draw on; for Google Maps, popups of any components or a lot of data, use the [map kit](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-map-kit/README.md)'s `ui-map`. Its default tiles are OpenStreetMap's, for light use: an app names its own with `tiles`.
 
 ## Overlays and ids
 

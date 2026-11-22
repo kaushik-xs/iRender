@@ -1,0 +1,76 @@
+# Block: setting out a hall for an event. The style (banquet, cabaret, classroom, theatre, U,
+# boardroom, hollow square, exhibition), the tables and the chairs are controls on one plan;
+# a guest picked in the list is shown where they sit.
+#
+#   cargo run -p irender-cli -- render examples/blocks/seats-hall-01.yaml --ui-kit --icon-kit -o hall.html
+version: 1
+state:
+  style: banquet
+  tables: 12
+  chairs: 8
+  picked: null
+  item: null
+  guests: [ { id: T1-1, name: Ada Lovelace, status: Seated }, { id: T1-2, name: Grace Hopper, status: Seated }, { id: T2-1, name: Alan Turing, status: Seated }, { id: T3-4, name: Katherine Johnson, status: Seated } ]
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1320px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 16px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Grand hall" } }
+                - { type: ui-text, props: { variant: muted, text: "{{ guests.length }} guests placed" } }
+            - type: element
+              style: { display: flex, flex-wrap: wrap, align-items: end, gap: 12px }
+              children:
+                - { type: ui-field, props: { label: Set out as }, children: [ { type: ui-select, props: { bind: style, options: [ { value: banquet, label: Banquet }, { value: cabaret, label: Cabaret }, { value: classroom, label: Classroom }, { value: theatre, label: Theatre }, { value: ushape, label: U shape }, { value: boardroom, label: Boardroom }, { value: hollow, label: Hollow square }, { value: exhibition, label: Exhibition } ] } } ] }
+                - { type: ui-field, props: { label: Tables }, children: [ { type: ui-number-input, props: { bind: tables, min: 1, max: 60, stepper: true }, style: { width: 130px } } ] }
+                - { type: ui-field, props: { label: Chairs each }, children: [ { type: ui-number-input, props: { bind: chairs, min: 2, max: 12, stepper: true }, style: { width: 130px } } ] }
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 280px" } }
+          children:
+            - type: ui-plan
+              props:
+                layout: { kind: hall, style: "{{ style }}", tables: "{{ tables }}", seats: "{{ chairs }}" }
+                data: "{{ guests }}"
+                bind: picked
+                bindItem: item
+                tones: { Seated: success }
+                viewHeight: 580
+                search: true
+                label: Hall
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: "{{ item == null ? 'Pick a place' : item.id }}" }
+                  children:
+                    - type: ui-description-list
+                      children:
+                        - { type: ui-description-item, props: { label: Guest, value: "{{ item.name || 'Nobody yet' }}" } }
+                        - { type: ui-description-item, props: { label: Table, value: "{{ item.table }}" } }
+                        - { type: ui-description-item, props: { label: Seat, value: "{{ item.seat }}" } }
+                - type: ui-card
+                  props: { title: Guests }
+                  children:
+                    - type: ui-item-group
+                      props: { label: Guests }
+                      children:
+                        - type: list
+                          props: { items: "{{ guests }}", as: g }
+                          style: { display: contents }
+                          children:
+                            - { type: ui-item, props: { size: sm, title: "{{ g.name }}", meta: "{{ g.id }}" }, on: { click: { action: set_state, key: picked, value: "{{ g.id }}" } } }

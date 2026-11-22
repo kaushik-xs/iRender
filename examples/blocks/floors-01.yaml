@@ -1,0 +1,100 @@
+# Block: a building on five floors: a car park, a lobby, a conference floor, offices and a roof
+# terrace. The buttons (or Page Up and Page Down) change floor, stairs and lifts go to the
+# next, the search finds a room on any of them, and the panel shows what's picked.
+#
+#   cargo run -p irender-cli -- render examples/blocks/floors-01.yaml --ui-kit --icon-kit -o floors.html
+version: 1
+state:
+  floor: g
+  pick: null
+  item: null
+  known:
+    P-A1: { status: Taken }
+    P-A2: { status: Taken }
+    P-B4: { status: Taken }
+    P-B5: { status: Reserved }
+    P-C7: { status: Taken }
+    O-A1: { status: Taken, who: Ada }
+    O-A2: { status: Taken, who: Grace }
+    O-B1: { status: Taken, who: Alan }
+    O-C4: { status: Reserved, who: Katherine }
+    O-D2: { status: Taken, who: Edsger }
+  floors:
+    - id: roof
+      label: "3"
+      title: Roof terrace
+      width: 900
+      height: 480
+      items:
+        - { id: terrace, label: Terrace, shape: polygon, x: 40, y: 40, points: [ [0, 0], [820, 0], [820, 260], [520, 260], [520, 400], [0, 400] ], tone: success }
+        - { id: plant, label: Plant room, x: 600, y: 330, width: 260, height: 110 }
+        - { id: lift3, label: "↓", sublabel: Lift, x: 600, y: 60, width: 60, height: 60, to: office, tone: primary }
+    - id: office
+      label: "2"
+      title: Offices
+      layout: { kind: office, pods: 9, desks: 4, columns: 3, prefix: "O-", status: Free }
+      items:
+        - { id: room1, label: Maple, sublabel: 6 people, x: 620, y: 30, width: 190, height: 110, status: Free }
+        - { id: room2, label: Cedar, sublabel: 10 people, x: 620, y: 160, width: 190, height: 140, status: Taken }
+        - { id: lift2, label: "↑", sublabel: Lift, x: 620, y: 330, width: 60, height: 60, to: roof, tone: primary }
+        - { id: stair2, label: "↓", sublabel: Stairs, x: 700, y: 330, width: 60, height: 60, to: conf, tone: primary }
+      width: 840
+    - id: conf
+      label: "1"
+      title: Conference
+      layout: { kind: hall, style: cabaret, tables: 8, seats: 6, columns: 4, prefix: "C-" }
+      items:
+        - { id: green, label: Green room, x: 40, y: 20, width: 130, height: 60, status: Free }
+        - { id: lift1, label: "↓", sublabel: Lift, x: 600, y: 20, width: 60, height: 60, to: g, tone: primary }
+    - id: g
+      label: G
+      title: Lobby
+      width: 900
+      height: 480
+      items:
+        - { id: desk, label: Reception, x: 340, y: 60, width: 220, height: 70, status: Open }
+        - { id: cafe, label: Café, x: 40, y: 40, width: 240, height: 180, status: Open }
+        - { id: shop, label: Shop, x: 620, y: 40, width: 240, height: 180, status: Closed }
+        - { id: gallery, label: Gallery, x: 40, y: 280, width: 420, height: 160, status: Open }
+        - { id: liftg, label: "↑", sublabel: Lift, x: 620, y: 300, width: 70, height: 70, to: conf, tone: primary }
+        - { id: stairg, label: "↓", sublabel: Stairs, x: 720, y: 300, width: 70, height: 70, to: p, tone: primary }
+        - { id: in, label: In, shape: pin, x: 450, y: 470, tone: primary }
+    - id: p
+      label: P
+      title: Car park
+      layout: { kind: parking, rows: 4, bays: 12, prefix: "P-", status: Free, charging: [A1, A2, A3], accessible: [A11, A12] }
+      items:
+        - { id: stairp, label: "↑", sublabel: Stairs, x: 620, y: 24, width: 60, height: 86, to: g, tone: primary }
+      width: 700
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1240px, margin: 0 auto, gap: 24px }
+      children:
+        - type: stack
+          style: { gap: 4px }
+          children:
+            - { type: ui-heading, props: { level: 2, text: "Building guide" } }
+            - { type: ui-text, props: { variant: muted, text: "Five floors: pick a room, a desk or a bay, or take the lift" } }
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 280px" } }
+          children:
+            - type: ui-plan
+              props: { floors: "{{ floors }}", bindFloor: floor, data: "{{ known }}", bind: pick, bindItem: item, tones: { Free: success, Open: success, Taken: danger, Closed: neutral, Reserved: warning }, legend: true, search: true, viewHeight: 520, label: Building }
+            - type: ui-card
+              props: { title: "{{ item == null ? 'Nothing picked' : item.label }}" }
+              children:
+                - type: ui-description-list
+                  children:
+                    - { type: ui-description-item, props: { label: Id, value: "{{ item.id }}" } }
+                    - { type: ui-description-item, props: { label: Status, value: "{{ item.status }}" } }
+                    - { type: ui-description-item, props: { label: Who, value: "{{ item.who }}" } }

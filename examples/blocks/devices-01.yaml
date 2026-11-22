@@ -1,0 +1,75 @@
+# Block: a bench of devices: a scale on a serial port, a sensor over Bluetooth, a label printer
+# on USB, NFC tags, and a file to keep it all in. Chrome and Edge can use them; anywhere else
+# each says so, and the numbers can be typed.
+#
+#   cargo run -p irender-cli -- render examples/blocks/devices-01.yaml --ui-kit --icon-kit -o devices-01.html
+version: 1
+state:
+  weight: 0
+  link: disconnected
+  sensor: null
+  tag: null
+  tags: []
+  item: Sample A
+  note: "Sample,Weight\n"
+  file: null
+  dirty: false
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1040px, margin: 0 auto, gap: 24px }
+      children:
+        - type: stack
+          style: { gap: 4px }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Bench } }
+            - { type: ui-text, props: { variant: muted, text: "Weigh it, tag it, label it" } }
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+          children:
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: Scale }
+                  children:
+                    - type: stack
+                      style: { gap: 16px }
+                      children:
+                        - { type: ui-stat, props: { label: Weight, value: "{{ weight }}", unit: g } }
+                        - { type: ui-field, props: { label: Or type it }, children: [ { type: ui-number-input, props: { bind: weight, min: 0, step: 0.1, stepper: true }, style: { width: 180px } } ] }
+                        - { type: ui-serial, props: { bind: weight, bindState: link, parse: number, baud: 9600, send: true, commands: [ { label: Zero, text: Z }, { label: Read, text: W } ] } }
+                - type: ui-card
+                  props: { title: Sensor }
+                  children: [ { type: ui-bluetooth, props: { bind: sensor, read: [ { key: temperature, label: Temperature, unit: "°C", service: environmental_sensing, characteristic: temperature, as: int16, scale: 0.01 }, { key: humidity, label: Humidity, unit: "%", service: environmental_sensing, characteristic: humidity, as: uint16, scale: 0.01, notify: true } ] } } ]
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: Tag and label }
+                  children:
+                    - type: stack
+                      style: { gap: 16px }
+                      children:
+                        - { type: ui-field, props: { label: Item }, children: [ { type: ui-input, props: { bind: item } } ] }
+                        - { type: ui-nfc, props: { bind: tag, bindList: tags, write: "{{ item }}: {{ weight }} g" } }
+                        - { type: ui-usb, props: { filters: [], label: Choose a label printer, commands: [ { label: Print a label, value: "^XA^FO40,40^A0N,50^FD{{ item }} {{ weight }} g^FS^XZ" } ] } }
+                        - { type: ui-code-scanner, props: { bind: item, label: Scan the item } }
+                - type: ui-card
+                  props: { title: Record, description: "Opens and saves a file" }
+                  children:
+                    - type: stack
+                      style: { gap: 12px }
+                      children:
+                        - { type: ui-file-handler, props: { bind: file, save: "{{ note }}", bindDirty: dirty, name: weights.csv, accept: { text/csv: [.csv] } }, on: { open: { action: set_state, key: note, value: "{{ file.text }}" } } }
+                        - { type: ui-textarea, props: { bind: note, rows: 5 }, attrs: { aria-label: Record } }
+                        - { type: ui-button, props: { label: Add this weight, variant: outline }, on: { click: { action: set_state, key: note, value: "{{ note }}{{ item }},{{ weight }}\n" } } }

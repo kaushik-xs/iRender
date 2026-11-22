@@ -10,6 +10,8 @@ pub struct Ir {
     pub theme: Theme,
     /// The document's `lang` and `labels`.
     pub labels: Labels,
+    /// The document's `app`.
+    pub app: Option<crate::AppSpec>,
     pub state: IndexMap<String, Json>,
     pub root: Node,
     /// Non-fatal problems found while loading.

@@ -1,0 +1,88 @@
+# Block: booking cinema and theatre seats. One plan, three layouts: a cinema with curved rows,
+# aisles, a premium section, wheelchair spaces and seats for two; a theatre with stalls
+# and a circle; and an auditorium round its stage.
+#
+#   cargo run -p irender-cli -- render examples/blocks/seats-cinema-01.yaml --ui-kit --icon-kit -o cinema.html
+version: 1
+state:
+  toast: null
+  room: screen
+  seats: []
+  picked: []
+  total: 0
+  rooms:
+    screen: { kind: cinema, status: Free, rows: 11, seats: { default: 20, A: 14, B: 16 }, aisles: [5, 15], cross: [E], wheelchair: [A1, A14], pairs: [M, L], doors: [left, right], curve: 0.5, sections: [ { name: Standard, rows: [A, B, C, D, E, F, G], price: 9 }, { name: Premium, rows: [H, J, K], price: 13, tone: warning }, { name: For two, rows: [L], price: 16, tone: info } ] }
+    theatre: { kind: theatre, status: Free, blocks: 3, angle: 110, tiers: [ { name: Stalls, rows: 11, price: 45 }, { name: Circle, rows: 5, price: 30, gap: 60 } ] }
+    auditorium: { kind: auditorium, status: Free, rows: 13, blocks: 5, angle: 180, radius: 220, wheelchair: [A1, A2], sections: [ { name: Front, rows: [A, B, C], price: 60, tone: warning }, { name: Middle, rows: [D, E, F, G, H], price: 40 }, { name: Back, rows: [J, K, L, M, N], price: 25 } ] }
+  taken: { E9: { status: Taken }, E10: { status: Taken }, F8: { status: Taken }, F9: { status: Taken }, F10: { status: Taken }, F11: { status: Taken }, H10: { status: Taken }, H11: { status: Taken }, C4: { status: Taken }, D15: { status: Taken }, D16: { status: Taken }, K3: { status: Taken }, K4: { status: Taken }, G12: { status: Held }, G13: { status: Held } }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1320px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Tonight at 19:30" } }
+                - { type: ui-text, props: { variant: muted, text: "Up to six seats together" } }
+            - type: element
+              # Another room's seats aren't this one's.
+              on:
+                change: [ { action: set_state, key: seats, value: [] }, { action: set_state, key: picked, value: [] }, { action: set_state, key: total, value: 0 } ]
+                click: [ { action: set_state, key: seats, value: [] }, { action: set_state, key: picked, value: [] }, { action: set_state, key: total, value: 0 } ]
+              children:
+                - { type: ui-toggle-group, props: { bind: room, variant: outline, options: [ { value: screen, label: Cinema }, { value: theatre, label: Theatre }, { value: auditorium, label: Auditorium } ] } }
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 280px" } }
+          children:
+            - type: ui-plan
+              props:
+                layout: "{{ room == 'theatre' ? rooms.theatre : room == 'auditorium' ? rooms.auditorium : rooms.screen }}"
+                data: "{{ taken }}"
+                bind: seats
+                bindPicked: picked
+                bindTotal: total
+                multiple: true
+                max: 6
+                available: [Free]
+                tones: { Taken: neutral, Held: danger }
+                search: true
+                legend: true
+                viewHeight: 560
+                label: Seats
+            - type: ui-card
+              props: { title: Order }
+              children:
+                - type: stack
+                  style: { gap: 16px }
+                  children:
+                    - type: if
+                      props: { when: "{{ picked.length == 0 }}" }
+                      children: [ { type: ui-text, props: { variant: muted, text: "No seats yet." } } ]
+                    - type: list
+                      props: { items: "{{ picked }}", as: s }
+                      style: { display: flex, flex-direction: column, gap: 8px }
+                      children:
+                        - type: element
+                          style: { display: flex, justify-content: space-between, gap: 8px }
+                          children:
+                            - { type: text, props: { value: "Row {{ s.row }}, seat {{ s.seat }} · {{ s.section }}" } }
+                            - { type: text, props: { value: "€{{ s.price }}" } }
+                    - { type: ui-separator }
+                    - { type: ui-stat, props: { label: Total, value: "{{ total }}", format: currency, currency: EUR } }
+                    - type: ui-button
+                      props: { label: "{{ picked.length == 1 ? 'Book 1 seat' : 'Book ' + picked.length + ' seats' }}", disabled: "{{ picked.length == 0 }}" }
+                      on: { click: { action: set_state, key: toast, value: { title: "Booked {{ picked.length }}" } } }
+        - { type: ui-toaster, props: { bind: toast } }

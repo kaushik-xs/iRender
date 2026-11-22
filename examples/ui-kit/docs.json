@@ -41,7 +41,44 @@
   "ui-sources": "2026-11-22",
   "ui-tool-call": "2026-11-22",
   "ui-trace": "2026-11-22",
-  "ui-questionnaire": "2026-11-22"
+  "ui-questionnaire": "2026-11-22",
+  "ui-install-prompt": "2026-11-22",
+  "ui-update-prompt": "2026-11-22",
+  "ui-offline-indicator": "2026-11-22",
+  "ui-offline-queue": "2026-11-22",
+  "ui-local-store": "2026-11-22",
+  "ui-app-shell": "2026-11-22",
+  "ui-app-screen": "2026-11-22",
+  "ui-app-actions": "2026-11-22",
+  "ui-camera": "2026-11-22",
+  "ui-photo-annotate": "2026-11-22",
+  "ui-permission-manager": "2026-11-22",
+  "ui-location": "2026-11-22",
+  "ui-geo-checkin": "2026-11-22",
+  "ui-route-tracker": "2026-11-22",
+  "ui-compass": "2026-11-22",
+  "ui-level": "2026-11-22",
+  "ui-push-opt-in": "2026-11-22",
+  "ui-app-badge": "2026-11-22",
+  "ui-share": "2026-11-22",
+  "ui-share-target": "2026-11-22",
+  "ui-contact-picker": "2026-11-22",
+  "ui-passkey": "2026-11-22",
+  "ui-app-lock": "2026-11-22",
+  "ui-audio-recorder": "2026-11-22",
+  "ui-video-recorder": "2026-11-22",
+  "ui-screen-capture": "2026-11-22",
+  "ui-voice-input": "2026-11-22",
+  "ui-read-aloud": "2026-11-22",
+  "ui-document-scanner": "2026-11-22",
+  "ui-swipe-actions": "2026-11-22",
+  "ui-wake-lock": "2026-11-22",
+  "ui-field-map": "2026-11-22",
+  "ui-nfc": "2026-11-22",
+  "ui-bluetooth": "2026-11-22",
+  "ui-serial": "2026-11-22",
+  "ui-usb": "2026-11-22",
+  "ui-file-handler": "2026-11-22"
  },
  "sections": [
   {
@@ -532,11 +569,12 @@
    "id": "plan",
    "group": "Data display",
    "title": "Plan",
-   "summary": "Things placed on a drawing (rooms, seats, beds, bays, plots, machines): zoomed and moved, coloured by status, picked, found, faded by a filter, and rearranged by dragging.",
-   "usage": "- type: ui-plan\n  props: { items: \"{{ seats }}\", bindItems: seats, bind: seat, image: floor.svg, width: 1000, height: 600, tones: { Free: success, Taken: danger }, legend: true, search: true }",
+   "summary": "Things placed on a drawing: rooms, seats, bays, beds, plots, machines. It zooms and moves, picks one or several, colours by status and filters, and moves what's dragged. Aircraft cabins, buses, trains, cinemas, theatres, auditoriums, stadiums, halls, car parks and offices come from a few words, and a building can have several floors with stairs and lifts between them.",
+   "usage": "- type: ui-plan\n  props: { items: \"{{ seats }}\", bindItems: seats, bind: seat, image: floor.svg, width: 1000, height: 600, tones: { Free: success, Taken: danger }, legend: true, search: true }\n- type: ui-plan\n  props: { layout: { kind: aircraft, rows: 30, seats: \"ABC DEF\", exits: [12], status: Free }, data: \"{{ taken }}\", bind: seats, multiple: true, max: 2, available: [Free], bindTotal: total }\n- type: ui-plan\n  props: { bindFloor: floor, floors: [ { id: f1, label: \"1\", layout: { kind: office, pods: 6 } }, { id: g, label: G, items: \"{{ rooms }}\" } ] }",
    "components": [
     "ui-plan"
-   ]
+   ],
+   "new": "2026-11-22"
   },
   {
    "id": "pdf",
@@ -877,6 +915,232 @@
    "usage": "- type: ui-carousel\n  props: { label: Featured, size: 280 }\n  children: [ { type: ui-card, props: { title: One } }, { type: ui-card, props: { title: Two } } ]",
    "components": [
     "ui-carousel"
+   ]
+  },
+  {
+   "id": "install",
+   "group": "Apps",
+   "title": "Install and update",
+   "summary": "The document's app settings (name, icons, colours, shortcuts, what's kept offline) make its pages an installable app: irender app writes the manifest, the icons and the service worker. These two offer to install it, with the browser's own prompt or the steps for an iPhone, and to reload once a new version has been fetched.",
+   "usage": "app: { name: Field notes, themeColor: \"#2563eb\", icon: { text: FN, background: \"#2563eb\" }, offline: { skip: [/api/] } }\nroot:\n  type: stack\n  children:\n    - { type: ui-install-prompt, props: { variant: card, remember: install } }\n    - { type: ui-update-prompt, props: { text: \"Faster search, and a new report.\" } }",
+   "components": [
+    "ui-install-prompt",
+    "ui-update-prompt"
+   ]
+  },
+  {
+   "id": "offline",
+   "group": "Apps",
+   "title": "Offline",
+   "summary": "Whether there's a connection, as a badge, a banner or a dot and in state; what was sent without one (submits, forms and uploads), kept and sent later, even after the app has been closed; and state kept on the device between visits.",
+   "usage": "- { type: ui-offline-indicator, props: { bind: net, variant: banner, detail: \"What you do is kept and sent later.\" } }\n- { type: ui-local-store, props: { keys: [draft], name: notes } }\n- { type: ui-offline-queue, props: { paths: [/api/], labels: { /api/records: Report }, labelField: title, bindCount: waiting } }",
+   "components": [
+    "ui-offline-indicator",
+    "ui-offline-queue",
+    "ui-local-store"
+   ]
+  },
+  {
+   "id": "app-shell",
+   "group": "Apps",
+   "title": "App shell",
+   "summary": "An app's frame: a bar with the screen's title and a Back button, the screen, and tabs at the foot, or down the side with room for them. It keeps clear of a phone's notch, remembers where each screen was scrolled to, can be pulled down to refresh, and can follow the phone's back button.",
+   "usage": "- type: ui-app-shell\n  props: { bind: screen, pullToRefresh: true, history: true }\n  children:\n    - { type: ui-app-actions, children: [ { type: ui-offline-indicator } ] }\n    - { type: ui-app-screen, props: { value: jobs, label: Jobs, icon: list, badge: \"{{ waiting }}\" } }\n    - { type: ui-app-screen, props: { value: job, label: Job, parent: jobs } }\n    - { type: ui-app-screen, props: { value: more, label: More, icon: menu } }",
+   "components": [
+    "ui-app-shell",
+    "ui-app-screen",
+    "ui-app-actions"
+   ]
+  },
+  {
+   "id": "push",
+   "group": "Apps",
+   "title": "Notifications and badge",
+   "summary": "Offers notifications at a good moment, says why before the browser asks, subscribes to pushes by topic and sends the subscription to your server; the app's service worker shows them. The badge is a number on the installed app's icon, and in the tab's title. On an iPhone both need the app on the home screen.",
+   "usage": "- type: ui-push-opt-in\n  props:\n    publicKey: \"{{ vapidKey }}\"\n    saveUrl: /api/push\n    when: \"{{ ordered }}\"\n    text: Know when it's on its way.\n    topics: [ { value: orders, label: Orders }, { value: news, label: News, on: false } ]\n    remember: orders\n- { type: ui-app-badge, props: { count: \"{{ unread }}\" } }",
+   "components": [
+    "ui-push-opt-in",
+    "ui-app-badge"
+   ]
+  },
+  {
+   "id": "share",
+   "group": "Apps",
+   "title": "Sharing",
+   "summary": "Sharing a link, text or files with the device's own sheet, or a list where there's none; taking what other apps share with this one once it's installed; and contacts from the phone's list, a contact card file, or typed.",
+   "usage": "app: { name: Keep, share: { url: \"./new.html\", accept: [\"image/*\"] } }\n# on new.html:\n- { type: ui-share-target, props: { bind: shared }, on: { accept: { action: submit, endpoint: /api/items, body: { item: \"{{ shared }}\" } } } }\n- { type: ui-share, props: { title: Trip, url: \"/trips/42\", files: \"{{ photos }}\" } }\n- { type: ui-contact-picker, props: { bind: people, multiple: true } }",
+   "components": [
+    "ui-share",
+    "ui-share-target",
+    "ui-contact-picker"
+   ]
+  },
+  {
+   "id": "passkey",
+   "group": "Apps",
+   "title": "Passkeys and app lock",
+   "summary": "Signing in with a fingerprint, a face or the device's PIN, where the server makes the challenge and checks the answer; and a lock over the app after a while, or once it's been out of sight, opened with a passkey or a PIN. The lock keeps out someone who picks up the device; it doesn't encrypt anything.",
+   "usage": "- { type: ui-passkey, props: { optionsUrl: /auth/options, verifyUrl: /auth/verify, bind: session, autofill: true } }\n- { type: ui-app-lock, props: { after: 5, hidden: 30, digits: 6, bindLocked: locked, signOutUrl: /signout } }",
+   "components": [
+    "ui-passkey",
+    "ui-app-lock"
+   ]
+  },
+  {
+   "id": "camera",
+   "group": "Device",
+   "title": "Camera",
+   "summary": "Photos from the camera: front and back, light, zoom, composing lines, an outline to fill, a timer, retakes and several shots, made smaller and stamped with the time before they're kept. Where there's no camera to use, the device's own picker.",
+   "usage": "- { type: ui-camera, props: { bind: photos, multiple: true, max: 6, stamp: \"{{ site }} · time\", grid: true } }\n- { type: ui-camera, props: { bind: card, guide: card, ratio: \"1.586\" } }",
+   "components": [
+    "ui-camera"
+   ]
+  },
+  {
+   "id": "photo-annotate",
+   "group": "Device",
+   "title": "Photo mark-up",
+   "summary": "Arrows, boxes, circles, freehand, text and measurements on a photo, and blurring for faces and number plates. Give one measurement its length and the others are worked out. The marks are kept apart from the picture, and drawn onto a copy of it.",
+   "usage": "- { type: ui-photo-annotate, props: { src: \"{{ photo }}\", bind: marked, bindMarks: marks, unit: cm } }",
+   "components": [
+    "ui-photo-annotate"
+   ]
+  },
+  {
+   "id": "permissions",
+   "group": "Device",
+   "title": "Permissions",
+   "summary": "One screen for what an app may use: why, whether it's allowed, a button to ask, and how to allow what was blocked, in this browser's own steps.",
+   "usage": "- type: ui-permission-manager\n  props:\n    bind: allowed\n    bindReady: ready\n    permissions: [ { name: camera, reason: For photos of the work, required: true }, { name: geolocation, reason: To show where it was }, notifications ]",
+   "components": [
+    "ui-permission-manager"
+   ]
+  },
+  {
+   "id": "location",
+   "group": "Device",
+   "title": "Location and check-in",
+   "summary": "Where the device is, once or as it moves, with how accurate that is; and checking in and out of places, with the distance, the time, how long it's been and a photo. A device can be made to lie about where it is, so a check-in is a record, not proof.",
+   "usage": "- { type: ui-location, props: { bind: here, watch: true, enough: 25 } }\n- type: ui-geo-checkin\n  props: { bind: visit, bindLog: visits, places: [ { id: a, name: Depot, lat: 38.708, lng: -9.137, radius: 120 } ], outside: reason, photo: \"{{ photo }}\" }\n  children: [ { type: ui-camera, props: { bind: photo } } ]",
+   "components": [
+    "ui-location",
+    "ui-geo-checkin"
+   ]
+  },
+  {
+   "id": "field-map",
+   "group": "Device",
+   "title": "Field map",
+   "summary": "A light map for apps, drawn by the kit without a library, to draw on: markers that group when they're close, areas, circles and lines, where the device is, and drawing on it. The tiles are OpenStreetMap's unless you name your own, as an app should. For Google Maps, popups of any components or a lot of data, use the map kit's ui-map.",
+   "usage": "- type: ui-field-map\n  props:\n    markers: \"{{ places }}\"\n    cluster: true\n    areas: [ { id: zone, lat: 38.714, lng: -9.133, radius: 300 } ]\n    position: \"{{ here }}\"\n    bindSelected: place\n    draw: [marker, line, polygon, circle]\n    bindDrawn: shapes",
+   "components": [
+    "ui-field-map"
+   ]
+  },
+  {
+   "id": "route",
+   "group": "Device",
+   "title": "Route tracker",
+   "summary": "Records a path while the app is open and in front: distance, time and speed, with pause, and GPX to save. Draw it on a map, and keep it with ui-local-store.",
+   "usage": "- { type: ui-route-tracker, props: { bind: route, download: route.gpx } }\n- { type: ui-field-map, props: { lines: [ { points: \"{{ route.points }}\" } ] } }",
+   "components": [
+    "ui-route-tracker"
+   ]
+  },
+  {
+   "id": "compass",
+   "group": "Device",
+   "title": "Compass and level",
+   "summary": "Which way the device faces and the way to a place, and a spirit level, from the device's own sensors. Either can show a value from elsewhere instead, such as the wind's.",
+   "usage": "- { type: ui-compass, props: { from: \"{{ here }}\", target: { lat: 38.72, lng: -9.15 } } }\n- { type: ui-level, props: { bind: tilt, tolerance: 0.3 } }",
+   "components": [
+    "ui-compass",
+    "ui-level"
+   ]
+  },
+  {
+   "id": "recorders",
+   "group": "Device",
+   "title": "Recorders",
+   "summary": "Voice notes with a moving waveform, short videos with a time limit, and pictures or videos of a screen. Each pauses, plays back, and is kept as an object with a data: address that a form or a queue can send.",
+   "usage": "- { type: ui-audio-recorder, props: { bind: notes, multiple: true, max: 120 } }\n- { type: ui-video-recorder, props: { bind: clip, max: 30, facing: back } }\n- { type: ui-screen-capture, props: { bind: screenshot, modes: [picture] } }",
+   "components": [
+    "ui-audio-recorder",
+    "ui-video-recorder",
+    "ui-screen-capture"
+   ]
+  },
+  {
+   "id": "speech",
+   "group": "Device",
+   "title": "Speech",
+   "summary": "Speech to text, shown as it's heard, and text or a part of the page read out with the device's own voices, marking each sentence. Where the browser can't turn speech into text (Firefox), transcribeUrl takes a recording.",
+   "usage": "- { type: ui-voice-input, props: { bind: note, iconOnly: true, transcribeUrl: /api/transcribe } }\n- { type: ui-read-aloud, props: { target: \"#article\", controls: true } }",
+   "components": [
+    "ui-voice-input",
+    "ui-read-aloud"
+   ]
+  },
+  {
+   "id": "document-scanner",
+   "group": "Device",
+   "title": "Document scanner",
+   "summary": "Scans papers with the camera or from a picture: finds the page's edges, straightens it, cleans up shadows, and makes a PDF of several pages. All of it happens on the device.",
+   "usage": "- { type: ui-document-scanner, props: { bind: pages, bindPdf: pdf, filter: bw, paper: a4 } }",
+   "components": [
+    "ui-document-scanner"
+   ]
+  },
+  {
+   "id": "swipe",
+   "group": "Device",
+   "title": "Swipe and screen",
+   "summary": "A row that's swiped sideways to show what can be done with it, with a button for a mouse and the keyboard; and keeping the screen on while it's needed.",
+   "usage": "- type: ui-swipe-actions\n  props: { label: \"{{ m.from }}\", start: [ { value: read, label: Read, tone: info } ], end: [ { value: delete, label: Delete, tone: danger } ] }\n  on: { delete: { action: submit, endpoint: \"/api/mail/{{ m.id }}\", method: DELETE } }\n  children: [ { type: ui-item, props: { title: \"{{ m.from }}\" } } ]\n- { type: ui-wake-lock, props: { bind: cooking } }",
+   "components": [
+    "ui-swipe-actions",
+    "ui-wake-lock"
+   ]
+  },
+  {
+   "id": "nfc",
+   "group": "Hardware",
+   "title": "NFC",
+   "summary": "Reads NFC tags held to the phone, and writes text or an address to them. Only Chrome on Android can; anywhere else it says so.",
+   "usage": "- { type: ui-nfc, props: { bind: tag, bindList: tags, write: \"https://example.com/item/{{ item.id }}\" } }",
+   "components": [
+    "ui-nfc"
+   ]
+  },
+  {
+   "id": "bluetooth",
+   "group": "Hardware",
+   "title": "Bluetooth",
+   "summary": "Connects to a Bluetooth Low Energy device, reads its values and follows those that change, and sends to it. Chrome and Edge can, not iPhones.",
+   "usage": "- type: ui-bluetooth\n  props:\n    bind: sensor\n    read: [ { key: rate, label: Heart rate, unit: bpm, service: heart_rate, characteristic: heart_rate_measurement, as: heart-rate, notify: true } ]\n    commands: [ { label: Reset, service: heart_rate, characteristic: heart_rate_control_point, value: 1, as: uint8 } ]",
+   "components": [
+    "ui-bluetooth"
+   ]
+  },
+  {
+   "id": "serial",
+   "group": "Hardware",
+   "title": "Serial and USB",
+   "summary": "A serial port a line at a time (scales, meters, microcontrollers), read as text, numbers, JSON or CSV; and USB devices that no driver has taken, such as label printers. Chrome and Edge on a computer.",
+   "usage": "- { type: ui-serial, props: { baud: 9600, parse: number, bind: weight, send: true, commands: [ { label: Zero, text: Z } ] } }\n- { type: ui-usb, props: { filters: [ { vendorId: 0x0a5f } ], commands: [ { label: Print, value: \"{{ label }}\" } ] } }",
+   "components": [
+    "ui-serial",
+    "ui-usb"
+   ]
+  },
+  {
+   "id": "file-handler",
+   "group": "Hardware",
+   "title": "Files",
+   "summary": "Opens a file and saves back to it, where the browser can, or as a download. Installed, the app can be what files open with: the document's app.files says which.",
+   "usage": "app: { name: Notes, files: [ { url: \"./\", accept: { text/markdown: [.md] } } ] }\nroot: { type: ui-file-handler, props: { bind: file, accept: { text/markdown: [.md] }, save: \"{{ draft }}\", bindDirty: dirty } }",
+   "components": [
+    "ui-file-handler"
    ]
   }
  ]

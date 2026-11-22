@@ -49,7 +49,7 @@ def main():
         if f.endswith(".html")
     )
     for page in pages:
-        if page.startswith(("blocks/", "flow/")) and not page.endswith("/index.html"):
+        if page.startswith(("blocks/", "flow/")) and page not in MAIN:
             continue
         path = os.path.join(site, page)
         with open(path) as f:

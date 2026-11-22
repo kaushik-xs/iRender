@@ -44,11 +44,16 @@ for block in data-table-01 data-table-02; do
   $irender render "examples/blocks/$block.yaml" --data "examples/blocks/$block.data.json" \
     --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
-for block in report-01 crm-01 data-table-03 data-table-04 data-table-05 data-table-06 data-table-07 i18n-01 i18n-02 tree-01 docs-01 expense-01 ticket-01 gantt-01 dashboard-02 kanban-01 kanban-02 calendar-01 workspace-01 mail-01 empty-states data-table-08 import-01 invoice-01 intake-01 profile-01 record-01 pivot-01 schedule-01 plan-01 rules-01 review-01 scan-01 ops-01 agent-01; do
+for block in report-01 crm-01 data-table-03 data-table-04 data-table-05 data-table-06 data-table-07 i18n-01 i18n-02 tree-01 docs-01 expense-01 ticket-01 gantt-01 dashboard-02 kanban-01 kanban-02 calendar-01 workspace-01 mail-01 empty-states data-table-08 import-01 invoice-01 intake-01 profile-01 record-01 pivot-01 schedule-01 plan-01 rules-01 review-01 scan-01 ops-01 agent-01 seats-flight-01 seats-cinema-01 seats-hall-01 floors-01 visit-01 capture-01 devices-01; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
 # The sites are on a map.
 $irender render examples/blocks/map-01.yaml --ui-kit --chart-kit --icon-kit --map-kit --title "map-01" -o "$out/blocks/map-01.html"
+# Installable apps: each in a folder of its own, with its manifest and service worker.
+for app in field-01 keep-01; do
+  mkdir -p "$out/blocks/$app"
+  $irender render "examples/blocks/$app.yaml" --ui-kit --icon-kit --title "$app" -o "$out/blocks/$app/index.html"
+done
 # The incident's service map is a flow.
 $irender render examples/blocks/incident-01.yaml --ui-kit --chart-kit --flow-kit --icon-kit --title "incident-01" -o "$out/blocks/incident-01.html"
 # The chat's replies include charts, images and a video.
@@ -106,6 +111,11 @@ $irender render examples/icons/gallery.yaml --data "$out/icons/packs.json" --ui-
 
 # Every page gets the bar that links the examples (examples/site-nav.yaml).
 python3 examples/site_nav.py "$irender" "$out"
+
+# Written once the pages are as they'll be served.
+for app in field-01 keep-01; do
+  $irender app "examples/blocks/$app.yaml" --dir "$out/blocks/$app"
+done
 
 echo "Rendered $(find "$out" -name '*.html' | wc -l | tr -d ' ') pages into $out"
 echo "Serve:  python3 examples/serve.py 8000 $out   then open http://localhost:8000"

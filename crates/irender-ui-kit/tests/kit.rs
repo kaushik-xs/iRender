@@ -107,6 +107,31 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-pivot", json!({ "rows": [] })),
         ("ui-scheduler", json!({ "resources": [], "events": [] })),
         ("ui-qr-code", json!({ "value": "x" })),
+        ("ui-local-store", json!({ "keys": ["k"] })),
+        ("ui-app-shell", json!({ "bind": "k" })),
+        ("ui-app-screen", json!({ "value": "a", "label": "A" })),
+        ("ui-camera", json!({ "bind": "k" })),
+        ("ui-permission-manager", json!({ "permissions": ["camera"] })),
+        ("ui-photo-annotate", json!({ "src": "a.png" })),
+        ("ui-location", json!({ "bind": "k" })),
+        ("ui-geo-checkin", json!({ "bind": "k", "places": [] })),
+        ("ui-route-tracker", json!({ "bind": "k" })),
+        ("ui-app-badge", json!({ "count": 1 })),
+        ("ui-share-target", json!({ "bind": "k" })),
+        ("ui-contact-picker", json!({ "bind": "k" })),
+        ("ui-passkey", json!({ "local": true })),
+        ("ui-audio-recorder", json!({ "bind": "k" })),
+        ("ui-video-recorder", json!({ "bind": "k" })),
+        ("ui-screen-capture", json!({ "bind": "k" })),
+        ("ui-voice-input", json!({ "bind": "k" })),
+        ("ui-read-aloud", json!({ "text": "x" })),
+        ("ui-wake-lock", json!({ "active": true })),
+        ("ui-swipe-actions", json!({ "end": [{ "value": "a" }] })),
+        ("ui-document-scanner", json!({ "bind": "k" })),
+        ("ui-nfc", json!({ "bind": "k" })),
+        ("ui-bluetooth", json!({ "read": [{ "key": "a", "service": "battery_service", "characteristic": "battery_level" }] })),
+        ("ui-usb", json!({ "filters": [] })),
+        ("ui-file-handler", json!({ "bind": "k" })),
         ("ui-barcode", json!({ "value": "x" })),
         ("ui-code-scanner", json!({ "bind": "k" })),
         ("ui-diff", json!({ "before": "a", "after": "b" })),
@@ -149,6 +174,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-resizable" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
             "ui-resizable-panel" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
             "ui-stepper" => root = json!({ "type": "ui-stepper", "props": { "bind": "k" }, "children": [{ "type": "ui-step", "props": { "label": "One" } }] }),
+            "ui-app-shell" | "ui-app-screen" => root = json!({ "type": "ui-app-shell", "props": { "bind": "k" }, "children": [{ "type": "ui-app-screen", "props": { "value": "a", "label": "A" } }] }),
             "ui-error-summary" | "ui-save-bar" => root = json!({ "type": "ui-form", "children": [root] }),
             "ui-tile" => root = json!({ "type": "ui-dashboard-grid", "children": [root] }),
             "ui-rail-panel" => root = json!({ "type": "ui-rail-layout", "props": { "bind": "k", "items": [{ "id": "a", "label": "A" }] }, "children": [{ "type": "ui-rail-panel", "props": { "for": "a" } }] }),
@@ -191,7 +217,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 160);
+    assert_eq!(kit, 197);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");

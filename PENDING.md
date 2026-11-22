@@ -6,7 +6,7 @@ _Last updated: 2026-11-22._
 
 ## Suggested next
 
-1. Forty-two components landed on 2026-11-22 (below). Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
+1. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
 
@@ -21,6 +21,19 @@ _Last updated: 2026-11-22._
 
 ## UI kit: not built yet
 
+- [x] **Installable apps and devices** (2026-11-22): a document's `app`, `irender app` (manifest, icons, service worker), and 37 components, each with a gallery section marked New, a place in a block (field-01, keep-01, visit-01, capture-01, devices-01) and browser tests. Not done yet:
+  - [ ] **Nothing has been tried on real phones or devices.** Cameras, microphones, location, passkeys (a virtual one), shares, offline use and updates were driven in desktop browsers; sensors, push delivery, NFC, Bluetooth, serial and USB only against stand-ins.
+  - [ ] **The service worker** keeps everything the first time; there's no progress for it. Libraries on jsDelivr are kept, map tiles and other sites' files aren't. An app is one folder: pages elsewhere on the site aren't in it.
+  - [ ] **`ui-offline-queue`**: sends one at a time; nothing settles a clash with what changed on the server meanwhile, and what's queued isn't shown in lists as if it were saved. Not encrypted on the device. No background sync on iPhones or in Firefox.
+  - [ ] **Nothing pulls data down** for offline: `submit` with GET and data tables read through the service worker's kept copies. Idea: a sync of rows to the device, with what's changed since.
+  - [ ] **`ui-push-opt-in`**: the server sends the pushes; there's no example of one. The badge counts only what it's told.
+  - [ ] **`ui-app-shell`**: one level of Back per screen; no sliding between screens, sheets or split view on tablets.
+  - [ ] **`ui-app-lock`** covers the page; nothing behind it is encrypted. **`ui-passkey`**: no example server.
+  - [ ] **`ui-camera`**: no picking of a lens, focus or exposure. **`ui-photo-annotate`**: no cropping or zooming while marking.
+  - [ ] **`ui-document-scanner`**: edges come from brightness, so a white page on a white desk is set by hand; no text recognition.
+  - [ ] **`ui-video-recorder`, `ui-screen-capture`** keep a `data:` address in state, which suits short clips; nothing streams to a server.
+  - [ ] **`ui-field-map`** and the map kit's `ui-map` overlap: this is the light one, without a library and with drawing.
+  - [ ] **`ui-route-tracker`, `ui-geo-checkin`**: only while the app is open, as the web has it; a device can be made to lie about where it is.
 - [x] **Forty-two components** (2026-11-22), each generic, with a gallery section marked New, a place in a block and browser tests (`tests/browser/components.rs`). Not done yet, by component:
   - [ ] **Editable cells** (`edit` on data table columns; block data-table-08): no editing in nested, grouped or API-grouped tables; no drag handle to fill; one date at a time (the browser's own date field); undo is the table's, not the form's. A remote table's edits are the page's to save.
   - [ ] **`ui-import`** (import-01): no `.xls`; everything is read in the browser, so files past about 50,000 rows are slow; no mapping of values (a sheet's "M" to Male), only of columns; matches aren't remembered between files.
@@ -33,10 +46,11 @@ _Last updated: 2026-11-22._
   - [ ] **`ui-tree-select`**: as `ui-tree`, every node is drawn. **`ui-transfer-list`**: options come all at once.
   - [ ] **`ui-pivot`** (pivot-01): computed in the browser over the rows given; no calculated fields, running totals or groups by range.
   - [ ] **`ui-scheduler`** (schedule-01): bookings repeat, but one day of a repeating one isn't moved on its own; no dependencies or time zones; every row is drawn; making one by dragging is for a mouse.
-  - [ ] **`ui-plan`** (plan-01): items are moved, not sized or turned on the plan; no layers or floors to switch between (filter `items` instead).
+  - [x] **`ui-plan` layouts and floors** (2026-11-22): aircraft, bus, train, cinema, theatre, auditorium, stadium, hall (eight styles), parking and office from a few words; several picked with a total; floors with stairs and lifts (blocks seats-flight-01, seats-cinema-01, seats-hall-01, floors-01).
+  - [ ] **`ui-plan`** (plan-01): items are moved, not sized or turned on the plan; nothing picks the best seats together; every seat is an SVG element, so some thousands on one floor are slow.
   - [ ] **`ui-pdf`** (review-01): needs pdf.js from a CDN (or `library`); no thumbnails, outline, form filling or search of its own; notes are kept beside the file, not written into it.
   - [ ] **`ui-qr-code`** takes a logo (a picture, an icon or letters); a logo from another site that doesn't share it is left out of a saved file.
-  - [ ] **`ui-code-scanner`** (scan-01): the camera needs `BarcodeDetector` (Chrome on Android and macOS, not Safari or Firefox); elsewhere only the field. Idea: a WebAssembly decoder on demand.
+  - [x] **`ui-code-scanner`** reads with the camera in Safari and Firefox too, with a decoder in WebAssembly (zxing-wasm, about 1 MB, loaded when it's first used), and from a picture (2026-11-22).
   - [ ] **`ui-code-editor`** (rules-01, ops-01): the highlighter's ten languages; no folding, find and replace, several carets or language server.
   - [ ] **`ui-diff`** (record-01, review-01, ops-01): two versions only; no accepting or rejecting a change. **`ui-log`**: keeps the last 2,000 lines drawn.
   - [ ] **`ui-image-cropper`, `ui-signature`** (profile-01, invoice-01): straightening by a free angle isn't offered; a typed signature uses the device's own script font.

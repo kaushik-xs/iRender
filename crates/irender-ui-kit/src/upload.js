@@ -1,6 +1,7 @@
 // irender-ui-kit: the `ui-file-upload` behaviour. The files live in state under `bind`:
 //   { id, name, size, type, url, status, progress, error }
-// status: "uploading", "done", "error", or "local" (kept in the browser: no `url` prop).
+// status: "uploading", "done", "error", "local" (kept in the browser: no `url` prop), or
+// "queued" (sent later, by `ui-offline-queue`).
 // The File objects themselves can't go in state, so they stay here, by id, for previews,
 // retries and the zip. Previews and the zip need no libraries: images, PDFs and text
 // are shown by the browser, and sheets.js reads CSV and .xlsx and writes the zip.
@@ -131,6 +132,7 @@
         patch(id, change);
         const f = files().find((x) => String(x.id) === now);
         api.emit(event, { file: f });
+        if (event === "queued") return void (say(L("{name} will be sent when there's a connection", { name: f.name })), pump());
         say(event === "uploaded" ? L("{name} uploaded", { name: f.name }) : L("{name} failed: {error}", { name: f.name, error: f.error }));
       }
       pump();
@@ -151,7 +153,19 @@
         done({ status: "error", error: why || L("Upload failed") }, "error");
       }
     };
-    xhr.onerror = () => done({ status: "error", error: L("Couldn't reach the server") }, "error");
+    // Without a connection it's kept, when there's a `ui-offline-queue` on the page.
+    xhr.onerror = async () => {
+      const kept = await window.__irenderQueue?.(url, "POST", form);
+      if (kept) {
+        const stop = window.__irenderOffline.on((m) => {
+          if (m.type !== "sent" || m.id !== kept) return;
+          stop();
+          patch(id, { ...(isObj(m.data) ? m.data : {}), status: "done", progress: 100 });
+        });
+        done({ status: "queued", progress: 0, error: null }, "queued");
+      }
+      else done({ status: "error", error: L("Couldn't reach the server") }, "error");
+    };
     xhr.open("POST", url);
     xhr.setRequestHeader("accept", "application/json");
     xhr.send(form);
@@ -208,7 +222,8 @@
     if (f.status === "uploading") {
       const p = make("progress", { max: 100, value: f.progress ?? 0, "aria-label": L("Uploading {name}", { name: f.name }) });
       meta.append(make("span", { "data-up-size": "" }, L("Uploading… {progress}%", { progress: String(f.progress ?? 0) })), p);
-    } else if (f.status === "error") meta.append(make("span", { "data-up-error": "" }, f.error || L("Upload failed")));
+    } else if (f.status === "queued") meta.append(make("span", {}, L("Sent when there's a connection")));
+    else if (f.status === "error") meta.append(make("span", { "data-up-error": "" }, f.error || L("Upload failed")));
     else meta.append(make("span", { "data-up-size": "" }, size(f.size)));
     open.append(thumb, meta);
     li.append(open);

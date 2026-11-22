@@ -10,6 +10,8 @@ use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
 
+const ZXING: &str = "https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.6/dist/iife/reader/index.js";
+const ZXING_WASM: &str = "https://cdn.jsdelivr.net/npm/zxing-wasm@3.1.6/dist/reader/zxing_reader.wasm";
 const SCRIPT: &str = include_str!("codes.js");
 
 pub struct QrCode;
@@ -51,6 +53,10 @@ const SCAN_PROPS: &[PropDef] = &[
     PropDef::new("continuous", PropKind::Bool, "Keeps reading after a code"),
     PropDef::new("manual", PropKind::Bool, "A field to type the code in, for cameras and browsers that can't read it (default true)"),
     PropDef::new("sound", PropKind::Bool, "A short beep when one is read"),
+    PropDef::new("picture", PropKind::Bool, "A code can be read from a picture on the device too (default true)"),
+    PropDef::new("decoder", PropKind::Enum(&["auto", "native", "wasm"]), "`auto` (default) is the browser's own where it has one, else a decoder in WebAssembly, loaded the first time (Safari and Firefox)"),
+    PropDef::new("library", PropKind::String, "Where that decoder's script is (default: zxing-wasm on jsDelivr, a fixed version)"),
+    PropDef::new("wasm", PropKind::String, "Where its `.wasm` is"),
     PropDef::new("label", PropKind::Any, "The button that starts the camera (default `Scan a code`)"),
 ];
 
@@ -74,6 +80,10 @@ static SCANNER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-scan-tools] button", pairs(&[("height", "32px"), ("padding", "0 12px"), ("border", "0"), ("border-radius", "999px"), ("background", "rgb(0 0 0 / 0.6)"), ("color", "#fff"), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer")]))
         .nest("& [data-scan-row]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(8))]))
         .nest("& [data-scan-row] input", pairs(&[("flex", "1 1 140px"), ("width", "auto")]))
+        .nest("& [data-scan-tools] button[aria-pressed=true]", pairs(&[("background", "#facc15"), ("color", "#18181b")]))
+        .nest("& [data-scan-picture]", pairs(&[("position", "relative"), ("cursor", "pointer")]))
+        .nest("& [data-scan-picture] input[type=file]", pairs(&[("position", "absolute"), ("flex", "none"), ("width", "1px"), ("height", "1px"), ("opacity", "0")]))
+        .nest("& [data-scan-picture]:focus-within", forms::focus_ring())
         .nest("& [data-scan-note]", pairs(&[("margin", "0"), ("color", MUTED), ("font-size", fs!(13))]))
         .nest("& [data-scan-note]:empty", pairs(&[("display", "none")]))
 });
@@ -162,16 +172,21 @@ impl Component for CodeScanner {
         "ui-code-scanner"
     }
     fn info(&self) -> ComponentInfo {
-        ComponentInfo { doc: "Reads QR codes and barcodes with the camera, where the browser can, or from a field (a handheld scanner types into it).", props: SCAN_PROPS, parts: &[], children: false, open_props: false }
+        ComponentInfo { doc: "Reads QR codes and barcodes with the camera in any browser, from a picture, or from a field (a handheld scanner types into it).", props: SCAN_PROPS, parts: &[], children: false, open_props: false }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         if cx.prop_string(node, "bind").is_none() {
             return Err(RenderError::new(node, "`ui-code-scanner` needs `bind`"));
         }
-        let mut config = widget::config(cx, node, &[], &["formats"], &["bind", "bindCode", "bindList"])?;
+        for u in ["library", "wasm"] {
+            widget::check_url(cx, node, u)?;
+        }
+        let mut config = widget::config(cx, node, &[], &["formats", "decoder"], &["bind", "bindCode", "bindList"])?;
+        config.insert("library".into(), json!(cx.prop_string(node, "library").unwrap_or_else(|| ZXING.into())));
+        config.insert("wasm".into(), json!(cx.prop_string(node, "wasm").unwrap_or_else(|| ZXING_WASM.into())));
         config.insert("continuous".into(), json!(flag(cx, node, "continuous", false)));
         config.insert("sound".into(), json!(flag(cx, node, "sound", false)));
-        widget::kit(cx);
+        widget::device_kit(cx);
         cx.global_js("ui-codes", SCRIPT);
         let mut el = cx.element("div", node);
         el.base_style_ref(&SCANNER).behavior("ui-code-scanner", Json::Object(config));
@@ -186,9 +201,12 @@ impl Component for CodeScanner {
         let mut tools = Element::new("div");
         tools.attr("data-scan-tools", true);
         cx.open(&tools, node)?;
-        // Labels: "Switch camera", "Stop"
-        for (attr, text) in [("data-scan-flip", "Switch camera"), ("data-scan-stop", "Stop")] {
+        // Labels: "Light", "Switch camera", "Stop"
+        for (attr, text) in [("data-scan-torch", "Light"), ("data-scan-flip", "Switch camera"), ("data-scan-stop", "Stop")] {
             let mut b = Element::new("button");
+            if attr == "data-scan-torch" {
+                b.attr("aria-pressed", "false").attr("hidden", true);
+            }
             b.attr("type", "button").attr(attr, true).text(lit(cx.label(text)));
             cx.open(&b, node)?;
             cx.close("button");
@@ -203,6 +221,17 @@ impl Component for CodeScanner {
         b.attr("type", "button").attr("data-scan-start", true).text(node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Scan a code"))));
         cx.open(&b, node)?;
         cx.close("button");
+        if flag(cx, node, "picture", true) {
+            let mut l = Element::new("label");
+            forms::button_look(&mut l, "outline", "default");
+            l.attr("data-scan-picture", true);
+            cx.open(&l, node)?;
+            let mut i = Element::new("input");
+            i.attr("type", "file").attr("accept", "image/*").attr("data-scan-pick", true);
+            cx.open(&i, node)?;
+            cx.text(&cx.label("From a picture"));
+            cx.close("label");
+        }
         if flag(cx, node, "manual", true) {
             let mut i = Element::new("input");
             i.base_style_ref(forms::input_look())

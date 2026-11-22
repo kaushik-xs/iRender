@@ -25,6 +25,9 @@ pub struct Document {
     /// page": "Filas por página"`, with `{name}` for values, and `{ one, other }` for counts.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub labels: IndexMap<String, Json>,
+    /// Makes the pages an installable app; see `irender app`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app: Option<crate::app::AppSpec>,
     /// Initial client-side state. Expressions that reference these keys are reactive.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub state: IndexMap<String, Json>,

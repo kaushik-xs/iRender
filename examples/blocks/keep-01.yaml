@@ -1,0 +1,91 @@
+# Block: an app that keeps things: links, notes and pictures shared with it from other apps.
+# `app.share` puts it in the phone's share sheet once it's installed, `ui-share` passes
+# things on, `ui-contact-picker` invites people, `ui-push-opt-in` and `ui-app-badge` say
+# what's new, and `ui-app-lock` covers it.
+#
+#   cargo run -p irender-cli -- render examples/blocks/keep-01.yaml --ui-kit --icon-kit -o keep/index.html
+#   cargo run -p irender-cli -- app examples/blocks/keep-01.yaml --dir keep
+version: 1
+app:
+  name: Keep
+  description: Links, notes and pictures in one place
+  themeColor: "#ffffff"
+  themeColorDark: "#09090b"
+  backgroundColor: "#ffffff"
+  icon: { text: K, background: "#b45309" }
+  share: { url: "./", accept: ["image/*", "text/plain", "application/pdf"] }
+  offline: { skip: [/api/] }
+state:
+  screen: things
+  shared: null
+  unread: 2
+  people: []
+  push: null
+  locked: false
+  items:
+    - { id: 1, title: Lisbon in the spring, text: "https://example.com/lisbon", kind: Link }
+    - { id: 2, title: Packing list, text: "Adapter, rain jacket, walking shoes", kind: Note }
+    - { id: 3, title: Table for six, text: "Friday at 20:00, by the window", kind: Note }
+root:
+  type: ui-app-shell
+  props: { bind: screen, history: true }
+  children:
+    - type: ui-app-actions
+      children: [ { type: ui-offline-indicator }, { type: ui-app-badge, props: { count: "{{ unread }}" } } ]
+    - type: ui-app-screen
+      props: { value: things, label: Things, icon: bookmark }
+      on: { mount: { action: set_state, key: unread, value: 2 } }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - { type: ui-install-prompt, props: { variant: card, remember: keep-01, text: "Then share things to it from any app." } }
+            - { type: ui-share-target, props: { bind: shared, acceptLabel: Keep it }, on: { accept: [ { action: set_state, key: unread, value: "{{ unread + 1 }}" }, { action: set_state, key: shared, value: null } ] } }
+            - type: list
+              props: { items: "{{ items }}", as: i, key: "{{ i.id }}" }
+              style: { display: flex, flex-direction: column, gap: 12px }
+              children:
+                - type: ui-card
+                  props: { title: "{{ i.title }}", description: "{{ i.kind }}" }
+                  children:
+                    - type: stack
+                      style: { gap: 12px }
+                      children:
+                        - { type: ui-text, props: { text: "{{ i.text }}" } }
+                        - { type: ui-share, props: { title: "{{ i.title }}", text: "{{ i.text }}", variant: ghost, label: Pass it on } }
+    - type: ui-app-screen
+      props: { value: people, label: People, icon: user }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - type: ui-card
+              props: { title: Invite people, description: "They'll see what you keep together" }
+              children:
+                - type: stack
+                  style: { gap: 16px }
+                  children:
+                    - { type: ui-contact-picker, props: { bind: people, multiple: true } }
+                    - type: if
+                      props: { when: "{{ people.length > 0 }}" }
+                      children: [ { type: ui-share, props: { title: Keep with me, text: "Join me on Keep", variant: primary, label: "Invite {{ people.length }}" } } ]
+    - type: ui-app-screen
+      props: { value: news, label: News, icon: bell, badge: "{{ unread }}" }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - { type: ui-push-opt-in, props: { bind: push, text: "When someone adds to what you keep together.", topics: [ { value: added, label: Things added }, { value: comments, label: Comments }, { value: digest, label: A weekly digest, on: false } ], test: true } }
+            - { type: ui-text, props: { variant: muted, text: "{{ unread }} new" } }
+            - { type: ui-button, props: { label: Mark as read, variant: outline, disabled: "{{ unread == 0 }}" }, on: { click: { action: set_state, key: unread, value: 0 } } }
+    - type: ui-app-screen
+      props: { value: settings, label: Settings, icon: settings }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - { type: ui-card, children: [ { type: ui-app-lock, props: { name: keep-01, bindLocked: locked, after: 5, hidden: 60 } } ] }
+            - type: ui-card
+              props: { title: Passkey, description: "Instead of a password, once there's a server to check it" }
+              children: [ { type: ui-passkey, props: { mode: register, local: true, name: You } } ]
+            - { type: ui-update-prompt }

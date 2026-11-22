@@ -30,7 +30,7 @@ root:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: map, label: Map }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: forms, label: Forms }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: map, label: Map }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: forms, label: Forms }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: app, label: Apps }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
 
     - type: list
       props:
@@ -38,6 +38,7 @@ root:
         items:
           - { id: report-01, category: dashboard, title: "A report builder: chart type, grouping, measure, aggregate, split, sort and top N are all controls on one chart; saved reports set them in one click, a clicked bar filters the rows, and the Config tab shows the chart as YAML", kits: [ui-kit, chart-kit, icon-kit], height: 1180 }
           - { id: incident-01, category: dashboard, title: "An incident in progress: a service map coloured from each service's data, the clicked service's latency and errors, a runbook whose progress is worked out from its checkboxes, updates and a status page preview", kits: [ui-kit, chart-kit, flow-kit, icon-kit], height: 1460 }
+          - { id: field-01, page: field-01/, category: app, title: "A field inspection app to install: jobs, a checklist, photos stamped and marked up, a signature, and reports kept without a connection and sent later", kits: [ui-kit, icon-kit], height: 860 }
           - { id: crm-01, category: table, title: "A sales pipeline from one list of deals: a board with swimlanes and card detail picked in its settings, a table grouped by stage, and forecast charts, all following each move", kits: [ui-kit, chart-kit, icon-kit], height: 1000 }
           - { id: dashboard-01, category: dashboard, title: "A dashboard with sidebar, charts, data table and a ⌘K palette", kits: [ui-kit, chart-kit, icon-kit], height: 860 }
           - { id: dashboard-02, category: dashboard, title: "An operations dashboard to arrange: drag tiles by their header, resize them from the corner or use the arrow keys, with the layout in state and a locked alerts strip", kits: [ui-kit, chart-kit, icon-kit], height: 1080 }
@@ -79,6 +80,14 @@ root:
           - { id: pivot-01, category: table, title: "A hospital's admissions in a pivot table: drag fields, fold groups, sort, tint, export, and see the rows behind a cell", kits: [ui-kit, icon-kit], height: 900 }
           - { id: schedule-01, category: dashboard, title: "A salon's bookings by person and room: drag to move, stretch or make one, clashes marked, and a tour of the page", kits: [ui-kit, icon-kit], height: 760 }
           - { id: plan-01, category: dashboard, title: "A restaurant's tables on its floor plan: zoom, pick, move, find, and fade those too small for the party", kits: [ui-kit, icon-kit], height: 800 }
+          - { id: seats-flight-01, category: table, title: "Seats on an aircraft with two decks: cabins from a few words, taken seats, exits and wings, up to two picked, and their total", kits: [ui-kit, icon-kit], height: 760 }
+          - { id: seats-cinema-01, category: table, title: "Cinema, theatre and auditorium seats: curved rows, aisles, sections with prices, wheelchair spaces and seats for two, and an order that adds up", kits: [ui-kit, icon-kit], height: 800 }
+          - { id: seats-hall-01, category: table, title: "A hall set out as a banquet, cabaret, classroom, theatre, U, boardroom, hollow square or exhibition, with the guests at their places", kits: [ui-kit, icon-kit], height: 820 }
+          - { id: floors-01, category: table, title: "A building on five floors: car park, lobby, conference, offices and roof, with lifts and stairs between them and one search for all", kits: [ui-kit, icon-kit], height: 760 }
+          - { id: keep-01, page: keep-01/, category: app, title: "A place to keep things, to install: what other apps share with it, sharing on, inviting contacts, notifications by topic, a badge on its icon, and a lock with a passkey or PIN", kits: [ui-kit, icon-kit], height: 820 }
+          - { id: devices-01, category: app, title: "A bench of devices: a scale on a serial port, a Bluetooth sensor, a USB label printer, NFC tags, and a file opened and saved", kits: [ui-kit, icon-kit], height: 1000 }
+          - { id: capture-01, category: app, title: "A notebook that takes anything: speech as text, voice notes, papers scanned to a PDF, video and a screen, with rows to swipe and to have read out", kits: [ui-kit, icon-kit], height: 1000 }
+          - { id: visit-01, category: app, title: "Site visits: places on a map, checking in and out with a photo, the route recorded, and a compass to the next one", kits: [ui-kit, icon-kit], height: 980 }
           - { id: rules-01, category: settings, title: "A payment alert's rule: nested conditions tried on recent payments, branches, who's told, and the message's template", kits: [ui-kit, icon-kit], height: 1280 }
           - { id: review-01, category: docs, title: "A contract read and signed: a PDF with notes and a signature on it, the clause that changed, and questions about it", kits: [ui-kit, icon-kit], height: 1040 }
           - { id: scan-01, category: table, title: "Counting a library's stock: a camera or handheld scanner, counts put right in the table, and labels", kits: [ui-kit, icon-kit], height: 840 }
@@ -123,10 +132,10 @@ root:
                       children:
                         - type: ui-button
                           props: { label: Source, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender/blob/main/examples/blocks/{{ block.id }}.yaml" }
-                        - { type: ui-button, props: { label: Open, size: sm, href: "{{ block.id }}.html" } }
+                        - { type: ui-button, props: { label: Open, size: sm, href: "{{ block.page || block.id + '.html' }}" } }
                 - type: element
                   props: { tag: iframe }
-                  attrs: { src: "{{ block.id }}.html", title: "{{ block.title }}", loading: lazy }
+                  attrs: { src: "{{ block.page || block.id + '.html' }}", title: "{{ block.title }}", loading: lazy }
                   style:
                     display: block
                     width: 100%

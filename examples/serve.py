@@ -25,6 +25,7 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                     with group=<value> too, that group's rows, a batch at a time.
   api/upload        POST multipart (field `file`): keeps the file in memory for this run and
                     answers { id, url } for ui-file-upload. Files over 10 MB get 413.
+  api/records   POST anything as JSON: answers { id, size }, the same for the same x-queued-id.
   api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
 """
@@ -67,6 +68,8 @@ TABLE_REPLY = (
 _rendered = {}
 # Uploaded files, in memory for this run: id -> (name, type, bytes).
 UPLOADS = {}
+# Records sent by the app blocks: queued id -> record id.
+RECORDS = {}
 MAX_UPLOAD = 10 * 1024 * 1024
 
 
@@ -239,7 +242,22 @@ class Handler(SimpleHTTPRequestHandler):
             return self.render()
         if path.endswith("/api/upload"):
             return self.upload(path)
+        if path.endswith("/api/records"):
+            return self.record()
         self.send_error(404)
+
+    def record(self):
+        """Takes anything as JSON and answers with an id; one sent again (the same
+        x-queued-id) gets the same answer."""
+        body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        try:
+            json.loads(body or b"{}")
+        except ValueError:
+            return self.send_error(400, "not JSON")
+        queued = self.headers.get("x-queued-id")
+        if queued not in RECORDS:
+            RECORDS[queued or f"r{len(RECORDS)}"] = f"R-{1001 + len(RECORDS)}"
+        self.send_json({"id": RECORDS.get(queued) or list(RECORDS.values())[-1], "size": len(body)})
 
     def upload(self, path):
         from email.parser import BytesParser

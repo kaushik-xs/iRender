@@ -1,0 +1,100 @@
+# Block: visits to sites, for anyone who goes round them: carers, meter readers, sales, drivers.
+# `ui-field-map` shows the places and the route, `ui-geo-checkin` checks in and out (with a photo),
+# `ui-route-tracker` records the way, and `ui-compass` points to the next place.
+#
+#   cargo run -p irender-cli -- render examples/blocks/visit-01.yaml --ui-kit --icon-kit -o visit-01.html
+version: 1
+state:
+  here: null
+  place: a
+  visit: null
+  log: []
+  photo: null
+  route: null
+  zones: []
+  heading: 30
+  level: null
+  places:
+    - { id: a, name: Riverside, label: Riverside, text: "09:30 · Meter and boiler", lat: 38.7079, lng: -9.1366, radius: 120, glyph: "1" }
+    - { id: b, name: Castle hill, label: Castle hill, text: "11:00 · Annual check", lat: 38.7139, lng: -9.1335, radius: 120, glyph: "2" }
+    - { id: c, name: Market hall, label: Market hall, text: "13:30 · New tenant", lat: 38.7069, lng: -9.1459, radius: 100, glyph: "3" }
+    - { id: d, name: Park lodge, label: Park lodge, text: "15:00 · Follow up", lat: 38.7197, lng: -9.1527, radius: 150, glyph: "4" }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1240px, margin: 0 auto, gap: 24px }
+      children:
+        - type: stack
+          style: { gap: 4px }
+          children:
+            - { type: ui-heading, props: { level: 2, text: "Today's visits" } }
+            - { type: ui-text, props: { variant: muted, text: "4 places · {{ log.length }} done" } }
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 360px" } }
+          children:
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-field-map
+                  props:
+                    markers: "{{ places }}"
+                    areas: [ { id: zone, lat: 38.7139, lng: -9.1335, radius: 120, label: Where one can check in } ]
+                    lines: [ { id: planned, dashed: true, color: "#2563eb", points: [ [38.7079, -9.1366], [38.7139, -9.1335], [38.7069, -9.1459], [38.7197, -9.1527] ] }, { id: route, color: "#16a34a", width: 5, points: "{{ route.points }}" } ]
+                    position: "{{ here }}"
+                    bindSelected: place
+                    bindDrawn: zones
+                    draw: [marker, polygon, circle]
+                    locate: true
+                    height: 460
+                    label: Places to visit
+                - type: ui-card
+                  props: { title: Route, description: "Recorded while the app is open" }
+                  children:
+                    - { type: ui-route-tracker, props: { bind: route, download: route.gpx } }
+                - type: ui-card
+                  props: { title: Done today }
+                  children:
+                    - type: if
+                      props: { when: "{{ log.length == 0 }}" }
+                      children: [ { type: ui-text, props: { variant: muted, text: "No visits yet." } } ]
+                    - type: ui-item-group
+                      props: { label: Visits done }
+                      children:
+                        - type: list
+                          props: { items: "{{ log }}", as: v }
+                          style: { display: contents }
+                          children: [ { type: ui-item, props: { title: "{{ v.place.name }}", description: "{{ v.seconds }} seconds", icon: "✓", tone: success } } ]
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: Check in }
+                  children:
+                    - type: ui-geo-checkin
+                      props: { bind: visit, bindLog: log, places: "{{ places }}", outside: reason, photo: "{{ photo }}" }
+                      children: [ { type: ui-camera, props: { bind: photo, maxSize: 900, stamp: time } } ]
+                - type: ui-card
+                  props: { title: Where I am }
+                  children: [ { type: ui-location, props: { bind: here, watch: true, enough: 25 } } ]
+                - type: ui-card
+                  props: { title: "Way to Park lodge" }
+                  children:
+                    - type: stack
+                      style: { align-items: center, gap: 16px }
+                      children:
+                        - { type: ui-compass, props: { from: "{{ here || places[0] }}", target: { lat: 38.7197, lng: -9.1527 } } }
+                - type: ui-card
+                  props: { title: Is it level? }
+                  children:
+                    - type: stack
+                      style: { align-items: center }
+                      children: [ { type: ui-level, props: { bind: level, size: 180 } } ]

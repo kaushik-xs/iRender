@@ -38,6 +38,13 @@ pub fn resolve_with(
     }
     let theme = Theme::resolve(&doc.theme, &mut diags);
     let labels = Labels::resolve(doc.lang.as_deref(), &doc.labels, &mut diags);
+    if let Some(app) = &doc.app {
+        app.check(&mut diags);
+        // A service worker answers for every page of its site.
+        if policy.blocked_tags.contains("script") {
+            diags.push("app", "an untrusted document can't be an app");
+        }
+    }
     for key in doc.state.keys() {
         if !is_ident(key) {
             diags.push(format!("state.{key}"), "state keys must be identifiers (letters, digits, `_`)");
@@ -58,7 +65,7 @@ pub fn resolve_with(
     let root = r.node(&doc.root, "root");
     let diags = r.diags;
     let warnings = Diagnostics(diags.iter().filter(|d| d.severity == Severity::Warning).cloned().collect());
-    diags.into_result(Ir { version: doc.version, theme, labels, state: doc.state.clone(), root, warnings })
+    diags.into_result(Ir { version: doc.version, theme, labels, app: doc.app.clone(), state: doc.state.clone(), root, warnings })
 }
 
 fn is_ident(s: &str) -> bool {

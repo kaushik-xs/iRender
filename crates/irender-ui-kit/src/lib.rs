@@ -63,6 +63,7 @@ macro_rules! fs {
 
 mod agent;
 mod calendar;
+mod camera;
 mod carousel;
 mod chat;
 mod code;
@@ -80,9 +81,11 @@ mod feedback;
 mod filters;
 mod form;
 mod forms;
+mod geo;
 mod guide;
 mod kanban;
 mod lightbox;
+mod hardware;
 mod illustration;
 mod import;
 mod inputs;
@@ -94,13 +97,16 @@ mod number;
 mod otp;
 mod rail;
 mod rating;
+mod record;
 mod repeater;
 mod resizable;
 mod overlay;
 mod pickers;
 mod pivot;
+mod pwa;
 mod scheduler;
 mod scroll_spy;
+mod share;
 mod sidebar;
 mod stat;
 mod status;
@@ -111,6 +117,7 @@ mod upload;
 mod widget;
 
 pub use chat::{render_message_ui, render_ui, ui_document};
+pub use pwa::service_worker;
 pub use theme::{apply_theme, theme};
 
 use indexmap::IndexMap;
@@ -126,6 +133,43 @@ use serde_json::{Value as Json, json};
 pub fn register(registry: &mut Registry) {
     registry
         .register(forms::Button)
+        .register(camera::Camera)
+        .register(camera::PermissionManager)
+        .register(camera::PhotoAnnotate)
+        .register(geo::Location)
+        .register(geo::FieldMap)
+        .register(geo::GeoCheckin)
+        .register(geo::RouteTracker)
+        .register(geo::Compass)
+        .register(geo::Level)
+        .register(share::PushOptIn)
+        .register(share::AppBadge)
+        .register(share::Share)
+        .register(share::ShareTarget)
+        .register(share::ContactPicker)
+        .register(share::Passkey)
+        .register(share::AppLock)
+        .register(record::AudioRecorder)
+        .register(record::VideoRecorder)
+        .register(record::ScreenCapture)
+        .register(record::VoiceInput)
+        .register(record::ReadAloud)
+        .register(record::WakeLock)
+        .register(record::SwipeActions)
+        .register(record::DocumentScanner)
+        .register(hardware::Nfc)
+        .register(hardware::Bluetooth)
+        .register(hardware::Serial)
+        .register(hardware::Usb)
+        .register(hardware::FileHandler)
+        .register(pwa::InstallPrompt)
+        .register(pwa::UpdatePrompt)
+        .register(pwa::OfflineIndicator)
+        .register(pwa::OfflineQueue)
+        .register(pwa::LocalStore)
+        .register(pwa::AppShell)
+        .register(pwa::AppScreen)
+        .register(pwa::AppActions)
         .register(display::Badge)
         .register(display::Card)
         .register(display::CardFooter)

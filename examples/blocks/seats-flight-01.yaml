@@ -1,0 +1,97 @@
+# Block: picking seats on an aircraft with two decks. `ui-plan` makes the cabins from a few
+# words (rows, letters with spaces for aisles, sections, exits, wings), `data` says which
+# seats are taken, and `bindTotal` adds up the ones picked.
+#
+#   cargo run -p irender-cli -- render examples/blocks/seats-flight-01.yaml --ui-kit --icon-kit -o flight.html
+version: 1
+state:
+  toast: null
+  deck: main
+  ids: []
+  picked: []
+  total: 0
+  known:
+    1A: { status: Taken }
+    2F: { status: Taken }
+    3C: { status: Taken }
+    12D: { status: Taken }
+    12E: { status: Taken }
+    13A: { status: Taken }
+    15J: { status: Taken }
+    18B: { status: Taken }
+    18C: { status: Taken }
+    22G: { status: Taken }
+    25K: { status: Taken }
+    31E: { status: Blocked }
+    31F: { status: Blocked }
+    71A: { status: Taken }
+    72K: { status: Taken }
+  decks:
+    - id: upper
+      label: Upper
+      title: Upper deck
+      layout: { kind: aircraft, status: Free, first: 70, rows: 9, seats: "AC DG HK", exits: [70], sections: [ { name: Business, from: 70, to: 79, seats: "AC DG HK", size: 1.2, pitch: 24, price: 380, tone: info } ], blocks: [ { before: 70, label: Galley, side: left }, { after: 78, label: WC } ] }
+    - id: main
+      label: Main
+      title: Main deck
+      layout: { kind: aircraft, status: Free, rows: 36, seats: "ABC DEFG HJK", skip: [10, 13], exits: [11, 24], wings: [14, 22], sections: [ { name: First, from: 1, to: 4, seats: "A DG K", size: 1.5, pitch: 32, price: 900, tone: warning }, { name: Extra legroom, from: 11, to: 14, price: 95 }, { name: Economy, from: 15, to: 36, price: 40 } ], blocks: [ { after: 4, label: Galley }, { after: 23, label: WC }, { after: 36, label: Galley } ] }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1320px, margin: 0 auto, gap: 24px }
+      children:
+        - type: stack
+          style: { gap: 4px }
+          children:
+            - { type: ui-heading, props: { level: 2, text: "Choose your seats" } }
+            - { type: ui-text, props: { variant: muted, text: "Lisbon to Singapore · 2 travellers · pick up to two" } }
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 300px" } }
+          children:
+            - type: ui-plan
+              props:
+                floors: "{{ decks }}"
+                bindFloor: deck
+                data: "{{ known }}"
+                bind: ids
+                bindPicked: picked
+                bindTotal: total
+                multiple: true
+                max: 2
+                available: [Free]
+                tones: { Taken: neutral, Blocked: danger }
+                legend: true
+                search: true
+                viewHeight: 520
+                label: Seats
+            - type: ui-card
+              props: { title: Your seats }
+              children:
+                - type: stack
+                  style: { gap: 16px }
+                  children:
+                    - type: if
+                      props: { when: "{{ picked.length == 0 }}" }
+                      children: [ { type: ui-text, props: { variant: muted, text: "Pick a seat on the plan, or search for one." } } ]
+                    - type: ui-item-group
+                      props: { label: Seats picked }
+                      children:
+                        - type: list
+                          props: { items: "{{ picked }}", as: s }
+                          style: { display: contents }
+                          children:
+                            - { type: ui-item, props: { title: "Seat {{ s.id }}", description: "{{ s.section }}", meta: "€{{ s.price }}" } }
+                    - { type: ui-description-list, children: [ { type: ui-description-item, props: { label: Total, value: "€{{ total }}" } } ] }
+                    - type: ui-button
+                      props: { label: "Continue", disabled: "{{ picked.length < 2 }}" }
+                      on: { click: { action: set_state, key: toast, value: { title: "Seats {{ picked[0].id }} and {{ picked[1].id }} are held" } } }
+        - { type: ui-toaster, props: { bind: toast } }

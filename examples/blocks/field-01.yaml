@@ -1,0 +1,140 @@
+# Block: a field inspection app to install on a phone. Jobs, a checklist, photos marked up, a
+# signature, and a report that's kept without a connection and sent later. Its `app`
+# settings make it installable, and everything it needs is kept for offline.
+#
+#   cargo run -p irender-cli -- render examples/blocks/field-01.yaml --ui-kit --icon-kit -o field/index.html
+#   cargo run -p irender-cli -- app examples/blocks/field-01.yaml --dir field
+version: 1
+app:
+  name: Field inspections
+  shortName: Inspect
+  description: Inspections that work without a connection
+  themeColor: "#ffffff"
+  themeColorDark: "#09090b"
+  backgroundColor: "#ffffff"
+  icon: { text: FI, background: "#1d4ed8" }
+  shortcuts: [ { name: Jobs, url: "./" } ]
+  offline: { skip: [/api/] }
+state:
+  screen: jobs
+  net: online
+  waiting: 0
+  job: null
+  jobs:
+    - { id: J-204, site: North entrance, kind: Doors and access, due: Today }
+    - { id: J-205, site: Car park, kind: Lighting, due: Today }
+    - { id: J-211, site: Roof plant room, kind: Safety walk, due: Tomorrow }
+    - { id: J-198, site: Reception, kind: Fire points, due: Yesterday }
+  done: [J-198]
+  clear: false
+  signs: false
+  sound: false
+  works: false
+  note: ""
+  photos: []
+  marked: null
+  marks: []
+  signed: null
+  sent: null
+  allowed: null
+  sending: false
+root:
+  type: ui-app-shell
+  props: { bind: screen, history: true, pullToRefresh: true }
+  children:
+    - type: ui-app-actions
+      children:
+        - { type: ui-offline-indicator, props: { bind: net, showOnline: true } }
+    - type: ui-app-screen
+      props: { value: jobs, label: Jobs, icon: list }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - { type: ui-local-store, props: { name: field-01, keys: [done, job, clear, signs, sound, works, note, photos, marks, signed] } }
+            - { type: ui-install-prompt, props: { variant: card, remember: field-01, title: Install Inspect } }
+            - { type: ui-heading, props: { level: 4, text: "{{ jobs.length - done.length }} to do" } }
+            - type: ui-item-group
+              props: { label: Jobs }
+              children:
+                - type: list
+                  props: { items: "{{ jobs }}", as: j, key: "{{ j.id }}" }
+                  style: { display: contents }
+                  children:
+                    - type: ui-item
+                      props: { title: "{{ j.site }}", description: "{{ j.kind }} · {{ j.due }}", icon: "{{ includes(done, j.id) ? '✓' : '•' }}", tone: "{{ includes(done, j.id) ? 'success' : 'info' }}" }
+                      on:
+                        click:
+                          - { action: set_state, key: job, value: "{{ j }}" }
+                          - { action: set_state, key: screen, value: job }
+    - type: ui-app-screen
+      props: { value: job, label: Inspection, title: "{{ job.site || 'Inspection' }}", parent: jobs }
+      children:
+        - type: stack
+          style: { gap: 20px, max-width: 720px, margin: 0 auto }
+          children:
+            - type: ui-card
+              props: { title: Checklist, description: "{{ job.id }} · {{ job.kind }}" }
+              children:
+                - type: stack
+                  style: { gap: 10px }
+                  children:
+                    - { type: ui-checkbox, props: { bind: clear, label: Clear of obstructions } }
+                    - { type: ui-checkbox, props: { bind: signs, label: Signs in place } }
+                    - { type: ui-checkbox, props: { bind: sound, label: Nothing loose or broken } }
+                    - { type: ui-checkbox, props: { bind: works, label: Working as it should } }
+                    - { type: ui-textarea, props: { bind: note, placeholder: What did you see?, rows: 3 }, attrs: { aria-label: Notes } }
+            - type: ui-card
+              props: { title: Photos, description: Stamped with the job and the time }
+              children:
+                - { type: ui-camera, props: { bind: photos, multiple: true, max: 4, stamp: "{{ job.id }} · time", grid: true, maxSize: 1200 } }
+            - type: if
+              props: { when: "{{ photos.length > 0 }}" }
+              children:
+                - type: ui-card
+                  props: { title: Mark up the first photo }
+                  children:
+                    - { type: ui-photo-annotate, props: { src: "{{ photos[0] }}", bind: marked, bindMarks: marks, unit: cm, maxSize: 1200 } }
+            - type: ui-card
+              props: { title: Signature }
+              children:
+                - { type: ui-signature, props: { bind: signed, height: 120 } }
+            - type: ui-button
+              props: { label: "{{ net == 'online' ? 'Send the report' : 'Keep, and send later' }}", size: lg, disabled: "{{ signed == null || job == null }}" }
+              on:
+                click:
+                  - { action: submit, endpoint: /api/records, into: sent, body: { title: "{{ job.site }}", job: "{{ job.id }}", clear: "{{ clear }}", signs: "{{ signs }}", sound: "{{ sound }}", works: "{{ works }}", note: "{{ note }}", photos: "{{ photos }}", marked: "{{ marked }}", signature: "{{ signed }}" } }
+                  - { action: set_state, key: done, value: "{{ includes(done, job.id) ? done : toggle(done, job.id) }}" }
+                  - { action: set_state, key: clear, value: false }
+                  - { action: set_state, key: signs, value: false }
+                  - { action: set_state, key: sound, value: false }
+                  - { action: set_state, key: works, value: false }
+                  - { action: set_state, key: note, value: "" }
+                  - { action: set_state, key: photos, value: [] }
+                  - { action: set_state, key: marks, value: [] }
+                  - { action: set_state, key: signed, value: null }
+                  - { action: set_state, key: screen, value: outbox }
+    - type: ui-app-screen
+      props: { value: outbox, label: Outbox, icon: share, badge: "{{ waiting }}" }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - type: if
+              props: { when: "{{ sent != null && !sent.queued }}" }
+              children: [ { type: ui-alert, props: { variant: success, title: "Report {{ sent.id }} was sent" } } ]
+            - type: if
+              props: { when: "{{ sent.queued }}" }
+              children: [ { type: ui-alert, props: { variant: info, title: "Kept on this device", description: "It's sent once there's a connection, even if you close the app." } } ]
+            - { type: ui-card, children: [ { type: ui-offline-queue, props: { paths: [/api/records], labels: { /api/records: Report }, labelField: title, bindCount: waiting } } ] }
+    - type: ui-app-screen
+      props: { value: settings, label: Settings, icon: settings }
+      children:
+        - type: stack
+          style: { gap: 16px, max-width: 720px, margin: 0 auto }
+          children:
+            - type: ui-card
+              children:
+                - { type: ui-permission-manager, props: { title: What this app uses, bind: allowed, permissions: [ { name: camera, reason: For photos of the site, required: true }, { name: storage, reason: So reports waiting aren't cleared when space is short } ] } }
+            - { type: ui-install-prompt, props: { always: true } }
+            - { type: ui-update-prompt }

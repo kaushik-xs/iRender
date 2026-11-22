@@ -365,7 +365,8 @@
 
   // ---------------------------------------------------------------- plan
   B["ui-plan"] = (el, api) => {
-    const cfg = api.config, W = cfg.width ?? 1000, H = cfg.height ?? 600, grid = cfg.grid;
+    const cfg = api.config, grid = cfg.grid, PL = window.__irenderPlan;
+    let W = cfg.width ?? 1000, H = cfg.height ?? 600, data = { items: [], marks: [], drawn: false, stated: new Set() };
     const TONES = { neutral: "var(--color-muted)", info: "var(--color-info, #2563eb)", success: "var(--color-success, #16a34a)", warning: "var(--color-warning, #d97706)", danger: "var(--color-destructive, #dc2626)", primary: "var(--color-primary)" };
     const root = svg("svg", { "data-pl": "", width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "group" });
     const back = svg("g"), layer = svg("g");
@@ -379,12 +380,46 @@
     frame.append(zoom);
     const legend = make("ul", { "data-pl-legend": "", hidden: true });
     el.append(frame, legend);
-    const fit = () => Math.min((frame.clientWidth || W) / W, (frame.clientHeight || H) / H);
-    const view = window.__irenderPanZoom(frame, sheet, { wheel: true, min: 0.1, max: 12, start: fit, free: false, ignore: "[data-pl-zoom], [data-pl-item][data-movable]" });
-    const items = () => (K.value(api, cfg.items) ?? []).filter(isObj);
-    let local = null, was = null;
+    // A layout is kept clear of the buttons over the corners.
+    const fit = () => Math.min(Math.max(80, (frame.clientWidth || W) - (data.drawn || data.floors ? Math.min(96, frame.clientWidth * 0.2) : 0)) / W, (frame.clientHeight || H) / H);
+    const view = window.__irenderPanZoom(frame, sheet, { wheel: true, min: 0.1, max: 12, start: fit, free: false, ignore: "[data-pl-zoom], [data-pl-floors], [data-pl-item][data-movable]" });
+    const rows = (v) => (Array.isArray(v) ? v : []).filter(isObj);
+    // ---- floors
+    const floors = () => rows(K.value(api, cfg.floors)).map((f, i) => ({ ...f, id: f.id ?? i }));
+    let own = null;
+    const floor = () => {
+      const all = floors(), id = cfg.bindFloor ? api.state[cfg.bindFloor] : own;
+      // The one named, else the last: the lowest.
+      return all.find((f) => String(f.id) === String(id ?? "")) ?? all.at(-1) ?? null;
+    };
+    // What's on one: the layout's seats with what's known of them, its items, and the
+    // plan's own that are on it.
+    function contents(f) {
+      const layout = f ? f.layout : K.value(api, cfg.layout), known = K.value(api, cfg.data), made = PL(layout);
+      const facts = Array.isArray(known) ? Object.fromEntries(rows(known).map((d) => [String(d.id), d])) : isObj(known) ? known : {};
+      const stated = rows(K.value(api, cfg.items)), mine = f ? stated.filter((x) => blank(x.floor) ? floors().length < 2 : String(x.floor) === String(f.id)) : stated;
+      const give = (x) => (isObj(facts[x.id]) ? { ...x, ...facts[x.id], id: x.id } : x);
+      return { items: [...(made?.items ?? []).map(give), ...rows(f?.items).map(give), ...mine], marks: made?.marks ?? [], drawn: !!made, floors: floors().length > 1, stated: new Set(mine.map((x) => String(x.id))), W: num(f?.width, made?.width ?? cfg.width ?? 1000), H: num(f?.height, made?.height ?? cfg.height ?? 600), image: f?.image ?? K.value(api, cfg.image) };
+    }
+    const items = () => data.items;
+    const everywhere = () => (floors().length ? floors().flatMap((f) => contents(f).items.map((x) => ({ ...x, floor: x.floor ?? f.id }))) : data.items);
+    function goFloor(id) {
+      own = id;
+      if (cfg.bindFloor) api.set(cfg.bindFloor, id);
+      api.emit("floor", { id });
+      draw(true);
+      K.say(el, floor()?.title ?? floor()?.label ?? String(id));
+    }
+    let local = null, was = null, sized = "", here = null;
     const picked = () => (cfg.bind ? api.state[cfg.bind] ?? null : local);
-    const toneOf = (x) => x.tone ?? (isObj(cfg.tones) ? cfg.tones[x.status] : null) ?? null;
+    const chosen = () => (cfg.multiple ? (Array.isArray(picked()) ? picked().map(String) : []) : blank(picked()) ? [] : [String(picked())]);
+    const can = (x) => {
+      const a = K.value(api, cfg.available);
+      return !Array.isArray(a) || blank(x.status) || a.includes(x.status) || chosen().includes(String(x.id));
+    };
+    const statusTone = (s) => (isObj(cfg.tones) ? cfg.tones[s] : null) ?? null;
+    // A seat's own tone is its section's: what its status says comes first.
+    const toneOf = (x) => (x.shape === "seat" || x.shape === "space" ? statusTone(x.status) ?? x.tone : x.tone ?? statusTone(x.status)) ?? null;
     const at = (r, f) => String(f).split(".").reduce((v, k) => (v !== null && typeof v === "object" ? v[k] : undefined), r);
     const passes = (x, filter) => !isObj(filter) || Object.entries(filter).every(([f, c]) => {
       const v = at(x, f);
@@ -401,30 +436,50 @@
         const ox = num(x.x, 0), oy = num(x.y, 0);
         return { x: ox + Math.min(...xs), y: oy + Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys), ps: ps.map((p) => [p[0] + ox, p[1] + oy]) };
       }
-      const w = num(x.width, x.shape === "pin" ? 0 : 80), h = num(x.height, x.shape === "circle" ? w : x.shape === "pin" ? 0 : 60);
+      const w = num(x.width, x.shape === "pin" ? 0 : x.shape === "seat" ? 26 : 80), h = num(x.height, x.shape === "circle" || x.shape === "seat" ? w : x.shape === "pin" ? 0 : 60);
       return { x: num(x.x, 0), y: num(x.y, 0), w, h };
     };
+    // A seat from above, facing up: a cushion between its arms and its back.
+    const round = (x, y, w, h, r) => `M${x + r} ${y}h${w - 2 * r}a${r} ${r} 0 0 1 ${r} ${r}v${h - 2 * r}a${r} ${r} 0 0 1 ${-r} ${r}h${2 * r - w}a${r} ${r} 0 0 1 ${-r} ${-r}v${2 * r - h}a${r} ${r} 0 0 1 ${r} ${-r}z`;
+    const chair = (b) => `${round(b.x + b.w * 0.1, b.y + b.h * 0.04, b.w * 0.8, b.h * 0.74, b.w * 0.16)}${round(b.x, b.y + b.h * 0.8, b.w, b.h * 0.18, b.w * 0.08)}`;
     function draw(force) {
-      const all = items(), filter = K.value(api, cfg.filter), image = K.value(api, cfg.image), sig = JSON.stringify([all, filter, picked(), image]);
-      if ((!force && sig === was) || drag) return;
+      if (drag) return;
+      const f = floor(), next = contents(f), all = next.items, filter = K.value(api, cfg.filter), sig = JSON.stringify([all, filter, picked(), next.image, f?.id, floors().map((x) => [x.id, x.label]), K.value(api, cfg.available)]);
+      if (!force && sig === was) return;
       const first = was === null;
       was = sig;
+      data = next;
+      W = next.W;
+      H = next.H;
+      const size = `${W}x${H}`;
+      if (size !== sized) {
+        Object.assign(sheet.style, { width: `${W}px`, height: `${H}px` });
+        for (const [k, v] of Object.entries({ width: W, height: H, viewBox: `0 0 ${W} ${H}` })) root.setAttribute(k, v);
+      }
+      const image = next.image;
       back.replaceChildren(...[
-        safe(image) ? svg("image", { href: image, width: W, height: H, preserveAspectRatio: "xMidYMid meet" }) : svg("rect", { width: W, height: H, rx: 4, style: "fill:var(--color-surface);stroke:var(--color-border)" }),
+        safe(image) ? svg("image", { href: image, width: W, height: H, preserveAspectRatio: "xMidYMid meet" }) : data.drawn ? null : svg("rect", { width: W, height: H, rx: 4, style: "fill:var(--color-surface);stroke:var(--color-border)" }),
         grid ? svg("path", { "data-pl-grid": "", d: Array.from({ length: Math.floor(W / grid) }, (_, i) => `M${(i + 1) * grid} 0V${H}`).join("") + Array.from({ length: Math.floor(H / grid) }, (_, i) => `M0 ${(i + 1) * grid}H${W}`).join(""), opacity: 0.5 }) : null,
+        ...data.marks.map((m) => m.path
+          ? svg("path", { "data-pl-mark": "", "data-fill": m.fill, "data-ground": m.ground, "fill-rule": "evenodd", d: m.path, transform: `translate(${m.dx ?? 0} ${m.dy ?? 0})${m.rot ? ` rotate(${m.rot})` : ""}` })
+          : Object.assign(svg("text", { "data-pl-mark": "", "data-soft": m.soft, "data-tone": m.tone, x: m.x, y: m.y, "font-size": m.size ?? 12 }), { textContent: m.text })),
       ].filter(Boolean));
       const focus = el.contains(document.activeElement) ? document.activeElement.getAttribute("data-pl-item") : null;
+      const on = new Set(chosen());
+      // One of them is in the Tab order; the arrow keys go between them.
+      const stop = all.some((x) => String(x.id) === here) ? here : all.find((x) => on.has(String(x.id)))?.id ?? all[0]?.id;
       layer.replaceChildren(...all.map((x) => {
-        const b = boxOf(x), tone = toneOf(x), id = String(x.id), cx = b.x + b.w / 2, cy = b.y + b.h / 2, text = x.label ?? "", color = css(x.color);
-        const g = svg("g", { "data-pl-item": id, "data-tone": tone, role: "button", tabindex: 0, "aria-pressed": String(String(picked() ?? "") === id), "aria-label": [x.label ?? id, x.status, x.sublabel].filter(Boolean).join(", "), "data-faded": !passes(x, filter), "data-movable": !!cfg.bindItems && !x.locked, transform: x.rotation ? `rotate(${num(x.rotation, 0)} ${cx} ${cy})` : null, style: color ? `--tone:${color}` : null });
+        const b = boxOf(x), tone = toneOf(x), id = String(x.id), cx = b.x + b.w / 2, cy = b.y + b.h / 2, text = x.label ?? "", color = css(x.color), sits = x.shape === "seat" || x.shape === "space", off = !can(x);
+        const g = svg("g", { "data-pl-item": id, "data-tone": tone, "data-seat": sits, role: "button", tabindex: String(stop) === id ? 0 : -1, "aria-pressed": String(on.has(id)), "aria-disabled": off ? "true" : null, "aria-label": [x.label ?? id, x.section, x.status, x.sublabel, x.price].filter((v) => !blank(v)).join(", "), "data-faded": !passes(x, filter), "data-movable": !!cfg.bindItems && !x.locked && data.stated.has(id), transform: x.rotation ? `rotate(${num(x.rotation, 0)} ${cx} ${cy})` : null, style: color ? `--tone:${color}` : null });
         if (x.shape === "circle") g.append(svg("circle", { cx, cy, r: Math.min(b.w, b.h) / 2 }));
         else if (x.shape === "polygon" && b.ps) g.append(svg("polygon", { points: b.ps.map((p) => p.join(",")).join(" ") }));
         else if (x.shape === "pin") g.append(svg("path", { d: `M${b.x} ${b.y}c-4-9-12-14-12-22a12 12 0 1 1 24 0c0 8-8 13-12 22z` }));
+        else if (x.shape === "seat") g.append(svg("path", { d: chair(b), transform: x.turn ? `rotate(${num(x.turn, 0)} ${cx} ${cy})` : null }));
         else g.append(svg("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: num(x.radius, 4) }));
         if (x.shape === "pin") g.append(Object.assign(svg("text", { x: b.x, y: b.y - 22, "font-size": 11 }), { textContent: String(text).slice(0, 3) }));
         else if (text) {
           // As large as fits, within reason.
-          const size = K.clamp(Math.min((b.w / Math.max(3, String(text).length)) * 1.6, b.h * (x.sublabel ? 0.3 : 0.42)), 5, 26);
+          const size = K.clamp(Math.min((b.w / Math.max(sits ? 2 : 3, String(text).length)) * (sits ? 1.25 : 1.6), b.h * (x.sublabel ? 0.3 : 0.42)), 5, 26);
           g.append(Object.assign(svg("text", { x: cx, y: x.sublabel ? cy - size * 0.55 : cy, "font-size": size }), { textContent: text }));
           if (x.sublabel) g.append(Object.assign(svg("text", { "data-sub": "", x: cx, y: cy + size * 0.65, "font-size": Math.max(5, Math.min(size * 0.75, (b.w / String(x.sublabel).length) * 1.7)) }), { textContent: x.sublabel }));
         }
@@ -433,19 +488,54 @@
       if (focus) layer.querySelector(`[data-pl-item="${CSS.escape(focus)}"]`)?.focus({ preventScroll: true });
       if (cfg.legend) {
         const by = new Map();
-        for (const x of all) if (!blank(x.status)) by.set(x.status, { n: (by.get(x.status)?.n ?? 0) + 1, tone: toneOf(x) });
+        for (const x of all) if (!blank(x.status)) by.set(x.status, { n: (by.get(x.status)?.n ?? 0) + 1, tone: statusTone(x.status) ?? x.tone });
         legend.hidden = !by.size;
         legend.replaceChildren(...[...by].map(([s, v]) => make("li", null, make("i", { style: `--tone:${TONES[v.tone] ?? "var(--color-muted)"}` }), `${s} (${v.n})`)));
       }
-      if (first) view.reset();
+      drawFloors(f);
+      if (first || size !== sized) room(), view.reset();
+      sized = size;
+    }
+    // No taller than the drawing needs at this width, on a phone say.
+    function room() {
+      if (data.drawn) frame.style.maxHeight = `${Math.round(Math.max(data.floors ? 320 : 240, ((frame.clientWidth - Math.min(96, frame.clientWidth * 0.2)) / W) * H + 60))}px`;
+      else frame.style.maxHeight = "";
+    }
+    const lift = make("div", { "data-pl-floors": "", role: "group", "aria-label": L("Floors") }), title = make("div", { "data-pl-title": "" });
+    function drawFloors(f) {
+      const all = floors();
+      if (all.length < 2) return lift.remove(), title.remove();
+      if (!lift.isConnected) frame.append(lift, title);
+      const focus = lift.contains(document.activeElement);
+      lift.replaceChildren(...all.map((x) => button({ "aria-pressed": String(x.id === f.id), title: x.title ?? null, "aria-label": x.title ?? x.label ?? String(x.id), click: () => goFloor(x.id) }, x.label ?? String(x.id))));
+      if (focus) lift.querySelector("[aria-pressed=true]")?.focus();
+      title.textContent = f.title ?? "";
+      title.hidden = !f.title;
     }
     function pick(id, go) {
       const x = items().find((i) => String(i.id) === id);
       if (!x) return;
-      local = x.id;
-      if (cfg.bind) api.set(cfg.bind, x.id);
-      if (cfg.bindItem) api.set(cfg.bindItem, x);
-      api.emit("pick", { item: x });
+      if (!blank(x.to) && floors().some((f) => String(f.id) === String(x.to))) return goFloor(floors().find((f) => String(f.id) === String(x.to)).id);
+      here = id;
+      const was = chosen();
+      let ids = cfg.multiple ? (was.includes(id) ? (go ? was : was.filter((v) => v !== id)) : [...was, id]) : [id];
+      if (!can(x)) ids = was;
+      else if (cfg.multiple && cfg.max && ids.length > cfg.max) {
+        ids = was;
+        K.say(el, L("At most {n} can be picked", { n: cfg.max }));
+        api.emit("full", { max: cfg.max });
+      }
+      if (ids !== was) {
+        // As they were given, number or text.
+        const all = cfg.multiple || cfg.bindPicked || cfg.bindTotal ? everywhere() : [x], list = ids.map((v) => all.find((i) => String(i.id) === v)).filter(Boolean);
+        const value = cfg.multiple ? list.map((i) => i.id) : x.id;
+        local = value;
+        if (cfg.bind) api.set(cfg.bind, value);
+        if (cfg.bindPicked) api.set(cfg.bindPicked, list);
+        if (cfg.bindTotal) api.set(cfg.bindTotal, +list.reduce((t, i) => t + (Number(i.price) || 0), 0).toFixed(2));
+        if (cfg.bindItem) api.set(cfg.bindItem, x);
+        api.emit("pick", { item: x, picked: list });
+      }
       if (go) {
         const b = boxOf(x);
         view.to(Math.max(view.scale, Math.min((frame.clientWidth / Math.max(b.w, 60)) * 0.3, fit() * 3)), b.x + b.w / 2, b.y + b.h / 2);
@@ -504,7 +594,10 @@
       if (e.key === "+" || e.key === "=") view.zoom(view.scale * 1.3);
       else if (e.key === "-") view.zoom(view.scale / 1.3);
       else if (e.key === "0") view.reset();
-      else if (g && (e.key === "Enter" || e.key === " ")) pick(g.getAttribute("data-pl-item"));
+      else if ((e.key === "PageUp" || e.key === "PageDown") && floors().length > 1) {
+        const all = floors(), to = all[all.findIndex((f) => f.id === floor().id) + (e.key === "PageUp" ? -1 : 1)];
+        if (to) goFloor(to.id);
+      } else if (g && (e.key === "Enter" || e.key === " ")) pick(g.getAttribute("data-pl-item"));
       else if (g && d && e.altKey && g.hasAttribute("data-movable")) {
         const x = items().find((i) => String(i.id) === g.getAttribute("data-pl-item")), by = grid ?? 10;
         moveTo(String(x.id), num(x.x, 0) + d[0] * by, num(x.y, 0) + d[1] * by);
@@ -512,7 +605,13 @@
         // The nearest item that way.
         const all = items(), me = boxOf(all.find((i) => String(i.id) === g.getAttribute("data-pl-item"))), cx = me.x + me.w / 2, cy = me.y + me.h / 2;
         const best = all.filter((i) => String(i.id) !== g.getAttribute("data-pl-item")).map((i) => { const b = boxOf(i), dx = b.x + b.w / 2 - cx, dy = b.y + b.h / 2 - cy, along = dx * d[0] + dy * d[1]; return { i, along, off: Math.abs(dx * d[1]) + Math.abs(dy * d[0]) }; }).filter((o) => o.along > 1).sort((a, b) => a.along + a.off * 2 - (b.along + b.off * 2))[0];
-        if (best) layer.querySelector(`[data-pl-item="${CSS.escape(String(best.i.id))}"]`)?.focus();
+        if (best) {
+          const to = layer.querySelector(`[data-pl-item="${CSS.escape(String(best.i.id))}"]`);
+          here = String(best.i.id);
+          layer.querySelectorAll('[tabindex="0"]').forEach((n) => n.setAttribute("tabindex", "-1"));
+          to?.setAttribute("tabindex", "0");
+          to?.focus();
+        }
       } else return;
       e.preventDefault();
     });
@@ -522,9 +621,9 @@
       search.parentElement.append(ul);
       const find = () => {
         const q = search.value.trim().toLowerCase();
-        const hits = q ? items().filter((x) => [x.label, x.sublabel, x.id, x.status].some((v) => String(v ?? "").toLowerCase().includes(q))).slice(0, 12) : [];
+        const hits = q ? everywhere().filter((x) => [x.label, x.sublabel, x.id, x.status, x.section, x.name].some((v) => String(v ?? "").toLowerCase().includes(q))).slice(0, 12) : [];
         ul.hidden = !q;
-        ul.replaceChildren(...(hits.length ? hits.map((x) => make("li", null, button({ click: () => ((ul.hidden = true), (search.value = x.label ?? x.id), pick(String(x.id), true)) }, x.label ?? x.id, x.status ? make("small", null, x.status) : null))) : [make("li", null, make("small", null, L("No results")))]));
+        ul.replaceChildren(...(hits.length ? hits.map((x) => make("li", null, button({ click: () => ((ul.hidden = true), (search.value = x.label ?? x.id), floors().length > 1 && String(x.floor) !== String(floor().id) && goFloor(x.floor), pick(String(x.id), true)) }, x.label ?? x.id, x.status ? make("small", null, x.status) : null, floors().length > 1 ? make("small", null, floors().find((f) => String(f.id) === String(x.floor))?.label ?? "") : null))) : [make("li", null, make("small", null, L("No results")))]));
       };
       search.addEventListener("input", find);
       search.addEventListener("keydown", (e) => {
@@ -538,6 +637,7 @@
     new ResizeObserver(() => {
       if (frame.clientWidth === widthWas) return;
       widthWas = frame.clientWidth;
+      room();
       view.reset();
     }).observe(frame);
     draw();

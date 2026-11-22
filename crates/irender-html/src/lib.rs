@@ -256,7 +256,7 @@ impl Engine {
         let state = Json::Object(ir.state.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
         let labels = (!ir.labels.is_empty() || ir.labels.lang.is_some()).then(|| ir.labels.to_json());
         let dir = ir.labels.dir();
-        Ok(Page { css, body, state, interactive, scripts, early_scripts, labels, lang: ir.labels.lang.clone(), dir })
+        Ok(Page { css, body, state, interactive, scripts, early_scripts, labels, lang: ir.labels.lang.clone(), dir, app: ir.app.clone() })
     }
 }
 
@@ -283,6 +283,8 @@ pub struct Page {
     /// `rtl` when `lang` is written right to left, else `ltr`: the root's (and
     /// [`Page::document`]'s `<html>`) `dir`.
     pub dir: &'static str,
+    /// The document's `app`: [`Page::document`] links its manifest and service worker.
+    pub app: Option<irender_core::AppSpec>,
 }
 
 impl Page {
@@ -344,12 +346,15 @@ impl Page {
     pub fn document(&self, title: &str) -> String {
         format!(
             "<!doctype html>\n<html lang=\"{}\"{}>\n<head>\n<meta charset=\"utf-8\">\n\
-             <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
-             <title>{}</title>\n<style>body{{margin:0;background:var(--color-background,var(--color-surface))}}</style>\n\
+             <meta name=\"viewport\" content=\"width=device-width, initial-scale=1{}\">\n\
+             <title>{}</title>\n{}<style>body{{margin:0;background:var(--color-background,var(--color-surface))}}</style>\n\
              </head>\n<body>\n{}</body>\n</html>\n",
             escape::text(self.lang.as_deref().unwrap_or("en")),
             self.dir_attr(),
+            // Under a notch too: an app's bars pad themselves clear of it.
+            if self.app.is_some() { ", viewport-fit=cover" } else { "" },
             escape::text(title),
+            self.app.as_ref().map(|a| a.head()).unwrap_or_default(),
             self.fragment()
         )
     }

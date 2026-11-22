@@ -144,6 +144,64 @@ root: …
 "{n} dates": "{n} dates"
 ```
 
+`camera.js`
+
+```yaml
+"The picture couldn't be read": "The picture couldn't be read"
+"Camera": "Camera"
+"The photo taken": "The photo taken"
+"Light": "Light"
+"Composing lines": "Composing lines"
+"Zoom": "Zoom"
+"Close the camera": "Close the camera"
+"Switch camera": "Switch camera"
+"Take the photo": "Take the photo"
+"Retake": "Retake"
+"Use photo": "Use photo"
+"Choose a photo": "Choose a photo"
+"Take a photo": "Take a photo"
+"Photo taken": "Photo taken"
+"Take another": "Take another"
+"Open the camera": "Open the camera"
+"Photo {n}": "Photo {n}"
+"Delete photo {n}": "Delete photo {n}"
+"Allowed": "Allowed"
+"Blocked": "Blocked"
+"Not asked yet": "Not asked yet"
+"Not on this device": "Not on this device"
+"needed": "needed"
+"Allow {what}": "Allow {what}"
+"Allow": "Allow"
+"How to allow {what}": "How to allow {what}"
+"How to fix": "How to fix"
+"Select": "Select"
+"Arrow": "Arrow"
+"Box": "Box"
+"Circle": "Circle"
+"Draw": "Draw"
+"Text": "Text"
+"Measure": "Measure"
+"Blur": "Blur"
+"The photo with its marks": "The photo with its marks"
+"The photo: pick a tool and drag on it; Delete removes the mark selected": "The photo: pick a tool and drag on it; Delete removes the mark selected"
+"Colour": "Colour"
+"Colour {n}": "Colour {n}"
+"Undo": "Undo"
+"Redo": "Redo"
+"Delete the mark": "Delete the mark"
+"This picture's site doesn't let it be marked here.": "This picture's site doesn't let it be marked here."
+"Its length in {unit}": "Its length in {unit}"
+"Length in {unit}": "Length in {unit}"
+```
+
+`camera.rs`
+
+```yaml
+"Camera": "Camera"
+"Permissions": "Permissions"
+"Mark up the photo": "Mark up the photo"
+```
+
 `carousel.js`
 
 ```yaml
@@ -241,19 +299,23 @@ root: …
 "“{value}” can't be made into this kind of barcode": "“{value}” can't be made into this kind of barcode"
 "Barcode: {value}": "Barcode: {value}"
 "Read {value}": "Read {value}"
+"Getting the reader…": "Getting the reader…"
+"This browser can't use the camera here. Type the code, or use a handheld scanner.": "This browser can't use the camera here. Type the code, or use a handheld scanner."
 "This browser can't read codes with the camera. Type the code, or use a handheld scanner.": "This browser can't read codes with the camera. Type the code, or use a handheld scanner."
-"The camera isn't allowed on this page.": "The camera isn't allowed on this page."
-"The camera couldn't be started.": "The camera couldn't be started."
 "Hold the code in the frame.": "Hold the code in the frame."
+"There's no code to read in this picture.": "There's no code to read in this picture."
+"This browser can't read codes from a picture.": "This browser can't read codes from a picture."
 ```
 
 `codes.rs`
 
 ```yaml
+"Light": "Light"
 "Switch camera": "Switch camera"
 "Stop": "Stop"
 "Camera": "Camera"
 "Scan a code": "Scan a code"
+"From a picture": "From a picture"
 "Or type it and press Enter": "Or type it and press Enter"
 "Code": "Code"
 ```
@@ -444,6 +506,54 @@ root: …
 "No": "No"
 ```
 
+`device.js`
+
+```yaml
+"Camera": "Camera"
+"Microphone": "Microphone"
+"Location": "Location"
+"Notifications": "Notifications"
+"Motion sensors": "Motion sensors"
+"NFC": "NFC"
+"Bluetooth": "Bluetooth"
+"Serial port": "Serial port"
+"USB": "USB"
+"Clipboard": "Clipboard"
+"Kept storage": "Kept storage"
+"Screen": "Screen"
+"Speech": "Speech"
+"Contacts": "Contacts"
+"Files": "Files"
+"Passkey": "Passkey"
+"Screen lock": "Screen lock"
+"{what} needs a secure page (https)": "{what} needs a secure page (https)"
+"{what} isn't allowed for this site": "{what} isn't allowed for this site"
+"{what}: none was found": "{what}: none was found"
+"{what}: another app is using it": "{what}: another app is using it"
+"{what} isn't something this browser or device can do": "{what} isn't something this browser or device can do"
+"The location can't be found here": "The location can't be found here"
+"Finding the location took too long": "Finding the location took too long"
+"Something went wrong": "Something went wrong"
+"Open the Settings app": "Open the Settings app"
+"Find this app in the list, or Safari under Apps": "Find this app in the list, or Safari under Apps"
+"Set {what} to Allow, then open the app again": "Set {what} to Allow, then open the app again"
+"Open the Settings app, then Apps, then Safari": "Open the Settings app, then Apps, then Safari"
+"Set {what} to Allow or Ask": "Set {what} to Allow or Ask"
+"Come back and reload the page": "Come back and reload the page"
+"Tap the icon left of the address, or hold the app's icon and tap App info": "Tap the icon left of the address, or hold the app's icon and tap App info"
+"Open Permissions": "Open Permissions"
+"Set {what} to Allow, then reload": "Set {what} to Allow, then reload"
+"In the menu bar, open Safari, then Settings for this website": "In the menu bar, open Safari, then Settings for this website"
+"Set {what} to Allow": "Set {what} to Allow"
+"Reload the page": "Reload the page"
+"Click the icon left of the address": "Click the icon left of the address"
+"Clear the blocked permission for {what}": "Clear the blocked permission for {what}"
+"Reload the page, and allow it when asked": "Reload the page, and allow it when asked"
+"Close": "Close"
+"Allow {what}": "Allow {what}"
+"Couldn't load {url}": "Couldn't load {url}"
+```
+
 `devtools.js`
 
 ```yaml
@@ -545,6 +655,31 @@ root: …
 
 ```yaml
 "Dismiss": "Dismiss"
+```
+
+`field_map.js`
+
+```yaml
+"Map: the arrow keys move it, + and - zoom": "Map: the arrow keys move it, + and - zoom"
+"Where I am": "Where I am"
+"Zoom in": "Zoom in"
+"Zoom out": "Zoom out"
+"Show everything": "Show everything"
+"Place a marker": "Place a marker"
+"Draw a line": "Draw a line"
+"Draw an area": "Draw an area"
+"Draw a circle": "Draw a circle"
+"Done": "Done"
+"Delete what's selected": "Delete what's selected"
+"Marker": "Marker"
+"{n} markers here: zoom in": "{n} markers here: zoom in"
+"You are here": "You are here"
+"Hold Ctrl or ⌘ to zoom with the wheel": "Hold Ctrl or ⌘ to zoom with the wheel"
+"Click where it goes": "Click where it goes"
+"Drag from its middle": "Drag from its middle"
+"Click for each point, then Done": "Click for each point, then Done"
+"Click where it starts": "Click where it starts"
+"It needs at least {n} points": "It needs at least {n} points"
 ```
 
 `filters.js`
@@ -659,6 +794,76 @@ root: …
 "Save": "Save"
 ```
 
+`geo.js`
+
+```yaml
+"Location found": "Location found"
+"Open in maps": "Open in maps"
+"Latitude": "Latitude"
+"Longitude": "Longitude"
+"Finding it…": "Finding it…"
+"Stop following": "Stop following"
+"Update": "Update"
+"Follow my location": "Follow my location"
+"Use my location": "Use my location"
+"How to fix": "How to fix"
+"There's nowhere to check in": "There's nowhere to check in"
+"The location is only good to {far}; move outside, or wait a little, and try again": "The location is only good to {far}; move outside, or wait a little, and try again"
+"You're {far} from {place}. Come closer to check in.": "You're {far} from {place}. Come closer to check in."
+"Checked out": "Checked out"
+"Checked in": "Checked in"
+"Check in": "Check in"
+"Check out": "Check out"
+"Why are you somewhere else?": "Why are you somewhere else?"
+"since {time}": "since {time}"
+"At {place}": "At {place}"
+"{far} from {place}": "{far} from {place}"
+"Your location is looked up when you check in.": "Your location is looked up when you check in."
+"Finding where you are…": "Finding where you are…"
+"Where am I?": "Where am I?"
+"Time": "Time"
+"Distance": "Distance"
+"Average": "Average"
+"Pause": "Pause"
+"Go on": "Go on"
+"Start a new one": "Start a new one"
+"Start": "Start"
+"Finish": "Finish"
+"Save as GPX": "Save as GPX"
+"Recording": "Recording"
+"Keep the app open and in front: it stops when the phone sleeps.": "Keep the app open and in front: it stops when the phone sleeps."
+"Turn on the sensors": "Turn on the sensors"
+"This device has no such sensor, or it isn't saying.": "This device has no such sensor, or it isn't saying."
+"N": "N"
+"NE": "NE"
+"E": "E"
+"SE": "SE"
+"S": "S"
+"SW": "SW"
+"W": "W"
+"NW": "NW"
+"Compass": "Compass"
+"Facing {way}": "Facing {way}"
+"{far} away, at {deg}°": "{far} away, at {deg}°"
+"Set this as level": "Set this as level"
+"Reset": "Reset"
+"Level": "Level"
+"Off level by {x}° and {y}°": "Off level by {x}° and {y}°"
+"Spirit level": "Spirit level"
+```
+
+`geo.rs`
+
+```yaml
+"Location": "Location"
+"© OpenStreetMap contributors": "© OpenStreetMap contributors"
+"Map": "Map"
+"Check in": "Check in"
+"Route": "Route"
+"Compass": "Compass"
+"Spirit level": "Spirit level"
+```
+
 `guide.js`
 
 ```yaml
@@ -680,6 +885,38 @@ root: …
 "Close": "Close"
 "Are you still there?": "Are you still there?"
 "You'll be signed out to keep your account safe.": "You'll be signed out to keep your account safe."
+```
+
+`hardware.js`
+
+```yaml
+"Not connected": "Not connected"
+"Connecting…": "Connecting…"
+"Connected": "Connected"
+"Read {value}": "Read {value}"
+"That tag couldn't be read. Try again.": "That tag couldn't be read. Try again."
+"Written": "Written"
+"Read a tag": "Read a tag"
+"Stop": "Stop"
+"Hold a tag to the back of the phone": "Hold a tag to the back of the phone"
+"Hold the tag to write to the back of the phone": "Hold the tag to write to the back of the phone"
+"Write a tag": "Write a tag"
+"Disconnect": "Disconnect"
+"Send": "Send"
+"Connect a device": "Connect a device"
+"Unnamed device": "Unnamed device"
+"Lines": "Lines"
+"Connect a port": "Connect a port"
+"{n} baud": "{n} baud"
+"Line to send": "Line to send"
+"This device takes nothing": "This device takes nothing"
+"The device didn't take it": "The device didn't take it"
+"This device has nothing that can be used": "This device has nothing that can be used"
+"{name} isn't JSON": "{name} isn't JSON"
+"Saved": "Saved"
+"Open a file": "Open a file"
+"Save": "Save"
+"Not saved": "Not saved"
 ```
 
 `import.js`
@@ -847,6 +1084,8 @@ root: …
 "Zoom in": "Zoom in"
 "Zoom out": "Zoom out"
 "Show all": "Show all"
+"Floors": "Floors"
+"At most {n} can be picked": "At most {n} can be picked"
 "No results": "No results"
 "Page": "Page"
 "Download": "Download"
@@ -1087,6 +1326,67 @@ root: …
 "Pivot table": "Pivot table"
 ```
 
+`plan_layouts.js`
+
+```yaml
+"Exit": "Exit"
+"Driver": "Driver"
+"Door": "Door"
+"Screen": "Screen"
+"Stage": "Stage"
+"Field": "Field"
+"Stalls": "Stalls"
+"Circle": "Circle"
+```
+
+`pwa.js`
+
+```yaml
+"Tap Share in the browser's bar": "Tap Share in the browser's bar"
+"Choose Add to Home Screen": "Choose Add to Home Screen"
+"Tap Add": "Tap Add"
+"In the menu bar, open File": "In the menu bar, open File"
+"Choose Add to Dock": "Choose Add to Dock"
+"Click Add": "Click Add"
+"Open the browser's menu": "Open the browser's menu"
+"Choose Install, or Add to Home screen": "Choose Install, or Add to Home screen"
+"Confirm it": "Confirm it"
+"Look for the install icon at the end of the address bar, or open the browser's menu": "Look for the install icon at the end of the address bar, or open the browser's menu"
+"Choose Install, or Add to Dock or desktop": "Choose Install, or Add to Dock or desktop"
+"Install the app": "Install the app"
+"Close": "Close"
+"Opens from your home screen, and works offline.": "Opens from your home screen, and works offline."
+"Not now": "Not now"
+"A new version is ready": "A new version is ready"
+"Reload": "Reload"
+"Later": "Later"
+"Offline": "Offline"
+"Online": "Online"
+"Reconnecting…": "Reconnecting…"
+"Waiting": "Waiting"
+"Sending…": "Sending…"
+"Refused": "Refused"
+"Waiting to be sent": "Waiting to be sent"
+"Everything has been sent": "Everything has been sent"
+"{n} waiting": "{n} waiting"
+"All sent": "All sent"
+"Send {name} again": "Send {name} again"
+"Send again": "Send again"
+"Don't send {name}": "Don't send {name}"
+"Don't send": "Don't send"
+"Still waiting for a connection": "Still waiting for a connection"
+"Send now": "Send now"
+"Press again to delete it": "Press again to delete it"
+"{name} was sent": "{name} was sent"
+```
+
+`pwa.rs`
+
+```yaml
+"Back": "Back"
+"Main": "Main"
+```
+
 `rail.rs`
 
 ```yaml
@@ -1108,6 +1408,54 @@ root: …
 "A symbol, like ! or #": "A symbol, like ! or #"
 "Enter a password": "Enter a password"
 "Password requirements": "Password requirements"
+```
+
+`record.js`
+
+```yaml
+"What's heard": "What's heard"
+"Recorded": "Recorded"
+"Position": "Position"
+"Play": "Play"
+"Pause": "Pause"
+"Delete the recording": "Delete the recording"
+"Record again": "Record again"
+"Record": "Record"
+"Go on": "Go on"
+"Done": "Done"
+"Throw it away": "Throw it away"
+"What's shared": "What's shared"
+"Camera": "Camera"
+"What was taken": "What was taken"
+"Nothing was shared": "Nothing was shared"
+"Picture taken": "Picture taken"
+"Stop": "Stop"
+"Switch camera": "Switch camera"
+"Close": "Close"
+"Take a picture of a screen": "Take a picture of a screen"
+"Record a screen": "Record a screen"
+"Delete": "Delete"
+"Take it again": "Take it again"
+"Open the camera": "Open the camera"
+"This browser can't turn speech into text. The keyboard's own microphone may.": "This browser can't turn speech into text. The keyboard's own microphone may."
+"Nothing was heard": "Nothing was heard"
+"Turning speech into text needs a connection here": "Turning speech into text needs a connection here"
+"The microphone couldn't be used": "The microphone couldn't be used"
+"Working it out…": "Working it out…"
+"Speak": "Speak"
+"It couldn't be read out": "It couldn't be read out"
+"There's nothing to read": "There's nothing to read"
+"Read aloud": "Read aloud"
+"Speed": "Speed"
+"Keep the screen on": "Keep the screen on"
+"Actions for {name}": "Actions for {name}"
+"Actions": "Actions"
+```
+
+`record.rs`
+
+```yaml
+"Document scanner": "Document scanner"
 ```
 
 `repeater.js`
@@ -1136,6 +1484,39 @@ root: …
 "Resize {name}": "Resize {name}"
 ```
 
+`scan.js`
+
+```yaml
+"Camera": "Camera"
+"The picture, with the page's corners on it": "The picture, with the page's corners on it"
+"Top left corner": "Top left corner"
+"Top right corner": "Top right corner"
+"Bottom right corner": "Bottom right corner"
+"Bottom left corner": "Bottom left corner"
+"{corner}: the arrow keys move it": "{corner}: the arrow keys move it"
+"The picture couldn't be read": "The picture couldn't be read"
+"Those corners don't make a page": "Those corners don't make a page"
+"Page {n} added": "Page {n} added"
+"Scan another page": "Scan another page"
+"Scan a page": "Scan a page"
+"Colour": "Colour"
+"Grey": "Grey"
+"Black and white": "Black and white"
+"As it is": "As it is"
+"Clean up": "Clean up"
+"Find the edges": "Find the edges"
+"Add the page": "Add the page"
+"Cancel": "Cancel"
+"Take it": "Take it"
+"Close": "Close"
+"From a picture": "From a picture"
+"Page {n}": "Page {n}"
+"Move page {n} earlier": "Move page {n} earlier"
+"Move page {n} later": "Move page {n} later"
+"Delete page {n}": "Delete page {n}"
+"Save as PDF": "Save as PDF"
+```
+
 `scheduler.js`
 
 ```yaml
@@ -1161,6 +1542,84 @@ root: …
 
 ```yaml
 "On this page": "On this page"
+```
+
+`share.js`
+
+```yaml
+"Pushes need the app's service worker": "Pushes need the app's service worker"
+"This is what one looks like.": "This is what one looks like."
+"Stay up to date": "Stay up to date"
+"Turn on notifications": "Turn on notifications"
+"Notifications are blocked for this site.": "Notifications are blocked for this site."
+"Add the app to your home screen first: notifications only work from there.": "Add the app to your home screen first: notifications only work from there."
+"This browser can't show notifications.": "This browser can't show notifications."
+"On": "On"
+"About": "About"
+"Not now": "Not now"
+"Turn off": "Turn off"
+"Show one": "Show one"
+"How to fix": "How to fix"
+"Share": "Share"
+"Copy the link": "Copy the link"
+"Copy the text": "Copy the text"
+"Copied": "Copied"
+"Email": "Email"
+"Save the file": "Save the file"
+"Save the files": "Save the files"
+"Cancel": "Cancel"
+"Add it": "Add it"
+"Leave it": "Leave it"
+"There are no contacts in this file": "There are no contacts in this file"
+"Name": "Name"
+"Phone": "Phone"
+"Address": "Address"
+"Choose contacts": "Choose contacts"
+"Choose a contact": "Choose a contact"
+"Add": "Add"
+"No name": "No name"
+"Remove {name}": "Remove {name}"
+"From a file": "From a file"
+"From a contact card": "From a contact card"
+"Type it": "Type it"
+"There's no passkey on this device yet": "There's no passkey on this device yet"
+"The passkey was made": "The passkey was made"
+"Signed in": "Signed in"
+"It was cancelled, or took too long. Try again.": "It was cancelled, or took too long. Try again."
+"This device already has a passkey here.": "This device already has a passkey here."
+"Create a passkey": "Create a passkey"
+"Sign in with a passkey": "Sign in with a passkey"
+"Use a passkey": "Use a passkey"
+"Delete": "Delete"
+"Unlock": "Unlock"
+"Forgot your PIN?": "Forgot your PIN?"
+"Choose a PIN": "Choose a PIN"
+"Enter it again": "Enter it again"
+"Locked": "Locked"
+"{n} of {of} digits": "{n} of {of} digits"
+"Too many tries. Wait {time}.": "Too many tries. Wait {time}."
+"That one's too easy to guess": "That one's too easy to guess"
+"They weren't the same. Choose again.": "They weren't the same. Choose again."
+"The PIN is set": "The PIN is set"
+"Wrong PIN": "Wrong PIN"
+"Lock this app": "Lock this app"
+"Off": "Off"
+"It locks after {n} minutes, and once it's been out of sight.": "It locks after {n} minutes, and once it's been out of sight."
+"It locks once it's been out of sight.": "It locks once it's been out of sight."
+"So that someone who picks up this device can't open it.": "So that someone who picks up this device can't open it."
+"Change the PIN": "Change the PIN"
+"Set a PIN": "Set a PIN"
+"Use fingerprint or face": "Use fingerprint or face"
+"Lock now": "Lock now"
+```
+
+`share.rs`
+
+```yaml
+"Notifications": "Notifications"
+"Shared with this app": "Shared with this app"
+"Contacts": "Contacts"
+"App lock": "App lock"
 ```
 
 `sidebar.rs`
@@ -1262,6 +1721,7 @@ root: …
 "{name} wasn't added: at most {max} files.": "{name} wasn't added: at most {max} files."
 "{name} added": "{name} added"
 "{n} files added": { one: "{n} file added", other: "{n} files added" }
+"{name} will be sent when there's a connection": "{name} will be sent when there's a connection"
 "{name} uploaded": "{name} uploaded"
 "{name} failed: {error}": "{name} failed: {error}"
 "Upload failed": "Upload failed"
@@ -1270,6 +1730,7 @@ root: …
 "Preview {name}": "Preview {name}"
 "Uploading {name}": "Uploading {name}"
 "Uploading… {progress}%": "Uploading… {progress}%"
+"Sent when there's a connection": "Sent when there's a connection"
 "Try {name} again": "Try {name} again"
 "Try again": "Try again"
 "Remove {name}": "Remove {name}"

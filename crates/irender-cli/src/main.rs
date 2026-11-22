@@ -1,3 +1,5 @@
+mod icon;
+
 use clap::{Parser, Subcommand};
 use irender_core::{Document, Format, FragmentDir, Fragments, PropKind};
 use irender_html::Engine;
@@ -112,6 +114,15 @@ enum Command {
         /// Render this many times and report min / median / mean (implies --timings).
         #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..))]
         repeat: u32,
+    },
+    /// Make rendered pages an installable app: writes the manifest, the service worker and
+    /// the icons of the document's `app` into a folder that's been rendered into.
+    App {
+        /// A document with `app` (.json, .yaml or .yml).
+        file: PathBuf,
+        /// The folder with the rendered pages.
+        #[arg(long, value_name = "DIR")]
+        dir: PathBuf,
     },
     /// Print the JSON Schema for documents.
     Schema,
@@ -406,6 +417,18 @@ fn run(command: Command) -> Result<(), String> {
                 None => print!("{html}"),
             }
         }
+        Command::App { file, dir } => {
+            let (src, format) = read(&file)?;
+            let doc = irender_core::parse(&src, format).map_err(|d| format!("{}: {d}", file.display()))?;
+            let app = doc.app.as_ref().ok_or_else(|| format!("{}: it has no `app`", file.display()))?;
+            let mut diags = irender_core::Diagnostics::default();
+            app.check(&mut diags);
+            let labels = irender_core::Labels::resolve(doc.lang.as_deref(), &doc.labels, &mut diags);
+            if diags.has_errors() {
+                return Err(format!("{}: {diags}", file.display()));
+            }
+            write_app(app, &labels, &dir)?;
+        }
         Command::Schema => {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
@@ -478,4 +501,123 @@ fn run(command: Command) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// The endings of the files an app keeps unless it says.
+const KEPT: &[&str] = &["html", "css", "js", "mjs", "json", "svg", "png", "jpg", "webp", "woff2", "wasm", "csv"];
+
+/// Writes an app's manifest, icons and service worker into `dir`, among its pages.
+fn write_app(app: &irender_core::AppSpec, labels: &irender_core::Labels, dir: &Path) -> Result<(), String> {
+    let write = |name: &str, bytes: &[u8]| -> Result<(), String> {
+        let path = dir.join(name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
+        fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))
+    };
+    if !dir.is_dir() {
+        return Err(format!("{}: not a folder", dir.display()));
+    }
+    if app.icons.is_empty() {
+        let made = app.icon.clone().unwrap_or_default();
+        let first: String = app.name.chars().filter(|c| c.is_ascii_alphanumeric()).take(1).collect();
+        let text = if made.text.is_empty() { first } else { made.text };
+        let (fg, bg) = (made.color.as_deref().unwrap_or("#ffffff"), made.background.as_deref().unwrap_or("#18181b"));
+        // A maskable icon's edges are cut off, so its letters keep to the middle.
+        for (name, size, part) in [("icon-180", 180, 0.62), ("icon-192", 192, 0.62), ("icon-512", 512, 0.62), ("icon-maskable-512", 512, 0.46)] {
+            write(&format!("icons/{name}.png"), &icon::png(&text, fg, bg, size, part))?;
+        }
+    }
+    let manifest = serde_json::to_string_pretty(&app.manifest(labels.lang.as_deref(), labels.dir())).map_err(|e| e.to_string())?;
+    write("manifest.webmanifest", manifest.as_bytes())?;
+
+    let offline = app.offline.clone().unwrap_or_default();
+    let endings: Vec<String> = offline.files.clone().unwrap_or_else(|| KEPT.iter().map(|s| s.to_string()).collect());
+    let most = offline.max_kb.unwrap_or(2048) * 1024;
+    let (mut files, mut hash) = (Vec::new(), 0xcbf2_9ce4_8422_2325u64);
+    let mut also = offline.also.clone();
+    let mut folders = vec![dir.to_path_buf()];
+    while let Some(folder) = folders.pop() {
+        let mut inside: Vec<_> = fs::read_dir(&folder).map_err(|e| format!("{}: {e}", folder.display()))?.filter_map(|e| e.ok()).map(|e| e.path()).collect();
+        inside.sort();
+        for path in inside {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+            if name.starts_with('.') || name == "sw.js" {
+                continue;
+            }
+            if path.is_dir() {
+                folders.push(path);
+                continue;
+            }
+            let ending = path.extension().and_then(|e| e.to_str()).unwrap_or_default().to_ascii_lowercase();
+            if !endings.iter().any(|e| e.trim_start_matches('.') == ending) {
+                continue;
+            }
+            let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            if ending == "html" {
+                for url in libraries(&String::from_utf8_lossy(&bytes)) {
+                    if !also.contains(&url) {
+                        also.push(url);
+                    }
+                }
+            }
+            for b in &bytes {
+                hash = (hash ^ *b as u64).wrapping_mul(0x0100_0000_01b3);
+            }
+            if bytes.len() as u64 <= most {
+                let rel = path.strip_prefix(dir).expect("inside").to_string_lossy().replace('\\', "/");
+                files.push(rel);
+            }
+        }
+    }
+    files.sort();
+    if let Some(f) = offline.fallback.as_ref().filter(|f| !files.contains(&f.trim_start_matches("./").to_string())) {
+        return Err(format!("`offline.fallback`: there's no {f} among the files kept"));
+    }
+    // The start page is kept under its folder's address too.
+    let mut addresses: Vec<String> = files.iter().filter_map(|f| f.strip_suffix("index.html")).map(|f| format!("./{f}")).collect();
+    addresses.push("./manifest.webmanifest".into());
+    addresses.extend(files.iter().map(|f| format!("./{f}")));
+    let version = format!("{hash:016x}");
+    write("sw.js", irender_ui_kit::service_worker(&app.worker(&version, &addresses, &also)).as_bytes())?;
+    println!("{}: manifest.webmanifest, sw.js ({} files kept, {} from other sites)", dir.display(), files.len(), also.len());
+    Ok(())
+}
+
+/// What a page loads from jsDelivr: the kits' libraries, pinned to a version.
+fn libraries(html: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for (i, _) in html.match_indices("https://cdn.jsdelivr.net/npm/") {
+        let url: String = html[i..].chars().take_while(|c| !matches!(c, '"' | '\'' | '<' | '>' | '&' | ' ' | '\\' | ')' | '`')).collect();
+        // Only whole files: a script that builds addresses has pieces of them too.
+        if [".js", ".mjs", ".wasm", ".css"].iter().any(|e| url.ends_with(e)) && !out.contains(&url) {
+            out.push(url);
+        }
+    }
+    // pdf.js has its worker beside it.
+    for w in out.clone().iter().filter(|u| u.contains("pdfjs-dist") && u.ends_with("pdf.min.mjs")) {
+        out.push(w.replace("pdf.min.mjs", "pdf.worker.min.mjs"));
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pages_libraries_are_found() {
+        let html = r#"<script src="https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js"></script> {&quot;library&quot;:&quot;https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs&quot;} "https://cdn.jsdelivr.net/npm/" + x"#;
+        assert_eq!(
+            libraries(html),
+            ["https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js", "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs", "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs"]
+        );
+    }
+
+    #[test]
+    fn made_icons_are_small_pngs() {
+        let png = icon::png("FI", "#ffffff", "#2563eb", 512, 0.62);
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert!(png.len() < 40_000, "{}", png.len());
+    }
 }

@@ -155,12 +155,21 @@ impl Component for ImageCropper {
 pub struct Plan;
 
 const PLAN_PROPS: &[PropDef] = &[
-    PropDef::new("items", PropKind::Any, "What's on it: `[{ id, x, y, width, height, shape, rotation, label, sublabel, tone, color, status, points, locked }]` in the plan's units; `shape`: rect (default), circle, pin or polygon (with `points`); may use state").required(),
+    PropDef::new("items", PropKind::Any, "What's on it: `[{ id, x, y, width, height, shape, rotation, label, sublabel, tone, color, status, points, locked }]` in the plan's units; `shape`: rect (default), circle, pin, seat (with `turn`, degrees) or polygon (with `points`); may use state. Any other field is kept, e.g. `price`; one with `to` (stairs, a lift) goes to that floor"),
+    PropDef::new("layout", PropKind::Any, "Seats, bays or desks from a few words: `{ kind: aircraft, rows: 30, seats: \"ABC DEF\" }`; `kind`: aircraft, bus, train, cinema, theatre, auditorium, stadium, hall (`style`: banquet, cabaret, classroom, theatre, ushape, boardroom, hollow or exhibition), parking or office; may use state"),
+    PropDef::new("data", PropKind::Any, "What's known of a layout's seats, by id, `{ 12A: { status: Taken } }`, or a list with `id`s; may use state"),
+    PropDef::new("floors", PropKind::Any, "Several floors or decks, the top first: `[{ id, label, title, layout, items, image, width, height }]`; `items` of the plan with a `floor` are on that one; may use state"),
+    PropDef::new("bindFloor", PropKind::StateKey, "State key for the floor shown, its `id`"),
+    PropDef::new("multiple", PropKind::Bool, "Several can be picked: `bind` is then a list of ids"),
+    PropDef::new("max", PropKind::Number, "At most this many"),
+    PropDef::new("available", PropKind::Any, "The statuses that can be picked, e.g. `[Free]` (default any)"),
+    PropDef::new("bindPicked", PropKind::StateKey, "State key that gets the picked items themselves, a list, each with its floor"),
+    PropDef::new("bindTotal", PropKind::StateKey, "State key that gets the sum of their `price`s"),
     PropDef::new("width", PropKind::Number, "The plan's width in its own units (default 1000)"),
     PropDef::new("height", PropKind::Number, "Its height (default 600)"),
     PropDef::new("image", PropKind::Any, "A drawing behind everything: a floor plan, a site map, a photo"),
     PropDef::new("bindItems", PropKind::StateKey, "State key the items are in: moved ones are written back"),
-    PropDef::new("bind", PropKind::StateKey, "State key for the picked item's id"),
+    PropDef::new("bind", PropKind::StateKey, "State key for the picked item's id, or with `multiple` a list of them"),
     PropDef::new("bindItem", PropKind::StateKey, "State key that gets the picked item itself"),
     PropDef::new("tones", PropKind::Any, "A tone per `status`: `{ Free: success, Occupied: danger }`"),
     PropDef::new("grid", PropKind::Number, "Lines drawn this far apart, which moved items keep to"),
@@ -185,6 +194,22 @@ static PLAN: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [data-pl-item]:hover > :is(rect, circle, polygon, path)", pairs(&[("fill", "color-mix(in srgb, var(--tone) 38%, var(--color-surface))")]))
     .nest("& [data-pl-item]:focus-visible > :is(rect, circle, polygon, path)", pairs(&[("stroke-width", "3")]))
     .nest("& [data-pl-item][aria-pressed=true] > :is(rect, circle, polygon, path)", pairs(&[("stroke-width", "3"), ("fill", "color-mix(in srgb, var(--tone) 45%, var(--color-surface))")]))
+    .nest("& [data-pl-item][data-seat] > path", pairs(&[("stroke-width", "1"), ("stroke-linejoin", "round")]))
+    .nest("& [data-pl-item][data-seat][aria-pressed=true] > :is(path, rect)", pairs(&[("fill", "var(--color-primary)"), ("stroke", "var(--color-primary)")]))
+    .nest("& [data-pl-item][data-seat][aria-pressed=true] > text", pairs(&[("fill", "var(--color-on-primary)")]))
+    .nest("& [data-pl-item][aria-disabled=true]", pairs(&[("cursor", "not-allowed"), ("opacity", "0.5")]))
+    .nest("& [data-pl-mark]", pairs(&[("fill", "none"), ("stroke", "color-mix(in srgb, var(--color-text) 28%, transparent)"), ("stroke-width", "1.5"), ("vector-effect", "non-scaling-stroke")]))
+    .nest("& [data-pl-mark][data-fill]", pairs(&[("fill", SUBTLE)]))
+    .nest("& [data-pl-mark][data-ground]", pairs(&[("fill", SURFACE)]))
+    .nest("& text[data-pl-mark]", pairs(&[("fill", TEXT), ("stroke", "none"), ("text-anchor", "middle"), ("dominant-baseline", "central"), ("font-weight", "500"), ("pointer-events", "none")]))
+    .nest("& text[data-pl-mark][data-soft]", pairs(&[("fill", MUTED)]))
+    .nest("& text[data-pl-mark][data-tone=success]", pairs(&[("fill", "var(--color-success, #16a34a)"), ("font-weight", "600")]))
+    .nest("& [data-pl-floors]", pairs(&[("position", "absolute"), ("z-index", "2"), ("top", "10px"), ("inset-inline-start", "10px"), ("display", "flex"), ("flex-direction", "column"), ("max-height", "calc(100% - 20px)"), ("overflow-y", "auto"), ("border", "var(--border-width, 1px) solid"), ("border-color", BORDER), ("border-radius", "var(--radius-md)"), ("background", BG_POPOVER), ("box-shadow", "0 1px 4px rgb(0 0 0 / 0.12)"), ("cursor", "default")]))
+    .nest("& [data-pl-floors] button", pairs(&[("min-width", "36px"), ("min-height", "34px"), ("padding", "4px 10px"), ("border", "0"), ("border-top", "1px solid var(--color-border)"), ("background", "none"), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer")]))
+    .nest("& [data-pl-floors] button:first-child", pairs(&[("border-top", "0")]))
+    .nest("& [data-pl-floors] button:hover", pairs(&[("background", SUBTLE)]))
+    .nest("& [data-pl-floors] button[aria-pressed=true]", pairs(&[("background", PRIMARY), ("color", crate::ON_PRIMARY)]))
+    .nest("& [data-pl-title]", pairs(&[("position", "absolute"), ("z-index", "2"), ("top", "10px"), ("inset-inline-end", "10px"), ("padding", pad!(4, 10)), ("border-radius", "var(--radius-md)"), ("background", BG_POPOVER), ("font-size", fs!(13)), ("font-weight", "500"), ("pointer-events", "none")]))
     .nest("& [data-pl-item][data-faded]", pairs(&[("opacity", "0.25")]))
     .nest("& [data-pl-item][data-dragging]", pairs(&[("opacity", "0.7")]))
     .nest("& [data-pl-item] text", pairs(&[("fill", TEXT), ("text-anchor", "middle"), ("dominant-baseline", "central"), ("pointer-events", "none"), ("font-weight", "500")]))
@@ -208,14 +233,18 @@ impl Component for Plan {
         "ui-plan"
     }
     fn info(&self) -> ComponentInfo {
-        ComponentInfo { doc: "Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked, coloured by status, and rearranged by dragging.", props: PLAN_PROPS, parts: &[], children: false, open_props: false }
+        ComponentInfo { doc: "Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked (one or several), coloured by status, and rearranged by dragging. Aircraft cabins, buses, trains, cinemas, theatres, auditoriums, stadiums, halls, car parks and offices come from a few words, on one floor or several.", props: PLAN_PROPS, parts: &[], children: false, open_props: false }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["items", "filter", "image"], &["width", "height", "grid", "tones"], &["bindItems", "bind", "bindItem"])?;
-        for f in ["search", "legend"] {
+        if ["items", "layout", "floors"].iter().all(|p| node.prop(p).is_none()) {
+            return Err(RenderError::new(node, "`ui-plan` needs `items`, `layout` or `floors`"));
+        }
+        let mut config = widget::config(cx, node, &["items", "filter", "image", "layout", "data", "floors", "available"], &["width", "height", "grid", "tones", "max"], &["bindItems", "bind", "bindItem", "bindFloor", "bindPicked", "bindTotal"])?;
+        for f in ["search", "legend", "multiple"] {
             config.insert(f.into(), json!(flag(cx, node, f, false)));
         }
         scripts(cx);
+        cx.global_js("ui-plan-layouts", include_str!("plan_layouts.js"));
         let mut s = StyleBlock::new();
         if let Some(h) = node.prop("viewHeight")
             && let Some(v) = cx.style_value(node, "height", h)?

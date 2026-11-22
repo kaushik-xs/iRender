@@ -363,10 +363,12 @@
   };
 
   // ---------------------------------------------------------------- scanner
+  const NAMES = { qrcode: "qr_code", microqrcode: "micro_qr_code", datamatrix: "data_matrix", aztec: "aztec", pdf417: "pdf417", code128: "code_128", code39: "code_39", code93: "code_93", codabar: "codabar", ean13: "ean_13", ean8: "ean_8", upca: "upc_a", upce: "upc_e", itf: "itf", maxicode: "maxi_code", databar: "databar", databarexpanded: "databar_expanded" };
   B["ui-code-scanner"] = (el, api) => {
-    const cfg = api.config, $ = (s) => el.querySelector(s);
+    const cfg = api.config, $ = (s) => el.querySelector(s), D = window.__irenderDevice;
     const view = $("[data-scan-view]"), video = $("video"), start = $("[data-scan-start]"), note = $("[data-scan-note]"), input = $("[data-scan-input]");
-    let stream = null, detector = null, facing = "environment", last = null, lastAt = 0, frame = 0;
+    const torch = $("[data-scan-torch]"), pick = $("[data-scan-pick]");
+    let stream = null, read = null, stuck = false, facing = "environment", last = null, lastAt = 0, frame = 0;
     const say = (t) => (note.textContent = t);
     function got(value, format) {
       const now = performance.now();
@@ -398,18 +400,65 @@
         o.onended = () => a.close();
       } catch { /* no sound */ }
     }
+    // The browser's own detector, when it has one that reads these kinds; else a decoder
+    // in WebAssembly, loaded the first time.
+    const plain = (f) => String(f).toLowerCase().replace(/[^a-z0-9]/g, "");
+    const want = Array.isArray(cfg.formats) && cfg.formats.length ? cfg.formats : null;
+    async function engine() {
+      if (read) return read;
+      if (cfg.decoder !== "wasm" && !stuck && "BarcodeDetector" in window) {
+        const can = await BarcodeDetector.getSupportedFormats().catch(() => []);
+        if (can.length && (!want || want.every((f) => can.includes(f)))) {
+          const detector = new BarcodeDetector({ formats: want ?? can });
+          // Some devices say they have one that never answers: the other is used then.
+          return (read = async (src) => {
+            try {
+              return (await Promise.race([detector.detect(src), new Promise((_, no) => setTimeout(() => no(new Error("slow")), 4000))])).map((c) => [c.rawValue, c.format]);
+            } catch (e) {
+              if (e.message !== "slow" || cfg.decoder === "native") throw e;
+              stuck = true;
+              read = null;
+              return (await engine())(src);
+            }
+          });
+        }
+      }
+      if (cfg.decoder === "native") throw new Error("none");
+      say(L("Getting the reader…"));
+      await D.load(cfg.library);
+      const Z = window.ZXingWASM;
+      await Z.prepareZXingModule({ overrides: { locateFile: (f, p) => (f.endsWith(".wasm") ? cfg.wasm : p + f) }, fireImmediately: true });
+      say("");
+      const canvas = document.createElement("canvas");
+      return (read = async (src) => {
+        let data = src;
+        if (!(src instanceof Blob)) {
+          const w = src.videoWidth ?? src.width, h = src.videoHeight ?? src.height, k = Math.min(1, 960 / Math.max(w, h, 1));
+          canvas.width = Math.round(w * k);
+          canvas.height = Math.round(h * k);
+          const g = canvas.getContext("2d", { willReadFrequently: true });
+          g.drawImage(src, 0, 0, canvas.width, canvas.height);
+          data = g.getImageData(0, 0, canvas.width, canvas.height);
+        }
+        const found = await Z.readBarcodes(data, { tryHarder: true, maxNumberOfSymbols: 4 });
+        return found.filter((c) => c.text && (!want || want.some((f) => plain(f) === plain(c.format)))).map((c) => [c.text, NAMES[plain(c.format)] ?? plain(c.format)]);
+      });
+    }
     async function go() {
-      if (!("BarcodeDetector" in window)) return say(L("This browser can't read codes with the camera. Type the code, or use a handheld scanner.")), input?.focus();
+      if (!navigator.mediaDevices?.getUserMedia) return say(L("This browser can't use the camera here. Type the code, or use a handheld scanner.")), input?.focus();
+      say("");
       try {
-        const can = await BarcodeDetector.getSupportedFormats();
-        const want = Array.isArray(cfg.formats) ? cfg.formats.filter((f) => can.includes(f)) : can;
-        detector = new BarcodeDetector({ formats: want.length ? want : can });
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing, width: { ideal: 1280 } }, audio: false });
+        await engine();
       } catch (e) {
-        return say(e.name === "NotAllowedError" ? L("The camera isn't allowed on this page.") : L("The camera couldn't be started."));
+        stop();
+        return say(e.message === "none" || !e.name || e.name === "Error" ? L("This browser can't read codes with the camera. Type the code, or use a handheld scanner.") : D.explain(e, "camera") ?? "");
       }
       video.srcObject = stream;
-      await video.play();
+      video.muted = true;
+      await video.play().catch(() => {});
+      const track = stream.getVideoTracks()[0];
+      torch.hidden = !track.getCapabilities?.().torch;
       view.hidden = false;
       start.hidden = true;
       say(L("Hold the code in the frame."));
@@ -419,8 +468,8 @@
         if (!busy && video.readyState >= 2) {
           busy = true;
           try {
-            const [c] = await detector.detect(video);
-            if (c) got(c.rawValue, c.format);
+            const [c] = await read(video);
+            if (c && stream) got(c[0], c[1]);
           } catch { /* the next frame may do */ }
           busy = false;
         }
@@ -432,9 +481,31 @@
       clearTimeout(frame);
       stream?.getTracks().forEach((t) => t.stop());
       stream = null;
+      torch.setAttribute("aria-pressed", "false");
       view.hidden = true;
       start.hidden = false;
     }
+    torch.addEventListener("click", async () => {
+      const on = torch.getAttribute("aria-pressed") !== "true";
+      try {
+        await stream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: on }] });
+        torch.setAttribute("aria-pressed", String(on));
+      } catch { /* it has none after all */ }
+    });
+    pick?.addEventListener("change", async () => {
+      const f = pick.files[0];
+      pick.value = "";
+      if (!f) return;
+      try {
+        const e = await engine();
+        const found = await e(cfg.decoder === "wasm" ? f : await createImageBitmap(f));
+        say("");
+        last = null;
+        found.length ? found.forEach((c) => got(c[0], c[1])) : say(L("There's no code to read in this picture."));
+      } catch {
+        say(L("This browser can't read codes from a picture."));
+      }
+    });
     start.addEventListener("click", go);
     $("[data-scan-stop]").addEventListener("click", () => (stop(), say(""), start.focus()));
     $("[data-scan-flip]").addEventListener("click", () => {
