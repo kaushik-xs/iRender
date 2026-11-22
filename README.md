@@ -386,3 +386,7 @@ Documents can't mark elements themselves: `data-i-*` attributes are reserved. `i
 
 - `cx.with_context(name, value, f)` makes a `Val` available to the components rendered inside `f`, and `cx.context(name)` reads the innermost one. Documents can't read or set it. A value that depends on an item only the browser knows stays a template, so a dialog can hand its id to the close buttons inside it, even in a list the browser rebuilds.
 - `cx.scope_key()` tells the items of a server-rendered list apart, for element ids. Inside a list the browser rebuilds, `cx.client_key()` is a template of the surrounding list indexes (`{{ index }}`) to add as well.
+
+## License
+
+[Apache License, Version 2.0](LICENSE-APACHE).
