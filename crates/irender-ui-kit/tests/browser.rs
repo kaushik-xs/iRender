@@ -61,7 +61,7 @@ window.addEventListener("load", async () => {
     dims.click();
 
     $$("#tabs [role=tab]")[1].click();
-    log("tabs", $$("#tabs [role=tabpanel]").map((p) => (p.hidden ? "-" : "shown")).join(","), S().tab);
+    log("tabs", $$("#tabs [role=tabpanel][id^=settings-tabs]").map((p) => (p.hidden ? "-" : "shown")).join(","), S().tab);
 
     const items = $$("#faq details");
     items[1].querySelector("summary").click();
@@ -7703,6 +7703,87 @@ fn tabs_toggles_and_codes_fit_in_chrome() {
             "wide last true",
             "row wraps=false",
             "sideways 0",
+        ],
+        "\n{result}"
+    );
+}
+
+/// A tab list is one stop for the Tab key, and the arrow keys, Home and End move between
+/// its tabs and select them (mirrored right to left). A list with more tabs than fit
+/// starts at its selected tab, follows it, and marks the sides with more.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn tabs_by_keyboard_in_chrome() {
+    let panels = ["January", "February", "March", "April", "May", "June"].map(|l| {
+        serde_json::json!({ "type": "ui-tab-panel", "props": { "value": l, "label": l },
+            "children": [{ "type": "text", "props": { "value": format!("{l} panel") } }] })
+    });
+    let tabs = |bind: &str, id: &str| {
+        let dir = if id == "rtl" { "rtl" } else { "ltr" };
+        serde_json::json!({ "type": "element", "attrs": { "id": id, "dir": dir }, "style": { "width": "300px" },
+            "children": [{ "type": "ui-tabs", "props": { "bind": bind }, "children": panels }] })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "a": "April", "b": "January", "c": "none" },
+        "root": { "type": "element", "children": [tabs("a", "ltr"), tabs("b", "rtl"), tabs("c", "none")] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 100));
+      try {
+        const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+        const list = (id) => document.querySelector(`#${id} [role=tablist]`);
+        const tab = (id, name) => [...list(id).children].find((t) => t.textContent === name);
+        const key = (k, mods = {}) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods }));
+        const stops = (id) => [...list(id).children].filter((t) => t.tabIndex === 0).map((t) => t.textContent).join();
+        const inView = (id, name) => { const t = tab(id, name).getBoundingClientRect(), b = list(id).getBoundingClientRect(); return t.left >= b.left - 1 && t.right <= b.right + 1; };
+        const more = (id) => list(id).getAttribute("data-more");
+        const shown = (id) => [...document.querySelectorAll(`#${id} [role=tabpanel]:not([hidden])`)].map((p) => p.textContent).join();
+        await frame();
+        out.push(`start stop=${stops("ltr")} view=${inView("ltr", "April")} more=${more("ltr")} page=${scrollY}`);
+        tab("ltr", "April").focus();
+        for (const k of ["ArrowRight", "End", "ArrowRight", "ArrowLeft", "Home"]) {
+          key(k); await frame();
+          const now = document.activeElement.textContent;
+          out.push(`${k} ${now} ${S().a} stop=${stops("ltr")} view=${inView("ltr", now)} more=${more("ltr")} ${shown("ltr")}`);
+        }
+        key("ArrowRight", { metaKey: true }); await frame();
+        out.push(`with ⌘ ${S().a}`);
+        // State changed elsewhere.
+        root.__irender.set("a", "June"); await frame();
+        out.push(`state stop=${stops("ltr")} view=${inView("ltr", "June")} more=${more("ltr")}`);
+        out.push(`rtl start more=${more("rtl")}`);
+        tab("rtl", "January").focus();
+        for (const k of ["ArrowLeft", "End", "ArrowRight"]) { key(k); await frame(); out.push(`rtl ${k} ${S().b} view=${inView("rtl", S().b)} more=${more("rtl")}`); }
+        out.push(`none stop=${stops("none")}`);
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let mut doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    irender_ui_kit::apply_theme(&mut doc);
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("tabs-keys", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start stop=April view=true more=both page=0",
+            "ArrowRight May May stop=May view=true more=both May panel",
+            "End June June stop=June view=true more=left June panel",
+            // Past the last, the first again.
+            "ArrowRight January January stop=January view=true more=right January panel",
+            "ArrowLeft June June stop=June view=true more=left June panel",
+            "Home January January stop=January view=true more=right January panel",
+            "with ⌘ January",
+            "state stop=June view=true more=left",
+            "rtl start more=left",
+            "rtl ArrowLeft February view=true more=left",
+            "rtl End June view=true more=right",
+            "rtl ArrowRight May view=true more=right",
+            "none stop=January",
         ],
         "\n{result}"
     );

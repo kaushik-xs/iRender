@@ -72,6 +72,7 @@ state:
   chatWaiting: false
   # A reply as it arrives, each piece stopping partway through something.
   arrivedAt: 3
+  monthTab: june
   arriving:
     - "The **launch pl"
     - "The **launch plan** is ready. See [the docs](https://exam"
@@ -2339,6 +2340,18 @@ root:
                               props: { title: Password, description: "Change your password here." }
                               children:
                                 - { type: ui-input, props: { type: password, placeholder: New password }, attrs: { aria-label: New password } }
+                    # More tabs than fit: the list scrolls, fading on the sides with more.
+                    - type: ui-tabs
+                      props: { bind: monthTab, id: month-tabs }
+                      style: { width: 100%, max-width: 420 }
+                      children:
+                        - { type: ui-tab-panel, props: { value: january, label: January }, children: [ { type: ui-text, props: { variant: muted, text: "Arrow keys, Home and End move between the tabs." } } ] }
+                        - { type: ui-tab-panel, props: { value: february, label: February }, children: [ { type: ui-text, props: { variant: muted, text: "February's figures." } } ] }
+                        - { type: ui-tab-panel, props: { value: march, label: March }, children: [ { type: ui-text, props: { variant: muted, text: "March's figures." } } ] }
+                        - { type: ui-tab-panel, props: { value: april, label: April }, children: [ { type: ui-text, props: { variant: muted, text: "April's figures." } } ] }
+                        - { type: ui-tab-panel, props: { value: may, label: May }, children: [ { type: ui-text, props: { variant: muted, text: "May's figures." } } ] }
+                        - { type: ui-tab-panel, props: { value: june, label: June }, children: [ { type: ui-text, props: { variant: muted, text: "June is selected to begin with, so a list too narrow for it starts scrolled to it." } } ] }
+                        - { type: ui-tab-panel, props: { value: july, label: July }, children: [ { type: ui-text, props: { variant: muted, text: "July's figures." } } ] }
                     - type: ui-accordion
                       props: { id: faq }
                       style: { max-width: 560 }

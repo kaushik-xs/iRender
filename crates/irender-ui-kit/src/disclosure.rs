@@ -179,7 +179,8 @@ const TAB_PANEL_PROPS: &[PropDef] = &[
 
 static TABS: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-width", "0")]));
-// More tabs than fit scroll within the list.
+const TABS_SCRIPT: &str = include_str!("tabs.js");
+// More tabs than fit scroll within the list, which fades on the sides with more.
 static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
         ("box-sizing", "border-box"),
@@ -196,6 +197,12 @@ static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("color", MUTED),
     ])
     .nest("&::-webkit-scrollbar", StyleBlock::from_pairs(&[("display", "none")]))
+    .nest("&[data-more=left]", StyleBlock::from_pairs(&[("mask-image", "linear-gradient(to right, transparent, #000 32px)")]))
+    .nest("&[data-more=right]", StyleBlock::from_pairs(&[("mask-image", "linear-gradient(to left, transparent, #000 32px)")]))
+    .nest(
+        "&[data-more=both]",
+        StyleBlock::from_pairs(&[("mask-image", "linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent)")]),
+    )
 });
 static TAB: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[
@@ -258,7 +265,8 @@ impl Component for Tabs {
         el.base_style_ref(&TABS);
         cx.open(&el, node)?;
         let mut list = cx.part("div", node, "list");
-        list.base_style_ref(&TAB_LIST).attr("role", "tablist");
+        list.base_style_ref(&TAB_LIST).attr("role", "tablist").behavior("ui-tabs", json!({}));
+        cx.global_js("ui-tabs", TABS_SCRIPT);
         cx.open(&list, node)?;
         for (i, (value, label)) in panels.iter().enumerate() {
             let tab = synthetic(
