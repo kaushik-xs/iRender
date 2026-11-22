@@ -8,7 +8,7 @@
 #   - a step indicator built from a literal list, with live `aria-current`
 #   - a computed summary, then a `call` that hands everything to the host app
 #
-#   cargo run -p irender-cli -- render examples/wizard.yaml -o wizard.html
+#   cargo run -p irender-cli -- render skills/irender/examples/wizard.yaml -o wizard.html
 version: 1
 theme:
   tokens:

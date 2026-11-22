@@ -1,0 +1,187 @@
+# A workflow to edit. Its nodes and edges are in state, so drags write back and the list of
+# nodes rebuilds in the browser. Its node types are ordinary iRender trees with ports inside.
+#
+#   cargo run -p irender-cli -- render examples/flow/workflow-01.yaml --ui-kit --flow-kit -o workflow-01.html
+version: 1
+state:
+  wfNodes:
+    - { id: trigger, type: trigger, data: { label: POST /orders, detail: HTTP trigger } }
+    - { id: validate, type: step, data: { label: Validate order, detail: setVariable } }
+    - { id: in_stock, type: if, data: { label: In stock?, detail: "items.all(i => i.available)" } }
+    - id: route
+      type: switch
+      data: { label: Shipping, detail: order.shipping, cases: [{ handle: express, label: Express }, { handle: standard, label: Standard }, { handle: pickup, label: Pickup }] }
+    - { id: backorder, type: step, data: { label: Create backorder, detail: serviceCall } }
+    - { id: courier, type: step, data: { label: Book courier, detail: httpRequest } }
+    - { id: post, type: step, data: { label: Book post, detail: httpRequest } }
+    - { id: store, type: step, data: { label: Notify store, detail: serviceCall } }
+    - { id: join, type: merge, data: { label: Merge, inputCount: 3 } }
+    - { id: reply, type: step, data: { label: Reply 201, detail: respond } }
+  wfEdges:
+    - { id: e1, source: trigger, target: validate }
+    - { id: e2, source: validate, target: in_stock }
+    - { id: e3, source: in_stock, sourceHandle: "true", target: route }
+    - { id: e4, source: in_stock, sourceHandle: "false", target: backorder, type: retry, label: no stock }
+    - { id: e5, source: route, sourceHandle: express, target: courier }
+    - { id: e6, source: route, sourceHandle: standard, target: post }
+    - { id: e7, source: route, sourceHandle: pickup, target: store }
+    - { id: e8, source: courier, target: join, targetHandle: input-0 }
+    - { id: e9, source: post, target: join, targetHandle: input-1 }
+    - { id: e10, source: store, target: join, targetHandle: input-2 }
+    - { id: e11, source: join, target: reply, animated: true }
+  step: null
+  dir: LR
+  doomed: null
+root:
+  type: stack
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: ui-card
+      props:
+        title: A workflow you can edit, with node types of its own
+        description: "Laid out automatically. The switch has a port per case and the merge a port per input, from the node's data. Drag from a port to connect, or onto empty canvas to add a step there. Click or Shift-drag to select, Delete to remove (it asks first), and drag or click a palette item to add one."
+      children:
+        # The palette: drag an item onto the flow, or click it.
+        - type: stack
+          props: { direction: row, gap: 8, align: center, wrap: true }
+          style: { margin-bottom: 12 }
+          children:
+            - { type: ui-text, props: { variant: muted, text: "Add:" } }
+            - type: ui-flow-item
+              props: { flow: wf, node: { type: step, data: { label: New step, detail: setVariable } } }
+              children: [{ type: ui-badge, props: { text: Step, variant: outline } }]
+            - type: ui-flow-item
+              props: { flow: wf, node: { type: if, data: { label: New condition, detail: "x > 0" } } }
+              children: [{ type: ui-badge, props: { text: If, variant: outline } }]
+            - type: ui-flow-item
+              props: { flow: wf, node: { type: merge, data: { label: Merge, inputCount: 2 } } }
+              children: [{ type: ui-badge, props: { text: Merge, variant: outline } }]
+        - type: ui-flow
+          attrs: { id: wf }
+          props:
+            nodes: "{{ wfNodes }}"
+            edges: "{{ wfEdges }}"
+            title: Order workflow
+            layout: layered
+            direction: "{{ dir }}"
+            edgePath: smoothstep
+            rankGap: 64
+            editable: true
+            bind: step
+            bindNodes: wfNodes
+            bindEdges: wfEdges
+            # A trigger may only lead to a step; other nodes connect freely.
+            connect: { pairs: [{ source: trigger, target: step }, { source: step }, { source: if }, { source: switch }, { source: merge }] }
+            newNode: { type: step, data: { label: New step, detail: setVariable } }
+            confirmDelete: confirm-delete
+            bindDelete: doomed
+            height: 520
+            minimap: true
+          children:
+            - type: ui-flow-node
+              props: { type: trigger }
+              style: { text-align: left, border-color: $color.primary, min-width: 170 }
+              children:
+                - { type: ui-badge, props: { text: Trigger, variant: default } }
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600, margin-top: 6 } }
+                - { type: text, props: { tag: div, value: "{{ node.data.detail }}" }, style: { color: $color.muted, font-size: 11 } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            - type: ui-flow-node
+              props: { type: step }
+              style: { text-align: left, min-width: 170 }
+              children:
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600 } }
+                - { type: text, props: { tag: div, value: "{{ node.data.detail }}" }, style: { color: $color.muted, font-size: 11, font-family: "ui-monospace, monospace" } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            # A diamond, as in the builder, with two named outputs on its tips.
+            - type: ui-flow-node
+              props: { type: if, shape: diamond }
+              attrs: { title: "{{ node.data.detail }}" }
+              style: { width: 170, height: 96, padding: "0 34px" }
+              parts: { shape: { style: { fill: "color-mix(in srgb, #f43f5e 8%, var(--color-surface, #fff))", stroke: "#f43f5e" } } }
+              children:
+                - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600 } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { id: "true", side: "{{ dir == 'TB' ? 'bottom' : 'right' }}" }, style: { background: "#16a34a" } }
+                - { type: ui-flow-port, props: { id: "false", side: "{{ dir == 'TB' ? 'right' : 'bottom' }}" }, style: { background: "#dc2626" } }
+
+            # A port per case: each row is positioned, so its port sits on the row.
+            - type: ui-flow-node
+              props: { type: switch, variant: plain }
+              style:
+                min-width: 190
+                border: 1px solid $color.border
+                border-radius: 8
+                background: $color.surface
+                font-size: 12
+              children:
+                - type: element
+                  style: { padding: "8px 12px", border-bottom: 1px solid $color.border }
+                  children:
+                    - { type: ui-badge, props: { text: Switch, variant: secondary } }
+                    - { type: text, props: { tag: div, value: "{{ node.data.label }}" }, style: { font-weight: 600, margin-top: 6 } }
+                - type: list
+                  props: { items: "{{ node.data.cases }}", as: c }
+                  children:
+                    - type: element
+                      style: { position: relative, padding: "4px 12px", text-align: right, color: $color.muted }
+                      children:
+                        - { type: text, props: { value: "{{ c.label }}" } }
+                        - { type: ui-flow-port, props: { id: "{{ c.handle }}", side: right } }
+                - { type: ui-flow-port, props: { type: target } }
+
+            # As many inputs as the node's `inputCount`.
+            - type: ui-flow-node
+              props: { type: merge }
+              style: { min-width: 110, min-height: 64, display: flex, align-items: center, justify-content: center, font-weight: 600 }
+              children:
+                - { type: text, props: { value: "{{ node.data.label }}" } }
+                - type: list
+                  props: { items: "{{ range(node.data.inputCount) }}", as: i }
+                  children:
+                    - { type: ui-flow-port, props: { id: "input-{{ i }}", type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+
+            - type: ui-flow-edge
+              props: { marker: arrowclosed }
+            - type: ui-flow-edge
+              props: { type: retry, path: step, marker: arrowclosed }
+              style: { stroke: "#dc2626", stroke-dasharray: "4 3" }
+              parts: { label: { style: { color: "#dc2626", font-weight: 600 } } }
+
+            - type: ui-flow-panel
+              props: { position: top-left }
+              children:
+                - { type: ui-toggle-group, props: { bind: dir, options: [LR, TB], size: sm, variant: outline } }
+            - type: ui-flow-panel
+              props: { position: top-right }
+              children:
+                - type: if
+                  props: { when: "{{ step }}" }
+                  children:
+                    - type: ui-card
+                      props: { title: "{{ step }}", description: Selected step }
+                      style: { width: 220 }
+                      children:
+                        - { type: ui-button, props: { label: Deselect, size: sm, variant: outline }, on: { click: { action: set_state, key: step, value: null } } }
+
+        # Opened by the flow before it deletes; its buttons answer it.
+        - type: ui-alert-dialog
+          props:
+            id: confirm-delete
+            title: Delete from the workflow?
+            description: "{{ doomed ? doomed.nodes.length + ' step(s) and ' + doomed.edges.length + ' connection(s) will be removed.' : '' }}"
+          children:
+            - type: ui-dialog-footer
+              children:
+                - { type: ui-dialog-close, props: { label: Cancel, variant: outline }, on: { click: { action: call, name: flow.cancel, args: { flow: wf } } } }
+                - { type: ui-dialog-close, props: { label: Delete, variant: destructive }, on: { click: { action: call, name: flow.delete, args: { flow: wf } } } }

@@ -1,0 +1,77 @@
+# A small ER diagram in a card, from server data.
+#
+#   cargo run -p irender-cli -- render examples/flow/er-04.yaml --data examples/flow/er-04.data.json --ui-kit --flow-kit -o er-04.html
+version: 1
+state:
+  table: null
+  keysOnly: false
+  erDir: LR
+  goTo: null
+root:
+  type: stack
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: ui-card
+      props:
+        title: An ER diagram from server data
+        description: "Tables are server data; the keys-only switch is state, read inside each node. Floating edges meet the boxes' borders. Click a table to highlight its neighbours."
+      children:
+        - type: ui-flow
+          props:
+            nodes: "{{ er.tables }}"
+            edges: "{{ er.relations }}"
+            title: Orders schema
+            layout: layered
+            direction: "{{ erDir }}"
+            rankGap: 100
+            highlight: neighbors
+            bind: table
+            center: "{{ goTo }}"
+            draggable: true
+            background: lines
+            minimap: true
+            height: 560
+          children:
+            - type: ui-flow-node
+              props: { variant: plain }
+              style:
+                width: 230
+                border: 1px solid $color.border
+                border-radius: 8
+                background: $color.surface
+                font-size: 12
+                overflow: hidden
+                box-shadow: 0 1px 2px rgb(0 0 0 / 0.06)
+              children:
+                - type: element
+                  style: { padding: "8px 12px", font-weight: 600, background: $color.subtle, border-bottom: 1px solid $color.border }
+                  children: [{ type: text, props: { value: "{{ node.data.label }}" } }]
+                - type: list
+                  props: { items: "{{ node.data.columns }}", as: col }
+                  children:
+                    - type: if
+                      props: { when: "{{ !keysOnly || col.pk || col.fk }}" }
+                      children:
+                        - type: element
+                          style: { display: flex, justify-content: space-between, gap: 12, padding: "4px 12px", font-family: "ui-monospace, monospace", font-size: 11 }
+                          children:
+                            - { type: text, props: { value: "{{ col.pk ? '🔑 ' : col.fk ? '↗ ' : '' }}{{ col.name }}" } }
+                            - { type: text, props: { value: "{{ col.type }}" }, style: { color: $color.muted } }
+            - type: ui-flow-edge
+              props: { floating: true, marker: arrowclosed, path: bezier }
+            - type: ui-flow-panel
+              props: { position: top-left }
+              children:
+                - type: stack
+                  props: { direction: row, gap: 12, align: center }
+                  style: { background: $color.surface, padding: "6px 10px", border: 1px solid $color.border, border-radius: 8 }
+                  children:
+                    - { type: ui-switch, props: { bind: keysOnly, label: Keys only } }
+                    - { type: ui-toggle-group, props: { bind: erDir, options: [LR, TB], size: sm, variant: outline } }
+                    - { type: ui-select, props: { bind: goTo, placeholder: Go to table…, options: "{{ er.names }}" }, style: { width: 160 } }

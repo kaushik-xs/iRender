@@ -13,7 +13,7 @@ irender_flow_kit::register(&mut engine.registry);
 From the CLI, add `--flow-kit` to `validate`, `render` or `components`:
 
 ```sh
-cargo run -p irender-cli -- render examples/flow/gallery.yaml --data examples/flow/gallery.data.json \
+cargo run -p irender-cli -- render examples/flow/basic-01.yaml --data examples/flow/basic-01.data.json \
   --ui-kit --flow-kit -o flow.html
 ```
 
@@ -344,23 +344,24 @@ The JSON's `style` objects are applied one property at a time, so a value can't 
 
 ## Examples
 
-- [`examples/flow/gallery.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/gallery.yaml):
-  - plain React Flow JSON
-  - an editable workflow with a palette
-  - containers with undo and search
-  - an ER diagram from server data
-- [`examples/flow/process.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process.yaml) loads a workflow canvas in the format client-ui-next's process canvas saves ([`process-canvas.json`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-canvas.json), made up):
+`examples/build.sh` previews them all on one page, [`examples/flow/index.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/index.yaml):
+
+- [`basic-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/basic-01.yaml) draws plain React Flow JSON, and [`flowchart-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/flowchart-01.yaml) shows the shapes.
+- [`workflow-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/workflow-01.yaml) is an editable workflow with a palette, and [`subflow-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/subflow-01.yaml) has containers with undo and search.
+- [`process-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-01.yaml) loads a workflow canvas in the format client-ui-next's process canvas saves ([`process-canvas.json`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-canvas.json), made up):
   - **Milestones:** coloured from their `step_color` (with `nodeStyles: false`), with status icons.
   - **Editing:** a palette, a side form for the selected milestone (`bindNode` and `flow.update`), cut, copy and paste, undo, and a confirmation before deleting.
   - **Edges:** the app's CSS variables, such as `--foreground` in its saved edge styles, are set on the flow from the theme.
-- [`examples/flow/er.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er.yaml) draws a package (the JSON files the builder edits) as an ER diagram, after the builder's own:
+  - **Other layouts:** [`process-02.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-02.yaml) fills the screen with a toolbar and a docked form, and [`process-03.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-03.yaml) is a read-only tracker beside a list.
+- [`er-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-01.yaml) draws a package (the JSON files the builder edits) as an ER diagram, after the builder's own:
   - **Tables:** key and constraint badges, `<details>` to collapse each one, and placeholders for tables in other packages.
   - **Toolbar:** a filter that keeps neighbours, keys only, LR/TB and fullscreen.
+  - **Other layouts:** [`er-02.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-02.yaml) fills the screen with a searched list and a detail panel, [`er-03.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-03.yaml) is a data dictionary with the diagram as its map, and [`er-04.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-04.yaml) is a small card.
   - **Data:** the [`package_er`](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-flow-kit/examples/package_er.rs) example turns the package into nodes and edges. That's host code, the same work the builder does in `buildGraph`:
 
     ```sh
     cargo run -p irender-flow-kit --example package_er -- path/to/package > er.data.json
-    cargo run -p irender-cli -- render examples/flow/er.yaml --data er.data.json --ui-kit --flow-kit --icon-kit -o er.html
+    cargo run -p irender-cli -- render examples/flow/er-01.yaml --data er.data.json --ui-kit --flow-kit --icon-kit -o er-01.html
     ```
 
 ## Not built yet

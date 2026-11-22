@@ -5,8 +5,8 @@ each example links to the others. examples/build.sh runs it last:
     python3 examples/site_nav.py path/to/irender target/site
 
 The bar is rendered with `--embed` for each page, with the way back to the site's root
-and the page's own href, and goes right after `<body>`. The blocks don't get it: each is
-a whole page of its own, shown in a frame on the blocks page.
+and the page's own href, and goes right after `<body>`. The blocks and the flows don't
+get it: each is a whole page of its own, shown in a frame on its section's page.
 """
 
 import json
@@ -24,7 +24,6 @@ MAIN = {
     "charts/index.html": "Charts",
     "flow/index.html": "Flow",
     "icons/index.html": "Icons",
-    "dashboard.html": "Dashboard",
 }
 # The bar stays at the top while a page scrolls. Its height goes in `--site-nav`, kept
 # up as it wraps onto more rows on a narrow screen, so a page's own sticky parts (the UI
@@ -49,7 +48,7 @@ def main():
         if f.endswith(".html")
     )
     for page in pages:
-        if page.startswith("blocks/") and page != "blocks/index.html":
+        if page.startswith(("blocks/", "flow/")) and not page.endswith("/index.html"):
             continue
         path = os.path.join(site, page)
         with open(path) as f:

@@ -5,20 +5,20 @@
 Build UI from configuration. Write a document in JSON or YAML, then validate it and render it to HTML with a ~4.5 KB (gzipped) runtime for state and actions.
 
 ```sh
-cargo run -p irender-cli -- render examples/product.json --data examples/product.data.json -o product.html
-cargo run -p irender-cli -- validate examples/counter.yaml
+cargo run -p irender-cli -- render examples/blocks/pricing.yaml --ui-kit --icon-kit -o pricing.html
+cargo run -p irender-cli -- validate skills/irender/examples/counter.yaml
 cargo run -p irender-cli -- components   # built-in components and their props
 cargo run -p irender-cli -- schema       # JSON Schema for documents
 ```
 
-See [`examples/`](examples/README.md) for complete pages: a dashboard built from fragments, a live API search, a multi-step form and a storefront whose config is partly generated in Rust. To browse them all, run `examples/build.sh`, then `python3 examples/serve.py` (a static server plus the live endpoints the chart gallery uses).
+See [`examples/`](examples/README.md) for complete pages: galleries for the kits, blocks (dashboards, data tables, sign-in, chat and more), and flows (ER diagrams, process canvases and workflows). To browse them all, run `examples/build.sh`, then `python3 examples/serve.py` (a static server plus the live endpoints the chart gallery uses).
 
 ## Writing documents with an LLM
 
 - **[`llms.txt`](llms.txt)** is an index of the docs for models, and [`llms-full.txt`](llms-full.txt) puts all of them in one file to paste into a context window.
 - **[`skills/irender`](skills/irender/SKILL.md)** is an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that writes, validates and renders documents. It's linked into `.claude/skills` here. To use it in another project, copy the folder into that project's `.claude/skills/` or into `~/.claude/skills/`.
 - **The validation loop:** both tell the model to check its output with `irender validate`, which reports every problem at its path, so it can fix them all before rendering. For documents a model writes for end users, validate and render with `--untrusted`.
-- **Regenerating:** `tools/llm-docs.sh` regenerates the component and icon references, the copies of the READMEs and examples, and `llms-full.txt` from the CLI and the sources. `tools/llm-docs.sh --check` fails when they're stale. The hand-written sources are `llms.txt`, `skills/irender/SKILL.md` and `skills/irender/references/authoring.md`.
+- **Regenerating:** `tools/llm-docs.sh` regenerates the component and icon references, the copies of the READMEs and examples, and `llms-full.txt` from the CLI and the sources. `tools/llm-docs.sh --check` fails when they're stale. The hand-written sources are `llms.txt`, `skills/irender/SKILL.md`, `skills/irender/references/authoring.md` and the skill's `counter.yaml` and `wizard.yaml`.
 
 ## Crates
 

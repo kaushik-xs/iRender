@@ -1,0 +1,118 @@
+# The flow kit's examples, each a document of its own and previewed live, as the blocks
+# are: the same diagram, put on the page in different ways. examples/build.sh renders them
+# next to this page.
+#
+#   examples/build.sh && python3 examples/serve.py   # then open /flow/
+version: 1
+state:
+  filter: all
+  live: null       # the preview being used
+root:
+  type: stack
+  props: { gap: 32 }
+  style:
+    max-width: 1200px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 12 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: Flow } }
+        - type: ui-text
+          props: { variant: lead, text: "Node-and-edge diagrams from React Flow's JSON, in which every node type is an ordinary iRender tree. The ER diagram and the process canvas are each laid out in several ways: in a card, filling the screen, beside a list, or as a map. Open one, or read its source." }
+        - type: ui-toggle-group
+          props:
+            bind: filter
+            variant: outline
+            size: sm
+            options: [{ value: all, label: All }, { value: er, label: ER diagram }, { value: process, label: Process canvas }, { value: workflow, label: Workflow }, { value: basics, label: Basics }]
+
+    - type: list
+      props:
+        as: flow
+        items:
+          - { id: er-01, category: er, title: "In a card with a toolbar: a package's tables with key and constraint badges, a filter that keeps neighbours, keys only, collapse and LR/TB", kits: [ui-kit, flow-kit, icon-kit], height: 980 }
+          - { id: er-02, category: er, title: "Filling the screen: the tables listed and searched on the left, the picked one's columns and relationships docked on the right", kits: [ui-kit, flow-kit, icon-kit], height: 720 }
+          - { id: er-03, category: er, title: "A data dictionary: the diagram stays in view as a map, and picking a table on it shows only that table's columns", kits: [ui-kit, flow-kit, icon-kit], height: 860 }
+          - { id: er-04, category: er, title: "Small, in a card, with the controls floating on the diagram", kits: [ui-kit, flow-kit], height: 740 }
+          - { id: process-01, category: process, title: "With a palette beside it: a canvas in the format client-ui-next saves, with coloured milestones, a floating form, cut, copy, paste and undo", kits: [ui-kit, flow-kit, icon-kit], height: 820 }
+          - { id: process-02, category: process, title: "Filling the screen, as in a drawing app: tools along the bottom, and the selected milestone's form docked on the right", kits: [ui-kit, flow-kit, icon-kit], height: 720 }
+          - { id: process-03, category: process, title: "A tracker to read: the milestones as a list beside the same canvas laid out top to bottom, each following the other, with a status filter", kits: [ui-kit, flow-kit, icon-kit], height: 840 }
+          - { id: workflow-01, category: workflow, title: "A workflow to edit, with node types of its own: a port per case and per input, a palette, connection rules and a confirmation before deleting", kits: [ui-kit, flow-kit], height: 800 }
+          - { id: subflow-01, category: workflow, title: "Containers: steps dragged into and out of a loop, with copy and paste, undo and search", kits: [ui-kit, flow-kit], height: 700 }
+          - { id: flowchart-01, category: basics, title: "Shapes: a flowchart whose edges meet each node's outline", kits: [ui-kit, flow-kit], height: 820 }
+          - { id: basic-01, category: basics, title: "React Flow JSON as saved, with the kit's default node and edge", kits: [ui-kit, flow-kit], height: 560 }
+      style: { display: flex, flex-direction: column, gap: 48 }
+      children:
+        - type: if
+          props: { when: "{{ filter == null || filter == 'all' || filter == flow.category }}" }
+          children:
+            - type: element
+              props: { tag: section }
+              attrs: { id: "{{ flow.id }}", aria-labelledby: "{{ flow.id }}-title" }
+              style: { display: flex, flex-direction: column, gap: 12 }
+              children:
+                - type: element
+                  style: { display: flex, flex-wrap: wrap, align-items: center, gap: 8 }
+                  children:
+                    - type: element
+                      props: { tag: h2 }
+                      attrs: { id: "{{ flow.id }}-title" }
+                      style: { margin: 0, font-size: 15, font-weight: 500 }
+                      children:
+                        - { type: text, props: { value: "{{ flow.title }}" } }
+                    - { type: ui-badge, props: { text: "{{ flow.id }}", variant: secondary } }
+                    - type: list
+                      props: { items: "{{ flow.kits }}", as: kit }
+                      style: { display: contents }
+                      children:
+                        - { type: ui-badge, props: { text: "{{ kit }}", variant: outline } }
+                    - type: element
+                      style: { display: flex, gap: 8, margin-left: auto }
+                      children:
+                        - type: ui-button
+                          props: { label: Source, variant: ghost, size: sm, href: "https://github.com/kaushik-xs/iRender/blob/main/examples/flow/{{ flow.id }}.yaml" }
+                        - { type: ui-button, props: { label: Open, size: sm, href: "{{ flow.id }}.html" } }
+                # A flow takes the wheel to zoom, so until it's clicked a preview is covered
+                # and the page scrolls past it.
+                - type: element
+                  style: { position: relative }
+                  children:
+                    - type: element
+                      props: { tag: iframe }
+                      attrs: { src: "{{ flow.id }}.html", title: "{{ flow.title }}", loading: lazy }
+                      style:
+                        display: block
+                        box-sizing: border-box
+                        width: 100%
+                        height: "{{ flow.height }}"
+                        border: 1px solid $color.border
+                        border-radius: 12
+                        background: $color.surface
+                    - type: if
+                      props: { when: "{{ live != flow.id }}" }
+                      children:
+                        - type: element
+                          props: { tag: button }
+                          attrs: { type: button, aria-label: "Use {{ flow.id }}" }
+                          style:
+                            position: absolute
+                            inset: 0
+                            display: flex
+                            align-items: flex-end
+                            justify-content: center
+                            width: 100%
+                            padding: 16px
+                            border: 0
+                            border-radius: 12
+                            background: transparent
+                            font: inherit
+                            cursor: pointer
+                            "& > span": { padding: 6px 12px, border: 1px solid $color.border, border-radius: 999px, background: $color.surface, color: $color.text, font-size: 13, box-shadow: 0 2px 8px rgb(0 0 0 / 0.12) }
+                            ":focus-visible": { outline: 2px solid $color.primary, outline-offset: 2px }
+                          on: { click: { action: set_state, key: live, value: "{{ flow.id }}" } }
+                          children: [ { type: text, props: { value: Click to use it } } ]

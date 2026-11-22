@@ -16,8 +16,8 @@ To write documents, read the authoring rules first, then look up each component'
 
 ## Examples
 
-- [Counter](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/counter.yaml): state and actions in 30 lines
-- [Wizard](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/wizard.yaml): multi-step form, conditional fields, validation expressions
+- [Counter](https://raw.githubusercontent.com/kaushik-xs/iRender/main/skills/irender/examples/counter.yaml): state and actions in 30 lines
+- [Wizard](https://raw.githubusercontent.com/kaushik-xs/iRender/main/skills/irender/examples/wizard.yaml): multi-step form, conditional fields, validation expressions
 - [Login block](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/blocks/login-03.yaml): a ui-kit form card
 - [Dashboard block](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/blocks/dashboard-01.yaml): sidebar, cards, chart, table, command palette
 
@@ -25,5 +25,5 @@ To write documents, read the authoring rules first, then look up each component'
 
 - [Icon names](https://raw.githubusercontent.com/kaushik-xs/iRender/main/skills/irender/references/icons.md): every icon in every pack
 - [Chart gallery](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/charts/gallery.yaml): a chart for every ECharts category
-- [Flow gallery](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/flow/gallery.yaml): workflow, ER and process diagrams
+- Flows: an editable [workflow](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/flow/workflow-01.yaml), an [ER diagram](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/flow/er-01.yaml) and a [process canvas](https://raw.githubusercontent.com/kaushik-xs/iRender/main/examples/flow/process-01.yaml)
 - JSON Schema for documents: `irender schema`

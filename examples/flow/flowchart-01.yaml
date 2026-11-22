@@ -1,0 +1,78 @@
+# A flowchart: each node's shape is in its data.
+#
+#   cargo run -p irender-cli -- render examples/flow/flowchart-01.yaml --ui-kit --flow-kit -o flowchart-01.html
+version: 1
+state:
+  fcNodes:
+    - { id: start, type: step, data: { label: Order received, shape: pill } }
+    - { id: check, type: step, data: { label: Check payment, shape: rounded } }
+    - { id: paid, type: step, data: { label: Paid?, shape: diamond } }
+    - { id: read, type: step, data: { label: Read stock, shape: parallelogram } }
+    - { id: stock, type: step, data: { label: Inventory, shape: cylinder } }
+    - { id: remind, type: step, data: { label: Send reminder, shape: hexagon } }
+    - { id: ship, type: step, data: { label: Ship, shape: rounded } }
+    - { id: done, type: step, data: { label: Done, shape: circle } }
+  fcEdges:
+    - { id: f1, source: start, target: check }
+    - { id: f2, source: check, target: paid }
+    - { id: f3, source: paid, target: read, label: "yes" }
+    - { id: f4, source: paid, target: remind, label: "no" }
+    - { id: f5, source: read, target: stock, type: floating }
+    - { id: f6, source: read, target: ship }
+    - { id: f7, source: remind, target: check, type: floating, label: retry }
+    - { id: f8, source: ship, target: done }
+  fcShape: diamond
+  fcSel: null
+root:
+  type: stack
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: ui-card
+      props:
+        title: Shapes
+        description: "A flowchart. Each node's shape comes from its data, its ports sit on the outline, and floating edges meet the outline, not the box. Pick a node and give it another shape."
+      children:
+        - type: stack
+          props: { direction: row, gap: 8, align: center, wrap: true }
+          style: { margin-bottom: 12 }
+          children:
+            - type: ui-select
+              props: { bind: fcShape, options: [rect, rounded, pill, circle, ellipse, diamond, hexagon, parallelogram, triangle, cylinder] }
+              style: { width: 170 }
+            - type: ui-button
+              props: { label: Use for the selected node, size: sm, variant: outline, disabled: "{{ !fcSel }}" }
+              on: { click: { action: call, name: flow.update, args: { flow: shapes, shape: "{{ fcShape }}" } } }
+        - type: ui-flow
+          attrs: { id: shapes }
+          props:
+            nodes: "{{ fcNodes }}"
+            edges: "{{ fcEdges }}"
+            title: Order flowchart
+            layout: layered
+            direction: TB
+            rankGap: 56
+            editable: true
+            bind: fcSel
+            bindNodes: fcNodes
+            bindEdges: fcEdges
+            newNode: { type: step, data: { label: Step, shape: rounded } }
+            height: 560
+          children:
+            - type: ui-flow-node
+              props: { type: step, shape: "{{ node.data.shape || 'rect' }}" }
+              style: { width: 150, height: 64 }
+              children:
+                - { type: text, props: { value: "{{ node.data.label }}" } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+            - type: ui-flow-edge
+              props: { marker: arrowclosed, path: smoothstep }
+            - type: ui-flow-edge
+              props: { type: floating, floating: true, path: straight, marker: arrowclosed }
+              style: { stroke-dasharray: "4 3" }

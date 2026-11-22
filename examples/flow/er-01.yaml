@@ -3,8 +3,8 @@
 # kit's `package_er` example; this document only draws them.
 #
 #   cargo run -p irender-flow-kit --example package_er -- examples/flow/er-package > er.data.json
-#   cargo run -p irender-cli -- render examples/flow/er.yaml --data er.data.json \
-#     --ui-kit --flow-kit --icon-kit -o er.html
+#   cargo run -p irender-cli -- render examples/flow/er-01.yaml --data er.data.json \
+#     --ui-kit --flow-kit --icon-kit -o er-01.html
 #
 # examples/build.sh does both. `er-package` is a made-up fleet package; point the
 # example at any package directory to draw that one instead.

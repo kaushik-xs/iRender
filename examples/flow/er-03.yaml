@@ -1,0 +1,129 @@
+# The package's ER diagram as a data dictionary: the diagram stays in view as a map while
+# every table's columns are listed beside it. Picking a table on the map shows only that
+# table, and a table's Show on the map button does the reverse.
+#
+#   cargo run -p irender-flow-kit --example package_er -- examples/flow/er-package > er.data.json
+#   cargo run -p irender-cli -- render examples/flow/er-03.yaml --data er.data.json \
+#     --ui-kit --flow-kit --icon-kit -o er-03.html
+version: 1
+state:
+  table: null      # the table picked on the map
+root:
+  type: stack
+  props: { gap: 24 }
+  style:
+    max-width: 1280px
+    margin: 0 auto
+    padding: 32px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: "{{ er.package.name }} data dictionary" } }
+        - { type: ui-text, props: { variant: muted, text: "{{ er.package.description }}" } }
+    - type: element
+      style: { display: grid, gap: 24, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 5fr) minmax(0, 6fr)" }, align-items: start }
+      children:
+        - type: ui-card
+          props: { title: Map, description: Click a table to show only its columns }
+          style: { "@lg": { position: sticky, top: 24 } }
+          children:
+            - type: ui-flow
+              attrs: { id: map }
+              props:
+                nodes: "{{ er.nodes }}"
+                edges: "{{ er.edges }}"
+                title: "{{ er.package.name }} tables"
+                layout: layered
+                direction: TB
+                rankGap: 56
+                nodeGap: 16
+                highlight: neighbors
+                bind: table
+                background: none
+                height: 520
+              children:
+                - type: ui-flow-node
+                  props: { type: table }
+                  style: { font-family: "ui-monospace, monospace", font-size: 12, font-weight: 600 }
+                  children: [ { type: text, props: { value: "{{ node.data.label }}" } } ]
+                - type: ui-flow-node
+                  props: { type: external }
+                  style: { font-family: "ui-monospace, monospace", font-size: 12, border-style: dashed, color: $color.muted }
+                  children: [ { type: text, props: { value: "{{ node.data.label }}" } } ]
+                - type: ui-flow-edge
+                  props: { floating: true, marker: arrowclosed, path: bezier }
+        - type: stack
+          props: { gap: 16 }
+          children:
+            - type: if
+              props: { when: "{{ table }}" }
+              children:
+                - type: ui-button
+                  props: { label: Show all tables, size: sm, variant: outline }
+                  style: { align-self: start }
+                  on: { click: { action: call, name: flow.select, args: { flow: map, id: null } } }
+            - type: list
+              props: { items: "{{ er.nodes }}", as: n }
+              style: { display: flex, flex-direction: column, gap: 16 }
+              children:
+                - type: if
+                  props: { when: "{{ !table || table == n.id }}" }
+                  children:
+                    - type: ui-card
+                      props: { tag: section, title: "{{ n.data.label }}", description: "{{ n.data.comment || n.data.ref || '' }}" }
+                      children:
+                        - type: if
+                          props: { when: "{{ n.data.columns }}" }
+                          children:
+                            - type: ui-table
+                              children:
+                                - type: element
+                                  props: { tag: thead }
+                                  children:
+                                    - type: element
+                                      props: { tag: tr }
+                                      children:
+                                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Column } } ] }
+                                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Type } } ] }
+                                        - { type: element, props: { tag: th }, children: [ { type: text, props: { value: Rules } } ] }
+                                - type: list
+                                  props: { items: "{{ n.data.columns }}", as: col, tag: tbody }
+                                  children:
+                                    - type: element
+                                      props: { tag: tr }
+                                      children:
+                                        - { type: element, props: { tag: td }, style: { font-family: "ui-monospace, monospace" }, children: [ { type: text, props: { value: "{{ col.name }}" } } ] }
+                                        - { type: element, props: { tag: td }, style: { color: $color.muted }, children: [ { type: text, props: { value: "{{ col.type }}" } } ] }
+                                        - type: element
+                                          props: { tag: td }
+                                          children:
+                                            - type: element
+                                              style: { display: flex, flex-wrap: wrap, gap: 4 }
+                                              children:
+                                                - type: if
+                                                  props: { when: "{{ col.pk }}" }
+                                                  children: [ { type: ui-badge, props: { text: primary key, variant: warning } } ]
+                                                - type: if
+                                                  props: { when: "{{ col.fk }}" }
+                                                  children: [ { type: ui-badge, props: { text: foreign key, variant: info } } ]
+                                                - type: if
+                                                  props: { when: "{{ col.unique && !col.pk }}" }
+                                                  children: [ { type: ui-badge, props: { text: unique, variant: success } } ]
+                                                - type: if
+                                                  props: { when: "{{ !col.nullable && !col.pk }}" }
+                                                  children: [ { type: ui-badge, props: { text: required, variant: outline } } ]
+                        - type: if
+                          props: { when: "{{ !table }}" }
+                          children:
+                            - type: ui-card-footer
+                              children:
+                                - type: ui-button
+                                  props: { label: Show on the map, size: sm, variant: ghost }
+                                  on:
+                                    click:
+                                      - { action: call, name: flow.select, args: { flow: map, id: "{{ n.id }}" } }
+                                      - { action: call, name: flow.center, args: { flow: map, id: "{{ n.id }}" } }

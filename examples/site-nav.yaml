@@ -47,37 +47,40 @@ root:
           attrs: { href: "{{ root }}{{ page.href }}", aria-current: "{{ current == page.href ? 'page' : null }}" }
           children: [ { type: text, props: { value: "{{ page.label }}" } } ]
     # The smaller examples, behind a native disclosure so the bar works without a script.
-    - type: element
-      props: { tag: details }
-      style:
-        position: relative
-        "& summary": { padding: 6px 10px, border-radius: 6, color: $color.muted, cursor: pointer, list-style: none, white-space: nowrap }
-        "& summary::-webkit-details-marker": { display: none }
-        "& summary:hover": { color: $color.text }
-        "&[open] > div": { display: flex }
+    - type: if
+      props: { when: "{{ more.length > 0 }}" }
       children:
         - type: element
-          props: { tag: summary }
-          children: [ { type: text, props: { value: "More ▾" } } ]
-        - type: list
-          props: { items: "{{ more }}", as: page }
+          props: { tag: details }
           style:
-            display: none
-            flex-direction: column
-            position: absolute
-            top: calc(100% + 6px)
-            left: 0
-            min-width: 200
-            padding: 4
-            border: 1px solid $color.border
-            border-radius: 8
-            background: $color.surface
-            box-shadow: 0 6px 18px rgb(0 0 0 / 0.12)
+            position: relative
+            "& summary": { padding: 6px 10px, border-radius: 6, color: $color.muted, cursor: pointer, list-style: none, white-space: nowrap }
+            "& summary::-webkit-details-marker": { display: none }
+            "& summary:hover": { color: $color.text }
+            "&[open] > div": { display: flex }
           children:
             - type: element
-              props: { tag: a }
-              attrs: { href: "{{ root }}{{ page.href }}", aria-current: "{{ current == page.href ? 'page' : null }}" }
-              children: [ { type: text, props: { value: "{{ page.label }}" } } ]
+              props: { tag: summary }
+              children: [ { type: text, props: { value: "More ▾" } } ]
+            - type: list
+              props: { items: "{{ more }}", as: page }
+              style:
+                display: none
+                flex-direction: column
+                position: absolute
+                top: calc(100% + 6px)
+                left: 0
+                min-width: 200
+                padding: 4
+                border: 1px solid $color.border
+                border-radius: 8
+                background: $color.surface
+                box-shadow: 0 6px 18px rgb(0 0 0 / 0.12)
+              children:
+                - type: element
+                  props: { tag: a }
+                  attrs: { href: "{{ root }}{{ page.href }}", aria-current: "{{ current == page.href ? 'page' : null }}" }
+                  children: [ { type: text, props: { value: "{{ page.label }}" } } ]
     # The theme for every page: palette, radius, density, text size, font, chart colours
     # and the mode. The choices go on <html> and into localStorage, so each page (and
     # the blocks in frames) follows them. Only on pages built with the UI kit's theme.

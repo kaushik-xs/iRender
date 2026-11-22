@@ -1,0 +1,90 @@
+# Containers: a loop with steps inside it, with undo and search.
+#
+#   cargo run -p irender-cli -- render examples/flow/subflow-01.yaml --ui-kit --flow-kit -o subflow-01.html
+version: 1
+state:
+  sfNodes:
+    - { id: fetch, type: step, position: { x: 0, y: 90 }, data: { label: Fetch orders } }
+    - { id: each, type: loop, position: { x: 240, y: 0 }, width: 470, height: 230, data: { label: For each order } }
+    - { id: check, type: step, parentId: each, position: { x: 40, y: 90 }, data: { label: Check stock } }
+    - { id: reserve, type: step, parentId: each, position: { x: 260, y: 90 }, data: { label: Reserve items } }
+    - { id: summary, type: step, position: { x: 800, y: 90 }, data: { label: Send summary } }
+  sfEdges:
+    - { id: fetch-each, source: fetch, target: each }
+    - { id: each-check, source: each, sourceHandle: start, target: check }
+    - { id: check-reserve, source: check, target: reserve }
+    - { id: each-summary, source: each, sourceHandle: done, target: summary }
+  sfQuery: ""
+  sfMatches: []
+  sfHistory: null
+root:
+  type: stack
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: ui-card
+      props:
+        title: Containers, undo and search
+        description: "The loop is a container: drag a step into it or out of it, and resize it from its corner. Its start port only reaches steps inside it, and other edges stay within one container. ⌘C / ⌘V copy and paste (the loop with what's inside), ⌘Z undoes."
+      children:
+        - type: stack
+          props: { direction: row, gap: 8, align: center, wrap: true }
+          style: { margin-bottom: 12 }
+          children:
+            - { type: ui-input, props: { bind: sfQuery, placeholder: Find a step… }, style: { width: 200 } }
+            - { type: ui-text, props: { variant: muted, text: "{{ sfQuery ? sfMatches.length + ' found' : '' }}" } }
+            - { type: ui-button, props: { label: Previous, size: sm, variant: outline, disabled: "{{ sfMatches.length < 2 }}" }, on: { click: { action: call, name: flow.prev, args: { flow: sub } } } }
+            - { type: ui-button, props: { label: Next, size: sm, variant: outline, disabled: "{{ sfMatches.length < 2 }}" }, on: { click: { action: call, name: flow.next, args: { flow: sub } } } }
+            - { type: element, style: { flex: 1 } }
+            - { type: ui-button, props: { label: Undo, size: sm, variant: outline, disabled: "{{ !sfHistory || sfHistory.undo == 0 }}" }, on: { click: { action: call, name: flow.undo, args: { flow: sub } } } }
+            - { type: ui-button, props: { label: Redo, size: sm, variant: outline, disabled: "{{ !sfHistory || sfHistory.redo == 0 }}" }, on: { click: { action: call, name: flow.redo, args: { flow: sub } } } }
+        - type: ui-flow
+          attrs: { id: sub }
+          props:
+            nodes: "{{ sfNodes }}"
+            edges: "{{ sfEdges }}"
+            title: Subflow
+            editable: true
+            bindNodes: sfNodes
+            bindEdges: sfEdges
+            bindHistory: sfHistory
+            search: "{{ sfQuery }}"
+            bindMatches: sfMatches
+            connect: { sameParent: true }
+            newEdge: { type: smoothstep }
+            newNode: { type: step, data: { label: New step } }
+            edgePath: smoothstep
+            height: 420
+          children:
+            - type: ui-flow-node
+              props: { type: step }
+              style: { min-width: 140 }
+              children:
+                - { type: text, props: { value: "{{ node.data.label }}" } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }
+            - type: ui-flow-node
+              props: { type: loop, variant: plain, container: true, resizable: true, minWidth: 260, minHeight: 140 }
+              style:
+                border: 1.5px dashed $color.border
+                border-radius: 12
+                background: "color-mix(in srgb, $color.subtle 60%, transparent)"
+                font-size: 12
+              children:
+                - type: element
+                  style: { padding: "8px 12px", font-weight: 600, color: $color.muted }
+                  children: [{ type: text, props: { value: "↻ {{ node.data.label }}" } }]
+                - { type: ui-flow-port, props: { type: target } }
+                # Inside, top left, facing in: it starts the loop's body.
+                - type: element
+                  style: { position: absolute, left: 12, top: 44, width: 0, height: 0 }
+                  children:
+                    - { type: ui-flow-port, props: { id: start, scope: children, side: right, offset: 0 }, style: { background: $color.primary } }
+                - { type: ui-flow-port, props: { id: done } }
+            - type: ui-flow-edge
+              props: { marker: arrowclosed }

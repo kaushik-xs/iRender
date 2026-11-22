@@ -153,7 +153,8 @@ _Last updated: 2026-11-19._
   - [ ] A swatch shows a choice's light value, in dark mode too.
   - [ ] Custom gradients are always 135° from the colour to its end; a theme's `gradient.*` token can be any CSS background. The built-in `button` (without the kit) ignores gradients.
   - [ ] Custom backgrounds don't change the text colour on them, so a dark card in light mode needs a custom text colour that doesn't exist yet. Idea: derive `color.text` per background like `on-primary`.
-- [ ] **Pages rendered without the kit ignore `ui-theme-toggle`'s choice.** Every kit page applies it now, but the search, wizard, counter and product examples are rendered without `--ui-kit`, so they still follow the system.
+- [ ] **Intermittent core browser test:** `conditionals_lists_and_mount_actions_in_chrome` failed 1 run in 20 on a busy machine (2026-11-22): it read the page before a fetched list arrived.
+- [ ] **Pages rendered without the kit ignore `ui-theme-toggle`'s choice.** Every kit page applies it now, and since 2026-11-22 every example page uses the kit; a page rendered without `--ui-kit` still follows the system.
 
 ## Flow kit next phases
 
@@ -189,15 +190,16 @@ These came out of the React Flow research on the builder and client-ui-next repo
 - [x] **Node shapes** (2026-11-17): `shape` on `ui-flow-node` covers the builder's diamond `if` and hexagon `switch`, and flowchart shapes generally.
   - Ports and floating edges meet the outline.
   - Gap: a port on a positioned row inside a shaped node (the switch's per-case rows) sits on the row's edge, not on the shape's slanted outline.
-- [x] **Tried on the builder's ER diagram** (2026-11-17), as `examples/flow/er.yaml` with the `package_er` converter. Run on the dwigital packages (manufacturing_core, siemens, checklist, launchpad, sample_ecommerce): every table and relationship draws, with no overlaps.
+- [x] **Tried on the builder's ER diagram** (2026-11-17), as `examples/flow/er-01.yaml` with the `package_er` converter. Run on the dwigital packages (manufacturing_core, siemens, checklist, launchpad, sample_ecommerce): every table and relationship draws, with no overlaps.
   - Added for it: `filter` with neighbours as context, `flow.fullscreen`, loops for floating self-edges, and packing unconnected groups into rows (the layout used to stack them in one tall column).
-- [x] **Tried on client-ui-next's process canvas** (2026-11-17), as `examples/flow/process.yaml`, loading a made-up canvas in the shape the app saves. There is no saved canvas in the repos; they live behind signed URLs.
+- [x] **Tried on client-ui-next's process canvas** (2026-11-17), as `examples/flow/process-01.yaml`, loading a made-up canvas in the shape the app saves. There is no saved canvas in the repos; they live behind signed URLs.
   - These work: `nodeOrigin [0.5, 0]`, step colours, status icons, the palette, dropping a connection on empty canvas, the side form, cut, copy and paste, delete with a dialog, and undo.
   - Added for it: `bindNode`, `flow.update` and `nodeStyles: false`.
+- [x] **One Flow page** (2026-11-22): `examples/flow/index.yaml` previews each flow as the blocks page does, with the ER diagram laid out four ways and the process canvas three. Previews start on click, since a flow takes the wheel.
 - [ ] **Process canvas: still the host's job.**
   - Keeping a milestone's `dependencies` in step with its edges, and the delete impact check, need code: listen for `connect` / `delete` and `call` the host.
   - New nodes get ids like `custom_1`, where the app uses UUIDs. Idea: an `idPattern` or a host hook for new ids.
-- [ ] **Check against a real exported canvas:** export one from the process canvas sidebar and load it into `examples/flow/process.yaml`.
+- [ ] **Check against a real exported canvas:** export one from the process canvas sidebar and load it into `examples/flow/process-01.yaml`.
 - [ ] **The yard view doesn't need the kit:** a pan/zoom viewport around absolutely positioned elements would cover it.
 
 ## Icon kit: packs not drawn yet

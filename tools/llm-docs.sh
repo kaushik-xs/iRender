@@ -2,7 +2,8 @@
 # Regenerates the LLM context: the `irender` skill's reference files and examples, and
 # `llms-full.txt`. Component and icon listings come from the CLI and the rest is copied
 # from the READMEs and examples, so they always match the code. Hand-written sources:
-# `skills/irender/SKILL.md`, `skills/irender/references/authoring.md` and `llms.txt`.
+# `skills/irender/SKILL.md`, `skills/irender/references/authoring.md`, the skill's
+# `counter.yaml` and `wizard.yaml`, and `llms.txt`.
 #
 #   tools/llm-docs.sh           # rewrite the generated files
 #   tools/llm-docs.sh --check   # fail if they're out of date (for CI)
@@ -64,8 +65,6 @@ copy crates/irender-icon-kit/README.md "$refs/icon-kit.md"
 # Every label a document can translate, read from the kits' source.
 { note "tools/labels.py"; python3 tools/labels.py 2>/dev/null; } > "$refs/labels.md"
 
-cp examples/counter.yaml "$ex/counter.yaml"
-cp examples/wizard.yaml "$ex/wizard.yaml"
 cp examples/blocks/login-03.yaml "$ex/login.yaml"
 cp examples/blocks/dashboard-01.yaml "$ex/dashboard-01.yaml"
 cp examples/blocks/dashboard-01.data.json "$ex/dashboard-01.data.json"
@@ -85,8 +84,7 @@ cp examples/blocks/dashboard-01.data.json "$ex/dashboard-01.data.json"
 generated="skills/irender/references/components.md skills/irender/references/icons.md
 skills/irender/references/core.md skills/irender/references/ui-kit.md
 skills/irender/references/chart-kit.md skills/irender/references/flow-kit.md
-skills/irender/references/icon-kit.md skills/irender/references/labels.md skills/irender/examples/counter.yaml
-skills/irender/examples/wizard.yaml skills/irender/examples/login.yaml
+skills/irender/references/icon-kit.md skills/irender/references/labels.md skills/irender/examples/login.yaml
 skills/irender/examples/dashboard-01.yaml skills/irender/examples/dashboard-01.data.json llms-full.txt"
 
 if [ "${1:-}" = "--check" ]; then

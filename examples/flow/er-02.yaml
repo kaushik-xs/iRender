@@ -1,0 +1,193 @@
+# The package's ER diagram as a full-screen explorer: the tables to the left, searched as
+# you type, the diagram filling the page, and the picked table's columns and relationships
+# docked on the right. The nodes are only names; the panel has the detail.
+#
+#   cargo run -p irender-flow-kit --example package_er -- examples/flow/er-package > er.data.json
+#   cargo run -p irender-cli -- render examples/flow/er-02.yaml --data er.data.json \
+#     --ui-kit --flow-kit --icon-kit -o er-02.html
+version: 1
+state:
+  table: null      # the picked table's id …
+  node: null       # … and the table itself
+  query: ""
+  matches: []      # ids of the tables the search finds
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    min-height: 100svh
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@md": { flex-direction: row, height: 100svh }
+  children:
+    # The tables.
+    - type: element
+      props: { tag: aside }
+      attrs: { aria-label: Tables }
+      style:
+        display: flex
+        flex-direction: column
+        gap: 12
+        box-sizing: border-box
+        padding: 16
+        border-bottom: 1px solid $color.border
+        "@md": { width: 240, flex: none, border-bottom: none, border-right: 1px solid $color.border, overflow-y: auto }
+      children:
+        - type: stack
+          props: { direction: row, gap: 8, align: center }
+          children:
+            - { type: ui-icon, props: { name: "it:database", size: 20 } }
+            - { type: ui-heading, props: { level: 4, text: "{{ er.package.name }}" } }
+            - { type: ui-badge, props: { text: "v{{ er.package.version }}", variant: outline } }
+        - { type: ui-input, props: { bind: query, placeholder: Find a table… }, attrs: { aria-label: Find a table } }
+        - type: element
+          style: { display: flex, flex-wrap: wrap, gap: 2, "@md": { flex-direction: column } }
+          children:
+            - type: list
+              props: { items: "{{ er.tables }}", as: t }
+              style: { display: contents }
+              children:
+                - type: if
+                  props: { when: "{{ !query || includes(matches, t.value) }}" }
+                  children:
+                    - type: ui-button
+                      props: { label: "{{ t.label }}", size: sm, variant: "{{ table == t.value ? 'secondary' : 'ghost' }}" }
+                      attrs: { aria-pressed: "{{ table == t.value }}" }
+                      style: { justify-content: flex-start, font-family: "ui-monospace, monospace" }
+                      on:
+                        click:
+                          - { action: call, name: flow.select, args: { flow: er, id: "{{ t.value }}" } }
+                          - { action: call, name: flow.center, args: { flow: er, id: "{{ t.value }}" } }
+        - type: if
+          props: { when: "{{ query && matches.length == 0 }}" }
+          children:
+            - { type: ui-text, props: { variant: muted, text: No table matches } }
+
+    - type: ui-flow
+      attrs: { id: er }
+      style: { flex: 1, min-width: 0, min-height: 420, "@md": { min-height: 0 } }
+      props:
+        nodes: "{{ er.nodes }}"
+        edges: "{{ er.edges }}"
+        title: "{{ er.package.name }} tables"
+        layout: layered
+        direction: LR
+        rankGap: 110
+        nodeGap: 32
+        highlight: neighbors
+        search: "{{ query }}"
+        bindMatches: matches
+        bind: table
+        bindNode: node
+        draggable: true
+        minimap: true
+        height: 100%
+      children:
+        - type: ui-flow-node
+          props: { type: table, variant: plain }
+          style:
+            display: flex
+            align-items: center
+            gap: 8
+            padding: 10px 14px
+            border: 1px solid $color.border
+            border-radius: 999px
+            background: $color.surface
+            font-size: 12
+            white-space: nowrap
+            "&[data-selected]": { border-color: $color.primary, box-shadow: "0 0 0 2px color-mix(in srgb, var(--color-primary) 30%, transparent)" }
+          children:
+            - { type: ui-icon, props: { name: "core:grid", size: 14 }, style: { color: $color.muted } }
+            - { type: text, props: { value: "{{ node.data.label }}" }, style: { font-family: "ui-monospace, monospace", font-weight: 600 } }
+            - { type: text, props: { value: "{{ node.data.columns.length }}" }, style: { color: $color.muted } }
+        - type: ui-flow-node
+          props: { type: external, variant: plain }
+          style:
+            display: flex
+            align-items: center
+            gap: 8
+            padding: 10px 14px
+            border: "1px dashed #7c3aed"
+            border-radius: 999px
+            background: $color.surface
+            color: "#7c3aed"
+            font-size: 12
+            white-space: nowrap
+          children:
+            - { type: ui-icon, props: { name: "core:external-link", size: 14 } }
+            - { type: text, props: { value: "{{ node.data.label }}" }, style: { font-family: "ui-monospace, monospace", font-weight: 600 } }
+        - type: ui-flow-edge
+          props: { floating: true, marker: arrowclosed, path: bezier }
+
+    # The picked table.
+    - type: if
+      props: { when: "{{ node }}" }
+      children:
+        - type: element
+          props: { tag: aside }
+          attrs: { aria-label: Picked table }
+          style:
+            display: flex
+            flex-direction: column
+            gap: 16
+            box-sizing: border-box
+            padding: 16
+            border-top: 1px solid $color.border
+            "@md": { width: 320, flex: none, border-top: none, border-left: 1px solid $color.border, overflow-y: auto }
+          children:
+            - type: stack
+              props: { direction: row, justify: space-between, align: center, gap: 8 }
+              children:
+                - { type: ui-heading, props: { level: 4, text: "{{ node.data.label }}" } }
+                - type: ui-button
+                  props: { label: Close, size: sm, variant: ghost }
+                  on: { click: { action: call, name: flow.select, args: { flow: er, id: null } } }
+            - { type: ui-text, props: { variant: muted, text: "{{ node.data.comment || node.data.ref || '' }}" } }
+            - type: if
+              props: { when: "{{ node.data.columns }}" }
+              children:
+                - type: element
+                  children:
+                    - type: list
+                      props: { items: "{{ node.data.columns }}", as: col }
+                      children:
+                        - type: element
+                          style: { display: flex, align-items: center, gap: 8, padding: 6px 0, border-bottom: 1px solid $color.border, font-family: "ui-monospace, monospace", font-size: 12 }
+                          children:
+                            - { type: text, props: { value: "{{ col.name }}{{ col.nullable ? '' : ' *' }}" }, style: { flex: 1, min-width: 0, overflow-wrap: anywhere } }
+                            - type: if
+                              props: { when: "{{ col.pk }}" }
+                              children: [ { type: ui-badge, props: { text: PK, variant: warning } } ]
+                            - type: if
+                              props: { when: "{{ col.fk }}" }
+                              children: [ { type: ui-badge, props: { text: FK, variant: info } } ]
+                            - type: if
+                              props: { when: "{{ col.unique && !col.pk }}" }
+                              children: [ { type: ui-badge, props: { text: unique, variant: success } } ]
+                            - { type: text, props: { value: "{{ col.type }}" }, style: { color: $color.muted } }
+            - { type: text, props: { tag: div, value: Relationships }, style: { font-weight: 600, font-size: 13 } }
+            - type: element
+              style: { display: flex, flex-direction: column, gap: 6, font-size: 12 }
+              children:
+                - type: list
+                  props: { items: "{{ er.edges }}", as: e }
+                  style: { display: contents }
+                  children:
+                    - type: if
+                      props: { when: "{{ table == e.source || table == e.target }}" }
+                      children:
+                        - type: element
+                          style: { font-family: "ui-monospace, monospace", overflow-wrap: anywhere }
+                          children:
+                            # The table at the other end (or itself).
+                            - type: list
+                              props: { items: "{{ er.nodes }}", as: n }
+                              style: { display: contents }
+                              children:
+                                - type: if
+                                  props: { when: "{{ n.id == (table == e.source ? e.target : e.source) }}" }
+                                  children:
+                                    - { type: text, props: { value: "{{ (table == e.source ? 'to ' : 'from ') + n.data.label }}" }, style: { font-weight: 600 } }
+                            - { type: text, props: { tag: div, value: "{{ e.label }}" }, style: { color: $color.muted } }

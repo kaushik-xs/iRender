@@ -6,8 +6,8 @@
 #   examples/build.sh path/to/out     # somewhere else
 #   python3 examples/serve.py         # then open http://localhost:8000
 #
-# Serve the folder rather than opening the files: the search example fetches its
-# API, which browsers block for file:// pages. `serve.py` is a static server plus the
+# Serve the folder rather than opening the files: the galleries fetch their APIs, which
+# browsers block for file:// pages. `serve.py` is a static server plus the
 # live endpoints the chart gallery polls and streams; `python3 -m http.server 8000 -d
 # target/site` serves everything else.
 set -eu
@@ -20,7 +20,7 @@ if [ -f "$out/.irender-site" ]; then
 elif [ -d "$out" ] && [ -n "$(ls -A "$out")" ]; then
   echo "note: $out wasn't built by this script, so pages already in it are kept" >&2
 fi
-mkdir -p "$out/search"
+mkdir -p "$out"
 touch "$out/.irender-site"
 
 cargo build -q -p irender-cli
@@ -28,11 +28,6 @@ cargo build -q -p irender-cli
 irender="${CARGO_TARGET_DIR:-target}/debug/irender"
 
 $irender render examples/index.yaml --data examples/index.data.json --ui-kit --chart-kit --title "iRender examples" -o "$out/index.html"
-$irender render examples/dashboard/dashboard.yaml --data examples/dashboard/dashboard.data.json \
-  --fragments examples/dashboard/fragments --title "Orders dashboard" -o "$out/dashboard.html"
-$irender render examples/search/search.json --title "Live search" -o "$out/search/index.html"
-cp -R examples/search/api "$out/search/"
-$irender render examples/wizard.yaml --title "Sign-up wizard" -o "$out/wizard.html"
 # The gallery's documentation: sections from examples/ui-kit/docs.json, with each
 # component's props read from the components themselves.
 python3 examples/ui-kit/docs.py "$irender" > "$out/ui-kit.data.json"
@@ -76,24 +71,31 @@ mkdir -p "$out/charts"
 $irender render examples/charts/gallery.yaml --data examples/charts/gallery.data.json --ui-kit --chart-kit \
   --title "Chart kit gallery" -o "$out/charts/index.html"
 cp -R examples/charts/api "$out/charts/"
+# Flows: a document each, previewed together on flow/index.html.
 mkdir -p "$out/flow"
-$irender render examples/flow/gallery.yaml --data examples/flow/gallery.data.json --ui-kit --chart-kit --flow-kit \
-  --title "Flow kit gallery" -o "$out/flow/index.html"
-# The ER example's data is a package turned into nodes and edges by host code.
+for flow in workflow-01 subflow-01 flowchart-01; do
+  $irender render "examples/flow/$flow.yaml" --ui-kit --chart-kit --flow-kit --title "$flow" -o "$out/flow/$flow.html"
+done
+for flow in basic-01 er-04; do
+  $irender render "examples/flow/$flow.yaml" --data "examples/flow/$flow.data.json" --ui-kit --chart-kit --flow-kit \
+    --title "$flow" -o "$out/flow/$flow.html"
+done
+# The ER diagrams' data is a package turned into nodes and edges by host code.
 cargo run -q -p irender-flow-kit --example package_er -- examples/flow/er-package > "$out/flow/er.data.json"
-$irender render examples/flow/er.yaml --data "$out/flow/er.data.json" --ui-kit --chart-kit --flow-kit --icon-kit \
-  --title "ER diagram" -o "$out/flow/er.html"
-$irender render examples/flow/process.yaml --data examples/flow/process-canvas.json --ui-kit --chart-kit --flow-kit --icon-kit \
-  --title "Process canvas" -o "$out/flow/process.html"
+for flow in er-01 er-02 er-03; do
+  $irender render "examples/flow/$flow.yaml" --data "$out/flow/er.data.json" --ui-kit --chart-kit --flow-kit --icon-kit \
+    --title "$flow" -o "$out/flow/$flow.html"
+done
+for flow in process-01 process-02 process-03; do
+  $irender render "examples/flow/$flow.yaml" --data examples/flow/process-canvas.json --ui-kit --chart-kit --flow-kit --icon-kit \
+    --title "$flow" -o "$out/flow/$flow.html"
+done
+$irender render examples/flow/index.yaml --ui-kit --chart-kit --title "Flow" -o "$out/flow/index.html"
 # The icon gallery's data is the kit's own pack listing.
 mkdir -p "$out/icons"
 $irender icons --json > "$out/icons/packs.json"
 $irender render examples/icons/gallery.yaml --data "$out/icons/packs.json" --ui-kit --chart-kit --icon-kit \
   --title "Icon gallery" -o "$out/icons/index.html"
-$irender render examples/product.json --data examples/product.data.json --title "Product card" -o "$out/product.html"
-$irender render examples/counter.yaml --title "Counter" -o "$out/counter.html"
-cargo run -q -p irender-html --example storefront > "$out/storefront.html"
-cargo run -q -p irender-html --example storefront -- --variant b > "$out/storefront-b.html"
 
 # Every page gets the bar that links the examples (examples/site-nav.yaml).
 python3 examples/site_nav.py "$irender" "$out"

@@ -1,0 +1,122 @@
+# The process as a tracker to read, not edit: the milestones as a list, and the same saved
+# canvas laid out top to bottom beside it. Picking one in either place picks it in the
+# other, and the status filter fades the rest of the diagram.
+#
+#   cargo run -p irender-cli -- render examples/flow/process-03.yaml --data examples/flow/process-canvas.json \
+#     --ui-kit --flow-kit --icon-kit -o process-03.html
+version: 1
+state:
+  sel: null
+  show: all
+  colours:
+    slate-blue: "#5B7FDE"
+    sky: "#3FA9DC"
+    teal: "#2BAF9E"
+    emerald: "#3FA66B"
+    lime: "#8CC152"
+    amber: "#E0A63A"
+    orange: "#E0793C"
+    brown: "#8B5E3C"
+    coral: "#E0645B"
+    rose: "#D9538A"
+    magenta: "#B455C4"
+    violet: "#8467D6"
+    indigo: "#5C56C4"
+    steel-gray: "#6B7280"
+    charcoal: "#3F4654"
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 32px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, justify: space-between, align: center, gap: 16, wrap: true }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 1, text: Project journey } }
+            - { type: ui-text, props: { variant: muted, text: "{{ canvas.nodes.length }} milestones, from kick-off to handover" } }
+        - type: ui-toggle-group
+          props: { bind: show, variant: outline, size: sm, options: [{ value: all, label: All }, { value: published, label: Published }, { value: draft, label: Drafts }] }
+    - type: element
+      style: { display: grid, gap: 20, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 2fr) minmax(0, 3fr)" }, align-items: start }
+      children:
+        - type: element
+          props: { tag: ol }
+          attrs: { aria-label: Milestones }
+          style: { list-style: none, margin: 0, padding: 0, display: flex, flex-direction: column, gap: 4 }
+          children:
+            - type: list
+              props: { items: "{{ canvas.nodes }}", as: n }
+              style: { display: contents }
+              children:
+                - type: if
+                  props: { when: "{{ !show || show == 'all' || (show == 'published') == n.data.published }}" }
+                  children:
+                    - type: element
+                      props: { tag: li }
+                      children:
+                        - type: element
+                          props: { tag: button }
+                          attrs: { type: button, aria-pressed: "{{ sel == n.id }}" }
+                          style:
+                            display: flex
+                            align-items: center
+                            gap: 12
+                            box-sizing: border-box
+                            width: 100%
+                            padding: 10px 12px
+                            border: 1px solid $color.border
+                            border-left: "4px solid {{ colours[n.data.step_color] || '#9ca3af' }}"
+                            border-radius: 8
+                            background: "{{ sel == n.id ? 'var(--color-subtle)' : 'transparent' }}"
+                            color: inherit
+                            font: inherit
+                            font-size: 14
+                            text-align: left
+                            cursor: pointer
+                            ":focus-visible": { outline: 2px solid $color.primary, outline-offset: 2px }
+                          on:
+                            click:
+                              - { action: call, name: flow.select, args: { flow: tracker, id: "{{ n.id }}" } }
+                              - { action: call, name: flow.center, args: { flow: tracker, id: "{{ n.id }}" } }
+                          children:
+                            - { type: text, props: { value: "{{ n.data.label }}" }, style: { flex: 1, font-weight: 500 } }
+                            - type: if
+                              props: { when: "{{ n.data.published }}" }
+                              children: [ { type: ui-badge, props: { text: Published, variant: success, dot: true } } ]
+                            - type: else
+                              children: [ { type: ui-badge, props: { text: Draft, variant: secondary } } ]
+        - type: ui-flow
+          attrs: { id: tracker }
+          style: { border: 1px solid $color.border, border-radius: 12, "--foreground": $color.text, "--card-foreground": $color.text, "@md": { position: sticky, top: 20 } }
+          props:
+            nodes: "{{ canvas.nodes }}"
+            edges: "{{ canvas.edges }}"
+            title: Project journey
+            layout: layered
+            direction: TB
+            rankGap: 40
+            bind: sel
+            nodeStyles: false
+            height: 640
+          children:
+            - type: ui-flow-node
+              props: { type: custom }
+              style:
+                width: 170
+                box-sizing: border-box
+                border-left: "4px solid {{ colours[node.data.step_color] || '#9ca3af' }}"
+                opacity: "{{ !show || show == 'all' || (show == 'published') == node.data.published ? 1 : 0.3 }}"
+                "&[data-selected]": { outline: 2px solid $color.primary, outline-offset: 2px }
+              children:
+                - { type: text, props: { value: "{{ node.data.label }}" }, style: { font-size: 12 } }
+                - { type: ui-flow-port, props: { type: target } }
+                - { type: ui-flow-port, props: { type: source } }

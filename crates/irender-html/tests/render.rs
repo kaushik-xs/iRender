@@ -1,3 +1,5 @@
+mod support;
+
 use irender_core::Format;
 use irender_html::Engine;
 use serde_json::{Value as Json, json};
@@ -100,44 +102,20 @@ fn css_findings_warn_unless_strict() {
 }
 
 #[test]
-fn examples_render() {
+fn samples_render() {
     let engine = Engine::new();
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
-    let src = std::fs::read_to_string(format!("{dir}/product.json")).unwrap();
-    let data: Json = serde_json::from_str(&std::fs::read_to_string(format!("{dir}/product.data.json")).unwrap()).unwrap();
+    let (src, data) = support::product();
     let ir = engine.load(&src, Format::Json).unwrap_or_else(|d| panic!("{d}"));
     let page = engine.render(&ir, &data).unwrap();
     assert!(page.body.contains("₹1499"));
     assert!(page.body.contains("<li>Asha: Lovely glaze, pours evenly.</li>"));
 
-    let src = std::fs::read_to_string(format!("{dir}/counter.yaml")).unwrap();
-    let ir = engine.load(&src, Format::Yaml).unwrap_or_else(|d| panic!("{d}"));
-    assert!(engine.render(&ir, &json!({})).unwrap().interactive);
-}
-
-/// Every document under `examples/` loads without errors and renders with its data.
-/// The ones built with irender-ui-kit (the gallery and the index) are checked in its tests.
-#[test]
-fn examples_load_and_render() {
-    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
-    let read = |path: &str| std::fs::read_to_string(format!("{dir}/{path}")).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let cases: &[(&str, Option<&str>, Option<&str>)] = &[
-        ("counter.yaml", None, None),
-        ("product.json", Some("product.data.json"), None),
-        ("wizard.yaml", None, None),
-        ("dashboard/dashboard.yaml", Some("dashboard/dashboard.data.json"), Some("dashboard/fragments")),
-        ("search/search.json", None, None),
-    ];
-    for (doc, data, fragments) in cases {
-        let mut engine = Engine::new();
-        if let Some(f) = fragments {
-            engine.fragments = Some(std::sync::Arc::new(irender_core::FragmentDir(format!("{dir}/{f}").into())));
-        }
-        let format = Format::from_path(std::path::Path::new(doc)).unwrap();
-        let ir = engine.load(&read(doc), format).unwrap_or_else(|d| panic!("{doc}:\n{d}"));
-        let data = data.map_or(json!({}), |d| serde_json::from_str(&read(d)).unwrap());
-        let page = engine.render(&ir, &data).unwrap_or_else(|e| panic!("{doc}: {e}"));
-        assert!(page.interactive, "{doc}");
+    // The skill's documents that need no kit.
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../skills/irender/examples");
+    for doc in ["counter.yaml", "wizard.yaml"] {
+        let src = std::fs::read_to_string(format!("{dir}/{doc}")).unwrap_or_else(|e| panic!("{doc}: {e}"));
+        let ir = engine.load(&src, Format::Yaml).unwrap_or_else(|d| panic!("{doc}:\n{d}"));
+        assert!(engine.render(&ir, &json!({})).unwrap().interactive, "{doc}");
     }
 }
 

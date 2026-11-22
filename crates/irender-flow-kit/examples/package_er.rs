@@ -1,6 +1,6 @@
 //! Turns a package — the JSON files the builder edits: `manifest.json`, `tables.json`
 //! and `columns/`, `relationships/` and `indexes/` with a file per table — into the
-//! data `examples/flow/er.yaml` draws: a node per table and an edge per relationship.
+//! data `examples/flow/er-01.yaml` to `er-03.yaml` draw: a node per table and an edge per relationship.
 //!
 //!   cargo run -p irender-flow-kit --example package_er -- examples/flow/er-package > er.data.json
 //!

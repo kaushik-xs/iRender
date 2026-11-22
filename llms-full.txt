@@ -1395,20 +1395,20 @@ ui-icon: An SVG icon from the icon kit's packs, drawn in the current text colour
 Build UI from configuration. Write a document in JSON or YAML, then validate it and render it to HTML with a ~4.5 KB (gzipped) runtime for state and actions.
 
 ```sh
-cargo run -p irender-cli -- render examples/product.json --data examples/product.data.json -o product.html
-cargo run -p irender-cli -- validate examples/counter.yaml
+cargo run -p irender-cli -- render examples/blocks/pricing.yaml --ui-kit --icon-kit -o pricing.html
+cargo run -p irender-cli -- validate skills/irender/examples/counter.yaml
 cargo run -p irender-cli -- components   # built-in components and their props
 cargo run -p irender-cli -- schema       # JSON Schema for documents
 ```
 
-See [`examples/`](https://github.com/kaushik-xs/iRender/blob/main/examples/README.md) for complete pages: a dashboard built from fragments, a live API search, a multi-step form and a storefront whose config is partly generated in Rust. To browse them all, run `examples/build.sh`, then `python3 examples/serve.py` (a static server plus the live endpoints the chart gallery uses).
+See [`examples/`](https://github.com/kaushik-xs/iRender/blob/main/examples/README.md) for complete pages: galleries for the kits, blocks (dashboards, data tables, sign-in, chat and more), and flows (ER diagrams, process canvases and workflows). To browse them all, run `examples/build.sh`, then `python3 examples/serve.py` (a static server plus the live endpoints the chart gallery uses).
 
 ## Writing documents with an LLM
 
 - **[`llms.txt`](https://github.com/kaushik-xs/iRender/blob/main/llms.txt)** is an index of the docs for models, and [`llms-full.txt`](https://github.com/kaushik-xs/iRender/blob/main/llms-full.txt) puts all of them in one file to paste into a context window.
 - **[`skills/irender`](https://github.com/kaushik-xs/iRender/blob/main/skills/irender/SKILL.md)** is an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills/overview) that writes, validates and renders documents. It's linked into `.claude/skills` here. To use it in another project, copy the folder into that project's `.claude/skills/` or into `~/.claude/skills/`.
 - **The validation loop:** both tell the model to check its output with `irender validate`, which reports every problem at its path, so it can fix them all before rendering. For documents a model writes for end users, validate and render with `--untrusted`.
-- **Regenerating:** `tools/llm-docs.sh` regenerates the component and icon references, the copies of the READMEs and examples, and `llms-full.txt` from the CLI and the sources. `tools/llm-docs.sh --check` fails when they're stale. The hand-written sources are `llms.txt`, `skills/irender/SKILL.md` and `skills/irender/references/authoring.md`.
+- **Regenerating:** `tools/llm-docs.sh` regenerates the component and icon references, the copies of the READMEs and examples, and `llms-full.txt` from the CLI and the sources. `tools/llm-docs.sh --check` fails when they're stale. The hand-written sources are `llms.txt`, `skills/irender/SKILL.md`, `skills/irender/references/authoring.md` and the skill's `counter.yaml` and `wizard.yaml`.
 
 ## Crates
 
@@ -2987,7 +2987,7 @@ irender_flow_kit::register(&mut engine.registry);
 From the CLI, add `--flow-kit` to `validate`, `render` or `components`:
 
 ```sh
-cargo run -p irender-cli -- render examples/flow/gallery.yaml --data examples/flow/gallery.data.json \
+cargo run -p irender-cli -- render examples/flow/basic-01.yaml --data examples/flow/basic-01.data.json \
   --ui-kit --flow-kit -o flow.html
 ```
 
@@ -3318,23 +3318,24 @@ The JSON's `style` objects are applied one property at a time, so a value can't 
 
 ## Examples
 
-- [`examples/flow/gallery.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/gallery.yaml):
-  - plain React Flow JSON
-  - an editable workflow with a palette
-  - containers with undo and search
-  - an ER diagram from server data
-- [`examples/flow/process.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process.yaml) loads a workflow canvas in the format client-ui-next's process canvas saves ([`process-canvas.json`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-canvas.json), made up):
+`examples/build.sh` previews them all on one page, [`examples/flow/index.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/index.yaml):
+
+- [`basic-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/basic-01.yaml) draws plain React Flow JSON, and [`flowchart-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/flowchart-01.yaml) shows the shapes.
+- [`workflow-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/workflow-01.yaml) is an editable workflow with a palette, and [`subflow-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/subflow-01.yaml) has containers with undo and search.
+- [`process-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-01.yaml) loads a workflow canvas in the format client-ui-next's process canvas saves ([`process-canvas.json`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-canvas.json), made up):
   - **Milestones:** coloured from their `step_color` (with `nodeStyles: false`), with status icons.
   - **Editing:** a palette, a side form for the selected milestone (`bindNode` and `flow.update`), cut, copy and paste, undo, and a confirmation before deleting.
   - **Edges:** the app's CSS variables, such as `--foreground` in its saved edge styles, are set on the flow from the theme.
-- [`examples/flow/er.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er.yaml) draws a package (the JSON files the builder edits) as an ER diagram, after the builder's own:
+  - **Other layouts:** [`process-02.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-02.yaml) fills the screen with a toolbar and a docked form, and [`process-03.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/process-03.yaml) is a read-only tracker beside a list.
+- [`er-01.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-01.yaml) draws a package (the JSON files the builder edits) as an ER diagram, after the builder's own:
   - **Tables:** key and constraint badges, `<details>` to collapse each one, and placeholders for tables in other packages.
   - **Toolbar:** a filter that keeps neighbours, keys only, LR/TB and fullscreen.
+  - **Other layouts:** [`er-02.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-02.yaml) fills the screen with a searched list and a detail panel, [`er-03.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-03.yaml) is a data dictionary with the diagram as its map, and [`er-04.yaml`](https://github.com/kaushik-xs/iRender/blob/main/examples/flow/er-04.yaml) is a small card.
   - **Data:** the [`package_er`](https://github.com/kaushik-xs/iRender/blob/main/crates/irender-flow-kit/examples/package_er.rs) example turns the package into nodes and edges. That's host code, the same work the builder does in `buildGraph`:
 
     ```sh
     cargo run -p irender-flow-kit --example package_er -- path/to/package > er.data.json
-    cargo run -p irender-cli -- render examples/flow/er.yaml --data er.data.json --ui-kit --flow-kit --icon-kit -o er.html
+    cargo run -p irender-cli -- render examples/flow/er-01.yaml --data er.data.json --ui-kit --flow-kit --icon-kit -o er-01.html
     ```
 
 ## Not built yet

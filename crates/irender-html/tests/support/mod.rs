@@ -3,13 +3,9 @@
 
 use serde_json::{Value as Json, json};
 
-pub fn examples_dir() -> String {
-    concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples").to_string()
-}
-
-/// The product card example and its data.
+/// The product card and its data, from `tests/fixtures`.
 pub fn product() -> (String, Json) {
-    let dir = examples_dir();
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
     let doc = std::fs::read_to_string(format!("{dir}/product.json")).unwrap();
     let data = std::fs::read_to_string(format!("{dir}/product.data.json")).unwrap();
     (doc, serde_json::from_str(&data).unwrap())

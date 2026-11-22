@@ -1,0 +1,26 @@
+# React Flow JSON exactly as React Flow saves it, drawn with the kit's default node and edge.
+#
+#   cargo run -p irender-cli -- render examples/flow/basic-01.yaml --data examples/flow/basic-01.data.json --ui-kit --flow-kit -o basic-01.html
+version: 1
+root:
+  type: stack
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: ui-card
+      props:
+        title: React Flow JSON, as saved
+        description: "No templates: the kit's default node shows data.label. Edge types pick the path (default, step, smoothstep, straight); labels, markers and animated edges come from the edge."
+      children:
+        - type: ui-flow
+          props:
+            nodes: "{{ basic.nodes }}"
+            edges: "{{ basic.edges }}"
+            title: A plain flow
+            height: 360
+            draggable: true

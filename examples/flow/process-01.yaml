@@ -2,8 +2,8 @@
 # in the app's own shape: { canvas: { nodes, edges, viewport }, workflowData }, as
 # `reactFlowInstance.toObject()` writes it. The canvas here is made up.
 #
-#   cargo run -p irender-cli -- render examples/flow/process.yaml --data examples/flow/process-canvas.json \
-#     --ui-kit --flow-kit --icon-kit -o process.html
+#   cargo run -p irender-cli -- render examples/flow/process-01.yaml --data examples/flow/process-canvas.json \
+#     --ui-kit --flow-kit --icon-kit -o process-01.html
 #
 # What the app does in code and the document can't — keeping each milestone's
 # `dependencies` in step with its edges, and the impact check before deleting — goes
@@ -44,13 +44,13 @@ root:
             - { type: ui-heading, props: { level: 1, text: Project journey } }
             - { type: ui-text, props: { variant: muted, text: "A workflow canvas after client-ui-next's process canvas, in the format it saves." } }
 
-    - type: stack
-      props: { direction: row, gap: 16, align: stretch }
+    - type: element
+      style: { display: flex, flex-direction: column, gap: 16, "@md": { flex-direction: row } }
       children:
         # The sidebar: the palette, counts, and the canvas as it would be saved.
         - type: stack
           props: { gap: 12 }
-          style: { width: 220, flex: none }
+          style: { "@md": { width: 220, flex: none } }
           children:
             - type: ui-card
               props: { title: Milestones, description: "{{ nodes.length }} on the canvas" }
@@ -75,9 +75,10 @@ root:
         - type: ui-flow
           attrs: { id: canvas }
           style:
-            flex: 1
+            min-width: 0
             border: 1px solid $color.border
             border-radius: 12
+            "@md": { flex: 1 }
             # The app's own colour variables, which its saved edges use.
             "--foreground": $color.text
             "--card-foreground": $color.text
