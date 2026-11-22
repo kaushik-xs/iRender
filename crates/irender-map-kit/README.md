@@ -1,0 +1,181 @@
+# irender-map-kit
+
+Maps for [iRender](../../README.md) documents, on OpenStreetMap or Google Maps. Markers, popups, clusters, shapes and buttons are the kit's own, in the theme's colours, so a document looks and works the same on both.
+
+```rust
+let mut engine = irender_html::Engine::new();
+irender_map_kit::register(&mut engine.registry);
+```
+
+From the CLI, add `--map-kit` to `validate`, `render` or `components`:
+
+```sh
+cargo run -p irender-cli -- render examples/maps/gallery.yaml --data examples/maps/gallery.data.json \
+  --ui-kit --map-kit -o maps.html
+```
+
+[`examples/maps/gallery.yaml`](../../examples/maps/gallery.yaml) shows each feature, and [`examples/blocks/map-01.yaml`](../../examples/blocks/map-01.yaml) is a page with a list beside a map.
+
+## A map
+
+```yaml
+- type: ui-map
+  props:
+    markers:
+      - { id: hq, lat: 12.9716, lng: 77.5946, title: Head office, description: Open until 6 pm }
+      - { id: lab, lat: 12.9352, lng: 77.6245, title: Lab, tone: info }
+```
+
+The view fits what's on the map, unless there's a `center` (`[lat, lng]` or `{ lat, lng }`) and `zoom`. Both can come from state, and the map moves when they change.
+
+## OpenStreetMap or Google Maps
+
+| `provider` | drawn by | key | library |
+|---|---|---|---|
+| `osm` (default) | [Leaflet](https://leafletjs.com/) 1.9.4 and OpenStreetMap's tiles | none | about 43 KB gzipped, from jsDelivr |
+| `google` | Google Maps' JavaScript API | needed | from Google |
+
+Neither is inlined: a page loads the one it uses, once, when a map comes near the view. If the host page has `window.L` or `google.maps` already, the kit uses that.
+
+```rust
+use irender_map_kit::{MapKit, Tiles};
+
+irender_map_kit::register_with(&mut engine.registry, MapKit {
+    leaflet: "/static/leaflet/".into(),          // your own copy of leaflet.js and leaflet.css
+    tiles: Tiles { url: "https://tiles.example.com/{z}/{x}/{y}.png".into(), ..Tiles::default() },
+    google_key: Some("…".into()),
+});
+```
+
+- **OpenStreetMap's tiles** are run by volunteers for light use: see their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/). For a busy site, set `tiles` (on the kit or on a map) to your own tile server or a provider's. They need to know which site asks, so serve pages over HTTP; one opened as a file may be refused.
+- **Attribution** shows in the corner, and the map data's licence asks for it. Set `attribution` and `attributionUrl` with your own `tiles`.
+- **Google's key** comes from `google_key`, the CLI's `--google-maps-key`, the `GOOGLE_MAPS_API_KEY` environment variable or a map's `apiKey`. Browsers see it, so restrict it to your sites in Google's console. `mapId` and `mapType` are Google's own.
+- **Dark mode:** Google's maps switch to its dark colours. OpenStreetMap's tiles are darkened with a filter (`darkTiles: false` leaves them), or `tiles.darkUrl` gives dark ones.
+
+## Markers
+
+Rows with a place: `lat` and `lng` (or `latitude`, `lon`, `long`, `longitude`, or `position: [lat, lng]`). Rows without one are left out.
+
+| field | |
+|---|---|
+| `id` | Names it in state (default: its index) |
+| `title`, `description`, `href` | The popup; `title` (or `name`) also names it for screen readers |
+| `label` | Up to three characters in the pin: a letter, a number, an emoji |
+| `tone`, `color` | `neutral`, `info`, `success`, `warning`, `danger`, `primary`; or any CSS colour |
+| `alarm`, `effect` | In alarm; or `pulse`, `glow`, `bounce` or `blink` (see [Alarms](#alarms)) |
+| `draggable` | This one can, or can't, be dragged |
+
+- **Other field names:** `latField`, `lngField` and `titleField`.
+- **Colour by a field:** `toneBy: { field: status, tones: { late: danger, done: success } }`.
+- **Filtering:** `filter` takes the same conditions as `ui-data-table` and `ui-chart`, so one `ui-filters` panel can narrow a map, a table and a chart.
+- **Clusters:** `cluster: true` groups markers closer than 56px (or give the px) until there's room for them. Clicking a group zooms to it.
+- **Many:** past 300 markers, only those near the view are in the page.
+
+## Alarms
+
+```yaml
+- type: ui-map
+  props:
+    markers: "{{ machines }}"
+    alarmBy: { field: status, values: [ fault, offline ] }
+    effectBy: { field: status, effects: { overdue: glow } }
+    bindAlarms: alarms
+```
+
+A marker in alarm (`alarmBy`, or `alarm: true` on its row) pulses in red with a `!` on it, unless the row has its own tone, effect or label. It stays above the rest, a group with one in it turns red and pulses too, and `bindAlarms` has the ids. When one starts, screen readers hear it and the map fires `alarm` (`{ id, marker }`), which `on` can act on, e.g. to open a toast.
+
+`effect` animates any marker: `pulse` (rings going out from the place), `glow` (a halo that breathes), `bounce`, or `blink` (slowly, once a second). With reduced motion asked for, they hold still: `pulse` and `glow` keep a ring and a halo, and `bounce` and `blink` show nothing.
+
+## State
+
+| prop | the state key |
+|---|---|
+| `bind` | the selected marker's id; setting it selects that marker and brings it into view |
+| `bindMarker` | the selected marker itself, or null |
+| `bindVisible` | the ids of the markers in view, e.g. for a list beside the map |
+| `bindView` | `{ center, zoom, bounds: { north, south, east, west } }` |
+| `bindAlarms` | the ids of the markers in alarm |
+| `bindPoint` | `{ lat, lng }`: clicking the map puts a pin there, which can be dragged |
+| `bindMarkers` | the rows, with a dragged marker's new place (with `draggable`) |
+| `bindShape` | the id of the shape last clicked |
+| `bindLocation` | `{ lat, lng, accuracy }`, after My location |
+
+## Popups and panels
+
+The selected marker opens a popup with its title, description and link (`popup: false` for none). A `ui-map-popup` is the popup's content instead, with the marker in scope as `marker`. A `ui-map-panel` floats above the map.
+
+```yaml
+- type: ui-map
+  props: { markers: "{{ jobs }}", bind: job }
+  children:
+    - type: ui-map-popup
+      children:
+        - { type: text, props: { value: "{{ marker.customer }}" } }
+        - { type: ui-progress, props: { value: "{{ marker.progress }}" } }
+    - type: ui-map-panel
+      props: { position: top-right }
+      children: [ { type: ui-badge, props: { text: Live, dot: true } } ]
+```
+
+## Shapes
+
+```yaml
+shapes:
+  - { id: zone, type: circle, center: [40.4168, -3.7038], radius: "{{ radius }}", tone: primary, title: Delivery zone }
+  - { id: way, type: line, points: [[40.41, -3.70], [40.42, -3.69]], tone: info, width: 4, dashed: true }
+  - { id: park, type: area, points: [[40.415, -3.69], [40.42, -3.68], [40.41, -3.68]], tone: success, fill: 0.3 }
+```
+
+`radius` is in metres. An area's `points` can be a list of rings, the first its outline and the rest holes. `geojson` takes a GeoJSON object: lines and areas take their look from `properties`, and points become markers. A shape with a `title`, or any with `bindShape`, can be clicked.
+
+## Overlays
+
+```yaml
+overlays:
+  - { id: plan, type: image, url: floor-plan.svg, bounds: [[52.45, 13.3], [52.4515, 13.304]], opacity: "{{ strength }}" }
+  - { id: marks, type: tiles, url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", attribution: © OpenSeaMap contributors }
+  - { id: busy, type: heat, points: "{{ sites }}", weightField: people, radius: 40, show: "{{ busy }}" }
+```
+
+They lie over the map and under its shapes and markers. Each has `opacity` (0 to 1) and `show`, so a switch or a slider can drive it.
+
+- **`image`:** a picture stretched over its `bounds` (`[[south, west], [north, east]]`, or `{ north, south, east, west }`): a floor plan, an old map, a drone photo. It can't be turned. The view fits it.
+- **`tiles`:** another tile server's, usually see-through: sea marks, rainfall, railways. Give its `attribution`, and `maxZoom` if it has none closer.
+- **`heat`:** where rows are, by how many, or by `weightField`. `radius` is in px on the screen and `max` is the weight that counts in full (default: the greatest). Also takes `[lat, lng, weight]`.
+
+## Commands and events
+
+Send a command with the `call` action. `map` names the map by its element id; a page with one map doesn't need it.
+
+| `call` | |
+|---|---|
+| `map.select` | Selects `args.id`, or nothing when it's null |
+| `map.center` | Moves to `args.id`, or to `args.lat` and `args.lng`, at `args.zoom` |
+| `map.fit` | Fits everything, or `args.ids` |
+| `map.zoomin`, `map.zoomout`, `map.locate` | As the buttons |
+
+`on` hears `markerselect` (`{ id, marker }`), `markermove` (`{ id, lat, lng }`), `alarm` (`{ id, marker }`), `shapeselect` (`{ id, shape }`), `mapclick` (`{ lat, lng }`), `viewchange` and `locate`.
+
+## Gestures and keys
+
+`gestures: cooperative` (the default) lets the page scroll past a map: Ctrl / ⌘ + wheel or two fingers zoom it. On OpenStreetMap, one finger on a touch screen scrolls the page, and the buttons, keys and two fingers move the map. `greedy` gives the map the wheel and one finger, for a map that fills the page, and `none` keeps it still.
+
+| key | |
+|---|---|
+| Tab | The markers and groups in turn |
+| Enter | Opens a marker's popup and moves into it |
+| Escape | Closes the popup, back to its marker |
+| Alt + arrows | Moves a draggable marker |
+| Arrows, `+`, `-` | Pan and zoom, with the map focused |
+
+## Safety
+
+Marker and shape text is shown as text. A marker's `href` can't run a script, and with `Engine::untrusted()` it has to be a web, mail or phone link. Tile and overlay URLs in a document pass its policy. The key and Leaflet's address come from the host unless the document sets `apiKey`.
+
+## When it can't load
+
+The map says so, and lists the places.
+
+## Not built yet
+
+See [PENDING.md](../../PENDING.md#map-kit-next-phases).

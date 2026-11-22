@@ -23,6 +23,7 @@ MAIN = {
     "blocks/index.html": "Blocks",
     "charts/index.html": "Charts",
     "flow/index.html": "Flow",
+    "maps/index.html": "Maps",
     "icons/index.html": "Icons",
 }
 # The bar stays at the top while a page scrolls. Its height goes in `--site-nav`, kept

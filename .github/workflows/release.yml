@@ -93,7 +93,7 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           crates="irender-core irender-style irender-html irender-icon-kit irender-ui-kit
-                  irender-chart-kit irender-flow-kit irender-markdown-kit irender-cli"
+                  irender-chart-kit irender-flow-kit irender-markdown-kit irender-map-kit irender-cli"
           # A crate added to the workspace must be added to the list above too, unless
           # it sets `publish = false`.
           missing=$(comm -23 <(cargo metadata --no-deps --format-version 1 \

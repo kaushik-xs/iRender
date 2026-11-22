@@ -57,6 +57,21 @@
       ]
     },
     {
+      "title": "Maps",
+      "href": "maps/index.html",
+      "source": "examples/maps/gallery.yaml",
+      "summary": "Maps through irender-map-kit, on OpenStreetMap with no key or on Google Maps: markers and popups of any components, clusters, picking a place, dragging stops, lines, circles and GeoJSON, with what's selected and in view as state.",
+      "features": [
+        "irender-map-kit",
+        "OpenStreetMap",
+        "Google Maps",
+        "clusters",
+        "GeoJSON",
+        "dark mode"
+      ],
+      "needsServer": true
+    },
+    {
       "title": "Icon gallery",
       "href": "icons/index.html",
       "source": "examples/icons/gallery.yaml",

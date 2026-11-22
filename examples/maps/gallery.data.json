@@ -1,0 +1,1803 @@
+{
+ "stations": [
+  {
+   "id": "S-1",
+   "lat": 51.44303,
+   "lng": 0.06634,
+   "title": "London station 1",
+   "status": "open"
+  },
+  {
+   "id": "S-2",
+   "lat": 51.55514,
+   "lng": -0.28031,
+   "title": "London station 2",
+   "status": "closed"
+  },
+  {
+   "id": "S-3",
+   "lat": 51.53032,
+   "lng": 0.02915,
+   "title": "London office 3",
+   "status": "open"
+  },
+  {
+   "id": "S-4",
+   "lat": 51.52555,
+   "lng": 0.35209,
+   "title": "London station 4",
+   "status": "closed"
+  },
+  {
+   "id": "S-5",
+   "lat": 51.6336,
+   "lng": 0.06155,
+   "title": "London station 5",
+   "status": "closed"
+  },
+  {
+   "id": "S-6",
+   "lat": 51.43851,
+   "lng": -0.19005,
+   "title": "London kiosk 6",
+   "status": "open"
+  },
+  {
+   "id": "S-7",
+   "lat": 51.38172,
+   "lng": -0.19881,
+   "title": "London office 7",
+   "status": "open"
+  },
+  {
+   "id": "S-8",
+   "lat": 51.19236,
+   "lng": -0.25299,
+   "title": "London kiosk 8",
+   "status": "open"
+  },
+  {
+   "id": "S-9",
+   "lat": 51.19605,
+   "lng": -0.39406,
+   "title": "London depot 9",
+   "status": "open"
+  },
+  {
+   "id": "S-10",
+   "lat": 51.42099,
+   "lng": -0.16844,
+   "title": "London station 10",
+   "status": "closed"
+  },
+  {
+   "id": "S-11",
+   "lat": 51.61016,
+   "lng": 0.42412,
+   "title": "London office 11",
+   "status": "open"
+  },
+  {
+   "id": "S-12",
+   "lat": 50.95343,
+   "lng": 0.05674,
+   "title": "London depot 12",
+   "status": "open"
+  },
+  {
+   "id": "S-13",
+   "lat": 51.50856,
+   "lng": 0.11122,
+   "title": "London kiosk 13",
+   "status": "open"
+  },
+  {
+   "id": "S-14",
+   "lat": 51.23462,
+   "lng": -0.33706,
+   "title": "London depot 14",
+   "status": "busy"
+  },
+  {
+   "id": "S-15",
+   "lat": 51.3417,
+   "lng": 0.90602,
+   "title": "London station 15",
+   "status": "closed"
+  },
+  {
+   "id": "S-16",
+   "lat": 51.14084,
+   "lng": 0.18658,
+   "title": "London kiosk 16",
+   "status": "busy"
+  },
+  {
+   "id": "S-17",
+   "lat": 50.94343,
+   "lng": 0.3311,
+   "title": "London station 17",
+   "status": "closed"
+  },
+  {
+   "id": "S-18",
+   "lat": 51.04948,
+   "lng": -0.47154,
+   "title": "London depot 18",
+   "status": "open"
+  },
+  {
+   "id": "S-19",
+   "lat": 51.39382,
+   "lng": -0.60862,
+   "title": "London office 19",
+   "status": "open"
+  },
+  {
+   "id": "S-20",
+   "lat": 51.82921,
+   "lng": -0.90008,
+   "title": "London office 20",
+   "status": "open"
+  },
+  {
+   "id": "S-21",
+   "lat": 51.86784,
+   "lng": 0.09183,
+   "title": "London office 21",
+   "status": "open"
+  },
+  {
+   "id": "S-22",
+   "lat": 51.39832,
+   "lng": -0.90421,
+   "title": "London depot 22",
+   "status": "open"
+  },
+  {
+   "id": "S-23",
+   "lat": 51.72521,
+   "lng": -0.25776,
+   "title": "London station 23",
+   "status": "busy"
+  },
+  {
+   "id": "S-24",
+   "lat": 51.9055,
+   "lng": 0.10723,
+   "title": "London kiosk 24",
+   "status": "open"
+  },
+  {
+   "id": "S-25",
+   "lat": 51.06032,
+   "lng": 0.37913,
+   "title": "London office 25",
+   "status": "open"
+  },
+  {
+   "id": "S-26",
+   "lat": 51.6341,
+   "lng": 0.20516,
+   "title": "London depot 26",
+   "status": "open"
+  },
+  {
+   "id": "S-27",
+   "lat": 51.71758,
+   "lng": -0.81626,
+   "title": "London depot 27",
+   "status": "busy"
+  },
+  {
+   "id": "S-28",
+   "lat": 51.88444,
+   "lng": -0.1769,
+   "title": "London office 28",
+   "status": "open"
+  },
+  {
+   "id": "S-29",
+   "lat": 51.59777,
+   "lng": 0.06422,
+   "title": "London kiosk 29",
+   "status": "open"
+  },
+  {
+   "id": "S-30",
+   "lat": 51.97713,
+   "lng": -0.07373,
+   "title": "London kiosk 30",
+   "status": "open"
+  },
+  {
+   "id": "S-31",
+   "lat": 48.82904,
+   "lng": 2.56096,
+   "title": "Paris depot 31",
+   "status": "closed"
+  },
+  {
+   "id": "S-32",
+   "lat": 48.29152,
+   "lng": 1.97142,
+   "title": "Paris station 32",
+   "status": "busy"
+  },
+  {
+   "id": "S-33",
+   "lat": 49.20819,
+   "lng": 1.96176,
+   "title": "Paris office 33",
+   "status": "busy"
+  },
+  {
+   "id": "S-34",
+   "lat": 48.76288,
+   "lng": 2.45735,
+   "title": "Paris office 34",
+   "status": "open"
+  },
+  {
+   "id": "S-35",
+   "lat": 49.12045,
+   "lng": 3.37483,
+   "title": "Paris office 35",
+   "status": "open"
+  },
+  {
+   "id": "S-36",
+   "lat": 49.11812,
+   "lng": 2.68005,
+   "title": "Paris station 36",
+   "status": "open"
+  },
+  {
+   "id": "S-37",
+   "lat": 48.57382,
+   "lng": 2.15998,
+   "title": "Paris depot 37",
+   "status": "closed"
+  },
+  {
+   "id": "S-38",
+   "lat": 49.35966,
+   "lng": 2.47548,
+   "title": "Paris office 38",
+   "status": "open"
+  },
+  {
+   "id": "S-39",
+   "lat": 48.44284,
+   "lng": 1.64326,
+   "title": "Paris depot 39",
+   "status": "busy"
+  },
+  {
+   "id": "S-40",
+   "lat": 49.20533,
+   "lng": 2.86729,
+   "title": "Paris office 40",
+   "status": "busy"
+  },
+  {
+   "id": "S-41",
+   "lat": 48.7516,
+   "lng": 2.36833,
+   "title": "Paris station 41",
+   "status": "open"
+  },
+  {
+   "id": "S-42",
+   "lat": 48.83971,
+   "lng": 1.9191,
+   "title": "Paris kiosk 42",
+   "status": "closed"
+  },
+  {
+   "id": "S-43",
+   "lat": 49.46451,
+   "lng": 2.48695,
+   "title": "Paris depot 43",
+   "status": "open"
+  },
+  {
+   "id": "S-44",
+   "lat": 48.65329,
+   "lng": 1.56896,
+   "title": "Paris depot 44",
+   "status": "open"
+  },
+  {
+   "id": "S-45",
+   "lat": 48.7925,
+   "lng": 2.07311,
+   "title": "Paris depot 45",
+   "status": "open"
+  },
+  {
+   "id": "S-46",
+   "lat": 48.7476,
+   "lng": 2.56446,
+   "title": "Paris depot 46",
+   "status": "open"
+  },
+  {
+   "id": "S-47",
+   "lat": 48.52327,
+   "lng": 1.91473,
+   "title": "Paris kiosk 47",
+   "status": "open"
+  },
+  {
+   "id": "S-48",
+   "lat": 49.02779,
+   "lng": 1.78499,
+   "title": "Paris kiosk 48",
+   "status": "open"
+  },
+  {
+   "id": "S-49",
+   "lat": 48.62408,
+   "lng": 2.3126,
+   "title": "Paris station 49",
+   "status": "open"
+  },
+  {
+   "id": "S-50",
+   "lat": 48.92749,
+   "lng": 1.93595,
+   "title": "Paris kiosk 50",
+   "status": "closed"
+  },
+  {
+   "id": "S-51",
+   "lat": 49.11912,
+   "lng": 2.24035,
+   "title": "Paris depot 51",
+   "status": "open"
+  },
+  {
+   "id": "S-52",
+   "lat": 48.95851,
+   "lng": 2.43751,
+   "title": "Paris office 52",
+   "status": "open"
+  },
+  {
+   "id": "S-53",
+   "lat": 48.70667,
+   "lng": 2.72364,
+   "title": "Paris station 53",
+   "status": "busy"
+  },
+  {
+   "id": "S-54",
+   "lat": 49.05021,
+   "lng": 2.16355,
+   "title": "Paris station 54",
+   "status": "open"
+  },
+  {
+   "id": "S-55",
+   "lat": 49.22527,
+   "lng": 1.99566,
+   "title": "Paris kiosk 55",
+   "status": "busy"
+  },
+  {
+   "id": "S-56",
+   "lat": 49.06144,
+   "lng": 2.09166,
+   "title": "Paris depot 56",
+   "status": "open"
+  },
+  {
+   "id": "S-57",
+   "lat": 49.06652,
+   "lng": 1.38884,
+   "title": "Paris office 57",
+   "status": "busy"
+  },
+  {
+   "id": "S-58",
+   "lat": 48.36401,
+   "lng": 2.88652,
+   "title": "Paris kiosk 58",
+   "status": "open"
+  },
+  {
+   "id": "S-59",
+   "lat": 48.91604,
+   "lng": 2.34811,
+   "title": "Paris office 59",
+   "status": "open"
+  },
+  {
+   "id": "S-60",
+   "lat": 48.59983,
+   "lng": 2.02206,
+   "title": "Paris office 60",
+   "status": "open"
+  },
+  {
+   "id": "S-61",
+   "lat": 52.69566,
+   "lng": 13.80277,
+   "title": "Berlin station 61",
+   "status": "open"
+  },
+  {
+   "id": "S-62",
+   "lat": 52.64283,
+   "lng": 12.8224,
+   "title": "Berlin station 62",
+   "status": "closed"
+  },
+  {
+   "id": "S-63",
+   "lat": 52.51957,
+   "lng": 13.1969,
+   "title": "Berlin kiosk 63",
+   "status": "open"
+  },
+  {
+   "id": "S-64",
+   "lat": 52.69027,
+   "lng": 13.451,
+   "title": "Berlin kiosk 64",
+   "status": "closed"
+  },
+  {
+   "id": "S-65",
+   "lat": 52.37596,
+   "lng": 13.82817,
+   "title": "Berlin kiosk 65",
+   "status": "open"
+  },
+  {
+   "id": "S-66",
+   "lat": 52.71726,
+   "lng": 13.21476,
+   "title": "Berlin office 66",
+   "status": "closed"
+  },
+  {
+   "id": "S-67",
+   "lat": 52.63982,
+   "lng": 12.98446,
+   "title": "Berlin kiosk 67",
+   "status": "closed"
+  },
+  {
+   "id": "S-68",
+   "lat": 52.69286,
+   "lng": 13.77555,
+   "title": "Berlin office 68",
+   "status": "open"
+  },
+  {
+   "id": "S-69",
+   "lat": 52.18428,
+   "lng": 12.9906,
+   "title": "Berlin kiosk 69",
+   "status": "open"
+  },
+  {
+   "id": "S-70",
+   "lat": 52.73878,
+   "lng": 13.81509,
+   "title": "Berlin station 70",
+   "status": "closed"
+  },
+  {
+   "id": "S-71",
+   "lat": 52.87046,
+   "lng": 13.62274,
+   "title": "Berlin office 71",
+   "status": "open"
+  },
+  {
+   "id": "S-72",
+   "lat": 52.58351,
+   "lng": 13.31796,
+   "title": "Berlin kiosk 72",
+   "status": "open"
+  },
+  {
+   "id": "S-73",
+   "lat": 52.62943,
+   "lng": 13.45016,
+   "title": "Berlin office 73",
+   "status": "closed"
+  },
+  {
+   "id": "S-74",
+   "lat": 53.04158,
+   "lng": 13.54524,
+   "title": "Berlin station 74",
+   "status": "busy"
+  },
+  {
+   "id": "S-75",
+   "lat": 52.21207,
+   "lng": 14.31491,
+   "title": "Berlin kiosk 75",
+   "status": "open"
+  },
+  {
+   "id": "S-76",
+   "lat": 52.2251,
+   "lng": 13.54338,
+   "title": "Berlin office 76",
+   "status": "closed"
+  },
+  {
+   "id": "S-77",
+   "lat": 52.88164,
+   "lng": 13.19334,
+   "title": "Berlin depot 77",
+   "status": "closed"
+  },
+  {
+   "id": "S-78",
+   "lat": 52.65145,
+   "lng": 13.24545,
+   "title": "Berlin office 78",
+   "status": "open"
+  },
+  {
+   "id": "S-79",
+   "lat": 52.30391,
+   "lng": 13.59471,
+   "title": "Berlin depot 79",
+   "status": "open"
+  },
+  {
+   "id": "S-80",
+   "lat": 52.39432,
+   "lng": 13.05144,
+   "title": "Berlin kiosk 80",
+   "status": "open"
+  },
+  {
+   "id": "S-81",
+   "lat": 52.6328,
+   "lng": 12.61309,
+   "title": "Berlin kiosk 81",
+   "status": "open"
+  },
+  {
+   "id": "S-82",
+   "lat": 52.84247,
+   "lng": 14.02061,
+   "title": "Berlin office 82",
+   "status": "open"
+  },
+  {
+   "id": "S-83",
+   "lat": 52.51768,
+   "lng": 13.23607,
+   "title": "Berlin office 83",
+   "status": "open"
+  },
+  {
+   "id": "S-84",
+   "lat": 52.9916,
+   "lng": 13.35932,
+   "title": "Berlin kiosk 84",
+   "status": "busy"
+  },
+  {
+   "id": "S-85",
+   "lat": 52.77409,
+   "lng": 13.39061,
+   "title": "Berlin office 85",
+   "status": "open"
+  },
+  {
+   "id": "S-86",
+   "lat": 52.45173,
+   "lng": 13.53602,
+   "title": "Berlin depot 86",
+   "status": "open"
+  },
+  {
+   "id": "S-87",
+   "lat": 52.37457,
+   "lng": 13.7633,
+   "title": "Berlin station 87",
+   "status": "busy"
+  },
+  {
+   "id": "S-88",
+   "lat": 52.34868,
+   "lng": 13.86828,
+   "title": "Berlin station 88",
+   "status": "open"
+  },
+  {
+   "id": "S-89",
+   "lat": 52.95865,
+   "lng": 13.34233,
+   "title": "Berlin station 89",
+   "status": "open"
+  },
+  {
+   "id": "S-90",
+   "lat": 52.51306,
+   "lng": 13.51249,
+   "title": "Berlin kiosk 90",
+   "status": "open"
+  },
+  {
+   "id": "S-91",
+   "lat": 40.43379,
+   "lng": -4.40701,
+   "title": "Madrid depot 91",
+   "status": "busy"
+  },
+  {
+   "id": "S-92",
+   "lat": 40.74839,
+   "lng": -3.01645,
+   "title": "Madrid office 92",
+   "status": "open"
+  },
+  {
+   "id": "S-93",
+   "lat": 40.48982,
+   "lng": -3.63428,
+   "title": "Madrid kiosk 93",
+   "status": "busy"
+  },
+  {
+   "id": "S-94",
+   "lat": 40.57357,
+   "lng": -3.88792,
+   "title": "Madrid station 94",
+   "status": "open"
+  },
+  {
+   "id": "S-95",
+   "lat": 40.45033,
+   "lng": -3.85464,
+   "title": "Madrid kiosk 95",
+   "status": "open"
+  },
+  {
+   "id": "S-96",
+   "lat": 40.40545,
+   "lng": -3.51123,
+   "title": "Madrid station 96",
+   "status": "open"
+  },
+  {
+   "id": "S-97",
+   "lat": 40.67685,
+   "lng": -3.71814,
+   "title": "Madrid depot 97",
+   "status": "closed"
+  },
+  {
+   "id": "S-98",
+   "lat": 40.62747,
+   "lng": -3.36663,
+   "title": "Madrid kiosk 98",
+   "status": "open"
+  },
+  {
+   "id": "S-99",
+   "lat": 40.6082,
+   "lng": -3.76093,
+   "title": "Madrid kiosk 99",
+   "status": "open"
+  },
+  {
+   "id": "S-100",
+   "lat": 40.73749,
+   "lng": -3.92489,
+   "title": "Madrid kiosk 100",
+   "status": "open"
+  },
+  {
+   "id": "S-101",
+   "lat": 40.06516,
+   "lng": -3.51407,
+   "title": "Madrid depot 101",
+   "status": "open"
+  },
+  {
+   "id": "S-102",
+   "lat": 40.68387,
+   "lng": -4.86073,
+   "title": "Madrid station 102",
+   "status": "open"
+  },
+  {
+   "id": "S-103",
+   "lat": 40.71177,
+   "lng": -3.65187,
+   "title": "Madrid kiosk 103",
+   "status": "closed"
+  },
+  {
+   "id": "S-104",
+   "lat": 39.84039,
+   "lng": -3.56383,
+   "title": "Madrid station 104",
+   "status": "busy"
+  },
+  {
+   "id": "S-105",
+   "lat": 40.2429,
+   "lng": -4.10145,
+   "title": "Madrid office 105",
+   "status": "closed"
+  },
+  {
+   "id": "S-106",
+   "lat": 40.35519,
+   "lng": -3.45671,
+   "title": "Madrid kiosk 106",
+   "status": "open"
+  },
+  {
+   "id": "S-107",
+   "lat": 40.58093,
+   "lng": -2.95907,
+   "title": "Madrid kiosk 107",
+   "status": "busy"
+  },
+  {
+   "id": "S-108",
+   "lat": 41.12351,
+   "lng": -3.77537,
+   "title": "Madrid kiosk 108",
+   "status": "open"
+  },
+  {
+   "id": "S-109",
+   "lat": 40.78797,
+   "lng": -3.43553,
+   "title": "Madrid depot 109",
+   "status": "busy"
+  },
+  {
+   "id": "S-110",
+   "lat": 40.47146,
+   "lng": -3.56748,
+   "title": "Madrid office 110",
+   "status": "closed"
+  },
+  {
+   "id": "S-111",
+   "lat": 40.31959,
+   "lng": -3.97552,
+   "title": "Madrid kiosk 111",
+   "status": "open"
+  },
+  {
+   "id": "S-112",
+   "lat": 40.57065,
+   "lng": -3.63577,
+   "title": "Madrid depot 112",
+   "status": "busy"
+  },
+  {
+   "id": "S-113",
+   "lat": 40.65484,
+   "lng": -3.69577,
+   "title": "Madrid depot 113",
+   "status": "closed"
+  },
+  {
+   "id": "S-114",
+   "lat": 40.38749,
+   "lng": -3.61393,
+   "title": "Madrid depot 114",
+   "status": "open"
+  },
+  {
+   "id": "S-115",
+   "lat": 40.40982,
+   "lng": -3.69022,
+   "title": "Madrid office 115",
+   "status": "open"
+  },
+  {
+   "id": "S-116",
+   "lat": 40.12522,
+   "lng": -3.63274,
+   "title": "Madrid kiosk 116",
+   "status": "open"
+  },
+  {
+   "id": "S-117",
+   "lat": 40.3921,
+   "lng": -3.70513,
+   "title": "Madrid depot 117",
+   "status": "open"
+  },
+  {
+   "id": "S-118",
+   "lat": 40.62259,
+   "lng": -3.30701,
+   "title": "Madrid office 118",
+   "status": "open"
+  },
+  {
+   "id": "S-119",
+   "lat": 40.30885,
+   "lng": -3.19423,
+   "title": "Madrid station 119",
+   "status": "closed"
+  },
+  {
+   "id": "S-120",
+   "lat": 40.88952,
+   "lng": -3.89982,
+   "title": "Madrid kiosk 120",
+   "status": "closed"
+  },
+  {
+   "id": "S-121",
+   "lat": 41.73228,
+   "lng": 12.71201,
+   "title": "Rome office 121",
+   "status": "open"
+  },
+  {
+   "id": "S-122",
+   "lat": 41.82902,
+   "lng": 13.01157,
+   "title": "Rome kiosk 122",
+   "status": "open"
+  },
+  {
+   "id": "S-123",
+   "lat": 42.08252,
+   "lng": 11.95927,
+   "title": "Rome office 123",
+   "status": "closed"
+  },
+  {
+   "id": "S-124",
+   "lat": 42.09812,
+   "lng": 12.85135,
+   "title": "Rome station 124",
+   "status": "closed"
+  },
+  {
+   "id": "S-125",
+   "lat": 42.01996,
+   "lng": 11.92409,
+   "title": "Rome kiosk 125",
+   "status": "open"
+  },
+  {
+   "id": "S-126",
+   "lat": 42.03406,
+   "lng": 12.53551,
+   "title": "Rome depot 126",
+   "status": "open"
+  },
+  {
+   "id": "S-127",
+   "lat": 41.70733,
+   "lng": 12.78743,
+   "title": "Rome station 127",
+   "status": "open"
+  },
+  {
+   "id": "S-128",
+   "lat": 41.63796,
+   "lng": 12.08689,
+   "title": "Rome office 128",
+   "status": "open"
+  },
+  {
+   "id": "S-129",
+   "lat": 42.34984,
+   "lng": 12.51015,
+   "title": "Rome station 129",
+   "status": "closed"
+  },
+  {
+   "id": "S-130",
+   "lat": 42.2768,
+   "lng": 12.74634,
+   "title": "Rome depot 130",
+   "status": "open"
+  },
+  {
+   "id": "S-131",
+   "lat": 42.00688,
+   "lng": 12.26719,
+   "title": "Rome kiosk 131",
+   "status": "open"
+  },
+  {
+   "id": "S-132",
+   "lat": 41.85946,
+   "lng": 11.46179,
+   "title": "Rome office 132",
+   "status": "busy"
+  },
+  {
+   "id": "S-133",
+   "lat": 42.3896,
+   "lng": 12.88311,
+   "title": "Rome depot 133",
+   "status": "open"
+  },
+  {
+   "id": "S-134",
+   "lat": 41.63689,
+   "lng": 12.13039,
+   "title": "Rome station 134",
+   "status": "closed"
+  },
+  {
+   "id": "S-135",
+   "lat": 42.01797,
+   "lng": 12.72852,
+   "title": "Rome depot 135",
+   "status": "closed"
+  },
+  {
+   "id": "S-136",
+   "lat": 41.86693,
+   "lng": 12.47114,
+   "title": "Rome station 136",
+   "status": "busy"
+  },
+  {
+   "id": "S-137",
+   "lat": 41.85907,
+   "lng": 13.05945,
+   "title": "Rome kiosk 137",
+   "status": "busy"
+  },
+  {
+   "id": "S-138",
+   "lat": 41.82647,
+   "lng": 12.93913,
+   "title": "Rome office 138",
+   "status": "busy"
+  },
+  {
+   "id": "S-139",
+   "lat": 41.78023,
+   "lng": 12.53607,
+   "title": "Rome kiosk 139",
+   "status": "open"
+  },
+  {
+   "id": "S-140",
+   "lat": 42.48407,
+   "lng": 12.37384,
+   "title": "Rome station 140",
+   "status": "open"
+  },
+  {
+   "id": "S-141",
+   "lat": 41.45539,
+   "lng": 12.67538,
+   "title": "Rome office 141",
+   "status": "open"
+  },
+  {
+   "id": "S-142",
+   "lat": 41.4808,
+   "lng": 13.04866,
+   "title": "Rome kiosk 142",
+   "status": "open"
+  },
+  {
+   "id": "S-143",
+   "lat": 41.78249,
+   "lng": 12.39308,
+   "title": "Rome depot 143",
+   "status": "open"
+  },
+  {
+   "id": "S-144",
+   "lat": 42.21447,
+   "lng": 13.017,
+   "title": "Rome depot 144",
+   "status": "open"
+  },
+  {
+   "id": "S-145",
+   "lat": 41.85058,
+   "lng": 12.23208,
+   "title": "Rome office 145",
+   "status": "busy"
+  },
+  {
+   "id": "S-146",
+   "lat": 41.92395,
+   "lng": 12.50101,
+   "title": "Rome office 146",
+   "status": "busy"
+  },
+  {
+   "id": "S-147",
+   "lat": 41.56913,
+   "lng": 12.83893,
+   "title": "Rome office 147",
+   "status": "open"
+  },
+  {
+   "id": "S-148",
+   "lat": 41.81263,
+   "lng": 12.63146,
+   "title": "Rome depot 148",
+   "status": "open"
+  },
+  {
+   "id": "S-149",
+   "lat": 41.80044,
+   "lng": 12.80413,
+   "title": "Rome office 149",
+   "status": "open"
+  },
+  {
+   "id": "S-150",
+   "lat": 42.05638,
+   "lng": 12.40349,
+   "title": "Rome station 150",
+   "status": "open"
+  },
+  {
+   "id": "S-151",
+   "lat": 48.20615,
+   "lng": 16.51327,
+   "title": "Vienna office 151",
+   "status": "closed"
+  },
+  {
+   "id": "S-152",
+   "lat": 48.71325,
+   "lng": 16.77386,
+   "title": "Vienna depot 152",
+   "status": "open"
+  },
+  {
+   "id": "S-153",
+   "lat": 48.19243,
+   "lng": 16.49543,
+   "title": "Vienna depot 153",
+   "status": "open"
+  },
+  {
+   "id": "S-154",
+   "lat": 48.20883,
+   "lng": 16.67267,
+   "title": "Vienna depot 154",
+   "status": "open"
+  },
+  {
+   "id": "S-155",
+   "lat": 48.27164,
+   "lng": 15.71464,
+   "title": "Vienna office 155",
+   "status": "open"
+  },
+  {
+   "id": "S-156",
+   "lat": 48.34197,
+   "lng": 15.87764,
+   "title": "Vienna kiosk 156",
+   "status": "open"
+  },
+  {
+   "id": "S-157",
+   "lat": 48.59445,
+   "lng": 16.56272,
+   "title": "Vienna office 157",
+   "status": "closed"
+  },
+  {
+   "id": "S-158",
+   "lat": 48.21403,
+   "lng": 15.82756,
+   "title": "Vienna depot 158",
+   "status": "busy"
+  },
+  {
+   "id": "S-159",
+   "lat": 48.75279,
+   "lng": 16.63719,
+   "title": "Vienna kiosk 159",
+   "status": "open"
+  },
+  {
+   "id": "S-160",
+   "lat": 47.98207,
+   "lng": 16.43464,
+   "title": "Vienna depot 160",
+   "status": "open"
+  },
+  {
+   "id": "S-161",
+   "lat": 48.16091,
+   "lng": 15.33689,
+   "title": "Vienna depot 161",
+   "status": "busy"
+  },
+  {
+   "id": "S-162",
+   "lat": 48.09021,
+   "lng": 16.10698,
+   "title": "Vienna office 162",
+   "status": "open"
+  },
+  {
+   "id": "S-163",
+   "lat": 48.28169,
+   "lng": 16.5699,
+   "title": "Vienna kiosk 163",
+   "status": "closed"
+  },
+  {
+   "id": "S-164",
+   "lat": 48.45142,
+   "lng": 16.1258,
+   "title": "Vienna kiosk 164",
+   "status": "busy"
+  },
+  {
+   "id": "S-165",
+   "lat": 48.90665,
+   "lng": 15.66452,
+   "title": "Vienna office 165",
+   "status": "busy"
+  },
+  {
+   "id": "S-166",
+   "lat": 48.3125,
+   "lng": 16.56501,
+   "title": "Vienna station 166",
+   "status": "open"
+  },
+  {
+   "id": "S-167",
+   "lat": 48.14832,
+   "lng": 16.51313,
+   "title": "Vienna kiosk 167",
+   "status": "open"
+  },
+  {
+   "id": "S-168",
+   "lat": 48.19096,
+   "lng": 16.86676,
+   "title": "Vienna station 168",
+   "status": "busy"
+  },
+  {
+   "id": "S-169",
+   "lat": 47.90136,
+   "lng": 16.79631,
+   "title": "Vienna kiosk 169",
+   "status": "busy"
+  },
+  {
+   "id": "S-170",
+   "lat": 48.15504,
+   "lng": 17.00355,
+   "title": "Vienna office 170",
+   "status": "open"
+  },
+  {
+   "id": "S-171",
+   "lat": 47.99702,
+   "lng": 16.21242,
+   "title": "Vienna kiosk 171",
+   "status": "open"
+  },
+  {
+   "id": "S-172",
+   "lat": 48.18312,
+   "lng": 16.65871,
+   "title": "Vienna office 172",
+   "status": "busy"
+  },
+  {
+   "id": "S-173",
+   "lat": 48.01131,
+   "lng": 16.51049,
+   "title": "Vienna station 173",
+   "status": "open"
+  },
+  {
+   "id": "S-174",
+   "lat": 48.59306,
+   "lng": 16.49422,
+   "title": "Vienna office 174",
+   "status": "closed"
+  },
+  {
+   "id": "S-175",
+   "lat": 48.11076,
+   "lng": 16.38346,
+   "title": "Vienna office 175",
+   "status": "busy"
+  },
+  {
+   "id": "S-176",
+   "lat": 48.20916,
+   "lng": 16.5566,
+   "title": "Vienna kiosk 176",
+   "status": "open"
+  },
+  {
+   "id": "S-177",
+   "lat": 47.83326,
+   "lng": 16.29342,
+   "title": "Vienna office 177",
+   "status": "open"
+  },
+  {
+   "id": "S-178",
+   "lat": 48.14067,
+   "lng": 16.33968,
+   "title": "Vienna kiosk 178",
+   "status": "open"
+  },
+  {
+   "id": "S-179",
+   "lat": 48.14527,
+   "lng": 16.32958,
+   "title": "Vienna depot 179",
+   "status": "open"
+  },
+  {
+   "id": "S-180",
+   "lat": 47.99332,
+   "lng": 16.04159,
+   "title": "Vienna office 180",
+   "status": "open"
+  },
+  {
+   "id": "S-181",
+   "lat": 52.53938,
+   "lng": 5.09187,
+   "title": "Amsterdam kiosk 181",
+   "status": "busy"
+  },
+  {
+   "id": "S-182",
+   "lat": 52.3378,
+   "lng": 5.57428,
+   "title": "Amsterdam station 182",
+   "status": "open"
+  },
+  {
+   "id": "S-183",
+   "lat": 51.553,
+   "lng": 4.60679,
+   "title": "Amsterdam depot 183",
+   "status": "open"
+  },
+  {
+   "id": "S-184",
+   "lat": 52.04901,
+   "lng": 4.28234,
+   "title": "Amsterdam office 184",
+   "status": "closed"
+  },
+  {
+   "id": "S-185",
+   "lat": 52.386,
+   "lng": 5.18896,
+   "title": "Amsterdam office 185",
+   "status": "open"
+  },
+  {
+   "id": "S-186",
+   "lat": 52.52243,
+   "lng": 4.98902,
+   "title": "Amsterdam office 186",
+   "status": "open"
+  },
+  {
+   "id": "S-187",
+   "lat": 52.35109,
+   "lng": 5.46722,
+   "title": "Amsterdam depot 187",
+   "status": "open"
+  },
+  {
+   "id": "S-188",
+   "lat": 51.98267,
+   "lng": 4.92999,
+   "title": "Amsterdam office 188",
+   "status": "open"
+  },
+  {
+   "id": "S-189",
+   "lat": 52.29971,
+   "lng": 4.67384,
+   "title": "Amsterdam depot 189",
+   "status": "closed"
+  },
+  {
+   "id": "S-190",
+   "lat": 52.63466,
+   "lng": 5.0868,
+   "title": "Amsterdam kiosk 190",
+   "status": "open"
+  },
+  {
+   "id": "S-191",
+   "lat": 52.38433,
+   "lng": 4.65571,
+   "title": "Amsterdam office 191",
+   "status": "open"
+  },
+  {
+   "id": "S-192",
+   "lat": 52.31856,
+   "lng": 5.69777,
+   "title": "Amsterdam station 192",
+   "status": "closed"
+  },
+  {
+   "id": "S-193",
+   "lat": 52.20704,
+   "lng": 4.91051,
+   "title": "Amsterdam kiosk 193",
+   "status": "busy"
+  },
+  {
+   "id": "S-194",
+   "lat": 52.04725,
+   "lng": 5.184,
+   "title": "Amsterdam kiosk 194",
+   "status": "busy"
+  },
+  {
+   "id": "S-195",
+   "lat": 52.41951,
+   "lng": 4.93183,
+   "title": "Amsterdam kiosk 195",
+   "status": "busy"
+  },
+  {
+   "id": "S-196",
+   "lat": 52.45142,
+   "lng": 4.94683,
+   "title": "Amsterdam office 196",
+   "status": "busy"
+  },
+  {
+   "id": "S-197",
+   "lat": 52.78392,
+   "lng": 4.43346,
+   "title": "Amsterdam station 197",
+   "status": "open"
+  },
+  {
+   "id": "S-198",
+   "lat": 52.5711,
+   "lng": 4.76249,
+   "title": "Amsterdam kiosk 198",
+   "status": "closed"
+  },
+  {
+   "id": "S-199",
+   "lat": 52.36652,
+   "lng": 4.80727,
+   "title": "Amsterdam office 199",
+   "status": "open"
+  },
+  {
+   "id": "S-200",
+   "lat": 52.63702,
+   "lng": 4.8653,
+   "title": "Amsterdam station 200",
+   "status": "open"
+  },
+  {
+   "id": "S-201",
+   "lat": 52.45845,
+   "lng": 4.97762,
+   "title": "Amsterdam office 201",
+   "status": "open"
+  },
+  {
+   "id": "S-202",
+   "lat": 51.97709,
+   "lng": 4.66386,
+   "title": "Amsterdam office 202",
+   "status": "open"
+  },
+  {
+   "id": "S-203",
+   "lat": 52.39323,
+   "lng": 4.57973,
+   "title": "Amsterdam office 203",
+   "status": "open"
+  },
+  {
+   "id": "S-204",
+   "lat": 52.63771,
+   "lng": 5.03509,
+   "title": "Amsterdam depot 204",
+   "status": "closed"
+  },
+  {
+   "id": "S-205",
+   "lat": 52.51123,
+   "lng": 4.78343,
+   "title": "Amsterdam depot 205",
+   "status": "busy"
+  },
+  {
+   "id": "S-206",
+   "lat": 52.62051,
+   "lng": 4.97792,
+   "title": "Amsterdam office 206",
+   "status": "open"
+  },
+  {
+   "id": "S-207",
+   "lat": 52.16986,
+   "lng": 5.20304,
+   "title": "Amsterdam station 207",
+   "status": "open"
+  },
+  {
+   "id": "S-208",
+   "lat": 52.39854,
+   "lng": 5.03281,
+   "title": "Amsterdam depot 208",
+   "status": "open"
+  },
+  {
+   "id": "S-209",
+   "lat": 52.28013,
+   "lng": 5.85034,
+   "title": "Amsterdam station 209",
+   "status": "open"
+  },
+  {
+   "id": "S-210",
+   "lat": 52.35944,
+   "lng": 4.3229,
+   "title": "Amsterdam depot 210",
+   "status": "open"
+  },
+  {
+   "id": "S-211",
+   "lat": 39.14158,
+   "lng": -9.12388,
+   "title": "Lisbon station 211",
+   "status": "open"
+  },
+  {
+   "id": "S-212",
+   "lat": 38.77674,
+   "lng": -9.29976,
+   "title": "Lisbon office 212",
+   "status": "busy"
+  },
+  {
+   "id": "S-213",
+   "lat": 38.85889,
+   "lng": -9.95369,
+   "title": "Lisbon office 213",
+   "status": "open"
+  },
+  {
+   "id": "S-214",
+   "lat": 38.86498,
+   "lng": -9.24445,
+   "title": "Lisbon depot 214",
+   "status": "open"
+  },
+  {
+   "id": "S-215",
+   "lat": 38.54789,
+   "lng": -9.35036,
+   "title": "Lisbon depot 215",
+   "status": "busy"
+  },
+  {
+   "id": "S-216",
+   "lat": 38.43984,
+   "lng": -8.63273,
+   "title": "Lisbon station 216",
+   "status": "closed"
+  },
+  {
+   "id": "S-217",
+   "lat": 38.85787,
+   "lng": -8.53811,
+   "title": "Lisbon kiosk 217",
+   "status": "busy"
+  },
+  {
+   "id": "S-218",
+   "lat": 38.78227,
+   "lng": -9.09954,
+   "title": "Lisbon depot 218",
+   "status": "open"
+  },
+  {
+   "id": "S-219",
+   "lat": 39.23638,
+   "lng": -9.2365,
+   "title": "Lisbon station 219",
+   "status": "open"
+  },
+  {
+   "id": "S-220",
+   "lat": 38.60086,
+   "lng": -9.32221,
+   "title": "Lisbon office 220",
+   "status": "busy"
+  },
+  {
+   "id": "S-221",
+   "lat": 39.38916,
+   "lng": -9.21284,
+   "title": "Lisbon kiosk 221",
+   "status": "open"
+  },
+  {
+   "id": "S-222",
+   "lat": 38.90848,
+   "lng": -8.82579,
+   "title": "Lisbon kiosk 222",
+   "status": "closed"
+  },
+  {
+   "id": "S-223",
+   "lat": 38.93346,
+   "lng": -9.59947,
+   "title": "Lisbon station 223",
+   "status": "open"
+  },
+  {
+   "id": "S-224",
+   "lat": 38.63415,
+   "lng": -8.6659,
+   "title": "Lisbon depot 224",
+   "status": "open"
+  },
+  {
+   "id": "S-225",
+   "lat": 38.70952,
+   "lng": -9.39157,
+   "title": "Lisbon kiosk 225",
+   "status": "open"
+  },
+  {
+   "id": "S-226",
+   "lat": 38.72622,
+   "lng": -8.91985,
+   "title": "Lisbon kiosk 226",
+   "status": "open"
+  },
+  {
+   "id": "S-227",
+   "lat": 38.89679,
+   "lng": -9.02441,
+   "title": "Lisbon kiosk 227",
+   "status": "closed"
+  },
+  {
+   "id": "S-228",
+   "lat": 38.36486,
+   "lng": -9.22956,
+   "title": "Lisbon station 228",
+   "status": "busy"
+  },
+  {
+   "id": "S-229",
+   "lat": 38.83798,
+   "lng": -9.14903,
+   "title": "Lisbon office 229",
+   "status": "open"
+  },
+  {
+   "id": "S-230",
+   "lat": 39.02063,
+   "lng": -9.84876,
+   "title": "Lisbon station 230",
+   "status": "open"
+  },
+  {
+   "id": "S-231",
+   "lat": 38.73062,
+   "lng": -9.01751,
+   "title": "Lisbon kiosk 231",
+   "status": "open"
+  },
+  {
+   "id": "S-232",
+   "lat": 38.3737,
+   "lng": -8.59087,
+   "title": "Lisbon office 232",
+   "status": "closed"
+  },
+  {
+   "id": "S-233",
+   "lat": 38.69491,
+   "lng": -8.48122,
+   "title": "Lisbon station 233",
+   "status": "open"
+  },
+  {
+   "id": "S-234",
+   "lat": 38.46656,
+   "lng": -9.59337,
+   "title": "Lisbon depot 234",
+   "status": "open"
+  },
+  {
+   "id": "S-235",
+   "lat": 38.94363,
+   "lng": -9.05823,
+   "title": "Lisbon station 235",
+   "status": "open"
+  },
+  {
+   "id": "S-236",
+   "lat": 38.79181,
+   "lng": -9.13908,
+   "title": "Lisbon kiosk 236",
+   "status": "open"
+  },
+  {
+   "id": "S-237",
+   "lat": 38.82947,
+   "lng": -9.49284,
+   "title": "Lisbon depot 237",
+   "status": "open"
+  },
+  {
+   "id": "S-238",
+   "lat": 38.64903,
+   "lng": -9.2445,
+   "title": "Lisbon station 238",
+   "status": "busy"
+  },
+  {
+   "id": "S-239",
+   "lat": 38.6357,
+   "lng": -9.17985,
+   "title": "Lisbon station 239",
+   "status": "busy"
+  },
+  {
+   "id": "S-240",
+   "lat": 38.6475,
+   "lng": -9.32784,
+   "title": "Lisbon station 240",
+   "status": "open"
+  }
+ ],
+ "geo": {
+  "type": "FeatureCollection",
+  "features": [
+   {
+    "type": "Feature",
+    "id": "park",
+    "properties": {
+     "title": "Cubbon Park",
+     "description": "Open 6 am to 6 pm",
+     "tone": "success"
+    },
+    "geometry": {
+     "type": "Polygon",
+     "coordinates": [
+      [
+       [
+        77.5905,
+        12.9725
+       ],
+       [
+        77.5935,
+        12.9792
+       ],
+       [
+        77.5975,
+        12.9802
+       ],
+       [
+        77.5995,
+        12.9765
+       ],
+       [
+        77.5985,
+        12.9718
+       ],
+       [
+        77.5945,
+        12.9702
+       ],
+       [
+        77.5905,
+        12.9725
+       ]
+      ]
+     ]
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "route",
+    "properties": {
+     "title": "Morning round",
+     "description": "4.2 km, 5 stops",
+     "tone": "info",
+     "dashed": true,
+     "width": 4
+    },
+    "geometry": {
+     "type": "LineString",
+     "coordinates": [
+      [
+       77.5806,
+       12.9866
+      ],
+      [
+       77.587,
+       12.984
+      ],
+      [
+       77.5946,
+       12.985
+      ],
+      [
+       77.603,
+       12.981
+      ],
+      [
+       77.607,
+       12.975
+      ],
+      [
+       77.609,
+       12.969
+      ]
+     ]
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "start",
+    "properties": {
+     "title": "Start of the round",
+     "label": "A"
+    },
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      77.5806,
+      12.9866
+     ]
+    }
+   },
+   {
+    "type": "Feature",
+    "id": "end",
+    "properties": {
+     "title": "End of the round",
+     "label": "B"
+    },
+    "geometry": {
+     "type": "Point",
+     "coordinates": [
+      77.609,
+      12.969
+     ]
+    }
+   }
+  ]
+ }
+}

@@ -44,3 +44,29 @@ fn blocks_index_lists_every_block() {
         assert!(html.contains(&format!(r#"src="{block}.html""#)), "{block} is missing from the index");
     }
 }
+
+#[test]
+fn map_block_renders_on_either_provider() {
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/blocks");
+    let page = |doc: &str, more: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_irender"))
+            .args(["render", doc, "--ui-kit", "--icon-kit", "--map-kit"])
+            .args(more)
+            .env_remove("GOOGLE_MAPS_API_KEY")
+            .output()
+            .unwrap();
+        (out.status.success(), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+    };
+    let (ok, html, err) = page(&format!("{dir}/map-01.yaml"), &[]);
+    assert!(ok && err.trim().is_empty(), "{err}");
+    assert!(html.contains("tile.openstreetmap.org"));
+
+    let google = std::env::temp_dir().join(format!("irender-map-{}.json", std::process::id()));
+    std::fs::write(&google, r#"{ "version": 1, "root": { "type": "ui-map", "props": { "provider": "google" } } }"#).unwrap();
+    let doc = google.to_str().unwrap();
+    let without = page(doc, &[]);
+    let with = page(doc, &["--google-maps-key", "a-key"]);
+    let _ = std::fs::remove_file(&google);
+    assert!(!without.0 && without.2.contains("needs an API key"), "{}", without.2);
+    assert!(with.0 && with.1.contains("a-key"), "{}", with.2);
+}

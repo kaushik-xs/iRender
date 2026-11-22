@@ -1,0 +1,17 @@
+[package]
+name = "irender-map-kit"
+description = "Maps for iRender documents, on OpenStreetMap or Google Maps: markers, popups, shapes, clustering and picking a place"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core = { workspace = true, default-features = false }
+irender-html = { workspace = true, default-features = false }
+serde_json.workspace = true
+
+[dev-dependencies]
+irender-html = { workspace = true, default-features = true }
+irender-ui-kit.workspace = true

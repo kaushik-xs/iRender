@@ -47,6 +47,8 @@ done
 for block in report-01 crm-01 data-table-03 data-table-04 data-table-05 data-table-06 data-table-07 i18n-01 i18n-02 tree-01 docs-01 expense-01 ticket-01 gantt-01 dashboard-02 kanban-01 kanban-02 calendar-01 workspace-01 mail-01 empty-states data-table-08 import-01 invoice-01 intake-01 profile-01 record-01 pivot-01 schedule-01 plan-01 rules-01 review-01 scan-01 ops-01 agent-01; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
+# The sites are on a map.
+$irender render examples/blocks/map-01.yaml --ui-kit --chart-kit --icon-kit --map-kit --title "map-01" -o "$out/blocks/map-01.html"
 # The incident's service map is a flow.
 $irender render examples/blocks/incident-01.yaml --ui-kit --chart-kit --flow-kit --icon-kit --title "incident-01" -o "$out/blocks/incident-01.html"
 # The chat's replies include charts, images and a video.
@@ -91,6 +93,11 @@ for flow in process-01 process-02 process-03; do
     --title "$flow" -o "$out/flow/$flow.html"
 done
 $irender render examples/flow/index.yaml --ui-kit --chart-kit --title "Flow" -o "$out/flow/index.html"
+# The Google map on the maps page is only drawn with a key.
+mkdir -p "$out/maps"
+python3 -c 'import json,os,sys; d = json.load(open("examples/maps/gallery.data.json")); d["googleKey"] = os.environ.get("GOOGLE_MAPS_API_KEY", ""); json.dump(d, sys.stdout)' > "$out/maps/gallery.data.json"
+cp examples/maps/floor-plan.svg "$out/maps/"
+$irender render examples/maps/gallery.yaml --data "$out/maps/gallery.data.json" --ui-kit --chart-kit --map-kit --title "Maps" -o "$out/maps/index.html"
 # The icon gallery's data is the kit's own pack listing.
 mkdir -p "$out/icons"
 $irender icons --json > "$out/icons/packs.json"

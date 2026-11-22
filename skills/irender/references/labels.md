@@ -1396,6 +1396,41 @@ root: …
 "node": "node"
 ```
 
+## Map kit
+
+`lib.rs`
+
+```yaml
+"Zoom in": "Zoom in"
+"Zoom out": "Zoom out"
+"Fit view": "Fit view"
+"My location": "My location"
+"Map": "Map"
+```
+
+`map.js`
+
+```yaml
+"The map's tiles couldn't be loaded": "The map's tiles couldn't be loaded"
+"Use {key} + scroll to zoom the map": "Use {key} + scroll to zoom the map"
+"Use two fingers to zoom the map": "Use two fingers to zoom the map"
+"Google Maps refused the API key": "Google Maps refused the API key"
+"Map unavailable": "Map unavailable"
+"{n} new alarms": "{n} new alarms"
+"Alarm: {title}": "Alarm: {title}"
+"Marker": "Marker"
+"{title}, alarm": "{title}, alarm"
+"{n} places here: zoom in": "{n} places here: zoom in"
+"{n} places here, {alarms} with an alarm: zoom in": "{n} places here, {alarms} with an alarm: zoom in"
+"Close": "Close"
+"Open": "Open"
+"Chosen place": "Chosen place"
+"Your location isn't available": "Your location isn't available"
+"Finding you…": "Finding you…"
+"You are here": "You are here"
+"Loading map…": "Loading map…"
+```
+
 ## Core
 
 `code.js`

@@ -1,0 +1,165 @@
+# Block: sites on a map, and beside it the ones in view. One list of sites in state, drawn
+# twice: the map writes the ids it's showing to `visible`, and the list shows those, so
+# moving the map is a way to search. The status buttons filter the map (and so the list),
+# and the site picked in either is picked in both and opens below the list. A site that's
+# offline is in alarm.
+#
+# To draw it on Google Maps, add `provider: google` and an `apiKey` to the ui-map.
+#
+#   cargo run -p irender-cli -- render examples/blocks/map-01.yaml --ui-kit --icon-kit --map-kit -o map-01.html
+version: 1
+state:
+  status: all
+  visible: []
+  picked: null      # the picked site's id …
+  site: null        # … and the site itself
+  busy: false
+  tones: { Open: success, Maintenance: warning, Offline: danger }
+  sites:
+    - { id: S-101, lat: 12.9784, lng: 77.6408, name: Indiranagar, kind: Store, status: Open, address: 100 Feet Road, hours: "9:00 – 21:00", people: 18, capacity: 72 }
+    - { id: S-102, lat: 12.9352, lng: 77.6245, name: Koramangala, kind: Store, status: Open, address: 80 Feet Road, hours: "9:00 – 22:00", people: 22, capacity: 64 }
+    - { id: S-103, lat: 12.9698, lng: 77.75, name: Whitefield, kind: Warehouse, status: Maintenance, address: ITPL Main Road, hours: "6:00 – 18:00", people: 41, capacity: 88 }
+    - { id: S-104, lat: 12.9141, lng: 77.6411, name: HSR Layout, kind: Pickup point, status: Open, address: 27th Main, hours: "8:00 – 20:00", people: 4, capacity: 35 }
+    - { id: S-105, lat: 13.0358, lng: 77.597, name: Hebbal, kind: Warehouse, status: Open, address: Outer Ring Road, hours: "24 hours", people: 56, capacity: 91 }
+    - { id: S-106, lat: 12.9255, lng: 77.5468, name: Banashankari, kind: Store, status: Offline, address: Kanakapura Road, hours: Closed until Monday, people: 0, capacity: 0 }
+    - { id: S-107, lat: 12.9915, lng: 77.5712, name: Malleshwaram, kind: Pickup point, status: Open, address: Sampige Road, hours: "8:00 – 20:00", people: 3, capacity: 48 }
+    - { id: S-108, lat: 12.8456, lng: 77.6603, name: Electronic City, kind: Warehouse, status: Maintenance, address: Phase 1, hours: "6:00 – 22:00", people: 38, capacity: 79 }
+    - { id: S-109, lat: 13.1007, lng: 77.5963, name: Yelahanka, kind: Store, status: Open, address: New Town, hours: "9:00 – 21:00", people: 12, capacity: 41 }
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    min-height: 100svh
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@md": { flex-direction: row, height: 100svh }
+  children:
+    - type: element
+      props: { tag: aside }
+      attrs: { aria-label: Sites }
+      style:
+        display: flex
+        flex-direction: column
+        gap: 12
+        box-sizing: border-box
+        padding: 20px 16px
+        border-bottom: 1px solid $color.border
+        "@md": { width: 340, flex: none, overflow-y: auto, border-bottom: none, border-right: 1px solid $color.border }
+      children:
+        - type: stack
+          props: { gap: 2 }
+          children:
+            - { type: ui-heading, props: { level: 3, text: Sites } }
+            - { type: ui-text, props: { variant: muted, text: "{{ visible.length }} of {{ sites.length }} in view" } }
+        - type: ui-toggle-group
+          props: { bind: status, variant: outline, size: sm, options: [{ value: all, label: All }, { value: Open, label: Open }, { value: Maintenance, label: Maintenance }, { value: Offline, label: Offline }] }
+        - type: element
+          props: { tag: ul }
+          attrs: { aria-label: Sites in view }
+          style: { list-style: none, margin: 0 -10px, padding: 0 }
+          children:
+            - type: list
+              props: { items: "{{ sites }}", as: s, key: "{{ s.id }}" }
+              style: { display: contents }
+              children:
+                - type: if
+                  props: { when: "{{ includes(visible, s.id) }}" }
+                  children:
+                    - type: element
+                      props: { tag: li }
+                      children:
+                        - type: element
+                          props: { tag: button }
+                          attrs: { type: button, aria-pressed: "{{ picked == s.id }}", data-site: "{{ s.id }}" }
+                          style:
+                            display: flex
+                            align-items: center
+                            gap: 10
+                            box-sizing: border-box
+                            width: 100%
+                            padding: 8px 10px
+                            border: 0
+                            border-radius: $radius.md
+                            background: "{{ picked == s.id ? 'var(--color-subtle)' : 'transparent' }}"
+                            color: inherit
+                            font: inherit
+                            text-align: start
+                            cursor: pointer
+                            ":hover": { background: $color.subtle }
+                            ":focus-visible": { outline: 2px solid $color.primary, outline-offset: -2px }
+                          on:
+                            click: { action: set_state, key: picked, value: "{{ s.id }}" }
+                          children:
+                            - type: element
+                              style: { display: flex, flex-direction: column, flex: 1, min-width: 0 }
+                              children:
+                                - { type: text, props: { value: "{{ s.name }}" }, style: { font-size: 14, font-weight: 500 } }
+                                - { type: text, props: { value: "{{ s.kind }} · {{ s.address }}" }, style: { color: $color.muted, font-size: 12 } }
+                            - type: if
+                              props: { when: "{{ s.status == 'Open' }}" }
+                              children: [ { type: ui-badge, props: { text: Open, variant: success, dot: true } } ]
+                            - type: else
+                              props: { when: "{{ s.status == 'Offline' }}" }
+                              children: [ { type: ui-badge, props: { text: Offline, variant: destructive, dot: true } } ]
+                            - type: else
+                              children: [ { type: ui-badge, props: { text: "{{ s.status }}", variant: warning, dot: true } } ]
+        - type: if
+          props: { when: "{{ visible.length == 0 }}" }
+          children:
+            - { type: ui-empty, props: { title: No sites here, description: Move the map or pick another status. } }
+        - type: if
+          props: { when: "{{ site }}" }
+          children:
+            - type: ui-card
+              props: { title: "{{ site.name }}", description: "{{ site.id }} · {{ site.kind }}" }
+              children:
+                - type: stack
+                  props: { gap: 10 }
+                  style: { font-size: 14 }
+                  children:
+                    - { type: text, props: { value: "{{ site.address }}" } }
+                    - { type: text, props: { value: "{{ site.hours }}" }, style: { color: $color.muted } }
+                    - { type: text, props: { value: "{{ site.people }} people · {{ site.capacity }}% full" } }
+                    - { type: ui-progress, props: { value: "{{ site.capacity }}" } }
+                - type: ui-card-footer
+                  children:
+                    - type: ui-button
+                      props: { label: Zoom to it, size: sm }
+                      on: { click: { action: call, name: map.center, args: { id: "{{ site.id }}", zoom: 15 } } }
+                    - type: ui-button
+                      props: { label: Close, size: sm, variant: outline }
+                      on: { click: { action: set_state, key: picked, value: null } }
+
+    - type: ui-map
+      attrs: { id: sites }
+      style: { flex: 1, min-width: 0, min-height: 420, border-radius: 0, "@md": { min-height: 0 } }
+      props:
+        markers: "{{ sites }}"
+        titleField: name
+        filter: { status: "{{ status == 'all' ? null : status }}" }
+        toneBy: { field: status, tones: "{{ tones }}" }
+        # An offline site pulses until it is back.
+        alarmBy: { field: status, values: [ Offline ] }
+        # Where people are, as heat, with the switch on the map.
+        overlays: [ { id: busy, type: heat, points: "{{ sites }}", weightField: people, radius: 70, show: "{{ busy }}" } ]
+        bind: picked
+        bindMarker: site
+        bindVisible: visible
+        cluster: 40
+        locate: true
+        gestures: greedy
+        title: Sites
+        height: auto
+      children:
+        - type: ui-map-popup
+          children:
+            - { type: text, props: { value: "{{ marker.name }}" }, style: { font-weight: 600 } }
+            - { type: text, props: { value: "{{ marker.status }} · {{ marker.hours }}" }, style: { color: $color.muted } }
+        - type: ui-map-panel
+          props: { position: top-right }
+          children:
+            - type: element
+              style: { padding: 8px 12px, border: 1px solid $color.border, border-radius: $radius.md, background: $color.surface }
+              children: [ { type: ui-switch, props: { bind: busy, label: Busy areas } } ]

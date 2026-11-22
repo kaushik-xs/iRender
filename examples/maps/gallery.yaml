@@ -1,0 +1,321 @@
+# Maps from irender-map-kit, in irender-ui-kit cards.
+#
+#   cargo run -p irender-cli -- render examples/maps/gallery.yaml --data examples/maps/gallery.data.json \
+#     --ui-kit --map-kit -o maps.html
+#
+# Serve the page rather than opening the file: OpenStreetMap's tile servers want to know
+# which site is asking, and a file has no address to send.
+version: 1
+state:
+  # Markers
+  office: null
+  offices:
+    - { id: blr, lat: 12.9716, lng: 77.5946, title: Bengaluru, description: "Engineering, 240 people", tone: primary }
+    - { id: pnq, lat: 18.5204, lng: 73.8567, title: Pune, description: "Support, 80 people", tone: info }
+    - { id: del, lat: 28.6139, lng: 77.209, title: New Delhi, description: "Sales, 45 people", tone: success, href: "#delhi" }
+    - { id: maa, lat: 13.0827, lng: 80.2707, title: Chennai, description: "Opening in March", tone: warning, label: "3" }
+  # Alarms
+  ringing: [ P-2 ]
+  alarms: []
+  plants:
+    - { id: P-1, lat: 52.52, lng: 13.405, title: Berlin plant, description: Line 2 running }
+    - { id: P-2, lat: 48.137, lng: 11.575, title: Munich plant, description: "Cooling pressure low, 14:02" }
+    - { id: P-3, lat: 53.551, lng: 9.994, title: Hamburg plant, description: Line 1 running }
+    - { id: P-4, lat: 50.938, lng: 6.96, title: Cologne plant, description: Line 4 running }
+  watched:
+    - { id: w1, lat: 48.86, lng: 2.29, title: Pulse, tone: danger, effect: pulse }
+    - { id: w2, lat: 48.86, lng: 2.32, title: Glow, tone: warning, effect: glow }
+    - { id: w3, lat: 48.86, lng: 2.35, title: Bounce, tone: info, effect: bounce }
+    - { id: w4, lat: 48.86, lng: 2.38, title: Blink, tone: primary, effect: blink }
+  # Overlays
+  planOpacity: 0.9
+  plan: true
+  machines:
+    - { id: m1, lat: 52.45047, lng: 13.30168, title: Line 1, description: Running, tone: success }
+    - { id: m2, lat: 52.45047, lng: 13.30233, title: Line 2, description: "Stopped: door open", alarm: true }
+    - { id: m3, lat: 52.45025, lng: 13.30054, title: Cold store, description: "-21 °C", tone: info }
+  heat: true
+  heatPins: false
+  marks: true
+  # Popups of their own
+  job: null
+  jobs:
+    - { id: J-41, lat: 51.515, lng: -0.142, customer: Ada Lovelace, task: Replace the meter, status: late, progress: 20 }
+    - { id: J-42, lat: 51.5, lng: -0.11, customer: Alan Turing, task: Annual service, status: on-site, progress: 60 }
+    - { id: J-43, lat: 51.523, lng: -0.085, customer: Grace Hopper, task: New connection, status: done, progress: 100 }
+    - { id: J-44, lat: 51.495, lng: -0.175, customer: Tim Berners-Lee, task: Inspection, status: planned, progress: 0 }
+  # What's in view
+  visible: []
+  view: null
+  # Picking a place
+  spot: null
+  # Moving markers
+  stops:
+    - { id: a, lat: 48.8606, lng: 2.3376, title: First stop, label: "1" }
+    - { id: b, lat: 48.853, lng: 2.3499, title: Second stop, label: "2" }
+    - { id: c, lat: 48.8462, lng: 2.3464, title: Third stop, label: "3" }
+  # Shapes
+  area: null
+  radius: 600
+  cluster: true
+root:
+  type: stack
+  props: { gap: 32 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: Maps } }
+        - type: ui-text
+          props:
+            variant: lead
+            text: "irender-map-kit draws maps on OpenStreetMap, with no key, or on Google Maps. Markers, popups, clusters and shapes are its own, in the theme's colours, so a document looks and works the same on both."
+
+    - type: ui-card
+      props: { title: Markers and popups, description: "Rows with a latitude and longitude. Pick one on the map or here: bind keeps the two in step." }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, gap: 8, margin-bottom: 12 }
+          children:
+            - type: list
+              props: { items: "{{ offices }}", as: o }
+              style: { display: contents }
+              children:
+                - type: ui-button
+                  props: { label: "{{ o.title }}", size: sm, variant: "{{ office == o.id ? 'default' : 'outline' }}" }
+                  attrs: { aria-pressed: "{{ office == o.id }}" }
+                  on: { click: { action: set_state, key: office, value: "{{ o.id }}" } }
+        - type: ui-map
+          attrs: { id: offices }
+          props: { markers: "{{ offices }}", bind: office, title: Offices, height: 380 }
+
+    - type: ui-card
+      props: { title: Alarms, description: "A marker in alarm pulses in red with a ! on it, stays above the rest, and is announced when it starts. The other effects are for anything that needs watching. All of them hold still for anyone who asked their device for less motion." }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: center, gap: 8, margin-bottom: 12 }
+          children:
+            - type: list
+              props: { items: "{{ plants }}", as: p }
+              style: { display: contents }
+              children:
+                - type: ui-button
+                  props: { label: "{{ p.title }}", size: sm, variant: "{{ includes(ringing, p.id) ? 'destructive' : 'outline' }}" }
+                  attrs: { aria-pressed: "{{ includes(ringing, p.id) }}" }
+                  on: { click: { action: set_state, key: ringing, value: "{{ toggle(ringing, p.id) }}" } }
+            - type: if
+              props: { when: "{{ alarms.length > 0 }}" }
+              children: [ { type: ui-badge, props: { text: "{{ alarms.length }} in alarm", variant: destructive, dot: true } } ]
+            - type: else
+              children: [ { type: ui-badge, props: { text: All clear, variant: success, dot: true } } ]
+        - type: element
+          style: { display: grid, gap: 16, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 3fr) minmax(0, 2fr)" } }
+          children:
+            - type: ui-map
+              attrs: { id: plants }
+              props: { markers: "{{ plants }}", alarmBy: { field: id, values: "{{ ringing }}" }, bindAlarms: alarms, title: Plants, height: 380 }
+            - type: ui-map
+              attrs: { id: effects }
+              props: { markers: "{{ watched }}", title: The effects, height: 380 }
+
+    - type: ui-card
+      props: { title: "Overlay: a floor plan", description: "A picture stretched over its corners, with markers on it. How strong it is comes from state, so the streets show through as you slide." }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: center, gap: 16, margin-bottom: 12 }
+          children:
+            - { type: ui-switch, props: { bind: plan, label: Floor plan } }
+            - { type: ui-slider, props: { bind: planOpacity, min: 0, max: 1, step: 0.1 }, attrs: { aria-label: How strong the plan is }, style: { width: 220 } }
+        - type: ui-map
+          attrs: { id: plan }
+          props:
+            markers: "{{ machines }}"
+            overlays:
+              - { id: plan, type: image, url: floor-plan.svg, title: Floor plan, bounds: [[52.45, 13.3], [52.4515, 13.304]], opacity: "{{ planOpacity }}", show: "{{ plan }}" }
+            maxZoom: 19
+            title: Factory floor
+            height: 440
+
+    - type: element
+      style: { display: grid, gap: 32, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+      children:
+        - type: ui-card
+          props: { title: "Overlay: heat", description: "The same 240 places as how many there are. Any rows with a place will do, with a field for how much each counts." }
+          children:
+            - type: element
+              style: { display: flex, flex-wrap: wrap, gap: 16, margin-bottom: 12 }
+              children:
+                - { type: ui-switch, props: { bind: heat, label: Heat } }
+                - { type: ui-switch, props: { bind: heatPins, label: Pins } }
+            - type: ui-map
+              attrs: { id: heat }
+              props:
+                markers: "{{ stations }}"
+                cluster: 40
+                filter: { id: "{{ heatPins ? null : 'none' }}" }
+                center: [47.5, 4.5]
+                zoom: 4
+                overlays: [ { id: heat, type: heat, points: "{{ stations }}", radius: 34, max: 12, show: "{{ heat }}" } ]
+                title: Where the stations are
+                height: 380
+        - type: ui-card
+          props: { title: "Overlay: more tiles", description: "OpenSeaMap's buoys and lights over the harbour, from its own tile server, credited in the corner." }
+          children:
+            - type: element
+              style: { margin-bottom: 12 }
+              children: [ { type: ui-switch, props: { bind: marks, label: Sea marks } } ]
+            - type: ui-map
+              attrs: { id: sea }
+              props:
+                center: [54.18, 12.09]
+                zoom: 13
+                overlays: [ { id: marks, type: tiles, url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", attribution: © OpenSeaMap contributors, attributionUrl: "https://www.openseamap.org/", maxZoom: 18, show: "{{ marks }}" } ]
+                title: Rostock harbour
+                height: 380
+
+    - type: ui-card
+      props: { title: A popup of any components, description: "A ui-map-popup is the popup's content, with the marker in scope. Pins are coloured by their status, and a panel floats above the map." }
+      children:
+        - type: ui-map
+          attrs: { id: jobs }
+          props:
+            markers: "{{ jobs }}"
+            titleField: customer
+            toneBy: { field: status, tones: { late: danger, on-site: info, done: success, planned: neutral } }
+            bindMarker: job
+            title: Today's jobs
+            height: 420
+          children:
+            - type: ui-map-popup
+              children:
+                - type: stack
+                  props: { gap: 2 }
+                  children:
+                    - { type: text, props: { value: "{{ marker.customer }}" }, style: { font-weight: 600 } }
+                    - { type: text, props: { value: "{{ marker.id }} · {{ marker.task }}" }, style: { color: $color.muted } }
+                - { type: ui-progress, props: { value: "{{ marker.progress }}" }, style: { width: 200 } }
+                - type: ui-button
+                  props: { label: Zoom to it, size: sm }
+                  on: { click: { action: call, name: map.center, args: { map: jobs, id: "{{ marker.id }}", zoom: 16 } } }
+            - type: ui-map-panel
+              props: { position: top-right }
+              children:
+                - type: ui-card
+                  props: { title: Jobs }
+                  style: { padding: 12px }
+                  children:
+                    - type: element
+                      style: { display: grid, gap: 4, font-size: 12 }
+                      children:
+                        - { type: ui-badge, props: { text: Late, variant: destructive, dot: true } }
+                        - { type: ui-badge, props: { text: On site, variant: info, dot: true } }
+                        - { type: ui-badge, props: { text: Done, variant: success, dot: true } }
+                        - { type: ui-badge, props: { text: Planned, variant: secondary, dot: true } }
+
+    - type: ui-card
+      props: { title: "Many markers, clustered", description: "240 places. Close ones are grouped until there's room for them; click a group to zoom in. What's in view is state, for anything else on the page to use." }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: center, gap: 16, margin-bottom: 12 }
+          children:
+            - { type: ui-switch, props: { bind: cluster, label: Group them } }
+            - { type: ui-text, props: { variant: muted, text: "{{ visible.length }} of 240 in view{{ view ? ', zoom ' + view.zoom : '' }}" } }
+        - type: ui-map
+          attrs: { id: stations }
+          props:
+            markers: "{{ stations }}"
+            cluster: "{{ cluster }}"
+            toneBy: { field: status, tones: { open: success, busy: warning, closed: neutral } }
+            bindVisible: visible
+            bindView: view
+            locate: true
+            title: Stations
+            height: 440
+
+    - type: element
+      style: { display: grid, gap: 32, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+      children:
+        - type: ui-card
+          props: { title: Picking a place, description: "Click the map, then drag the pin to fine-tune it." }
+          children:
+            - type: ui-map
+              attrs: { id: pick }
+              props: { center: [12.9716, 77.5946], zoom: 12, bindPoint: spot, title: Pick a place, height: 340 }
+            - type: ui-text
+              props: { variant: muted, text: "{{ spot ? spot.lat + ', ' + spot.lng : 'Nothing picked yet' }}" }
+              style: { margin-top: 12 }
+        - type: ui-card
+          props: { title: Moving markers, description: "Drag a stop, or focus it and press Alt with an arrow key. The rows in state follow, and so does the line." }
+          children:
+            - type: ui-map
+              attrs: { id: stops }
+              props:
+                markers: "{{ stops }}"
+                bindMarkers: stops
+                draggable: true
+                popup: false
+                shapes:
+                  - { id: way, type: line, tone: info, width: 4, points: ["{{ stops[0] }}", "{{ stops[1] }}", "{{ stops[2] }}"] }
+                title: Stops
+                height: 340
+            - type: ui-text
+              props: { variant: muted, text: "{{ stops[0].title }}: {{ stops[0].lat }}, {{ stops[0].lng }}" }
+              style: { margin-top: 12 }
+
+    - type: element
+      style: { display: grid, gap: 32, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) minmax(0, 1fr)" } }
+      children:
+        - type: ui-card
+          props: { title: Lines and circles, description: "Shapes follow state: the circle is as big as the slider says." }
+          children:
+            - type: element
+              style: { margin-bottom: 12 }
+              children:
+                - { type: ui-slider, props: { bind: radius, min: 200, max: 1500, step: 100 }, attrs: { aria-label: Radius in metres } }
+            - type: ui-map
+              attrs: { id: zone }
+              props:
+                center: [40.4168, -3.7038]
+                zoom: 14
+                markers: [{ id: shop, lat: 40.4168, lng: -3.7038, title: Shop }]
+                shapes:
+                  - { id: zone, type: circle, center: [40.4168, -3.7038], radius: "{{ radius }}", tone: primary, title: Delivery zone, description: "{{ radius }} m around the shop" }
+                title: Delivery zone
+                height: 320
+        - type: ui-card
+          props: { title: GeoJSON, description: "Lines, areas and points from a file, styled by their properties. Click one for its name." }
+          children:
+            - type: ui-map
+              attrs: { id: geo }
+              props: { geojson: "{{ geo }}", bindShape: area, title: A round, height: 320 }
+            - type: ui-text
+              props: { variant: muted, text: "{{ area ? 'Clicked: ' + area : 'Nothing clicked yet' }}" }
+              style: { margin-top: 12 }
+
+    - type: ui-card
+      props: { title: Google Maps, description: "The same markers and popup with provider: google. It needs an API key, so this one is only drawn when the site was built with GOOGLE_MAPS_API_KEY set." }
+      children:
+        - type: if
+          props: { when: "{{ googleKey }}" }
+          children:
+            - type: ui-map
+              attrs: { id: google }
+              props: { provider: google, apiKey: "{{ googleKey }}", markers: "{{ offices }}", title: "Offices, on Google Maps", height: 380 }
+        - type: else
+          children:
+            - type: ui-code-block
+              props:
+                language: yaml
+                code: |
+                  - type: ui-map
+                    props:
+                      provider: google
+                      apiKey: your-key
+                      markers: [{ id: hq, lat: 12.9716, lng: 77.5946, title: Head office }]

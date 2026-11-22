@@ -2,7 +2,7 @@
 
 # Components
 
-Every component with all kits enabled. Each entry: name and summary, then one line per prop (name, type, description), its `parts`, and whether it takes `children`. Core built-ins come first, then `ui-*` (ui-kit), `ui-chart` / `ui-sparkline` / `ui-live-data` (chart-kit), `ui-flow*` (flow-kit) and `ui-icon` (icon-kit).
+Every component with all kits enabled. Each entry: name and summary, then one line per prop (name, type, description), its `parts`, and whether it takes `children`. Core built-ins come first, then `ui-*` (ui-kit), `ui-chart` / `ui-sparkline` / `ui-live-data` (chart-kit), `ui-flow*` (flow-kit), `ui-map*` (map-kit) and `ui-icon` (icon-kit).
 
 ```
 element: Any HTML element. Set attributes with `attrs`.
@@ -1788,6 +1788,53 @@ ui-flow-panel: Content that floats above a `ui-flow`, e.g. a toolbar. It doesn't
 ui-flow-item: A palette entry: drag it onto a `ui-flow` to add its `node` there, or click it to add the node in the middle of the view. The flow needs `bindNodes`.
   node         any (required)  The node to add: `{ type, data }`, and `id` if it should keep one
   flow         string  The element id of the flow to add to. Default: the flow it is in, or the page's only flow
+  children: yes
+ui-map: A map, on OpenStreetMap or Google Maps, with markers, popups, shapes, clusters and picking a place. A `ui-map-popup` child is the popup's content; `ui-map-panel` children float above it.
+  provider     one of: osm, google  `osm` (default): OpenStreetMap, no key needed. `google`: Google Maps, which needs an API key
+  markers      any  Places, as rows: `{ id, lat, lng, title, description, label, tone, color, alarm, effect, href, draggable }`, usually from data or state. `label` is a letter, number or emoji in the pin
+  latField     string  The rows' latitude field (default `lat`, else `latitude`)
+  lngField     string  The rows' longitude field (default `lng`, else `lon`, `long` or `longitude`)
+  titleField   string  The rows' title field (default `title`, else `name`)
+  toneBy       any  Colours markers by a field: `{ field: status, tones: { late: danger, done: success } }`
+  alarmBy      any  Which markers are in alarm: `{ field: status, values: [offline, fault] }`, or `alarm: true` on a row. They pulse in red with a `!`, stay on top, and a new one is announced
+  effectBy     any  Animates markers by a field: `{ field: status, effects: { late: glow } }`, or `effect` on a row: `pulse`, `glow`, `bounce` or `blink`. Still, where the viewer asked for less motion
+  filter       any  Shows only the markers that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`
+  shapes       any  Lines, areas and circles: `{ id, type: line | area | circle, points: [[lat, lng], …], center, radius (metres), title, tone, color, width, dashed, fill }`
+  geojson      any  GeoJSON lines and areas, styled by each feature's `properties` (`tone`, `color`, `width`, `title`); its points become markers
+  overlays     any  Layers over the map: `{ id, type: image, url, bounds: [[south, west], [north, east]] }`, e.g. a floor plan; `{ type: tiles, url, attribution }`, e.g. sea marks; `{ type: heat, points, weightField, radius, max }`. Each with `opacity` and `show`, which may use state
+  center       any  `[lat, lng]` or `{ lat, lng }`. The map moves when it changes. Default: fitted to what's on it
+  zoom         any  0 (the world) to 19 (a building); default 13 with a `center`
+  minZoom      number  How far out it zooms
+  maxZoom      number  How far in it zooms, and the closest it fits to
+  fit          any  Fits the view to the markers and shapes when it opens (default: without a `center`); `always`: whenever they change
+  cluster      any  Groups markers closer than this many px (`true`: 56), with how many there are; clicking a group zooms to it
+  bind         statekey  State key with the selected marker's id (null when none). Setting it selects that marker and brings it into view
+  bindMarker   statekey  State key with the selected marker itself, or null
+  bindShape    statekey  State key with the id of the shape last clicked; shapes are clickable with it
+  bindView     statekey  State key kept at `{ center, zoom, bounds: { north, south, east, west } }`
+  bindVisible  statekey  State key with the ids of the markers in view, e.g. for a list beside the map
+  bindAlarms   statekey  State key with the ids of the markers in alarm, e.g. for a count
+  bindPoint    statekey  Picks a place: clicking the map puts a pin there, which can be dragged, and writes `{ lat, lng }`
+  bindMarkers  statekey  State key the rows are in: a dragged marker's new place is written back to its row
+  bindLocation statekey  State key that gets `{ lat, lng, accuracy }` after My location
+  draggable    any  Markers can be dragged, or moved with Alt and the arrow keys (needs `bindMarkers`)
+  popup        bool  Opens a popup over the selected marker, with its title and description or the `ui-map-popup` (default true)
+  locate       bool  A My location button: shows where the viewer is, once they allow it
+  controls     bool  Zoom and fit buttons (default true)
+  gestures     one of: cooperative, greedy, none  `cooperative` (default): the page scrolls past the map, and Ctrl / ⌘ + wheel or two fingers zoom it. `greedy`: the map takes the wheel and one finger. `none`: it stays put
+  tiles        any  With `osm`, another tile server: `{ url, attribution, attributionUrl, maxZoom, darkUrl }`, `url` having `{z}`, `{x}` and `{y}`
+  darkTiles    bool  With `osm`, darken the tiles in dark mode when there's no `darkUrl` (default true)
+  apiKey       any  With `google`, the API key (default: the one the host set). Browsers see it, so restrict it to your sites
+  mapId        any  With `google`, a map id from Google's console, for its cloud styles
+  mapType      one of: roadmap, satellite, hybrid, terrain  With `google` (default `roadmap`)
+  height       any  Number (px) or CSS length; default 400. The width is the container's
+  title        any  Names the map for screen readers (default `Map`)
+  parts: controls
+  children: yes
+ui-map-popup: What a `ui-map`'s popup shows, with the selected marker in scope as `marker`.
+  children: yes
+ui-map-panel: Content that floats above a `ui-map`, e.g. a legend or a search box. It doesn't move with the map.
+  position     one of: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right  Corner or edge of the map (default top-left)
   children: yes
 ui-icon: An SVG icon from the icon kit's packs, drawn in the current text colour.
   name         string (required)  `pack:icon` (e.g. `logistics:truck`) or a bare `icon`, found in the first pack that has it

@@ -431,6 +431,7 @@ dependencies = [
  "irender-flow-kit",
  "irender-html",
  "irender-icon-kit",
+ "irender-map-kit",
  "irender-markdown-kit",
  "irender-ui-kit",
  "schemars",
@@ -480,6 +481,16 @@ dependencies = [
  "indexmap",
  "irender-core",
  "irender-html",
+ "serde_json",
+]
+
+[[package]]
+name = "irender-map-kit"
+version = "0.6.4"
+dependencies = [
+ "irender-core",
+ "irender-html",
+ "irender-ui-kit",
  "serde_json",
 ]
 

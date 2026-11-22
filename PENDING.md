@@ -222,6 +222,14 @@ These came out of the React Flow research on the builder and client-ui-next repo
 - [ ] **Check against a real exported canvas:** export one from the process canvas sidebar and load it into `examples/flow/process-01.yaml`.
 - [x] **The yard view** is `ui-plan` in the UI kit (2026-11-22).
 
+## Map kit next phases
+
+- [x] **Maps** (2026-11-22): `irender-map-kit`'s `ui-map`, on OpenStreetMap through Leaflet or on Google Maps: markers, popups of any components, panels, alarms and animated markers, overlays (pictures, tiles, heat), clusters, lines, areas, circles, GeoJSON, the shared `filter`, picking a place, dragging markers, My location, and the selection, view and markers in view as state (the Maps page, block map-01).
+- [ ] **Google Maps with a real key:** checked against Google's API without one (its watermarked mode) and against a stand-in; a key, a `mapId` and satellite types haven't been tried. Dashed areas and circles draw solid there.
+- [ ] Not built: searching for an address and routes (both need a service), drawing shapes, turned pictures, markers of any components, vector tiles (MapLibre), spreading out markers on the same spot.
+- [ ] OpenStreetMap's own tiles are for light use; a busy site needs its own tile server or a provider (`tiles`). Opened as a file (no address to send), a page may be refused tiles.
+- [ ] The other kits' browser renderer (irender-wasm) doesn't include maps.
+
 ## Icon kit: packs not drawn yet
 
 Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status`, `logistics`, `warehouse`, `retail`, `manufacturing`, `accounting`, `agriculture`, `automotive`, `aviation`, `banking`, `construction`, `education`, `energy`, `finance`, `healthcare`, `hospitality`, `hr`, `insurance`, `it`, `legal`, `marketing`, `maritime`, `media`, `mining`, `oil-gas`, `public-sector`, `robotics`, `simulation`, `social`, `space`, `sports` and `telecom`, plus `brands` (logo marks from Simple Icons, not drawn to the guidelines). Every new icon is drawn from scratch to `crates/irender-icon-kit/GUIDELINES.md` and must pass `tools/icons.py lint` and a contact-sheet review. Draw a pack's first few icons as references, then the rest from them.
