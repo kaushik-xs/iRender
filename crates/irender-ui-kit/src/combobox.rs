@@ -33,6 +33,8 @@ const PROPS: &[PropDef] = &[
     PropDef::new("clearable", PropKind::Bool, "Show a button that clears the value"),
     PropDef::new("creatable", PropKind::Bool, "Offer to create a value from what was typed"),
     PropDef::new("searchUrl", PropKind::Any, "Load options as you type: GET `<url>?q=<text>`, answering an array"),
+    PropDef::new("labels", PropKind::Any, "Options for values chosen before they're searched for, so they show their names: `[{ value, label }]`; may use state"),
+    PropDef::new("lookup", PropKind::Bool, "With `searchUrl`: names of chosen values it doesn't know are asked for, GET `<url>?values=a,b`"),
     PropDef::new("minChars", PropKind::Number, "Characters typed before searching `searchUrl` (default 1)"),
     PropDef::new("debounce", PropKind::Number, "Milliseconds to wait after typing before searching (default 250)"),
     PropDef::new("closeOnSelect", PropKind::Bool, "Close the menu after choosing (default: unless `multiple`)"),
@@ -428,6 +430,8 @@ impl Component for Combobox {
             // Options from state or `searchUrl` are normalized in the browser with these.
             "fields": { "value": fields.value, "label": fields.label, "description": fields.description },
             "searchUrl": search_url,
+            "labels": node.prop("labels").map(|l| crate::data_table::dynamic(cx, node, "labels", l)).transpose()?,
+            "lookup": cx.prop(node, "lookup").is_some_and(|v| expr::truthy(&v)),
             "minChars": cx.prop(node, "minChars").map_or(1.0, |v| expr::to_num(&v)).max(0.0),
             "debounce": cx.prop(node, "debounce").map_or(250.0, |v| expr::to_num(&v)).clamp(0.0, 5000.0),
             "fixed": fixed,

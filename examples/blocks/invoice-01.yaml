@@ -1,0 +1,134 @@
+# Block: an invoice being written, for any business that sells time or goods.
+# - The lines are a `ui-repeater`: Enter goes to the next line (adding one after the last),
+#   rows move by their grip, and each line's amount is worked out from its quantity and
+#   price. `bindTotals` feeds the summary.
+# - `ui-form` checks the client and the dates and, with the repeater's `bindErrors`, keeps
+#   Send from going until the lines are right too.
+# - The pay link is a `ui-qr-code`, the reference a `ui-barcode`, both drawn in the page, and
+#   the invoice is signed with `ui-signature`.
+#
+#   cargo run -p irender-cli -- render examples/blocks/invoice-01.yaml --ui-kit --icon-kit -o invoice-01.html
+version: 1
+state:
+  toast: null
+  errors: {}
+  lineErrors: []
+  tried: false
+  totals: { amount: 0 }
+  number: INV-2048
+  client: Northwind Studios
+  email: accounts@northwind.example
+  issued: "2026-11-22"
+  due: "2026-12-06"
+  discount: 5
+  tax: 18
+  signature: null
+  lines:
+    - { item: Brand workshop, unit: day, qty: 2, price: 38000 }
+    - { item: Illustration set, unit: item, qty: 12, price: 2400 }
+    - { item: Web fonts licence, unit: item, qty: 1, price: 9500 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1040px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Invoice" } }
+                - { type: ui-text, props: { variant: muted, text: "{{ number }} · {{ client }}" } }
+            - type: element
+              style: { display: flex, gap: 8px }
+              children:
+                - { type: ui-badge, props: { text: Draft, variant: secondary } }
+
+        - type: ui-form
+          props:
+            bindErrors: errors
+            bindTried: tried
+            keys: [client, email, issued, due, lines, discount, tax, signature]
+            rules:
+              client: { label: Client, required: true }
+              email: { label: Email, required: true, type: email }
+              issued: { label: Issued, required: true, type: date }
+              due: { label: Due, required: true, type: date, min: "{{ issued }}", message: Due on or after the day it's issued }
+              signature: { label: Signature, required: true }
+          on:
+            submit: { action: set_state, key: toast, value: { title: Invoice sent, description: "{{ client }} will get it by email.", variant: success } }
+          style: { display: flex, flex-direction: column, gap: 20px }
+          children:
+            - { type: ui-error-summary }
+            - type: ui-card
+              props: { title: Details }
+              children:
+                - type: element
+                  style: { display: grid, gap: 16px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(2, minmax(0, 1fr))" } }
+                  children:
+                    - { type: ui-field, props: { label: Client, error: "{{ errors.client }}" }, children: [ { type: ui-input, props: { bind: client } } ] }
+                    - { type: ui-field, props: { label: Email, error: "{{ errors.email }}" }, children: [ { type: ui-input, props: { bind: email, type: email } } ] }
+                    - { type: ui-field, props: { label: Issued, error: "{{ errors.issued }}" }, children: [ { type: ui-date-picker, props: { bind: issued } } ] }
+                    - { type: ui-field, props: { label: Due, error: "{{ errors.due }}" }, children: [ { type: ui-date-picker, props: { bind: due } } ] }
+            - type: ui-card
+              props: { title: Lines }
+              children:
+                - type: ui-repeater
+                  props:
+                    bind: lines
+                    bindTotals: totals
+                    bindErrors: lineErrors
+                    showErrors: "{{ tried }}"
+                    min: 1
+                    reorderable: true
+                    duplicable: true
+                    itemLabel: Line
+                    addLabel: Add line
+                    fields:
+                      - { field: item, label: Item, required: true, placeholder: What it is }
+                      - { field: unit, label: Unit, type: select, width: 110, options: [item, hour, day], default: item }
+                      - { field: qty, label: Qty, type: number, min: 1, required: true, default: 1 }
+                      - { field: price, label: Price, type: currency, currency: INR, required: true }
+                      - { field: amount, label: Amount, compute: qty * price, format: currency, currency: INR, summary: sum }
+            - type: element
+              style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 1fr) 320px" } }
+              children:
+                - type: ui-card
+                  props: { title: Sign and pay }
+                  children:
+                    - type: stack
+                      style: { gap: 20px }
+                      children:
+                        - { type: ui-field, props: { label: Signature, error: "{{ errors.signature }}" }, children: [ { type: ui-signature, props: { bind: signature } } ] }
+                        - type: element
+                          style: { display: flex, flex-wrap: wrap, gap: 24px, align-items: center }
+                          children:
+                            - { type: ui-qr-code, props: { value: "https://pay.example/{{ number }}", size: 144, label: Pay this invoice, logoText: NW, logoBackground: "#111827", logoColor: "#ffffff" } }
+                            - type: stack
+                              style: { gap: 8px }
+                              children:
+                                - { type: ui-text, props: { variant: muted, text: "Scan to pay, or quote the reference." } }
+                                - { type: ui-barcode, props: { value: "{{ number }}", height: 48 } }
+                - type: ui-card
+                  props: { title: Summary }
+                  children:
+                    - type: stack
+                      style: { gap: 14px }
+                      children:
+                        - { type: ui-field, props: { label: Discount }, children: [ { type: ui-number-input, props: { bind: discount, min: 0, max: 100, suffix: "%", stepper: true } } ] }
+                        - { type: ui-field, props: { label: Tax }, children: [ { type: ui-number-input, props: { bind: tax, min: 0, max: 100, suffix: "%", stepper: true } } ] }
+                        - type: ui-separator
+                        - { type: ui-stat, props: { variant: plain, label: Subtotal, value: "{{ totals.amount }}", format: currency, currency: INR } }
+                        - { type: ui-stat, props: { variant: plain, label: To pay, value: "{{ totals.amount * (1 - discount / 100) * (1 + tax / 100) }}", format: currency, currency: INR, description: "Discount and tax included" } }
+                        - { type: ui-button, props: { label: Send invoice, type: submit, icon: share, disabled: "{{ tried && lineErrors.length > 0 }}" } }
+        - { type: ui-toaster, props: { bind: toast } }

@@ -33,6 +33,23 @@
   const labelOf = (v) => known.get(keyOf(v))?.label ?? String(v ?? "");
   const base = () => (cfg.optionsPath ? at(api.state, cfg.optionsPath) || [] : cfg.options).map(norm);
   remember(cfg.options.map(norm));
+  // Names for values chosen before: given, or asked for once.
+  const now = (v) => (v && typeof v === "object" && "$irender" in v ? window.__irender.evaluate(v.$irender, api.state) : v);
+  const asked = new Set();
+  function names() {
+    const given = now(cfg.labels);
+    if (Array.isArray(given)) remember(given.map(norm));
+    const missing = cfg.lookup && cfg.searchUrl ? selected().filter((v) => !known.has(keyOf(v)) && !asked.has(keyOf(v))) : [];
+    if (!missing.length) return;
+    missing.forEach((v) => asked.add(keyOf(v)));
+    fetch(cfg.searchUrl + (cfg.searchUrl.includes("?") ? "&" : "?") + new URLSearchParams({ values: missing.join(",") }), { headers: { accept: "application/json" } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((got) => {
+        remember((Array.isArray(got) ? got : []).map(norm));
+        render();
+      })
+      .catch(() => {});
+  }
 
   // The value: in state when bound, here otherwise.
   let local = cfg.value;
@@ -374,6 +391,12 @@
     input.focus();
   });
 
+  names();
   render();
-  return { update: render };
+  return {
+    update() {
+      names();
+      render();
+    },
+  };
 };

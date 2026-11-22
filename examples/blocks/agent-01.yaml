@@ -1,0 +1,95 @@
+# Block: an assistant working on a travel request, with what its replies can show beside
+# their text: the files it was sent, the sources behind an answer (its `[1]`s are links),
+# what it did and asks leave to do, what it needs to know, and the run's steps.
+#
+#   cargo run -p irender-cli -- render examples/blocks/agent-01.yaml --ui-kit --icon-kit -o agent-01.html
+version: 1
+state:
+  toast: null
+  allow: null
+  answers: {}
+  answered: false
+  draft: ""
+  files:
+    - { id: f1, name: visa-letter.pdf, size: 182000, status: done }
+    - { id: f2, name: passport.jpg, status: uploading, progress: 62 }
+    - { id: f3, name: old-scan.tiff, status: error, error: This kind can't be read }
+  messages:
+    - { role: user, content: "Plan two days in Lisbon for our team of six in March, under €200 a night.", attachments: [ { name: team.csv, size: 2400 } ] }
+    - role: assistant
+      name: Assistant
+      initials: A
+      content: "March is mild and quieter than summer. The old town puts you within a walk of most of what your team listed, and rooms there are about €165 a night."
+      sources:
+        - { title: Lisbon city guide, url: "https://example.com/lisbon", text: "Average highs of 18°C in March." }
+        - { title: Hotel rates 2026, url: "https://example.com/rates", page: 12 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1180px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Trip assistant" } }
+                - { type: ui-text, props: { variant: muted, text: "Run 12 · two sources · one thing to approve" } }
+
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1.5fr) minmax(0, 1fr)" } }
+          children:
+            - type: ui-card
+              children:
+                - type: stack
+                  style: { gap: 16px }
+                  children:
+                    - { type: ui-conversation, props: { messages: "{{ messages }}", markdown: false } }
+                    - { type: ui-tool-call, props: { title: Searched hotels, name: search_hotels, status: done, duration: 1840, input: { city: Lisbon, nights: 2, rooms: 3 }, output: { found: 14, cheapest: 148 } } }
+                    - type: ui-tool-call
+                      props: { title: Hold three rooms until Friday, name: hold_rooms, status: approval, input: { hotel: Alfama House, rooms: 3, until: "2026-11-27" }, bindApproval: allow }
+                    - type: ui-questionnaire
+                      props:
+                        bind: answers
+                        bindDone: answered
+                        title: A few things to settle
+                        doneText: Thanks, I'll plan with these.
+                        questions:
+                          - { id: pace, question: How full should the days be?, options: [ { value: easy, label: Easy, description: Two things a day }, { value: full, label: Full, description: Something every two hours } ], required: true }
+                          - { id: food, question: Any food needs?, type: choices, options: [Vegetarian, Vegan, Halal, Gluten free], other: true }
+                          - { id: walk, question: "How much walking is fine?", type: scale, labels: [A little, A lot] }
+                    - { type: ui-attachment, props: { files: "{{ files }}", bindFiles: files } }
+                    - { type: ui-mention-input, props: { bind: draft, people: [ { name: Assistant, detail: AI }, { name: Joana, detail: Travel desk } ], placeholder: "Reply, or @ someone", label: Reply, rows: 2 } }
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: "The answer, with its sources" }
+                  children:
+                    - type: ui-sources
+                      props:
+                        layout: list
+                        text: "Highs reach 18°C in March [1], and rooms in the old town average €165 a night [2], inside your €200 limit."
+                        items:
+                          - { title: Lisbon city guide, url: "https://example.com/lisbon", text: "Average highs of 18°C in March, with rain on one day in three." }
+                          - { title: Hotel rates 2026, url: "https://example.com/rates", page: 12, text: "Old town, three stars: €148 to €182." }
+                - type: ui-trace
+                  props:
+                    title: Run 12
+                    spans:
+                      - { id: a, name: Plan the trip, kind: agent, start: 0, duration: 9200 }
+                      - { id: b, parent: a, name: Read team.csv, kind: tool, start: 200, duration: 400 }
+                      - { id: c, parent: a, name: Search hotels, kind: tool, start: 900, duration: 1840 }
+                      - { id: d, parent: a, name: Write the answer, kind: model, start: 3000, duration: 4100, tokens: 1420 }
+                      - { id: e, parent: a, name: Hold rooms, kind: tool, start: 7300, duration: 1900, status: running }
+        - { type: ui-toaster, props: { bind: toast } }

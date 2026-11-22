@@ -1,0 +1,88 @@
+# Block: a hospital's admissions summed up in a `ui-pivot`. Drag fields between Down, Across
+# and Values (or add them from the menus), choose how each is summed, sort by any column,
+# fold a group, and click a cell for the admissions behind it.
+# - `bind` keeps the layout people make, `heat` tints the cells, and Export writes Excel.
+# - The filter panel's conditions narrow the pivot and the tiles.
+#
+#   cargo run -p irender-cli -- render examples/blocks/pivot-01.yaml --ui-kit --icon-kit -o pivot-01.html
+version: 1
+state:
+  cell: null
+  layout: null
+  filters: {}
+  admissions:
+    - { id: A1, ward: Cardiology, doctor: Rao, type: Planned, date: "2026-07-04", days: 4, cost: 82000 }
+    - { id: A2, ward: Cardiology, doctor: Rao, type: Emergency, date: "2026-08-11", days: 7, cost: 164000 }
+    - { id: A3, ward: Cardiology, doctor: Sen, type: Emergency, date: "2026-10-02", days: 5, cost: 121000 }
+    - { id: A4, ward: Orthopaedics, doctor: Pillai, type: Planned, date: "2026-07-19", days: 3, cost: 96000 }
+    - { id: A5, ward: Orthopaedics, doctor: Pillai, type: Planned, date: "2026-09-23", days: 2, cost: 74000 }
+    - { id: A6, ward: Orthopaedics, doctor: Khan, type: Emergency, date: "2026-10-28", days: 6, cost: 143000 }
+    - { id: A7, ward: Maternity, doctor: Bose, type: Planned, date: "2026-08-02", days: 3, cost: 52000 }
+    - { id: A8, ward: Maternity, doctor: Bose, type: Planned, date: "2026-09-14", days: 3, cost: 50500 }
+    - { id: A9, ward: Maternity, doctor: Iyer, type: Emergency, date: "2026-11-01", days: 5, cost: 91000 }
+    - { id: A10, ward: Paediatrics, doctor: Das, type: Emergency, date: "2026-07-30", days: 2, cost: 31000 }
+    - { id: A11, ward: Paediatrics, doctor: Das, type: Planned, date: "2026-10-09", days: 1, cost: 22000 }
+    - { id: A12, ward: Cardiology, doctor: Sen, type: Planned, date: "2026-11-12", days: 4, cost: 88000 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1180px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Admissions" } }
+                - { type: ui-text, props: { variant: muted, text: "July to November 2026" } }
+            - type: ui-filters
+              props: { bind: filters, rows: "{{ admissions }}", currency: INR }
+              children:
+                - { type: ui-filter, props: { field: ward, label: Ward } }
+                - { type: ui-filter, props: { field: type, label: Type } }
+                - { type: ui-filter, props: { field: days, label: Days, type: number } }
+
+        - type: ui-pivot
+          props:
+            rows: "{{ admissions }}"
+            filter: "{{ filters }}"
+            title: Admissions
+            editable: true
+            heat: true
+            export: admissions.xlsx
+            bind: layout
+            bindCell: cell
+            fields:
+              - { field: ward, label: Ward }
+              - { field: doctor, label: Doctor }
+              - { field: type, label: Type }
+              - { field: date, label: Month, part: month }
+              - { field: days, label: Days }
+              - { field: cost, label: Cost }
+            down: [ward, doctor]
+            across: [date]
+            values: [ { field: cost, agg: sum, label: Cost, format: currency, currency: INR, decimals: 0 } ]
+        - type: if
+          props: { when: "{{ cell != null }}" }
+          children:
+            - type: ui-card
+              props: { title: "The admissions behind that cell" }
+              children:
+                - type: ui-data-table
+                  props: { rows: "{{ cell.rows }}", pageSize: 5, columnsMenu: false }
+                  children:
+                    - { type: ui-data-table-column, props: { field: id, label: Admission } }
+                    - { type: ui-data-table-column, props: { field: ward, label: Ward } }
+                    - { type: ui-data-table-column, props: { field: type, label: Type, cell: badge, tones: { Emergency: destructive, Planned: secondary } } }
+                    - { type: ui-data-table-column, props: { field: date, label: Date, format: date } }
+                    - { type: ui-data-table-column, props: { field: cost, label: Cost, format: currency, currency: INR, decimals: 0, summary: sum } }

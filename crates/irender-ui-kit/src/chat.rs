@@ -18,6 +18,7 @@ use std::sync::LazyLock;
 
 const CONVERSATION_SCRIPT: &str = include_str!("conversation.js");
 const INPUT_SCRIPT: &str = include_str!("chat_input.js");
+const ACTIONS_SCRIPT: &str = include_str!("message_actions.js");
 const HTML_SCRIPT: &str = include_str!("message_html.js");
 
 /// The three dots' bounce, added to the page once by the first typing indicator.
@@ -31,7 +32,7 @@ const REPLY_INDEX: &str = "ui_reply_index";
 
 /// The message fields a list item passes on to its `ui-message`.
 /// `role` comes first.
-const FIELDS: &[&str] = &["role", "content", "name", "avatar", "initials", "time", "html", "ui", "streaming"];
+const FIELDS: &[&str] = &["role", "content", "name", "avatar", "initials", "time", "html", "ui", "streaming", "sources", "attachments", "feedback"];
 
 const ROLES: &[&str] = &["assistant", "user", "system"];
 
@@ -66,6 +67,10 @@ fn item_message(node: &Node, var: &str, replies: bool) -> Node {
         if let Some(v) = node.prop(name) {
             props.push((name, v.clone()));
         }
+    }
+    props.push(("messageId", expr_val(path(&[var, "id"]))));
+    if let Some(a) = node.prop("actions") {
+        props.push(("actions", a.clone()));
     }
     if replies {
         props.push(("replies", expr_val(path(&[var, "replies"]))));
@@ -102,6 +107,15 @@ const MESSAGE_PROPS: &[PropDef] = &[
          in the page; `url` is your server's render endpoint, which gets `{ ui }` and answers with the markup, used when \
          there's no `browser` or it can't render it",
     ),
+    PropDef::new("messageId", PropKind::Any, "Its id, for `actions`"),
+    PropDef::new(
+        "actions",
+        PropKind::Any,
+        "Buttons under it: `[copy, retry, edit, up, down]`. A `ui-chat-input` on the page does the rest: `retry` asks again, `edit` puts a message of yours back in the box, `up` and `down` write the message's `feedback`. Each fires `messageaction`",
+    ),
+    PropDef::new("feedback", PropKind::Any, "`up` or `down`: which of the two is pressed"),
+    PropDef::new("sources", PropKind::Any, "What it's based on, under it: as `ui-sources`' `items`"),
+    PropDef::new("attachments", PropKind::Any, "Files sent with it, over it: as `ui-attachment`'s `files`"),
     PropDef::new("replies", PropKind::Any, "A thread: an array of messages shown under it, folded away behind `N replies`. May use state"),
     PropDef::new("open", PropKind::Bool, "Show the thread unfolded"),
 ];
@@ -262,6 +276,7 @@ impl Component for Message {
             cx.close("div");
             Ok(())
         })?;
+        extra(cx, node, "attachments", "ui-attachment", "files")?;
         let mut bubble = cx.part("div", node, "bubble");
         bubble.base_style_ref(&BUBBLE).attr("data-bubble", lit(""));
         // Markdown when asked, or by default when the Markdown kit can draw it. It's
@@ -307,6 +322,8 @@ impl Component for Message {
             cx.open(&ui, node)?;
             cx.close("div");
         }
+        extra(cx, node, "sources", "ui-sources", "items")?;
+        actions(cx, node)?;
         if node.prop("replies").is_some() {
             thread(cx, node)?;
         }
@@ -314,6 +331,72 @@ impl Component for Message {
         cx.close("div");
         Ok(())
     }
+}
+
+const ACTIONS: &[(&str, &str)] = &[
+    ("copy", r#"<path d="M5.5 5.5h8v8h-8zM10.5 2.5h-8v8"/>"#),
+    ("retry", r#"<path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3"/>"#),
+    ("edit", r#"<path d="M11 2.8 13.2 5 5.5 12.7 2.5 13.5l.8-3zM9.5 4.3l2.2 2.2"/>"#),
+    ("up", r#"<path d="M5 7.5 8 2.5c1 0 1.7.8 1.5 1.8L9 6.5h3.2c.8 0 1.4.8 1.2 1.6l-.9 4c-.1.6-.6 1-1.2 1H5zM5 7.5H2.8v5.6H5"/>"#),
+    ("down", r#"<path d="M11 8.5 8 13.5c-1 0-1.7-.8-1.5-1.8L7 9.5H3.8c-.8 0-1.4-.8-1.2-1.6l.9-4c.1-.6.6-1 1.2-1H11zM11 8.5h2.2V2.9H11"/>"#),
+];
+
+static MESSAGE_ACTIONS: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "flex"), ("gap", gap!(2)), ("margin-top", gap!(2)), ("opacity", "0.75")])
+        .nest("& button", crate::widget::tool())
+        .nest("& button:hover", StyleBlock::from_pairs(&[("background", SUBTLE), ("color", TEXT)]))
+        .nest("& button:focus-visible", crate::forms::focus_ring())
+        .nest("& button[aria-pressed=true]", StyleBlock::from_pairs(&[("color", PRIMARY), ("background", SUBTLE)]))
+        // Asking again and rating are for replies; editing, for your own.
+        .nest("[data-role=user] > [data-body] > & :is([data-act=retry], [data-act=up], [data-act=down])", StyleBlock::from_pairs(&[("display", "none")]))
+        .nest("[data-role=assistant] > [data-body] > & [data-act=edit]", StyleBlock::from_pairs(&[("display", "none")]))
+        .nest("[data-role=system] > [data-body] > &", StyleBlock::from_pairs(&[("display", "none")]))
+});
+
+/// The buttons under a message.
+fn actions(cx: &mut RenderCx<'_>, node: &Node) -> Result<(), RenderError> {
+    let wanted = server_array(cx, node, "actions")?;
+    if wanted.is_empty() {
+        return Ok(());
+    }
+    cx.global_js("ui-message-actions", ACTIONS_SCRIPT);
+    let mut bar = Element::new("div");
+    bar.base_style_ref(&MESSAGE_ACTIONS).attr("data-actions", true).attr("role", "group").attr("aria-label", cx.label("Message actions")).behavior("ui-message-actions", json!({}));
+    if let Some(id) = node.prop("messageId") {
+        bar.attr("data-message", id.clone());
+    }
+    cx.open(&bar, node)?;
+    for w in wanted {
+        let w = irender_core::expr::stringify(&w);
+        let Some((name, icon)) = ACTIONS.iter().find(|(n, _)| *n == w) else {
+            return Err(RenderError::new(node, format!("`actions` are copy, retry, edit, up and down, not `{w}`")));
+        };
+        let label = match *name {
+            "copy" => cx.label("Copy"),
+            "retry" => cx.label("Try again"),
+            "edit" => cx.label("Edit"),
+            "up" => cx.label("Good reply"),
+            _ => cx.label("Bad reply"),
+        };
+        let mut b = Element::new("button");
+        b.attr("type", "button").attr("data-act", name.to_string()).attr("aria-label", label.clone()).attr("title", label);
+        if matches!(*name, "up" | "down")
+            && let Some(f) = node.prop("feedback")
+        {
+            b.attr("aria-pressed", expr_val(bin(BinOp::Eq, val_expr(f), Expr::Lit(json!(name)))));
+        }
+        cx.open(&b, node)?;
+        cx.markup(&format!(r#"<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{icon}</svg>"#));
+        cx.close("button");
+    }
+    cx.close("div");
+    Ok(())
+}
+
+/// What goes with a message (its files, its sources), drawn while it has any.
+fn extra(cx: &mut RenderCx<'_>, node: &Node, prop: &str, kind: &str, items: &str) -> Result<(), RenderError> {
+    let Some(v) = node.prop(prop) else { return Ok(()) };
+    branch(cx, v, |cx| cx.render(&synthetic(node, kind, vec![(items, v.clone())], Vec::new(), Vec::new())))
 }
 
 /// The message's replies, folded away behind `N replies` while there are any.
@@ -419,6 +502,7 @@ const CONVERSATION_PROPS: &[PropDef] = &[
     PropDef::new("label", PropKind::Any, "Names the conversation for screen readers (default `Conversation`)"),
     PropDef::new("height", PropKind::Any, "Number (px) or CSS length"),
     PropDef::new("maxHeight", PropKind::Any, "Number (px) or CSS length: grows with the messages up to this"),
+    PropDef::new("actions", PropKind::Any, "Buttons under each message: `[copy, retry, edit, up, down]`; see `ui-message`"),
 ];
 
 static CONVERSATION: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -565,6 +649,9 @@ const CHAT_INPUT_PROPS: &[PropDef] = &[
         "URL to POST `{ messages }` to. The reply may be JSON (a message, or `{ content }`), plain text, or server-sent \
          events, which stream into the reply as they arrive",
     ),
+    PropDef::new("body", PropKind::Any, "More to send with each request, beside `messages`, e.g. `{ model: \"{{ model }}\" }`; may use state"),
+    PropDef::new("headers", PropKind::Any, "Request headers, e.g. `{ authorization: \"Bearer {{ token }}\" }`; may use state"),
+    PropDef::new("bindFiles", PropKind::StateKey, "State key of files to send with the next message (a `ui-file-upload`'s, or a `ui-attachment`'s): they become its `attachments`, and the key is emptied"),
     PropDef::new("bind", PropKind::StateKey, "State key holding the text being written"),
     PropDef::new("waiting", PropKind::StateKey, "State key set true from sending until the reply starts: give it to the conversation's `typing`"),
     PropDef::new(
@@ -580,7 +667,15 @@ const CHAT_INPUT_PROPS: &[PropDef] = &[
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
 ];
 
-static CHAT_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| StyleBlock::from_pairs(&[("display", "grid"), ("gap", gap!(8)), ("margin", "0")]));
+static CHAT_INPUT: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::from_pairs(&[("display", "grid"), ("gap", gap!(8)), ("margin", "0")])
+        .nest(
+            "& > [data-try-again]",
+            StyleBlock::from_pairs(&[("justify-self", "center"), ("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(6)), ("padding", pad!(6, 12)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "999px"), ("background", SURFACE), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(13)), ("cursor", "pointer")]),
+        )
+        .nest("& > [data-try-again]:hover", StyleBlock::from_pairs(&[("background", SUBTLE)]))
+        .nest("& > [data-try-again]:focus-visible", crate::forms::focus_ring())
+});
 static SUGGESTIONS: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(8))])
         .nest("&[hidden]", StyleBlock::from_pairs(&[("display", "none")]))
@@ -696,11 +791,15 @@ impl Component for ChatInput {
         let config = json!({
             "messages": messages,
             "endpoint": cx.prop_string(node, "endpoint"),
+            "body": node.prop("body").map(|b| crate::data_table::dynamic(cx, node, "body", b)).transpose()?,
+            "headers": node.prop("headers").map(|b| crate::data_table::dynamic(cx, node, "headers", b)).transpose()?,
+            "files": cx.prop_string(node, "bindFiles"),
             "bind": cx.prop_string(node, "bind"),
             "waiting": cx.prop_string(node, "waiting"),
             "threads": threads,
             "thread": thread,
         });
+        crate::widget::kit(cx);
         cx.global_js("ui-chat-input", INPUT_SCRIPT);
         let mut form = cx.element("form", node);
         form.base_style_ref(&CHAT_INPUT).behavior("ui-chat-input", config);

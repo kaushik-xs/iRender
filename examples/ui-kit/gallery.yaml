@@ -9,6 +9,62 @@
 # HTTP next to examples/ui-kit/api (examples/build.sh does this).
 version: 1
 state:
+  halfStars: 3.5
+  vTab: profile
+  edRows:
+    - { id: 1, item: Notebook, qty: 12, due: "2026-12-01", state: Ready, ok: true }
+    - { id: 2, item: Pen, qty: 0, due: "2026-12-04", state: Waiting, ok: false }
+    - { id: 3, item: "", qty: 5, due: "2026-12-09", state: Ready, ok: false }
+  edChanges: {}
+  fmName: Ada
+  fmEmail: ""
+  fmErrors: {}
+  fmDirty: false
+  stStep: pick
+  stDone: 2
+  rpLines: [ { item: Workshop, qty: 2, price: 350 }, { item: Travel, qty: 1, price: 120 } ]
+  imDraft: []
+  imRows: []
+  inTags: [Design, Legal]
+  inMask: ""
+  inPhone: "+919876543210"
+  inTime: "09:30"
+  inNote: ""
+  inNamed: []
+  tsOne: sales
+  tsMany: []
+  tsNodes: [ { id: office, label: Office, children: [ { id: sales, label: Sales }, { id: finance, label: Finance } ] }, { id: field, label: Field, children: [ { id: north, label: North }, { id: south, label: South } ] } ]
+  tlPicked: [name, status]
+  qbQuery: { op: and, rules: [ { field: age, operator: gte, value: 18 }, { op: or, rules: [ { field: plan, operator: is, value: Pro }, { field: city, operator: contains, value: lon } ] } ] }
+  qbHits: []
+  qbRows: [ { name: Ada, age: 36, plan: Pro, city: Paris }, { name: Bo, age: 15, plan: Pro, city: London }, { name: Cy, age: 51, plan: Free, city: London } ]
+  sgPic: null
+  crPic: null
+  cdText: "https://example.com"
+  cdRead: ""
+  stVal: 48210
+  dlOwner: Ada Lovelace
+  dlStage: won
+  dlNote: ""
+  cmThread: [ { id: a, who: Ada Lovelace, when: "2026-11-20T09:30:00Z", text: "Can we ship this on Friday, @Grace Hopper?", reactions: { "👍": [Grace Hopper] }, replies: [ { id: b, who: Grace Hopper, when: "2026-11-20T10:00:00Z", text: Yes. } ] } ]
+  lbAt: null
+  pvCell: null
+  pvRows: [ { region: North, rep: Ann, date: "2026-01-04", amount: 120 }, { region: North, rep: Bo, date: "2026-02-14", amount: 80 }, { region: South, rep: Cy, date: "2026-01-20", amount: 300 }, { region: South, rep: Cy, date: "2026-04-01", amount: 50 } ]
+  shRows: [ { id: a, title: Room A, hours: [ { from: "09:00", to: "17:00" } ] }, { id: b, title: Room B, capacity: 2 } ]
+  shEvents: [ { id: 1, resource: a, title: Planning, start: "2026-11-23T09:30", end: "2026-11-23T11:00" }, { id: 2, resource: a, title: Interview, start: "2026-11-23T10:30", end: "2026-11-23T11:30" }, { id: 3, resource: b, title: Training, start: "2026-11-23T13:00", end: "2026-11-23T15:00", color: "#16a34a" } ]
+  shDay: "2026-11-23"
+  plPick: null
+  plItems: [ { id: 1, label: "1", x: 40, y: 40, width: 120, height: 90, status: Free }, { id: 2, label: "2", x: 200, y: 40, width: 120, height: 90, status: Taken }, { id: 3, label: "3", shape: circle, x: 380, y: 40, width: 90, status: Free }, { id: 4, label: Stage, shape: polygon, x: 60, y: 190, points: [ [0, 0], [360, 0], [300, 70], [60, 70] ], locked: true } ]
+  pdfNotes: []
+  dfView: split
+  lgLines: [ { time: "2026-11-22T10:00:00Z", level: info, source: api, text: Started }, { time: "2026-11-22T10:00:02Z", level: warn, source: cache, text: "Slow: 840 ms" }, { time: "2026-11-22T10:00:05Z", level: error, source: mail, text: "Couldn't connect, trying again" } ]
+  ceText: "select name, total\nfrom orders\nwhere total > 100\n"
+  bnShut: false
+  trStep: null
+  agFiles: [ { id: 1, name: report.pdf, size: 182000 }, { id: 2, name: photo.jpg, status: uploading, progress: 62 }, { id: 3, name: old.tiff, status: error, error: Can't be read } ]
+  agOk: null
+  qnAnswers: {}
+  qnDone: false
   name: ""
   cmdLoading: false
   illColours: theme
@@ -247,15 +303,15 @@ root:
                           props: { tag: a }
                           attrs: { href: "#{{ sec.id }}", title: "{{ sec.title }}" }
                           style:
-                            display: block
+                            display: flex
+                            align-items: center
+                            gap: 6
                             padding: 4px 8px
                             border-radius: $radius.sm
                             color: $color.muted
                             font-size: 13.5
                             line-height: 1.5
                             white-space: nowrap
-                            overflow: hidden
-                            text-overflow: ellipsis
                             text-decoration: none
                             transition: color .15s, background .15s
                             ":hover": { color: $color.text, background: "color-mix(in srgb, var(--color-text) 5%, transparent)" }
@@ -263,7 +319,10 @@ root:
                             # The page's style outranks the scroll spy's, so the current
                             # link is styled here.
                             "&[aria-current=location]": { color: $color.text, font-weight: 600, background: "color-mix(in srgb, var(--color-text) 7%, transparent)" }
-                          children: [ { type: text, props: { value: "{{ sec.nav }}" } } ]
+                          children:
+                            - { type: text, props: { value: "{{ sec.nav }}" }, style: { min-width: 0, overflow: hidden, text-overflow: ellipsis } }
+                            # Introduced lately (docs.json's `new`).
+                            - { type: if, props: { when: "{{ sec.new }}" }, children: [ { type: ui-badge, props: { text: New, variant: success }, style: { flex: none, padding: 0 6px, font-size: 11, line-height: 1.5 } } ] }
 
     # ---------------------------------------------------------------- the content
     - type: element
@@ -299,7 +358,11 @@ root:
                       props: { gap: 12 }
                       children:
                         - { type: text, props: { value: "{{ s.group }}" }, style: { color: $color.muted, font-size: 12, font-weight: 600, letter-spacing: 0.06em, text-transform: uppercase } }
-                        - { type: ui-heading, props: { level: 2, text: "{{ s.title }}" }, attrs: { id: "{{ s.id }}-title" } }
+                        - type: element
+                          style: { display: flex, flex-wrap: wrap, align-items: center, gap: 10 }
+                          children:
+                            - { type: ui-heading, props: { level: 2, text: "{{ s.title }}" }, attrs: { id: "{{ s.id }}-title" } }
+                            - { type: if, props: { when: "{{ s.new }}" }, children: [ { type: ui-badge, props: { text: New, variant: success }, style: { flex: none, padding: 0 6px, font-size: 12, line-height: 1.5 } } ] }
                         - { type: ui-text, props: { variant: lead, text: "{{ s.summary }}" }, style: { font-size: 16, max-width: 72ch } }
                         - type: element
                           props: { tag: pre }
@@ -329,6 +392,7 @@ root:
                           style: { display: flex, flex-wrap: wrap, align-items: baseline, gap: 4px 12px, padding: 10px 14px, border-bottom: 1px solid $color.border, background: "color-mix(in srgb, var(--color-text) 3%, var(--color-surface))" }
                           children:
                             - { type: text, props: { tag: code, value: "{{ c.name }}" }, style: { font-family: "ui-monospace, SFMono-Regular, Menlo, monospace", font-size: 13, font-weight: 600 } }
+                            - { type: if, props: { when: "{{ c.new }}" }, children: [ { type: ui-badge, props: { text: New, variant: success }, style: { flex: none, padding: 0 6px, font-size: 11, line-height: 1.5 } } ] }
                             - { type: text, props: { value: "{{ c.doc }}" }, style: { color: $color.muted, font-size: 13 } }
                         - type: if
                           props: { when: "{{ c.props.length > 0 }}" }
@@ -1109,6 +1173,7 @@ root:
                     - { type: ui-rating, props: { bind: stars, label: Your rating } }
                     - { type: ui-text, props: { variant: muted, text: "{{ stars == 0 ? 'No rating' : stars + ' of 5' }}" } }
                     - { type: ui-separator, props: { orientation: vertical }, style: { height: 20 } }
+                    - { type: ui-rating, props: { bind: halfStars, half: true, label: Half stars } }
                     - { type: ui-rating, props: { value: 4.3, size: 16, label: Average rating } }
                 - type: stack
                   props: { gap: 8 }
@@ -1122,6 +1187,251 @@ root:
                 - { type: if, props: { when: "{{ api.rating.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.rating }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- form
+            - type: element
+              props: { tag: section }
+              attrs: { id: form, aria-labelledby: form-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.form }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-form
+                  props: { bindErrors: fmErrors, bindDirty: fmDirty, rules: { fmName: { label: Name, required: true }, fmEmail: { label: Email, required: true, type: email } } }
+                  on: { submit: { action: set_state, key: fmDirty, value: false } }
+                  style: { display: flex, flex-direction: column, gap: 16, max-width: 520 }
+                  children:
+                    - { type: ui-error-summary }
+                    - { type: ui-field, props: { label: Name, error: "{{ fmErrors.fmName }}" }, children: [ { type: ui-input, props: { bind: fmName } } ] }
+                    - { type: ui-field, props: { label: Email, error: "{{ fmErrors.fmEmail }}" }, children: [ { type: ui-input, props: { bind: fmEmail } } ] }
+                    - { type: ui-save-bar, props: { position: inline } }
+                    - { type: ui-button, props: { label: Submit, type: submit }, style: { align-self: flex-start } }
+                - { type: if, props: { when: "{{ api.form.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.form }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- stepper
+            - type: element
+              props: { tag: section }
+              attrs: { id: stepper, aria-labelledby: stepper-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.stepper }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-stepper
+                  props: { bind: stStep }
+                  children:
+                    - { type: ui-step, props: { value: pick, label: Choose, description: What you need }, children: [ { type: ui-text, props: { text: Choose something. } } ] }
+                    - { type: ui-step, props: { value: when, label: Time, optional: true }, children: [ { type: ui-text, props: { text: Say when. } } ] }
+                    - { type: ui-step, props: { value: check, label: Check }, children: [ { type: ui-text, props: { text: Look it over. } } ] }
+                - type: ui-stepper
+                  props: { bind: stDone, orientation: vertical, buttons: false, clickable: false }
+                  children:
+                    - { type: ui-step, props: { label: Received, description: 12 Nov }, children: [ { type: ui-text, props: { variant: muted, text: By post } } ] }
+                    - { type: ui-step, props: { label: Being reviewed }, children: [ { type: ui-text, props: { variant: muted, text: Usually two days } } ] }
+                    - { type: ui-step, props: { label: Decided } }
+                - { type: if, props: { when: "{{ api.stepper.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.stepper }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- repeater
+            - type: element
+              props: { tag: section }
+              attrs: { id: repeater, aria-labelledby: repeater-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.repeater }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-repeater
+                  props:
+                    bind: rpLines
+                    reorderable: true
+                    duplicable: true
+                    itemLabel: Line
+                    addLabel: Add line
+                    fields:
+                      - { field: item, label: Item, required: true }
+                      - { field: qty, label: Qty, type: number, min: 1, default: 1 }
+                      - { field: price, label: Price, type: currency, currency: EUR }
+                      - { field: total, label: Total, compute: qty * price, format: currency, currency: EUR, summary: sum }
+                - { type: if, props: { when: "{{ api.repeater.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.repeater }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- import
+            - type: element
+              props: { tag: section }
+              attrs: { id: import, aria-labelledby: import-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.import }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-import
+                  props:
+                    bind: imDraft
+                    bindImported: imRows
+                    title: Contacts
+                    fields:
+                      - { field: name, label: Name, required: true, aliases: [contact], example: Ada Lovelace }
+                      - { field: email, label: Email, required: true, unique: true, pattern: "[^@ ]+@[^@ ]+", example: ada@example.com }
+                      - { field: joined, label: Joined, type: date, format: date, example: "2026-01-31" }
+                - { type: ui-text, props: { variant: muted, text: "{{ imRows.length }} imported" } }
+                - { type: if, props: { when: "{{ api.import.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.import }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- text-inputs
+            - type: element
+              props: { tag: section }
+              attrs: { id: text-inputs, aria-labelledby: text-inputs-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.text_inputs }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, align-items: start }
+                  children:
+                    - { type: ui-field, props: { label: Tags }, children: [ { type: ui-tags-input, props: { bind: inTags, suggestions: [Design, Legal, Finance, People], placeholder: Add one } } ] }
+                    - { type: ui-field, props: { label: Policy number, description: "{{ inMask }}" }, children: [ { type: ui-masked-input, props: { bind: inMask, mask: "AA-####-####" } } ] }
+                    - { type: ui-field, props: { label: Phone, description: "{{ inPhone }}" }, children: [ { type: ui-phone-input, props: { bind: inPhone } } ] }
+                    - { type: ui-field, props: { label: Time, description: "{{ inTime }}" }, children: [ { type: ui-time-picker, props: { bind: inTime, min: "08:00", max: "20:00" } } ] }
+                    - { type: ui-field, props: { label: Note, description: "Type @ to name someone." }, children: [ { type: ui-mention-input, props: { bind: inNote, people: [ { name: Ada Lovelace, detail: Design }, { name: Grace Hopper, detail: Engineering } ], bindMentions: inNamed } } ] }
+                - { type: if, props: { when: "{{ api.text_inputs.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.text_inputs }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- tree-select
+            - type: element
+              props: { tag: section }
+              attrs: { id: tree-select, aria-labelledby: tree-select-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.tree_select }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }
+                  children:
+                    - { type: ui-field, props: { label: One }, children: [ { type: ui-tree-select, props: { bind: tsOne, nodes: "{{ tsNodes }}", path: true, expanded: true } } ] }
+                    - { type: ui-field, props: { label: Several }, children: [ { type: ui-tree-select, props: { bind: tsMany, nodes: "{{ tsNodes }}", multiple: true } } ] }
+                - { type: ui-transfer-list, props: { bind: tlPicked, options: [ { value: name, label: Name }, { value: status, label: Status }, { value: owner, label: Owner, description: Who looks after it }, { value: due, label: Due date } ], reorderable: true, height: 160, titles: [Columns, Shown] } }
+                - { type: if, props: { when: "{{ api.tree_select.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.tree_select }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- query-builder
+            - type: element
+              props: { tag: section }
+              attrs: { id: query-builder, aria-labelledby: query-builder-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.query_builder }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-query-builder, props: { bind: qbQuery, rows: "{{ qbRows }}", bindMatches: qbHits, showText: true, negate: true, fields: [ { field: age, label: Age, type: number }, { field: plan, label: Plan, type: select, options: [Free, Pro] }, { field: city, label: City } ] } }
+                - { type: ui-text, props: { variant: muted, text: "{{ qbHits.length }} of {{ qbRows.length }} people match" } }
+                - { type: if, props: { when: "{{ api.query_builder.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.query_builder }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- signature
+            - type: element
+              props: { tag: section }
+              attrs: { id: signature, aria-labelledby: signature-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.signature }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-signature, props: { bind: sgPic, height: 130 } }
+                - { type: ui-image-cropper, props: { bind: crPic, ratio: ["1", "4 / 3", free], height: 220 } }
+                - { type: if, props: { when: "{{ api.signature.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.signature }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- codes
+            - type: element
+              props: { tag: section }
+              attrs: { id: codes, aria-labelledby: codes-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.codes }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-input, props: { bind: cdText }, attrs: { aria-label: Text }, style: { max-width: 320 } }
+                - type: stack
+                  props: { direction: row, gap: 24, align: center, wrap: true }
+                  children:
+                    - { type: ui-qr-code, props: { value: "{{ cdText }}", size: 130 } }
+                    - { type: ui-qr-code, props: { value: "{{ cdText }}", size: 130, dots: round } }
+                    # A logo in the middle: a picture, or letters (or an icon, with the icon kit).
+                    - { type: ui-qr-code, props: { value: "{{ cdText }}", size: 130, logo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%232563eb'/%3E%3Cpath d='M10 28 20 10l10 18z' fill='%23fff'/%3E%3C/svg%3E" } }
+                    - { type: ui-qr-code, props: { value: "{{ cdText }}", size: 130, dots: round, logoText: AC, logoShape: circle, logoBackground: "#111827", logoColor: "#ffffff", color: "#111827" } }
+                    - { type: ui-barcode, props: { value: PKG-20481 } }
+                    - { type: ui-barcode, props: { value: "400638133393", type: ean13 } }
+                - { type: ui-code-scanner, props: { bind: cdRead } }
+                - { type: if, props: { when: "{{ api.codes.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.codes }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- code-editor
+            - type: element
+              props: { tag: section }
+              attrs: { id: code-editor, aria-labelledby: code-editor-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.code_editor }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-code-editor, props: { bind: ceText, language: sql, rows: 6, label: Query, completions: [select, from, where, orders, customers, total] } }
+                - { type: if, props: { when: "{{ api.code_editor.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.code_editor }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
@@ -1640,6 +1950,231 @@ root:
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
+            # ---------------------------------------------------------------- editable-table
+            - type: element
+              props: { tag: section }
+              attrs: { id: editable-table, aria-labelledby: editable-table-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.editable_table }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-data-table
+                  props: { rows: "{{ edRows }}", pageSize: 0, addRow: true, deletable: true, bindChanges: edChanges, title: Editable rows, columnsMenu: false }
+                  children:
+                    - { type: ui-data-table-column, props: { field: item, label: Item, edit: text, required: true } }
+                    - { type: ui-data-table-column, props: { field: qty, label: Quantity, edit: number, min: 1 } }
+                    - { type: ui-data-table-column, props: { field: due, label: Due, edit: date, format: date } }
+                    - { type: ui-data-table-column, props: { field: state, label: State, edit: select, options: [Ready, Waiting] } }
+                    - { type: ui-data-table-column, props: { field: ok, label: Checked, edit: checkbox } }
+                - { type: if, props: { when: "{{ api.editable_table.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.editable_table }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- stat
+            - type: element
+              props: { tag: section }
+              attrs: { id: stat, aria-labelledby: stat-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.stat }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }
+                  children:
+                    - { type: ui-stat, props: { label: Revenue, value: "{{ stVal }}", format: currency, currency: EUR, decimals: 0, previous: 41000, changeLabel: vs last month, trend: [3, 5, 4, 6, 8, 7, 9] } }
+                    - { type: ui-stat, props: { label: Wait time, value: 12.5, unit: min, change: 0.08, goodWhen: down } }
+                    - { type: ui-stat, props: { label: Enrolled, value: 640, target: 800 } }
+                    - { type: ui-stat, props: { label: Visitors, value: 1254300, format: compact, change: -0.02 } }
+                - { type: if, props: { when: "{{ api.stat.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.stat }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- description-list
+            - type: element
+              props: { tag: section }
+              attrs: { id: description-list, aria-labelledby: description-list-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.description_list }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-description-list
+                  props: { columns: 3 }
+                  children:
+                    - { type: ui-description-item, props: { label: Reference, value: REF-20481, copy: true } }
+                    - { type: ui-description-item, props: { label: Opened, value: "2026-03-04", format: date } }
+                    - { type: ui-description-item, props: { label: Owner, bind: dlOwner } }
+                    - { type: ui-description-item, props: { label: Stage, bind: dlStage, edit: select, options: [ { value: won, label: Won }, { value: lost, label: Lost } ] } }
+                    - { type: ui-description-item, props: { label: Note, bind: dlNote, edit: multiline, placeholder: Add a note } }
+                - type: ui-item-group
+                  children:
+                    - { type: ui-item, props: { title: Two-step sign-in, description: A code from your phone, icon: "🔐", tone: primary }, children: [ { type: ui-button, props: { label: Set up, size: sm, variant: outline } } ] }
+                    - { type: ui-item, props: { title: Grace Hopper, description: grace@example.com, initials: GH, meta: Owner } }
+                - { type: if, props: { when: "{{ api.description_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.description_list }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- comments
+            - type: element
+              props: { tag: section }
+              attrs: { id: comments, aria-labelledby: comments-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.comments }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-comments, props: { bind: cmThread, user: Grace Hopper, people: [Ada Lovelace, Grace Hopper], resolvable: true } }
+                - { type: if, props: { when: "{{ api.comments.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.comments }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- lightbox
+            - type: element
+              props: { tag: section }
+              attrs: { id: lightbox, aria-labelledby: lightbox-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.lightbox }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-lightbox
+                  props: { bind: lbAt, minWidth: 110, images: [ { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%2393c5fd'/%3E%3Ccircle cx='300' cy='80' r='40' fill='%23fde047'/%3E%3Cpath d='M0 300 140 150l90 90 60-50 110 110z' fill='%231d4ed8'/%3E%3C/svg%3E", caption: Hills }, { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23fdba74'/%3E%3Crect y='200' width='400' height='100' fill='%230ea5e9'/%3E%3Ccircle cx='200' cy='200' r='50' fill='%23ef4444'/%3E%3C/svg%3E", caption: Sunset }, { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'%3E%3Crect width='400' height='300' fill='%23bbf7d0'/%3E%3Crect x='180' y='150' width='40' height='150' fill='%23854d0e'/%3E%3Ccircle cx='200' cy='120' r='80' fill='%2316a34a'/%3E%3C/svg%3E", caption: Tree } ] }
+                - { type: if, props: { when: "{{ api.lightbox.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.lightbox }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- pivot
+            - type: element
+              props: { tag: section }
+              attrs: { id: pivot, aria-labelledby: pivot-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.pivot }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-pivot, props: { rows: "{{ pvRows }}", fields: [ { field: region, label: Region }, { field: rep, label: Person }, { field: date, label: Quarter, part: quarter }, { field: amount, label: Amount } ], down: [region, rep], across: [date], values: [ { field: amount, agg: sum, label: Amount, format: currency, currency: EUR, decimals: 0 } ], heat: true, editable: true, bindCell: pvCell } }
+                - { type: ui-text, props: { variant: muted, text: "{{ pvCell == null ? 'Click a cell for the rows behind it.' : pvCell.rows.length + ' rows behind that cell' }}" } }
+                - { type: if, props: { when: "{{ api.pivot.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.pivot }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- scheduler
+            - type: element
+              props: { tag: section }
+              attrs: { id: scheduler, aria-labelledby: scheduler-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.scheduler }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-scheduler, props: { resources: "{{ shRows }}", events: "{{ shEvents }}", bindEvents: shEvents, bindDate: shDay, from: "08:00", to: "18:00", creatable: true, rowLabel: Room, now: "2026-11-23T10:10" } }
+                - { type: if, props: { when: "{{ api.scheduler.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.scheduler }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- plan
+            - type: element
+              props: { tag: section }
+              attrs: { id: plan, aria-labelledby: plan-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.plan }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-plan, props: { items: "{{ plItems }}", bindItems: plItems, bind: plPick, width: 520, height: 300, grid: 20, viewHeight: 300, tones: { Free: success, Taken: danger }, legend: true } }
+                - { type: if, props: { when: "{{ api.plan.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.plan }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- pdf
+            - type: element
+              props: { tag: section }
+              attrs: { id: pdf, aria-labelledby: pdf-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.pdf }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-pdf, props: { src: blocks/files/hotel-invoice.pdf, bindNotes: pdfNotes, title: An invoice, height: 380 } }
+                - { type: if, props: { when: "{{ api.pdf.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.pdf }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- diff
+            - type: element
+              props: { tag: section }
+              attrs: { id: diff, aria-labelledby: diff-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.diff }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-diff, props: { title: policy.txt, bindView: dfView, before: "Returns within 14 days.\nKeep the receipt.\nRefunds go to the card used.", after: "Returns within 30 days.\nKeep the receipt or the order number.\nRefunds go to the card used." } }
+                - { type: ui-diff, props: { mode: fields, title: Customer, fieldLabels: { name: Name, plan: Plan, seats: Seats }, before: { name: Ada Lovelace, plan: Basic, seats: 3 }, after: { name: Ada King, plan: Basic, seats: 5 } } }
+                - { type: if, props: { when: "{{ api.diff.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.diff }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- log
+            - type: element
+              props: { tag: section }
+              attrs: { id: log, aria-labelledby: log-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.log }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-log, props: { lines: "{{ lgLines }}", title: Worker, height: 130, download: worker.log } }
+                - { type: if, props: { when: "{{ api.log.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.log }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
             # ---------------------------------------------------------------- typography
             - type: element
               props: { tag: section }
@@ -2028,6 +2563,48 @@ root:
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
+            # ---------------------------------------------------------------- banner
+            - type: element
+              props: { tag: section }
+              attrs: { id: banner, aria-labelledby: banner-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.banner }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-banner, props: { title: New., text: Reports can be scheduled now., bind: bnShut }, style: { border-radius: 8 } }
+                - { type: ui-banner, props: { text: "Your trial ends soon.", tone: warning, variant: solid, align: start }, style: { border-radius: 8 } }
+                - { type: if, props: { when: "{{ api.banner.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.banner }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- tour
+            - type: element
+              props: { tag: section }
+              attrs: { id: tour, aria-labelledby: tour-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.tour }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: stack
+                  props: { direction: row, gap: 12, wrap: true }
+                  children:
+                    - { type: ui-button, props: { label: Start the tour }, attrs: { id: tour-a }, on: { click: { action: set_state, key: trStep, value: 0 } } }
+                    - { type: ui-button, props: { label: A second part, variant: outline }, attrs: { id: tour-b } }
+                - { type: ui-tour, props: { bind: trStep, steps: [ { target: "#tour-a", title: It starts here, text: Press Next to go on. }, { target: "#tour-b", title: And goes on, text: The arrow keys work too. } ] } }
+                - { type: if, props: { when: "{{ api.tour.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.tour }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
             # ---------------------------------------------------------------- dialog
             - type: element
               props: { tag: section }
@@ -2379,6 +2956,14 @@ root:
                             - { type: ui-text, props: { variant: code, text: "@radix-ui/colors" } }
                             - { type: ui-text, props: { variant: code, text: "@stitches/react" } }
 
+                # Down the side, opened with Enter: the arrow keys only move.
+                - type: ui-tabs
+                  props: { bind: vTab, orientation: vertical, activation: manual }
+                  style: { max-width: 560 }
+                  children:
+                    - { type: ui-tab-panel, props: { value: profile, label: Profile }, children: [ { type: ui-text, props: { text: Your name and picture. } } ] }
+                    - { type: ui-tab-panel, props: { value: alerts, label: Alerts }, children: [ { type: ui-text, props: { text: What you're told about. } } ] }
+                    - { type: ui-tab-panel, props: { value: billing, label: Billing }, children: [ { type: ui-text, props: { text: Plans and invoices. } } ] }
                 - { type: if, props: { when: "{{ api.tabs.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.tabs }}", as: c }
@@ -2822,6 +3407,46 @@ root:
                 - { type: if, props: { when: "{{ api.chat.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.chat }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- agent
+            - type: element
+              props: { tag: section }
+              attrs: { id: agent, aria-labelledby: agent-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.agent }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-attachment, props: { files: "{{ agFiles }}", bindFiles: agFiles } }
+                - { type: ui-sources, props: { layout: chips, text: "Highs reach 18°C in March [1], and rooms average €165 [2].", items: [ { title: City guide, url: "https://example.com/guide", text: Monthly weather. }, { title: Rates 2026, page: 12 } ] } }
+                - { type: ui-tool-call, props: { title: Searched rooms, name: search_rooms, status: done, duration: 1840, input: { nights: 2 }, output: { found: 14 } } }
+                - { type: ui-tool-call, props: { title: Hold three rooms, name: hold_rooms, status: approval, input: { rooms: 3 }, bindApproval: agOk } }
+                - { type: if, props: { when: "{{ api.agent.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.agent }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- trace
+            - type: element
+              props: { tag: section }
+              attrs: { id: trace, aria-labelledby: trace-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.trace }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - { type: ui-trace, props: { title: Run 12, spans: [ { id: a, name: Answer, kind: agent, start: 0, duration: 4200 }, { id: b, parent: a, name: Search, kind: tool, start: 100, duration: 900, output: { hits: 3 } }, { id: c, parent: a, name: Write, kind: model, start: 1100, duration: 3000, tokens: 812 } ] } }
+                - { type: ui-questionnaire, props: { bind: qnAnswers, bindDone: qnDone, title: A few questions, doneText: "Thank you.", questions: [ { id: what, question: What is it for?, options: [Work, Home], other: true, required: true }, { id: sure, question: How sure are you?, type: scale, labels: [Not, Very] }, { id: note, question: Anything else?, type: text } ] } }
+                - { type: if, props: { when: "{{ api.trace.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.trace }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

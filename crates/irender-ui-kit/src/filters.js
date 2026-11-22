@@ -87,7 +87,38 @@
   const show = (d, v) => (d.type === "date" ? date(v) : d.type === "number" || d.type === "currency" ? number(d, v) : String(v));
 
   // ---- a list filter's values: `options`, or the field's values in `rows`, with counts
+  // With `optionsUrl`, the values found for what's searched; every one seen keeps its label.
+  const remote = new Map(); // field → { q, list, seen, loading, failed, seq }
+  const remoteOf = (d) => remote.get(d.field) ?? remote.set(d.field, { q: null, list: [], seen: new Map(), loading: false, failed: false, seq: 0, timer: 0 }).get(d.field);
+  function lookUp(i, q, wait = 0) {
+    const d = defs[i], r = remoteOf(d), base = resolve(d.optionsUrl);
+    if (typeof base !== "string" || r.q === q) return;
+    r.q = q;
+    clearTimeout(r.timer);
+    r.timer = setTimeout(async () => {
+      const n = ++r.seq;
+      r.loading = true;
+      r.failed = false;
+      try {
+        const res = await fetch(base + (base.includes("?") ? "&" : "?") + new URLSearchParams({ q }), { headers: { accept: "application/json" } });
+        if (!res.ok) throw new Error(String(res.status));
+        const got = await res.json();
+        if (n !== r.seq) return;
+        r.list = (Array.isArray(got) ? got : got?.options ?? []).map((o) => (isObj(o) ? { value: o.value, label: String(o.label ?? o.value), count: o.count ?? null } : { value: o, label: String(o), count: null }));
+        for (const o of r.list) r.seen.set(String(o.value), o);
+      } catch {
+        if (n !== r.seq) return;
+        r.list = [];
+        r.failed = true;
+        r.q = null;
+      }
+      r.loading = false;
+      drawOptions(i, stateOf(i).picked);
+      drawBar();
+    }, wait);
+  }
   function options(d) {
+    if (d.optionsUrl) return [...remoteOf(d).seen.values()];
     const given = resolve(d.options);
     const counts = new Map();
     for (const r of rows()) {
@@ -323,7 +354,7 @@
     if (d.type === "list") {
       const values = takesList(op);
       $("[data-fl-options]", p).hidden = !values;
-      $("[data-fl-search]", p).hidden = !values || options(d).length <= 5;
+      $("[data-fl-search]", p).hidden = !values || (!d.optionsUrl && options(d).length <= 5);
     } else {
       $("[data-fl-values]", p).hidden = !takesValue(op);
       $("[data-fl-b]", p).hidden = $("[data-fl-and]", p).hidden = op !== "between";
@@ -345,10 +376,12 @@
   }
   function drawOptions(i, picked) {
     const p = pane(i), d = defs[i];
-    const list = options(d);
     const search = $("[data-fl-search]", p);
-    search.hidden = list.length <= 5 || !takesList($("[data-fl-op]", p).value);
-    const q = search.value.trim().toLowerCase();
+    const far = d.optionsUrl ? remoteOf(d) : null;
+    if (far) lookUp(i, search.value.trim(), far.q === null ? 0 : 250);
+    const list = far ? [...far.list, ...picked.filter((v) => !far.list.some((o) => same(o.value, v))).map((v) => far.seen.get(String(v)) ?? { value: v, label: String(v), count: null })] : options(d);
+    search.hidden = (!far && list.length <= 5) || !takesList($("[data-fl-op]", p).value);
+    const q = far ? "" : search.value.trim().toLowerCase();
     const shown = list.filter((o) => !q || o.label.toLowerCase().includes(q) || picked.some((v) => same(v, o.value)));
     const box = $("[data-fl-options]", p);
     // Picked values that aren't options (any more) stay, so nothing is dropped unseen.
@@ -370,7 +403,7 @@
     if (!shown.length) {
       const none = document.createElement("p");
       none.setAttribute("data-fl-none", "");
-      none.textContent = list.length ? L("No matches") : L("No values");
+      none.textContent = far?.loading ? L("Loading…") : far?.failed ? L("Couldn't load the values") : list.length || (far && search.value.trim()) ? L("No matches") : far && far.q !== null && far.seq === 0 ? L("Loading…") : L("No values");
       box.append(none);
     }
   }

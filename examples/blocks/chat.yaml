@@ -303,6 +303,8 @@ root:
                 messages: "{{ chat }}"
                 typing: "{{ waiting }}"
                 label: Conversation
+                # Copy, ask again, edit and rate, under each message.
+                actions: [copy, retry, edit, up, down]
                 # A reply's `ui` without `html`: rendered in the browser, or by the server
                 # when the module isn't there.
                 render: { browser: ../irender/irender_wasm.wasm, url: ../api/render }

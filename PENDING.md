@@ -2,11 +2,11 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-19._
+_Last updated: 2026-11-22._
 
 ## Suggested next
 
-1. The Gantt chart (with a keyboard-ready table), the dashboard grid, touch dragging, saved data table views, grouping for tables from an API and quarter presets are in (2026-11-19–20). Next: `cargo fmt` in CI (one reformatting commit).
+1. Forty-two components landed on 2026-11-22 (below). Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
 
@@ -21,19 +21,39 @@ _Last updated: 2026-11-19._
 
 ## UI kit: not built yet
 
+- [x] **Forty-two components** (2026-11-22), each generic, with a gallery section marked New, a place in a block and browser tests (`tests/browser/components.rs`). Not done yet, by component:
+  - [ ] **Editable cells** (`edit` on data table columns; block data-table-08): no editing in nested, grouped or API-grouped tables; no drag handle to fill; one date at a time (the browser's own date field); undo is the table's, not the form's. A remote table's edits are the page's to save.
+  - [ ] **`ui-import`** (import-01): no `.xls`; everything is read in the browser, so files past about 50,000 rows are slow; no mapping of values (a sheet's "M" to Male), only of columns; matches aren't remembered between files.
+  - [ ] **`ui-repeater`** (invoice-01, profile-01): a row's fields are its own controls; a kit component that binds a state key (a combobox, a date picker) can't be one. Rows move without animation.
+  - [ ] **`ui-form`** (invoice-01, profile-01, data-table-08): no asynchronous rules (is this name taken?), and a field inside a list item isn't tracked.
+  - [ ] **`ui-stepper`** (intake-01): no saved furthest step, so going back asks for Next again unless steps have `valid`.
+  - [ ] **`ui-comments`, `ui-mention-input`** (record-01, review-01): plain text only, no Markdown or attachments; `people` are in the page, not searched from an API.
+  - [ ] **`ui-phone-input`** (intake-01): groups and lengths of some 40 countries, general rules for the rest; numbers aren't checked against real ranges. **`ui-time-picker`**: no time zones.
+  - [ ] **`ui-query-builder`** (rules-01): fields compare with values, not with other fields; nothing turns the query into SQL or a URL.
+  - [ ] **`ui-tree-select`**: as `ui-tree`, every node is drawn. **`ui-transfer-list`**: options come all at once.
+  - [ ] **`ui-pivot`** (pivot-01): computed in the browser over the rows given; no calculated fields, running totals or groups by range.
+  - [ ] **`ui-scheduler`** (schedule-01): bookings repeat, but one day of a repeating one isn't moved on its own; no dependencies or time zones; every row is drawn; making one by dragging is for a mouse.
+  - [ ] **`ui-plan`** (plan-01): items are moved, not sized or turned on the plan; no layers or floors to switch between (filter `items` instead).
+  - [ ] **`ui-pdf`** (review-01): needs pdf.js from a CDN (or `library`); no thumbnails, outline, form filling or search of its own; notes are kept beside the file, not written into it.
+  - [ ] **`ui-qr-code`** takes a logo (a picture, an icon or letters); a logo from another site that doesn't share it is left out of a saved file.
+  - [ ] **`ui-code-scanner`** (scan-01): the camera needs `BarcodeDetector` (Chrome on Android and macOS, not Safari or Firefox); elsewhere only the field. Idea: a WebAssembly decoder on demand.
+  - [ ] **`ui-code-editor`** (rules-01, ops-01): the highlighter's ten languages; no folding, find and replace, several carets or language server.
+  - [ ] **`ui-diff`** (record-01, review-01, ops-01): two versions only; no accepting or rejecting a change. **`ui-log`**: keeps the last 2,000 lines drawn.
+  - [ ] **`ui-image-cropper`, `ui-signature`** (profile-01, invoice-01): straightening by a free angle isn't offered; a typed signature uses the device's own script font.
+  - [ ] **`ui-trace`, `ui-tool-call`, `ui-questionnaire`, `ui-sources`, `ui-attachment`** (agent-01): a message has `sources` and `attachments`; the `[1]`s in a message's Markdown aren't links (only in `ui-sources`' own `text`).
 - [ ] **Gaps against client-ui-next** (`~/Documents/GitHub/client-ui-next/components`, compared 2026-11-17). Generic components it uses that no kit has yet, most used first:
   - [x] **Filters** (2026-11-18): `ui-filters` + `ui-filter`, a side panel of list, number, currency, date and text fields with operators, shown as removable chips, writing the chart kit's `filter` format (block data-table-06). Not done yet:
     - [x] Finding a field (2026-11-20): past eight fields (or `searchFields`), a box over the panel's list narrows it by name or section (block data-table-06, gallery). Every field is still in the list; there's no "Add filter" step that keeps fields out until picked.
     - [x] Date presets (today, last 7 days, this month, this quarter, …) and saved views (`bindViews`) (2026-11-18).
     - [x] Dates pick on the kit's calendar, and amounts are grouped as typed with the currency's symbol (2026-11-18). No quarter type yet.
-    - [ ] List values come from `options` or `rows` only, not from an API as you search, so very long lists (thousands of customers) need their values in state.
+    - [x] List values from an API as they're searched for (`optionsUrl`, 2026-11-22). A chip for a value picked before and not looked up since shows its raw value.
   - [x] **Tree view** (2026-11-18): `ui-tree` selects, checks (with partial parents), searches, adds by name, deletes one or the checked, and moves nodes by dragging or Alt and the arrow keys, writing to `bindNodes` and firing events (block tree-01, gallery section). Not done yet:
     - [x] Renaming in place (`renamable`: F2, a double click), icons per node, and children loaded from `childrenUrl` when a node first opens (2026-11-20).
     - [ ] Very large trees draw every node (no windowing). Search doesn't look inside children that haven't loaded.
   - [x] **Calendar views** (2026-11-18): `ui-event-calendar`, events in month, week (hours, overlaps side by side) and list views, coloured by category, with `bindEvent`, `bindDay` and the keyboard (block calendar-01, gallery section). Not done yet:
     - [x] Year and day views (2026-11-19).
     - [x] Events move by dragging (to another day, or time in the week and day views, and resized by their foot) or with Alt and the arrow keys, written back with `bindEvents` (2026-11-19). Adding is still up to the page (`bindDay`), and the year and list views don't move events.
-    - [ ] No recurring events: each one is listed. No time zones: times are local to the browser.
+    - [x] Recurring events (`repeat`, 2026-11-22): days, weeks on weekdays, months, years, until, count and left-out days; moving one day makes it an event of its own (block calendar-01). Not done yet: no editing of the rule from the calendar, "the third Monday" rules, or time zones (times are local to the browser).
   - [x] **File upload and preview** (2026-11-18): `ui-file-upload`, a drop zone with type, size and count checks, uploads with progress, errors and retry, a grid or list, previews of images, PDFs, CSV and .xlsx (read in the browser) and text, and Download all as a zip, without libraries (block expense-01, gallery section). Not done yet:
     - [ ] No thumbnails for PDFs or sheets (client-ui-next draws the first page); they show a type badge.
     - [ ] Word and PowerPoint files aren't previewed, only downloaded; .xls (the old format) isn't read.
@@ -59,7 +79,7 @@ _Last updated: 2026-11-19._
     - [ ] No notification preferences (which kinds, by email or in the app), and no grouping by day.
     - [ ] Nothing arrives by itself: new notifications need the page's state to change (a `ui-live-data` feed, or the host).
   - [x] **Progress ring** (2026-11-18): `ui-progress-ring`, following state without a script.
-  - [x] **Status badge, rating and password checklist** (2026-11-18): `ui-status-badge` (built-in tones for common statuses, `tones` and `labels`), `ui-rating` (pick, or show a fractional average) and `ui-password-checklist` (rules, strength, `bindValid`; in the signup block). The rating has no half-star picking.
+  - [x] **Status badge, rating and password checklist** (2026-11-18): `ui-status-badge` (built-in tones for common statuses, `tones` and `labels`), `ui-rating` (pick, or show a fractional average) and `ui-password-checklist` (rules, strength, `bindValid`; in the signup block). Half stars can be picked (`half`, 2026-11-22).
   - [x] **Number and currency input** (2026-11-18): `ui-number-input`, grouped as typed in the locale's way, with a currency symbol, prefix or suffix, steps and clamping.
   - [x] **Sidebar icon rail** (2026-11-19): `ui-rail-layout` + `ui-rail-panel`, a rail of icons each opening its own panel, with the section and the panel's open state in state (block workspace-01, gallery section). The panel resizes by dragging its edge (2026-11-19). The rail can't be on the right.
   - [x] **Resizable panels** (2026-11-19): `ui-resizable` + `ui-resizable-panel`, dragging and the keys, limits, collapsible panels, sizes in state (block mail-01, gallery section). Sizes are percentages only (no fixed px panel).
@@ -69,7 +89,7 @@ _Last updated: 2026-11-19._
   - [x] **Right to left** (2026-11-19): `lang` of a right-to-left language sets `dir="rtl"`; the UI and Markdown kits use logical CSS (inline start and end), mirror their directional icons and popovers, and swap Left and Right in keys and drags. Not done: a block's own styles (`margin-left` in a document) aren't converted; English text inside right-to-left pages keeps the browser's bidi ordering (".Acme Inc"); and the chart kit doesn't mirror (axes stay left to right).
 - [x] **Keyboard-driven components** (2026-11-18): data table, date picker, context menu, menubar, navigation menu, one-time-code input.
 - [x] The UI kit gallery no longer scrolls sideways on a phone (2026-11-22): `ui-theme-option` wraps its choices, and `ui-hover-card` stays on screen and out of the page's width. Not done yet: in a right-to-left part of a left-to-right page Firefox puts a hover card at the screen's left edge (a right-to-left page is fine); without anchor positioning (Safari before 26, Firefox ESR) a hover card can still run off the side; `ui-tooltip` isn't kept on screen.
-- [x] `ui-tabs` by keyboard (2026-11-22): the list is one stop for Tab, and the arrow keys, Home and End move and select; a list with more tabs than fit keeps the selected one in view and fades on the sides with more. Not done yet: no vertical tabs, and no choice to move focus without selecting (for panels that are slow to show).
+- [x] `ui-tabs` by keyboard (2026-11-22): the list is one stop for Tab, and the arrow keys, Home and End move and select; a list with more tabs than fit keeps the selected one in view and fades on the sides with more. Vertical tabs and `activation: manual` (2026-11-22).
 - [x] No example page scrolls sideways at 390 or 1280px wide (all 57 checked in Chrome, 2026-11-22): a `ui-tabs` list scrolls within itself, `ui-toggle-group` wraps when it's wider than what it's in, and `ui-input-otp`'s boxes narrow to fit. Not done yet: at 320px the UI kit gallery is 6px too wide (the Card section's member list); narrower widths of the other pages aren't checked.
 - [ ] The gallery's Live section needs `python3 examples/serve.py`. Plain `python3 -m http.server` has no live endpoints, so the section shows `error` there.
 - [ ] **`ui-data-table` gaps** (shipped 2026-11-18 with sorting, column filters, search, paging, selection with bulk actions, detail rows, a View menu, summaries, formats, badge/progress/sparkline cells, and charts both ways; blocks data-table-01 to -03):
@@ -84,7 +104,7 @@ _Last updated: 2026-11-19._
   - [ ] Formats are applied by the browser, so the server's HTML shows raw values until the script runs.
   - [x] The server's starting order is the browser's (2026-11-20): numbers by value, case and Latin accents aside, checked against Chrome, WebKit and Firefox. Scripts other than Latin (and language rules such as Swedish å after z) still follow code points.
   - [x] Interface text follows the document's `labels` (2026-11-19).
-  - [x] CSV export of the rows that pass, in the columns shown (2026-11-19). A remote table exports only the rows it has loaded; no Excel (.xlsx) file.
+  - [x] CSV export of the rows that pass, in the columns shown (2026-11-19). Excel too (2026-11-22), with a name ending in `.xlsx`. A remote table exports only the rows it has loaded.
 - [ ] **Date picker gaps** (`ui-date-picker` and `ui-calendar` shipped 2026-11-18: days with a time, months, quarters and years on a financial year, single, range and multiple, limits, disabled days, presets, month and year menus, `bindRange`; the data table's date filter uses the calendar):
   - [x] Typing a date (`input: true`, 2026-11-18): the locale's numeric order, month names, two-digit years, ranges, times, quarters and years, with errors for `ui-field`.
   - [ ] Typing: month names are matched in the locale and in English only; error messages are English.
@@ -113,7 +133,7 @@ _Last updated: 2026-11-19._
   - [x] `animate` (2026-11-20): parts of twelve drawings float, blink, turn, twinkle, drift or wobble, and stop for reduced motion (gallery's Animate switch, block error-404).
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
 - [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up; and app pages beyond shadcn's: a report builder (report-01), an incident room (incident-01) and a sales pipeline (crm-01).
-- [ ] **shadcn/ui components still missing, beyond the keyboard-driven ones above:** item, and the chat ones not covered by the chat components below (attachment, questionnaire, trace).
+- [x] **shadcn/ui components still missing:** item, attachment, questionnaire and trace are in (2026-11-22).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [x] Table, Image and Rule on the toolbar (2026-11-21): a table to fill in with Tab between its cells, an image from a bar for its address and description, a rule; in the Markdown tab, their Markdown. Not done yet: no columns added or removed from the toolbar (a row is).
   - [x] Undo takes back every change (2026-11-22): the rich editor keeps its own history (content and caret, typing merged into one step), for ⌘Z, ⌘⇧Z, Ctrl+Y and the Edit menu, so quoting, leaving a quote or code block, ticking a task and a table's new row are undone too, alike in every browser. Not done yet: the history is kept for the page's life only, and holds the last 100 steps.
@@ -122,7 +142,7 @@ _Last updated: 2026-11-19._
 - [ ] **Chat gaps** (`ui-conversation`, `ui-message`, `ui-chat-input`):
   - [x] Messages show their content as Markdown when irender-markdown-kit is registered, rendered on the server and again as a reply streams (2026-11-18).
   - [x] Code blocks are highlighted, with a copy button, in messages and everywhere else `ui-markdown` shows Markdown, and in the editor's preview (2026-11-19). Not in the rich text editor itself, where the code stays plain while you edit it; and a streamed reply's fence is highlighted again on each chunk.
-  - [ ] No citations or footnotes.
+  - [x] Sources under a message and `[1]`s that show them (`ui-sources`, 2026-11-22). Not done yet: citations inside a message's Markdown, and footnotes.
   - [x] Unfinished Markdown in a streamed reply (2026-11-22): the message is `streaming` while it arrives, and formatting left open at its end (`**`, code spans, links, a table's first row) shows as it will once closed. Not done yet: a mark right after a letter or digit waits until it closes (so `2*3` isn't emphasis), and the server's render of a `streaming` message isn't finished.
   - [ ] A streamed reply re-renders its whole Markdown on each chunk.
   - [ ] A message's `html` (and `ui`) is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
@@ -132,20 +152,20 @@ _Last updated: 2026-11-19._
   - [ ] Renders on the main thread. Idea: a worker for large UIs.
   - [ ] Each message's UI carries its own copy of the styles it uses.
   - [ ] The conversation list in a sidebar can't star, rename or delete a thread on its own; the chat block hands those to the host with `call`.
-  - [ ] No message actions (copy, retry, thumbs up/down) or edit-and-resend; put buttons in a `ui-message`'s children for messages written in the document.
-  - [ ] No attachments or images in the input, and no tool-call or reasoning ("trace") blocks.
+  - [x] Message actions (2026-11-22): copy, try again, edit and resend, up and down (block chat).
+  - [x] Attachments in the input (`bindFiles`), tool calls and traces (2026-11-22). Images aren't pasted into the input yet.
 - [x] **`ui-carousel`** (2026-11-20): dots, `loop`, `autoplay` with a pause button, and stepping to each slide's own start. Not done yet: no fade transition (it always scrolls).
-  - [ ] The endpoint gets `{ messages }` only: no extra body fields or headers (auth), and no retry after a failure.
+  - [x] `body`, `headers` and Try again after a failure (2026-11-22).
   - [ ] Replies in a thread don't nest further, and a reply can't be sent into a thread from the input.
   - [ ] A streamed reply rebuilds its message on each chunk, so screen readers may announce it more than once.
 - [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.
 - [ ] **`ui-combobox`:**
   - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
   - [ ] No chip animations.
-  - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. Idea: a `labels` prop or an initial lookup request.
+  - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. `labels` and `lookup` give its name (2026-11-22).
 - [ ] **Theme options:**
   - [ ] Picking and applying them needs irender-ui-kit (its picker and early script), like the mode. Without the kit a page shows the default choices.
-  - [ ] A document can't read the current choice from `state` (to show "Rose" in text, say); the picker and `window.__irenderTheme.option()` know it. Idea: an option to mirror choices into state keys.
+  - [x] `ui-theme-option`'s `bind` mirrors the choice into state, and picks what's set there (2026-11-22).
   - [x] Density and text size reach everything (2026-11-21): `$space.*` and `$font.size.*` follow `space.scale` and `font.scale`, and so do the built-in `button`, `input` and numeric `stack` gaps, charts (text, tooltip padding), flow diagrams, the switch and the kit's remaining paddings. A choice also applies to part of a page through `data-theme-<option>` on a node (theme block). Not done yet: the kit's icon sizes, 1px borders and a few hairline offsets stay fixed; charts' symbol and legend marker sizes don't scale; `ui-theme-option` only picks the page's choice, not a part's.
   - [x] Separate scales (2026-11-21): Padding (`space.inset`), Gaps (`space.gap`), Control size (`size.control`) and Icon size (`size.icon`) options, on top of density, in the kit, built-ins, charts, flow and markdown. Not done yet: an explicit `ui-icon` `size` stays as given; chart symbol and legend marker sizes don't follow Icon size.
   - [x] Typography and shape (2026-11-21): Heading font, Weight, Line height and Letter spacing; Borders, Shadows (`elevation`), Control radius and Card radius, in the kit, the built-in `button` and `input`, chart tooltips, flow nodes and Markdown; the kit sets the page's `body` font. Not done yet: line height, letter spacing and heading font have no default value, so picking the default on part of a page doesn't undo a choice above it; bespoke shadows (focus rings, drawers' edges) and 1.5–3px accent borders stay as they are.
@@ -200,7 +220,7 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - Keeping a milestone's `dependencies` in step with its edges, and the delete impact check, need code: listen for `connect` / `delete` and `call` the host.
   - New nodes get ids like `custom_1`, where the app uses UUIDs. Idea: an `idPattern` or a host hook for new ids.
 - [ ] **Check against a real exported canvas:** export one from the process canvas sidebar and load it into `examples/flow/process-01.yaml`.
-- [ ] **The yard view doesn't need the kit:** a pan/zoom viewport around absolutely positioned elements would cover it.
+- [x] **The yard view** is `ui-plan` in the UI kit (2026-11-22).
 
 ## Icon kit: packs not drawn yet
 

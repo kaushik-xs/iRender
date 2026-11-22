@@ -1,0 +1,88 @@
+# Block: a restaurant's tables on its floor plan. `ui-plan` zooms with the wheel or a pinch,
+# picks with a click or the arrow keys, and moves what's dragged (on the grid); the colours
+# follow each table's status.
+# - The panel changes the picked table's status, the search goes to a table, and the party
+#   size fades the tables that are too small.
+#
+#   cargo run -p irender-cli -- render examples/blocks/plan-01.yaml --ui-kit --icon-kit -o plan-01.html
+version: 1
+state:
+  toast: null
+  picked: null
+  item: null
+  party: 1
+  tables:
+    - { id: t1, label: "1", sublabel: 2 seats, shape: circle, x: 60, y: 60, width: 90, seats: 2, status: Free }
+    - { id: t2, label: "2", sublabel: 2 seats, shape: circle, x: 200, y: 60, width: 90, seats: 2, status: Taken, guest: Arjun, since: "19:10" }
+    - { id: t3, label: "3", sublabel: 4 seats, x: 340, y: 60, width: 140, height: 90, seats: 4, status: Booked, guest: Mehta, since: "20:00" }
+    - { id: t4, label: "4", sublabel: 6 seats, x: 540, y: 60, width: 200, height: 90, seats: 6, status: Taken, guest: Fernandes, since: "18:45" }
+    - { id: t5, label: "5", sublabel: 4 seats, x: 60, y: 240, width: 140, height: 90, seats: 4, status: Free }
+    - { id: t6, label: "6", sublabel: 8 seats, x: 260, y: 240, width: 220, height: 100, seats: 8, status: Cleaning }
+    - { id: t7, label: "7", sublabel: 2 seats, shape: circle, x: 540, y: 240, width: 90, seats: 2, status: Free }
+    - { id: t8, label: "8", sublabel: 2 seats, shape: circle, x: 660, y: 240, width: 90, seats: 2, status: Booked, guest: Kaur, since: "20:30" }
+    - { id: bar, label: Bar, x: 60, y: 420, width: 420, height: 70, locked: true, seats: 0 }
+    - { id: kitchen, label: Kitchen, shape: polygon, x: 540, y: 400, points: [ [0, 0], [300, 0], [300, 140], [60, 140] ], locked: true, seats: 0 }
+    - { id: door, label: In, shape: pin, x: 880, y: 130, tone: primary, locked: true, seats: 0 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1240px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Floor" } }
+                - { type: ui-text, props: { variant: muted, text: "Tonight · 8 tables" } }
+            - { type: ui-field, props: { label: Party of }, children: [ { type: ui-number-input, props: { bind: party, min: 1, max: 12, stepper: true }, style: { width: 130px } } ] }
+
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 280px" } }
+          children:
+            - type: ui-plan
+              props:
+                items: "{{ tables }}"
+                bindItems: tables
+                bind: picked
+                bindItem: item
+                width: 940
+                height: 560
+                grid: 20
+                viewHeight: 520
+                legend: true
+                search: true
+                filter: { seats: { from: "{{ party == 1 ? 0 : party }}" } }
+                tones: { Free: success, Taken: danger, Booked: warning, Cleaning: info }
+            - type: ui-card
+              props: { title: "{{ item == null ? 'Table' : 'Table ' + item.label }}" }
+              children:
+                - type: if
+                  props: { when: "{{ item == null }}" }
+                  children: [ { type: ui-text, props: { variant: muted, text: Pick a table. } } ]
+                - type: if
+                  props: { when: "{{ item != null }}" }
+                  children:
+                    - type: stack
+                      style: { gap: 16px }
+                      children:
+                        - type: ui-description-list
+                          children:
+                            - { type: ui-description-item, props: { label: Status }, children: [ { type: ui-status-badge, props: { status: "{{ item.status }}", tones: { Free: success, Taken: danger, Booked: warning, Cleaning: info } } } ] }
+                            - { type: ui-description-item, props: { label: Seats, value: "{{ item.seats }}" } }
+                            - { type: ui-description-item, props: { label: Guest, value: "{{ item.guest }}" } }
+                            - { type: ui-description-item, props: { label: Since, value: "{{ item.since }}" } }
+                        - type: ui-button
+                          props: { label: Call the guest, variant: outline, icon: bell }
+                          on: { click: { action: set_state, key: toast, value: { title: "Message sent to table {{ item.label }}" } } }
+        - { type: ui-toaster, props: { bind: toast } }

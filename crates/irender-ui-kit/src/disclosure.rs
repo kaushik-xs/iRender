@@ -170,6 +170,8 @@ pub struct TabPanel;
 
 const TABS_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the `value` of the open tab").required(),
+    PropDef::new("orientation", PropKind::Enum(&["horizontal", "vertical"]), "`vertical`: the tabs in a column beside their panel, across on a narrow screen (default `horizontal`)"),
+    PropDef::new("activation", PropKind::Enum(&["automatic", "manual"]), "`manual`: the arrow keys move between tabs, and Enter or Space opens one, for panels that are slow to show"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
 ];
 const TAB_PANEL_PROPS: &[PropDef] = &[
@@ -179,6 +181,20 @@ const TAB_PANEL_PROPS: &[PropDef] = &[
 
 static TABS: LazyLock<StyleBlock> =
     LazyLock::new(|| StyleBlock::from_pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-width", "0")]));
+static TABS_VERTICAL: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::new().nest(
+        "@media (min-width: 641px)",
+        StyleBlock::from_pairs(&[("display", "grid"), ("grid-template-columns", "max-content minmax(0, 1fr)"), ("gap", gap!(8, 20)), ("align-items", "start")])
+            .nest("& > [role=tabpanel]", StyleBlock::from_pairs(&[("grid-column", "2")]))
+            .nest("& > [role=tablist]", StyleBlock::from_pairs(&[("grid-column", "1"), ("grid-row", "1 / span 100")])),
+    )
+});
+static TAB_LIST_VERTICAL: LazyLock<StyleBlock> = LazyLock::new(|| {
+    StyleBlock::new().nest(
+        "@media (min-width: 641px)",
+        StyleBlock::from_pairs(&[("flex-direction", "column"), ("align-items", "stretch"), ("max-height", "100%"), ("overflow", "visible")]).nest("& > button", StyleBlock::from_pairs(&[("justify-content", "flex-start")])),
+    )
+});
 const TABS_SCRIPT: &str = include_str!("tabs.js");
 // More tabs than fit scroll within the list, which fades on the sides with more.
 static TAB_LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -261,11 +277,19 @@ impl Component for Tabs {
             })
             .collect();
 
+        let vertical = cx.prop_string(node, "orientation").as_deref() == Some("vertical");
+        let manual = cx.prop_string(node, "activation").as_deref() == Some("manual");
         let mut el = cx.element("div", node);
         el.base_style_ref(&TABS);
+        if vertical {
+            el.base_style_ref(&TABS_VERTICAL);
+        }
         cx.open(&el, node)?;
         let mut list = cx.part("div", node, "list");
-        list.base_style_ref(&TAB_LIST).attr("role", "tablist").behavior("ui-tabs", json!({}));
+        list.base_style_ref(&TAB_LIST).attr("role", "tablist").behavior("ui-tabs", json!({ "vertical": vertical, "manual": manual }));
+        if vertical {
+            list.base_style_ref(&TAB_LIST_VERTICAL).attr("aria-orientation", "vertical");
+        }
         cx.global_js("ui-tabs", TABS_SCRIPT);
         cx.open(&list, node)?;
         for (i, (value, label)) in panels.iter().enumerate() {
@@ -552,6 +576,7 @@ pub struct ThemeOption;
 const THEME_OPTION_SCRIPT: &str = include_str!("theme_option.js");
 const THEME_OPTION_PROPS: &[PropDef] = &[
     PropDef::new("option", PropKind::String, "The theme option it picks, from `theme.options`, e.g. `palette`").required(),
+    PropDef::new("bind", PropKind::StateKey, "State key that gets the choice, e.g. `rose`, to show it or use it on the page; setting it picks that choice"),
     PropDef::new("swatch", PropKind::Any, "A token each choice is shown with as a colour dot, e.g. `color.primary`, or a list of them"),
     PropDef::new("label", PropKind::Any, "The group's name for screen readers (default: the option's label)"),
     PropDef::new("variant", PropKind::Enum(TOGGLE_VARIANTS), "Default `outline`"),
@@ -612,7 +637,7 @@ impl Component for ThemeOption {
             .base_style_ref(&TOGGLE_GROUP)
             .attr("role", "group")
             .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(option.label.clone())))
-            .behavior("ui-theme-option", json!({ "option": name, "fallback": option.default }));
+            .behavior("ui-theme-option", json!({ "option": name, "fallback": option.default, "bind": cx.prop_string(node, "bind") }));
         cx.open(&group, node)?;
         // The server can't know the stored choice; the behaviour corrects `aria-pressed`.
         for (key, c) in &option.choices {

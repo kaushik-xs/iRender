@@ -1,0 +1,79 @@
+# Block: counting stock with a phone or a handheld scanner, in a library, a shop or a store
+# room. `ui-code-scanner` reads with the camera where the browser can, and a field takes
+# what a scanner types; each code read is listed. The counts are put right in the table, and
+# a label is printed for what's picked.
+#
+#   cargo run -p irender-cli -- render examples/blocks/scan-01.yaml --ui-kit --icon-kit -o scan-01.html
+version: 1
+state:
+  code: ""
+  seen: []
+  label: "9780141439518"
+  counts:
+    - { id: "9780141439518", title: Pride and Prejudice, shelf: A2, expected: 4, counted: 4 }
+    - { id: "9780307474278", title: The Da Vinci Code, shelf: B1, expected: 2, counted: 1 }
+    - { id: "9780061120084", title: To Kill a Mockingbird, shelf: A2, expected: 6, counted: 6 }
+    - { id: "9780451524935", title: "1984", shelf: A3, expected: 5, counted: 7 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1040px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Stock count" } }
+                - { type: ui-text, props: { variant: muted, text: "Branch library · fiction" } }
+
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "minmax(0, 320px) minmax(0, 1fr)" } }
+          children:
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: Scan }
+                  children:
+                    - type: stack
+                      style: { gap: 12px }
+                      children:
+                        - { type: ui-code-scanner, props: { bind: code, bindList: seen, continuous: true, sound: true, label: Start the camera } }
+                        - type: ui-item-group
+                          props: { label: Read so far }
+                          children:
+                            - type: list
+                              props: { items: "{{ seen }}", as: s }
+                              style: { display: contents }
+                              children: [ { type: ui-item, props: { size: sm, title: "{{ s }}", icon: check, tone: success } } ]
+                - type: ui-card
+                  props: { title: Label }
+                  children:
+                    - type: stack
+                      style: { gap: 12px, align-items: center }
+                      children:
+                        - { type: ui-barcode, props: { value: "{{ label }}", type: ean13, download: label.png } }
+                        - { type: ui-qr-code, props: { value: "https://library.example/b/{{ label }}", size: 150, logoIcon: bookmark, logoShape: circle, download: label-qr.png } }
+                        - { type: ui-masked-input, props: { bind: label, mask: "#############", label: ISBN } }
+            - type: ui-card
+              props: { title: Counts }
+              children:
+                - type: ui-data-table
+                  props: { rows: "{{ counts }}", search: true, pageSize: 0, addRow: Add a title, columnsMenu: false }
+                  children:
+                    - { type: ui-data-table-column, props: { field: id, label: ISBN, edit: text, required: true, unique: true } }
+                    - { type: ui-data-table-column, props: { field: title, label: Title, edit: text, required: true } }
+                    - { type: ui-data-table-column, props: { field: shelf, label: Shelf, edit: select, options: [A2, A3, B1] } }
+                    - { type: ui-data-table-column, props: { field: expected, label: Expected, align: right, summary: sum } }
+                    - { type: ui-data-table-column, props: { field: counted, label: Counted, edit: number, min: 0, summary: sum } }

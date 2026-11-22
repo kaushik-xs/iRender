@@ -3,7 +3,7 @@
 // select it, as a click does. When there are more tabs than fit, the selected one and the
 // focused one are kept in view, and the sides with more get `data-more` for the fade.
 // Which tab is selected is state, so the runtime redraws the rest.
-(window.__irenderBehaviors ||= {})["ui-tabs"] = (el) => {
+(window.__irenderBehaviors ||= {})["ui-tabs"] = (el, api) => {
   const tabs = () => [...el.children].filter((t) => t.getAttribute("role") === "tab");
   const selected = () => tabs().find((t) => t.getAttribute("aria-selected") === "true");
   // Room for the fade beside a tab brought into view.
@@ -45,12 +45,15 @@
     const list = tabs(), i = list.indexOf(e.target);
     if (i < 0) return;
     const step = getComputedStyle(el).direction === "rtl" ? -1 : 1;
-    const to = { ArrowRight: i + step, ArrowLeft: i - step, Home: 0, End: list.length - 1 }[e.key];
+    // In a column, up and down (on a narrow screen the column is a row again).
+    const column = api.config.vertical && getComputedStyle(el).flexDirection === "column";
+    const to = { ...(column ? { ArrowDown: i + 1, ArrowUp: i - 1 } : { ArrowRight: i + step, ArrowLeft: i - step }), Home: 0, End: list.length - 1 }[e.key];
     if (to === undefined) return;
     e.preventDefault();
     const next = list[(to + list.length) % list.length];
     next.focus({ preventScroll: true });
-    next.click();
+    // Only moved to: Enter or Space, as on any button, opens it.
+    if (!api.config.manual) next.click();
   });
   // By keyboard: scrolling under a pressed pointer would lose its click, which selects
   // the tab and so reveals it.

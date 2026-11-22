@@ -1,0 +1,88 @@
+# Block: a price list edited in the table, as in a spreadsheet, for a retail range.
+# - Cells with `edit` are moved through with the arrow keys and edited with Enter, F2, a
+#   double click or by typing; Tab goes to the next one. Ranges are picked with Shift,
+#   copied, pasted (from a spreadsheet too), filled down with Ctrl+D and cleared.
+# - `required`, `min`, `unique` and `pattern` mark what's wrong, and the red button shows
+#   only those rows. ⌘Z and Ctrl+Z take edits back.
+# - `bindChanges` says what changed, so the form around the table knows its unsaved
+#   changes: the bar at the foot saves them or puts them back.
+# - Add product adds a row, Delete in the bulk bar removes the picked ones, and Export
+#   writes an Excel file.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-08.yaml --ui-kit --icon-kit -o data-table-08.html
+version: 1
+state:
+  toast: null
+  dirty: false
+  wrong: []
+  changes: {}
+  picked: []
+  products:
+    - { id: p1, sku: TEA-001, name: Assam loose leaf, category: Tea, price: 420, cost: 260, stock: 140, launch: "2025-03-01", live: true }
+    - { id: p2, sku: TEA-002, name: Darjeeling first flush, category: Tea, price: 780, cost: 510, stock: 36, launch: "2026-04-12", live: true }
+    - { id: p3, sku: COF-001, name: Chikmagalur medium roast, category: Coffee, price: 560, cost: 330, stock: 88, launch: "2024-11-20", live: true }
+    - { id: p4, sku: COF-001, name: Cold brew pack, category: Coffee, price: 240, cost: 150, stock: 210, launch: "2026-02-02", live: true }
+    - { id: p5, sku: MUG-014, name: Stoneware mug, category: Homeware, price: 0, cost: 180, stock: 62, launch: "2025-08-15", live: false }
+    - { id: p6, sku: MUG-015, name: "", category: Homeware, price: 690, cost: 300, stock: 18, launch: "2026-06-30", live: false }
+    - { id: p7, sku: INF-003, name: Glass infuser, category: Homeware, price: 350, cost: 170, stock: 95, launch: "2025-01-10", live: true }
+    - { id: p8, sku: TEA-009, name: Masala chai blend, category: Tea, price: 310, cost: 190, stock: 320, launch: "2025-10-01", live: true }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1200px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Price list" } }
+                - { type: ui-text, props: { variant: muted, text: "Click a cell and type. Paste straight from a spreadsheet." } }
+
+        - type: ui-form
+          props: { keys: [products], bindDirty: dirty, guard: true }
+          on:
+            submit:
+              - { action: set_state, key: changes, value: {} }
+              - { action: set_state, key: dirty, value: false }
+              - { action: set_state, key: toast, value: { title: Price list saved, variant: success } }
+          style: { display: flex, flex-direction: column, gap: 16px }
+          children:
+            - type: ui-data-table
+              props:
+                rows: "{{ products }}"
+                rowKey: id
+                search: true
+                title: Products
+                pageSize: 0
+                height: 520
+                bindSelection: picked
+                bindErrors: wrong
+                bindChanges: changes
+                addRow: Add product
+                newRow: { category: Tea, price: null, stock: 0, live: false }
+                deletable: true
+                export: price-list.xlsx
+                resizable: true
+              children:
+                - { type: ui-data-table-column, props: { field: sku, label: SKU, edit: text, required: true, unique: true, pattern: "[A-Z]{3}-[0-9]{3}", message: "Three letters, a dash, three digits", pin: left } }
+                - { type: ui-data-table-column, props: { field: name, label: Product, edit: text, required: true } }
+                - { type: ui-data-table-column, props: { field: category, label: Category, edit: select, options: [Tea, Coffee, Homeware], filter: select } }
+                - { type: ui-data-table-column, props: { field: price, label: Price, edit: number, required: true, min: 1, format: currency, currency: INR, decimals: 0 } }
+                - { type: ui-data-table-column, props: { field: cost, label: Cost, edit: number, min: 0, format: currency, currency: INR, decimals: 0 } }
+                - { type: ui-data-table-column, props: { field: stock, label: In stock, edit: number, min: 0, format: number, summary: sum } }
+                - { type: ui-data-table-column, props: { field: launch, label: Launched, edit: date, format: date } }
+                - { type: ui-data-table-column, props: { field: live, label: On sale, edit: checkbox, align: center } }
+            - type: ui-save-bar
+              props: { text: "{{ wrong.length > 0 ? 'Unsaved changes, with problems to put right' : 'Unsaved changes' }}", disabled: "{{ wrong.length > 0 }}" }
+        - { type: ui-toaster, props: { bind: toast } }

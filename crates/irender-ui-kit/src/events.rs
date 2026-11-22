@@ -20,7 +20,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "events",
         PropKind::Any,
-        "The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)",
+        "The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`). `repeat` makes one come again: `{ every: day|week|month|year, interval, on: [1, 3] (weekdays, 0 is Sunday), until, count, except: [dates] }`",
     )
     .required(),
     PropDef::new("view", PropKind::Enum(VIEWS), "The view to start in: `day`, `week`, `month` (default), `year` or `list`"),
@@ -272,6 +272,7 @@ impl Component for EventCalendar {
             Some(c) => dynamic(cx, node, "categories", c)?,
             None => Json::Null,
         };
+        crate::widget::kit(cx);
         cx.global_js("ui-event-calendar", SCRIPT);
         let config = json!({
             "events": dynamic(cx, node, "events", node.prop("events").expect("required"))?,

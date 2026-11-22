@@ -1,0 +1,109 @@
+# Block: a clinic's new-patient form as steps. `ui-stepper` shows where someone is and lets
+# them go on once a step is valid; every answer stays in state.
+# - Contact: a phone number with its country, an insurance number in its own shape.
+# - Visit: a day and a time from what's free, with how long it lasts.
+# - Health: a questionnaire one question at a time, and tags for allergies.
+# - Consent: a signature, then Finish runs the stepper's `finish` actions.
+#
+#   cargo run -p irender-cli -- render examples/blocks/intake-01.yaml --ui-kit --icon-kit -o intake-01.html
+version: 1
+state:
+  toast: null
+  step: you
+  sent: false
+  name: ""
+  phone: null
+  phoneOk: false
+  born: null
+  policy: ""
+  policyOk: false
+  day: "2026-11-25"
+  from: null
+  until: null
+  allergies: [Penicillin]
+  health: {}
+  healthDone: false
+  sign: null
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 880px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "New patient" } }
+                - { type: ui-text, props: { variant: muted, text: "Four short steps. Your answers are kept as you go." } }
+
+        - type: ui-card
+          children:
+            - type: ui-stepper
+              props: { bind: step, complete: "{{ sent }}", finishLabel: Send }
+              on:
+                finish:
+                  - { action: set_state, key: sent, value: true }
+                  - { action: set_state, key: toast, value: { title: "Thank you, {{ name }}", description: "We'll see you on {{ day }} at {{ from }}.", variant: success } }
+              children:
+                - type: ui-step
+                  props: { value: you, label: About you, description: Name and contact, valid: "{{ name != '' && phoneOk }}" }
+                  children:
+                    - type: element
+                      style: { display: grid, gap: 16px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(2, minmax(0, 1fr))" } }
+                      children:
+                        - { type: ui-field, props: { label: Full name }, children: [ { type: ui-input, props: { bind: name }, attrs: { autocomplete: name } } ] }
+                        - { type: ui-field, props: { label: Date of birth }, children: [ { type: ui-date-picker, props: { bind: born, input: true } } ] }
+                        - { type: ui-field, props: { label: Phone, description: "With its country code." }, children: [ { type: ui-phone-input, props: { bind: phone, bindValid: phoneOk, country: IN } } ] }
+                        - { type: ui-field, props: { label: Insurance number, description: "{{ policyOk ? 'Complete' : 'Two letters, then eight digits' }}" }, children: [ { type: ui-masked-input, props: { bind: policy, mask: "AA #### ####", bindComplete: policyOk } } ] }
+                - type: ui-step
+                  props: { value: visit, label: Visit, description: Day and time, valid: "{{ from != null }}" }
+                  children:
+                    - type: element
+                      style: { display: grid, gap: 16px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(3, minmax(0, 1fr))" } }
+                      children:
+                        - { type: ui-field, props: { label: Day }, children: [ { type: ui-date-picker, props: { bind: day, min: "2026-11-23" } } ] }
+                        - { type: ui-field, props: { label: From, description: "Lunch is from 13:00 to 14:00." }, children: [ { type: ui-time-picker, props: { bind: from, min: "09:00", max: "17:00", step: 15, disabledTimes: [ { from: "13:00", to: "14:00" }, "09:30" ] } } ] }
+                        - { type: ui-field, props: { label: Until }, children: [ { type: ui-time-picker, props: { bind: until, step: 15, max: "18:00", durationFrom: "{{ from }}" } } ] }
+                - type: ui-step
+                  props: { value: health, label: Health, description: A few questions, valid: "{{ healthDone }}" }
+                  children:
+                    - type: stack
+                      style: { gap: 20px }
+                      children:
+                        - { type: ui-field, props: { label: Allergies, description: "Press Enter after each." }, children: [ { type: ui-tags-input, props: { bind: allergies, suggestions: [Penicillin, Peanuts, Latex, Pollen, Shellfish], placeholder: None } } ] }
+                        - type: ui-questionnaire
+                          props:
+                            bind: health
+                            bindDone: healthDone
+                            doneText: Thank you, that's all we need.
+                            questions:
+                              - { id: reason, question: What brings you in?, options: [A check-up, A new problem, A follow-up], other: Something else, required: true }
+                              - { id: pain, question: "How much pain are you in?", type: scale, min: 0, max: 10, labels: [None, Severe] }
+                              - { id: meds, question: Do you take any medicine now?, type: yesno, required: true }
+                              - { id: note, question: Anything else we should know?, type: text }
+                - type: ui-step
+                  props: { value: consent, label: Consent, description: Sign, valid: "{{ sign != null }}" }
+                  children:
+                    - type: stack
+                      style: { gap: 16px }
+                      children:
+                        - type: ui-description-list
+                          props: { columns: 3 }
+                          children:
+                            - { type: ui-description-item, props: { label: Name, value: "{{ name }}" } }
+                            - { type: ui-description-item, props: { label: Phone, value: "{{ phone }}" } }
+                            - { type: ui-description-item, props: { label: Visit, value: "{{ day }}, {{ from }}" } }
+                        - { type: ui-text, props: { text: "I agree to be examined and treated, and for my record to be kept by the clinic." } }
+                        - { type: ui-signature, props: { bind: sign } }
+        - { type: ui-toaster, props: { bind: toast } }

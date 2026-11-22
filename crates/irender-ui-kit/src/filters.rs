@@ -81,6 +81,11 @@ const FILTER_PROPS: &[PropDef] = &[
         PropKind::Any,
         "A list filter's values: text, or `{ value, label }`. May use state. Default: the field's values in the filters' `rows`",
     ),
+    PropDef::new(
+        "optionsUrl",
+        PropKind::Any,
+        "A list filter's values from an API as they're searched for: GET `<url>?q=<text>`, answering texts or `{ value, label, count }`s. May use state",
+    ),
     PropDef::new("operators", PropKind::Any, "Which operators to offer, by name, e.g. `[between, before, after]` (default: all of the type's)"),
     PropDef::new("section", PropKind::String, "A heading to group it under in the panel"),
     PropDef::new("unit", PropKind::String, "Shown after a number, e.g. `kg`"),
@@ -334,6 +339,7 @@ struct Def {
     ops: Vec<(&'static str, &'static str)>,
     section: Option<String>,
     options: Json,
+    options_url: Json,
     unit: Option<String>,
     currency: Option<String>,
     presets: Vec<(&'static str, &'static str)>,
@@ -370,9 +376,10 @@ fn defs(cx: &RenderCx<'_>, node: &Node) -> Result<Vec<Def>, RenderError> {
             }
             Some(_) => return Err(RenderError::new(child, "`operators` must be a list of names")),
         };
-        if kind != "list" && child.prop("options").is_some() {
-            return Err(RenderError::new(child, "only `list` filters take `options`"));
+        if kind != "list" && (child.prop("options").is_some() || child.prop("optionsUrl").is_some()) {
+            return Err(RenderError::new(child, "only `list` filters take `options` or `optionsUrl`"));
         }
+        crate::widget::check_url(cx, child, "optionsUrl")?;
         let presets = match cx.prop(child, "presets") {
             _ if kind != "date" => Vec::new(),
             None | Some(Json::Null) | Some(Json::Bool(true)) => PRESETS.to_vec(),
@@ -391,6 +398,7 @@ fn defs(cx: &RenderCx<'_>, node: &Node) -> Result<Vec<Def>, RenderError> {
         };
         out.push(Def {
             label: cx.prop_string(child, "label").unwrap_or_else(|| field.clone()),
+            options_url: child.prop("optionsUrl").map(|o| dynamic(cx, child, "optionsUrl", o)).transpose()?.unwrap_or(Json::Null),
             options: child.prop("options").map(|o| dynamic(cx, child, "options", o)).transpose()?.unwrap_or(Json::Null),
             section: cx.prop_string(child, "section"),
             unit: cx.prop_string(child, "unit"),
@@ -446,7 +454,7 @@ impl Component for Filters {
             "today": cx.prop_string(node, "today"),
             "fiscalStart": fiscal,
             "defs": defs.iter().map(|d| json!({
-                "field": d.field, "label": d.label, "section": d.section, "type": d.kind, "options": d.options, "unit": d.unit, "currency": d.currency,
+                "field": d.field, "label": d.label, "section": d.section, "type": d.kind, "options": d.options, "optionsUrl": d.options_url, "unit": d.unit, "currency": d.currency,
                 "ops": d.ops.iter().map(|(o, _)| *o).collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
         });

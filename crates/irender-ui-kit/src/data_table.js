@@ -148,6 +148,11 @@
   // ---- formatting
   const formats = new Map();
   function fmt(c, v) {
+    if (c.edit?.type === "select" && Array.isArray(c.edit.options)) {
+      // A choice shows its label.
+      const o = c.edit.options.find((o) => isObj(o) && o.value === v);
+      if (o) return text(o.label ?? o.value);
+    }
     if (blank(v) || !c.format) return text(v);
     const loc = cfg.locale || undefined;
     if (c.format === "date" || c.format === "datetime") {
@@ -390,6 +395,7 @@
   const detailEl = (g) => g.find((n) => n.nodeType === 1 && n.hasAttribute("data-dt-detail"));
 
   // ---- apply: the whole view, from the state
+  let edit = null, problemsOnly = false, everyRow = null, viewAll = null;
   let shown = [], filtered = [], data = [], lastView = null, lastCount = null, lastClicked = null;
   const ARROW = '<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>';
   const BOTH = '<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>';
@@ -430,6 +436,15 @@
       if (viewOf?.data !== data || viewOf.q !== q) {
         filtered = remote ? data.map((_, i) => i) : view(data);
         viewOf = { data, q };
+      }
+      // Editable: only the rows with something wrong, while that's asked for (and the one
+      // being put right).
+      if (edit) {
+        edit.check();
+        everyRow ??= filtered;
+        if (viewAll !== viewOf) (viewAll = viewOf), (everyRow = filtered);
+        if (!edit.problems()) problemsOnly = false;
+        filtered = problemsOnly ? everyRow.filter((i) => edit.wrong(keyOf(rowKey(data[i], i)))) : everyRow;
       }
     }
     // Grouped: the rows under a header row per group, the folded groups' rows left out.
@@ -486,7 +501,7 @@
         api.list(body, shown.slice(s, e).map((i) => data[i]), s);
         // The focused row scrolled out of the window: the scroll area holds focus, so
         // keys still reach the table, until the row is drawn again.
-        if (held && !held.isConnected && focusKey != null) {
+        if (held && !held.isConnected && (focusKey != null || edit)) {
           lost = focusKey;
           scroller.focus({ preventScroll: true });
         }
@@ -582,6 +597,14 @@
       }
     }
     if (cfg.virtual) measure(g);
+    edit?.draw();
+    const wrongRows = $("[data-dt-problems]");
+    if (wrongRows) {
+      const n = edit ? edit.problems() : 0;
+      wrongRows.hidden = !n;
+      wrongRows.textContent = L(["{n} problem", "{n} problems"], { n });
+      wrongRows.setAttribute("aria-pressed", String(problemsOnly));
+    }
 
     // Columns shown and the cells that span them.
     for (const cell of $$("[data-dt-col]")) cell.hidden = hidden.has(cell.getAttribute("data-dt-col"));
@@ -1020,7 +1043,8 @@
   }
 
   // ---- keyboard: one row in the tab order, arrows move between shown rows
-  const navigable = cfg.selectable || cfg.detail || !!B.row || !!cfg.tree;
+  // With editable cells, the keys move between cells instead.
+  const navigable = !cfg.edit && (cfg.selectable || cfg.detail || !!B.row || !!cfg.tree);
   let focusKey = null;
   // The key of a focused row a virtual table's window dropped, while the scroll area
   // holds focus for it.
@@ -1384,23 +1408,23 @@
   function exportCsv() {
     const shownCols = colOrder.map((k) => byKey.get(k)).filter((c) => c && c.field && !hidden.has(c.key));
     const seq = (groupList ? groupList.flatMap((x) => x.rows) : filtered).filter((i) => isDataRow(data[i]));
-    const cell = (v) => {
-      let s = blank(v) ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
-      // A text that starts like a formula is kept as text (a spreadsheet would run it).
-      if (/^[=+\-@\t\r]/.test(s) && !isNum(s)) s = "'" + s;
-      return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const lines = [shownCols.map((c) => cell(c.label || c.field)), ...seq.map((i) => shownCols.map((c) => cell(at(data[i], c.field))))];
-    const csv = "﻿" + lines.map((l) => l.join(",")).join("\r\n") + "\r\n";
+    if (/\.xlsx$/i.test(cfg.export)) {
+      // Numbers as numbers, in their column's format, and dates as dates.
+      const at0 = (c) => (c.decimals != null ? "0." + "0".repeat(c.decimals) : "0.00").replace(/\.$/, "");
+      const formats = shownCols.map((c) => (c.format === "percent" ? "percent" : c.format === "currency" ? "#,##" + at0(c) : null));
+      const value = (c, v) => {
+        const label = c.edit?.type === "select" ? fmt(c, v) : v;
+        return c.format && c.format !== "date" && c.format !== "datetime" && isNum(v) ? Number(v) : label;
+      };
+      const book = [shownCols.map((c) => c.label || c.field), ...seq.map((i) => shownCols.map((c) => value(c, at(data[i], c.field))))];
+      api.emit("export", { rows: seq.length, file: cfg.export });
+      window.__irenderSheets.save(window.__irenderSheets.workbook(book, cfg.title || "Rows", formats), cfg.export);
+      return sayCols(L(["Exported {n} row", "Exported {n} rows"], { n: seq.length }));
+    }
+    const lines = [shownCols.map((c) => c.label || c.field), ...seq.map((i) => shownCols.map((c) => at(data[i], c.field)))];
+    const csv = "﻿" + window.__irenderSheets.toCsv(lines) + "\r\n";
     api.emit("export", { csv, rows: seq.length, file: cfg.export });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = cfg.export;
-    a.hidden = true;
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    window.__irenderSheets.save(new Blob([csv], { type: "text/csv;charset=utf-8" }), cfg.export);
     sayCols(L(["Exported {n} row", "Exported {n} rows"], { n: seq.length }));
   }
 
@@ -1713,6 +1737,12 @@
       return groupRows.get(k)?.querySelector("[data-dt-fold]")?.focus();
     }
     if (t.matches("[data-dt-export]")) return exportCsv();
+    if (t.matches("[data-dt-problems]")) {
+      problemsOnly = !problemsOnly;
+      local.page = 1;
+      if (B.page) api.set(B.page, 1);
+      return apply();
+    }
     if (t.matches("[data-dt-load-group]")) return loadGroupMore(rowOf(t.closest("[data-dt-row]")).row);
     if (t.matches("[data-dt-open-all]")) return openAll(t.getAttribute("data-dt-open-all") === "true");
     if (t.matches("[data-dt-sort]")) {
@@ -1950,6 +1980,37 @@
     }
   });
 
+  // Editable cells (table_edit.js).
+  if (cfg.edit && window.__irenderTableEdit) {
+    edit = window.__irenderTableEdit({
+      el, api, cfg, $, $$, body, scroller, table, at, blank, rowKey, keyOf, indexOf, side, L, announce, resolve, isDataRow, remote,
+      data: () => data,
+      shown: () => shown,
+      selection,
+      clearSelection: () => put("selection", []),
+      remoteRows: () => R.rows,
+      setRemote: (rows) => {
+        R.rows = rows;
+        apply();
+      },
+      // Draws the row at `pos` of a virtual table.
+      scrollTo: (pos) => {
+        scroller.scrollTop = Math.max(0, ($("thead")?.offsetHeight ?? 0) + pos * est - scroller.clientHeight / 2);
+        apply();
+      },
+      // Shows row `i` of the data: the page it's on, or the batch it's in.
+      reveal: (i) => {
+        const pos = filtered.indexOf(i);
+        if (pos < 0 || remote) return;
+        if (mode === "pages" && !entries) goTo(Math.floor(pos / size) + 1);
+        else if (mode === "more" || mode === "scroll") {
+          loaded = Math.max(loaded, pos + 1);
+          apply();
+        }
+      },
+      test: (e, row) => window.__irender.evaluate(e, { ...env(), row }),
+    });
+  }
   apply();
   return { update: apply };
 };

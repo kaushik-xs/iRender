@@ -24,6 +24,7 @@ use serde_json::{Map, Value as Json, json};
 use std::{cmp::Ordering, sync::LazyLock};
 
 const SCRIPT: &str = include_str!("data_table.js");
+const EDIT_SCRIPT: &str = include_str!("table_edit.js");
 
 /// The names a row and its position are in scope under inside cell templates.
 const ROW: &str = "row";
@@ -33,6 +34,7 @@ const FILTERS: &[&str] = &["text", "select", "range", "date"];
 const FORMATS: &[&str] = &["number", "currency", "percent", "date", "datetime"];
 const SUMMARIES: &[&str] = &["sum", "avg", "min", "max", "count"];
 const CELLS: &[&str] = &["text", "badge", "progress", "sparkline"];
+const EDITS: &[&str] = &["text", "multiline", "number", "date", "select", "checkbox"];
 const PAGING: &[&str] = &["pages", "more", "scroll", "none"];
 const TONES: &[&str] = &["default", "secondary", "outline", "success", "warning", "destructive", "info"];
 
@@ -85,7 +87,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("resizable", PropKind::Bool, "Columns can be made wider or narrower by dragging their header's edge"),
     PropDef::new("reorderable", PropKind::Bool, "Columns can be moved by dragging their header, or Alt and the arrow keys on it"),
     PropDef::new("bindColumns", PropKind::StateKey, "State key holding the columns' layout, `{ order, widths, hidden }`, to keep it"),
-    PropDef::new("export", PropKind::Any, "An Export button that downloads the rows that pass the filters as CSV: `true`, or the file's name"),
+    PropDef::new("export", PropKind::Any, "An Export button that downloads the rows that pass the filters as CSV, or as Excel with a name ending in `.xlsx`: `true`, or the file's name"),
     PropDef::new("title", PropKind::Any, "Accessible name of the table"),
     PropDef::new("emptyText", PropKind::Any, "Shown when no row matches (default `No results.`)"),
     PropDef::new("locale", PropKind::String, "Locale for formatted numbers and dates (default: the document's `lang`, else the browser's)"),
@@ -115,6 +117,17 @@ const PROPS: &[PropDef] = &[
     PropDef::new("bindViews", PropKind::StateKey, "State key for the views people save from the Views menu (the same shape as `views`)"),
     PropDef::new("bindCurrentView", PropKind::StateKey, "State key holding the id of the view shown (or null); the table opens with it"),
     PropDef::new("defaultView", PropKind::String, "The view the table opens with when `bindCurrentView` has none"),
+    PropDef::new(
+        "editable",
+        PropKind::Any,
+        "Which rows' cells can be edited (in columns with `edit`): true (default), or an expression over `row`, e.g. `{{ row.status != 'Closed' }}`",
+    ),
+    PropDef::new("addRow", PropKind::Any, "Editable: a button under the rows that adds one: `true`, or its text. Rows pasted past the end are added too"),
+    PropDef::new("newRow", PropKind::Any, "Editable: what an added row starts with, e.g. `{ status: Draft }`"),
+    PropDef::new("deletable", PropKind::Bool, "Editable: Delete in the bulk bar removes the selected rows (turns on `selectable`)"),
+    PropDef::new("errors", PropKind::Any, "Editable: messages to mark cells with, e.g. from the server: `{ rowKey: { field: message } }`"),
+    PropDef::new("bindErrors", PropKind::StateKey, "Editable: state key that gets the cells that are wrong, `[{ key, field, message }]`"),
+    PropDef::new("bindChanges", PropKind::StateKey, "Editable: state key that gets what changed, `{ rowKey: { field: value } }` (null for a deleted row); set it to `{}` once saved"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
 ];
 
@@ -146,6 +159,13 @@ const COLUMN_PROPS: &[PropDef] = &[
     PropDef::new("group", PropKind::Any, "A header over this column and the ones next to it with the same `group`"),
     PropDef::new("groupable", PropKind::Bool, "Offered in the View menu's Group by"),
     PropDef::new("resizable", PropKind::Bool, "With the table's `resizable`, false keeps this column's width"),
+    PropDef::new("edit", PropKind::Enum(EDITS), "Its cells can be edited in place; `select` picks from `options` (default: the column's values)"),
+    PropDef::new("required", PropKind::Bool, "With `edit`: an empty cell is marked wrong"),
+    PropDef::new("min", PropKind::Any, "With `edit`: the smallest number, or the first date"),
+    PropDef::new("max", PropKind::Any, "With `edit`: the largest number, or the last date"),
+    PropDef::new("pattern", PropKind::String, "With `edit`: a regular expression the whole text must match"),
+    PropDef::new("unique", PropKind::Bool, "With `edit`: a value used by another row is marked wrong"),
+    PropDef::new("message", PropKind::Any, "With `edit`: what's said when `min`, `max` or `pattern` isn't met"),
     PropDef::new("id", PropKind::String, "The column's key when it has no field (default: its position)"),
 ];
 
@@ -608,11 +628,104 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
 });
 
+/// Editable cells: the cursor, the picked range, wrong and changed cells, the editor over
+/// a cell and the message under it.
+static EDITING: LazyLock<StyleBlock> = LazyLock::new(|| {
+    forms::native_scheme(pairs(&[]))
+        .nest("& td[data-dt-col]", pairs(&[("scroll-margin-block", "48px")]))
+        .nest("& td[data-dt-editable]", pairs(&[("cursor", "cell")]))
+        .nest("& td[data-dt-col]:focus", pairs(&[("outline", "none")]))
+        .nest("& td[data-dt-in]", pairs(&[("background", TINT)]))
+        .nest("& td[data-dt-col][data-dt-cur]", pairs(&[("box-shadow", "inset 0 0 0 1px var(--color-border)")]))
+        .nest("& td[data-dt-col][data-dt-cur]:focus", pairs(&[("box-shadow", "inset 0 0 0 2px var(--color-primary)")]))
+        .nest("& td[data-dt-bad]", pairs(&[("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 10%, transparent)"), ("box-shadow", "inset 0 0 0 1px var(--color-destructive, #dc2626)")]))
+        .nest("& td[data-dt-bad][data-dt-cur]:focus", pairs(&[("box-shadow", "inset 0 0 0 2px var(--color-destructive, #dc2626)")]))
+        // A changed cell's corner.
+        .nest(
+            "& td[data-dt-dirty]",
+            pairs(&[("background-image", "linear-gradient(to bottom left, var(--color-primary) 50%, transparent 50%)"), ("background-size", "7px 7px"), ("background-repeat", "no-repeat"), ("background-position", "top right")]),
+        )
+        .nest("&:dir(rtl) td[data-dt-dirty]", pairs(&[("background-image", "linear-gradient(to bottom right, var(--color-primary) 50%, transparent 50%)"), ("background-position", "top left")]))
+        .nest(
+            "& [data-dt-editor]",
+            pairs(&[
+                ("position", "absolute"),
+                ("z-index", "4"),
+                ("box-sizing", "border-box"),
+                ("margin", "0"),
+                ("min-width", "72px"),
+                ("padding", pad!(0, 8)),
+                ("border", "2px solid var(--color-primary)"),
+                ("border-radius", "0"),
+                ("background", SURFACE),
+                ("color", TEXT),
+                ("font", "inherit"),
+                ("outline", "none"),
+                ("box-shadow", "var(--elevation-popover, 0 6px 18px rgb(0 0 0 / 0.12))"),
+            ]),
+        )
+        .nest("& textarea[data-dt-editor]", pairs(&[("padding", pad!(6, 8)), ("min-width", "220px"), ("resize", "both")]))
+        .nest(
+            "& [data-dt-tip]",
+            pairs(&[
+                ("position", "absolute"),
+                ("z-index", "4"),
+                ("max-width", "260px"),
+                ("padding", pad!(4, 8)),
+                ("border-radius", "var(--radius-sm)"),
+                ("background", crate::DESTRUCTIVE),
+                ("color", crate::ON_DESTRUCTIVE),
+                ("font-size", fs!(12)),
+                ("pointer-events", "none"),
+            ]),
+        )
+        .nest("& [data-dt-problems]", pairs(&[("color", crate::DESTRUCTIVE), ("border-color", "color-mix(in srgb, var(--color-destructive, #dc2626) 45%, var(--color-border))")]))
+        .nest("& [data-dt-problems][aria-pressed=true]", pairs(&[("background", crate::DESTRUCTIVE), ("color", crate::ON_DESTRUCTIVE)]))
+        .nest("& [data-dt-tip][hidden]", pairs(&[("display", "none")]))
+        .nest(
+            "& [data-dt-check]",
+            pairs(&[
+                ("display", "inline-grid"),
+                ("place-items", "center"),
+                ("width", "16px"),
+                ("height", "16px"),
+                ("box-sizing", "border-box"),
+                ("border", "1px solid var(--color-border)"),
+                ("border-radius", "4px"),
+                ("font-size", "11px"),
+                ("line-height", "1"),
+                ("vertical-align", "middle"),
+                ("cursor", "pointer"),
+            ]),
+        )
+        .nest("& [data-dt-check=on]", pairs(&[("background", PRIMARY_FILL), ("border-color", "transparent"), ("color", crate::ON_PRIMARY)]))
+        .nest("& [data-dt-check=on]::before", pairs(&[("content", "'✓'")]))
+        .nest(
+            "& [data-dt-add-row]",
+            pairs(&[
+                ("display", "flex"),
+                ("align-items", "center"),
+                ("gap", gap!(6)),
+                ("align-self", "flex-start"),
+                ("padding", pad!(6, 10)),
+                ("border", "var(--border-width, 1px) dashed var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
+                ("background", "none"),
+                ("color", TEXT),
+                ("font", "inherit"),
+                ("cursor", "pointer"),
+            ]),
+        )
+        .nest("& [data-dt-add-row]:hover", pairs(&[("background", SUBTLE)]))
+        .nest("& [data-dt-add-row]:focus-visible", forms::focus_ring())
+});
+
 // Small inline icons, decorative: the buttons around them are labelled.
 const CHEVRON: &str = r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
 const SORT_ARROW: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>"#;
 const SORT_BOTH: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>"#;
 const PLUS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
+const ADD: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>"#;
 const DOWNLOAD: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg>"#;
 const VIEWS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3.5h11M2.5 8h11M2.5 12.5h6"/><path d="m11 11 1.5 1.5L15 10"/></svg>"#;
 const COLUMNS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12M5 2.5v11"/></svg>"#;
@@ -655,6 +768,8 @@ struct Column<'n> {
     group: Option<String>,
     groupable: bool,
     resizable: bool,
+    /// What an editable cell takes and how it's checked, as cells.js reads it.
+    edit: Option<Json>,
     template: Option<&'n Node>,
 }
 
@@ -707,6 +822,22 @@ fn column<'n>(
             return Err(RenderError::new(at, format!("tone `{tone}` for `{value}` must be one of {}", TONES.join(", "))));
         }
     }
+    let edit = match one_of("edit", EDITS)? {
+        None => None,
+        Some(_) if field.is_none() => return Err(RenderError::new(at, "a column with `edit` needs a `field`")),
+        Some(ty) => Some(json!({
+            "type": ty,
+            "options": get("options").filter(|v| !v.is_null()),
+            "required": flag("required", false),
+            "unique": flag("unique", false),
+            "min": get("min").filter(|v| !v.is_null()),
+            "max": get("max").filter(|v| !v.is_null()),
+            "pattern": string("pattern"),
+            "message": string("message"),
+        })),
+    };
+    // A number is edited where it's shown: at the end of the cell.
+    let align = if edit.as_ref().is_some_and(|e| e["type"] == "number") && get("align").is_none_or(|v| v.is_null()) { Some("right") } else { align };
     Ok(Column {
         sort_field: sort_field.clone(),
         sortable: flag("sortable", sort_field.is_some()) && sort_field.is_some(),
@@ -738,6 +869,7 @@ fn column<'n>(
         group: string("group").filter(|g| !g.is_empty()),
         groupable: flag("groupable", false),
         resizable: flag("resizable", true),
+        edit,
         template,
     })
 }
@@ -1003,7 +1135,44 @@ impl Component for DataTable {
         if columns.iter().filter(|c| c.tree).count() > 1 {
             return Err(RenderError::new(node, "only one column can be the `tree` column"));
         }
-        let selectable = flag(cx, "selectable", false) || !parts.bulk.is_empty();
+        // Editable cells: edits go to the state key the rows are read from.
+        let editing = columns.iter().any(|c| c.edit.is_some());
+        let deletable = flag(cx, "deletable", false);
+        let add_row = cx.prop(node, "addRow").filter(expr::truthy);
+        if !editing && (deletable || add_row.is_some()) {
+            return Err(RenderError::new(node, "`addRow` and `deletable` need columns with `edit`"));
+        }
+        let rows_key = match rows_val {
+            Val::Tpl(t) => match t.parts.as_slice() {
+                [irender_core::Part::Expr(Expr::Path(p))] if p.len() == 1 && live => Some(p[0].clone()),
+                _ => None,
+            },
+            Val::Lit(_) => None,
+        };
+        if editing {
+            if nested {
+                return Err(RenderError::new(node, "editable cells don't work with nested rows, or groups from an API"));
+            }
+            if rows_key.is_none() && url.is_none() {
+                return Err(RenderError::new(node, "editable cells are written to the rows' state: give `rows` a state key, like `{{ rows }}`"));
+            }
+            if url.is_some() && add_row.is_some() {
+                return Err(RenderError::new(node, "`addRow` works on rows in state, not on rows from `url`"));
+            }
+        }
+        let edit = match editing {
+            false => None,
+            true => Some(json!({
+                "rows": rows_key,
+                "when": match node.prop("editable") {
+                    None => Json::Null,
+                    Some(v) => cx.item_val_js(v, ROW, ROW_INDEX),
+                },
+                "addRow": add_row.is_some(),
+                "newRow": cx.prop(node, "newRow").filter(|v| v.is_object()),
+            })),
+        };
+        let selectable = flag(cx, "selectable", false) || !parts.bulk.is_empty() || deletable;
         let row_key = cx.prop_string(node, "rowKey").unwrap_or_else(|| "id".into());
         let bind = |name: &str| cx.prop_string(node, name);
         let state_of = |key: Option<String>| key.map(|k| cx.lookup(&[k])).filter(|v| !v.is_null());
@@ -1033,7 +1202,8 @@ impl Component for DataTable {
         let virtual_ = flag(cx, "virtual", false);
         // Virtual and remote tables have their rows supplied by the behaviour (the ones in
         // view, or the ones loaded) instead of arranging rows the server rendered.
-        let listed = virtual_ || url.is_some() || nested;
+        // Editable tables too, so that a row keeps its cells (and the cursor) as it changes.
+        let listed = virtual_ || url.is_some() || nested || editing;
 
         // The order and page the server shows, for server rows; the browser takes over.
         let mut order: Vec<usize> = (0..rows.len()).collect();
@@ -1053,14 +1223,14 @@ impl Component for DataTable {
 
         let children_url = node.prop("childrenUrl").map(|u| dynamic(cx, node, "childrenUrl", u)).transpose()?;
         if grouped && listed && !(group_remote && !virtual_) {
-            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual` or nested rows"));
+            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual` or nested rows, or with editable cells"));
         }
         let resizable = flag(cx, "resizable", false);
         let reorderable = flag(cx, "reorderable", false);
         // The file name, from `export: true` (the title's, or `rows`) or `export: "name.csv"`.
         let export = match cx.prop(node, "export") {
             None | Some(Json::Null) | Some(Json::Bool(false)) => None,
-            Some(Json::String(name)) if !name.is_empty() => Some(if name.ends_with(".csv") { name } else { format!("{name}.csv") }),
+            Some(Json::String(name)) if !name.is_empty() => Some(if name.ends_with(".csv") || name.ends_with(".xlsx") { name } else { format!("{name}.csv") }),
             Some(_) => Some(format!("{}.csv", cx.prop_string(node, "title").map(|t| slug(&t)).filter(|t| !t.is_empty()).unwrap_or_else(|| "rows".into()))),
         };
         let id = instance_id(cx, node, "data-table");
@@ -1112,12 +1282,13 @@ impl Component for DataTable {
             "columns": columns.iter().map(|c| json!({
                 "key": c.key, "field": c.field, "sortField": c.sort_field, "label": c.label_text, "sortable": c.sortable, "filter": c.filter,
                 "options": c.options, "format": c.format, "currency": c.currency, "decimals": c.decimals,
-                "summary": c.summary, "hidden": c.hidden, "group": c.group, "groupable": c.groupable, "pin": c.pin, "align": c.align,
+                "summary": c.summary, "hidden": c.hidden, "group": c.group, "groupable": c.groupable, "pin": c.pin, "align": c.align, "edit": c.edit,
             })).collect::<Vec<_>>(),
             "groupBy": node.prop("groupBy").map(|g| dynamic(cx, node, "groupBy", g)).transpose()?,
             "resizable": resizable,
             "reorderable": reorderable,
             "export": export.clone(),
+            "title": cx.prop_string(node, "title"),
             "selectable": selectable,
             "search": search.is_some(),
             "searchFields": search_fields,
@@ -1131,7 +1302,10 @@ impl Component for DataTable {
                 "search": bind("bindSearch"), "page": bind("bindPage"), "view": bind("bindView"), "row": bind("bindRow"),
                 "groupBy": bind("bindGroupBy"), "columns": bind("bindColumns"),
                 "views": bind("bindViews"), "currentView": bind("bindCurrentView"),
+                "errors": bind("bindErrors"), "changes": bind("bindChanges"),
             },
+            "edit": edit,
+            "errors": node.prop("errors").map(|e| dynamic(cx, node, "errors", e)).transpose()?,
             "views": views,
             "defaultView": cx.prop_string(node, "defaultView"),
             "filters": state_of(bind("bindFilters")),
@@ -1140,9 +1314,19 @@ impl Component for DataTable {
         let clickable = bind("bindRow").is_some();
         let locale = crate::locale(cx, node);
         let search_text = state_of(bind("bindSearch")).map(|v| expr::stringify(&v)).unwrap_or_default();
+        if export.is_some() {
+            crate::sheets(cx);
+        }
+        if editing {
+            crate::cells(cx);
+            cx.global_js("ui-table-edit", EDIT_SCRIPT);
+        }
         cx.global_js("ui-data-table", SCRIPT);
 
         let mut root = cx.element("div", node);
+        if editing {
+            root.attr("data-editing", true).base_style_ref(&EDITING);
+        }
         root.base_style_ref(&ROOT).behavior("ui-data-table", config).attr("id", id.clone());
         if flag(cx, "striped", false) {
             root.attr("data-striped", true);
@@ -1161,7 +1345,7 @@ impl Component for DataTable {
         // Nested rows of its own (not groups from the API): Expand all and Collapse all.
         let open_all = nested && !group_remote;
         let menu = (flag(cx, "columnsMenu", true) && columns.iter().any(|c| c.hideable)) || !groupable.is_empty() || open_all;
-        if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() || export.is_some() || has_views {
+        if search.is_some() || !filtered.is_empty() || menu || !parts.toolbar.is_empty() || export.is_some() || has_views || editing {
             let mut bar = cx.part("div", node, "toolbar");
             bar.attr("data-dt-toolbar", true);
             cx.open(&bar, node)?;
@@ -1217,10 +1401,21 @@ impl Component for DataTable {
             for t in &parts.toolbar {
                 cx.children(t)?;
             }
+            if editing {
+                // Shown while cells are wrong; pressed, only their rows show.
+                let mut b = Element::new("button");
+                forms::button_look(&mut b, "outline", "sm");
+                b.attr("type", "button").attr("data-dt-problems", true).attr("aria-pressed", "false").attr("hidden", true);
+                cx.open(&b, node)?;
+                cx.close("button");
+            }
             if export.is_some() {
                 let mut b = Element::new("button");
                 forms::button_look(&mut b, "outline", "sm");
-                b.attr("type", "button").attr("data-dt-export", true).attr("title", cx.label("Download the rows that pass the filters as CSV"));
+                b.attr("type", "button").attr("data-dt-export", true).attr(
+                    "title",
+                    if export.as_ref().is_some_and(|e| e.ends_with(".xlsx")) { cx.label("Download the rows that pass the filters as Excel") } else { cx.label("Download the rows that pass the filters as CSV") },
+                );
                 cx.open(&b, node)?;
                 cx.markup(DOWNLOAD);
                 let t = cx.label("Export");
@@ -1292,7 +1487,7 @@ impl Component for DataTable {
         }
 
         // ---- bulk actions
-        if !parts.bulk.is_empty() {
+        if !parts.bulk.is_empty() || deletable {
             let mut bulk = Element::new("div");
             bulk.attr("data-dt-bulk", true).attr("role", "region").attr("aria-label", cx.label("Bulk actions")).attr("hidden", selection.is_empty());
             cx.open(&bulk, node)?;
@@ -1316,6 +1511,13 @@ impl Component for DataTable {
             for b in &parts.bulk {
                 cx.children(b)?;
             }
+            if deletable {
+                let mut b = Element::new("button");
+                forms::button_look(&mut b, "outline", "sm");
+                b.attr("type", "button").attr("data-dt-delete-rows", true).text(lit(cx.label("Delete")));
+                cx.open(&b, node)?;
+                cx.close("button");
+            }
             cx.close("div");
             cx.close("div");
         }
@@ -1335,6 +1537,9 @@ impl Component for DataTable {
         let mut table = cx.part("table", node, "table");
         if nested {
             table.attr("role", "treegrid");
+        }
+        if editing {
+            table.attr("role", "grid").attr("aria-multiselectable", "true");
         }
         if let Some(t) = node.prop("title") {
             table.attr("aria-label", t.clone());
@@ -1647,6 +1852,20 @@ impl Component for DataTable {
         }
         cx.close("div");
 
+        // ---- add a row
+        if let Some(text) = &add_row {
+            let mut b = Element::new("button");
+            b.attr("type", "button").attr("data-dt-add-row", true);
+            cx.open(&b, node)?;
+            cx.markup(ADD);
+            let text = match text {
+                Json::String(s) => s.clone(),
+                _ => cx.label("Add row"),
+            };
+            cx.text(&text);
+            cx.close("button");
+        }
+
         // ---- footer
         let mut footer = cx.part("div", node, "footer");
         footer.attr("data-dt-footer", true);
@@ -1846,11 +2065,12 @@ fn cell(cx: &mut RenderCx<'_>, table: &Node, c: &Column) -> Result<(), RenderErr
         td.attr("hidden", true);
     }
     let value = c.field.as_deref().map(|f| expr_val(row_path(f)));
-    let plain = matches!((&value, c.template, c.cell.as_deref()), (Some(_), None, None | Some("text")));
+    let tick = c.template.is_none() && c.cell.is_none() && c.edit.as_ref().is_some_and(|e| e["type"] == "checkbox");
+    let plain = !tick && matches!((&value, c.template, c.cell.as_deref()), (Some(_), None, None | Some("text")));
     // The tree column indents its content behind the arrow that opens the row.
     let mut text = if c.tree { Element::new("span") } else { std::mem::replace(&mut td, Element::new("td")) };
     if let (true, Some(v)) = (plain, &value) {
-        if c.format.is_some() {
+        if c.format.is_some() || c.edit.as_ref().is_some_and(|e| e["type"] == "select") {
             text.attr("data-dt-fmt", true);
         }
         text.text(v.clone());
@@ -1875,6 +2095,13 @@ fn cell(cx: &mut RenderCx<'_>, table: &Node, c: &Column) -> Result<(), RenderErr
     }
     if let Some(t) = c.template {
         cx.children(t)?;
+    } else if let (true, Some(f)) = (tick, &c.field) {
+        // A checkbox drawn, not a control: the cell is what's focused and toggled.
+        let on = |yes: &str, no: &str| expr_val(cond(row_path(f), Expr::Lit(json!(yes)), Expr::Lit(json!(no))));
+        let mut s = Element::new("span");
+        s.attr("data-dt-check", on("on", "off")).attr("role", "img").attr("aria-label", on(&cx.label("Yes"), &cx.label("No")));
+        cx.open(&s, table)?;
+        cx.close("span");
     } else if let (Some(v), Some(f)) = (&value, &c.field) {
         match c.cell.as_deref() {
             Some("badge") => {

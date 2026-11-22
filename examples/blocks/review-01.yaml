@@ -1,0 +1,68 @@
+# Block: a contract read and signed. `ui-pdf` draws the pages (pdf.js is loaded when there's
+# one to show) with notes on them: highlight or note a place, or put the signature where it
+# belongs. The clause that changed is compared in words, and the questions about it are
+# threads beside it.
+#
+# Served over HTTP, since the browser fetches the file: examples/build.sh, then serve.py.
+#
+#   cargo run -p irender-cli -- render examples/blocks/review-01.yaml --ui-kit --icon-kit -o review-01.html
+version: 1
+state:
+  toast: null
+  page: 1
+  pages: 0
+  sign: null
+  notes:
+    - { id: n1, page: 1, x: 0.12, y: 0.12, width: 0.32, height: 0.03, type: highlight, text: "Is this the registered name?", who: Asha }
+  thread:
+    - { id: c1, who: Asha, when: "2026-11-20T09:30:00Z", text: "@Ben the notice period went from 60 to 30 days. Are we happy with that?", replies: [ { id: c2, who: Ben, when: "2026-11-20T11:00:00Z", text: "Yes, agreed on the call." } ] }
+  tab: pdf
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1240px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Service agreement" } }
+                - { type: ui-text, props: { variant: muted, text: "Version 3 · waiting for your signature" } }
+            - type: ui-button
+              props: { label: Accept, disabled: "{{ sign == null }}", icon: check }
+              on: { click: { action: set_state, key: toast, value: { title: Agreement accepted, variant: success } } }
+
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1.5fr) minmax(0, 1fr)" } }
+          children:
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - { type: ui-pdf, props: { src: files/hotel-invoice.pdf, bindPage: page, bindPages: pages, bindNotes: notes, tools: [highlight, box, note, signature], signature: "{{ sign }}", user: Ben, title: agreement-v3.pdf, height: 560 } }
+                - type: ui-diff
+                  props:
+                    title: Clause 8, ending it
+                    labels: [Version 2, Version 3]
+                    before: "Either party may end this agreement by giving sixty (60) days' notice in writing.\nFees already paid are not returned.\nConfidential information is returned or destroyed."
+                    after: "Either party may end this agreement by giving thirty (30) days' notice by email or in writing.\nFees already paid for work not yet done are returned.\nConfidential information is returned or destroyed."
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: Sign, description: "Then use Signature over the page to place it." }
+                  children: [ { type: ui-signature, props: { bind: sign, height: 120 } } ]
+                - type: ui-card
+                  props: { title: Questions }
+                  children: [ { type: ui-comments, props: { bind: thread, user: Ben, people: [Asha, Ben, Legal team], resolvable: true } } ]
+        - { type: ui-toaster, props: { bind: toast } }

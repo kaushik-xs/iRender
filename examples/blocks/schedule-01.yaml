@@ -1,0 +1,102 @@
+# Block: a day's bookings against time, here a salon's staff and rooms. Drag a booking to
+# another time or person, stretch its ends, or drag over a free stretch to make one; Alt and
+# the arrow keys do the same. Clashes are marked and counted.
+# - `hours` shades when someone isn't in, `capacity` lets a room take two at once.
+# - The booking picked is in state (`bindEvent`), shown beside the schedule.
+# - The tour points out the parts for someone new; it starts once, or from the button.
+#
+#   cargo run -p irender-cli -- render examples/blocks/schedule-01.yaml --ui-kit --icon-kit -o schedule-01.html
+version: 1
+state:
+  tour: null
+  day: "2026-11-23"
+  view: day
+  picked: null
+  clashes: []
+  people:
+    - { id: nina, title: Nina, subtitle: Colour, group: Staff, initials: N, hours: [ { from: "09:00", to: "13:00" }, { from: "14:00", to: "18:00" } ] }
+    - { id: omar, title: Omar, subtitle: Cuts, group: Staff, initials: O, hours: [ { from: "10:00", to: "18:00" } ] }
+    - { id: priya, title: Priya, subtitle: Skin, group: Staff, initials: P, hours: [ { from: "09:00", to: "17:00" } ] }
+    - { id: room1, title: Room 1, subtitle: Treatment, group: Rooms }
+    - { id: spa, title: Spa, subtitle: Two at once, group: Rooms, capacity: 2 }
+  bookings:
+    - { id: b1, resource: nina, title: Full colour, start: "2026-11-23T09:00", end: "2026-11-23T11:00", note: Patch test done }
+    - { id: b2, resource: nina, title: Toner, start: "2026-11-23T10:30", end: "2026-11-23T11:30", color: "#7c3aed" }
+    - { id: b3, resource: omar, title: Cut and style, start: "2026-11-23T10:00", end: "2026-11-23T10:45", color: "#0891b2" }
+    - { id: b4, resource: omar, title: Beard trim, start: "2026-11-23T11:00", end: "2026-11-23T11:30", color: "#0891b2", status: tentative }
+    - { id: b5, resource: priya, title: Facial, start: "2026-11-23T14:00", end: "2026-11-23T15:15", color: "#16a34a" }
+    - { id: b6, resource: room1, title: Massage, start: "2026-11-23T12:00", end: "2026-11-23T13:00", color: "#d97706" }
+    - { id: b7, resource: spa, title: Steam, start: "2026-11-23T15:00", end: "2026-11-23T16:00" }
+    - { id: b8, resource: spa, title: Steam, start: "2026-11-23T15:30", end: "2026-11-23T16:30" }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1240px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Bookings" } }
+                - { type: ui-text, props: { variant: muted, text: "{{ clashes.length == 0 ? 'No clashes' : clashes.length + ' bookings clash' }}" } }
+            - type: ui-button
+              props: { label: Show me around, variant: outline, icon: help }
+              attrs: { id: tour-button }
+              on: { click: { action: set_state, key: tour, value: 0 } }
+
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1fr) 280px" } }
+          children:
+            - type: element
+              attrs: { id: schedule }
+              style: { min-width: 0 }
+              children:
+                - type: ui-scheduler
+                  props:
+                    resources: "{{ people }}"
+                    events: "{{ bookings }}"
+                    bindEvents: bookings
+                    bindEvent: picked
+                    bindDate: day
+                    bindView: view
+                    bindClashes: clashes
+                    from: "09:00"
+                    to: "18:00"
+                    creatable: true
+                    newEvent: { title: New booking, color: "#64748b" }
+                    rowLabel: Who or where
+                    now: "2026-11-23T10:50"
+            - type: ui-card
+              attrs: { id: details }
+              props: { title: Booking }
+              children:
+                - type: if
+                  props: { when: "{{ picked == null }}" }
+                  children: [ { type: ui-text, props: { variant: muted, text: Pick a booking to see it here. } } ]
+                - type: if
+                  props: { when: "{{ picked != null }}" }
+                  children:
+                    - type: ui-description-list
+                      children:
+                        - { type: ui-description-item, props: { label: What, value: "{{ picked.title }}" } }
+                        - { type: ui-description-item, props: { label: Starts, value: "{{ picked.start }}", format: datetime } }
+                        - { type: ui-description-item, props: { label: Ends, value: "{{ picked.end }}", format: datetime } }
+                        - { type: ui-description-item, props: { label: Note, value: "{{ picked.note }}" } }
+        - type: ui-tour
+          props:
+            bind: tour
+            steps:
+              - { target: "#schedule", title: The day at a glance, text: "A row per person or room. Drag a booking to move it, or drag its end to make it longer.", side: top }
+              - { target: "#details", title: The booking you picked, text: "Click a booking, and its details are here.", side: left }
+              - { target: "#tour-button", title: That's it, text: "Come back to this any time from here.", side: bottom }

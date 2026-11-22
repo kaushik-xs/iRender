@@ -1,4 +1,48 @@
 {
+ "new": {
+  "ui-form": "2026-11-22",
+  "ui-error-summary": "2026-11-22",
+  "ui-save-bar": "2026-11-22",
+  "ui-stepper": "2026-11-22",
+  "ui-step": "2026-11-22",
+  "ui-repeater": "2026-11-22",
+  "ui-import": "2026-11-22",
+  "ui-tags-input": "2026-11-22",
+  "ui-masked-input": "2026-11-22",
+  "ui-phone-input": "2026-11-22",
+  "ui-time-picker": "2026-11-22",
+  "ui-mention-input": "2026-11-22",
+  "ui-tree-select": "2026-11-22",
+  "ui-transfer-list": "2026-11-22",
+  "ui-query-builder": "2026-11-22",
+  "ui-signature": "2026-11-22",
+  "ui-image-cropper": "2026-11-22",
+  "ui-qr-code": "2026-11-22",
+  "ui-barcode": "2026-11-22",
+  "ui-code-scanner": "2026-11-22",
+  "ui-stat": "2026-11-22",
+  "ui-description-list": "2026-11-22",
+  "ui-description-item": "2026-11-22",
+  "ui-item-group": "2026-11-22",
+  "ui-item": "2026-11-22",
+  "ui-comments": "2026-11-22",
+  "ui-lightbox": "2026-11-22",
+  "ui-pivot": "2026-11-22",
+  "ui-scheduler": "2026-11-22",
+  "ui-plan": "2026-11-22",
+  "ui-pdf": "2026-11-22",
+  "ui-diff": "2026-11-22",
+  "ui-log": "2026-11-22",
+  "ui-code-editor": "2026-11-22",
+  "ui-banner": "2026-11-22",
+  "ui-tour": "2026-11-22",
+  "ui-session-timeout": "2026-11-22",
+  "ui-attachment": "2026-11-22",
+  "ui-sources": "2026-11-22",
+  "ui-tool-call": "2026-11-22",
+  "ui-trace": "2026-11-22",
+  "ui-questionnaire": "2026-11-22"
+ },
  "sections": [
   {
    "id": "overview",
@@ -160,6 +204,117 @@
    ]
   },
   {
+   "id": "form",
+   "group": "Forms",
+   "title": "Form",
+   "summary": "A form that checks its fields by rules as they're left and when it's submitted, runs its submit actions only when all is right, and knows its unsaved changes: a bar saves or discards them, and leaving asks first.",
+   "usage": "- type: ui-form\n  props:\n    bindErrors: errors\n    bindDirty: dirty\n    guard: true\n    rules: { email: { label: Email, required: true, type: email } }\n  on: { submit: { action: submit, endpoint: /api/save, method: POST, body: { email: \"{{ email }}\" } } }\n  children:\n    - { type: ui-error-summary }\n    - { type: ui-field, props: { label: Email, error: \"{{ errors.email }}\" }, children: [ { type: ui-input, props: { bind: email } } ] }\n    - { type: ui-save-bar }",
+   "components": [
+    "ui-form",
+    "ui-error-summary",
+    "ui-save-bar"
+   ]
+  },
+  {
+   "id": "stepper",
+   "group": "Forms",
+   "title": "Stepper",
+   "summary": "The steps of a process and the current one's panel, with Back, Next and Finish. A step can be gone to once the ones before it are done, or say they're valid. Across or down the page, without a script.",
+   "usage": "- type: ui-stepper\n  props: { bind: step, finishLabel: Send }\n  on: { finish: { action: call, name: send } }\n  children:\n    - { type: ui-step, props: { value: who, label: About you, valid: \"{{ name != '' }}\" }, children: [ … ] }\n    - { type: ui-step, props: { value: check, label: Check }, children: [ … ] }",
+   "components": [
+    "ui-stepper",
+    "ui-step"
+   ]
+  },
+  {
+   "id": "repeater",
+   "group": "Forms",
+   "title": "Repeater",
+   "summary": "Rows of fields to add, fill in, reorder, copy and remove, kept as a list of objects in state. Computed fields and totals follow, and each field can be checked.",
+   "usage": "- type: ui-repeater\n  props:\n    bind: lines\n    reorderable: true\n    bindTotals: totals\n    fields:\n      - { field: item, label: Item, required: true }\n      - { field: qty, label: Qty, type: number, default: 1 }\n      - { field: price, label: Price, type: currency }\n      - { field: total, label: Total, compute: qty * price, summary: sum }",
+   "components": [
+    "ui-repeater"
+   ]
+  },
+  {
+   "id": "import",
+   "group": "Forms",
+   "title": "Import",
+   "summary": "Rows from a spreadsheet: a CSV or Excel file (or pasted cells) is read in the browser, its columns matched to the fields by name, its rows put right in an editable table, and the good ones handed over or posted in batches.",
+   "usage": "- type: ui-import\n  props:\n    bind: draft\n    bindImported: contacts\n    url: /api/contacts/import\n    fields:\n      - { field: name, label: Name, required: true, aliases: [contact] }\n      - { field: email, label: Email, required: true, unique: true }",
+   "components": [
+    "ui-import"
+   ]
+  },
+  {
+   "id": "text-inputs",
+   "group": "Forms",
+   "title": "Tags, masks, phone and time",
+   "summary": "Inputs with a shape of their own: tags typed one after another, text in a fixed shape, a phone number with its country, a time typed any way or picked, and text that names people with @.",
+   "usage": "- { type: ui-tags-input, props: { bind: topics, suggestions: [Design, Legal], max: 5 } }\n- { type: ui-masked-input, props: { bind: card, mask: card } }\n- { type: ui-phone-input, props: { bind: phone, country: IN, bindValid: ok } }\n- { type: ui-time-picker, props: { bind: start, min: \"09:00\", max: \"18:00\", step: 15 } }\n- { type: ui-mention-input, props: { bind: note, people: \"{{ people }}\", bindMentions: named } }",
+   "components": [
+    "ui-tags-input",
+    "ui-masked-input",
+    "ui-phone-input",
+    "ui-time-picker",
+    "ui-mention-input"
+   ]
+  },
+  {
+   "id": "tree-select",
+   "group": "Forms",
+   "title": "Tree select and transfer list",
+   "summary": "Choosing from a hierarchy, in a field that opens a searchable tree; and choosing from a long list, moved from one list to another and put in order.",
+   "usage": "- { type: ui-tree-select, props: { bind: department, nodes: \"{{ departments }}\", path: true } }\n- { type: ui-transfer-list, props: { bind: columns, options: \"{{ allColumns }}\", reorderable: true } }",
+   "components": [
+    "ui-tree-select",
+    "ui-transfer-list"
+   ]
+  },
+  {
+   "id": "query-builder",
+   "group": "Forms",
+   "title": "Query builder",
+   "summary": "Conditions put together with and / or, nested in groups and negated, for segments, alerts, routing and access. State gets the query, the query in words, and the rows that match.",
+   "usage": "- type: ui-query-builder\n  props:\n    bind: query\n    rows: \"{{ orders }}\"\n    bindMatches: matching\n    showText: true\n    fields:\n      - { field: total, label: Total, type: currency, currency: EUR }\n      - { field: status, label: Status, type: select, options: [Paid, Due] }",
+   "components": [
+    "ui-query-builder"
+   ]
+  },
+  {
+   "id": "signature",
+   "group": "Forms",
+   "title": "Signature and image cropper",
+   "summary": "A signature drawn with a finger, pen or mouse, or typed; and a picture cropped, turned and zoomed. State gets each as a picture.",
+   "usage": "- { type: ui-signature, props: { bind: signed, bindMeta: signedBy } }\n- { type: ui-image-cropper, props: { bind: photo, ratio: [\"1\", \"16 / 9\", free] } }",
+   "components": [
+    "ui-signature",
+    "ui-image-cropper"
+   ]
+  },
+  {
+   "id": "codes",
+   "group": "Forms",
+   "title": "QR code, barcode and scanner",
+   "summary": "QR codes and barcodes drawn in the page as SVG, without a service, to show, save or print; a QR code takes a logo (a picture, an icon or letters); and a scanner that reads them with the camera where the browser can, or from a field.",
+   "usage": "- { type: ui-qr-code, props: { value: \"https://example.com/t/{{ ticket }}\", download: ticket.png, logo: /logo.svg } }\n- { type: ui-barcode, props: { value: \"{{ sku }}\", type: code128 } }\n- { type: ui-code-scanner, props: { bind: code, bindList: scanned, continuous: true } }",
+   "components": [
+    "ui-qr-code",
+    "ui-barcode",
+    "ui-code-scanner"
+   ]
+  },
+  {
+   "id": "code-editor",
+   "group": "Forms",
+   "title": "Code editor",
+   "summary": "Code or a template typed over its highlighted copy: line numbers, indenting, closing brackets, comments with ⌘/, words offered as it's typed, and problems marked on their lines.",
+   "usage": "- type: ui-code-editor\n  props: { bind: query, language: sql, completions: [select, from], diagnostics: \"{{ problems }}\" }",
+   "components": [
+    "ui-code-editor"
+   ]
+  },
+  {
    "id": "badge",
    "group": "Data display",
    "title": "Badge, status badge and kbd",
@@ -299,6 +454,121 @@
    ]
   },
   {
+   "id": "editable-table",
+   "group": "Data display",
+   "title": "Editable table",
+   "summary": "A data table whose columns have edit works like a spreadsheet: the arrow keys move between cells, typing edits, Tab goes on, Shift picks a range to copy, paste (from a spreadsheet too), fill down or clear, and undo takes edits back. required, min, max, pattern and unique mark cells that are wrong, and a button shows only their rows. Edits go to the state the rows come from.",
+   "usage": "- type: ui-data-table\n  props: { rows: \"{{ products }}\", addRow: true, deletable: true, bindChanges: changes, bindErrors: wrong, export: products.xlsx }\n  children:\n    - { type: ui-data-table-column, props: { field: sku, edit: text, required: true, unique: true } }\n    - { type: ui-data-table-column, props: { field: price, edit: number, min: 1, format: currency } }\n    - { type: ui-data-table-column, props: { field: status, edit: select, options: [Live, Paused] } }",
+   "components": [
+    "ui-data-table",
+    "ui-data-table-column"
+   ],
+   "new": "2026-11-22"
+  },
+  {
+   "id": "stat",
+   "group": "Data display",
+   "title": "Stat",
+   "summary": "A figure with its change from before, a small trend line, and progress to a target. A change's colour says whether it's good.",
+   "usage": "- type: ui-stat\n  props: { label: Revenue, value: \"{{ revenue }}\", format: currency, currency: EUR, previous: 41000, changeLabel: vs last month, trend: [3, 5, 4, 6, 8] }",
+   "components": [
+    "ui-stat"
+   ]
+  },
+  {
+   "id": "description-list",
+   "group": "Data display",
+   "title": "Description list and items",
+   "summary": "Labels and their values, copied or edited in place; and things in a list, each with an icon, image or initials, a title, a description and actions.",
+   "usage": "- type: ui-description-list\n  props: { columns: 3 }\n  children:\n    - { type: ui-description-item, props: { label: Account, value: DE89 3704, copy: true } }\n    - { type: ui-description-item, props: { label: Owner, bind: owner } }\n- type: ui-item-group\n  children:\n    - { type: ui-item, props: { title: Backup codes, description: 8 left, icon: lock }, children: [ { type: ui-button, props: { label: View, size: sm } } ] }",
+   "components": [
+    "ui-description-list",
+    "ui-description-item",
+    "ui-item-group",
+    "ui-item"
+   ]
+  },
+  {
+   "id": "comments",
+   "group": "Data display",
+   "title": "Comments",
+   "summary": "Comments in threads: replies, mentions, reactions, resolving, and editing one's own. Each change is written to state and fires an event.",
+   "usage": "- { type: ui-comments, props: { bind: thread, user: \"{{ me }}\", people: \"{{ people }}\", resolvable: true } }",
+   "components": [
+    "ui-comments"
+   ]
+  },
+  {
+   "id": "lightbox",
+   "group": "Data display",
+   "title": "Lightbox",
+   "summary": "Pictures as a grid, a row, a masonry or a stack, that open over the page to zoom, move and step through. Without a script, each is a link to its picture.",
+   "usage": "- { type: ui-lightbox, props: { images: [ { src: a.jpg, caption: One }, { src: b.jpg } ], max: 6, download: true } }",
+   "components": [
+    "ui-lightbox"
+   ]
+  },
+  {
+   "id": "pivot",
+   "group": "Data display",
+   "title": "Pivot table",
+   "summary": "Rows summed up by fields down and across, with subtotals that fold, shares of a total, a heat tint, sorting by any column, an export, and the rows behind a cell.",
+   "usage": "- type: ui-pivot\n  props:\n    rows: \"{{ sales }}\"\n    down: [region, rep]\n    across: [date]\n    values: [ { field: amount, agg: sum, format: currency } ]\n    fields: [ { field: date, label: Quarter, part: quarter } ]\n    editable: true\n    bindCell: cell",
+   "components": [
+    "ui-pivot"
+   ]
+  },
+  {
+   "id": "scheduler",
+   "group": "Data display",
+   "title": "Scheduler",
+   "summary": "Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with working hours, capacity, and clashes marked or not let happen.",
+   "usage": "- type: ui-scheduler\n  props: { resources: \"{{ rooms }}\", events: \"{{ bookings }}\", bindEvents: bookings, bindEvent: picked, from: \"08:00\", to: \"18:00\", creatable: true }",
+   "components": [
+    "ui-scheduler"
+   ]
+  },
+  {
+   "id": "plan",
+   "group": "Data display",
+   "title": "Plan",
+   "summary": "Things placed on a drawing (rooms, seats, beds, bays, plots, machines): zoomed and moved, coloured by status, picked, found, faded by a filter, and rearranged by dragging.",
+   "usage": "- type: ui-plan\n  props: { items: \"{{ seats }}\", bindItems: seats, bind: seat, image: floor.svg, width: 1000, height: 600, tones: { Free: success, Taken: danger }, legend: true, search: true }",
+   "components": [
+    "ui-plan"
+   ]
+  },
+  {
+   "id": "pdf",
+   "group": "Data display",
+   "title": "PDF",
+   "summary": "A PDF on the page: zoomed, its text selected, and marked with highlights, boxes, notes and signatures kept in state. pdf.js is loaded only when there's one to show.",
+   "usage": "- { type: ui-pdf, props: { src: /files/contract.pdf, bindNotes: notes, tools: [highlight, note, signature], signature: \"{{ signed }}\", height: 640 } }",
+   "components": [
+    "ui-pdf"
+   ]
+  },
+  {
+   "id": "diff",
+   "group": "Data display",
+   "title": "Diff",
+   "summary": "Two versions compared: text or code line by line, side by side or unified, with the words that changed; or two records field by field.",
+   "usage": "- { type: ui-diff, props: { before: \"{{ old }}\", after: \"{{ new }}\", language: yaml } }\n- { type: ui-diff, props: { mode: fields, before: \"{{ was }}\", after: \"{{ now }}\", fieldLabels: { name: Name } } }",
+   "components": [
+    "ui-diff"
+   ]
+  },
+  {
+   "id": "log",
+   "group": "Data display",
+   "title": "Log",
+   "summary": "Lines that follow as they arrive: levels to filter by, a search that marks matches, wrapping, terminal colours, and saving to a file.",
+   "usage": "- { type: ui-live-data, props: { url: /api/log, into: lines } }\n- { type: ui-log, props: { lines: \"{{ lines }}\", title: Deploy, height: 320, download: deploy.log } }",
+   "components": [
+    "ui-log"
+   ]
+  },
+  {
    "id": "alert",
    "group": "Feedback",
    "title": "Alert",
@@ -367,6 +637,27 @@
    ]
   },
   {
+   "id": "banner",
+   "group": "Feedback",
+   "title": "Banner",
+   "summary": "A message across the page: maintenance, an offer, a trial's end, a setting to finish. It can be closed and stay closed, keep to an edge, come and go at set times, and count down.",
+   "usage": "- type: ui-banner\n  props: { title: Maintenance, text: \"Saturday 22:00 to 23:00.\", tone: warning, bind: closed, remember: maint-12, countdown: \"2026-12-05T22:00\" }",
+   "components": [
+    "ui-banner"
+   ]
+  },
+  {
+   "id": "tour",
+   "group": "Feedback",
+   "title": "Tour and session timeout",
+   "summary": "A tour points at parts of the page one after another, for someone new to it. A session timeout asks whether someone's still there before their session ends, across their tabs.",
+   "usage": "- type: ui-tour\n  props:\n    bind: tour\n    id: welcome\n    autoStart: true\n    steps:\n      - { target: \"#search\", title: Find anything, text: Press / to start. }\n- { type: ui-session-timeout, props: { after: 20, warn: 2, extendUrl: /api/session, signOutUrl: /login } }",
+   "components": [
+    "ui-tour",
+    "ui-session-timeout"
+   ]
+  },
+  {
    "id": "dialog",
    "group": "Overlays",
    "title": "Dialog, alert dialog, sheet and drawer",
@@ -420,7 +711,8 @@
     "ui-command-dialog",
     "ui-command-group",
     "ui-command-item",
-    "ui-command-separator"
+    "ui-command-separator",
+    "ui-command-page"
    ]
   },
   {
@@ -491,7 +783,8 @@
     "ui-sidebar-footer",
     "ui-sidebar-group",
     "ui-sidebar-item",
-    "ui-sidebar-trigger"
+    "ui-sidebar-trigger",
+    "ui-sidebar-action"
    ]
   },
   {
@@ -551,6 +844,29 @@
     "ui-message",
     "ui-chat-input",
     "ui-typing-indicator"
+   ]
+  },
+  {
+   "id": "agent",
+   "group": "Chat",
+   "title": "Attachments, sources and actions",
+   "summary": "What an assistant's messages show beside their text: files sent with them, the sources behind an answer with its [1]s as links, and what was done, or needs approving. A message's attachments and sources fields draw the first two.",
+   "usage": "- { type: ui-attachment, props: { files: \"{{ files }}\", bindFiles: files } }\n- { type: ui-sources, props: { text: \"Highs reach 18°C [1].\", items: [ { title: City guide, url: \"https://example.com\" } ] } }\n- { type: ui-tool-call, props: { title: Cancel the booking, status: approval, input: { id: 42 }, bindApproval: allowed } }",
+   "components": [
+    "ui-attachment",
+    "ui-sources",
+    "ui-tool-call"
+   ]
+  },
+  {
+   "id": "trace",
+   "group": "Chat",
+   "title": "Trace and questionnaire",
+   "summary": "The steps of a run, nested and against time, each opening to what went in and out; and questions answered one at a time or together, for an assistant, a survey or an intake form.",
+   "usage": "- { type: ui-trace, props: { spans: \"{{ run.spans }}\", bindSpan: step } }\n- { type: ui-questionnaire, props: { bind: answers, bindDone: done, questions: [ { id: pace, question: How full should the days be?, options: [Easy, Full], required: true } ] } }",
+   "components": [
+    "ui-trace",
+    "ui-questionnaire"
    ]
   },
   {

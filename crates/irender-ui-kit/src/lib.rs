@@ -61,22 +61,32 @@ macro_rules! fs {
     ($n:literal) => { concat!("calc(", $n, "px * var(--font-scale, 1))") };
 }
 
+mod agent;
 mod calendar;
 mod carousel;
 mod chat;
 mod code;
+mod codes;
 mod combobox;
+mod comments;
 mod command;
 mod dashboard_grid;
 mod data_table;
+mod devtools;
 mod disclosure;
 mod display;
 mod events;
 mod feedback;
 mod filters;
+mod form;
 mod forms;
+mod guide;
 mod kanban;
+mod lightbox;
 mod illustration;
+mod import;
+mod inputs;
+mod media;
 mod menus;
 mod navigation;
 mod notifications;
@@ -84,14 +94,21 @@ mod number;
 mod otp;
 mod rail;
 mod rating;
+mod repeater;
 mod resizable;
 mod overlay;
+mod pickers;
+mod pivot;
+mod scheduler;
 mod scroll_spy;
 mod sidebar;
+mod stat;
 mod status;
+mod stepper;
 mod theme;
 mod tree;
 mod upload;
+mod widget;
 
 pub use chat::{render_message_ui, render_ui, ui_document};
 pub use theme::{apply_theme, theme};
@@ -146,6 +163,48 @@ pub fn register(registry: &mut Registry) {
         .register(status::ProgressRing)
         .register(status::Timeline)
         .register(status::TimelineItem)
+        .register(lightbox::Lightbox)
+        .register(pickers::QueryBuilder)
+        .register(pickers::TransferList)
+        .register(pickers::TreeSelect)
+        .register(agent::Attachment)
+        .register(agent::Sources)
+        .register(agent::ToolCall)
+        .register(agent::Trace)
+        .register(agent::Questionnaire)
+        .register(guide::Tour)
+        .register(guide::Banner)
+        .register(guide::SessionTimeout)
+        .register(media::Signature)
+        .register(media::ImageCropper)
+        .register(media::Plan)
+        .register(media::Pdf)
+        .register(devtools::Diff)
+        .register(devtools::Log)
+        .register(devtools::CodeEditor)
+        .register(codes::QrCode)
+        .register(codes::Barcode)
+        .register(codes::CodeScanner)
+        .register(pivot::Pivot)
+        .register(scheduler::Scheduler)
+        .register(comments::Comments)
+        .register(comments::MentionInput)
+        .register(inputs::TagsInput)
+        .register(inputs::MaskedInput)
+        .register(inputs::PhoneInput)
+        .register(inputs::TimePicker)
+        .register(stat::Stat)
+        .register(stat::DescriptionList)
+        .register(stat::DescriptionItem)
+        .register(stat::ItemGroup)
+        .register(stat::Item)
+        .register(import::Import)
+        .register(form::Form)
+        .register(form::ErrorSummary)
+        .register(form::SaveBar)
+        .register(repeater::Repeater)
+        .register(stepper::Stepper)
+        .register(stepper::Step)
         .register(rating::Rating)
         .register(rating::PasswordChecklist)
         .register(dashboard_grid::DashboardGrid)
@@ -343,6 +402,18 @@ fn anchors(cx: &mut RenderCx<'_>) {
     cx.global_js("ui-anchors", include_str!("anchors.js"));
 }
 
+/// What typed cells take and how they're checked (`window.__irenderCells`), for
+/// components whose cells or fields are read from text. Added before their own script.
+fn cells(cx: &mut RenderCx<'_>) {
+    cx.global_js("ui-cells", include_str!("cells.js"));
+}
+
+/// Reading CSV and .xlsx, and writing .xlsx and zips (`window.__irenderSheets`), without
+/// libraries. Added before the script that uses it.
+fn sheets(cx: &mut RenderCx<'_>) {
+    cx.global_js("ui-sheets", include_str!("sheets.js"));
+}
+
 /// Adds the right-to-left rules, for components that use them.
 fn flips(cx: &mut RenderCx<'_>) {
     cx.global_css("ui-rtl", RTL);
@@ -472,6 +543,7 @@ fn context(cx: &RenderCx<'_>, name: &str) -> Option<Val> {
 const CONTROLS: &[&str] = &[
     "input", "textarea", "select", "ui-input", "ui-textarea", "ui-select", "ui-checkbox", "ui-switch", "ui-slider",
     "ui-radio-group", "ui-combobox", "ui-date-picker", "ui-input-otp", "ui-number-input", "ui-json-editor",
+    "ui-tags-input", "ui-masked-input", "ui-phone-input", "ui-time-picker", "ui-mention-input", "ui-tree-select", "ui-code-editor",
 ];
 
 /// The `attrs` that reach the element a control focuses: the inner `<input>` for kit
@@ -479,8 +551,9 @@ const CONTROLS: &[&str] = &[
 fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => &mut node.parts.entry("control".into()).or_default().attrs,
-        "ui-combobox" | "ui-input-otp" | "ui-number-input" => &mut node.parts.entry("input".into()).or_default().attrs,
-        "ui-json-editor" => &mut node.parts.entry("textarea".into()).or_default().attrs,
+        "ui-combobox" | "ui-input-otp" | "ui-number-input" | "ui-tags-input" | "ui-masked-input" | "ui-phone-input" | "ui-time-picker" | "ui-mention-input" => &mut node.parts.entry("input".into()).or_default().attrs,
+        "ui-tree-select" => &mut node.parts.entry("trigger".into()).or_default().attrs,
+        "ui-json-editor" | "ui-code-editor" => &mut node.parts.entry("textarea".into()).or_default().attrs,
         // With `input`, the text field; otherwise the button that opens the calendar.
         "ui-date-picker" if typed_date(node) => &mut node.parts.entry("input".into()).or_default().attrs,
         "ui-date-picker" => &mut node.parts.entry("trigger".into()).or_default().attrs,
@@ -491,8 +564,9 @@ fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
 fn focus_attr<'a>(node: &'a Node, name: &str) -> Option<&'a Val> {
     match node.kind.as_str() {
         "ui-checkbox" | "ui-switch" => node.parts.get("control")?.attrs.get(name),
-        "ui-combobox" | "ui-input-otp" | "ui-number-input" => node.parts.get("input")?.attrs.get(name),
-        "ui-json-editor" => node.parts.get("textarea")?.attrs.get(name),
+        "ui-combobox" | "ui-input-otp" | "ui-number-input" | "ui-tags-input" | "ui-masked-input" | "ui-phone-input" | "ui-time-picker" | "ui-mention-input" => node.parts.get("input")?.attrs.get(name),
+        "ui-tree-select" => node.parts.get("trigger")?.attrs.get(name),
+        "ui-json-editor" | "ui-code-editor" => node.parts.get("textarea")?.attrs.get(name),
         "ui-date-picker" if typed_date(node) => node.parts.get("input")?.attrs.get(name),
         "ui-date-picker" => node.parts.get("trigger")?.attrs.get(name),
         _ => node.attrs.get(name),

@@ -16,6 +16,65 @@ root: …
 
 ## UI kit
 
+`agent.js`
+
+```yaml
+"Waiting": "Waiting"
+"Running": "Running"
+"Done": "Done"
+"Failed": "Failed"
+"Needs approval": "Needs approval"
+"Uploading… {progress}%": "Uploading… {progress}%"
+"Processing…": "Processing…"
+"Remove {name}": "Remove {name}"
+"page {n}": "page {n}"
+"Source {n}: {name}": "Source {n}: {name}"
+"Sources": "Sources"
+"Input": "Input"
+"Output": "Output"
+"Allow this?": "Allow this?"
+"Deny": "Deny"
+"Allow": "Allow"
+"Allowed": "Allowed"
+"Denied": "Denied"
+"Trace": "Trace"
+"{n} steps": { one: "{n} step", other: "{n} steps" }
+"{n} tokens": "{n} tokens"
+"Step": "Step"
+"Kind": "Kind"
+"Took": "Took"
+"Tokens": "Tokens"
+"Cost": "Cost"
+"Error": "Error"
+"Please answer this one": "Please answer this one"
+"Not a number": "Not a number"
+"At least {n}": "At least {n}"
+"At most {n}": "At most {n}"
+"Pick at most {n}": "Pick at most {n}"
+"Yes": "Yes"
+"No": "No"
+"Something else…": "Something else…"
+"Something else": "Something else"
+"Required": "Required"
+"Sent": "Sent"
+"Back": "Back"
+"Skip": "Skip"
+"Send": "Send"
+"Next": "Next"
+"{n} of {count}": "{n} of {count}"
+"Progress": "Progress"
+```
+
+`agent.rs`
+
+```yaml
+"Attachments": "Attachments"
+"Sources": "Sources"
+"Action": "Action"
+"Trace": "Trace"
+"Questions": "Questions"
+```
+
 `calendar.js`
 
 ```yaml
@@ -106,9 +165,30 @@ root: …
 "Slides": "Slides"
 ```
 
+`cells.js`
+
+```yaml
+"Required": "Required"
+"Not a number": "Not a number"
+"At least {n}": "At least {n}"
+"At most {n}": "At most {n}"
+"Not a date": "Not a date"
+"Not before {date}": "Not before {date}"
+"Not after {date}": "Not after {date}"
+"Not one of the choices": "Not one of the choices"
+"Not in the right format": "Not in the right format"
+"Already used": "Already used"
+```
+
 `chat.rs`
 
 ```yaml
+"Message actions": "Message actions"
+"Copy": "Copy"
+"Try again": "Try again"
+"Edit": "Edit"
+"Good reply": "Good reply"
+"Bad reply": "Bad reply"
 "{n} replies": "{n} replies"
 "Typing": "Typing"
 "Conversation": "Conversation"
@@ -123,6 +203,7 @@ root: …
 ```yaml
 "Stop": "Stop"
 "Send": "Send"
+"Try again": "Try again"
 "The reply failed: {error}": "The reply failed: {error}"
 ```
 
@@ -148,6 +229,33 @@ root: …
 "JSON": "JSON"
 "Format": "Format"
 "Tab indents. Press Escape, then Tab, to leave the editor.": "Tab indents. Press Escape, then Tab, to leave the editor."
+```
+
+`codes.js`
+
+```yaml
+"Download": "Download"
+"Too long for a QR code": "Too long for a QR code"
+"Nothing to encode": "Nothing to encode"
+"QR code: {value}": "QR code: {value}"
+"“{value}” can't be made into this kind of barcode": "“{value}” can't be made into this kind of barcode"
+"Barcode: {value}": "Barcode: {value}"
+"Read {value}": "Read {value}"
+"This browser can't read codes with the camera. Type the code, or use a handheld scanner.": "This browser can't read codes with the camera. Type the code, or use a handheld scanner."
+"The camera isn't allowed on this page.": "The camera isn't allowed on this page."
+"The camera couldn't be started.": "The camera couldn't be started."
+"Hold the code in the frame.": "Hold the code in the frame."
+```
+
+`codes.rs`
+
+```yaml
+"Switch camera": "Switch camera"
+"Stop": "Stop"
+"Camera": "Camera"
+"Scan a code": "Scan a code"
+"Or type it and press Enter": "Or type it and press Enter"
+"Code": "Code"
 ```
 
 `combobox.js`
@@ -188,6 +296,44 @@ root: …
 "Command palette": "Command palette"
 ```
 
+`comments.js`
+
+```yaml
+"Comment added": "Comment added"
+"Write a comment…": "Write a comment…"
+"{n} characters left": "{n} characters left"
+"Cancel": "Cancel"
+"Reply": "Reply"
+"Open again": "Open again"
+"Resolve": "Resolve"
+"Edit": "Edit"
+"Delete": "Delete"
+"Someone": "Someone"
+"edited": "edited"
+"Resolved": "Resolved"
+"Hide": "Hide"
+"Show {n} comments": { one: "Show {n} comment", other: "Show {n} comments" }
+"Delete this comment?": "Delete this comment?"
+"Delete this comment and its replies?": "Delete this comment and its replies?"
+"Keep": "Keep"
+"Comment deleted": "Comment deleted"
+"Edit comment": "Edit comment"
+"Save": "Save"
+"{emoji}, {n}: {names}": "{emoji}, {n}: {names}"
+"Add a reaction": "Add a reaction"
+"Reactions": "Reactions"
+"Reply to {name}": "Reply to {name}"
+"Write a comment": "Write a comment"
+"Comment": "Comment"
+"No comments yet.": "No comments yet."
+```
+
+`comments.rs`
+
+```yaml
+"Comments": "Comments"
+```
+
 `dashboard_grid.js`
 
 ```yaml
@@ -210,6 +356,7 @@ root: …
 "All rows collapsed": "All rows collapsed"
 "{n} more rows loaded": { one: "{n} more row loaded", other: "{n} more rows loaded" }
 "Couldn't load the rows under this one": "Couldn't load the rows under this one"
+"{n} problems": { one: "{n} problem", other: "{n} problems" }
 "Loading…": "Loading…"
 "Couldn't load rows.": "Couldn't load rows."
 "{n} selected": "{n} selected"
@@ -265,6 +412,7 @@ root: …
 "Views": "Views"
 "Search…": "Search…"
 "Reset": "Reset"
+"Download the rows that pass the filters as Excel": "Download the rows that pass the filters as Excel"
 "Download the rows that pass the filters as CSV": "Download the rows that pass the filters as CSV"
 "Export": "Export"
 "View": "View"
@@ -274,6 +422,7 @@ root: …
 "Rows": "Rows"
 "Bulk actions": "Bulk actions"
 "{n} selected": "{n} selected"
+"Delete": "Delete"
 "Select all rows on this page": "Select all rows on this page"
 "Details": "Details"
 "Resize {name}": "Resize {name}"
@@ -282,6 +431,7 @@ root: …
 "Loading more…": "Loading more…"
 "Load more": "Load more"
 "Couldn't load rows. Retry": "Couldn't load rows. Retry"
+"Add row": "Add row"
 "Loading…": "Loading…"
 "Showing {shown} of {total}": "Showing {shown} of {total}"
 "{count} of {total} row(s) selected.": "{count} of {total} row(s) selected."
@@ -290,6 +440,51 @@ root: …
 "Page {page} of {pages}": "Page {page} of {pages}"
 "Filter by {name}": "Filter by {name}"
 "Clear filter": "Clear filter"
+"Yes": "Yes"
+"No": "No"
+```
+
+`devtools.js`
+
+```yaml
+"Debug": "Debug"
+"Info": "Info"
+"Success": "Success"
+"Warn": "Warn"
+"Error": "Error"
+"Changes": "Changes"
+"added": "added"
+"removed": "removed"
+"Show {n} unchanged lines": "Show {n} unchanged lines"
+"Split": "Split"
+"Unified": "Unified"
+"No changes": "No changes"
+"Yes": "Yes"
+"No": "No"
+"{n} changes": { one: "{n} change", other: "{n} changes" }
+"Field": "Field"
+"Before": "Before"
+"After": "After"
+"Search…": "Search…"
+"Search": "Search"
+"Wrap": "Wrap"
+"Latest": "Latest"
+"Download": "Download"
+"No lines match.": "No lines match."
+"Nothing yet.": "Nothing yet."
+"{n} lines": { one: "{n} line", other: "{n} lines" }
+"{shown} of {total} lines": "{shown} of {total} lines"
+"Line {n}": "Line {n}"
+"Line {line}, column {column}": "Line {line}, column {column}"
+"Suggestions": "Suggestions"
+```
+
+`devtools.rs`
+
+```yaml
+"Code": "Code"
+"Escape, then Tab, leaves the editor": "Escape, then Tab, leaves the editor"
+"Problems": "Problems"
 ```
 
 `disclosure.rs`
@@ -368,6 +563,8 @@ root: …
 "Q{n} {year}": "Q{n} {year}"
 "{name}, {n} applied": "{name}, {n} applied"
 "Remove the {name} filter": "Remove the {name} filter"
+"Loading…": "Loading…"
+"Couldn't load the values": "Couldn't load the values"
 "No matches": "No matches"
 "No values": "No values"
 "Delete the {name} view": "Delete the {name} view"
@@ -429,6 +626,135 @@ root: …
 "Save": "Save"
 ```
 
+`form.js`
+
+```yaml
+"Required": "Required"
+"Enter an email address": "Enter an email address"
+"Enter a web address": "Enter a web address"
+"Not a number": "Not a number"
+"Not a date": "Not a date"
+"Pick at least {n}": "Pick at least {n}"
+"Not before {date}": "Not before {date}"
+"At least {n}": "At least {n}"
+"Pick at most {n}": "Pick at most {n}"
+"Not after {date}": "Not after {date}"
+"At most {n}": "At most {n}"
+"At least {n} characters": "At least {n} characters"
+"At most {n} characters": "At most {n} characters"
+"Doesn't match": "Doesn't match"
+"Not in the right format": "Not in the right format"
+"There are {n} problems": { one: "There's a problem", other: "There are {n} problems" }
+```
+
+`form.rs`
+
+```yaml
+"Leave this page?": "Leave this page?"
+"You have unsaved changes that will be lost.": "You have unsaved changes that will be lost."
+"Keep editing": "Keep editing"
+"Leave": "Leave"
+"Unsaved changes": "Unsaved changes"
+"Discard": "Discard"
+"Save": "Save"
+```
+
+`guide.js`
+
+```yaml
+"{n} of {count}": "{n} of {count}"
+"Back": "Back"
+"Done": "Done"
+"Next": "Next"
+"Skip the tour": "Skip the tour"
+"{n}d": "{n}d"
+"{time} left": "{time} left"
+```
+
+`guide.rs`
+
+```yaml
+"Sign out": "Sign out"
+"Stay signed in": "Stay signed in"
+"Announcement": "Announcement"
+"Close": "Close"
+"Are you still there?": "Are you still there?"
+"You'll be signed out to keep your account safe.": "You'll be signed out to keep your account safe."
+```
+
+`import.js`
+
+```yaml
+"Old Excel files (.xls) can't be read: save it as .xlsx or CSV.": "Old Excel files (.xls) can't be read: save it as .xlsx or CSV."
+"Couldn't read {name}: {error}": "Couldn't read {name}: {error}"
+"There's nothing in it.": "There's nothing in it."
+"It has {n} rows; at most {max} can be imported at once.": "It has {n} rows; at most {max} can be imported at once."
+"Column {name}": "Column {name}"
+"Field": "Field"
+"Column in the file": "Column in the file"
+"Sample": "Sample"
+"Column for {name}": "Column for {name}"
+"Required": "Required"
+"Not in the file": "Not in the file"
+"{n} rows": { one: "{n} row", other: "{n} rows" }
+"Required, with no column: {names}": "Required, with no column: {names}"
+"{n} rows are ready": { one: "{n} row is ready", other: "{n} rows are ready" }
+"{n} need attention": { one: "{n} needs attention", other: "{n} need attention" }
+"left out unless put right": "left out unless put right"
+"Import {n} rows": { one: "Import {n} row", other: "Import {n} rows" }
+"{done} of {total} rows": "{done} of {total} rows"
+"Not accepted": "Not accepted"
+"{n} rows imported.": { one: "{n} row imported.", other: "{n} rows imported." }
+"Sending stopped: {error}": "Sending stopped: {error}"
+"{n} rows were sent back.": { one: "{n} row was sent back.", other: "{n} rows were sent back." }
+"{n} rows imported": { one: "{n} row imported", other: "{n} rows imported" }
+"{n} rows were left out": { one: "{n} row was left out", other: "{n} rows were left out" }
+"Pasted cells": "Pasted cells"
+```
+
+`import.rs`
+
+```yaml
+"Upload": "Upload"
+"Match columns": "Match columns"
+"Review": "Review"
+"Import": "Import"
+"Rows": "Rows"
+"Import {name}": "Import {name}"
+"Drop a file here, or click to choose one": "Drop a file here, or click to choose one"
+"{types}, up to {max} rows. Or paste cells copied from a spreadsheet.": "{types}, up to {max} rows. Or paste cells copied from a spreadsheet."
+"Choose a file": "Choose a file"
+"Download a template": "Download a template"
+"Sheet": "Sheet"
+"The first row has the column names": "The first row has the column names"
+"Back": "Back"
+"Review rows": "Review rows"
+"Row": "Row"
+"Importing": "Importing"
+"Import another file": "Import another file"
+```
+
+`inputs.js`
+
+```yaml
+"{name} added": "{name} added"
+"{name} removed": "{name} removed"
+"Remove {name}": "Remove {name}"
+"Country: {name}, +{code}": "Country: {name}, +{code}"
+"Search countries": "Search countries"
+"No results": "No results"
+"{h} h {m} min": "{h} h {m} min"
+"{h} h": "{h} h"
+"{m} min": "{m} min"
+```
+
+`inputs.rs`
+
+```yaml
+"Country": "Country"
+"Show times": "Show times"
+```
+
 `kanban.js`
 
 ```yaml
@@ -471,11 +797,106 @@ root: …
 "card": "card"
 ```
 
+`lightbox.js`
+
+```yaml
+"Previous image": "Previous image"
+"Next image": "Next image"
+"Download": "Download"
+"Zoom out": "Zoom out"
+"Zoom in": "Zoom in"
+"Close": "Close"
+"Image": "Image"
+"{n} of {count}": "{n} of {count}"
+"Image {n}": "Image {n}"
+```
+
+`lightbox.rs`
+
+```yaml
+"Images": "Images"
+```
+
+`media.js`
+
+```yaml
+"Highlight": "Highlight"
+"Box": "Box"
+"Note": "Note"
+"Signature": "Signature"
+"Signature pad: draw with a finger, a pen or the mouse": "Signature pad: draw with a finger, a pen or the mouse"
+"Type your name": "Type your name"
+"Your name": "Your name"
+"Undo": "Undo"
+"Clear": "Clear"
+"Draw": "Draw"
+"Type": "Type"
+"Sign here": "Sign here"
+"Choose a picture": "Choose a picture"
+"Drop a picture here, or click to choose one": "Drop a picture here, or click to choose one"
+"Crop: the arrow keys move it, with Shift they size it": "Crop: the arrow keys move it, with Shift they size it"
+"Zoom": "Zoom"
+"Free": "Free"
+"Crop": "Crop"
+"Turn": "Turn"
+"Flip": "Flip"
+"Another": "Another"
+"This picture's site doesn't let it be cropped here.": "This picture's site doesn't let it be cropped here."
+"Picture cropped": "Picture cropped"
+"That isn't a picture that can be shown.": "That isn't a picture that can be shown."
+"Zoom in": "Zoom in"
+"Zoom out": "Zoom out"
+"Show all": "Show all"
+"No results": "No results"
+"Page": "Page"
+"Download": "Download"
+"Previous page": "Previous page"
+"Next page": "Next page"
+"Fit": "Fit"
+"Pages": "Pages"
+"Loading…": "Loading…"
+"Couldn't show this PDF ({error}).": "Couldn't show this PDF ({error})."
+"Open it in a new tab": "Open it in a new tab"
+"Page {n}": "Page {n}"
+"Write a note…": "Write a note…"
+"Remove": "Remove"
+"Done": "Done"
+"Close": "Close"
+"There's no signature to put here yet": "There's no signature to put here yet"
+"No PDF to show.": "No PDF to show."
+```
+
+`media.rs`
+
+```yaml
+"Signature": "Signature"
+"Crop image": "Crop image"
+"Plan": "Plan"
+"Find…": "Find…"
+"Find": "Find"
+"PDF": "PDF"
+"Open the PDF": "Open the PDF"
+```
+
+`mentions.js`
+
+```yaml
+"People": "People"
+```
+
 `menus.rs`
 
 ```yaml
 "Menu bar": "Menu bar"
 "Main": "Main"
+```
+
+`message_actions.js`
+
+```yaml
+"Copied": "Copied"
+"Couldn't copy": "Couldn't copy"
+"Copy": "Copy"
 ```
 
 `message_html.js`
@@ -565,6 +986,107 @@ root: …
 "Strong": "Strong"
 ```
 
+`pickers.js`
+
+```yaml
+"contains": "contains"
+"doesn't contain": "doesn't contain"
+"is": "is"
+"is not": "is not"
+"starts with": "starts with"
+"ends with": "ends with"
+"is empty": "is empty"
+"is not empty": "is not empty"
+"is more than": "is more than"
+"is at least": "is at least"
+"is less than": "is less than"
+"is at most": "is at most"
+"is between": "is between"
+"is before": "is before"
+"is after": "is after"
+"is in the last (days)": "is in the last (days)"
+"is in the next (days)": "is in the next (days)"
+"is any of": "is any of"
+"is none of": "is none of"
+"includes": "includes"
+"doesn't include": "doesn't include"
+"includes any of": "includes any of"
+"includes all of": "includes all of"
+"is true": "is true"
+"is false": "is false"
+"and": "and"
+"or": "or"
+"not": "not"
+"Value": "Value"
+"Select…": "Select…"
+"Field": "Field"
+"Condition": "Condition"
+"Condition {n}": "Condition {n}"
+"Remove condition": "Remove condition"
+"Remove": "Remove"
+"Match": "Match"
+"All": "All"
+"Any": "Any"
+"Not": "Not"
+"Group": "Group"
+"Remove group": "Remove group"
+"No conditions: everything matches.": "No conditions: everything matches."
+"Search": "Search"
+"Search…": "Search…"
+"Add the selected": "Add the selected"
+"Remove the selected": "Remove the selected"
+"{n} added": { one: "{n} added", other: "{n} added" }
+"{n} removed": { one: "{n} removed", other: "{n} removed" }
+"Available": "Available"
+"Chosen": "Chosen"
+"No results": "No results"
+"Nothing left": "Nothing left"
+"None chosen": "None chosen"
+```
+
+`pickers.rs`
+
+```yaml
+"Conditions": "Conditions"
+"Clear": "Clear"
+"Choices": "Choices"
+```
+
+`pivot.js`
+
+```yaml
+"sum": "sum"
+"avg": "avg"
+"min": "min"
+"max": "max"
+"count": "count"
+"distinct": "distinct"
+"median": "median"
+"Week {n}, {year}": "Week {n}, {year}"
+"(blank)": "(blank)"
+"Yes": "Yes"
+"No": "No"
+"Total": "Total"
+"Count": "Count"
+"Sort by {name}": "Sort by {name}"
+"Pivot table": "Pivot table"
+"No rows.": "No rows."
+"Add a field to {name}": "Add a field to {name}"
+"Add": "Add"
+"How {name} is summed": "How {name} is summed"
+"Remove {name}": "Remove {name}"
+"Down": "Down"
+"Across": "Across"
+"Values": "Values"
+"Export": "Export"
+```
+
+`pivot.rs`
+
+```yaml
+"Pivot table": "Pivot table"
+```
+
 `rail.rs`
 
 ```yaml
@@ -588,11 +1110,51 @@ root: …
 "Password requirements": "Password requirements"
 ```
 
+`repeater.js`
+
+```yaml
+"{name} added": "{name} added"
+"{name} removed": "{name} removed"
+"{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
+"{name} {n} of {total}": "{name} {n} of {total}"
+```
+
+`repeater.rs`
+
+```yaml
+"Row": "Row"
+"Move (Alt and the arrow keys)": "Move (Alt and the arrow keys)"
+"Duplicate": "Duplicate"
+"Remove": "Remove"
+"Add row": "Add row"
+```
+
 `resizable.rs`
 
 ```yaml
 "panels": "panels"
 "Resize {name}": "Resize {name}"
+```
+
+`scheduler.js`
+
+```yaml
+"That time is taken": "That time is taken"
+"Day": "Day"
+"Week": "Week"
+"Month": "Month"
+"Previous": "Previous"
+"Today": "Today"
+"Next": "Next"
+"clashes with another": "clashes with another"
+"New booking": "New booking"
+"Booking added": "Booking added"
+```
+
+`scheduler.rs`
+
+```yaml
+"Schedule": "Schedule"
 ```
 
 `scroll_spy.rs`
@@ -609,11 +1171,51 @@ root: …
 "Toggle sidebar": "Toggle sidebar"
 ```
 
+`stat.js`
+
+```yaml
+"up": "up"
+"down": "down"
+"no change": "no change"
+"{percent} of {target}": "{percent} of {target}"
+"Add": "Add"
+"{name}: {value}, edit": "{name}: {value}, edit"
+"empty": "empty"
+"Copied": "Copied"
+"Couldn't copy": "Couldn't copy"
+```
+
+`stat.rs`
+
+```yaml
+"Progress to the target": "Progress to the target"
+"Copy {name}": "Copy {name}"
+```
+
 `status.rs`
 
 ```yaml
 "Activity": "Activity"
 "to": "to"
+```
+
+`stepper.rs`
+
+```yaml
+"Back": "Back"
+"Next": "Next"
+"Finish": "Finish"
+"Steps": "Steps"
+"Optional": "Optional"
+```
+
+`table_edit.js`
+
+```yaml
+"Nothing to undo": "Nothing to undo"
+"Row added": "Row added"
+"{n} rows deleted": { one: "{n} row deleted", other: "{n} rows deleted" }
+"{n} cells pasted": { one: "{n} cell pasted", other: "{n} cells pasted" }
 ```
 
 `tree.js`

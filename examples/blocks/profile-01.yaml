@@ -1,0 +1,104 @@
+# Block: a member's profile, for a club or any site with accounts. `ui-form` checks the
+# fields, knows its unsaved changes and asks before they're lost; the bar at the foot saves
+# or discards them. The picture is cropped in the browser, contacts are a repeater of cards,
+# and the session asks before it ends.
+#
+#   cargo run -p irender-cli -- render examples/blocks/profile-01.yaml --ui-kit --icon-kit -o profile-01.html
+version: 1
+state:
+  toast: null
+  dirty: false
+  errors: {}
+  crop: false
+  picture: null
+  name: Farah Siddiqui
+  handle: farah
+  about: "Runner, bird watcher, slow baker."
+  topics: [Running, Birds]
+  phone: "+919820012345"
+  contacts:
+    - { name: Imran Siddiqui, relation: Brother, phone: "+91 98200 55555", main: true }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 880px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Profile" } }
+                - { type: ui-text, props: { variant: muted, text: "What other members see" } }
+
+        - type: ui-form
+          props:
+            bindDirty: dirty
+            bindErrors: errors
+            guard: true
+            keys: [name, handle, about, topics, phone, contacts, picture]
+            rules:
+              name: { label: Name, required: true, minLength: 2 }
+              handle: { label: Handle, required: true, pattern: "[a-z0-9_]{3,20}", message: "3 to 20 small letters, digits or _" }
+              about: { label: About, maxLength: 160 }
+              topics: { label: Topics, min: 1, max: 5 }
+          on:
+            submit:
+              - { action: set_state, key: dirty, value: false }
+              - { action: set_state, key: toast, value: { title: Profile saved, variant: success } }
+          style: { display: flex, flex-direction: column, gap: 20px }
+          children:
+            - { type: ui-error-summary }
+            - type: ui-card
+              props: { title: Picture }
+              children:
+                - type: element
+                  style: { display: grid, gap: 20px, align-items: center, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "120px minmax(0, 1fr)" } }
+                  children:
+                    - type: if
+                      props: { when: "{{ picture == null }}" }
+                      children: [ { type: ui-avatar, props: { fallback: FS, size: 112 } } ]
+                    - type: if
+                      props: { when: "{{ picture != null }}" }
+                      children: [ { type: element, props: { tag: img }, attrs: { src: "{{ picture }}", alt: Your picture }, style: { width: 112px, height: 112px, border-radius: 50%, object-fit: cover } } ]
+                    - { type: ui-image-cropper, props: { bind: picture, ratio: 1, round: true, width: 320, height: 240 } }
+            - type: ui-card
+              props: { title: About you }
+              children:
+                - type: element
+                  style: { display: grid, gap: 16px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(2, minmax(0, 1fr))" } }
+                  children:
+                    - { type: ui-field, props: { label: Name, error: "{{ errors.name }}" }, children: [ { type: ui-input, props: { bind: name } } ] }
+                    - { type: ui-field, props: { label: Handle, error: "{{ errors.handle }}" }, children: [ { type: ui-input-group, props: { prefix: "@" }, children: [ { type: ui-input, props: { bind: handle } } ] } ] }
+                    - { type: ui-field, props: { label: Phone }, children: [ { type: ui-phone-input, props: { bind: phone } } ] }
+                    - { type: ui-field, props: { label: Topics, error: "{{ errors.topics }}" }, children: [ { type: ui-tags-input, props: { bind: topics, suggestions: [Running, Birds, Baking, Books, Chess], max: 5 } } ] }
+                    - { type: ui-field, props: { label: About, error: "{{ errors.about }}" }, children: [ { type: ui-textarea, props: { bind: about, rows: 3 } } ], style: { grid-column: 1 / -1 } }
+            - type: ui-card
+              props: { title: In an emergency }
+              children:
+                - type: ui-repeater
+                  props:
+                    bind: contacts
+                    layout: stack
+                    itemLabel: Contact
+                    addLabel: Add a contact
+                    max: 3
+                    emptyText: No one yet.
+                    fields:
+                      - { field: name, label: Name, required: true }
+                      - { field: relation, label: Relation, type: select, options: [Parent, Brother, Sister, Partner, Friend] }
+                      - { field: phone, label: Phone, type: tel, required: true }
+                      - { field: main, label: Call first, type: checkbox }
+            - { type: ui-save-bar }
+        - { type: ui-session-timeout, props: { after: 30, warn: 2, signOutUrl: error-session.html } }
+        - { type: ui-toaster, props: { bind: toast } }

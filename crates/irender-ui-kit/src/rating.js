@@ -6,7 +6,7 @@
   const cfg = api.config;
   const inputs = [...el.querySelectorAll("input")];
   const value = () => Number(api.state[cfg.bind]) || 0;
-  const mark = (n) => inputs.forEach((input, i) => input.parentElement.toggleAttribute("data-on", i < n));
+  const mark = (n) => inputs.forEach((input) => input.parentElement.toggleAttribute("data-on", Number(input.value) <= n));
   const draw = () => {
     const v = value();
     inputs.forEach((input) => (input.checked = Number(input.value) === v));

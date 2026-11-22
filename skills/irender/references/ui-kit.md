@@ -60,7 +60,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-status-badge` | `status` (required), `tones`, `labels`, `dot` (default true) | A status in its colour. See [Status and activity](#status-and-activity). |
 | `ui-progress-ring` | `value` (0–100, required), `size` (px, default 48), `thickness`, `text`, `label`, `tone` | A circular progress with the value in the middle; follows state without a script. |
 | `ui-json-editor` | `bind` (required), `bindValid`, `type` (`object`, `array`, `any`), `rows` (default 10), `indent` (default 2), `label`, `format` (default true) | A JSON text area: highlighted, with line numbers, checked as you type. An error waits for a pause in the typing (or leaving the field), then gives its line, column and a plain reason (`Trailing comma before '}'`, `Keys need double quotes`) and marks the line; a fix shows at once. The value goes to `bind` only while the text is valid (and of `type`), and a change to it from outside is shown formatted. Tab indents (Shift+Tab takes it back; Escape, then Tab, leaves), Enter keeps the indent, and Format tidies the text or jumps to the error. Works in a `ui-field`. Parts: `bar`, `textarea`, `error`; event `change` with `{ value }`. |
-| `ui-rating` | `bind` or `value`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
+| `ui-rating` | `bind` or `value`, `half`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
 | `ui-password-checklist` | `value` (required), `rules`, `bindValid`, `meter` (default true), `label` | A password's rules, ticked as they're met, with a strength bar. |
 | `ui-timeline` + `ui-timeline-item` | `items`, `label`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
 | `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
@@ -82,7 +82,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-slider` | `bind`, `min`, `max`, `step`, `name`, `disabled` | A range input; `bind` holds a number. |
 | `ui-accordion` + `ui-accordion-item` | accordion: `multiple`, `id`; item: `title`, `open` | Native `<details>`. One item open at a time unless `multiple`. |
 | `ui-collapsible` | `trigger`, `open` | Native `<details>`. |
-| `ui-tabs` + `ui-tab-panel` | tabs: `bind` (required), `id`; panel: `value`, `label` | `bind` holds the open panel's `value`. Tabs carry `role=tab`, `aria-selected`, `aria-controls`. The list is one stop for Tab; the arrow keys, Home and End move between tabs and select them. More tabs than fit scroll within their list, which keeps the selected one in view and fades on the sides with more. |
+| `ui-tabs` + `ui-tab-panel` | tabs: `bind` (required), `orientation` (horizontal, vertical), `activation` (automatic, manual), `id`; panel: `value`, `label` | `bind` holds the open panel's `value`. Tabs carry `role=tab`, `aria-selected`, `aria-controls`. The list is one stop for Tab; the arrow keys, Home and End move between tabs and select them. More tabs than fit scroll within their list, which keeps the selected one in view and fades on the sides with more. |
 | `ui-toggle` | `bind`, `label`, `variant` (default, outline), `size`, `disabled` | `aria-pressed` follows `bind`. |
 | `ui-toggle-group` | `bind`, `options`, `multiple`, `variant`, `size`, `disabled` | One option pressed at most; pressing it again sets `bind` to null. With `multiple`, `bind` holds a list and each press adds or removes its option. Wraps when it's wider than what it's in. |
 | `ui-theme-toggle` | `labels` (`{ system, light, dark }`), `variant` (default `outline`), `size` (default `sm`) | System / Light / Dark. Light and Dark override `prefers-color-scheme` for the theme's dark mode and `@dark` styles; the choice is kept in `localStorage` (`irender-theme`) and applied before the page is shown, so a reload doesn't flash. Every page rendered with the kit applies it, with a toggle on it or not. Its behaviour is added only to pages that use it. |
@@ -118,11 +118,50 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 
-| `ui-conversation` | `messages`, `typing`, `assistant`, `render`, `markdown`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
-| `ui-message` | `role` (assistant, user, system), `content`, `markdown`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
-| `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
+| `ui-conversation` | `messages`, `actions`, `typing`, `assistant`, `render`, `markdown`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
+| `ui-message` | `sources`, `attachments`, `actions`, `messageId`, `feedback`, `role` (assistant, user, system), `content`, `markdown`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
+| `ui-chat-input` | `messages` (required), `endpoint`, `body`, `headers`, `bindFiles`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 | `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12), `dots`, `loop`, `autoplay` (ms) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time, to the next slide's own start, so slides of different widths step evenly; a button hides at its end, unless `loop` goes round to the other. `dots` adds a dot per slide under it, the current one marked, each going to its slide. `autoplay: 5000` moves on every 5 seconds, round and round, with a pause button; it waits while the pointer or focus is on it, the tab is hidden, or the reader prefers less motion. Each slide is a `group` named "2 of 5". Parts: `track`, `previous`, `next`, `dots`, `play`. |
+| `ui-form` | `rules`, `bindErrors`, `bindValid`, `bindTried`, `keys`, `bindDirty`, `guard`, `guardText`, `disabled` | A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. Put a `ui-error-summary` and a `ui-save-bar` in it. See [Forms](#forms). |
+| `ui-error-summary` | `title`, `errors` | What's wrong in the `ui-form` it's in, listed once submitting was tried; each message goes to its field. See [Forms](#forms). |
+| `ui-save-bar` | `text`, `saveLabel`, `discardLabel`, `saving`, `disabled`, `position` (sticky, fixed, inline) | Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons. See [Forms](#forms). |
+| `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
+| `ui-repeater` | `bind` (required), `fields` (required), `layout` (table, stack), `newItem`, `min`, `max`, `reorderable`, `duplicable`, `addLabel`, `itemLabel`, `label`, `emptyText`, `disabled`, `bindErrors`, `bindTotals`, `showErrors`, `locale`, `id` | Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`. See [Forms](#forms). |
+| `ui-import` | `bind` (required), `bindImported`, `fields` (required), `url`, `params`, `batchSize`, `accept`, `maxRows`, `skipInvalid`, `template`, `title`, `locale`, `id` | Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns are matched to `fields`, the rows put right in an editable table, and the good ones handed over (an `import` event and `bindImported`) or posted to `url`. See [Import](#import). |
+| `ui-tags-input` | `bind` (required), `suggestions`, `only`, `max`, `pattern`, `strict`, `lowercase`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Tags typed one after another: Enter or a comma adds one, a pasted list adds them all, Backspace takes the last. |
+| `ui-masked-input` | `bind` (required), `mask` (required), `raw`, `bindComplete`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Text in a fixed shape, like a card number, a postcode or a policy number, put in shape as it's typed. |
+| `ui-phone-input` | `bind` (required), `country`, `countries`, `bindCountry`, `bindValid`, `placeholder`, `label`, `name`, `disabled`, `invalid`, `locale` | A phone number with its country, picked from a searched list or from a pasted `+…` number, grouped as it's typed. |
+| `ui-time-picker` | `bind` (required), `step`, `min`, `max`, `disabledTimes`, `seconds`, `hour12`, `durationFrom`, `placeholder`, `label`, `name`, `disabled`, `invalid`, `locale` | A time of day, typed any way (`9`, `930`, `9:30pm`, `21.30`) or picked from a list. |
+| `ui-mention-input` | `bind` (required), `people` (required), `bindMentions`, `trigger`, `placeholder`, `rows`, `maxLength`, `label`, `name`, `disabled`, `invalid` | A text area that names people with `@`, from a list that opens at the caret. State gets the text, and the names in it. |
+| `ui-tree-select` | `bind` (required), `nodes` (required), `multiple`, `leavesOnly`, `path`, `search`, `expanded`, `clearable`, `placeholder`, `label`, `disabled`, `invalid`, `height` | A choice from a hierarchy: a field that opens a searchable tree, for one node or several. |
+| `ui-transfer-list` | `bind` (required), `options` (required), `titles`, `search`, `reorderable`, `max`, `height`, `disabled` | Two lists: what there is and what's chosen, moved between with buttons, a double click, Enter or dragging. |
+| `ui-query-builder` | `bind` (required), `fields` (required), `maxDepth`, `negate`, `bindText`, `bindValid`, `rows`, `bindMatches`, `showText`, `label`, `disabled`, `locale` | Conditions put together with and / or, nested in groups: for segments, alerts, rules, access. State gets the query, its words, and the rows that match. |
+| `ui-signature` | `bind` (required), `bindMeta`, `methods`, `format` (png, svg), `height`, `color`, `hint`, `label`, `disabled` | A signature, drawn with a finger, pen or mouse, or typed; state gets it as a picture. |
+| `ui-image-cropper` | `bind` (required), `src`, `ratio`, `round`, `width`, `maxWidth`, `type` (jpeg, png, webp), `quality`, `bindCrop`, `height`, `label` | A picture cropped, turned and zoomed in the browser, by dragging or the keys. |
+| `ui-qr-code` | `value` (required), `size`, `level` (L, M, Q, H), `logo`, `logoIcon`, `logoText`, `logoSize`, `logoShape` (rounded, circle, square), `logoBackground`, `logoColor`, `dots` (square, round), `color`, `background`, `download`, `label` | A QR code of any text, drawn in the page without a service, with a logo in it if there's one. |
+| `ui-barcode` | `value` (required), `type` (code128, code39, ean13, ean8, upca, itf), `height`, `barWidth`, `showText`, `download`, `label` | A barcode: Code 128, Code 39, EAN, UPC or ITF. |
+| `ui-code-scanner` | `bind` (required), `bindCode`, `bindList`, `formats`, `continuous`, `manual`, `sound`, `label` | Reads QR codes and barcodes with the camera, where the browser can, or from a field (a handheld scanner types into it). |
+| `ui-stat` | `label` (required), `value` (required), `format` (number, currency, percent, compact, none), `currency`, `decimals`, `unit`, `previous`, `change`, `changeAs` (percent, value), `changeLabel`, `goodWhen` (up, down, neutral), `trend`, `target`, `targetLabel`, `description`, `icon`, `href`, `variant` (card, plain), `loading`, `locale` | A figure: its label, value, change from before, a small trend line and progress to a target. Children go at the foot. |
+| `ui-description-list` + `ui-description-item` | description-list: `items`, `columns`, `layout` (stacked, inline), `divided`, `labelWidth`; description-item: `label` (required), `value`, `format` (number, currency, percent, date, datetime), `currency`, `href`, `copy`, `span`, `bind`, `edit` (text, multiline, number, date, select), `options`, `placeholder`, `locale` | Labels and their values, as at the top of a record's page. Children are `ui-description-item`s. |
+| `ui-item-group` + `ui-item` | item-group: `label`, `variant` (divided, cards, plain); item: `title`, `description`, `icon`, `image`, `initials`, `meta`, `tone` (neutral, info, success, warning, danger, primary), `href`, `selected`, `disabled`, `size` (default, sm), `variant` (plain, outline, muted) | A list of `ui-item`s (a `list` works as its child). |
+| `ui-comments` | `bind` (required), `user`, `people`, `reactions`, `resolvable`, `replies`, `editable`, `order` (oldest, newest), `placeholder`, `emptyText`, `maxLength`, `label`, `disabled`, `locale` | Comments in threads: replies, mentions, reactions, resolving, editing one's own. Each change is written to `bind` and fires an event. |
+| `ui-lightbox` | `images` (required), `layout` (grid, row, masonry, stack), `minWidth`, `ratio`, `max`, `captions`, `download`, `bind`, `label` | Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save. |
+| `ui-pivot` | `rows` (required), `fields`, `down`, `across`, `values`, `filter`, `bind`, `editable`, `totals` (both, rows, columns, none), `subtotals`, `heat`, `bindCell`, `export`, `height`, `title`, `emptyText`, `locale` | A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell. See [Pivot table](#pivot-table). |
+| `ui-scheduler` | `resources` (required), `events` (required), `bindEvents`, `bindEvent`, `bindDate`, `bindView`, `view` (day, week, month), `views`, `from`, `to`, `snap`, `overlap` (allow, mark, prevent), `creatable`, `newEvent`, `moveResources`, `bindClashes`, `rowLabel`, `rowHeight`, `height`, `now`, `label`, `locale` | Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked. See [Scheduler](#scheduler). |
+| `ui-plan` | `items` (required), `width`, `height`, `image`, `bindItems`, `bind`, `bindItem`, `tones`, `grid`, `filter`, `search`, `legend`, `viewHeight`, `label` | Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked, coloured by status, and rearranged by dragging. See [Plan](#plan). |
+| `ui-pdf` | `src` (required), `bindPage`, `bindPages`, `notes`, `bindNotes`, `tools`, `signature`, `user`, `bindNote`, `download`, `library`, `height`, `title` | A PDF on the page: zoomed, its text selected and found with the browser, and marked with highlights, boxes, notes and signatures. Drawn by pdf.js, loaded when there's one to show. See [PDF](#pdf). |
+| `ui-diff` | `before` (required), `after` (required), `mode` (text, fields), `view` (split, unified), `bindView`, `language`, `context`, `labels`, `fieldLabels`, `unchanged`, `wrap`, `title`, `height`, `label` | Two versions compared: text or code line by line, with the words that changed, or two records field by field. |
+| `ui-log` | `lines` (required), `levels`, `search`, `time` (time, datetime, relative, none), `follow`, `wrap`, `maxLines`, `bindLine`, `download`, `title`, `emptyText`, `height`, `label`, `locale` | Lines that follow as they arrive: levels to filter by, a search, wrapping, and saving. Terminal colours in the text are drawn. |
+| `ui-code-editor` | `bind` (required), `language`, `rows`, `maxRows`, `lineNumbers`, `wrap`, `indent`, `diagnostics`, `completions`, `bindCursor`, `placeholder`, `readOnly`, `label`, `name` | Code or a template, typed over its highlighted copy: line numbers, indenting, closing brackets, comments, words offered, and problems marked. |
+| `ui-banner` | `text`, `title`, `tone` (neutral, info, success, warning, danger, primary), `variant` (soft, solid), `icon`, `bind`, `remember`, `sticky` (top, bottom), `align` (start, center), `until`, `from`, `countdown` | A message across the page: maintenance, an offer, a trial's end, a setting to finish. Children (links, buttons) go after it. |
+| `ui-tour` | `bind` (required), `steps` (required), `autoStart`, `id`, `backdrop`, `interactive`, `doneLabel` | Steps that point at parts of the page one after another, for someone new to it. Draws nothing until it starts. |
+| `ui-session-timeout` | `after` (required), `warn`, `expires`, `bindLeft`, `extendUrl`, `signOutUrl`, `title`, `text`, `stayLabel`, `signOutLabel`, `channel` | Asks whether someone's still there before their session ends, counting down, across the tabs they have open. |
+| `ui-attachment` | `files` (required), `bindFiles`, `layout` (chips, cards), `label` | Files sent with a message or being sent: a name, size and picture, progress, what went wrong, and a button to remove each. |
+| `ui-sources` | `items` (required), `text`, `layout` (list, chips, fold), `label` | What an answer is based on: numbered sources, and the `[1]`s in its text as links that show them. |
+| `ui-tool-call` | `title` (required), `status`, `name`, `input`, `output`, `error`, `duration`, `open`, `bindApproval`, `label` | Something an assistant or a job did, or asks leave to do: what, how it went, and what went in and out. |
+| `ui-trace` | `spans` (required), `kinds`, `bindSpan`, `expanded`, `height`, `title`, `label` | The steps of a run, nested and against time: an assistant's, a job's, a request's. A step opens to what went in and out of it. |
+| `ui-questionnaire` | `questions` (required), `bind` (required), `mode` (steps, all), `bindDone`, `skippable`, `submitLabel`, `doneText`, `title`, `label` | Questions answered one at a time or together: choices, text, numbers, a scale. For an assistant's questions, surveys and intake forms. |
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
@@ -403,7 +442,7 @@ Text that isn't a value, or is outside `min`, `max` or the disabled days, stays 
 | `columnsMenu` | The View menu (default true). |
 | `groupBy`, `bindGroupBy` | Group the rows by a field, under header rows with counts and subtotals; see [Grouping, column layout and export](#grouping-column-layout-and-export). |
 | `resizable`, `reorderable`, `bindColumns` | Columns resized by their header's edge and moved by dragging their header, the layout kept in state. |
-| `export` | An Export button: the rows that pass, as CSV (`true`, or the file's name). |
+| `export` | An Export button: the rows that pass, as CSV, or as Excel with a name ending in `.xlsx` (`true`, or the file's name). |
 | `height` | Most the table grows to; past it the rows scroll under a header that stays put. |
 | `striped`, `loading`, `title`, `emptyText`, `locale` | Shade every other row; dim it while `loading` is true; the table's accessible name; the empty message (default `No results.`); the locale for formatted values. |
 | `bindSelection`, `bindSort`, `bindFilters`, `bindSearch`, `bindPage` | State keys for the selection (a list of row keys), the sort, the column filters, the search text and the page, both ways. |
@@ -477,7 +516,27 @@ A group's rows come a batch at a time, `pageSize` rows each (with `offset` and `
 
 **Resizing and moving columns.** With `resizable`, each header's right edge is a separator: drag it, or focus it and use Left and Right (16 px, Shift for 4); a double click puts the column back to its own width. A column's `resizable: false` opts out. With `reorderable`, drag a header onto another to move the column before or after it (a press that doesn't move still sorts), or press Alt with Left or Right on its header; pinned columns stay put. `bindColumns` keeps the layout as `{ order, widths, hidden }`, and setting it lays the columns out that way (hidden columns from the View menu are in it too). A move is announced, and fires `columns`.
 
-**Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. A remote table exports the rows it has loaded.
+**Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. With a name ending in `.xlsx` it writes an Excel file instead, numbers in their column's format and dates as dates. A remote table exports the rows it has loaded.
+
+### Editable cells
+
+A column with `edit` (`text`, `multiline`, `number`, `date`, `select` or `checkbox`) is edited in place, and the table works as a spreadsheet does. The rows must be in state, as `rows: "{{ products }}"`: that's where the edits go. (With `url`, the rows loaded change, and the page saves them from the events.)
+
+```yaml
+- type: ui-data-table
+  props: { rows: "{{ products }}", addRow: true, newRow: { status: Draft }, deletable: true, bindChanges: changes, bindErrors: wrong }
+  children:
+    - { type: ui-data-table-column, props: { field: sku, edit: text, required: true, unique: true, pattern: "[A-Z]{3}-[0-9]+" } }
+    - { type: ui-data-table-column, props: { field: price, edit: number, min: 1, format: currency, currency: EUR } }
+    - { type: ui-data-table-column, props: { field: status, edit: select, options: [Draft, Live] } }
+```
+
+- **Keys:** the arrow keys move between cells (with Shift they pick a range, with Ctrl or ⌘ they go to the end), Tab goes to the next editable one, Enter, F2, a double click or typing edits, Enter and Tab keep the edit and Escape leaves it. Delete clears, Space ticks a checkbox, Ctrl+D (⌘D) fills down, Ctrl+Z and Ctrl+Y undo and redo.
+- **Copy and paste** go to and from spreadsheets. Pasted text is read as the column's: `1,234`, `5%`, `(120)` and the locale's own numbers, dates as the locale writes them, a choice by its label. What can't be read is kept as it is and marked. Rows pasted past the end are added, with `addRow`.
+- **Checks:** `required`, `min`, `max`, `pattern` and `unique` on a column, with `message` in place of the kit's words, and `errors` from the page or server (`{ rowKey: { field: message } }`). Wrong cells are marked and say why, the Problems button shows only their rows, and `bindErrors` gets `[{ key, field, message }]`.
+- **Changes:** `bindChanges` gets `{ rowKey: { field: value } }` (null for a deleted row) and changed cells get a mark in their corner; set it to `{}` once they're saved. Events: `celledit` (`{ key, row, field, value, previous }`), `rowadd`, `rowdelete`, and `rowschange` for an undo or a large paste.
+- `editable` says which rows may be edited, e.g. `{{ row.status != 'Closed' }}`. `addRow` is the button under the rows, `deletable` adds Delete to the bulk bar, and `export: prices.xlsx` writes Excel.
+- Editable tables can't have nested rows, or be grouped.
 
 ### Saved views
 
@@ -815,6 +874,55 @@ A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent e
 - **Trust.** Markup inserted into the page is as powerful as a script, so a message shows UI only in trusted documents (a policy that allows `<script>`). Render UI a model wrote under the untrusted policy (`Engine::untrusted()`, `--untrusted`), which keeps scripts, event attributes and `javascript:` URLs out; irender-wasm always does.
 - **Self-contained.** A message's `ui` has its own state and fragments; it can't read the page's server `data` or `include` fragments from your fragment directory.
 - `examples/serve.py` shows each way: the chat block's sample replies are rendered ahead, "photos …" is answered with `html`, and "chart …" with `ui`, which the page renders with irender-wasm when it's built and through `api/render` when it isn't.
+
+## Forms
+
+`ui-form` checks its fields by `rules`, keyed by state key, as each is left and all of them on submit; its `on: { submit: … }` actions run only when everything is right. `bindErrors` holds the messages of the fields left so far, for each `ui-field`'s `error`.
+
+```yaml
+- type: ui-form
+  props:
+    bindErrors: errors
+    bindDirty: dirty
+    guard: true                      # ask before leaving with unsaved changes
+    rules:
+      email: { label: Email, required: true, type: email }
+      start: { label: Start, required: true, type: date }
+      end: { label: End, type: date, min: "{{ start }}", message: After the start }
+      topics: { label: Topics, min: 1, max: 5 }          # a list, by how many it has
+      again: { match: password, message: The two don't match }
+  on: { submit: { action: submit, endpoint: /api/save, method: POST, body: { email: "{{ email }}" } } }
+  children:
+    - { type: ui-error-summary }     # what's wrong, once submitting was tried; each goes to its field
+    - { type: ui-field, props: { label: Email, error: "{{ errors.email }}" }, children: [ { type: ui-input, props: { bind: email } } ] }
+    - { type: ui-save-bar }          # shown while there are unsaved changes: Save submits, Discard puts them back
+```
+
+Unsaved changes are the `keys` (by default, those with rules) compared with how they were. They're saved when a `submit` action answers ok, or when the page sets `bindDirty` to false. Any rule may use state.
+
+**`ui-stepper`** shows a process's steps and the current one's panel, with Back, Next and Finish (`on: { finish: … }`). `bind` holds the current `ui-step`'s `value`. A later step waits until the ones before it are done, or are `valid`; `linear: false` lets people go anywhere. It needs no script.
+
+**`ui-repeater`** is rows of `fields`, kept as a list of objects. `type: computed` fields work out `compute` over the row's fields (`qty * price`), `summary` totals them under the rows and in `bindTotals`, and `bindErrors` says what's wrong. Enter goes to the same field of the next row. Children are drawn after the fields with the row as `item`, and a native control of theirs marked `attrs: { data-field: name }` is kept in step too; components that `bind` a state key can't be a row's field.
+
+## Import
+
+`ui-import` takes rows from CSV, Excel (`.xlsx`) or cells pasted from a sheet, read in the browser. Its columns are matched to `fields` by `label`, `field` and `aliases` (people can change the match), the rows are put right in an editable data table, and those that pass are handed over: the `import` event, `bindImported`, and with `url`, a POST of `{ rows, offset, total }` per `batchSize`. The server may answer `{ errors: [{ row, field, message }] }` (`row` counted in the batch) to send rows back to the review. Dates, numbers and choices are read in the locale's way; `template` offers an empty file.
+
+## Pivot table
+
+`ui-pivot` groups `rows` by the fields `down` and `across`, and sums `values` (`sum`, `avg`, `min`, `max`, `count`, `distinct`, `median`, `first`, `last`), as they are or as a share (`show: row`, `column` or `total`). A date field's `part` groups it by year, quarter, month, week or day. Outer groups fold, a heading sorts by its column, `heat` tints, `editable` lets people move fields about (kept in `bind`), `bindCell` gets a clicked cell with the rows behind it, and `export` writes Excel or CSV. It works on the rows given to it: sums over more than the browser holds belong on the server.
+
+## Scheduler
+
+`ui-scheduler` shows bookings against time, a row per resource, by day, week or month. With `bindEvents`, bookings are moved and stretched by dragging or with Alt and the arrow keys (and Shift for the end), and with `creatable`, dragging over a free stretch makes one. `hours` shades when a resource isn't free, `capacity` lets it take several, and `overlap` allows, marks (`bindClashes`) or prevents more than that. Times are local, as `YYYY-MM-DDTHH:MM`. Events: `move`, `resize`, `create`, `open`.
+
+## Plan
+
+`ui-plan` places `items` on a drawing, in the plan's own units: rectangles, circles, pins and polygons, with `image` behind them. It zooms with the wheel, a pinch, a double click or the buttons, goes between items with the arrow keys, and with `bindItems` moves them by dragging or Alt and the arrow keys, kept to `grid`. `tones` colours them by `status`, `filter` fades those that don't pass, `search` finds one, and `legend` counts them.
+
+## PDF
+
+`ui-pdf` draws a PDF's pages with [pdf.js](https://mozilla.github.io/pdf.js/), which a page loads only when it has one to show: from jsDelivr, pinned, or from `library` (its `pdf.worker.min.mjs` beside it). `notes` (or `bindNotes`, to add and change them) mark it with highlights, boxes, notes and signatures, placed as parts of the page from 0 to 1 so they hold at any zoom. The file itself isn't changed. The browser fetches it, so it must be on the same site or allow others.
 
 ## Overlays and ids
 

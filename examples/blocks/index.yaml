@@ -24,13 +24,13 @@ root:
         # the previews below follow live.
         - { type: ui-heading, props: { level: 1, text: Blocks } }
         - type: ui-text
-          props: { variant: lead, text: "Whole pages to start from: a dashboard, a report builder, an incident room, a sales pipeline, data tables, a tree, a kanban board, a calendar, an AI chat, a docs page, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
+          props: { variant: lead, text: "Whole pages to start from: a dashboard, a report builder, an incident room, a sales pipeline, data tables, a tree, a kanban board, a calendar, an AI chat, a docs page, sidebars, login and sign-up, settings, pricing, a Markdown editor, a theme customizer, forms and imports, a pivot table, a scheduler, a floor plan, and error pages and empty states. Each is one document using the UI kit, chart kit, Markdown kit and icon kit; open it, or read its source." }
         - type: ui-toggle-group
           props:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: forms, label: Forms }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
 
     - type: list
       props:
@@ -69,6 +69,20 @@ root:
           - { id: error-offline, category: errors, title: "Offline, with changes waiting to sync", kits: [ui-kit], height: 720 }
           - { id: error-session, category: errors, title: "Session expired: sign in again", kits: [ui-kit], height: 720 }
           - { id: chat, category: chat, title: "A full-screen AI chat: conversations in a sidebar, threaded replies, answers streamed in as Markdown, and replies with UI: charts, a carousel, links, video", kits: [ui-kit, chart-kit, icon-kit, markdown-kit], height: 760 }
+          - { id: data-table-08, category: table, title: "A price list edited like a spreadsheet: cells checked as they're typed, ranges copied and pasted, undo, rows added and deleted, unsaved changes in a bar, and an Excel export", kits: [ui-kit, icon-kit], height: 760 }
+          - { id: import-01, category: forms, title: "Enrolling students from a spreadsheet: columns matched by name, rows put right in a table, and the good ones added", kits: [ui-kit, icon-kit], height: 820 }
+          - { id: invoice-01, category: forms, title: "An invoice being written: lines that add up, checks on the client and dates, a signature, and codes to pay with", kits: [ui-kit, icon-kit], height: 1240 }
+          - { id: intake-01, category: forms, title: "A clinic's new-patient form in steps: phone, insurance number, visit times, a questionnaire and consent", kits: [ui-kit, icon-kit], height: 720 }
+          - { id: profile-01, category: forms, title: "A member's profile: a cropped picture, checked fields, contact cards, unsaved changes, and a session that asks before it ends", kits: [ui-kit, icon-kit], height: 1180 }
+          - { id: record-01, category: dashboard, title: "A wind turbine's record: figures with trends, facts edited in place, pictures, what changed, and comments", kits: [ui-kit, icon-kit], height: 1240 }
+          - { id: pivot-01, category: table, title: "A hospital's admissions in a pivot table: drag fields, fold groups, sort, tint, export, and see the rows behind a cell", kits: [ui-kit, icon-kit], height: 900 }
+          - { id: schedule-01, category: dashboard, title: "A salon's bookings by person and room: drag to move, stretch or make one, clashes marked, and a tour of the page", kits: [ui-kit, icon-kit], height: 760 }
+          - { id: plan-01, category: dashboard, title: "A restaurant's tables on its floor plan: zoom, pick, move, find, and fade those too small for the party", kits: [ui-kit, icon-kit], height: 800 }
+          - { id: rules-01, category: settings, title: "A payment alert's rule: nested conditions tried on recent payments, branches, who's told, and the message's template", kits: [ui-kit, icon-kit], height: 1280 }
+          - { id: review-01, category: docs, title: "A contract read and signed: a PDF with notes and a signature on it, the clause that changed, and questions about it", kits: [ui-kit, icon-kit], height: 1040 }
+          - { id: scan-01, category: table, title: "Counting a library's stock: a camera or handheld scanner, counts put right in the table, and labels", kits: [ui-kit, icon-kit], height: 840 }
+          - { id: ops-01, category: dashboard, title: "A nightly data job's run: figures, a log that follows, its steps against time, and its settings with what saving changes", kits: [ui-kit, icon-kit], height: 1320 }
+          - { id: agent-01, category: chat, title: "A travel assistant at work: files, sources behind an answer, something to approve, questions to settle, and the run's steps", kits: [ui-kit, icon-kit], height: 1320 }
           - { id: sidebar-07, category: sidebar, title: A sidebar that collapses to icons, kits: [ui-kit, icon-kit], height: 640 }
           - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }
           - { id: login-03, category: login, title: A login page with a muted background color, kits: [ui-kit, icon-kit], height: 720 }

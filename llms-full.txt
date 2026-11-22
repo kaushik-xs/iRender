@@ -437,6 +437,7 @@ ui-filter: One field of the `ui-filters` it is in: its type, label and operators
   label        any  Its name in the panel and chips (default: the field)
   type         one of: list, number, currency, date, text  `list` (default): values to pick; `number`, `currency`, `date` or `text`
   options      any  A list filter's values: text, or `{ value, label }`. May use state. Default: the field's values in the filters' `rows`
+  optionsUrl   any  A list filter's values from an API as they're searched for: GET `<url>?q=<text>`, answering texts or `{ value, label, count }`s. May use state
   operators    any  Which operators to offer, by name, e.g. `[between, before, after]` (default: all of the type's)
   section      string  A heading to group it under in the panel
   unit         string  Shown after a number, e.g. `kg`
@@ -515,10 +516,559 @@ ui-timeline-item: One entry of a `ui-timeline`. Children go under its line.
   comment      any  Text they wrote, quoted under the line
   tone         one of: neutral, info, success, warning, danger, primary  The dot's colour, for an event rather than a person (with no `who`)
   children: yes
+ui-lightbox: Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save.
+  images       any (required)  `[{ src, thumb, alt, caption, download }]`, or addresses; may use state
+  layout       one of: grid, row, masonry, stack  `grid` (default), `row` (scrolls sideways), `masonry`, or `stack`: the first large, the rest counted on it
+  minWidth     number  The narrowest a thumbnail gets, in px (default 140)
+  ratio        any  A thumbnail's shape, e.g. `1` or `"4 / 3"` (default 1; `masonry` keeps each picture's own)
+  max          number  Thumbnails shown; the last says how many more there are
+  captions     bool  Captions under the thumbnails too
+  download     bool  A button saves the picture shown
+  bind         statekey  State key for the open picture's place, from 0 (null: closed); set it to open one
+  label        any  Names the pictures for screen readers (default `Images`)
+  children: no
+ui-query-builder: Conditions put together with and / or, nested in groups: for segments, alerts, rules, access. State gets the query, its words, and the rows that match.
+  bind         statekey (required)  State key for the query: `{ op: and|or, not, rules: [{ field, operator, value } or another group] }`
+  fields       any (required)  What rules are about: `[{ field, label, type, options, operators, unit }]`; `type`: text, number, currency, date, select, multiselect or boolean
+  maxDepth     number  How deep groups nest (default 3; 1 for none)
+  negate       bool  Groups can be negated (`not`)
+  bindText     statekey  State key that gets the query in words
+  bindValid    statekey  State key that gets true while every rule is filled in
+  rows         any  Rows to try the query on; may use state
+  bindMatches  statekey  With `rows`, state key that gets those that match
+  showText     bool  The query in words under it
+  label        any  Names it for screen readers (default `Conditions`)
+  disabled     any  Shown, not changed
+  locale       string  How numbers and dates are written (default: the document's `lang`, else the browser's)
+  children: no
+ui-transfer-list: Two lists: what there is and what's chosen, moved between with buttons, a double click, Enter or dragging.
+  bind         statekey (required)  State key for the chosen values, a list in their order
+  options      any (required)  All of them: values or `{ value, label, description, group, disabled }`; may use state
+  titles       any  The two lists' names (default `[Available, Chosen]`)
+  search       bool  A search box over each list (default true)
+  reorderable  bool  The chosen ones can be put in order, by dragging or with Alt and the arrow keys
+  max          number  The most that can be chosen
+  height       any  Each list's height (default 260)
+  disabled     any  Shown, not changed
+  children: no
+ui-tree-select: A choice from a hierarchy: a field that opens a searchable tree, for one node or several.
+  bind         statekey (required)  State key for the chosen node's id, or with `multiple`, a list of ids
+  nodes        any (required)  As `ui-tree`'s: `[{ id, label, children }]`; may use state
+  multiple     bool  Check several; checking a node checks those under it
+  leavesOnly   bool  Only nodes without children can be chosen (single choice)
+  path         bool  Shows the chosen node with those above it
+  search       bool  A search box over the tree (default true)
+  expanded     any  As `ui-tree`'s
+  clearable    bool  A button clears the choice (default true)
+  placeholder  any  Default `Select…`
+  label        any  Accessible name, when no visible label names it
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong
+  height       any  Most the tree grows to (default 280)
+  parts: trigger
+  children: no
+ui-attachment: Files sent with a message or being sent: a name, size and picture, progress, what went wrong, and a button to remove each.
+  files        any (required)  `[{ id, name, type, size, url, thumb, status, progress, error, text }]`; `status`: uploading, processing, done or error; may use state
+  bindFiles    statekey  State key the files are in: they can be removed
+  layout       one of: chips, cards  Default `chips`
+  label        any  Names them for screen readers (default `Attachments`)
+  children: no
+ui-sources: What an answer is based on: numbered sources, and the `[1]`s in its text as links that show them.
+  items        any (required)  `[{ title, url, text, site, date, page }]`, numbered in their order; may use state
+  text         any  Text with `[1]`, `[2]` in it: each becomes a link that shows its source
+  layout       one of: list, chips, fold  All of them (`list`), small (`chips`), or folded behind how many there are (`fold`, default)
+  label        any  Default `Sources`
+  children: no
+ui-tool-call: Something an assistant or a job did, or asks leave to do: what, how it went, and what went in and out.
+  title        any (required)  What was done, e.g. `Searched the orders`
+  status       any  `pending`, `running`, `done`, `error` or `approval`; may use state
+  name         any  The tool's own name, smaller
+  input        any  What it was given; shown as JSON, or as it is when text
+  output       any  What it answered
+  error        any  What went wrong
+  duration     any  Milliseconds it took
+  open         bool  Starts open (with `approval` it always does)
+  bindApproval statekey  With `status: approval`, state key that gets true or false; also `approve` and `deny` events
+  label        any  Names it for screen readers
+  children: no
+ui-trace: The steps of a run, nested and against time: an assistant's, a job's, a request's. A step opens to what went in and out of it.
+  spans        any (required)  The steps: `[{ id, parent, name, kind, start, duration, status, input, output, error, tokens, cost }]`, times in milliseconds from any start; may use state
+  kinds        any  Colours by `kind`: `{ model: "#7c3aed" }`
+  bindSpan     statekey  State key that gets the step clicked
+  expanded     any  How deep it starts open (default every step)
+  height       any  Most it grows to before it scrolls
+  title        any  Shown over it
+  label        any  Names it for screen readers (default `Trace`)
+  children: no
+ui-questionnaire: Questions answered one at a time or together: choices, text, numbers, a scale. For an assistant's questions, surveys and intake forms.
+  questions    any (required)  `[{ id, question, description, type, options, other, required, min, max, labels }]`; `type`: choice (default), choices, text, number, scale, yesno; may use state
+  bind         statekey (required)  State key for the answers, `{ id: answer }`
+  mode         one of: steps, all  One question at a time (default), or all of them
+  bindDone     statekey  State key that gets true once it's submitted; also a `submit` event with the answers
+  skippable    bool  Questions that aren't required can be skipped (default true)
+  submitLabel  any  Default `Send`
+  doneText     any  Shown once it's submitted, over the answers
+  title        any  Shown over it
+  label        any  Names it for screen readers (default `Questions`)
+  children: no
+ui-tour: Steps that point at parts of the page one after another, for someone new to it. Draws nothing until it starts.
+  bind         statekey (required)  State key for the step shown, from 0 (null: closed); set it to start
+  steps        any (required)  `[{ target, title, text, side, image, set }]`: `target`, a CSS selector (none: in the middle); `side`: top, bottom, left or right; `set`: state to set first, e.g. `{ tab: billing }`
+  autoStart    bool  Starts by itself, for someone who hasn't seen it (needs `id`)
+  id           string  Remembered under this name in the browser once it's finished or skipped
+  backdrop     bool  The rest of the page is dimmed (default true)
+  interactive  bool  The part pointed at can be used while it's shown
+  doneLabel    any  The last step's button (default `Done`)
+  children: no
+ui-banner: A message across the page: maintenance, an offer, a trial's end, a setting to finish. Children (links, buttons) go after it.
+  text         any  The message
+  title        any  In bold before it
+  tone         one of: neutral, info, success, warning, danger, primary  Its colour (default `info`)
+  variant      one of: soft, solid  Default `soft`
+  icon         any  An icon name (with the icon kit) or a character
+  bind         statekey  State key that's true while it's closed; with it, there's a close button
+  remember     string  Once closed, stays closed in this browser, under this name (change it to show again)
+  sticky       one of: top, bottom  Keeps to an edge of the window as the page scrolls
+  align        one of: start, center  Default `center`
+  until        any  Goes by itself at this time, e.g. `2026-12-01T06:00`
+  from         any  Shown from this time
+  countdown    any  Time left to this, after the message
+  children: yes
+ui-session-timeout: Asks whether someone's still there before their session ends, counting down, across the tabs they have open.
+  after        number (required)  Minutes without anyone doing anything until the session ends
+  warn         number  Minutes before the end that it asks (default 2)
+  expires      any  Or the time it ends whatever's done, e.g. `{{ session.expires }}`
+  bindLeft     statekey  State key that gets the seconds left while it's asking (null otherwise)
+  extendUrl    any  Posted to when they stay; otherwise handle the `extend` event
+  signOutUrl   any  Where Sign out, and the end, go; the `expire` event comes first
+  title        any  Default `Are you still there?`
+  text         any  Default `You'll be signed out to keep your account safe.`
+  stayLabel    any  Default `Stay signed in`
+  signOutLabel any  Default `Sign out`
+  channel      string  Tabs of the same name count as one: being used in one keeps the others (default `session`)
+  children: no
+ui-signature: A signature, drawn with a finger, pen or mouse, or typed; state gets it as a picture.
+  bind         statekey (required)  State key for the signature as a picture (a `data:` address; null when empty)
+  bindMeta     statekey  State key that gets `{ method: drawn|typed, name, at }`
+  methods      any  How it can be made: `[draw, type]` (default both)
+  format       one of: png, svg  Default `png`
+  height       number  Of the pad in px (default 160)
+  color        any  The pen's (default near black)
+  hint         any  Under the line (default `Sign here`)
+  label        any  Names it (default `Signature`)
+  disabled     any  Shown, not changed
+  children: no
+ui-image-cropper: A picture cropped, turned and zoomed in the browser, by dragging or the keys.
+  bind         statekey (required)  State key that gets the cropped picture (a `data:` address) when Crop is pressed
+  src          any  The picture to crop; without it, one is picked or dropped
+  ratio        any  The crop's shape: `1`, `"16 / 9"`, `free`, or a list to choose from (default `free`)
+  round        bool  Shown through a circle, for a profile picture
+  width        number  The cropped picture's width in px (default: as many as there are)
+  maxWidth     number  Its most (default 2048)
+  type         one of: jpeg, png, webp  Default `jpeg`
+  quality      number  0 to 1 (default 0.9)
+  bindCrop     statekey  State key that gets the crop as parts of the picture: `{ x, y, width, height, rotation }`, 0 to 1
+  height       number  Of the stage in px (default 320)
+  label        any  Names it (default `Crop image`)
+  children: no
+ui-plan: Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked, coloured by status, and rearranged by dragging.
+  items        any (required)  What's on it: `[{ id, x, y, width, height, shape, rotation, label, sublabel, tone, color, status, points, locked }]` in the plan's units; `shape`: rect (default), circle, pin or polygon (with `points`); may use state
+  width        number  The plan's width in its own units (default 1000)
+  height       number  Its height (default 600)
+  image        any  A drawing behind everything: a floor plan, a site map, a photo
+  bindItems    statekey  State key the items are in: moved ones are written back
+  bind         statekey  State key for the picked item's id
+  bindItem     statekey  State key that gets the picked item itself
+  tones        any  A tone per `status`: `{ Free: success, Occupied: danger }`
+  grid         number  Lines drawn this far apart, which moved items keep to
+  filter       any  Items that don't pass are faded: `{ field: condition }`
+  search       bool  A box that finds an item and goes to it
+  legend       bool  What the tones mean, with counts
+  viewHeight   any  Its height on the page (default 420)
+  label        any  Names it for screen readers (default `Plan`)
+  children: no
+ui-pdf: A PDF on the page: zoomed, its text selected and found with the browser, and marked with highlights, boxes, notes and signatures. Drawn by pdf.js, loaded when there's one to show.
+  src          any (required)  The PDF's address; may use state
+  bindPage     statekey  State key for the page shown, from 1
+  bindPages    statekey  State key that gets how many pages there are
+  notes        any  What's marked on it: `[{ id, page, x, y, width, height, type, text, color, who }]`, places as parts of the page 0 to 1; `type`: highlight, box, note or signature; may use state
+  bindNotes    statekey  State key the notes are in, to add, move and remove them
+  tools        any  With `bindNotes`, what can be added: `[highlight, box, note, signature]` (default the first three)
+  signature    any  With the `signature` tool, the picture put where it's clicked, e.g. `{{ signed }}`
+  user         any  Who adds notes, kept with each
+  bindNote     statekey  State key that gets the note picked
+  download     bool  A link saves the file (default true)
+  library      string  Where pdf.js is (default: jsDelivr, a fixed version); its worker is beside it
+  height       any  Its height (default 640)
+  title        any  Shown in the bar, and names it
+  children: no
+ui-diff: Two versions compared: text or code line by line, with the words that changed, or two records field by field.
+  before       any (required)  The earlier version: text, or an object or list; may use state
+  after        any (required)  The later version
+  mode         one of: text, fields  Line by line (default), or `fields`: two objects, a row per field
+  view         one of: split, unified  Side by side (default; one column on a narrow screen) or one under the other
+  bindView     statekey  State key for the view, set by its buttons
+  language     string  Highlights code, as `ui-code-block`'s `language`
+  context      number  Unchanged lines kept around a change (default 3); the rest fold
+  labels       any  The versions' names (default `[Before, After]`), and with `fields`, use `fieldLabels`
+  fieldLabels  any  With `fields`: `{ field: label }`
+  unchanged    bool  With `fields`: show fields that didn't change too
+  wrap         bool  Wrap long lines (default true)
+  title        any  Shown in the bar, e.g. a file or record's name
+  height       any  Most it grows to before it scrolls
+  label        any  Names it for screen readers
+  children: no
+ui-log: Lines that follow as they arrive: levels to filter by, a search, wrapping, and saving. Terminal colours in the text are drawn.
+  lines        any (required)  The lines: texts, or `{ time, level, text, source }`; from state, e.g. fed by `ui-live-data`
+  levels       any  The levels offered as filters, e.g. `[debug, info, warn, error]` (default: those in the lines)
+  search       bool  A search box that marks matches and hides other lines (default true)
+  time         one of: time, datetime, relative, none  How a line's time reads (default `time`)
+  follow       bool  Keeps to the newest line until scrolled up (default true)
+  wrap         bool  Wrap long lines (default true; a button changes it)
+  maxLines     number  The most drawn, the newest (default 2000)
+  bindLine     statekey  State key that gets the line clicked
+  download     string  A button saves the lines under this name
+  title        any  Shown in the bar
+  emptyText    any  Default `Nothing yet.`
+  height       any  Its lines' height (default 320)
+  label        any  Names it for screen readers
+  locale       string  Default: the document's `lang`, else the browser's
+  children: no
+ui-code-editor: Code or a template, typed over its highlighted copy: line numbers, indenting, closing brackets, comments, words offered, and problems marked.
+  bind         statekey (required)  State key for the text
+  language     any  Highlights it, as `ui-code-block`'s `language`; may use state
+  rows         number  Lines tall to start with (default 12)
+  maxRows      number  Grows to this many lines, then scrolls (default 30)
+  lineNumbers  bool  Default true
+  wrap         bool  Wrap long lines (default false)
+  indent       number  Spaces a Tab adds (default 2)
+  diagnostics  any  What's wrong, from the page: `[{ line, message, severity }]` (`error`, `warning` or `info`), marked and listed; may use state
+  completions  any  Words offered as it's typed, or with Ctrl+Space: texts or `{ label, insert, detail }`; may use state
+  bindCursor   statekey  State key that gets `{ line, column }`
+  placeholder  any  Shown while it's empty
+  readOnly     any  Shown, not changed
+  label        any  Names the editor (default `Code`)
+  name         string  Form field name
+  parts: textarea
+  children: no
+ui-qr-code: A QR code of any text, drawn in the page without a service, with a logo in it if there's one.
+  value        any (required)  What it holds: an address or any text; may use state
+  size         any  Width and height: px or a CSS length (default 160)
+  level        one of: L, M, Q, H  How much of it can be damaged and still read: 7, 15 (default), 25 or 30%
+  logo         any  A picture in the middle: an address (a path, http(s) or `data:`), best an SVG or a square PNG; may use state. Uses level H, so the code still reads
+  logoIcon     any  Or an icon (with the icon kit), e.g. `star`
+  logoText     any  Or a few letters, e.g. initials; may use state
+  logoSize     number  Its width as a part of the code's, 0.1 to 0.3 (default 0.22)
+  logoShape    one of: rounded, circle, square  Of the space around it, and what it's cut to (default `rounded`)
+  logoBackground any  Behind it (default: the code's background); `none` leaves only the space
+  logoColor    any  Of an icon or letters (default: the modules')
+  dots         one of: square, round  Default `square`
+  color        any  Of the modules (default black)
+  background   any  Behind them (default white); codes need to be dark on light to be read
+  download     string  A button saves it under this name, ending in `.svg` or `.png`
+  label        any  Names it for screen readers (default `QR code: {value}`)
+  children: no
+ui-barcode: A barcode: Code 128, Code 39, EAN, UPC or ITF.
+  value        any (required)  What it holds; may use state. A missing check digit (EAN, UPC) is added
+  type         one of: code128, code39, ean13, ean8, upca, itf  Default `code128`
+  height       number  Of the bars in px (default 64)
+  barWidth     number  Of the narrowest bar in px (default 2)
+  showText     bool  The value under it (default true)
+  download     string  A button saves it under this name, ending in `.svg` or `.png`
+  label        any  Names it for screen readers (default `Barcode: {value}`)
+  children: no
+ui-code-scanner: Reads QR codes and barcodes with the camera, where the browser can, or from a field (a handheld scanner types into it).
+  bind         statekey (required)  State key that gets the last code read, as text
+  bindCode     statekey  State key that gets `{ value, format }`
+  bindList     statekey  State key that collects each different code read, a list of texts
+  formats      any  Kinds of codes, e.g. `[qr_code, ean_13, code_128]` (default all)
+  continuous   bool  Keeps reading after a code
+  manual       bool  A field to type the code in, for cameras and browsers that can't read it (default true)
+  sound        bool  A short beep when one is read
+  label        any  The button that starts the camera (default `Scan a code`)
+  children: no
+ui-pivot: A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell.
+  rows         any (required)  The rows to sum up; may use state
+  fields       any  The fields it can use: `[{ field, label, type, part }]` (default: those of the first row). `part` groups dates by `year`, `quarter`, `month`, `week` or `day`
+  down         any  Fields down the side, outermost first
+  across       any  Fields across the top
+  values       any  What's in the cells: `[{ field, agg, label, format, currency, decimals, show }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it
+  filter       any  Filters from outside, e.g. a `ui-filters`' `bind`: `{ field: condition }`
+  bind         statekey  State key for the layout people pick, `{ down, across, values, sort, closed }`, to keep it
+  editable     bool  A panel to move fields between down, across and values, and pick how they're summed
+  totals       one of: both, rows, columns, none  Grand totals (default `both`)
+  subtotals    bool  Outer groups fold, and show their totals (default true)
+  heat         bool  Cells tinted by their value
+  bindCell     statekey  State key that gets a clicked cell: `{ down, across, value, rows }`, the rows behind it
+  export       any  An Export button: `true`, or a file name ending in `.csv` or `.xlsx`
+  height       any  Most it grows to before it scrolls, its headings kept in view
+  title        any  Names the table
+  emptyText    any  Default `No rows.`
+  locale       string  Default: the document's `lang`, else the browser's
+  children: no
+ui-scheduler: Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked.
+  resources    any (required)  The rows: `[{ id, title, subtitle, avatar, group, hours: [{ from, to }], capacity }]`; may use state
+  events       any (required)  The bookings: `[{ id, resource, title, start, end, color, status, locked, note }]`, times as `YYYY-MM-DDTHH:MM`; `repeat`, as `ui-event-calendar`'s, makes one come again (its days aren't moved one by one); may use state
+  bindEvents   statekey  State key the bookings are in: moves, stretches and new ones are written back
+  bindEvent    statekey  State key that gets the booking clicked (or opened with Enter)
+  bindDate     statekey  State key for the first day shown, `YYYY-MM-DD` (default: today)
+  bindView     statekey  State key for the view: `day`, `week` or `month`
+  view         one of: day, week, month  The view to start with (default `day`)
+  views        any  The views offered (default all three)
+  from         any  First hour shown in a day, e.g. `08:00` (default `00:00`)
+  to           any  Last hour shown, e.g. `18:00` (default `24:00`)
+  snap         number  Minutes moves and stretches go by in the day view (default 15)
+  overlap      one of: allow, mark, prevent  Bookings of a resource at the same time: side by side, also marked as a clash (default), or not let happen
+  creatable    bool  Dragging over a free stretch makes a booking, an event `create` and, with `bindEvents`, a new one
+  newEvent     any  What a new booking starts with, e.g. `{ title: New booking }`
+  moveResources bool  Bookings can be moved to another row (default true)
+  bindClashes  statekey  State key that gets the ids of bookings that clash
+  rowLabel     any  The heading over the rows, e.g. `Room`
+  rowHeight    number  A row's least height in px (default 52)
+  height       any  Most it grows to before it scrolls
+  now          any  Marks this time instead of the present, or false for no mark
+  label        any  Names it for screen readers (default `Schedule`)
+  locale       string  Default: the document's `lang`, else the browser's
+  children: no
+ui-comments: Comments in threads: replies, mentions, reactions, resolving, editing one's own. Each change is written to `bind` and fires an event.
+  bind         statekey (required)  State key holding the comments: `[{ id, who, when, text, replies: [...], reactions: { "👍": [names] }, resolved, edited }]`; `who` is a name or `{ name, avatar, initials }`, `when` an ISO time
+  user         any  Who's commenting: a name or `{ name, avatar }`; without it, comments are only read
+  people       any  Who can be mentioned with `@`: names or `{ name, detail, avatar }`
+  reactions    any  Emoji to react with (default 👍 ❤️ 🎉 👀; `[]` for none)
+  resolvable   bool  A thread can be resolved, and opened again
+  replies      bool  Comments can be replied to (default true)
+  editable     bool  People can edit and delete their own (default true)
+  order        one of: oldest, newest  Default `oldest` first, with the box at the foot; `newest` puts it at the top
+  placeholder  any  Default `Write a comment…`
+  emptyText    any  Default `No comments yet.`
+  maxLength    number  The most characters in a comment
+  label        any  Names it for screen readers (default `Comments`)
+  disabled     any  Nothing can be added or changed
+  locale       string  How times are written (default: the document's `lang`, else the browser's)
+  children: no
+ui-mention-input: A text area that names people with `@`, from a list that opens at the caret. State gets the text, and the names in it.
+  bind         statekey (required)  State key for the text
+  people       any (required)  Who can be named: names or `{ name, detail, avatar }`; may use state
+  bindMentions statekey  State key that gets the names in the text, a list
+  trigger      string  What opens the list (default `@`)
+  placeholder  any  Shown while it's empty
+  rows         number  Lines it starts with (default 3); it grows as it's typed in
+  maxLength    number  The most characters
+  label        any  Accessible name, when no visible label names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong
+  parts: input
+  children: no
+ui-tags-input: Tags typed one after another: Enter or a comma adds one, a pasted list adds them all, Backspace takes the last.
+  bind         statekey (required)  State key holding the tags, a list of texts
+  suggestions  any  Tags offered as it's typed in; may use state
+  only         bool  Only suggestions can be added
+  max          number  The most tags
+  pattern      string  A regular expression a tag must match, or it's marked wrong (and isn't kept, with `strict`)
+  strict       bool  A tag that doesn't match `pattern` isn't added
+  lowercase    bool  Tags are kept in lower case
+  placeholder  any  Shown while there are none
+  label        any  Accessible name, when no visible label names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong
+  parts: input
+  children: no
+ui-masked-input: Text in a fixed shape, like a card number, a postcode or a policy number, put in shape as it's typed.
+  bind         statekey (required)  State key for the value
+  mask         any (required)  The shape: `#` a digit, `A` a letter (made upper case), `a` a letter, `*` a letter or digit, `\\` before one taken literally; anything else is put in by itself. A list of masks uses the first long enough. Also `card`, `iban`, `uuid` and `ipv4`
+  raw          bool  State gets only what was typed, without the mask's own characters
+  bindComplete statekey  State key that gets true once the mask is filled
+  placeholder  any  Shown while it's empty (default: the mask with `_`)
+  label        any  Accessible name, when no visible label names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong
+  parts: input
+  children: no
+ui-phone-input: A phone number with its country, picked from a searched list or from a pasted `+…` number, grouped as it's typed.
+  bind         statekey (required)  State key for the number, with its country code: `+919876543210` (null when empty)
+  country      string  The country to start with, e.g. `IN` (default: from `locale`)
+  countries    any  Only these countries, e.g. `[IN, AE, GB]`
+  bindCountry  statekey  State key that gets the country, e.g. `IN`
+  bindValid    statekey  State key that gets true while it's a number of a length the country uses
+  placeholder  any  Shown while it's empty (default: a number of the country's)
+  label        any  Accessible name, when no visible label names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong
+  locale       string  The countries' names (default: the document's `lang`, else the browser's)
+  parts: input
+  children: no
+ui-time-picker: A time of day, typed any way (`9`, `930`, `9:30pm`, `21.30`) or picked from a list.
+  bind         statekey (required)  State key for the time, `HH:MM` (or `HH:MM:SS`; null when empty)
+  step         number  Minutes between the times listed (default 30)
+  min          any  The first time, e.g. `09:00`; may use state
+  max          any  The last time, e.g. `17:30`
+  disabledTimes any  Times that can't be picked: `["12:00", { from: "13:00", to: "14:00" }]`; may use state
+  seconds      bool  Times have seconds
+  hour12       bool  12-hour with am and pm, or 24-hour (default: the locale's way)
+  durationFrom any  Shows how long each time is after this one, e.g. `{{ start }}`
+  placeholder  any  Shown while it's empty
+  label        any  Accessible name, when no visible label names it
+  name         string  Form field name
+  disabled     any  Boolean or expression
+  invalid      any  Mark it wrong
+  locale       string  How times are written (default: the document's `lang`, else the browser's)
+  parts: input
+  children: no
+ui-stat: A figure: its label, value, change from before, a small trend line and progress to a target. Children go at the foot.
+  label        any (required)  What the figure is
+  value        any (required)  The figure: a number, or text
+  format       one of: number, currency, percent, compact, none  How a number is written (default `number`; `compact`: 1.2M)
+  currency     string  An ISO code, e.g. `EUR`
+  decimals     number  Digits after the point
+  unit         any  After the figure, smaller, e.g. `kWh`
+  previous     any  The figure before, to work out the change from
+  change       any  The change itself, e.g. 0.12 for +12%
+  changeAs     one of: percent, value  The change as a percentage (default), or in the figure's own format
+  changeLabel  any  After the change, e.g. `vs last month`
+  goodWhen     one of: up, down, neutral  Which way is good, for the change's colour (default `up`)
+  trend        any  A list of numbers drawn as a small line
+  target       any  Progress to this is shown as a bar
+  targetLabel  any  Default `{percent} of {target}`
+  description  any  Smaller text at the foot
+  icon         any  An icon name (with the icon kit) or a character
+  href         any  The whole tile is a link
+  variant      one of: card, plain  Default `card`
+  loading      any  Placeholders in place of the figures
+  locale       string  How numbers are written (default: the document's `lang`, else the browser's)
+  parts: label, value
+  children: yes
+ui-description-list: Labels and their values, as at the top of a record's page. Children are `ui-description-item`s.
+  items        any  Entries with the `ui-description-item` props, after any children; may use state
+  columns      number  Across, on a wide screen (default 1)
+  layout       one of: stacked, inline  The value under its label (default) or beside it
+  divided      bool  A line between entries
+  labelWidth   any  With `inline`, the labels' width (default 160)
+  children: yes
+ui-description-item: A label and its value in a `ui-description-list`; with `bind`, the value is edited in place.
+  label        any (required)  What it is
+  value        any  The value; an empty one shows `—`. Children, if any, are shown instead
+  format       one of: number, currency, percent, date, datetime  How the browser writes it
+  currency     string  An ISO code
+  href         any  The value is a link
+  copy         bool  A button copies the value
+  span         number  Columns it takes
+  bind         statekey  State key with the value, to edit it in place (then no `value`)
+  edit         one of: text, multiline, number, date, select  What it's edited with (default `text`)
+  options      any  With `edit: select`: values or `{ value, label }`
+  placeholder  any  Shown when a value that can be edited is empty (default `Add`)
+  locale       string  Default: the document's `lang`, else the browser's
+  children: yes
+ui-item-group: A list of `ui-item`s (a `list` works as its child).
+  label        any  Names the list for screen readers
+  variant      one of: divided, cards, plain  Lines between (default), a card each, or neither
+  children: yes
+ui-item: A thing in a list: an icon, image or initials, a title and description, and its children (badges, buttons) at the end.
+  title        any  Its name
+  description  any  Smaller text under it
+  icon         any  An icon name (with the icon kit) or a character, in a tinted square
+  image        any  An image URL in its place
+  initials     any  Or initials in a circle
+  meta         any  Muted text at the end, e.g. a time or a size
+  tone         one of: neutral, info, success, warning, danger, primary  The icon's colour
+  href         any  The whole item is a link; its children still work
+  selected     any  Shown as the current one
+  disabled     any  Shown as not available
+  size         one of: default, sm  Default `default`
+  variant      one of: plain, outline, muted  Default `plain`
+  parts: title, description, media
+  children: yes
+ui-import: Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns are matched to `fields`, the rows put right in an editable table, and the good ones handed over (an `import` event and `bindImported`) or posted to `url`.
+  bind         statekey (required)  State key holding the rows while they're reviewed
+  bindImported statekey  State key that gets the rows that passed, once imported (or sent)
+  fields       any (required)  What each row has: `[{ field, label, type, options, required, min, max, pattern, unique, message, aliases, example, format }]`; `type`: text, multiline, number, date, select or checkbox; `aliases`: other names its column may have
+  url          any  Post the rows here in batches, `{ rows }` as JSON; answering `{ errors: [{ row, field, message }] }` (`row` counts from 0 in the batch) sends those back to be put right
+  params       any  With `url`, more to send with each batch; may use state
+  batchSize    number  With `url`, rows per request (default 200)
+  accept       string  File types (default `.csv,.tsv,.txt,.xlsx`)
+  maxRows      number  The most rows a file may have (default 10000)
+  skipInvalid  bool  Rows that aren't right can be left out (default true; false: all must be right)
+  template     any  Offers an empty file to fill in: `true` (default), its name ending in `.csv` or `.xlsx`, or false
+  title        any  Names what's imported, e.g. `Contacts` (default `Rows`)
+  locale       string  How numbers and dates are read (default: the document's `lang`, else the browser's)
+  id           any  Element id (default: derived from the document)
+  children: no
+ui-form: A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. Put a `ui-error-summary` and a `ui-save-bar` in it.
+  rules        any  What each state key must be: `{ email: { label, required, type: email|url|number|date, min, max, minLength, maxLength, pattern, match: otherKey, message } }`. Any of them may use state, e.g. `required: "{{ kind == 'company' }}"`
+  bindErrors   statekey  State key that gets `{ key: message }` for the fields left so far (all of them once submitting was tried); give it to each `ui-field`'s `error`
+  bindValid    statekey  State key that gets true while every rule is met
+  bindTried    statekey  State key that gets true once submitting was tried with something wrong
+  keys         any  State keys whose changes are unsaved changes (default: those with `rules`)
+  bindDirty    statekey  State key that gets true while there are unsaved changes; set it to false once saved (a `submit` that succeeds does)
+  guard        bool  Asks before leaving the page with unsaved changes
+  guardText    any  What's asked (default `You have unsaved changes that will be lost.`)
+  disabled     any  Nothing can be changed or submitted, e.g. `{{ saving }}`
+  children: yes
+ui-error-summary: What's wrong in the `ui-form` it's in, listed once submitting was tried; each message goes to its field.
+  title        any  Default `There's a problem` / `There are {n} problems`
+  errors       any  More messages than the form's own, e.g. from the server: `{ key: message }` or a list of texts
+  children: no
+ui-save-bar: Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons.
+  text         any  Default `Unsaved changes`
+  saveLabel    any  The button that submits the form (default `Save`)
+  discardLabel any  The button that puts the fields back as they were (default `Discard`); false for none
+  saving       any  Being saved: both buttons wait, e.g. `{{ saving }}`
+  disabled     any  It can't be saved as it is, e.g. `{{ problems.length > 0 }}`; Discard still works
+  position     one of: sticky, fixed, inline  Default `sticky`, at the foot of the window while the form is on it
+  children: yes
+ui-repeater: Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`.
+  bind         statekey (required)  State key holding the rows, a list of objects
+  fields       any (required)  The fields of a row: `[{ field, label, type, options, placeholder, width, required, min, max, pattern, unique, message, default, compute, format, currency, decimals, summary }]`. `type`: text, multiline, number, currency, date, time, email, tel, url, select, checkbox, or computed (`compute: qty * price`, over the row's fields and state)
+  layout       one of: table, stack  `table` (default): one line per row under a header (stacked on a narrow screen); `stack`: a card per row with labels
+  newItem      any  What an added row starts with, after the fields' `default`s
+  min          number  The fewest rows: they can't be removed below it, and it starts with that many
+  max          number  The most rows
+  reorderable  bool  Rows can be moved, by their grip or with Alt and the arrow keys on it
+  duplicable   bool  A button that copies a row below itself
+  addLabel     any  Default `Add row`
+  itemLabel    string  What a row is called to screen readers and on its card, e.g. `Contact` (default `Row`)
+  label        any  Names the group for screen readers
+  emptyText    any  Shown while there are no rows
+  disabled     any  Boolean or expression: shown, not changed
+  bindErrors   statekey  State key that gets what's wrong, `[{ index, field, message }]`
+  bindTotals   statekey  State key that gets the fields' totals, `{ field: total }`, of those with `summary`
+  showErrors   any  When to show messages: after a field was left (default), or true for all, e.g. `{{ tried }}`
+  locale       string  How numbers are written (default: the document's `lang`, else the browser's)
+  id           any  Element id (default: derived from the document)
+  parts: rows
+  children: yes
+ui-stepper: The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s.
+  bind         statekey (required)  State key holding the current step's `value`
+  orientation  one of: horizontal, vertical  Default `horizontal`; `vertical` opens each step's panel under it
+  linear       bool  A later step can't be gone to until the ones before it are done, or `valid` (default true)
+  clickable    bool  Steps are buttons that go to them (default true)
+  buttons      bool  Back and Next (then Finish) under the panel (default true when steps have panels)
+  nextLabel    any  Default `Next`
+  backLabel    any  Default `Back`
+  finishLabel  any  Default `Finish`; runs the stepper's `on: { finish: … }`
+  complete     any  Every step is done, e.g. `{{ submitted }}`
+  label        any  Names the steps for screen readers (default `Steps`)
+  id           any  Element id (default: derived from the document)
+  parts: list, buttons
+  children: yes
+ui-step: One step of a `ui-stepper`; its children are its panel.
+  value        any  What `bind` holds at this step (default: its number, from 1)
+  label        any (required)  The step's name
+  description  any  Smaller text under it
+  icon         any  An icon name (with the icon kit) or a character, in place of its number
+  optional     bool  Marked Optional
+  valid        any  Next (and the steps after it) wait for this, e.g. `{{ name != '' }}`
+  error        any  Marks the step as needing attention
+  disabled     any  Can't be gone to
+  children: yes
 ui-rating: Stars: to pick a rating (`bind`), from the mouse or the arrow keys, or to show one (`value`), fractions included.
   bind         statekey  State key for the rating, a number (0 or null: none)
   value        any  A rating to show, read-only, e.g. an average `{{ product.rating }}`: fractions fill part of a star
   max          number  How many stars (default 5)
+  half         bool  Half stars can be picked
   size         number  Star size in px (default 20)
   label        any  Names it for screen readers (default `Rating`)
   clearable    bool  Clicking the chosen star again clears the rating (default true)
@@ -583,7 +1133,7 @@ ui-kanban: A board of columns with cards to drag between them (or move with Alt 
   parts: board
   children: yes
 ui-event-calendar: Events in a month grid, a week of hours, or a list by day, coloured by category, with a toolbar to move through time. Clicks go to `bindEvent` (an event) and `bindDay` (a day, e.g. to add one).
-  events       any (required)  The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`)
+  events       any (required)  The events: `{ id, title, start, end, allDay, category, tone, description }`, with `start` and `end` as dates (`2026-11-04`) or local times (`2026-11-04T09:30`). `repeat` makes one come again: `{ every: day|week|month|year, interval, on: [1, 3] (weekdays, 0 is Sunday), until, count, except: [dates] }`
   view         one of: day, week, month, year, list  The view to start in: `day`, `week`, `month` (default), `year` or `list`
   views        any  Which views to offer, in order (default all five: day, week, month, year, list); one hides the switch
   date         any  The day to show to start with (default today)
@@ -722,6 +1272,8 @@ ui-collapsible: Content behind a row that opens and closes it.
   children: yes
 ui-tabs: Panels shown one at a time, picked from a row of tabs. Children are `ui-tab-panel`s.
   bind         statekey (required)  State key holding the `value` of the open tab
+  orientation  one of: horizontal, vertical  `vertical`: the tabs in a column beside their panel, across on a narrow screen (default `horizontal`)
+  activation   one of: automatic, manual  `manual`: the arrow keys move between tabs, and Enter or Space opens one, for panels that are slow to show
   id           any  Element id (default: derived from the document)
   parts: list
   children: yes
@@ -751,6 +1303,7 @@ ui-theme-toggle: Switches the page between the system's colour scheme, light and
   children: no
 ui-theme-option: Picks one choice of a theme option (`theme.options`), such as a palette or a corner radius, for every page, and remembers it in the browser.
   option       string (required)  The theme option it picks, from `theme.options`, e.g. `palette`
+  bind         statekey  State key that gets the choice, e.g. `rose`, to show it or use it on the page; setting it picks that choice
   swatch       any  A token each choice is shown with as a colour dot, e.g. `color.primary`, or a list of them
   label        any  The group's name for screen readers (default: the option's label)
   variant      one of: default, outline  Default `outline`
@@ -966,6 +1519,8 @@ ui-combobox: A searchable select: one or many values, groups, async options, cre
   clearable    bool  Show a button that clears the value
   creatable    bool  Offer to create a value from what was typed
   searchUrl    any  Load options as you type: GET `<url>?q=<text>`, answering an array
+  labels       any  Options for values chosen before they're searched for, so they show their names: `[{ value, label }]`; may use state
+  lookup       bool  With `searchUrl`: names of chosen values it doesn't know are asked for, GET `<url>?values=a,b`
   minChars     number  Characters typed before searching `searchUrl` (default 1)
   debounce     number  Milliseconds to wait after typing before searching (default 250)
   closeOnSelect bool  Close the menu after choosing (default: unless `multiple`)
@@ -1040,6 +1595,7 @@ ui-conversation: A scrolling chat log that keeps to its latest message as messag
   label        any  Names the conversation for screen readers (default `Conversation`)
   height       any  Number (px) or CSS length
   maxHeight    any  Number (px) or CSS length: grows with the messages up to this
+  actions      any  Buttons under each message: `[copy, retry, edit, up, down]`; see `ui-message`
   parts: log, empty, latest, avatar, body, meta, bubble, ui, thread, replies
   children: yes
 ui-message: One chat message: a bubble with the sender's avatar, name and time, and an optional thread of replies. Children go in the bubble after the text.
@@ -1054,6 +1610,11 @@ ui-message: One chat message: a bubble with the sender's avatar, name and time, 
   html         any  UI after the text, rendered on a server: by `render_ui` (the CLI renders each message's `ui` into it), or `irender render --embed`. Shown only in trusted documents
   ui           any  UI after the text as an iRender document or node, for `render` to render when there's no `html`
   render       any  How a `ui` without `html` is rendered: `{ browser, url }`. `browser` is irender-wasm's `.wasm` file, to render it in the page; `url` is your server's render endpoint, which gets `{ ui }` and answers with the markup, used when there's no `browser` or it can't render it
+  messageId    any  Its id, for `actions`
+  actions      any  Buttons under it: `[copy, retry, edit, up, down]`. A `ui-chat-input` on the page does the rest: `retry` asks again, `edit` puts a message of yours back in the box, `up` and `down` write the message's `feedback`. Each fires `messageaction`
+  feedback     any  `up` or `down`: which of the two is pressed
+  sources      any  What it's based on, under it: as `ui-sources`' `items`
+  attachments  any  Files sent with it, over it: as `ui-attachment`'s `files`
   replies      any  A thread: an array of messages shown under it, folded away behind `N replies`. May use state
   open         bool  Show the thread unfolded
   parts: avatar, body, meta, bubble, ui, thread, replies
@@ -1064,6 +1625,9 @@ ui-typing-indicator: Three bouncing dots that say a reply is on its way. Takes t
 ui-chat-input: The box a chat message is written in. Enter sends and Shift+Enter starts a new line. Sending appends `{ id, role: user, content }` to `messages`, runs the document's `on.send` actions, and with `endpoint` asks it for the reply, streaming it into a new assistant message; while it streams, the send button stops it. With `threads` and `thread` it keeps a list of conversations. Children go in the toolbar, left of the send button.
   messages     statekey (required)  State key of the messages array: sending appends the user's message, and the reply
   endpoint     any  URL to POST `{ messages }` to. The reply may be JSON (a message, or `{ content }`), plain text, or server-sent events, which stream into the reply as they arrive
+  body         any  More to send with each request, beside `messages`, e.g. `{ model: "{{ model }}" }`; may use state
+  headers      any  Request headers, e.g. `{ authorization: "Bearer {{ token }}" }`; may use state
+  bindFiles    statekey  State key of files to send with the next message (a `ui-file-upload`'s, or a `ui-attachment`'s): they become its `attachments`, and the key is emptied
   bind         statekey  State key holding the text being written
   waiting      statekey  State key set true from sending until the reply starts: give it to the conversation's `typing`
   threads      statekey  State key of an array of threads, `{ id, title, messages }`: the messages live in them, and `messages` shows the current one's. Needs `thread`
@@ -1163,7 +1727,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   resizable    bool  Columns can be made wider or narrower by dragging their header's edge
   reorderable  bool  Columns can be moved by dragging their header, or Alt and the arrow keys on it
   bindColumns  statekey  State key holding the columns' layout, `{ order, widths, hidden }`, to keep it
-  export       any  An Export button that downloads the rows that pass the filters as CSV: `true`, or the file's name
+  export       any  An Export button that downloads the rows that pass the filters as CSV, or as Excel with a name ending in `.xlsx`: `true`, or the file's name
   title        any  Accessible name of the table
   emptyText    any  Shown when no row matches (default `No results.`)
   locale       string  Locale for formatted numbers and dates (default: the document's `lang`, else the browser's)
@@ -1181,6 +1745,13 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   bindViews    statekey  State key for the views people save from the Views menu (the same shape as `views`)
   bindCurrentView statekey  State key holding the id of the view shown (or null); the table opens with it
   defaultView  string  The view the table opens with when `bindCurrentView` has none
+  editable     any  Which rows' cells can be edited (in columns with `edit`): true (default), or an expression over `row`, e.g. `{{ row.status != 'Closed' }}`
+  addRow       any  Editable: a button under the rows that adds one: `true`, or its text. Rows pasted past the end are added too
+  newRow       any  Editable: what an added row starts with, e.g. `{ status: Draft }`
+  deletable    bool  Editable: Delete in the bulk bar removes the selected rows (turns on `selectable`)
+  errors       any  Editable: messages to mark cells with, e.g. from the server: `{ rowKey: { field: message } }`
+  bindErrors   statekey  Editable: state key that gets the cells that are wrong, `[{ key, field, message }]`
+  bindChanges  statekey  Editable: state key that gets what changed, `{ rowKey: { field: value } }` (null for a deleted row); set it to `{}` once saved
   id           any  Element id (default: derived from the document)
   parts: toolbar, table, footer
   children: yes
@@ -1208,6 +1779,13 @@ ui-data-table-column: A column of the `ui-data-table` it is in. Children, if any
   group        any  A header over this column and the ones next to it with the same `group`
   groupable    bool  Offered in the View menu's Group by
   resizable    bool  With the table's `resizable`, false keeps this column's width
+  edit         one of: text, multiline, number, date, select, checkbox  Its cells can be edited in place; `select` picks from `options` (default: the column's values)
+  required     bool  With `edit`: an empty cell is marked wrong
+  min          any  With `edit`: the smallest number, or the first date
+  max          any  With `edit`: the largest number, or the last date
+  pattern      string  With `edit`: a regular expression the whole text must match
+  unique       bool  With `edit`: a value used by another row is marked wrong
+  message      any  With `edit`: what's said when `min`, `max` or `pattern` isn't met
   id           string  The column's key when it has no field (default: its position)
   children: yes
 ui-data-table-toolbar: Controls added to the table's toolbar, after its filters (e.g. an Add or Export button).
@@ -1841,7 +2419,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-status-badge` | `status` (required), `tones`, `labels`, `dot` (default true) | A status in its colour. See [Status and activity](#status-and-activity). |
 | `ui-progress-ring` | `value` (0–100, required), `size` (px, default 48), `thickness`, `text`, `label`, `tone` | A circular progress with the value in the middle; follows state without a script. |
 | `ui-json-editor` | `bind` (required), `bindValid`, `type` (`object`, `array`, `any`), `rows` (default 10), `indent` (default 2), `label`, `format` (default true) | A JSON text area: highlighted, with line numbers, checked as you type. An error waits for a pause in the typing (or leaving the field), then gives its line, column and a plain reason (`Trailing comma before '}'`, `Keys need double quotes`) and marks the line; a fix shows at once. The value goes to `bind` only while the text is valid (and of `type`), and a change to it from outside is shown formatted. Tab indents (Shift+Tab takes it back; Escape, then Tab, leaves), Enter keeps the indent, and Format tidies the text or jumps to the error. Works in a `ui-field`. Parts: `bar`, `textarea`, `error`; event `change` with `{ value }`. |
-| `ui-rating` | `bind` or `value`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
+| `ui-rating` | `bind` or `value`, `half`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
 | `ui-password-checklist` | `value` (required), `rules`, `bindValid`, `meter` (default true), `label` | A password's rules, ticked as they're met, with a strength bar. |
 | `ui-timeline` + `ui-timeline-item` | `items`, `label`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
 | `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
@@ -1863,7 +2441,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-slider` | `bind`, `min`, `max`, `step`, `name`, `disabled` | A range input; `bind` holds a number. |
 | `ui-accordion` + `ui-accordion-item` | accordion: `multiple`, `id`; item: `title`, `open` | Native `<details>`. One item open at a time unless `multiple`. |
 | `ui-collapsible` | `trigger`, `open` | Native `<details>`. |
-| `ui-tabs` + `ui-tab-panel` | tabs: `bind` (required), `id`; panel: `value`, `label` | `bind` holds the open panel's `value`. Tabs carry `role=tab`, `aria-selected`, `aria-controls`. The list is one stop for Tab; the arrow keys, Home and End move between tabs and select them. More tabs than fit scroll within their list, which keeps the selected one in view and fades on the sides with more. |
+| `ui-tabs` + `ui-tab-panel` | tabs: `bind` (required), `orientation` (horizontal, vertical), `activation` (automatic, manual), `id`; panel: `value`, `label` | `bind` holds the open panel's `value`. Tabs carry `role=tab`, `aria-selected`, `aria-controls`. The list is one stop for Tab; the arrow keys, Home and End move between tabs and select them. More tabs than fit scroll within their list, which keeps the selected one in view and fades on the sides with more. |
 | `ui-toggle` | `bind`, `label`, `variant` (default, outline), `size`, `disabled` | `aria-pressed` follows `bind`. |
 | `ui-toggle-group` | `bind`, `options`, `multiple`, `variant`, `size`, `disabled` | One option pressed at most; pressing it again sets `bind` to null. With `multiple`, `bind` holds a list and each press adds or removes its option. Wraps when it's wider than what it's in. |
 | `ui-theme-toggle` | `labels` (`{ system, light, dark }`), `variant` (default `outline`), `size` (default `sm`) | System / Light / Dark. Light and Dark override `prefers-color-scheme` for the theme's dark mode and `@dark` styles; the choice is kept in `localStorage` (`irender-theme`) and applied before the page is shown, so a reload doesn't flash. Every page rendered with the kit applies it, with a toggle on it or not. Its behaviour is added only to pages that use it. |
@@ -1899,11 +2477,50 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
 | `ui-command-group`, `ui-command-item`, `ui-command-separator` | group: `heading`; item: `label`, `keywords` (a string or a list), `icon`, `shortcut`, `href`, `disabled` | The palette's contents. An item runs its `on.click`, or follows `href`. A group hides while none of its items match, and separators hide while searching. |
 
-| `ui-conversation` | `messages`, `typing`, `assistant`, `render`, `markdown`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
-| `ui-message` | `role` (assistant, user, system), `content`, `markdown`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
-| `ui-chat-input` | `messages` (required), `endpoint`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
+| `ui-conversation` | `messages`, `actions`, `typing`, `assistant`, `render`, `markdown`, `empty`, `label`, `height`, `maxHeight` | A chat log; see [Chat](#chat). |
+| `ui-message` | `sources`, `attachments`, `actions`, `messageId`, `feedback`, `role` (assistant, user, system), `content`, `markdown`, `name`, `time`, `avatar`, `initials`, `html`, `ui`, `render`, `replies`, `open` | One message bubble, with optional UI under it (see [UI in messages](#ui-in-messages)) and a thread. Children go in the bubble. |
+| `ui-chat-input` | `messages` (required), `endpoint`, `body`, `headers`, `bindFiles`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 | `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12), `dots`, `loop`, `autoplay` (ms) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time, to the next slide's own start, so slides of different widths step evenly; a button hides at its end, unless `loop` goes round to the other. `dots` adds a dot per slide under it, the current one marked, each going to its slide. `autoplay: 5000` moves on every 5 seconds, round and round, with a pause button; it waits while the pointer or focus is on it, the tab is hidden, or the reader prefers less motion. Each slide is a `group` named "2 of 5". Parts: `track`, `previous`, `next`, `dots`, `play`. |
+| `ui-form` | `rules`, `bindErrors`, `bindValid`, `bindTried`, `keys`, `bindDirty`, `guard`, `guardText`, `disabled` | A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. Put a `ui-error-summary` and a `ui-save-bar` in it. See [Forms](#forms). |
+| `ui-error-summary` | `title`, `errors` | What's wrong in the `ui-form` it's in, listed once submitting was tried; each message goes to its field. See [Forms](#forms). |
+| `ui-save-bar` | `text`, `saveLabel`, `discardLabel`, `saving`, `disabled`, `position` (sticky, fixed, inline) | Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons. See [Forms](#forms). |
+| `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
+| `ui-repeater` | `bind` (required), `fields` (required), `layout` (table, stack), `newItem`, `min`, `max`, `reorderable`, `duplicable`, `addLabel`, `itemLabel`, `label`, `emptyText`, `disabled`, `bindErrors`, `bindTotals`, `showErrors`, `locale`, `id` | Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`. See [Forms](#forms). |
+| `ui-import` | `bind` (required), `bindImported`, `fields` (required), `url`, `params`, `batchSize`, `accept`, `maxRows`, `skipInvalid`, `template`, `title`, `locale`, `id` | Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns are matched to `fields`, the rows put right in an editable table, and the good ones handed over (an `import` event and `bindImported`) or posted to `url`. See [Import](#import). |
+| `ui-tags-input` | `bind` (required), `suggestions`, `only`, `max`, `pattern`, `strict`, `lowercase`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Tags typed one after another: Enter or a comma adds one, a pasted list adds them all, Backspace takes the last. |
+| `ui-masked-input` | `bind` (required), `mask` (required), `raw`, `bindComplete`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Text in a fixed shape, like a card number, a postcode or a policy number, put in shape as it's typed. |
+| `ui-phone-input` | `bind` (required), `country`, `countries`, `bindCountry`, `bindValid`, `placeholder`, `label`, `name`, `disabled`, `invalid`, `locale` | A phone number with its country, picked from a searched list or from a pasted `+…` number, grouped as it's typed. |
+| `ui-time-picker` | `bind` (required), `step`, `min`, `max`, `disabledTimes`, `seconds`, `hour12`, `durationFrom`, `placeholder`, `label`, `name`, `disabled`, `invalid`, `locale` | A time of day, typed any way (`9`, `930`, `9:30pm`, `21.30`) or picked from a list. |
+| `ui-mention-input` | `bind` (required), `people` (required), `bindMentions`, `trigger`, `placeholder`, `rows`, `maxLength`, `label`, `name`, `disabled`, `invalid` | A text area that names people with `@`, from a list that opens at the caret. State gets the text, and the names in it. |
+| `ui-tree-select` | `bind` (required), `nodes` (required), `multiple`, `leavesOnly`, `path`, `search`, `expanded`, `clearable`, `placeholder`, `label`, `disabled`, `invalid`, `height` | A choice from a hierarchy: a field that opens a searchable tree, for one node or several. |
+| `ui-transfer-list` | `bind` (required), `options` (required), `titles`, `search`, `reorderable`, `max`, `height`, `disabled` | Two lists: what there is and what's chosen, moved between with buttons, a double click, Enter or dragging. |
+| `ui-query-builder` | `bind` (required), `fields` (required), `maxDepth`, `negate`, `bindText`, `bindValid`, `rows`, `bindMatches`, `showText`, `label`, `disabled`, `locale` | Conditions put together with and / or, nested in groups: for segments, alerts, rules, access. State gets the query, its words, and the rows that match. |
+| `ui-signature` | `bind` (required), `bindMeta`, `methods`, `format` (png, svg), `height`, `color`, `hint`, `label`, `disabled` | A signature, drawn with a finger, pen or mouse, or typed; state gets it as a picture. |
+| `ui-image-cropper` | `bind` (required), `src`, `ratio`, `round`, `width`, `maxWidth`, `type` (jpeg, png, webp), `quality`, `bindCrop`, `height`, `label` | A picture cropped, turned and zoomed in the browser, by dragging or the keys. |
+| `ui-qr-code` | `value` (required), `size`, `level` (L, M, Q, H), `logo`, `logoIcon`, `logoText`, `logoSize`, `logoShape` (rounded, circle, square), `logoBackground`, `logoColor`, `dots` (square, round), `color`, `background`, `download`, `label` | A QR code of any text, drawn in the page without a service, with a logo in it if there's one. |
+| `ui-barcode` | `value` (required), `type` (code128, code39, ean13, ean8, upca, itf), `height`, `barWidth`, `showText`, `download`, `label` | A barcode: Code 128, Code 39, EAN, UPC or ITF. |
+| `ui-code-scanner` | `bind` (required), `bindCode`, `bindList`, `formats`, `continuous`, `manual`, `sound`, `label` | Reads QR codes and barcodes with the camera, where the browser can, or from a field (a handheld scanner types into it). |
+| `ui-stat` | `label` (required), `value` (required), `format` (number, currency, percent, compact, none), `currency`, `decimals`, `unit`, `previous`, `change`, `changeAs` (percent, value), `changeLabel`, `goodWhen` (up, down, neutral), `trend`, `target`, `targetLabel`, `description`, `icon`, `href`, `variant` (card, plain), `loading`, `locale` | A figure: its label, value, change from before, a small trend line and progress to a target. Children go at the foot. |
+| `ui-description-list` + `ui-description-item` | description-list: `items`, `columns`, `layout` (stacked, inline), `divided`, `labelWidth`; description-item: `label` (required), `value`, `format` (number, currency, percent, date, datetime), `currency`, `href`, `copy`, `span`, `bind`, `edit` (text, multiline, number, date, select), `options`, `placeholder`, `locale` | Labels and their values, as at the top of a record's page. Children are `ui-description-item`s. |
+| `ui-item-group` + `ui-item` | item-group: `label`, `variant` (divided, cards, plain); item: `title`, `description`, `icon`, `image`, `initials`, `meta`, `tone` (neutral, info, success, warning, danger, primary), `href`, `selected`, `disabled`, `size` (default, sm), `variant` (plain, outline, muted) | A list of `ui-item`s (a `list` works as its child). |
+| `ui-comments` | `bind` (required), `user`, `people`, `reactions`, `resolvable`, `replies`, `editable`, `order` (oldest, newest), `placeholder`, `emptyText`, `maxLength`, `label`, `disabled`, `locale` | Comments in threads: replies, mentions, reactions, resolving, editing one's own. Each change is written to `bind` and fires an event. |
+| `ui-lightbox` | `images` (required), `layout` (grid, row, masonry, stack), `minWidth`, `ratio`, `max`, `captions`, `download`, `bind`, `label` | Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save. |
+| `ui-pivot` | `rows` (required), `fields`, `down`, `across`, `values`, `filter`, `bind`, `editable`, `totals` (both, rows, columns, none), `subtotals`, `heat`, `bindCell`, `export`, `height`, `title`, `emptyText`, `locale` | A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell. See [Pivot table](#pivot-table). |
+| `ui-scheduler` | `resources` (required), `events` (required), `bindEvents`, `bindEvent`, `bindDate`, `bindView`, `view` (day, week, month), `views`, `from`, `to`, `snap`, `overlap` (allow, mark, prevent), `creatable`, `newEvent`, `moveResources`, `bindClashes`, `rowLabel`, `rowHeight`, `height`, `now`, `label`, `locale` | Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked. See [Scheduler](#scheduler). |
+| `ui-plan` | `items` (required), `width`, `height`, `image`, `bindItems`, `bind`, `bindItem`, `tones`, `grid`, `filter`, `search`, `legend`, `viewHeight`, `label` | Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked, coloured by status, and rearranged by dragging. See [Plan](#plan). |
+| `ui-pdf` | `src` (required), `bindPage`, `bindPages`, `notes`, `bindNotes`, `tools`, `signature`, `user`, `bindNote`, `download`, `library`, `height`, `title` | A PDF on the page: zoomed, its text selected and found with the browser, and marked with highlights, boxes, notes and signatures. Drawn by pdf.js, loaded when there's one to show. See [PDF](#pdf). |
+| `ui-diff` | `before` (required), `after` (required), `mode` (text, fields), `view` (split, unified), `bindView`, `language`, `context`, `labels`, `fieldLabels`, `unchanged`, `wrap`, `title`, `height`, `label` | Two versions compared: text or code line by line, with the words that changed, or two records field by field. |
+| `ui-log` | `lines` (required), `levels`, `search`, `time` (time, datetime, relative, none), `follow`, `wrap`, `maxLines`, `bindLine`, `download`, `title`, `emptyText`, `height`, `label`, `locale` | Lines that follow as they arrive: levels to filter by, a search, wrapping, and saving. Terminal colours in the text are drawn. |
+| `ui-code-editor` | `bind` (required), `language`, `rows`, `maxRows`, `lineNumbers`, `wrap`, `indent`, `diagnostics`, `completions`, `bindCursor`, `placeholder`, `readOnly`, `label`, `name` | Code or a template, typed over its highlighted copy: line numbers, indenting, closing brackets, comments, words offered, and problems marked. |
+| `ui-banner` | `text`, `title`, `tone` (neutral, info, success, warning, danger, primary), `variant` (soft, solid), `icon`, `bind`, `remember`, `sticky` (top, bottom), `align` (start, center), `until`, `from`, `countdown` | A message across the page: maintenance, an offer, a trial's end, a setting to finish. Children (links, buttons) go after it. |
+| `ui-tour` | `bind` (required), `steps` (required), `autoStart`, `id`, `backdrop`, `interactive`, `doneLabel` | Steps that point at parts of the page one after another, for someone new to it. Draws nothing until it starts. |
+| `ui-session-timeout` | `after` (required), `warn`, `expires`, `bindLeft`, `extendUrl`, `signOutUrl`, `title`, `text`, `stayLabel`, `signOutLabel`, `channel` | Asks whether someone's still there before their session ends, counting down, across the tabs they have open. |
+| `ui-attachment` | `files` (required), `bindFiles`, `layout` (chips, cards), `label` | Files sent with a message or being sent: a name, size and picture, progress, what went wrong, and a button to remove each. |
+| `ui-sources` | `items` (required), `text`, `layout` (list, chips, fold), `label` | What an answer is based on: numbered sources, and the `[1]`s in its text as links that show them. |
+| `ui-tool-call` | `title` (required), `status`, `name`, `input`, `output`, `error`, `duration`, `open`, `bindApproval`, `label` | Something an assistant or a job did, or asks leave to do: what, how it went, and what went in and out. |
+| `ui-trace` | `spans` (required), `kinds`, `bindSpan`, `expanded`, `height`, `title`, `label` | The steps of a run, nested and against time: an assistant's, a job's, a request's. A step opens to what went in and out of it. |
+| `ui-questionnaire` | `questions` (required), `bind` (required), `mode` (steps, all), `bindDone`, `skippable`, `submitLabel`, `doneText`, `title`, `label` | Questions answered one at a time or together: choices, text, numbers, a scale. For an assistant's questions, surveys and intake forms. |
 As with the built-ins, a document can override any attribute with `attrs`, any style with `style`, and inner elements with `parts`. The kit only sets defaults.
 
 Options, items and page numbers can come from `state` as well as server data: `ui-radio-group` and `ui-toggle-group` options, `ui-breadcrumb` items, and `ui-pagination`'s `page`, `pages` and `siblings`. The server renders them for the starting state and the browser redraws them as the state changes. A breadcrumb's `items` from state must be a path, like `"{{ crumbs }}"`, so it can tell which item is last. Pagination from state adds a small behaviour that redraws its links.
@@ -2184,7 +2801,7 @@ Text that isn't a value, or is outside `min`, `max` or the disabled days, stays 
 | `columnsMenu` | The View menu (default true). |
 | `groupBy`, `bindGroupBy` | Group the rows by a field, under header rows with counts and subtotals; see [Grouping, column layout and export](#grouping-column-layout-and-export). |
 | `resizable`, `reorderable`, `bindColumns` | Columns resized by their header's edge and moved by dragging their header, the layout kept in state. |
-| `export` | An Export button: the rows that pass, as CSV (`true`, or the file's name). |
+| `export` | An Export button: the rows that pass, as CSV, or as Excel with a name ending in `.xlsx` (`true`, or the file's name). |
 | `height` | Most the table grows to; past it the rows scroll under a header that stays put. |
 | `striped`, `loading`, `title`, `emptyText`, `locale` | Shade every other row; dim it while `loading` is true; the table's accessible name; the empty message (default `No results.`); the locale for formatted values. |
 | `bindSelection`, `bindSort`, `bindFilters`, `bindSearch`, `bindPage` | State keys for the selection (a list of row keys), the sort, the column filters, the search text and the page, both ways. |
@@ -2258,7 +2875,27 @@ A group's rows come a batch at a time, `pageSize` rows each (with `offset` and `
 
 **Resizing and moving columns.** With `resizable`, each header's right edge is a separator: drag it, or focus it and use Left and Right (16 px, Shift for 4); a double click puts the column back to its own width. A column's `resizable: false` opts out. With `reorderable`, drag a header onto another to move the column before or after it (a press that doesn't move still sorts), or press Alt with Left or Right on its header; pinned columns stay put. `bindColumns` keeps the layout as `{ order, widths, hidden }`, and setting it lays the columns out that way (hidden columns from the View menu are in it too). A move is announced, and fires `columns`.
 
-**Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. A remote table exports the rows it has loaded.
+**Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. With a name ending in `.xlsx` it writes an Excel file instead, numbers in their column's format and dates as dates. A remote table exports the rows it has loaded.
+
+### Editable cells
+
+A column with `edit` (`text`, `multiline`, `number`, `date`, `select` or `checkbox`) is edited in place, and the table works as a spreadsheet does. The rows must be in state, as `rows: "{{ products }}"`: that's where the edits go. (With `url`, the rows loaded change, and the page saves them from the events.)
+
+```yaml
+- type: ui-data-table
+  props: { rows: "{{ products }}", addRow: true, newRow: { status: Draft }, deletable: true, bindChanges: changes, bindErrors: wrong }
+  children:
+    - { type: ui-data-table-column, props: { field: sku, edit: text, required: true, unique: true, pattern: "[A-Z]{3}-[0-9]+" } }
+    - { type: ui-data-table-column, props: { field: price, edit: number, min: 1, format: currency, currency: EUR } }
+    - { type: ui-data-table-column, props: { field: status, edit: select, options: [Draft, Live] } }
+```
+
+- **Keys:** the arrow keys move between cells (with Shift they pick a range, with Ctrl or ⌘ they go to the end), Tab goes to the next editable one, Enter, F2, a double click or typing edits, Enter and Tab keep the edit and Escape leaves it. Delete clears, Space ticks a checkbox, Ctrl+D (⌘D) fills down, Ctrl+Z and Ctrl+Y undo and redo.
+- **Copy and paste** go to and from spreadsheets. Pasted text is read as the column's: `1,234`, `5%`, `(120)` and the locale's own numbers, dates as the locale writes them, a choice by its label. What can't be read is kept as it is and marked. Rows pasted past the end are added, with `addRow`.
+- **Checks:** `required`, `min`, `max`, `pattern` and `unique` on a column, with `message` in place of the kit's words, and `errors` from the page or server (`{ rowKey: { field: message } }`). Wrong cells are marked and say why, the Problems button shows only their rows, and `bindErrors` gets `[{ key, field, message }]`.
+- **Changes:** `bindChanges` gets `{ rowKey: { field: value } }` (null for a deleted row) and changed cells get a mark in their corner; set it to `{}` once they're saved. Events: `celledit` (`{ key, row, field, value, previous }`), `rowadd`, `rowdelete`, and `rowschange` for an undo or a large paste.
+- `editable` says which rows may be edited, e.g. `{{ row.status != 'Closed' }}`. `addRow` is the button under the rows, `deletable` adds Delete to the bulk bar, and `export: prices.xlsx` writes Excel.
+- Editable tables can't have nested rows, or be grouped.
 
 ### Saved views
 
@@ -2596,6 +3233,55 @@ A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent e
 - **Trust.** Markup inserted into the page is as powerful as a script, so a message shows UI only in trusted documents (a policy that allows `<script>`). Render UI a model wrote under the untrusted policy (`Engine::untrusted()`, `--untrusted`), which keeps scripts, event attributes and `javascript:` URLs out; irender-wasm always does.
 - **Self-contained.** A message's `ui` has its own state and fragments; it can't read the page's server `data` or `include` fragments from your fragment directory.
 - `examples/serve.py` shows each way: the chat block's sample replies are rendered ahead, "photos …" is answered with `html`, and "chart …" with `ui`, which the page renders with irender-wasm when it's built and through `api/render` when it isn't.
+
+## Forms
+
+`ui-form` checks its fields by `rules`, keyed by state key, as each is left and all of them on submit; its `on: { submit: … }` actions run only when everything is right. `bindErrors` holds the messages of the fields left so far, for each `ui-field`'s `error`.
+
+```yaml
+- type: ui-form
+  props:
+    bindErrors: errors
+    bindDirty: dirty
+    guard: true                      # ask before leaving with unsaved changes
+    rules:
+      email: { label: Email, required: true, type: email }
+      start: { label: Start, required: true, type: date }
+      end: { label: End, type: date, min: "{{ start }}", message: After the start }
+      topics: { label: Topics, min: 1, max: 5 }          # a list, by how many it has
+      again: { match: password, message: The two don't match }
+  on: { submit: { action: submit, endpoint: /api/save, method: POST, body: { email: "{{ email }}" } } }
+  children:
+    - { type: ui-error-summary }     # what's wrong, once submitting was tried; each goes to its field
+    - { type: ui-field, props: { label: Email, error: "{{ errors.email }}" }, children: [ { type: ui-input, props: { bind: email } } ] }
+    - { type: ui-save-bar }          # shown while there are unsaved changes: Save submits, Discard puts them back
+```
+
+Unsaved changes are the `keys` (by default, those with rules) compared with how they were. They're saved when a `submit` action answers ok, or when the page sets `bindDirty` to false. Any rule may use state.
+
+**`ui-stepper`** shows a process's steps and the current one's panel, with Back, Next and Finish (`on: { finish: … }`). `bind` holds the current `ui-step`'s `value`. A later step waits until the ones before it are done, or are `valid`; `linear: false` lets people go anywhere. It needs no script.
+
+**`ui-repeater`** is rows of `fields`, kept as a list of objects. `type: computed` fields work out `compute` over the row's fields (`qty * price`), `summary` totals them under the rows and in `bindTotals`, and `bindErrors` says what's wrong. Enter goes to the same field of the next row. Children are drawn after the fields with the row as `item`, and a native control of theirs marked `attrs: { data-field: name }` is kept in step too; components that `bind` a state key can't be a row's field.
+
+## Import
+
+`ui-import` takes rows from CSV, Excel (`.xlsx`) or cells pasted from a sheet, read in the browser. Its columns are matched to `fields` by `label`, `field` and `aliases` (people can change the match), the rows are put right in an editable data table, and those that pass are handed over: the `import` event, `bindImported`, and with `url`, a POST of `{ rows, offset, total }` per `batchSize`. The server may answer `{ errors: [{ row, field, message }] }` (`row` counted in the batch) to send rows back to the review. Dates, numbers and choices are read in the locale's way; `template` offers an empty file.
+
+## Pivot table
+
+`ui-pivot` groups `rows` by the fields `down` and `across`, and sums `values` (`sum`, `avg`, `min`, `max`, `count`, `distinct`, `median`, `first`, `last`), as they are or as a share (`show: row`, `column` or `total`). A date field's `part` groups it by year, quarter, month, week or day. Outer groups fold, a heading sorts by its column, `heat` tints, `editable` lets people move fields about (kept in `bind`), `bindCell` gets a clicked cell with the rows behind it, and `export` writes Excel or CSV. It works on the rows given to it: sums over more than the browser holds belong on the server.
+
+## Scheduler
+
+`ui-scheduler` shows bookings against time, a row per resource, by day, week or month. With `bindEvents`, bookings are moved and stretched by dragging or with Alt and the arrow keys (and Shift for the end), and with `creatable`, dragging over a free stretch makes one. `hours` shades when a resource isn't free, `capacity` lets it take several, and `overlap` allows, marks (`bindClashes`) or prevents more than that. Times are local, as `YYYY-MM-DDTHH:MM`. Events: `move`, `resize`, `create`, `open`.
+
+## Plan
+
+`ui-plan` places `items` on a drawing, in the plan's own units: rectangles, circles, pins and polygons, with `image` behind them. It zooms with the wheel, a pinch, a double click or the buttons, goes between items with the arrow keys, and with `bindItems` moves them by dragging or Alt and the arrow keys, kept to `grid`. `tones` colours them by `status`, `filter` fades those that don't pass, `search` finds one, and `legend` counts them.
+
+## PDF
+
+`ui-pdf` draws a PDF's pages with [pdf.js](https://mozilla.github.io/pdf.js/), which a page loads only when it has one to show: from jsDelivr, pinned, or from `library` (its `pdf.worker.min.mjs` beside it). `notes` (or `bindNotes`, to add and change them) mark it with highlights, boxes, notes and signatures, placed as parts of the page from 0 to 1 so they hold at any zoom. The file itself isn't changed. The browser fetches it, so it must be on the same site or allow others.
 
 ## Overlays and ids
 

@@ -1,0 +1,65 @@
+# Block: enrolling students from a spreadsheet. `ui-import` reads CSV and Excel (and cells
+# pasted from a sheet) in the browser, matches their columns to the fields by name, and
+# checks every row in an editable table before anything is sent.
+# - Try it with the sample file: its columns have other names, two emails are the same and
+#   one grade isn't one of the choices.
+# - The rows that pass go to `bindImported`, shown in the table below; with `url` they would
+#   be posted in batches instead, and rows the server sends back return to the review.
+#
+#   cargo run -p irender-cli -- render examples/blocks/import-01.yaml --ui-kit --icon-kit -o import-01.html
+version: 1
+state:
+  toast: null
+  draft: []
+  students:
+    - { name: Meera Iyer, email: meera@school.example, grade: "9", joined: "2026-06-02", fee: 42000 }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1040px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Students" } }
+                - { type: ui-text, props: { variant: muted, text: "Add a class at once from a spreadsheet." } }
+            - type: ui-button
+              props: { label: Get a sample file, variant: outline, icon: download, href: files/students.csv }
+              attrs: { download: students.csv }
+
+        - type: ui-card
+          children:
+            - type: ui-import
+              props:
+                bind: draft
+                bindImported: students
+                title: Students
+                template: students-template.xlsx
+                fields:
+                  - { field: name, label: Full name, required: true, aliases: [student, pupil], example: Aarav Shah }
+                  - { field: email, label: Email, required: true, unique: true, pattern: "[^@\\s]+@[^@\\s]+", message: Enter an email address, example: aarav@school.example }
+                  - { field: grade, label: Grade, type: select, options: ["8", "9", "10"], required: true, aliases: [class, year] }
+                  - { field: joined, label: Joining date, type: date, format: date, aliases: [start, admitted] }
+                  - { field: fee, label: Yearly fee, type: number, min: 0, format: currency, currency: INR, aliases: [tuition] }
+              on: { import: { action: set_state, key: toast, value: { title: Students added, variant: success } } }
+        - type: ui-data-table
+          props: { rows: "{{ students }}", rowKey: email, title: Enrolled, emptyText: No students yet. }
+          children:
+            - { type: ui-data-table-column, props: { field: name, label: Name } }
+            - { type: ui-data-table-column, props: { field: email, label: Email } }
+            - { type: ui-data-table-column, props: { field: grade, label: Grade, cell: badge } }
+            - { type: ui-data-table-column, props: { field: joined, label: Joined, format: date } }
+            - { type: ui-data-table-column, props: { field: fee, label: Fee, format: currency, currency: INR, decimals: 0, summary: sum } }
+        - { type: ui-toaster, props: { bind: toast } }

@@ -1,0 +1,135 @@
+# Block: an alert rule for any kind of record, here bank payments: when, who and what.
+# - `ui-query-builder` builds the conditions; `rows` tries them on recent payments as they're
+#   made, `bindText` says them in words.
+# - `ui-tree-select` picks the branches it covers and `ui-transfer-list` who's told, in order.
+# - `ui-code-editor` writes the message, with the fields offered as it's typed and the
+#   page's own checks marked on its lines.
+#
+#   cargo run -p irender-cli -- render examples/blocks/rules-01.yaml --ui-kit --icon-kit -o rules-01.html
+version: 1
+state:
+  toast: null
+  words: ""
+  ok: false
+  hits: []
+  query:
+    op: and
+    rules:
+      - { field: amount, operator: gte, value: 10000 }
+      - op: or
+        rules:
+          - { field: country, operator: in, value: [NG, RU] }
+          - { field: newPayee, operator: "true", value: null }
+  branches: [delhi, mumbai]
+  tree:
+    - { id: india, label: India, children: [ { id: delhi, label: Delhi }, { id: mumbai, label: Mumbai }, { id: pune, label: Pune } ] }
+    - { id: gulf, label: Gulf, children: [ { id: dubai, label: Dubai }, { id: doha, label: Doha } ] }
+  told: [duty]
+  template: "Payment {payment.id} needs a look\n\nAmount: {payment.amount}\nTo: {payment.payee}\n"
+  payments:
+    - { id: PAY-91, amount: 18200, country: NG, method: Wire, newPayee: false, date: "2026-11-21" }
+    - { id: PAY-92, amount: 430, country: IN, method: Card, newPayee: true, date: "2026-11-21" }
+    - { id: PAY-93, amount: 52500, country: IN, method: Wire, newPayee: true, date: "2026-11-20" }
+    - { id: PAY-94, amount: 12900, country: AE, method: Wire, newPayee: false, date: "2026-11-19" }
+    - { id: PAY-95, amount: 88000, country: RU, method: Wire, newPayee: true, date: "2026-11-18" }
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1180px, margin: 0 auto, gap: 24px }
+      children:
+        - type: element
+          style: { display: flex, flex-wrap: wrap, align-items: end, justify-content: space-between, gap: 12px }
+          children:
+            - type: stack
+              style: { gap: 4px }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "Alert rule" } }
+                - { type: ui-text, props: { variant: muted, text: "Large payments that don't look usual" } }
+            - type: ui-button
+              props: { label: Save rule, disabled: "{{ !ok }}" }
+              on: { click: { action: set_state, key: toast, value: { title: Rule saved, variant: success } } }
+
+        - type: element
+          style: { display: grid, gap: 20px, align-items: start, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 1.5fr) minmax(0, 1fr)" } }
+          children:
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: When }
+                  children:
+                    - type: ui-query-builder
+                      props:
+                        bind: query
+                        bindText: words
+                        bindValid: ok
+                        rows: "{{ payments }}"
+                        bindMatches: hits
+                        showText: true
+                        negate: true
+                        fields:
+                          - { field: amount, label: Amount, type: currency, currency: INR }
+                          - { field: country, label: Country, type: select, options: [ { value: IN, label: India }, { value: AE, label: UAE }, { value: NG, label: Nigeria }, { value: RU, label: Russia } ] }
+                          - { field: method, label: Method, type: select, options: [Card, Wire, Transfer] }
+                          - { field: newPayee, label: New payee, type: boolean }
+                          - { field: date, label: Paid on, type: date }
+                - type: ui-card
+                  props: { title: Who's told, description: "In this order; Alt and the arrow keys move one." }
+                  children:
+                    - type: ui-transfer-list
+                      props:
+                        bind: told
+                        reorderable: true
+                        height: 170
+                        titles: [People and teams, Told]
+                        options:
+                          - { value: duty, label: Duty officer, description: On call, group: Teams }
+                          - { value: fraud, label: Fraud desk, group: Teams }
+                          - { value: branch, label: Branch manager, group: People }
+                          - { value: cfo, label: Finance head, group: People }
+                - type: ui-card
+                  props: { title: Message }
+                  children:
+                    - type: ui-code-editor
+                      props:
+                        bind: template
+                        language: html
+                        rows: 8
+                        label: Message template
+                        completions:
+                          - { label: payment.id, detail: text }
+                          - { label: payment.amount, detail: amount }
+                          - { label: payment.payee, detail: text }
+                          - { label: payment.country, detail: code }
+                        diagnostics: [ { line: 4, severity: warning, message: "payment.payee is empty for card payments" } ]
+            - type: stack
+              style: { gap: 20px }
+              children:
+                - type: ui-card
+                  props: { title: Where }
+                  children:
+                    - { type: ui-field, props: { label: Branches }, children: [ { type: ui-tree-select, props: { bind: branches, nodes: "{{ tree }}", multiple: true, expanded: true } } ] }
+                - type: ui-card
+                  props: { title: "Recent payments it would catch" }
+                  children:
+                    - type: stack
+                      style: { gap: 12px }
+                      children:
+                        - { type: ui-stat, props: { variant: plain, label: Caught, value: "{{ hits.length }}", target: 5, targetLabel: of the last 5 } }
+                        - type: ui-item-group
+                          children:
+                            - type: list
+                              props: { items: "{{ hits }}", as: p, key: "{{ p.id }}" }
+                              style: { display: contents }
+                              children:
+                                - { type: ui-item, props: { size: sm, title: "{{ p.id }}", description: "{{ p.method }} · {{ p.country }}", meta: "₹{{ p.amount }}" } }
+        - { type: ui-toaster, props: { bind: toast } }

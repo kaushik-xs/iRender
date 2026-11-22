@@ -255,6 +255,7 @@ impl Component for FileUpload {
         let accept = cx.prop_string(node, "accept");
         let id = instance_id(cx, node, "upload");
 
+        crate::sheets(cx);
         cx.global_js("ui-file-upload", SCRIPT);
         let params = match node.prop("params") {
             Some(p) => crate::data_table::dynamic(cx, node, "params", p)?,

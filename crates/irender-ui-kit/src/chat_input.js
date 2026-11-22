@@ -5,6 +5,9 @@
 // UI, as `ui` JSON or server-rendered `html`. While a reply streams, the send button stops it,
 // and the message has `streaming: true`, so its Markdown shows formatted as it arrives.
 //
+// `body` and `headers` go with each request; files under `bindFiles` go with the message. A
+// reply that failed can be asked for again, as can any reply with a `retry` action.
+//
 // With `threads` and `thread`, the messages live in the threads (`{ id, title, messages }`)
 // and `messages` shows the current one's. Sending with no current thread starts one,
 // titled after the message; a reply keeps streaming into its own thread if you switch.
@@ -15,6 +18,8 @@
   const suggestions = el.querySelector("[data-suggestions]");
   // Interface text in the document's words (its `labels`), by the English.
   const L = (text, vars) => window.__irender.label(text, vars);
+  const K = window.__irenderKit;
+  let tryAgain = null;
   let req = null; // the reply in flight: { tid, controller, started }
 
   const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -33,6 +38,15 @@
     button.toggleAttribute("data-streaming", here);
     button.setAttribute("aria-label", here ? L("Stop") : L("Send"));
     button.disabled = !here && (!!req || input.disabled || input.value.trim() === "");
+    // After a reply that failed, a button to ask again.
+    const failed = !req && read(active()).at(-1)?.error === true;
+    if (failed && !tryAgain) {
+      tryAgain = K.button({ "data-try-again": "", click: () => again() }, K.icon("rotate", 14), L("Try again"));
+      el.prepend(tryAgain);
+    } else if (!failed && tryAgain) {
+      tryAgain.remove();
+      tryAgain = null;
+    }
     if (suggestions) suggestions.hidden = read(active()).length > 0;
     // Waiting for the current thread's reply to start. Set after this update, since a
     // set from inside one would nest another.
@@ -84,6 +98,7 @@
     if (v?.ui && typeof v.ui === "object") reply(() => ({ ui: v.ui }));
   };
 
+  const headers = () => Object.fromEntries(Object.entries(K.value(api, api.config.headers) ?? {}).filter(([, v]) => v !== null && v !== undefined && v !== "").map(([k, v]) => [k, String(v)]));
   async function ask(tid) {
     req = { tid, controller: new AbortController(), started: false };
     sync();
@@ -92,8 +107,9 @@
     try {
       const res = await fetch(endpoint, {
         method: "POST",
-        headers: { "content-type": "application/json", accept: "text/event-stream, application/json, text/plain" },
-        body: JSON.stringify({ messages: read(tid) }),
+        headers: { "content-type": "application/json", accept: "text/event-stream, application/json, text/plain", ...headers() },
+        // What the kit keeps for itself (a message that says a reply failed) isn't sent.
+        body: JSON.stringify({ ...(K.value(api, api.config.body) ?? {}), messages: read(tid).filter((m) => !m.error) }),
         signal: req.controller.signal,
       });
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -140,6 +156,10 @@
     text = text.trim();
     if (!text || req || input.disabled) return;
     const message = { id: id(), role: "user", content: text };
+    const files = api.config.files ? array(api.state[api.config.files]).filter((f) => f && f.status !== "error") : [];
+    // Files still on their way are waited for.
+    if (files.some((f) => f.status === "uploading" || f.status === "processing")) return;
+    if (files.length) message.attachments = files.map(({ progress, error, ...f }) => f);
     let tid = active();
     if (threads) {
       // A new thread for the first message, titled after it; otherwise the current one
@@ -160,9 +180,42 @@
     api.emit("send", { text, message, thread: tid });
     input.value = "";
     if (bind) api.set(bind, "");
+    if (files.length) api.set(api.config.files, []);
     sync();
     if (endpoint) ask(tid);
   };
+
+  // Asks again from a reply on (by default, the last failure): what came after it goes.
+  function again(mid) {
+    const tid = active(), list = read(tid);
+    if (req || !endpoint) return;
+    let i = mid ? list.findIndex((m) => m.id === mid) : list.length - 1;
+    while (i > 0 && list[i]?.role !== "user") i--;
+    if (list[i]?.role !== "user") return;
+    write(tid, list.slice(0, i + 1));
+    ask(tid);
+  }
+  // The buttons under messages on this page.
+  const page = el.closest("[data-i-root]");
+  page?.addEventListener("messageaction", (e) => {
+    if (!e.detail || !el.isConnected) return;
+    const { action, id: mid } = e.detail, tid = active(), list = read(tid), m = list.find((x) => x.id === mid);
+    if (!m) return;
+    if (action === "retry") again(mid);
+    else if (action === "up" || action === "down") {
+      const feedback = m.feedback === action ? null : action;
+      write(tid, list.map((x) => (x.id === mid ? { ...x, feedback } : x)));
+      api.emit("feedback", { message: m, feedback });
+    } else if (action === "edit" && m.role === "user" && !req) {
+      write(tid, list.slice(0, list.indexOf(m)));
+      input.value = m.content ?? "";
+      if (bind) api.set(bind, input.value);
+      if (api.config.files && m.attachments) api.set(api.config.files, m.attachments);
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      sync();
+    }
+  });
 
   el.addEventListener("submit", (e) => {
     e.preventDefault();

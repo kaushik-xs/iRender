@@ -3,10 +3,9 @@
 // status: "uploading", "done", "error", or "local" (kept in the browser: no `url` prop).
 // The File objects themselves can't go in state, so they stay here, by id, for previews,
 // retries and the zip. Previews and the zip need no libraries: images, PDFs and text
-// are shown by the browser, CSV is split here, .xlsx is unzipped with the browser's
-// DecompressionStream, and the zip is written uncompressed.
+// are shown by the browser, and sheets.js reads CSV and .xlsx and writes the zip.
 (window.__irenderBehaviors ||= {})["ui-file-upload"] = (el, api) => {
-  const cfg = api.config;
+  const cfg = api.config, Z = window.__irenderSheets;
   const $ = (s, from = el) => from.querySelector(s);
   const input = $("[data-up-input]");
   const zone = $("[data-up-zone]");
@@ -266,8 +265,8 @@
     try {
       if (k === "image") box.append(make("img", { src, alt: f.name }));
       else if (k === "pdf") box.append(make("iframe", { src, title: f.name }));
-      else if (["csv", "tsv"].includes(e)) box.append(table(splitCsv(await (await fetch(src)).text(), e === "tsv" ? "\t" : ","), f.name));
-      else if (e === "xlsx") box.append(table(await readXlsx(await (await fetch(src)).arrayBuffer()), f.name));
+      else if (["csv", "tsv"].includes(e)) box.append(table(Z.csv(await (await fetch(src)).text(), e === "tsv" ? "\t" : ","), f.name));
+      else if (e === "xlsx") box.append(table(await Z.xlsx(await (await fetch(src)).arrayBuffer()), f.name));
       else if (k === "text") box.append(make("pre", {}, (await (await fetch(src)).text()).slice(0, 200000)));
       else box.append(none(L("No preview for this kind of file. Download it to open it.")));
     } catch (err) {
@@ -316,109 +315,6 @@
     if (rows.length > max) wrap.append(make("div", { "data-up-note": "" }, `The first ${max} of ${rows.length} rows.`));
     return wrap;
   }
-  // CSV with quoted fields, doubled quotes and line breaks inside quotes.
-  function splitCsv(text, sep) {
-    const rows = [];
-    let row = [], cell = "", quoted = false;
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      if (quoted) {
-        if (c === '"' && text[i + 1] === '"') (cell += '"'), i++;
-        else if (c === '"') quoted = false;
-        else cell += c;
-      } else if (c === '"' && !cell) quoted = true;
-      else if (c === sep) row.push(cell), (cell = "");
-      else if (c === "\n" || c === "\r") {
-        if (c === "\r" && text[i + 1] === "\n") i++;
-        row.push(cell), rows.push(row), (row = []), (cell = "");
-      } else cell += c;
-    }
-    if (cell || row.length) row.push(cell), rows.push(row);
-    return rows;
-  }
-
-  // ---- zip files: reading (for .xlsx) and writing (for Download all)
-  async function unzip(buffer) {
-    const v = new DataView(buffer), out = new Map();
-    let end = buffer.byteLength - 22;
-    while (end >= 0 && v.getUint32(end, true) !== 0x06054b50) end--;
-    if (end < 0) throw new Error("not a zip file");
-    let at = v.getUint32(end + 16, true);
-    const count = v.getUint16(end + 10, true);
-    const dec = new TextDecoder();
-    for (let n = 0; n < count; n++) {
-      const method = v.getUint16(at + 10, true), packed = v.getUint32(at + 20, true);
-      const nameLen = v.getUint16(at + 28, true), extra = v.getUint16(at + 30, true), note = v.getUint16(at + 32, true);
-      const offset = v.getUint32(at + 42, true);
-      const name = dec.decode(new Uint8Array(buffer, at + 46, nameLen));
-      const start = offset + 30 + v.getUint16(offset + 26, true) + v.getUint16(offset + 28, true);
-      out.set(name, { method, data: new Uint8Array(buffer, start, packed) });
-      at += 46 + nameLen + extra + note;
-    }
-    return async (name) => {
-      const f = out.get(name);
-      if (!f) return null;
-      if (f.method === 0) return dec.decode(f.data);
-      const stream = new Blob([f.data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-      return new Response(stream).text();
-    };
-  }
-  // The first sheet of an .xlsx as rows of text.
-  async function readXlsx(buffer) {
-    const read = await unzip(buffer);
-    const xml = (s) => new DOMParser().parseFromString(s, "application/xml");
-    const text = (n) => [...n.getElementsByTagName("t")].map((t) => t.textContent).join("");
-    const shared = await read("xl/sharedStrings.xml");
-    const strings = shared ? [...xml(shared).getElementsByTagName("si")].map(text) : [];
-    let sheet = await read("xl/worksheets/sheet1.xml");
-    if (!sheet) throw new Error("no sheet found");
-    const rows = [];
-    for (const r of xml(sheet).getElementsByTagName("row")) {
-      const y = Number(r.getAttribute("r")) - 1;
-      const row = (rows[y] = []);
-      for (const c of r.getElementsByTagName("c")) {
-        const ref = c.getAttribute("r") ?? "";
-        const x = [...ref.replace(/\d+$/, "")].reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0) - 1;
-        const t = c.getAttribute("t"), v = c.getElementsByTagName("v")[0]?.textContent ?? "";
-        row[x] = t === "s" ? strings[Number(v)] ?? "" : t === "inlineStr" ? text(c) : t === "b" ? (v === "1" ? "TRUE" : "FALSE") : v;
-      }
-    }
-    return Array.from(rows, (r) => Array.from(r ?? [], (c) => c ?? ""));
-  }
-  // An uncompressed zip of [name, bytes] pairs.
-  const crcTable = Array.from({ length: 256 }, (_, n) => {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    return c >>> 0;
-  });
-  const crc32 = (bytes) => {
-    let c = 0xffffffff;
-    for (const b of bytes) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
-    return (c ^ 0xffffffff) >>> 0;
-  };
-  function zip(entries) {
-    const enc = new TextEncoder(), parts = [], central = [];
-    let offset = 0;
-    const header = (size) => new DataView(new ArrayBuffer(size));
-    for (const [name, bytes] of entries) {
-      const n = enc.encode(name), crc = crc32(bytes);
-      const h = header(30);
-      h.setUint32(0, 0x04034b50, true), h.setUint16(4, 20, true), h.setUint16(6, 0x0800, true);
-      h.setUint32(14, crc, true), h.setUint32(18, bytes.length, true), h.setUint32(22, bytes.length, true), h.setUint16(26, n.length, true);
-      parts.push(h, n, bytes);
-      const c = header(46);
-      c.setUint32(0, 0x02014b50, true), c.setUint16(4, 20, true), c.setUint16(6, 20, true), c.setUint16(8, 0x0800, true);
-      c.setUint32(16, crc, true), c.setUint32(20, bytes.length, true), c.setUint32(24, bytes.length, true), c.setUint16(28, n.length, true);
-      c.setUint32(42, offset, true);
-      central.push(c, n);
-      offset += 30 + n.length + bytes.length;
-    }
-    const size = central.reduce((s, p) => s + p.byteLength, 0);
-    const end = header(22);
-    end.setUint32(0, 0x06054b50, true), end.setUint16(8, entries.length, true), end.setUint16(10, entries.length, true);
-    end.setUint32(12, size, true), end.setUint32(16, offset, true);
-    return new Blob([...parts, ...central, end], { type: "application/zip" });
-  }
   async function downloadAll() {
     const button = $("[data-up-zip]");
     button.disabled = true;
@@ -435,7 +331,7 @@
         if (n) name = name.replace(/(\.[^.]*)?$/, ` (${n + 1})$1`);
         entries.push([name, bytes]);
       }
-      const url = URL.createObjectURL(zip(entries));
+      const url = URL.createObjectURL(Z.zip(entries));
       const a = make("a", { href: url, download: `${cfg.zipName}.zip` });
       document.body.append(a);
       a.click();

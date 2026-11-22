@@ -48,8 +48,24 @@
   // ---- events, with their days and colour
   function events() {
     const list = resolve(cfg.events);
+    // One that repeats is each of its days near what's shown.
+    const near = (e, i) => {
+      const at = e?.repeat ? parse(e.start) : null;
+      if (!at) return [[e, i, null]];
+      const first = day(at), off = Math.round((day(cursor) - first) / 864e5);
+      return window.__irenderKit.repeats(e.repeat, first, off - 400, off + 400).map((n) => {
+        const go = (s) => {
+          const d = parse(s);
+          if (!d) return s;
+          const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, d.getHours(), d.getMinutes());
+          return timed(s) ? `${iso(m)}T${pad(m.getHours())}:${pad(m.getMinutes())}` : iso(m);
+        };
+        return [{ ...e, start: go(e.start), end: e.end ? go(e.end) : e.end }, i, iso(addDays(first, n))];
+      });
+    };
     return (Array.isArray(list) ? list : [])
-      .map((e, i) => {
+      .flatMap(near)
+      .map(([e, i, date]) => {
         const start = parse(e.start);
         if (!start) return null;
         let end = parse(e.end) ?? start;
@@ -59,7 +75,7 @@
         if (end < start) end = start;
         const cats = resolve(cfg.categories) ?? {};
         const tone = e.tone ?? (isObj(cats) ? cats[e.category] : null) ?? "primary";
-        return { ...e, key: String(e.id ?? i), startAt: start, endAt: end, first: day(start), last: lastDay < day(start) ? day(start) : lastDay, allDay, tone };
+        return { ...e, key: date ? `${e.id ?? i}@${date}` : String(e.id ?? i), series: date ? String(e.id ?? i) : null, occurrence: date, startAt: start, endAt: end, first: day(start), last: lastDay < day(start) ? day(start) : lastDay, allDay, tone };
       })
       .filter(Boolean)
       .sort((a, b) => a.startAt - b.startAt || (b.allDay ? 1 : 0) - (a.allDay ? 1 : 0) || String(a.title).localeCompare(String(b.title)));
@@ -339,7 +355,9 @@
   function open(key) {
     const e = events().find((x) => x.key === key);
     if (!e) return;
-    const original = (resolve(cfg.events) ?? []).find((x, i) => String(x.id ?? i) === key) ?? e;
+    // A day of one that repeats: the event, with that day's own times.
+    const whole = (resolve(cfg.events) ?? []).find((x, i) => String(x.id ?? i) === (e.series ?? key)) ?? e;
+    const original = e.series ? { ...whole, start: e.start, end: e.end, occurrence: e.occurrence } : whole;
     if (cfg.bindEvent) api.set(cfg.bindEvent, original);
     api.emit("open", { event: original });
   }
@@ -407,7 +425,15 @@
     if (!e.allDay && end - start < snap * MIN) end = new Date(start.getTime() + snap * MIN);
     const list = resolve(cfg.events) ?? [];
     let moved = null;
-    const next = list.map((x, i) => {
+    const next = list.flatMap((x, i) => {
+      // One day of an event that repeats becomes an event of its own, and the series
+      // leaves that day out.
+      if (e.series && String(x.id ?? i) === e.series) {
+        const { repeat, ...rest } = x, rule = isObj(repeat) ? repeat : { every: repeat };
+        moved = { ...rest, id: window.__irenderKit.id(), start: stamp(start, e.allDay) };
+        if (x.end || longer) moved.end = stamp(e.allDay ? at(e.endAt, 0) : end, e.allDay);
+        return [{ ...x, repeat: { ...rule, except: [...(Array.isArray(rule.except) ? rule.except : []), e.occurrence] } }, moved];
+      }
       if (String(x.id ?? i) !== key) return x;
       moved = { ...x, start: stamp(start, e.allDay) };
       // An end it had moves with it; one it didn't stays unwritten unless it was resized.
@@ -417,7 +443,7 @@
     });
     if (!moved) return null;
     api.set(cfg.bindEvents, next);
-    api.emit("move", { event: moved, from: list.find((x, i) => String(x.id ?? i) === key) });
+    api.emit("move", { event: moved, from: list.find((x, i) => String(x.id ?? i) === (e.series ?? key)) });
     cursor = day(start);
     return moved;
   }
@@ -542,7 +568,7 @@
     e.preventDefault();
     const m = move(key, change);
     if (m) {
-      refocus(key);
+      refocus(events().some((x) => x.key === key) ? key : String(m.id));
       tell(m);
     }
   });

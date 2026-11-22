@@ -7,7 +7,8 @@ never drifts from the code.
 
 Each section's data is keyed by its id with `-` as `_` (expressions read `doc.date_picker`):
 `doc.<id>` is a one-item list holding the section (title, group, summary, usage), and
-`api.<id>` its components, each with its props as `{ name, type, doc, required }`.
+`api.<id>` its components, each with its props as `{ name, type, doc, required }`. Both
+have `new`: whether it's in docs.json's `new`, so the page labels it.
 """
 
 import json
@@ -23,12 +24,21 @@ def main():
     out = subprocess.run([irender, "components", "--ui-kit", "--json"], capture_output=True, text=True, check=True).stdout
     components = {c["name"]: c for c in json.loads(out)["components"]}
     with open(os.path.join(HERE, "docs.json")) as f:
-        sections = json.load(f)["sections"]
+        docs = json.load(f)
+    sections = docs["sections"]
+    # Components introduced lately, with when: labelled New in the sidebar, over their
+    # section and in their reference. Take a name out once it's no longer new.
+    new = docs.get("new", {})
+    for name in new:
+        if name not in components:
+            sys.exit(f"docs.py: `new` names {name}, which isn't a component")
     covered = set()
     doc, api, groups = {}, {}, []
     for s in sections:
         key = s["id"].replace("-", "_")
-        doc[key] = [s]
+        # A section is new when it says so, or any component in it is.
+        fresh = bool(s.get("new") or any(n in new for n in s["components"]))
+        doc[key] = [{**s, "new": fresh}]
         cs = []
         for name in s["components"]:
             c = components[name]
@@ -42,12 +52,12 @@ def main():
                 }
                 for p in c["props"]
             ]
-            cs.append({"name": name, "doc": c["doc"], "props": props, "parts": ", ".join(c["parts"]), "children": c["children"]})
+            cs.append({"name": name, "doc": c["doc"], "props": props, "parts": ", ".join(c["parts"]), "children": c["children"], "new": name in new})
         api[key] = cs
         if not groups or groups[-1]["title"] != s["group"]:
             groups.append({"title": s["group"], "sections": []})
         # `nav`: a shorter name for the sidebar, where long titles wrap.
-        groups[-1]["sections"].append({"id": s["id"], "title": s["title"], "nav": s.get("nav", s["title"])})
+        groups[-1]["sections"].append({"id": s["id"], "title": s["title"], "nav": s.get("nav", s["title"]), "new": fresh})
     missing = sorted(n for n in components if n.startswith("ui-") and n not in covered)
     if missing:
         print(f"docs.py: not in any section of docs.json: {', '.join(missing)}", file=sys.stderr)

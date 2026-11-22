@@ -89,6 +89,40 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-menubar-menu", json!({ "label": "File" })),
         ("ui-navigation-item", json!({ "label": "Products" })),
         ("ui-navigation-link", json!({ "label": "Docs", "href": "/docs" })),
+        ("ui-step", json!({ "label": "One" })),
+        ("ui-repeater", json!({ "bind": "k", "fields": [{ "field": "a" }] })),
+        ("ui-import", json!({ "bind": "k", "fields": [{ "field": "a" }] })),
+        ("ui-stat", json!({ "label": "Orders", "value": 3 })),
+        ("ui-description-item", json!({ "label": "Owner", "value": "Ada" })),
+        ("ui-comments", json!({ "bind": "k" })),
+        ("ui-mention-input", json!({ "bind": "k", "people": [] })),
+        ("ui-tags-input", json!({ "bind": "k" })),
+        ("ui-masked-input", json!({ "bind": "k", "mask": "##" })),
+        ("ui-phone-input", json!({ "bind": "k" })),
+        ("ui-time-picker", json!({ "bind": "k" })),
+        ("ui-lightbox", json!({ "images": [] })),
+        ("ui-query-builder", json!({ "bind": "k", "fields": [{ "field": "a" }] })),
+        ("ui-transfer-list", json!({ "bind": "k", "options": [] })),
+        ("ui-tree-select", json!({ "bind": "k", "nodes": [] })),
+        ("ui-pivot", json!({ "rows": [] })),
+        ("ui-scheduler", json!({ "resources": [], "events": [] })),
+        ("ui-qr-code", json!({ "value": "x" })),
+        ("ui-barcode", json!({ "value": "x" })),
+        ("ui-code-scanner", json!({ "bind": "k" })),
+        ("ui-diff", json!({ "before": "a", "after": "b" })),
+        ("ui-log", json!({ "lines": [] })),
+        ("ui-code-editor", json!({ "bind": "k" })),
+        ("ui-signature", json!({ "bind": "k" })),
+        ("ui-image-cropper", json!({ "bind": "k" })),
+        ("ui-plan", json!({ "items": [] })),
+        ("ui-pdf", json!({ "src": "/a.pdf" })),
+        ("ui-tour", json!({ "bind": "k", "steps": [] })),
+        ("ui-session-timeout", json!({ "after": 10 })),
+        ("ui-attachment", json!({ "files": [] })),
+        ("ui-sources", json!({ "items": [] })),
+        ("ui-tool-call", json!({ "title": "Search" })),
+        ("ui-trace", json!({ "spans": [] })),
+        ("ui-questionnaire", json!({ "bind": "k", "questions": [] })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -114,6 +148,8 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-filter" => root = json!({ "type": "ui-filters", "props": { "bind": "k" }, "children": [{ "type": "ui-filter", "props": { "field": "a" } }] }),
             "ui-resizable" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
             "ui-resizable-panel" => root = json!({ "type": "ui-resizable", "children": [{ "type": "ui-resizable-panel" }, { "type": "ui-resizable-panel" }] }),
+            "ui-stepper" => root = json!({ "type": "ui-stepper", "props": { "bind": "k" }, "children": [{ "type": "ui-step", "props": { "label": "One" } }] }),
+            "ui-error-summary" | "ui-save-bar" => root = json!({ "type": "ui-form", "children": [root] }),
             "ui-tile" => root = json!({ "type": "ui-dashboard-grid", "children": [root] }),
             "ui-rail-panel" => root = json!({ "type": "ui-rail-layout", "props": { "bind": "k", "items": [{ "id": "a", "label": "A" }] }, "children": [{ "type": "ui-rail-panel", "props": { "for": "a" } }] }),
             _ => {}
@@ -155,7 +191,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 118);
+    assert_eq!(kit, 160);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -606,7 +642,7 @@ fn separator_label_button_and_badge_icons() {
 fn theme_option_lists_its_choices_with_swatches() {
     let page = render_with(json!({ "type": "ui-theme-option", "props": { "option": "palette", "swatch": "color.primary" } }), json!({}), json!({})).unwrap();
     let body = plain(&page.body);
-    assert!(body.starts_with(r#"<div role="group" aria-label="Colour" data-i-x="ui-theme-option" data-i-xc="{&quot;option&quot;:&quot;palette&quot;,&quot;fallback&quot;:&quot;zinc&quot;}">"#), "{body}");
+    assert!(body.starts_with(r#"<div role="group" aria-label="Colour" data-i-x="ui-theme-option" data-i-xc="{&quot;option&quot;:&quot;palette&quot;,&quot;fallback&quot;:&quot;zinc&quot;,&quot;bind&quot;:null}">"#), "{body}");
     // The default is pressed until the behaviour reads the stored choice.
     // Zinc, the default, sets no primary of its own: its swatch is the base colour.
     assert!(body.contains(r#"<button type="button" data-choice="zinc" aria-pressed="true"><span aria-hidden="true"><span></span></span>Zinc</button>"#), "{body}");
@@ -977,7 +1013,7 @@ fn chat_messages_threads_and_input() {
     )
     .unwrap();
     let body = plain(&page.body);
-    assert!(body.contains(r#"data-i-xc="{&quot;messages&quot;:&quot;messages&quot;,&quot;endpoint&quot;:&quot;/chat&quot;,&quot;bind&quot;:&quot;draft&quot;,&quot;waiting&quot;:null,&quot;threads&quot;:null,&quot;thread&quot;:null}""#), "{body}");
+    assert!(body.contains(r#"data-i-xc="{&quot;messages&quot;:&quot;messages&quot;,&quot;endpoint&quot;:&quot;/chat&quot;,&quot;body&quot;:null,&quot;headers&quot;:null,&quot;files&quot;:null,&quot;bind&quot;:&quot;draft&quot;,&quot;waiting&quot;:null,&quot;threads&quot;:null,&quot;thread&quot;:null}""#), "{body}");
     assert!(body.contains(r#"<button type="button" data-suggestion="">Hi</button>"#), "{body}");
     assert!(body.contains(r#"aria-label="Message" data-input="" data-i-bind="draft">so far</textarea>"#), "{body}");
     assert!(body.contains(r#"<button type="submit" aria-label="Send" data-send-button="">"#), "{body}");

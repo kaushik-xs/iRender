@@ -28,6 +28,7 @@ const RATING_PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key for the rating, a number (0 or null: none)"),
     PropDef::new("value", PropKind::Any, "A rating to show, read-only, e.g. an average `{{ product.rating }}`: fractions fill part of a star"),
     PropDef::new("max", PropKind::Number, "How many stars (default 5)"),
+    PropDef::new("half", PropKind::Bool, "Half stars can be picked"),
     PropDef::new("size", PropKind::Number, "Star size in px (default 20)"),
     PropDef::new("label", PropKind::Any, "Names it for screen readers (default `Rating`)"),
     PropDef::new("clearable", PropKind::Bool, "Clicking the chosen star again clears the rating (default true)"),
@@ -47,6 +48,13 @@ static RATING: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&:has(input:disabled)", pairs(&[("opacity", "0.5")]))
         .nest("&:has(input:disabled) label", pairs(&[("cursor", "not-allowed")]))
         .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& label", pairs(&[("transition", "none")])))
+        // Half stars: a label per half, the second showing its star's other side.
+        .nest("&[data-half] label", pairs(&[("width", "calc(var(--star, 20px) / 2)"), ("padding", "2px 0"), ("overflow", "hidden"), ("border-radius", "0")]))
+        .nest("&[data-half] label svg", pairs(&[("flex", "none")]))
+        .nest("&[data-half] label:nth-child(even)", pairs(&[("margin-inline-end", "4px")]))
+        .nest("&[data-half] label:nth-child(even) svg", pairs(&[("margin-inline-start", "calc(var(--star, 20px) / -2)")]))
+        .nest("&[data-half]:not([data-ro]) label:hover", pairs(&[("transform", "none")]))
+        .nest("&[data-half]", pairs(&[("gap", "0")]))
         // Showing: the filled row cut to `--ui-value` of the way across.
         .nest("& [data-stars]", pairs(&[("position", "relative"), ("display", "inline-flex"), ("gap", "2px")]))
         .nest("& [data-stars] > span", pairs(&[("display", "inline-flex"), ("gap", "2px")]))
@@ -135,10 +143,16 @@ impl Component for Rating {
             .attr("role", "radiogroup")
             .attr("aria-label", label)
             .behavior("ui-rating", json!({ "bind": key, "clearable": clearable }));
+        let half = cx.prop(node, "half").is_some_and(|v| expr::truthy(&v));
+        if half {
+            el.attr("data-half", true);
+        }
         cx.open(&el, node)?;
-        for i in 1..=max {
+        let steps = if half { max * 2 } else { max };
+        for i in 1..=steps {
+            let value = if half { i as f64 / 2.0 } else { i as f64 };
             let mut l = Element::new("label");
-            if (i as f64) <= current {
+            if value <= current {
                 l.attr("data-on", true);
             }
             cx.open(&l, node)?;
@@ -146,9 +160,9 @@ impl Component for Rating {
             input
                 .attr("type", "radio")
                 .attr("name", name.clone())
-                .attr("value", i.to_string())
-                .attr("aria-label", if i == 1 { "1 star".to_string() } else { format!("{i} stars") });
-            if current as usize == i {
+                .attr("value", value.to_string())
+                .attr("aria-label", if value == 1.0 { "1 star".to_string() } else { format!("{value} stars") });
+            if current == value {
                 input.attr("checked", true);
             }
             if let Some(d) = node.prop("disabled") {

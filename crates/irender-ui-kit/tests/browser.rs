@@ -4,6 +4,9 @@
 //!   cargo test -p irender-ui-kit --test browser -- --ignored
 //! Set CHROME=/path/to/chrome if it isn't found automatically.
 
+#[path = "browser/components.rs"]
+mod components;
+
 use irender_core::Format;
 use irender_html::Engine;
 use std::{path::PathBuf, process::Command};
