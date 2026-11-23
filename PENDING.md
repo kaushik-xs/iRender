@@ -11,6 +11,8 @@ _Last updated: 2026-11-23._
 
 ## Gaps you'd hit in real use
 
+- [ ] **`ui-gauge`** (2026-11-23; gallery, block dashboard-02): `min`, `max` and the bands are fixed when the page is rendered (the value and target follow state); no ticks along the dial, no formatting of a figure from state (`text` takes a rounded one), and a needle's figure sits under the hub. The chart kit's `gauge` covers the rest.
+
 - [ ] **`ui-color-picker`** (2026-11-23; gallery, block report-01): no recent colours, no OKLCH or other wide-gamut formats (typed `oklch()` is read through the browser into sRGB), no contrast check against a background, and the eyedropper only where the browser has one (Chrome and Edge). The area isn't tried with touch on real phones.
 
 - [ ] **CSS-wide keywords in conditional dynamic styles.** A dynamic `inherit`, `initial`, `unset` or `revert` works in a plain declaration (it's set on the property inline), but under `:hover`, a media query or a nested selector it can't reach the property and counts as no value. Idea: for those, compile one rule per keyword keyed on a data attribute.

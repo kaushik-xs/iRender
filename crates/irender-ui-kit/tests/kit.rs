@@ -148,6 +148,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-tool-call", json!({ "title": "Search" })),
         ("ui-trace", json!({ "spans": [] })),
         ("ui-questionnaire", json!({ "bind": "k", "questions": [] })),
+        ("ui-gauge", json!({ "value": 50 })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -217,7 +218,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 199);
+    assert_eq!(kit, 200);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1272,6 +1273,36 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn gauge_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-gauge", "props": { "value": "{{ oee }}", "unit": "%", "caption": "OEE", "target": 85,
+            "bands": [{ "to": 60, "tone": "danger", "label": "Poor" }, { "to": 85, "tone": "warning", "label": "Fair" }, { "tone": "success", "label": "Good" }] } }),
+        json!({ "oee": 72 }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A meter named by its caption, its band's tone and name worked out on the server.
+    assert!(body.contains(r#"data-shape="arc" data-tone="warning" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="72" aria-valuetext="72 %, Fair" aria-label="OEE""#), "{body}");
+    // Three bands, the value's arc, the target; no script.
+    assert_eq!(body.matches("data-band").count(), 3, "{body}");
+    assert!(body.contains(r#"stroke-dasharray="0 60 25 200""#) && body.contains("data-arc") && body.contains("data-target"), "{body}");
+    assert!(!body.contains("data-needle"), "{body}");
+    assert!(page.scripts.is_empty() || !page.scripts.iter().any(|s| s.contains("ui-gauge")));
+
+    // A fixed value: its tone and text are worked out once.
+    let fixed = plain(&render_with(json!({ "type": "ui-gauge", "props": { "value": 30, "min": 20, "max": 120, "shape": "half", "needle": true, "bands": [{ "to": 80, "tone": "success" }, { "tone": "danger" }] } }), json!({}), json!({})).unwrap().body);
+    assert!(fixed.contains(r#"data-shape="half" data-with-needle data-tone="success""#) && fixed.contains(r#"aria-valuetext="30""#) && fixed.contains("data-needle"), "{fixed}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-gauge", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "value": 1, "min": 10, "max": 10 })).contains("`max` must be above `min`"));
+    assert!(err(json!({ "value": 1, "size": 20 })).contains("48 to 640"));
+    assert!(err(json!({ "value": 1, "bands": [{ "to": 50, "tone": "red" }] })).contains("no tone `red`"));
+    assert!(err(json!({ "value": 1, "bands": [{ "tone": "danger" }, { "to": 90, "tone": "success" }] })).contains("only the last band"));
+    assert!(err(json!({ "value": 1, "bands": [{ "to": 60, "tone": "danger" }, { "to": 40, "tone": "success" }] })).contains("must be above 60"));
 }
 
 #[test]

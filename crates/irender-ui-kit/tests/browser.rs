@@ -7464,6 +7464,58 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-gauge` follows state without a script of its own: the arc, the needle, the target,
+/// the band's tone and what screen readers hear.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gauge_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "v": 72, "goal": 85 },
+        "root": { "type": "ui-gauge", "attrs": { "id": "g" }, "props": { "value": "{{ v }}", "unit": "%", "target": "{{ goal }}", "needle": true,
+            "bands": [{ "to": 60, "tone": "danger", "label": "Poor" }, { "to": 85, "tone": "warning", "label": "Fair" }, { "tone": "success", "label": "Good" }] } } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, g = document.getElementById("g");
+      const show = () => [
+        getComputedStyle(g.querySelector("[data-arc]")).strokeDashoffset,
+        getComputedStyle(g.querySelector("[data-needle]")).transform !== "none",
+        g.dataset.tone, g.getAttribute("aria-valuetext"), g.querySelector("[data-gauge-value]").textContent,
+      ].join(" | ");
+      const angle = (sel) => { const m = new DOMMatrix(getComputedStyle(g.querySelector(sel)).transform); return Math.round(Math.atan2(m.b, m.a) * 180 / Math.PI); };
+      try {
+        log("start", show(), angle("[data-needle]"), angle("[data-target]"));
+        api.set("v", 95); await wait(20);
+        log("high", show(), angle("[data-needle]"));
+        api.set("v", 140); await wait(20);
+        log("past max", show(), angle("[data-needle]"));
+        api.set("v", 10); api.set("goal", 50); await wait(20);
+        log("low", show(), angle("[data-target]"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("gauge", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // 72 of 100: the arc's dash 28 short of the end, the needle at -120° + 72 × 2.4°,
+            // the target (85) at 84°.
+            "start calc(28px) | true | warning | 72 %, Fair | 72% 53 84",
+            "high calc(5px) | true | success | 95 %, Good | 95% 108",
+            // Past the end: the dial stops there, the figure doesn't.
+            "past max 0% | true | success | 140 %, Good | 140% 120",
+            "low calc(90px) | true | danger | 10 %, Poor | 10% 0",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-color-picker`: the area's keys, the hue and opacity sliders, typed colours (any
 /// CSS colour, or a mistake), swatches, clearing, each format, and state set elsewhere.
 #[test]
