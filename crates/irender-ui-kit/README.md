@@ -44,6 +44,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-illustration` | `name` (not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done, no-access, upload-failed, too-many-requests, no-people, deleted, empty-calendar, welcome), `size` (default 240), `primary`, `secondary`, `label`, `animate` | An original, flat drawing for an error page or an empty state, 4 : 3. It's coloured by the theme: the primary colour, a secondary one (`color.brand-2`, else `color.chart-2`, else amber), light tints of both, and neutrals mixed from the text and background colours, so it follows a palette, the custom colours picked with `ui-theme-colors`, and dark mode. `primary` and `secondary` set its own colours (and may use state; null goes back to the theme's). Decorative unless it has a `label`. `animate` (true, or from state) brings it to life a little: a planet floats, a gear turns, a light blinks, sparkles twinkle; still for readers who prefer less motion. The blocks have whole error pages (404, 500, 403, 503, offline, an expired session) and a page of empty states. |
 | `ui-empty` | `title`, `description`, `icon`, `illustration`, `illustrationSize` (default 200) | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
+| `ui-presence` | `people` (required), `max` (default 4), `size` (default 28), `me`, `announce`, `align`, `label`, `id` | Who's here now: stacked avatars with a status dot and a colour each, then `+3`; a click lists everyone, their status and what they're on. See below. |
 | `ui-separator` | `orientation`, `decorative`, `label` | With `label`, a horizontal line with text in the middle, like "Or continue with". |
 | `ui-skeleton` | `width`, `height`, `round` | Pulses gently; still for people who ask their system for reduced motion. |
 | `ui-spinner` | `size` (default 16), `label` (default `Loading`) | A spinning ring in the text colour, `role="status"`. Slows down for people who ask for reduced motion. |
@@ -732,6 +733,13 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 - type: ui-compare-slider
   props: { before: /photos/wall-12-nov.jpg, after: /photos/wall-21-nov.jpg, beforeAlt: The damp wall, afterAlt: The wall repaired, bind: split, caption: Living room, north wall }
 - { type: ui-compare-slider, props: { before: a.jpg, after: b.jpg, orientation: vertical, ratio: 4/3, hover: true } }
+```
+
+**`ui-presence`** shows who's here now: the people looking at a page, a document or a board. Each of `people` (`{ id, name, avatar, initials, status, color, where }`) is an avatar (their picture, else their initials, else their name's first letter) with a dot for their `status` (active, idle, busy, away; offline fades them) and a ring in their `color` (1–8, the theme's chart colours; by default by place). The first `max` overlap, then `+3` for the rest. The stack is one button, named "People here: 6", that opens everyone in a list, each with their status in words and `where` they are ("Active · Editing Budget"), `(you)` after the one whose `id` is `me`. From state, it follows as people come and go, with no script; `announce` adds one that says who joins and who leaves, for screen readers.
+
+```yaml
+- { type: ui-presence, props: { people: "{{ viewers }}", me: "{{ user.id }}", max: 3, announce: true } }
+# viewers: [{ id: u1, name: Asha Rao, status: active, where: Editing Budget }, { id: u2, name: Ravi Kumar, status: idle, avatar: /a/ravi.jpg }]
 ```
 
 **`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.

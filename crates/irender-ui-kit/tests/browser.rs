@@ -7464,6 +7464,64 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-presence`: the stack (named with the count, past `max` behind `+N`), the list (each
+/// status in words, `(you)`, what they're on), colours by place or as given, and people
+/// joining and leaving from state, said with `announce`.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn presence_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "here": [
+            { "id": "a", "name": "Asha Rao", "status": "active", "where": "Budget" },
+            { "id": "k", "name": "Kaushik Sundar", "status": "idle" },
+            { "id": "r", "name": "Ravi Kumar", "status": "busy", "color": 7 },
+            { "id": "m", "name": "Mei Lin", "initials": "ML", "status": "offline" } ] },
+        "root": { "type": "ui-presence", "attrs": { "id": "p" }, "props": { "people": "{{ here }}", "me": "k", "max": 2, "announce": true } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender;
+      const root = document.getElementById("p").closest("[data-pr]");
+      const stack = root.querySelector("[data-pr-stack]"), more = root.querySelector("[data-pr-more]");
+      const shown = () => [...stack.querySelectorAll("[data-pr-av]")].filter((a) => a.getClientRects().length).map((a) => a.title).join(",");
+      const list = () => [...root.querySelectorAll("[data-pr-list] li")].map((li) => `${li.querySelector("[data-pr-name]").textContent.trim()} / ${li.querySelector("[data-pr-where]").textContent}`).join(" | ");
+      try {
+        log("stack", stack.getAttribute("aria-label"), shown(), more.hidden, more.textContent);
+        stack.click(); await wait(20);
+        log("open", root.querySelector("[data-pr-pop]").matches(":popover-open"), root.querySelector("[data-pr-pop] h3").textContent);
+        log("list", list());
+        const rings = [...root.querySelectorAll("[data-pr-list] [data-pr-av]")].map((a) => a.dataset.color + ":" + a.dataset.status).join(" ");
+        log("rings", rings, getComputedStyle(root.querySelector("[data-pr-list] [data-pr-av][data-status=active]"), "::after").backgroundColor !== "rgba(0, 0, 0, 0)");
+        api.set("here", [...api.state.here, { id: "p", name: "Priya Nair", status: "active" }]); await wait(20);
+        log("joined", stack.getAttribute("aria-label"), more.textContent, root.querySelector("[data-pr-live]").textContent);
+        api.set("here", api.state.here.filter((x) => x.id === "a" || x.id === "p")); await wait(20);
+        log("left", shown(), more.hidden, root.querySelector("[data-pr-live]").textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("presence", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "stack People here: 4 Asha Rao,Kaushik Sundar false +2",
+            "open true People here · 4",
+            "list Asha Rao / Active · Budget | Kaushik Sundar (you) / Idle | Ravi Kumar / Busy | Mei Lin / Offline",
+            // Colours by place, or as given (Ravi's 7).
+            "rings 1:active 2:idle 7:busy 4:offline true",
+            "joined People here: 5 +3 Priya Nair joined",
+            "left Asha Rao,Priya Nair true Kaushik Sundar left. Ravi Kumar left. Mei Lin left",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-timeline` as an activity feed: a heading over each day, times as how long ago, New
 /// after `since` (following state), and entries past `limit` behind a button; entries
 /// from state drawn again as they change.

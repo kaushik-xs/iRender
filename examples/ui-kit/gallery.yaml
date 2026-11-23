@@ -283,6 +283,13 @@ state:
   slaLeft: null
   slaStatus: null
   compareAt: 50
+  here:
+    - { id: u1, name: Asha Rao, status: active, where: Editing Budget 2027 }
+    - { id: u2, name: Kaushik Sundar, status: active, where: Viewing Summary }
+    - { id: u3, name: Ravi Kumar, status: idle }
+    - { id: u4, name: Mei Lin, status: busy, where: In a call }
+    - { id: u5, name: Diego Alvarez, status: away }
+    - { id: u6, name: Sam Okafor, status: offline }
   feedSeen: "2026-11-23T09:00"
   feed:
     - { id: 1, who: Asha Rao, action: commented on Invoice 42, comment: Sent the corrected copy., when: "2026-11-23T11:20" }
@@ -1810,6 +1817,39 @@ root:
                 - { type: if, props: { when: "{{ api.avatar.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.avatar }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- presence
+            - type: element
+              props: { tag: section }
+              attrs: { id: presence, aria-labelledby: presence-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.presence }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Click the avatars for everyone, their status and what they're on. The buttons change who's here, as a server would; with announce, screen readers hear who joins and leaves." }
+                - type: stack
+                  props: { direction: row, gap: 32, align: center, wrap: true }
+                  children:
+                    - { type: ui-presence, props: { people: "{{ here }}", me: u2, announce: true, align: start } }
+                    - { type: ui-presence, props: { people: "{{ here }}", max: 2, size: 36, align: start, label: Viewing } }
+                - type: stack
+                  props: { direction: row, gap: 8, wrap: true }
+                  children:
+                    - type: ui-button
+                      props: { label: Priya joins, variant: outline, size: sm }
+                      on: { click: { action: set_state, key: here, value: [ { id: u7, name: Priya Nair, status: active, where: Just arrived }, { id: u1, name: Asha Rao, status: active, where: Editing Budget 2027 }, { id: u2, name: Kaushik Sundar, status: active, where: Viewing Summary }, { id: u3, name: Ravi Kumar, status: idle }, { id: u4, name: Mei Lin, status: busy, where: In a call }, { id: u5, name: Diego Alvarez, status: away }, { id: u6, name: Sam Okafor, status: offline } ] } }
+                    - type: ui-button
+                      props: { label: Only two left, variant: outline, size: sm }
+                      on: { click: { action: set_state, key: here, value: [ { id: u1, name: Asha Rao, status: active, where: Editing Budget 2027 }, { id: u2, name: Kaushik Sundar, status: idle } ] } }
+                - { type: if, props: { when: "{{ api.presence.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.presence }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

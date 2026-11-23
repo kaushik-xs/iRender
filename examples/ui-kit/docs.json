@@ -85,7 +85,8 @@
   "ui-sortable-list": "2026-11-23",
   "ui-form-builder": "2026-11-23",
   "ui-countdown": "2026-11-23",
-  "ui-compare-slider": "2026-11-23"
+  "ui-compare-slider": "2026-11-23",
+  "ui-presence": "2026-11-23"
  },
  "sections": [
   {
@@ -426,6 +427,17 @@
    "components": [
     "ui-avatar",
     "ui-aspect-ratio"
+   ]
+  },
+  {
+   "id": "presence",
+   "group": "Data display",
+   "title": "Presence",
+   "nav": "Presence",
+   "summary": "Who's here now: avatars stacked over each other, each with a dot for their status (active, idle, busy, away, offline) and a ring in a colour of their own, then +3 for the rest. A click lists everyone with their status and what they're on, (you) after whoever's looking. It follows state with no script, and can say who joins and leaves.",
+   "usage": "- { type: ui-presence, props: { people: \"{{ viewers }}\", me: \"{{ user.id }}\", max: 4, announce: true } }\n# viewers: [{ id: u1, name: Asha Rao, status: active, where: Editing Budget }, { id: u2, name: Ravi Kumar, status: idle, avatar: /a/ravi.jpg }]",
+   "components": [
+    "ui-presence"
    ]
   },
   {

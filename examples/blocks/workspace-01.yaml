@@ -1,8 +1,9 @@
 # Block: a team's workspace in a `ui-rail-layout`. The rail's icons open their own
 # panels: Inbox (the notifications, in the page), Projects (a tree of projects to pick
 # from), Calendar (the week, as a list), Activity (the team's, grouped by day, what came
-# since the last visit marked New, the first six shown), and Settings at the foot. The main content is
-# the sprint board. A click on the open icon folds its panel; Up and Down move along
+# since the last visit marked New, the first six shown), and Settings at the foot. The
+# main content is the sprint board, with who else is looking at it (`ui-presence`: a click
+# lists them). A click on the open icon folds its panel; Up and Down move along
 # the rail. Drag the panel's edge to resize it (or focus it and use the arrow keys).
 #
 #   cargo run -p irender-cli -- render examples/blocks/workspace-01.yaml --ui-kit --icon-kit -o workspace-01.html
@@ -12,6 +13,12 @@ state:
   panel: true
   panelWidth: 300
   project: web
+  viewers:
+    - { id: ks, name: Kaushik Sundar, status: active, where: Sprint board }
+    - { id: mi, name: Meera Iyer, status: active, where: IR-104 }
+    - { id: rk, name: Ravi Kumar, status: idle, where: IR-107 }
+    - { id: ar, name: Asha Rao, status: busy, where: In a call }
+    - { id: dl, name: Dev Lal, status: away }
   lastVisit: "2026-11-20T12:00"
   activity:
     - { id: 1, who: Meera Iyer, action: moved IR-104 to In review, when: "2026-11-20T16:40" }
@@ -94,7 +101,11 @@ root:
               children:
                 - { type: ui-heading, props: { level: 2, text: "Sprint 24" } }
                 - { type: ui-text, props: { variant: muted, text: "{{ projectNode ? 'Project: ' + projectNode.label : 'All projects' }} · 16–27 Nov" } }
-            - { type: ui-progress-ring, props: { value: 42, size: 40, label: Sprint progress } }
+            - type: stack
+              props: { direction: row, gap: 16, align: center }
+              children:
+                - { type: ui-presence, props: { people: "{{ viewers }}", me: ks, max: 3, label: Looking at this board, announce: true } }
+                - { type: ui-progress-ring, props: { value: 42, size: 40, label: Sprint progress } }
         - type: ui-kanban
           props:
             columns: [ { id: todo, title: To do, tone: info }, { id: doing, title: In progress, tone: primary, limit: 3 }, { id: review, title: In review, tone: warning }, { id: done, title: Done, tone: success } ]

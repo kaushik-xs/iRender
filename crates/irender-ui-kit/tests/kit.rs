@@ -153,6 +153,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-form-builder", json!({ "bind": "k" })),
         ("ui-countdown", json!({ "to": "+1h" })),
         ("ui-compare-slider", json!({ "before": "/a.jpg", "after": "/b.jpg" })),
+        ("ui-presence", json!({ "people": [] })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -222,7 +223,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 204);
+    assert_eq!(kit, 205);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1277,6 +1278,28 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn presence_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-presence", "props": { "people": "{{ team }}", "max": 1, "id": "p" } }),
+        json!({ "team": [{ "id": "a", "name": "Asha Rao", "status": "active" }, { "id": "b", "name": "Bo", "avatar": "/bo.png" }] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // One button for the stack, named with the count; the list in a popover; no script.
+    assert!(body.contains(r#"id="p" data-pr-stack popovertarget="p-list" aria-haspopup="dialog" aria-label="People here: 2""#), "{body}");
+    assert!(body.contains(r#"data-status="active" data-color="1" title="Asha Rao">"#) && body.contains(r#"<img src="/bo.png" alt="">"#), "{body}");
+    assert!(body.contains(r#"<span data-pr-more aria-hidden="true""#) && body.contains(r#"">+1</span>"#), "{body}");
+    assert!(body.contains(r#"popover="auto" id="p-list" role="dialog" data-pr-pop"#) && body.contains("Active"), "{body}");
+    assert!(!page.scripts.iter().any(|s| s.contains("ui-presence")), "no script without `announce`");
+
+    let err = |props: Json, state: Json| render_with(json!({ "type": "ui-presence", "props": props }), state, json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "people": [{ "id": 1 }] }), json!({})).contains("person 1 needs a `name`"));
+    assert!(err(json!({ "people": [], "max": 0 }), json!({})).contains("`max` is how many"));
+    assert!(err(json!({ "people": [], "size": 100 }), json!({})).contains("`size` is from 16 to 64"));
 }
 
 #[test]
