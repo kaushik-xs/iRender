@@ -1252,6 +1252,28 @@ root:
                     - { type: ui-field, props: { label: Username, description: "{{ includes(fmChecking, 'fmUser') ? 'Checking…' : 'Asked of the server: admin and root are taken' }}", error: "{{ fmErrors.fmUser }}" }, children: [ { type: ui-input, props: { bind: fmUser } } ] }
                     - { type: ui-save-bar, props: { position: inline } }
                     - { type: ui-button, props: { label: Submit, type: submit }, style: { align-self: flex-start } }
+                - { type: ui-text, props: { variant: muted, text: "Columns and sections, mixed: the form has two columns, Address spans both with its heading aside and three of its own. Narrow the window to see them fall to two, then one." } }
+                - type: ui-form
+                  props: { columns: 2 }
+                  children:
+                    - type: ui-form-section
+                      props: { title: Account, description: How they sign in }
+                      children:
+                        - { type: ui-field, props: { label: Email }, children: [ { type: ui-input, props: { type: email } } ] }
+                        - { type: ui-field, props: { label: Role }, children: [ { type: ui-select, props: { options: [Owner, Editor, Viewer] } } ] }
+                    - type: ui-form-section
+                      props: { title: Name, columns: 2 }
+                      children:
+                        - { type: ui-field, props: { label: First }, children: [ { type: ui-input } ] }
+                        - { type: ui-field, props: { label: Last }, children: [ { type: ui-input } ] }
+                        - { type: ui-field, props: { label: Shown as, span: full }, children: [ { type: ui-input } ] }
+                    - type: ui-form-section
+                      props: { title: Address, description: For letters and parcels, layout: aside, columns: 3, span: full }
+                      children:
+                        - { type: ui-field, props: { label: Street, span: full }, children: [ { type: ui-input } ] }
+                        - { type: ui-field, props: { label: City }, children: [ { type: ui-input } ] }
+                        - { type: ui-field, props: { label: Region }, children: [ { type: ui-input } ] }
+                        - { type: ui-field, props: { label: Postcode }, children: [ { type: ui-input } ] }
                 - { type: if, props: { when: "{{ api.form.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.form }}", as: c }

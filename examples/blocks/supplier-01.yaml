@@ -1,0 +1,120 @@
+# Block: adding a supplier, a long form laid out with columns and sections that mix.
+# - The form has two columns: Company and Contact sit side by side, each a section of its own.
+# - Address takes both (`span: full`), its heading beside its fields (`layout: aside`), and
+#   its own three columns, the street across all of them.
+# - Payment has two columns; the notes under it take both.
+# Narrow the window (or put it in a drawer): three columns fall to two, then everything to one.
+#
+#   cargo run -p irender-cli -- render examples/blocks/supplier-01.yaml --ui-kit --icon-kit -o supplier-01.html
+version: 1
+state:
+  toast: null
+  dirty: false
+  errors: {}
+  company: ""
+  taxId: ""
+  website: ""
+  category: null
+  contactName: ""
+  contactEmail: ""
+  contactPhone: null
+  street: ""
+  city: ""
+  region: ""
+  postcode: ""
+  country: null
+  terms: "30"
+  currency: EUR
+  iban: ""
+  notes: ""
+root:
+  type: element
+  style:
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 32px 16px 80px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+    "@md": { padding: 40px 24px 96px }
+  children:
+    - type: stack
+      style: { max-width: 1040px, margin: 0 auto, gap: 24px }
+      children:
+        - type: stack
+          style: { gap: 4px }
+          children:
+            - { type: ui-heading, props: { level: 2, text: New supplier } }
+            - { type: ui-text, props: { variant: muted, text: "Who they are, how to reach them and how they're paid" } }
+
+        - type: ui-form
+          props:
+            columns: 2
+            bindDirty: dirty
+            bindErrors: errors
+            guard: true
+            keys: [company, taxId, website, category, contactName, contactEmail, contactPhone, street, city, region, postcode, country, terms, currency, iban, notes]
+            rules:
+              company: { label: Company, required: true, minLength: 2 }
+              website: { label: Website, type: url }
+              category: { label: Category, required: true }
+              contactName: { label: Contact name, required: true }
+              contactEmail: { label: Contact email, required: true, type: email }
+              street: { label: Street, required: true }
+              city: { label: City, required: true }
+              country: { label: Country, required: true }
+              iban: { label: IBAN, pattern: "[A-Z]{2}[0-9]{2}[A-Z0-9 ]{10,30}", message: "Two letters, two digits, then the account" }
+              notes: { label: Notes, maxLength: 400 }
+          on:
+            submit:
+              - { action: set_state, key: dirty, value: false }
+              - { action: set_state, key: toast, value: { title: Supplier added, variant: success } }
+          children:
+            - { type: ui-error-summary }
+            - type: ui-card
+              children:
+                - type: ui-form-section
+                  props: { title: Company, description: As on their invoices }
+                  children:
+                    - { type: ui-field, props: { label: Name, error: "{{ errors.company }}" }, children: [ { type: ui-input, props: { bind: company } } ] }
+                    - type: ui-form-section
+                      props: { columns: 2 }
+                      children:
+                        - { type: ui-field, props: { label: Tax ID }, children: [ { type: ui-input, props: { bind: taxId } } ] }
+                        - { type: ui-field, props: { label: Category, error: "{{ errors.category }}" }, children: [ { type: ui-select, props: { bind: category, placeholder: Choose…, options: [Materials, Services, Logistics, Software] } } ] }
+                    - { type: ui-field, props: { label: Website, error: "{{ errors.website }}" }, children: [ { type: ui-input, props: { bind: website, type: url, placeholder: "https://" } } ] }
+            - type: ui-card
+              children:
+                - type: ui-form-section
+                  props: { title: Contact, description: Who orders go to }
+                  children:
+                    - { type: ui-field, props: { label: Name, error: "{{ errors.contactName }}" }, children: [ { type: ui-input, props: { bind: contactName } } ] }
+                    - { type: ui-field, props: { label: Email, error: "{{ errors.contactEmail }}" }, children: [ { type: ui-input, props: { bind: contactEmail, type: email } } ] }
+                    - { type: ui-field, props: { label: Phone }, children: [ { type: ui-phone-input, props: { bind: contactPhone } } ] }
+            - type: ui-card
+              style: { grid-column: 1 / -1 }
+              children:
+                - type: ui-form-section
+                  props: { title: Address, description: Where goods are collected and letters sent, layout: aside, columns: 3 }
+                  children:
+                    - { type: ui-field, props: { label: Street, span: full, error: "{{ errors.street }}" }, children: [ { type: ui-input, props: { bind: street } } ] }
+                    - { type: ui-field, props: { label: City, error: "{{ errors.city }}" }, children: [ { type: ui-input, props: { bind: city } } ] }
+                    - { type: ui-field, props: { label: Region }, children: [ { type: ui-input, props: { bind: region } } ] }
+                    - { type: ui-field, props: { label: Postcode }, children: [ { type: ui-input, props: { bind: postcode } } ] }
+                    - { type: ui-field, props: { label: Country, span: 2, error: "{{ errors.country }}" }, children: [ { type: ui-select, props: { bind: country, placeholder: Choose…, options: [Germany, France, Netherlands, Spain, Italy] } } ] }
+            - type: ui-card
+              style: { grid-column: 1 / -1 }
+              children:
+                - type: ui-form-section
+                  props: { title: Payment, description: How and when they're paid, layout: aside, columns: 2 }
+                  children:
+                    - { type: ui-field, props: { label: Terms }, children: [ { type: ui-select, props: { bind: terms, options: [ { value: "0", label: On receipt }, { value: "30", label: 30 days }, { value: "60", label: 60 days } ] } } ] }
+                    - { type: ui-field, props: { label: Currency }, children: [ { type: ui-select, props: { bind: currency, options: [EUR, USD, GBP] } } ] }
+                    - { type: ui-field, props: { label: IBAN, span: full, error: "{{ errors.iban }}" }, children: [ { type: ui-input, props: { bind: iban, placeholder: DE89 3704 0044 0532 0130 00 } } ] }
+                    - { type: ui-field, props: { label: Notes, span: full, description: "{{ notes.length }} / 400", error: "{{ errors.notes }}" }, children: [ { type: ui-textarea, props: { bind: notes, rows: 3 } } ] }
+            - { type: ui-save-bar }
+            - type: element
+              style: { display: flex, justify-content: flex-end, gap: 8px, grid-column: 1 / -1 }
+              children:
+                - { type: ui-button, props: { label: Add supplier, type: submit } }
+        - { type: ui-toaster, props: { bind: toast } }

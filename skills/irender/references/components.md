@@ -1223,6 +1223,7 @@ ui-form: A form whose fields are checked by `rules` as they're left and when it'
   guard        bool  Asks before leaving the page with unsaved changes
   guardText    any  What's asked (default `You have unsaved changes that will be lost.`)
   disabled     any  Nothing can be changed or submitted, e.g. `{{ saving }}`
+  columns      number  Lays what's in it out in columns, 1–6; two and then one as it narrows. Children take more with `span` (`ui-field`, `ui-form-section`) or `style: { grid-column: 1 / -1 }`
   children: yes
 ui-error-summary: What's wrong in the `ui-form` it's in, listed once submitting was tried; each message goes to its field.
   title        any  Default `There's a problem` / `There are {n} problems`
@@ -1235,6 +1236,14 @@ ui-save-bar: Shown while the `ui-form` it's in has unsaved changes: Save submits
   saving       any  Being saved: both buttons wait, e.g. `{{ saving }}`
   disabled     any  It can't be saved as it is, e.g. `{{ problems.length > 0 }}`; Discard still works
   position     one of: sticky, fixed, inline  Default `sticky`, at the foot of the window while the form is on it
+  children: yes
+ui-form-section: A titled group of fields, with columns of its own. Sections go in a `ui-form` (which may have `columns` too, to put sections side by side) or in each other; children take more columns with `span`.
+  title        any  Its heading
+  description  any  Text under the heading
+  columns      number  Columns for what's in it, 1–6 (default 1); two and then one as it narrows
+  layout       one of: stacked, aside  The heading above the fields (default), or `aside`: beside them (up to 240px wide) while there's room
+  span         any  Columns it takes in the form or section it's in: a number or `full`
+  level        any  Its heading's level, 2–6 (default 3)
   children: yes
 ui-repeater: Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`.
   bind         statekey (required)  State key holding the rows, a list of objects
@@ -1471,6 +1480,7 @@ ui-field: A label, a control, help text and an error, laid out together. Childre
   description  any  Help text under the control
   error        any  An error under the control; hidden while empty, so it can follow state
   orientation  one of: vertical, horizontal  Default `vertical`; `horizontal` puts the control after the label
+  span         any  Columns it takes in a `ui-form` or `ui-form-section` with `columns`: a number or `full`
   parts: label, description, error
   children: yes
 ui-accordion: Stacked sections that expand one at a time. Children are `ui-accordion-item`s.

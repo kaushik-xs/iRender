@@ -217,7 +217,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 197);
+    assert_eq!(kit, 198);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1863,4 +1863,33 @@ fn dashboard_grid_breakpoints_lay_out_each_size() {
     let err = |b: Json| render_with(json!({ "type": "ui-dashboard-grid", "props": { "breakpoints": b }, "children": [tile(json!({}))] }), json!({}), json!({})).unwrap_err().to_string();
     assert!(err(json!({ "md": { "columns": 6 } })).contains("needs a `width`"));
     assert!(err(json!([600])).contains("must map names"));
+}
+
+#[test]
+fn form_columns_and_sections_mix() {
+    let field = |label: &str, span: Json| json!({ "type": "ui-field", "props": { "label": label, "span": span }, "children": [ { "type": "ui-input" } ] });
+    let page = render_with(
+        json!({ "type": "ui-form", "props": { "columns": 2 }, "children": [
+            { "type": "ui-error-summary" },
+            { "type": "ui-form-section", "props": { "title": "Address", "description": "Where to", "layout": "aside", "columns": 3, "span": "full" }, "children": [
+                field("Street", json!(3)), field("City", json!(2)), field("Zip", json!(1)),
+            ] },
+            { "type": "ui-form-section", "props": { "columns": 2 }, "children": [ field("Wide", json!(5)) ] },
+        ] }),
+        json!({}),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The form's grid holds the section, which spans it and has three columns of its own.
+    assert!(body.contains(r#"<div data-form-columns><div data-form-grid data-cols="2">"#), "{body}");
+    assert!(body.contains(r#"role="group" data-form-section data-layout="aside" aria-labelledby="#), "{body}");
+    assert!(body.contains(r#"data-span="full"><div data-section-in><div data-section-head><h3 id="#), "{body}");
+    assert!(body.contains(r#"data-cols="3""#), "{body}");
+    // A span is kept to the columns there are: 3 of 3 and 5 of 2 are the full width.
+    assert_eq!(body.matches(r#"data-span="full""#).count(), 3, "{body}");
+    assert_eq!(body.matches(r#"data-span="2""#).count(), 1, "{body}");
+    assert!(page.css.contains("--form-cols: 3;") && page.css.contains("@container (max-width: 399.98px)"), "{}", page.css);
+    let bad = render_with(json!({ "type": "ui-form-section", "children": [ field("X", json!("wide")) ] }), json!({}), json!({}));
+    assert!(bad.unwrap_err().to_string().contains("`span` must be a number of columns or `full`"));
 }

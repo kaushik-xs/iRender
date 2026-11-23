@@ -78,7 +78,8 @@
   "ui-bluetooth": "2026-11-22",
   "ui-serial": "2026-11-22",
   "ui-usb": "2026-11-22",
-  "ui-file-handler": "2026-11-22"
+  "ui-file-handler": "2026-11-22",
+  "ui-form-section": "2026-11-23"
  },
  "sections": [
   {
@@ -244,10 +245,11 @@
    "id": "form",
    "group": "Forms",
    "title": "Form",
-   "summary": "A form that checks its fields by rules as they're left and when it's submitted, runs its submit actions only when all is right, and knows its unsaved changes: a bar saves or discards them, and leaving asks first.",
-   "usage": "- type: ui-form\n  props:\n    bindErrors: errors\n    bindDirty: dirty\n    guard: true\n    rules: { email: { label: Email, required: true, type: email } }\n  on: { submit: { action: submit, endpoint: /api/save, method: POST, body: { email: \"{{ email }}\" } } }\n  children:\n    - { type: ui-error-summary }\n    - { type: ui-field, props: { label: Email, error: \"{{ errors.email }}\" }, children: [ { type: ui-input, props: { bind: email } } ] }\n    - { type: ui-save-bar }",
+   "summary": "A form that checks its fields by rules as they're left and when it's submitted, runs its submit actions only when all is right, and knows its unsaved changes: a bar saves or discards them, and leaving asks first. Fields go in columns, and sections group them under a heading with columns of their own; the two mix.",
+   "usage": "- type: ui-form\n  props:\n    columns: 2\n    bindErrors: errors\n    bindDirty: dirty\n    guard: true\n    rules: { email: { label: Email, required: true, type: email } }\n  on: { submit: { action: submit, endpoint: /api/save, method: POST, body: { email: \"{{ email }}\" } } }\n  children:\n    - { type: ui-error-summary }\n    - type: ui-form-section\n      props: { title: Contact, columns: 2, span: full }\n      children:\n        - { type: ui-field, props: { label: Email, error: \"{{ errors.email }}\" }, children: [ { type: ui-input, props: { bind: email } } ] }\n        - { type: ui-field, props: { label: Phone }, children: [ { type: ui-input, props: { bind: phone } } ] }\n    - { type: ui-save-bar }",
    "components": [
     "ui-form",
+    "ui-form-section",
     "ui-error-summary",
     "ui-save-bar"
    ]

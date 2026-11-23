@@ -35,6 +35,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("guard", PropKind::Bool, "Asks before leaving the page with unsaved changes"),
     PropDef::new("guardText", PropKind::Any, "What's asked (default `You have unsaved changes that will be lost.`)"),
     PropDef::new("disabled", PropKind::Any, "Nothing can be changed or submitted, e.g. `{{ saving }}`"),
+    crate::form_layout::COLUMNS_PROP,
 ];
 
 const SUMMARY_PROPS: &[PropDef] = &[
@@ -176,7 +177,7 @@ impl Component for Form {
         let mut el = cx.element("form", node);
         el.attr("novalidate", true).behavior("ui-form", config);
         cx.open(&el, node)?;
-        cx.with_context(IN_FORM, Some(lit(true)), |cx| cx.children(node))?;
+        cx.with_context(IN_FORM, Some(lit(true)), |cx| crate::form_layout::children(cx, node))?;
         if cx.prop(node, "guard").is_some_and(|v| expr::truthy(&v)) {
             let mut d = Element::new("dialog");
             d.attr("data-form-guard", true).attr("aria-label", cx.label("Leave this page?")).base_style_ref(&DIALOG);

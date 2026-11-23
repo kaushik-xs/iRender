@@ -71,7 +71,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-heading` | `text`, `level` (1–4) | |
 | `ui-text` | `text`, `variant` (p, lead, large, small, muted, code, blockquote), `tag` | Takes children, e.g. inline `code`. |
 | `ui-label` | `text`, `for` | Takes children, so it can wrap a control. |
-| `ui-field` | `label`, `for`, `description`, `error`, `orientation` (vertical, horizontal) | A label, the control (its children), help text and an error. The label names the control, and the control's `aria-describedby` points at the help text and error, so screen readers read them with it. The control is the one whose id is `for`, or else the first control inside, which gets an id if it has none. The error is hidden while empty, so `"{{ … ? 'Too short' : '' }}"` shows it only when needed, and it is announced when it appears. Parts: `label`, `description`, `error`. |
+| `ui-field` | `label`, `for`, `description`, `error`, `orientation` (vertical, horizontal), `span` | A label, the control (its children), help text and an error. The label names the control, and the control's `aria-describedby` points at the help text and error, so screen readers read them with it. The control is the one whose id is `for`, or else the first control inside, which gets an id if it has none. The error is hidden while empty, so `"{{ … ? 'Too short' : '' }}"` shows it only when needed, and it is announced when it appears. Parts: `label`, `description`, `error`. |
 | `ui-input-group` | `prefix`, `suffix` | Text or buttons inside one field's border: children are a `ui-input` (or `ui-textarea`, `ui-select`) and any `ui-button`s. The group shows the focus ring and the invalid border. Parts: `prefix`, `suffix`. |
 | `ui-button-group` | `orientation` (horizontal, vertical), `label` | Buttons joined into one control (`role="group"`); outline buttons look best. |
 | `ui-input`, `ui-textarea`, `ui-select` | same as `input`, `textarea`, `select` | Same binding behaviour as the built-ins, restyled. |
@@ -123,8 +123,9 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-chat-input` | `messages` (required), `endpoint`, `body`, `headers`, `bindFiles`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 | `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12), `dots`, `loop`, `autoplay` (ms) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time, to the next slide's own start, so slides of different widths step evenly; a button hides at its end, unless `loop` goes round to the other. `dots` adds a dot per slide under it, the current one marked, each going to its slide. `autoplay: 5000` moves on every 5 seconds, round and round, with a pause button; it waits while the pointer or focus is on it, the tab is hidden, or the reader prefers less motion. Each slide is a `group` named "2 of 5". Parts: `track`, `previous`, `next`, `dots`, `play`. |
-| `ui-form` | `rules`, `bindErrors`, `bindValid`, `bindChecking`, `bindTried`, `keys`, `bindDirty`, `guard`, `guardText`, `disabled` | A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. A `remote` rule asks the server (is this name taken?). Put a `ui-error-summary` and a `ui-save-bar` in it. See [Forms](#forms). |
+| `ui-form` | `rules`, `bindErrors`, `bindValid`, `bindChecking`, `bindTried`, `keys`, `bindDirty`, `guard`, `guardText`, `disabled`, `columns` | A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. A `remote` rule asks the server (is this name taken?). Put a `ui-error-summary` and a `ui-save-bar` in it. See [Forms](#forms). |
 | `ui-error-summary` | `title`, `errors` | What's wrong in the `ui-form` it's in, listed once submitting was tried; each message goes to its field. See [Forms](#forms). |
+| `ui-form-section` | `title`, `description`, `columns`, `layout` (stacked, aside), `span`, `level` | A titled group of fields with columns of its own; sections go in a `ui-form`, side by side when it has `columns`, or in each other. See [Forms](#forms). |
 | `ui-save-bar` | `text`, `saveLabel`, `discardLabel`, `saving`, `disabled`, `position` (sticky, fixed, inline) | Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons. See [Forms](#forms). |
 | `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
 | `ui-repeater` | `bind` (required), `fields` (required), `layout` (table, stack), `newItem`, `min`, `max`, `reorderable`, `duplicable`, `addLabel`, `itemLabel`, `label`, `emptyText`, `disabled`, `bindErrors`, `bindTotals`, `showErrors`, `locale`, `id` | Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`. See [Forms](#forms). |
@@ -937,6 +938,36 @@ A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent e
 Unsaved changes are the `keys` (by default, those with rules) compared with how they were. They're saved when a `submit` action answers ok, or when the page sets `bindDirty` to false. Any rule may use state.
 
 A `remote` rule asks the server whether a value is accepted (is this name taken?), once the other rules pass and 400 ms after typing stops (`wait`): a GET to the url with `?value=…` (`param` renames it, `{value}` in the url is replaced instead). The server answers `true` or `{ valid: true }`, or what's wrong: `false`, a text, or `{ valid: false, message }`. Answers are remembered, `bindChecking` lists the keys being asked (for a "Checking…" under the field), `bindValid` is false meanwhile, and a submit waits for the answer. A server that can't be reached lets the value pass, as the server checks it again when it's sent, and the form fires `failed`. `examples/serve.py` answers `api/available` for profile-01's handle.
+
+### Columns and sections
+
+`columns` on `ui-form` lays its children out in that many columns; `ui-form-section` groups fields under a `title` and `description` with `columns` of its own. They mix: a form of two columns can hold sections side by side, one of them `span: full` with three columns inside, and a section with no title is just a row of columns inside another. `layout: aside` puts a section's heading beside its fields (up to 240px) while there's room.
+
+```yaml
+- type: ui-form
+  props: { columns: 2, bindErrors: errors, rules: { … } }
+  children:
+    - { type: ui-error-summary }                 # the summary and the save bar always take the full width
+    - type: ui-form-section
+      props: { title: Company }
+      children:
+        - { type: ui-field, props: { label: Name }, children: [ { type: ui-input, props: { bind: company } } ] }
+        - type: ui-form-section                  # no title: two columns inside the section
+          props: { columns: 2 }
+          children: [ … ]
+    - type: ui-form-section
+      props: { title: Contact }
+      children: [ … ]
+    - type: ui-form-section
+      props: { title: Address, layout: aside, columns: 3, span: full }
+      children:
+        - { type: ui-field, props: { label: Street, span: full }, children: [ … ] }
+        - { type: ui-field, props: { label: City }, children: [ … ] }
+        - { type: ui-field, props: { label: Country, span: 2 }, children: [ … ] }
+    - { type: ui-save-bar }
+```
+
+`span` (on `ui-field` and `ui-form-section`) is a number of columns or `full`; anything else takes more with `style: { grid-column: 1 / -1 }`. The columns follow the space they have, not the window (container queries), so a form in a drawer stacks: three or more fall to two under 640px, and everything to one under 400px. Block supplier-01 shows them together.
 
 **`ui-stepper`** shows a process's steps and the current one's panel, with Back, Next and Finish (`on: { finish: … }`). `bind` holds the current `ui-step`'s `value`. A later step waits until the ones before it are done, or are `valid`; `linear: false` lets people go anywhere. It needs no script.
 

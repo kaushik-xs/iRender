@@ -80,6 +80,7 @@ mod events;
 mod feedback;
 mod filters;
 mod form;
+mod form_layout;
 mod forms;
 mod geo;
 mod guide;
@@ -246,6 +247,7 @@ pub fn register(registry: &mut Registry) {
         .register(form::Form)
         .register(form::ErrorSummary)
         .register(form::SaveBar)
+        .register(form_layout::FormSection)
         .register(repeater::Repeater)
         .register(stepper::Stepper)
         .register(stepper::Step)

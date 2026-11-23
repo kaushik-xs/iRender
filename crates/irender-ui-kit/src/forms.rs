@@ -802,6 +802,7 @@ const FIELD_PROPS: &[PropDef] = &[
     PropDef::new("description", PropKind::Any, "Help text under the control"),
     PropDef::new("error", PropKind::Any, "An error under the control; hidden while empty, so it can follow state"),
     PropDef::new("orientation", PropKind::Enum(&["vertical", "horizontal"]), "Default `vertical`; `horizontal` puts the control after the label"),
+    crate::form_layout::SPAN_PROP,
 ];
 
 static FIELD: LazyLock<[StyleBlock; 2]> = LazyLock::new(|| {
@@ -869,6 +870,7 @@ impl Component for Field {
         let o = choice(cx, node, "orientation", &["vertical", "horizontal"]);
         let mut el = cx.element("div", node);
         el.base_style_ref(&FIELD[o]);
+        crate::form_layout::span(cx, node, &mut el)?;
         cx.open(&el, node)?;
         if let Some(t) = node.prop("label") {
             let mut label = cx.part("label", node, "label");
