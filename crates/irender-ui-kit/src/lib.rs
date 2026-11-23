@@ -65,6 +65,7 @@ mod agent;
 mod calendar;
 mod color;
 mod gauge;
+mod sortable;
 mod camera;
 mod carousel;
 mod chat;
@@ -209,6 +210,7 @@ pub fn register(registry: &mut Registry) {
         .register(status::StatusBadge)
         .register(status::ProgressRing)
         .register(gauge::Gauge)
+        .register(sortable::SortableList)
         .register(status::Timeline)
         .register(status::TimelineItem)
         .register(lightbox::Lightbox)

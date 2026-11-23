@@ -129,6 +129,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-save-bar` | `text`, `saveLabel`, `discardLabel`, `saving`, `disabled`, `position` (sticky, fixed, inline) | Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons. See [Forms](#forms). |
 | `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
 | `ui-repeater` | `bind` (required), `fields` (required), `layout` (table, stack), `newItem`, `min`, `max`, `reorderable`, `duplicable`, `addLabel`, `itemLabel`, `label`, `emptyText`, `disabled`, `bindErrors`, `bindTotals`, `showErrors`, `locale`, `id` | Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`. See [Forms](#forms). |
+| `ui-sortable-list` | `bind` (required), `itemKey` (default `id`), `labelField` (default `label`), `numbered`, `removable`, `emptyText`, `label`, `disabled` | A list in state put in order by dragging each item's grip (mouse, touch or pen) or from the keyboard; children are each item's content. See below. |
 | `ui-import` | `bind` (required), `bindImported`, `fields` (required), `url`, `params`, `batchSize`, `accept`, `maxRows`, `skipInvalid`, `template`, `title`, `locale`, `id` | Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns are matched to `fields`, the rows put right in an editable table, and the good ones handed over (an `import` event and `bindImported`) or posted to `url`. See [Import](#import). |
 | `ui-tags-input` | `bind` (required), `suggestions`, `only`, `max`, `pattern`, `strict`, `lowercase`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Tags typed one after another: Enter or a comma adds one, a pasted list adds them all, Backspace takes the last. |
 | `ui-masked-input` | `bind` (required), `mask` (required), `raw`, `bindComplete`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Text in a fixed shape, like a card number, a postcode or a policy number, put in shape as it's typed. |
@@ -1020,6 +1021,16 @@ A `remote` rule asks the server whether a value is accepted (is this name taken?
 **`ui-stepper`** shows a process's steps and the current one's panel, with Back, Next and Finish (`on: { finish: … }`). `bind` holds the current `ui-step`'s `value`. A later step waits until the ones before it are done, or are `valid`; `linear: false` lets people go anywhere. It needs no script.
 
 **`ui-repeater`** is rows of `fields`, kept as a list of objects. `type: computed` fields work out `compute` over the row's fields (`qty * price`), `summary` totals them under the rows and in `bindTotals`, and `bindErrors` says what's wrong. Enter goes to the same field of the next row. Children are drawn after the fields with the row as `item`, and a native control of theirs marked `attrs: { data-field: name }` is kept in step too; components that `bind` a state key can't be a row's field.
+
+**`ui-sortable-list`** puts a list in state in order: priorities, a menu, steps, a playlist. Each item has a grip to drag with a mouse, a finger or a pen (it doesn't scroll the page, so there's no wait before a drag), and a line shows where the item lands; the page scrolls near the window's edges. From the keyboard, Tab reaches each grip (↑ and ↓ go between them): Space or Enter picks the item up, ↑ and ↓ (Home and End) move it, Space puts it down and Escape puts it back; Alt with ↑ or ↓ moves it straight away. Each step is said in a live region ("Bravo moved to 4 of 4"). The list is plain values or objects with an `id` (`itemKey` names another field); children are each item's content, with `item` and `index` in scope, and without them it shows the item (or its `label`, `labelField`). `numbered` puts each item's place before it, and `removable` adds a ✕ that takes it out, focus moving to the next item. The new order goes straight to state, and a bubbling `change` event says `{ value, moved, from, to }` (or `{ value, removed }`).
+
+```yaml
+- type: ui-sortable-list
+  props: { bind: priorities, numbered: true, removable: true }
+  children:
+    - { type: text, props: { value: "{{ item.label }}" } }
+- { type: ui-sortable-list, props: { bind: menuOrder } }   # ["Home", "Orders", "Reports"]
+```
 
 ## Import
 

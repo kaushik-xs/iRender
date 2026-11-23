@@ -81,7 +81,8 @@
   "ui-file-handler": "2026-11-22",
   "ui-form-section": "2026-11-23",
   "ui-color-picker": "2026-11-23",
-  "ui-gauge": "2026-11-23"
+  "ui-gauge": "2026-11-23",
+  "ui-sortable-list": "2026-11-23"
  },
  "sections": [
   {
@@ -286,6 +287,17 @@
    "usage": "- type: ui-repeater\n  props:\n    bind: lines\n    reorderable: true\n    bindTotals: totals\n    fields:\n      - { field: item, label: Item, required: true }\n      - { field: qty, label: Qty, type: number, default: 1 }\n      - { field: price, label: Price, type: currency }\n      - { field: total, label: Total, compute: qty * price, summary: sum }",
    "components": [
     "ui-repeater"
+   ]
+  },
+  {
+   "id": "sortable-list",
+   "group": "Forms",
+   "title": "Sortable list",
+   "nav": "Sortable list",
+   "summary": "A list in state put in order: drag an item's grip with a mouse, a finger or a pen, or from the keyboard (Space picks it up, the arrows move it, Space puts it down, Escape puts it back). Items can be removed, numbered, and drawn with your own content; the new order goes straight back to state.",
+   "usage": "- type: ui-sortable-list\n  props: { bind: priorities, numbered: true, removable: true }\n  children:\n    - { type: text, props: { value: \"{{ item.label }}\" } }\n- { type: ui-sortable-list, props: { bind: menuOrder } }   # plain values",
+   "components": [
+    "ui-sortable-list"
    ]
   },
   {

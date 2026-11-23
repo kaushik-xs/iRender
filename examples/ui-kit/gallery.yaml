@@ -268,6 +268,12 @@ state:
   labelColor: null
   gaugeOee: 72.4
   gaugeOil: 64
+  priorities:
+    - { id: p1, label: Fix the checkout timeout, owner: Asha, tone: danger }
+    - { id: p2, label: Ship the new onboarding, owner: Ravi, tone: primary }
+    - { id: p3, label: Move reports to the new database, owner: Mei, tone: info }
+    - { id: p4, label: Tidy the design tokens, owner: Kaushik, tone: neutral }
+  menuOrder: [Home, Orders, Customers, Reports, Settings]
   month: "2026-11"
   quarter: null
   quarterDates: null
@@ -1409,6 +1415,47 @@ root:
                 - { type: if, props: { when: "{{ api.repeater.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.repeater }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- sortable-list
+            - type: element
+              props: { tag: section }
+              attrs: { id: sortable-list, aria-labelledby: sortable-list-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.sortable_list }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Drag a grip (by touch too), or focus one: Space picks the item up, the arrows move it, Space puts it down and Escape puts it back; Alt and the arrows move it straight away." }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24, align-items: start }
+                  children:
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - { type: ui-label, props: { text: "This week's priorities, with their own content" } }
+                        - type: ui-sortable-list
+                          props: { bind: priorities, numbered: true, removable: true, label: Priorities, emptyText: "No priorities: enjoy the week." }
+                          children:
+                            - type: stack
+                              props: { direction: row, gap: 8, align: center, justify: space-between }
+                              children:
+                                - { type: text, props: { value: "{{ item.label }}" } }
+                                - { type: ui-badge, props: { text: "{{ item.owner }}", variant: secondary } }
+                        - { type: ui-text, props: { variant: muted, text: "{{ priorities.length }} left; first: {{ priorities.length ? priorities[0].label : 'none' }}" } }
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - { type: ui-label, props: { text: "Menu order, plain text" } }
+                        - { type: ui-sortable-list, props: { bind: menuOrder, label: Menu order } }
+                        - { type: ui-text, props: { variant: muted, text: "menuOrder = {{ menuOrder }}" } }
+                - { type: if, props: { when: "{{ api.sortable_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.sortable_list }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

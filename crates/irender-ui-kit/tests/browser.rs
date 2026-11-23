@@ -7464,6 +7464,96 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-sortable-list`: the keyboard (pick up, move, put down, put back; Alt and the arrows),
+/// dragging a grip with a pointer, removing, plain values, and each item's own content.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sortable_list_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "tasks": [{ "id": "a", "label": "Alpha" }, { "id": "b", "label": "Bravo" }, { "id": "c", "label": "Charlie" }, { "id": "d", "label": "Delta" }], "tags": ["red", "green", "blue"] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-sortable-list", "attrs": { "id": "t" }, "props": { "bind": "tasks", "numbered": true, "removable": true }, "children": [
+                { "type": "text", "props": { "value": "{{ item.label }} ({{ item.id }})" } } ] },
+            { "type": "ui-sortable-list", "attrs": { "id": "g" }, "props": { "bind": "tags", "label": "Tags" } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const t = document.getElementById("t"), live = () => t.querySelector("[data-sl-live]").textContent;
+      const grip = (k, el = t) => el.querySelector(`[data-sl-item="${k}"] [data-sl-grip]`);
+      const key = (target, k, o = {}) => target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...o }));
+      const shown = (el = t) => [...el.querySelectorAll("[data-sl-item]")].map((li) => li.textContent.trim()).join(" | ");
+      const order = () => S().tasks.map((x) => x.id).join("");
+      try {
+        log("start", shown(), grip("a").getAttribute("aria-label"));
+        grip("b").focus(); key(grip("b"), " "); await wait(10);
+        log("picked", live(), t.querySelector("[data-sl-picked]")?.getAttribute("data-sl-item"));
+        key(document.activeElement, "ArrowDown"); await wait(10);
+        key(document.activeElement, "ArrowDown"); await wait(10);
+        log("moved", order(), live(), document.activeElement === grip("b"), shown());
+        key(document.activeElement, "Escape"); await wait(10);
+        log("put back", order(), live());
+        key(grip("b"), "Home", {}); await wait(10);
+        grip("d").focus(); key(grip("d"), "ArrowUp", { altKey: true }); await wait(10);
+        log("alt", order(), document.activeElement === grip("d"));
+        grip("a").focus(); key(grip("a"), " "); await wait(5); key(document.activeElement, "End"); await wait(10); key(document.activeElement, " "); await wait(10);
+        log("end", order(), live(), !!t.querySelector("[data-sl-picked]"));
+
+        // A pointer drags Charlie's grip below Bravo.
+        const r = (k) => t.querySelector(`[data-sl-item="${k}"]`).getBoundingClientRect();
+        const g = grip("c"), from = g.getBoundingClientRect();
+        const p = (type, y) => g.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 7, pointerType: "touch", isPrimary: true, clientX: from.left + 5, clientY: y }));
+        p("pointerdown", from.top + 5);
+        p("pointermove", from.top + 20);
+        const below = r("b").bottom - 2;
+        p("pointermove", below); await wait(5);
+        log("dragging", !!t.querySelector("[data-sl-dragging]"), [...t.querySelectorAll("[data-sl-drop]")].map((li) => li.dataset.slItem + ":" + li.dataset.slDrop).join(","));
+        p("pointerup", below); await wait(10);
+        log("dropped", order(), !!t.querySelector("[data-sl-dragging], [data-sl-drop]"));
+
+        t.querySelector('[data-sl-item="b"] [data-sl-remove]').click(); await wait(10);
+        log("removed", order(), live(), document.activeElement?.closest("[data-sl-item]")?.dataset.slItem, shown());
+
+        const gl = document.getElementById("g");
+        log("plain", shown(gl), grip("green", gl).getAttribute("aria-label"));
+        grip("blue", gl).focus(); key(grip("blue", gl), "ArrowUp", { altKey: true }); await wait(10);
+        log("plain moved", S().tags.join(","));
+        api.set("tags", []); await wait(10);
+        log("empty", getComputedStyle(gl.querySelector("[data-sl-empty]")).display, getComputedStyle(t.querySelector("[data-sl-empty]")).display);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("sortable-list", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start 1Alpha (a)✕ | 2Bravo (b)✕ | 3Charlie (c)✕ | 4Delta (d)✕ Move Alpha",
+            "picked Bravo picked up, at 2 of 4 b",
+            // Moved twice: the places renumber and the grip keeps focus.
+            "moved acdb Bravo moved to 4 of 4 true 1Alpha (a)✕ | 2Charlie (c)✕ | 3Delta (d)✕ | 4Bravo (b)✕",
+            "put back abcd Bravo put back at 2",
+            "alt abdc true",
+            "end bdca Alpha put down at 4 of 4 false",
+            // Charlie's grip dragged just under Bravo: it lands before Delta.
+            "dragging true d:before",
+            "dropped bcda false",
+            // Focus goes to the item after the one removed.
+            "removed cda Bravo removed c 1Charlie (c)✕ | 2Delta (d)✕ | 3Alpha (a)✕",
+            "plain red | green | blue Move green",
+            "plain moved red,blue,green",
+            "empty block none",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-gauge` follows state without a script of its own: the arc, the needle, the target,
 /// the band's tone and what screen readers hear.
 #[test]

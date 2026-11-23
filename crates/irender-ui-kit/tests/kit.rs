@@ -149,6 +149,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-trace", json!({ "spans": [] })),
         ("ui-questionnaire", json!({ "bind": "k", "questions": [] })),
         ("ui-gauge", json!({ "value": 50 })),
+        ("ui-sortable-list", json!({ "bind": "k" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -218,7 +219,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 200);
+    assert_eq!(kit, 201);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1273,6 +1274,31 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn sortable_list_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-sortable-list", "props": { "bind": "tasks", "numbered": true, "removable": true, "id": "s" } }),
+        json!({ "tasks": [{ "id": "a", "label": "Alpha" }, { "id": "b", "label": "Bravo" }] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The runtime's keyed list of the state key: a template, then the items as they stand.
+    assert!(body.contains(r#"<ol data-sl-items aria-label="List""#) && body.contains("<template>"), "{body}");
+    assert!(body.contains(r#"<li data-sl-item="a"><button type="button" data-sl-grip aria-label="Move Alpha" aria-describedby="s-help">"#), "{body}");
+    assert!(body.contains(r#"<span data-sl-place aria-hidden="true">2</span><div data-sl-body>Bravo</div><button type="button" data-sl-remove aria-label="Remove Bravo">✕</button>"#), "{body}");
+    assert!(body.contains(r#"<p data-sl-empty>Nothing here yet</p>"#), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-sortable-list")));
+
+    // Plain values are their own keys and names.
+    let plain_list = plain(&render_with(json!({ "type": "ui-sortable-list", "props": { "bind": "k" } }), json!({ "k": ["red", "blue"] }), json!({})).unwrap().body);
+    assert!(plain_list.contains(r#"<li data-sl-item="blue"><button type="button" data-sl-grip aria-label="Move blue""#), "{plain_list}");
+
+    let err = |state: Json| render_with(json!({ "type": "ui-sortable-list", "props": { "bind": "k" } }), state, json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "k": [{ "id": 1 }, { "name": "x" }] })).contains("item 2 has no `id`"));
+    assert!(err(json!({ "k": "abc" })).contains("must hold a list"));
 }
 
 #[test]

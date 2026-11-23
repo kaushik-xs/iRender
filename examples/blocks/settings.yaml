@@ -1,7 +1,8 @@
 # Block: account settings with a section menu and a form per section, in the style of
 # shadcn/ui's settings forms. Sections switch in the browser; saving shows a toast,
 # and deleting the account asks first. Webhooks has a JSON editor for the request's
-# payload, checked as you type, beside the request it sends.
+# payload, checked as you type, beside the request it sends. Display orders the
+# sidebar's items with a sortable list (`ui-sortable-list`): drag a grip, or use the keys.
 #
 #   cargo run -p irender-cli -- render examples/blocks/settings.yaml --ui-kit --icon-kit -o settings.html
 version: 1
@@ -20,6 +21,13 @@ state:
   security: true
   mobile: false
   shown: [recents, home]
+  sidebarOrder:
+    - { id: recents, label: Recents }
+    - { id: home, label: Home }
+    - { id: applications, label: Applications }
+    - { id: desktop, label: Desktop }
+    - { id: downloads, label: Downloads }
+    - { id: documents, label: Documents }
   confirmDelete: ""
   hookUrl: https://example.com/hooks/orders
   payload: { event: "{{event}}", order: "{{order.id}}", total: "{{order.total}}", currency: INR, test: false }
@@ -275,6 +283,22 @@ root:
                                   - { value: documents, label: Documents }
                               style: { flex-wrap: wrap }
                             - { type: ui-text, props: { variant: muted, text: "Showing {{ shown.length }} of 6." } }
+                        - type: stack
+                          props: { gap: 12 }
+                          style: { max-width: 420 }
+                          children:
+                            - { type: ui-label, props: { text: Sidebar order } }
+                            - { type: ui-text, props: { variant: muted, text: "Drag the items into the order they show in, or focus a grip and use Space and the arrow keys." } }
+                            - type: ui-sortable-list
+                              props: { bind: sidebarOrder, numbered: true, label: Sidebar order }
+                              children:
+                                - type: stack
+                                  props: { direction: row, gap: 8, align: center, justify: space-between }
+                                  children:
+                                    - { type: text, props: { value: "{{ item.label }}" } }
+                                    - type: if
+                                      props: { when: "{{ !includes(shown, item.id) }}" }
+                                      children: [ { type: ui-badge, props: { text: Hidden, variant: outline } } ]
                         - type: ui-button
                           props: { label: Update display, disabled: "{{ shown.length == 0 }}" }
                           style: { align-self: flex-start }
