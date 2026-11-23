@@ -324,11 +324,15 @@ pub struct TimelineItem;
 const TIMELINE_PROPS: &[PropDef] = &[
     PropDef::new("items", PropKind::Any, "Entries with the `ui-timeline-item` props, after any children. From state, like `{{ history }}`, it redraws as it changes"),
     PropDef::new("label", PropKind::Any, "Names it for screen readers (default `Activity`)"),
+    PropDef::new("group", PropKind::Enum(&["day"]), "A heading over each day's entries: Today, Yesterday, a weekday, a date (entries' `when` a date and time, in order)"),
+    PropDef::new("relative", PropKind::Bool, "Each `when` as how long ago (`5 min ago`, `3 h ago`), kept up to date, with the full date on hover"),
+    PropDef::new("since", PropKind::Any, "Entries after this date and time (a last visit, say) are marked New; may use state"),
+    PropDef::new("limit", PropKind::Number, "Show the first this many entries, then a button for the rest"),
 ];
 const ITEM_PROPS: &[PropDef] = &[
     PropDef::new("who", PropKind::Any, "Who did it, shown first in bold"),
     PropDef::new("action", PropKind::Any, "What they did, after the name: `changed the status`, `commented`"),
-    PropDef::new("when", PropKind::Any, "When, as text: `2 hours ago`, `4 Nov, 10:42`"),
+    PropDef::new("when", PropKind::Any, "When: text (`4 Nov, 10:42`), or a date and time (`2026-11-04T10:42`) for the timeline's `group`, `relative` and `since`"),
     PropDef::new("initials", PropKind::Any, "In the avatar when there's no image (default: from `who`)"),
     PropDef::new("avatar", PropKind::Any, "Avatar image URL"),
     PropDef::new("changes", PropKind::Any, "Fields changed: `[{ field, from, to }]`, shown as from → to"),
@@ -339,12 +343,21 @@ const ITEM_PROPS: &[PropDef] = &[
 const FIELDS: &[&str] = &["who", "action", "when", "initials", "avatar", "changes", "comment", "tone"];
 const ENTRY: &str = "ui_entry";
 const ENTRY_INDEX: &str = "ui_entry_index";
+const TIMELINE_SCRIPT: &str = include_str!("timeline.js");
 const CHANGE: &str = "ui_change";
 const CHANGE_INDEX: &str = "ui_change_index";
 
 static TIMELINE: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("color", TEXT), ("font-size", fs!(14))])
         .nest("& [data-entries]", pairs(&[("display", "contents")]))
+        .nest("& [data-tl-hidden]", pairs(&[("display", "none")]))
+        .nest("& [data-tl-show]", pairs(&[("padding-inline-start", "40px")]))
+        .nest(
+            "& [data-tl-show] button",
+            pairs(&[("padding", "0"), ("border", "0"), ("background", "none"), ("color", "var(--color-primary)"), ("font", "inherit"), ("font-weight", "var(--font-weight-medium, 500)"), ("cursor", "pointer")]),
+        )
+        .nest("& [data-tl-show] button:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px"), ("border-radius", "var(--radius-sm)")]))
+        .nest("& [data-tl-show][hidden]", pairs(&[("display", "none")]))
 });
 static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
     tone_rules(
@@ -359,6 +372,19 @@ static ITEM: LazyLock<StyleBlock> = LazyLock::new(|| {
         // The rail between entries.
         .nest("&::before", pairs(&[("content", "''"), ("position", "absolute"), ("inset-inline-start", "13.5px"), ("top", "30px"), ("bottom", "2px"), ("width", "1px"), ("background", BORDER)]))
         .nest("&:last-child::before", pairs(&[("display", "none")]))
+        // A day's heading, over its first entry; the rail starts under it.
+        .nest(
+            "& [data-tl-day]",
+            pairs(&[("grid-column", "1 / -1"), ("height", "24px"), ("margin", concat!("0 0 ", "10px")), ("color", MUTED), ("font-size", fs!(12)), ("font-weight", "var(--font-weight-semibold, 600)"), ("text-transform", "uppercase"), ("letter-spacing", "0.04em"), ("line-height", "24px")]),
+        )
+        .nest("& [data-tl-day][hidden]", pairs(&[("display", "none")]))
+        .nest("&:has(> [data-tl-day]:not([hidden]))::before", pairs(&[("top", "64px")]))
+        .nest("&:has(> [data-tl-day]:not([hidden])):not(:first-child)", pairs(&[("margin-top", "8px")]))
+        .nest(
+            "& [data-tl-new]",
+            pairs(&[("margin-inline-start", gap!(6)), ("padding", pad!(1, 6)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-primary) 14%, transparent)"), ("color", "var(--color-primary)"), ("font-size", fs!(11)), ("font-weight", "var(--font-weight-semibold, 600)")]),
+        )
+        .nest("& [data-tl-new][hidden]", pairs(&[("display", "none")]))
         .nest("&:last-child", pairs(&[("padding-bottom", "0")]))
         .nest(
             "& [data-mark]",
@@ -425,6 +451,19 @@ impl Component for Timeline {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let mut ol = cx.element("ol", node);
         ol.base_style_ref(&TIMELINE).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Activity"))));
+        // A feed's extras (days, how long ago, what's new, a limit) need the behaviour.
+        let limit = crate::widget::number(cx, node, "limit");
+        if limit.is_some_and(|n| n < 1.0 || n.fract() != 0.0) {
+            return Err(RenderError::new(node, "`limit` is a whole number of entries, 1 or more"));
+        }
+        let feed = ["group", "relative", "since", "limit"].iter().any(|p| node.prop(p).is_some());
+        if feed {
+            let mut config = crate::widget::config(cx, node, &["since"], &["group", "limit"], &[])?;
+            config.insert("relative".into(), json!(crate::widget::flag(cx, node, "relative", false)));
+            crate::widget::kit(cx);
+            cx.global_js("ui-timeline", TIMELINE_SCRIPT);
+            ol.behavior("ui-timeline", Json::Object(config));
+        }
         cx.open(&ol, node)?;
         cx.children(node)?;
         if node.prop("items").is_some() {
@@ -436,6 +475,17 @@ impl Component for Timeline {
             let entry = synthetic(node, "ui-timeline-item", props, Vec::new(), Vec::new());
             each_item(cx, node, list, items(cx, node, "items")?, ENTRY, ENTRY_INDEX, &key, |cx| cx.render(&entry))?;
             cx.close("div");
+        }
+        if limit.is_some() {
+            // Filled in and shown by the behaviour while entries are held back.
+            let mut li = Element::new("li");
+            li.attr("data-tl-show", true).attr("hidden", true);
+            cx.open(&li, node)?;
+            let mut b = Element::new("button");
+            b.attr("type", "button");
+            cx.open(&b, node)?;
+            cx.close("button");
+            cx.close("li");
         }
         cx.close("ol");
         Ok(())
@@ -455,11 +505,19 @@ impl Component for TimelineItem {
         let who = node.prop("who").cloned();
         let avatar = node.prop("avatar").cloned();
         let mut li = cx.element("li", node);
-        li.base_style_ref(&ITEM);
+        li.base_style_ref(&ITEM).attr("data-tl-item", true);
+        if let Some(w) = node.prop("when") {
+            li.attr("data-when", w.clone());
+        }
         if let Some(t) = node.prop("tone") {
             li.attr("data-tone", t.clone());
         }
         cx.open(&li, node)?;
+        // A day's heading, filled in and shown by a timeline with `group: day`.
+        let mut day = Element::new("p");
+        day.attr("data-tl-day", true).attr("role", "heading").attr("aria-level", "3").attr("hidden", true);
+        cx.open(&day, node)?;
+        cx.close("p");
 
         // The mark: the avatar, else the initials, else (no `who`) a dot for an event.
         // Each is decided per entry, in the browser too for entries from state.
@@ -520,10 +578,15 @@ impl Component for TimelineItem {
         }
         if let Some(w) = node.prop("when") {
             let mut t = Element::new("time");
-            t.text(w.clone());
+            t.attr("datetime", w.clone()).text(w.clone());
             cx.open(&t, node)?;
             cx.close("time");
         }
+        // Filled in and shown by a timeline with `since`; empty, an entry's text is its own.
+        let mut new = Element::new("span");
+        new.attr("data-tl-new", true).attr("hidden", true);
+        cx.open(&new, node)?;
+        cx.close("span");
         cx.close("div");
 
         if node.prop("changes").is_some() {

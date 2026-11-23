@@ -1663,7 +1663,19 @@ fn status_badge_ring_rating_checklist_and_timeline() {
     assert!(tl.contains(r#"<span data-mark aria-hidden="true"><span>AR</span></span>"#), "{tl}");
     assert!(tl.contains(r#"<li><span data-field>Due</span><span data-from>1 Nov</span><span data-arrow aria-label="to">→</span><span data-to>8 Nov</span></li>"#), "{tl}");
     assert!(tl.contains("<blockquote>Pushed a week</blockquote>"), "{tl}");
-    assert!(tl.contains(r#"<li data-tone="success"><span data-mark aria-hidden="true" data-dot>"#), "{tl}");
+    assert!(tl.contains(r#"<li data-tl-item data-tone="success"><p data-tl-day role="heading" aria-level="3" hidden></p><span data-mark aria-hidden="true" data-dot>"#), "{tl}");
+    // Without the feed's props, no script and no button.
+    assert!(!tl.contains("data-i-x") && !tl.contains("data-tl-show"), "{tl}");
+
+    // As a feed: each entry's time for the behaviour, a day heading and New to fill in, and
+    // the button for the entries held back.
+    let feed = plain(&render(json!({ "type": "ui-timeline", "props": { "group": "day", "relative": true, "since": "2026-11-20T00:00", "limit": 1 }, "children": [
+        { "type": "ui-timeline-item", "props": { "who": "Asha Rao", "action": "paid", "when": "2026-11-21T10:00" } } ] })));
+    assert!(feed.contains(r#"data-i-x="ui-timeline""#) && feed.contains(r#"<li data-tl-item data-when="2026-11-21T10:00">"#), "{feed}");
+    assert!(feed.contains(r#"<time datetime="2026-11-21T10:00">2026-11-21T10:00</time><span data-tl-new hidden></span>"#), "{feed}");
+    assert!(feed.contains(r#"<li data-tl-show hidden><button type="button"></button></li></ol>"#), "{feed}");
+    let bad = render_with(json!({ "type": "ui-timeline", "props": { "limit": 0 } }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(bad.contains("`limit` is a whole number"), "{bad}");
 
     let err = |root: Json| render_with(root, json!({ "r": 0 }), json!({})).unwrap_err().to_string();
     assert!(err(json!({ "type": "ui-status-badge", "props": { "status": "x", "tones": { "x": "green" } } })).contains("has no tone `green`"));

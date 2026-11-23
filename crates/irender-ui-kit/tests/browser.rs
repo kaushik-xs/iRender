@@ -7464,6 +7464,81 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-timeline` as an activity feed: a heading over each day, times as how long ago, New
+/// after `since` (following state), and entries past `limit` behind a button; entries
+/// from state drawn again as they change.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn timeline_feed_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "feed": [], "seen": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-timeline", "attrs": { "id": "f" }, "props": { "items": "{{ feed }}", "group": "day", "relative": true, "since": "{{ seen }}", "limit": 4 } },
+            { "type": "ui-timeline", "attrs": { "id": "g" }, "props": { "group": "day" }, "children": [
+                { "type": "ui-timeline-item", "props": { "who": "Asha Rao", "action": "paid", "when": "2025-03-04T14:30" } } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender;
+      const f = document.getElementById("f"), n = Date.now(), ago = (min) => new Date(n - min * 60000).toISOString();
+      const days = () => [...f.querySelectorAll("[data-tl-day]:not([hidden])")].map((d) => d.textContent).join(", ");
+      const times = () => [...f.querySelectorAll("[data-tl-item]:not([data-tl-hidden]) time")].map((t) => t.textContent).join(", ");
+      const fresh = () => [...f.querySelectorAll("[data-tl-new]:not([hidden])")].length;
+      const shown = () => f.querySelectorAll("[data-tl-item]:not([data-tl-hidden])").length;
+      const more = () => f.querySelector("[data-tl-show]");
+      try {
+        // Today (now and 5 minutes ago), yesterday, five days ago, and three older.
+        const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+        const sinceMidnight = (Date.now() - midnight) / 60000;
+        api.set("seen", ago(3));
+        api.set("feed", [
+          { id: 1, who: "Asha Rao", action: "commented", when: ago(0) },
+          { id: 2, who: "Ravi Kumar", action: "paid", when: ago(Math.min(5, sinceMidnight - 1)) },
+          { id: 3, action: "Backup", when: ago(sinceMidnight + 60) },
+          { id: 4, who: "Mei Lin", action: "joined", when: ago(sinceMidnight + 4 * 1440 + 60) },
+          { id: 5, action: "Renewed", when: ago(sinceMidnight + 40 * 1440) },
+          { id: 6, action: "Opened", when: ago(sinceMidnight + 41 * 1440) },
+        ]); await wait(20);
+        const weekday = new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(new Date(n - (sinceMidnight + 4 * 1440 + 60) * 60000));
+        log("days", days().replace(weekday, "WEEKDAY"));
+        log("times", times().split(", ").slice(0, 2).join(", "), f.querySelector("time").title.length > 10);
+        log("new", fresh(), shown(), more().hidden, more().textContent);
+        api.set("seen", ago(-1)); await wait(20);
+        log("all seen", fresh());
+        more().querySelector("button").click(); await wait(20);
+        log("more", shown(), more().hidden, document.activeElement?.closest("[data-tl-item]") === f.querySelectorAll("[data-tl-item]")[4]);
+        api.set("feed", [{ id: 0, who: "Kaushik", action: "joined", when: ago(0) }, ...api.state.feed]); await wait(20);
+        log("added", shown(), days().split(", ")[0]);
+        const g = document.getElementById("g");
+        log("fixed", g.querySelector("[data-tl-day]").textContent, g.querySelector("time").textContent.replace(/\s/g, " "), g.querySelector("time").getAttribute("datetime").slice(0, 10));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("timeline-feed", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // The older days are among the entries held back.
+            "days Today, Yesterday, WEEKDAY",
+            "times just now, 5 min. ago true",
+            "new 1 4 false Show 2 more",
+            "all seen 0",
+            // Shown: focus on the first entry that was held back.
+            "more 6 true true",
+            "added 7 Today",
+            // Grouped without `relative`: the time of day under the date's heading.
+            "fixed March 4, 2025 2:30 PM 2025-03-04",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-compare-slider`: the range moves the divider and `bind`, state moves them back, a
 /// side's label fades as it's covered, and the clip follows: across, up and down, right
 /// to left, and after the mouse with `hover`.

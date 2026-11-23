@@ -1,6 +1,7 @@
 # Block: a team's workspace in a `ui-rail-layout`. The rail's icons open their own
 # panels: Inbox (the notifications, in the page), Projects (a tree of projects to pick
-# from), Calendar (the week, as a list), and Settings at the foot. The main content is
+# from), Calendar (the week, as a list), Activity (the team's, grouped by day, what came
+# since the last visit marked New, the first six shown), and Settings at the foot. The main content is
 # the sprint board. A click on the open icon folds its panel; Up and Down move along
 # the rail. Drag the panel's edge to resize it (or focus it and use the arrow keys).
 #
@@ -11,6 +12,17 @@ state:
   panel: true
   panelWidth: 300
   project: web
+  lastVisit: "2026-11-20T12:00"
+  activity:
+    - { id: 1, who: Meera Iyer, action: moved IR-104 to In review, when: "2026-11-20T16:40" }
+    - { id: 2, action: "Build failed on main: browser tests (firefox)", tone: danger, when: "2026-11-20T15:05" }
+    - { id: 3, who: Ravi Kumar, action: assigned you IR-107, when: "2026-11-20T11:30" }
+    - { id: 4, who: Asha Rao, action: commented on IR-101, comment: "The tooltip keeps the light colours in dark mode.", when: "2026-11-19T17:20" }
+    - { id: 5, action: Release 0.5.7 shipped, tone: success, when: "2026-11-19T10:00" }
+    - { id: 6, who: Kaushik Sundar, action: changed IR-105, changes: [ { field: Status, from: To do, to: In progress } ], when: "2026-11-18T14:45" }
+    - { id: 7, who: Ravi Kumar, action: opened IR-107, when: "2026-11-18T09:15" }
+    - { id: 8, action: Sprint 24 started, tone: info, when: "2026-11-16T09:00" }
+    - { id: 9, who: Meera Iyer, action: closed IR-099, when: "2026-11-14T18:10" }
   projectNode: null
   notes:
     - { id: 1, title: Meera moved IR-104 to In review, body: "Sign-out after the payment redirect", who: Meera Iyer, when: 5 min ago }
@@ -46,6 +58,7 @@ root:
       - { id: inbox, label: Inbox, icon: core:bell, badge: 3 }
       - { id: projects, label: Projects, icon: core:kanban }
       - { id: calendar, label: Calendar, icon: core:calendar }
+      - { id: activity, label: Activity, icon: core:history }
       - { id: settings, label: Settings, icon: core:settings, bottom: true }
   style: { font-family: $font.body, color: $color.text }
   children:
@@ -61,6 +74,10 @@ root:
       props: { for: calendar, title: This week }
       children:
         - { type: ui-event-calendar, props: { events: "{{ week }}", view: list, views: [list], date: "2026-11-18", today: "2026-11-19", categories: { Meetings: primary, Releases: success }, label: This week } }
+    - type: ui-rail-panel
+      props: { for: activity, title: Activity }
+      children:
+        - { type: ui-timeline, props: { items: "{{ activity }}", group: day, relative: true, since: "{{ lastVisit }}", limit: 6, label: Team activity } }
     - type: ui-rail-panel
       props: { for: settings }
       children:

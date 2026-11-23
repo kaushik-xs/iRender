@@ -11,6 +11,8 @@ _Last updated: 2026-11-23._
 
 ## Gaps you'd hit in real use
 
+- [ ] **`ui-timeline` as a feed** (`group`, `relative`, `since`, `limit`; 2026-11-23; gallery, block workspace-01): entries must come in time order; no filters by person or kind, no loading more from a server (the limit only holds back what's there), and the New marks don't move `since` on their own (the page sets it, say on leaving). Days are the browser's local days.
+
 - [ ] **`ui-compare-slider`** (2026-11-23; gallery, block job-report-01): two pictures only (no third, no video), no zooming into both together, and no fade between them as another way to compare. On a phone the picture is a range input, so a sideways swipe moves the divider rather than the page; tried in Chrome, not on real phones.
 
 - [ ] **`ui-countdown`** (2026-11-23; gallery, block ticket-01): the browser's clock is trusted (a server's time isn't asked for), no business hours (an SLA that stops overnight or at weekends), no pausing (a ticket waiting on the customer), and only the two largest units. Times from state are read as the browser reads dates: one without a zone (`2026-12-01T17:00`) is local time.

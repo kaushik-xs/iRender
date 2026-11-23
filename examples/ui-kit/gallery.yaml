@@ -283,6 +283,16 @@ state:
   slaLeft: null
   slaStatus: null
   compareAt: 50
+  feedSeen: "2026-11-23T09:00"
+  feed:
+    - { id: 1, who: Asha Rao, action: commented on Invoice 42, comment: Sent the corrected copy., when: "2026-11-23T11:20" }
+    - { id: 2, who: Ravi Kumar, action: paid Invoice 39, when: "2026-11-23T09:45" }
+    - { id: 3, action: Nightly backup finished, tone: success, when: "2026-11-23T03:00" }
+    - { id: 4, who: Mei Lin, action: changed Invoice 41, changes: [ { field: Due, from: 30 Nov, to: 15 Dec } ], when: "2026-11-22T17:10" }
+    - { id: 5, who: Asha Rao, action: created Invoice 42, when: "2026-11-22T10:05" }
+    - { id: 6, action: Card payment failed for Invoice 37, tone: danger, when: "2026-11-20T14:30" }
+    - { id: 7, who: Kaushik Sundar, action: joined the team, when: "2026-11-18T09:00" }
+    - { id: 8, action: Billing plan renewed, tone: info, when: "2026-10-30T08:00" }
   month: "2026-11"
   quarter: null
   quarterDates: null
@@ -2124,6 +2134,15 @@ root:
                   style: { max-width: 620 }
                   children:
                     - { type: ui-timeline, props: { items: "{{ history }}", label: Invoice history } }
+                - type: ui-card
+                  props: { title: Team activity, description: "As a feed: a heading for each day, times as how long ago, New since your last visit, the first five." }
+                  style: { max-width: 620 }
+                  children:
+                    - { type: ui-timeline, props: { items: "{{ feed }}", group: day, relative: true, since: "{{ feedSeen }}", limit: 5, label: Team activity } }
+                    - type: ui-button
+                      props: { label: Mark all as seen, variant: outline, size: sm }
+                      style: { margin-top: 12 }
+                      on: { click: { action: set_state, key: feedSeen, value: "2026-12-31T00:00" } }
                 - { type: if, props: { when: "{{ api.timeline.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.timeline }}", as: c }
