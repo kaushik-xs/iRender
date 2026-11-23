@@ -1,0 +1,17 @@
+[package]
+name = "irender-twin-kit"
+description = "Digital twins for iRender documents: 3D worlds drawn with three.js from glTF, OBJ, FBX, STL, USD and other models, with machine and sensor data, alarms, paths, zones and layout editing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+irender-core = { workspace = true, default-features = false }
+irender-html = { workspace = true, default-features = false }
+serde_json.workspace = true
+
+[dev-dependencies]
+irender-html = { workspace = true, default-features = true }
+irender-ui-kit.workspace = true

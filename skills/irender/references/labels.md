@@ -1893,6 +1893,45 @@ root: …
 "Loading map…": "Loading map…"
 ```
 
+## Twin kit
+
+`lib.rs`
+
+```yaml
+"Zoom in": "Zoom in"
+"Zoom out": "Zoom out"
+"Fit view": "Fit view"
+"3D view": "3D view"
+"Arrow keys turn the view, Shift and the arrows move it, + and − zoom, Home fits it. The objects are listed after it.": "Arrow keys turn the view, Shift and the arrows move it, + and − zoom, Home fits it. The objects are listed after it."
+"Objects": "Objects"
+"Add to the world": "Add to the world"
+"Views": "Views"
+```
+
+`twin.js`
+
+```yaml
+"3D view unavailable": "3D view unavailable"
+"On": "On"
+"Off": "Off"
+"Loading models… {n} of {total}": "Loading models… {n} of {total}"
+"{n} new alarms": "{n} new alarms"
+"Alarm: {title}": "Alarm: {title}"
+"Alarm": "Alarm"
+"Open": "Open"
+"Rotate": "Rotate"
+"Remove": "Remove"
+"Object": "Object"
+"Close": "Close"
+"Turned to {deg}°": "Turned to {deg}°"
+"Removed {title}": "Removed {title}"
+"Added {title}": "Added {title}"
+"Click to add, or drag into the view": "Click to add, or drag into the view"
+"Moved to {x}, {z}": "Moved to {x}, {z}"
+"Loading 3D view…": "Loading 3D view…"
+"This browser can't draw 3D (WebGL is off or unavailable).": "This browser can't draw 3D (WebGL is off or unavailable)."
+```
+
 ## Core
 
 `code.js`

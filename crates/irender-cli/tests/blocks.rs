@@ -46,6 +46,17 @@ fn blocks_index_lists_every_block() {
 }
 
 #[test]
+fn twin_blocks_and_gallery_render() {
+    let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
+    for doc in ["blocks/twin-01.yaml", "blocks/twin-02.yaml", "blocks/twin-03.yaml", "twin/gallery.yaml"] {
+        let out = Command::new(env!("CARGO_BIN_EXE_irender")).args(["render", &format!("{root}/{doc}"), "--ui-kit", "--icon-kit", "--twin-kit"]).output().unwrap();
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(out.status.success() && stderr.trim().is_empty(), "{doc}:\n{stderr}");
+        assert!(String::from_utf8_lossy(&out.stdout).contains("data-twin-canvas"), "{doc}");
+    }
+}
+
+#[test]
 fn map_block_renders_on_either_provider() {
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples/blocks");
     let page = |doc: &str, more: &[&str]| {

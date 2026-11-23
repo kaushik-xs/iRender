@@ -27,6 +27,7 @@ KITS = [
     ("irender-chart-kit", "Chart kit"),
     ("irender-flow-kit", "Flow kit"),
     ("irender-map-kit", "Map kit"),
+    ("irender-twin-kit", "Twin kit"),
     ("irender-html", "Core"),
 ]
 

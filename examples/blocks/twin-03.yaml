@@ -1,0 +1,110 @@
+# Block: planning a layout in 3D. The layout is a list of objects in state: drag one to move
+# it (it snaps to half a metre), Alt and the arrow keys move the selected one, Alt+R turns
+# it, Delete removes it, and the palette adds more, clicked or dragged in. Every change is
+# written back to the list, which the JSON editor shows and can change too. The camera's
+# place is kept in state, to copy into a view.
+#
+#   cargo run -p irender-cli -- render examples/blocks/twin-03.yaml --ui-kit --icon-kit --twin-kit -o twin-03.html
+version: 1
+state:
+  picked: null
+  item: null
+  camera: null
+  layout:
+    - { id: rack-1, model: rack, position: [-6, -4], title: Rack 1 }
+    - { id: rack-2, model: rack, position: [-6, -1], title: Rack 2 }
+    - { id: conveyor-1, model: conveyor, position: [1, -4], title: Conveyor 1 }
+    - { id: conveyor-2, model: conveyor, position: [3, -4], title: Conveyor 2 }
+    - { id: table-1, model: table, position: [5, -2], rotation: 90, title: Table 1 }
+    - { id: tank-1, model: tank, position: [5.5, 3], title: Tank 1 }
+    - { id: guard-1, model: guard, position: [2, -2], title: Guard 1 }
+    - { id: extinguisher-1, model: extinguisher, position: [-8.5, 4.5], title: Extinguisher 1 }
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    min-height: 100svh
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@lg": { flex-direction: row, height: 100svh }
+  children:
+    - type: ui-twin
+      attrs: { id: plan }
+      style: { flex: 1, min-width: 0, min-height: 520, border-radius: 0 }
+      props:
+        height: 100%
+        title: Layout
+        objects: "{{ layout }}"
+        bindObjects: layout
+        editable: true
+        snap: 0.5
+        bind: picked
+        bindObject: item
+        bindCamera: camera
+        labels: all
+        models:
+          rack: ../twin/models/rack.glb
+          conveyor: ../twin/models/conveyor.glb
+          table: ../twin/models/table_ss.glb
+          tank: ../twin/models/ibc_tank.glb
+          guard: ../twin/models/guard.glb
+          extinguisher: ../twin/models/extinguisher.glb
+          pallet: ../twin/models/pallet.glb
+          drum: ../twin/models/drum_steel.glb
+        palette:
+          - { label: Rack, model: rack, title: Rack }
+          - { label: Conveyor, model: conveyor, title: Conveyor }
+          - { label: Table, model: table, title: Table }
+          - { label: Tank, model: tank, title: Tank }
+          - { label: Guard, model: guard, title: Guard }
+          - { label: Pallet, model: pallet, title: Pallet }
+          - { label: Drum, model: drum, title: Drum }
+          - { label: Pillar, shape: box, size: [0.4, 4, 0.4], title: Pillar }
+        walls:
+          - { points: [[-10, -6], [10, -6], [10, 6], [-10, 6]], closed: true, height: 1, opacity: 0.6 }
+        zones:
+          - { id: walkway, center: [-2, 2.5], size: [16, 1.2], tone: warning, label: Walkway }
+        ground: { size: [24, 16], grid: 0.5 }
+        views:
+          - { id: plan, label: Isometric, position: [12, 14, 16], target: [0, 0, 0] }
+          - { id: top, label: Top, position: [0, 24, 0.1], target: [0, 0, 0] }
+
+    - type: element
+      props: { tag: aside }
+      attrs: { aria-label: Layout }
+      style:
+        display: flex
+        flex-direction: column
+        gap: 16
+        box-sizing: border-box
+        padding: 20px 16px
+        border-top: 1px solid $color.border
+        "@lg": { width: 380, flex: none, overflow-y: auto, border-top: none, border-left: 1px solid $color.border }
+      children:
+        - type: stack
+          props: { gap: 2 }
+          children:
+            - { type: ui-heading, props: { level: 3, text: Layout } }
+            - { type: ui-text, props: { variant: muted, text: "{{ layout.length }} objects · drag to move, Alt+R to turn, Delete to remove" } }
+        - type: if
+          props: { when: "{{ item }}" }
+          children:
+            - type: ui-card
+              props: { title: "{{ item.title }}", description: "{{ item.id }} · {{ item.model || item.shape }}" }
+              children:
+                - type: text
+                  props: { value: "At {{ item.position[0] }}, {{ item.position[1] }} m{{ item.rotation ? ', turned ' + item.rotation + '°' : '' }}" }
+                  style: { font-size: 14 }
+        - type: ui-field
+          props: { label: The layout as JSON, description: "Edits here move the objects too." }
+          children:
+            - { type: ui-json-editor, props: { bind: layout } }
+        - type: if
+          props: { when: "{{ camera }}" }
+          children:
+            - type: ui-field
+              props: { label: Camera, description: "Where the camera is now, to copy into a view." }
+              children:
+                - { type: ui-code-block, props: { language: yaml, code: "position: [{{ camera.position[0] }}, {{ camera.position[1] }}, {{ camera.position[2] }}]\ntarget: [{{ camera.target[0] }}, {{ camera.target[1] }}, {{ camera.target[2] }}]" } }

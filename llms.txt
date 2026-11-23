@@ -2,7 +2,7 @@
 
 > Build UI from configuration: a JSON or YAML document (`version`, `theme`, `state`, `fragments`, `root`) is validated, with every problem reported at its path, and rendered to HTML with a small browser runtime for state and declarative actions. Optional kits add shadcn-style components (`ui-*`), Apache ECharts charts, node-and-edge diagrams, maps and icons. Documents contain no code: expressions are a small, closed language and behaviour is limited to `set_state`, `navigate`, `submit`, `call` and `wait`.
 
-To write documents, read the authoring rules first, then look up each component's props in the component reference instead of guessing. Check every document with `irender validate <file> [--ui-kit] [--chart-kit] [--flow-kit] [--map-kit] [--icon-kit]` and fix every reported path until it prints `ok`. For everything in one file, use [llms-full.txt](https://raw.githubusercontent.com/kaushik-xs/iRender/main/llms-full.txt).
+To write documents, read the authoring rules first, then look up each component's props in the component reference instead of guessing. Check every document with `irender validate <file> [--ui-kit] [--chart-kit] [--flow-kit] [--map-kit] [--twin-kit] [--icon-kit]` and fix every reported path until it prints `ok`. For everything in one file, use [llms-full.txt](https://raw.githubusercontent.com/kaushik-xs/iRender/main/llms-full.txt).
 
 ## Docs
 
@@ -13,6 +13,7 @@ To write documents, read the authoring rules first, then look up each component'
 - [Chart kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-chart-kit/README.md): `ui-chart` shorthand and ECharts options, filters, grouping, drill-downs, live data
 - [Flow kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-flow-kit/README.md): `ui-flow` with React Flow JSON, node templates, ports, editing
 - [Map kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-map-kit/README.md): `ui-map` on OpenStreetMap or Google Maps, markers, popups, shapes
+- [Twin kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-twin-kit/README.md): `ui-twin`, 3D digital twins with three.js: models, machine and sensor data, alarms, paths, editing
 - [Icon kit](https://raw.githubusercontent.com/kaushik-xs/iRender/main/crates/irender-icon-kit/README.md): `ui-icon`, packs and custom packs
 
 ## Examples

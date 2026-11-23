@@ -47,8 +47,14 @@ done
 for block in report-01 crm-01 data-table-03 data-table-04 data-table-05 data-table-06 data-table-07 i18n-01 i18n-02 tree-01 docs-01 expense-01 ticket-01 gantt-01 dashboard-02 kanban-01 kanban-02 calendar-01 workspace-01 mail-01 empty-states data-table-08 import-01 invoice-01 intake-01 profile-01 supplier-01 record-01 pivot-01 schedule-01 plan-01 rules-01 review-01 scan-01 ops-01 agent-01 seats-flight-01 seats-cinema-01 seats-hall-01 floors-01 visit-01 capture-01 devices-01; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done
-# The sites are on a map.
-$irender render examples/blocks/map-01.yaml --ui-kit --chart-kit --icon-kit --map-kit --title "map-01" -o "$out/blocks/map-01.html"
+# The twins draw 3D models from twin/models.
+mkdir -p "$out/twin/models"
+cp examples/twin/models/*.glb examples/twin/models/*.obj examples/twin/models/*.stl "$out/twin/models/"
+for block in twin-01 twin-02 twin-03; do
+  $irender render "examples/blocks/$block.yaml" --ui-kit --icon-kit --twin-kit --title "$block" -o "$out/blocks/$block.html"
+done
+$irender render examples/twin/gallery.yaml --ui-kit --twin-kit --title "Digital twins" -o "$out/twin/index.html"
+# The sites are on a map. --ui-kit --chart-kit --icon-kit --map-kit --title "map-01" -o "$out/blocks/map-01.html"
 # Installable apps: each in a folder of its own, with its manifest and service worker.
 for app in field-01 keep-01; do
   mkdir -p "$out/blocks/$app"

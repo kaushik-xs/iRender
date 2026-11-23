@@ -51,6 +51,9 @@ enum Command {
         /// Enable `ui-map`, its popups and panels (irender-map-kit).
         #[arg(long)]
         map_kit: bool,
+        /// Enable `ui-twin`, 3D digital twins with three.js (irender-twin-kit).
+        #[arg(long)]
+        twin_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
     },
@@ -88,6 +91,9 @@ enum Command {
         /// Enable `ui-map`, its popups and panels (irender-map-kit).
         #[arg(long)]
         map_kit: bool,
+        /// Enable `ui-twin`, 3D digital twins with three.js (irender-twin-kit).
+        #[arg(long)]
+        twin_kit: bool,
         /// The Google Maps API key for maps with `provider: google` (default: the
         /// GOOGLE_MAPS_API_KEY environment variable). Pages carry it, so restrict it to your sites.
         #[arg(long, value_name = "KEY")]
@@ -143,6 +149,9 @@ enum Command {
         /// Enable `ui-map`, its popups and panels (irender-map-kit).
         #[arg(long)]
         map_kit: bool,
+        /// Enable `ui-twin`, 3D digital twins with three.js (irender-twin-kit).
+        #[arg(long)]
+        twin_kit: bool,
         #[command(flatten)]
         icons: IconArgs,
         /// Print JSON: `{ "components": [{ "name", "doc", "props": [{ "name", "type", "values", "required", "doc" }], "parts", "children" }] }`.
@@ -226,6 +235,7 @@ struct Kits {
     flow: bool,
     markdown: bool,
     map: bool,
+    twin: bool,
     google_maps_key: Option<String>,
     icons: IconArgs,
 }
@@ -273,6 +283,9 @@ fn engine(untrusted: bool, strict_css: bool, fragments: Vec<PathBuf>, kits: &Kit
     if kits.map {
         let google_key = kits.google_maps_key.clone().or_else(|| std::env::var("GOOGLE_MAPS_API_KEY").ok()).filter(|k| !k.is_empty());
         irender_map_kit::register_with(&mut engine.registry, irender_map_kit::MapKit { google_key, ..Default::default() });
+    }
+    if kits.twin {
+        irender_twin_kit::register(&mut engine.registry);
     }
     if kits.icons.enabled() {
         irender_icon_kit::register_with(&mut engine.registry, kits.icons.kit()?);
@@ -338,8 +351,8 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, icons } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, google_maps_key: None, icons };
+        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, twin_kit, icons } => {
+            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key: None, icons };
             load(&engine(untrusted, strict_css, fragments, &kits)?, &file, &kits)?;
             println!("{}: ok", file.display());
         }
@@ -355,6 +368,7 @@ fn run(command: Command) -> Result<(), String> {
             flow_kit,
             markdown_kit,
             map_kit,
+            twin_kit,
             google_maps_key,
             icons,
             fragment,
@@ -365,7 +379,7 @@ fn run(command: Command) -> Result<(), String> {
             parallel,
             repeat,
         } => {
-            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, google_maps_key, icons };
+            let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key, icons };
             let mut engine = engine(untrusted, strict_css, fragments, &kits)?;
             engine.minify = minify;
             engine.parallel_min_items = parallel;
@@ -433,8 +447,8 @@ fn run(command: Command) -> Result<(), String> {
             let schema = schemars::schema_for!(Document);
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
-        Command::Components { ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, icons, json } => {
-            let engine = engine(false, false, Vec::new(), &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, google_maps_key: None, icons })?;
+        Command::Components { ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, twin_kit, icons, json } => {
+            let engine = engine(false, false, Vec::new(), &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key: None, icons })?;
             if json {
                 let components: Vec<Json> = engine
                     .registry

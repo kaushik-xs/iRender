@@ -10,10 +10,10 @@ An iRender document is JSON or YAML: `version`, optional `theme`, `state` and `f
 ## Before writing
 
 1. **Read the rules:** read [references/authoring.md](references/authoring.md) first. It covers the document and node shape, the small expression language, state and actions, YAML pitfalls and common mistakes. Its rules are strict: the expression language is not JavaScript, and every state key must be declared.
-2. **Pick kits:** use the core built-ins only for minimal pages. For anything app-like, use `--ui-kit`. Add `--chart-kit` for charts, `--flow-kit` for node/edge diagrams, `--map-kit` for maps and `--icon-kit` for icons. Use the same flags on every command.
+2. **Pick kits:** use the core built-ins only for minimal pages. For anything app-like, use `--ui-kit`. Add `--chart-kit` for charts, `--flow-kit` for node/edge diagrams, `--map-kit` for maps, `--twin-kit` for 3D digital twins and `--icon-kit` for icons. Use the same flags on every command.
 3. **Look up props:** never guess them.
    - **Components:** [references/components.md](references/components.md) lists every component, its props, their types and its parts. Search it for the component (`ui-chart:`) instead of reading it whole.
-   - **Kit features:** for behaviour beyond props, read that kit's file: [ui-kit.md](references/ui-kit.md) (theme options, sidebar, combobox, dialogs), [chart-kit.md](references/chart-kit.md) (filters, grouping, drill-downs, live data), [flow-kit.md](references/flow-kit.md) (node templates, ports, editing), [map-kit.md](references/map-kit.md) (markers, popups, shapes, Google Maps) or [icon-kit.md](references/icon-kit.md).
+   - **Kit features:** for behaviour beyond props, read that kit's file: [ui-kit.md](references/ui-kit.md) (theme options, sidebar, combobox, dialogs), [chart-kit.md](references/chart-kit.md) (filters, grouping, drill-downs, live data), [flow-kit.md](references/flow-kit.md) (node templates, ports, editing), [map-kit.md](references/map-kit.md) (markers, popups, shapes, Google Maps), [twin-kit.md](references/twin-kit.md) (3D models, machine and sensor data, alarms, paths, editing) or [icon-kit.md](references/icon-kit.md).
    - **Core features:** [core.md](references/core.md) covers `include` parameters, list keys, theme options and the untrusted policy.
    - **Icon names:** they are in [references/icons.md](references/icons.md). Search it, since names are packed per line.
    - **Another language:** [references/labels.md](references/labels.md) lists the kits' interface text a document's `labels` can translate.

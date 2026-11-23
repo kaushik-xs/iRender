@@ -72,6 +72,21 @@
       "needsServer": true
     },
     {
+      "title": "Digital twins",
+      "href": "twin/index.html",
+      "source": "examples/twin/gallery.yaml",
+      "summary": "3D worlds through irender-twin-kit and three.js, from glTF, OBJ, STL and other models (NVIDIA SimReady here): everything in them configuration, machine and sensor data on the objects with limits and alarms, colours by value, paths, popups of any components, live feeds and editing a layout.",
+      "features": [
+        "irender-twin-kit",
+        "three.js",
+        "glTF, OBJ, STL, USD",
+        "live data",
+        "alarms",
+        "layout editing"
+      ],
+      "needsServer": true
+    },
+    {
       "title": "Icon gallery",
       "href": "icons/index.html",
       "source": "examples/icons/gallery.yaml",

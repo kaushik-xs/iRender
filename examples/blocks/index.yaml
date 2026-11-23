@@ -30,7 +30,7 @@ root:
             bind: filter
             variant: outline
             size: sm
-            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: map, label: Map }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: forms, label: Forms }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: app, label: Apps }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
+            options: [{ value: all, label: All }, { value: dashboard, label: Dashboard }, { value: table, label: Data table }, { value: map, label: Map }, { value: twin, label: Digital twin }, { value: sidebar, label: Sidebar }, { value: login, label: Login }, { value: signup, label: Sign up }, { value: forms, label: Forms }, { value: settings, label: Settings }, { value: errors, label: Errors and empty states }, { value: app, label: Apps }, { value: pricing, label: Pricing }, { value: chat, label: Chat }, { value: editor, label: Editor }, { value: docs, label: Docs }, { value: theme, label: Theme }]
 
     - type: list
       props:
@@ -58,6 +58,9 @@ root:
           - { id: kanban-02, category: table, title: "A hiring pipeline: each candidate's card built from the kit's own avatar, stars and badges, still dragged between stages, with a Shortlist button of its own", kits: [ui-kit, icon-kit], height: 860 }
           - { id: ticket-01, category: table, title: "A support ticket: its status in colour, the SLA as a ring, the activity timeline with field changes and comments, and the customer's star rating", kits: [ui-kit, icon-kit], height: 1000 }
           - { id: expense-01, category: table, title: "An expense claim with its receipts: drop files to upload them, preview images, PDFs and spreadsheets, and download them all as a zip", kits: [ui-kit, icon-kit], height: 1000 }
+          - { id: twin-01, category: twin, title: "A packing hall's digital twin, live: machines, vehicles and air sensors streamed in, limits that turn them warning or alarm, robots driven by the feed's speed, and views of each area", kits: [ui-kit, icon-kit, twin-kit], height: 900 }
+          - { id: twin-02, category: twin, title: "A cold store's sensors in 3D: each coloured by its temperature, limits per room, doors left open raising alarms, and the room clicked showing only its sensors", kits: [ui-kit, icon-kit, twin-kit], height: 860 }
+          - { id: twin-03, category: twin, title: "A layout planner: drag machines to move them, a palette to add more, turn and remove them, with the layout as JSON that can be edited too", kits: [ui-kit, icon-kit, twin-kit], height: 860 }
           - { id: map-01, category: map, title: "Sites on a map: the list shows what's in view, a status filter narrows both, and the site picked in either opens with its details. On OpenStreetMap, or Google Maps with a key", kits: [ui-kit, map-kit, icon-kit], height: 760 }
           - { id: mail-01, category: sidebar, title: "A mail client in three resizable panels: folders that fold away, the folder's messages, and the message picked", kits: [ui-kit, icon-kit], height: 640 }
           - { id: workspace-01, category: sidebar, title: "A team workspace in a rail layout: icons open the inbox, a project tree and the week beside the page, with the sprint board as the main content", kits: [ui-kit, icon-kit], height: 760 }

@@ -1,0 +1,201 @@
+# irender-twin-kit
+
+Digital twins for [iRender](../../README.md) documents: 3D worlds drawn with [three.js](https://threejs.org/) from models of most formats, with machine and sensor data on them. Everything in a world is configuration, and any of it may use state: the models, where things stand, the paths they drive, zones, walls, the ground, the light and the camera's views. Tags, popups and buttons are the kit's own elements, in the theme's colours.
+
+```rust
+let mut engine = irender_html::Engine::new();
+irender_twin_kit::register(&mut engine.registry);
+```
+
+From the CLI, add `--twin-kit` to `validate`, `render` or `components`:
+
+```sh
+cargo run -p irender-cli -- render examples/twin/gallery.yaml --ui-kit --twin-kit -o twin/index.html
+```
+
+[`examples/twin/gallery.yaml`](../../examples/twin/gallery.yaml) shows each feature. The blocks are whole pages: [`twin-01`](../../examples/blocks/twin-01.yaml) a packing hall with live machine data, [`twin-02`](../../examples/blocks/twin-02.yaml) a cold store's temperature sensors, and [`twin-03`](../../examples/blocks/twin-03.yaml) a layout planner. Their models are NVIDIA SimReady assets ([credits](../../examples/twin/models/CREDITS.md)).
+
+## A world
+
+```yaml
+- type: ui-twin
+  props:
+    height: 480
+    models:
+      rack: models/rack.glb
+      forklift: models/forklift.glb
+    objects:
+      - { id: r1, model: rack, position: [-4, -3], title: Rack 1 }
+      - { id: f1, model: forklift, path: aisle, speed: 1.2, title: Forklift }
+      - { id: pillar, shape: box, size: [0.4, 3, 0.4], position: [0, 3] }
+    paths:
+      - { id: aisle, points: [[-2, -5], [-2, 4], [6, 4], [6, -5]], closed: true, flow: true }
+    zones:
+      - { id: store, center: [-4, -1.5], size: [6, 6], tone: info, label: Storage }
+    walls:
+      - { points: [[-8, -6], [8, -6], [8, 6], [-8, 6]], closed: true, height: 1.2, opacity: 0.5 }
+    views:
+      - { id: overview, label: Overview, position: [9, 11, 13], target: [0, 0, 0] }
+```
+
+Units are metres, with y up. A `position` is `[x, z]` on the ground or `[x, y, z]`. A `rotation` is degrees about the vertical, or `[x, y, z]`.
+
+| prop | what it is |
+|---|---|
+| `models` | The models by name: a URL, or `{ url, units, up, scale, fit, rotate, origin, format, mtl, color }` |
+| `objects` | What's in the world, as rows: `{ id, model or shape, position, rotation, scale, title, … }`. Every other field is the object's data |
+| `paths` | Routes that objects follow, drawn on the ground, with `flow` stripes moving along them |
+| `zones` | Areas on the ground (`points`, or `center` and `size`), with a `label`, a `tone`, and a `height` for a volume |
+| `walls` | Walls along `points`, with a `height`, `thickness` and `opacity` |
+| `ground` | `{ size, center, color, grid }`, or `false`. By default it's big enough for everything, with a 1 m grid |
+| `environment` | `{ preset: studio, day or night, light, shadows, background, fog }` |
+| `camera` | `{ position, target, fov }`; the camera moves there when it changes. By default it fits the world |
+| `views` | Named camera places, shown as buttons; `bindView` keeps the current one in state |
+| `world` | All of these in one object, e.g. a layout kept in state. A prop of its own wins |
+| `src` | The URL of such a world as JSON, fetched in the browser |
+
+`shape` draws an object without a model: `box` (`size: [w, h, d]`), `cylinder` and `cone` (`[diameter, height]`), `sphere`, `sensor` (a small sphere coloured by its value), or `point` (nothing, only its tag).
+
+## Models
+
+Any model three.js can open works, picked by the file's extension or `format`:
+
+| format | notes |
+|---|---|
+| glTF, GLB | Best for the web. Draco and meshopt meshes, and KTX2 textures, are read. Animations play with `animation: true` or a clip's name on the object |
+| OBJ | With its materials when `mtl` names the `.mtl` file |
+| FBX, DAE (Collada), 3MF, 3DS, WRL (VRML) | |
+| STL, PLY | Meshes without materials; `color` gives one |
+| USD, USDA, USDC, USDZ | three.js's own reader. A USD that refers to other files, as NVIDIA's SimReady assets do, is better converted to GLB first (below) |
+
+Models come in many units and orientations. Each is put right once, when it's loaded:
+
+- `units`: `m` (the default), `cm`, `mm`, `in` or `ft`.
+- `up: z` for models with z up (CAD, USD).
+- `scale`, `rotate` (degrees), or `fit`: the largest side in metres, or `[w, h, d]` to fit inside.
+- `origin`: `base` (the default) stands it on the ground at its middle; `center` or `none` keep more of it as it was.
+
+A model is loaded once however many objects use it, and each object shares its meshes and materials until something (a colour by value, an alarm, `opacity`) needs its own. One that fails to load is drawn as a wireframe box, and the twin fires `failed` with the model's name.
+
+### NVIDIA SimReady and other USD assets
+
+[`tools/simready/`](../../tools/simready/) downloads [SimReady](https://huggingface.co/datasets/nvidia/simready-assets) assets and converts them to GLB: Y up, in metres, standing at their base, with their materials as glTF's and their textures as WebP, simplified and compressed with meshopt. The examples' models were made this way.
+
+## Machine and sensor data
+
+An object's data is any of its fields. `readouts` say which to show, how, and where their limits are:
+
+```yaml
+readouts:
+  - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, when: { kind: conveyor } }
+  - { field: level, label: Level, unit: "%", decimals: 0, warn: 25, alarm: 10, below: true }
+  - { field: humidity, label: Humidity, unit: "%", tag: false }
+```
+
+- An object's first two readouts are on its tag over it (`tag` says otherwise), and all of them are in its popup.
+- Past `warn` an object turns warning; past `alarm` it's in alarm. `below: true` is for values that mustn't fall, like a tank's level or a battery.
+- `when` (a `filter`, as the data table's) or `models` limit a readout to some objects, so each kind of machine, or each room, can have its own limits.
+- `colorBy: { field, min, max, colors }` colours objects along a scale by a value, e.g. temperatures from blue to red. `sensor` shapes take the colour themselves; models glow with it.
+
+### Live values
+
+The values can come from state (a `ui-live-data`, the host, a form), or from a feed of the twin's own:
+
+```yaml
+live: { url: /api/plant, every: 5000 }   # polled
+live: { stream: /api/plant/stream }      # server-sent events
+bindLive: values                         # the latest values in state, by id
+```
+
+Each answer is either a list of rows with an `id`, or `{ "<id>": { "field": value } }`. Its fields are merged into the objects with that id, over what the document says. The objects stay where the document puts them unless the feed sends a `position`, a `progress` along a path, or a `speed`: a vehicle stopped by the feed (`speed: 0`) stops where it is. A feed that can't be reached marks the twin `data-stale` (its values are dimmed) and fires `failed` once.
+
+## Status, alarms and effects
+
+- `toneBy: { field: status, tones: { running: success, fault: danger } }`, or `tone` on a row, draws a ring of that tone around the object's footprint. A warning or alarm from its values comes before its status's tone.
+- `alarmBy: { field: status, values: [fault] }`, `alarm: true` on a row, or a readout past `alarm` puts an object in alarm. It glows red, gets a `!` tag that stays above the others, `bindAlarms` gets its id, it's announced to screen readers, and the twin fires `alarm`.
+- `effectBy`, or `effect` on a row: `pulse`, `glow`, `blink`, `spin` (with `spin` in degrees a second, e.g. a fan) or `bob`. All of them hold still where the viewer asked for less motion.
+
+## Paths and movement
+
+An object with `path` drives along it at `speed` metres a second (default 1), turned to face its way unless `face: false`, and around again if the path is `closed` or `loop` isn't false. With `progress` (0 to 1) and no `speed`, it stands that far along: a feed can say where something is. `attach: <id>` carries an object with another, e.g. a pallet on a forklift.
+
+An object whose `position` or `rotation` changes in the data moves there over `transition` milliseconds (default 600). `follow: <id>` keeps the camera at its distance from a moving object.
+
+## State
+
+| prop | holds |
+|---|---|
+| `bind` | the selected object's id; setting it selects that object and flies to it |
+| `bindObject` | the selected object itself, with its latest values |
+| `bindZone` | the id of the zone last clicked |
+| `bindView` | the current view's id; setting it moves the camera there |
+| `bindAlarms` | the ids of the objects in alarm |
+| `bindLive` | the latest values from `live` |
+| `bindCamera` | `{ position, target }` once the camera has moved: copy it into `views` |
+| `bindObjects` | the objects' list, written back when they're moved, added or removed |
+
+`filter` shows only the objects that pass, e.g. a `ui-filters` panel's `bind`, or an area picked in a toggle group.
+
+## Popups and panels
+
+The selected object opens a popup with its title, description and readouts. A `ui-twin-popup` child replaces that with any components, with the object in scope as `object`. `ui-twin-panel` children float above the view at a `position` (`top-left`, `bottom-right`, …), e.g. a legend or filters.
+
+```yaml
+- type: ui-twin
+  props: { objects: "{{ pallets }}", bind: picked }
+  children:
+    - type: ui-twin-popup
+      children:
+        - { type: text, props: { value: "{{ object.title }}" } }
+        - { type: ui-progress, props: { value: "{{ object.done * 100 / object.lines }}" } }
+    - type: ui-twin-panel
+      props: { position: bottom-left }
+      children: [ { type: ui-badge, props: { text: "{{ alarms.length }} in alarm" } } ]
+```
+
+## Editing a layout
+
+With `editable: true` and `bindObjects`, objects can be dragged on the ground (snapping to `snap` metres). The selected one moves with Alt and the arrow keys, turns 90° with Alt+R (Alt+Shift+R back), and Delete removes it; its popup has Rotate and Remove too. `palette` offers things to add: clicked, one goes in the middle of the view; dragged into it, where it's dropped. Each change is written back to its row in the form the row had (`[x, z]`, `[x, y, z]`, `{ x, z }` or `x` and `z` fields), and the twin fires `move`, `add` or `remove`. Objects on a path or attached to another aren't moved by hand.
+
+## Events
+
+| event | detail |
+|---|---|
+| `ready` | `{ objects }`, once the models have loaded |
+| `select` | `{ id, object }` |
+| `zoneselect` | `{ id, zone }` |
+| `alarm` | `{ id, object }`, for each new alarm |
+| `data` | `{ count }`, for each answer from `live` |
+| `move`, `add`, `remove` | `{ id, position, rotation }` or `{ id, object }` |
+| `failed` | `{ error }`, with `model` or `live` when that's what failed |
+
+## Gestures and keys
+
+Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup.
+
+## three.js
+
+three.js isn't inlined. A page loads it as ES modules, once, from jsDelivr, when a twin comes near the view, along with the loaders its models need. [`TwinKit`](src/lib.rs) points it elsewhere, e.g. your own copy:
+
+```rust
+irender_twin_kit::register_with(&mut engine.registry, irender_twin_kit::TwinKit {
+    three: "/static/three/three.module.js".into(),
+    addons: "/static/three/jsm/{name}".into(),   // must import three.js from the same address
+    draco: "/static/three/draco/".into(),
+    basis: "/static/three/basis/".into(),
+});
+```
+
+The kit is written and tested against three.js 0.183.2 ([`THREE_VERSION`](src/lib.rs)).
+
+## Safety
+
+Model, world and feed URLs are checked against the document's policy on the server when they're known there, and in the browser when they come from state. Documents the policy doesn't trust can't point a model or an object's `href` at a script.
+
+## When it can't draw
+
+Without WebGL (or three.js), the twin says so and lists its objects, with their readouts and alarms, so the values are still there.
+
+## Not built yet
+
+See [PENDING.md](../../PENDING.md#twin-kit-next-phases).

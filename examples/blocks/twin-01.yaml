@@ -1,0 +1,273 @@
+# Block: a packing hall's digital twin, live. The hall is configuration in state: models
+# (NVIDIA SimReady, in examples/twin/models), where each machine stands, the paths the
+# forklift and robots drive, zones and walls. Machine and sensor values stream in from
+# examples/serve.py (`api/twin/plant/stream`) and are merged into the objects by id: the
+# readouts show them, past their limits a machine turns warning or alarm, and the vehicles'
+# speed from the feed drives them. The same values (`live`) fill the tiles and the list.
+#
+# Served without examples/serve.py the hall shows the values below, dimmed as stale.
+#
+#   cargo run -p irender-cli -- render examples/blocks/twin-01.yaml --ui-kit --icon-kit --twin-kit -o twin-01.html
+version: 1
+state:
+  area: all
+  picked: null      # the picked object's id …
+  machine: null     # … and the object, with its latest values
+  view: overview
+  following: ""
+  alarms: []
+  live: {}          # the latest values from the feed, by id
+  tones: { running: success, idle: neutral, stopped: warning, charging: info, fault: danger }
+  hall:
+    # Line 1 and 2: hoppers feeding four conveyor sections each
+    - { id: hp-1, model: hopper, position: [-9.6, -6], title: Hopper 1, kind: hopper, area: line-1, status: running, level: 72, temp: 19.1 }
+    - { id: cv-1, model: conveyor, position: [-8, -6], title: "Line 1 · section 1", kind: conveyor, area: line-1, status: running, speed: 24, temp: 58 }
+    - { id: cv-2, model: conveyor, position: [-6, -6], title: "Line 1 · section 2", kind: conveyor, area: line-1, status: running, speed: 24, temp: 57 }
+    - { id: cv-3, model: conveyor, position: [-4, -6], title: "Line 1 · section 3", kind: conveyor, area: line-1, status: running, speed: 24, temp: 74 }
+    - { id: cv-4, model: conveyor, position: [-2, -6], title: "Line 1 · section 4", kind: conveyor, area: line-1, status: running, speed: 24, temp: 56 }
+    - { id: hp-2, model: hopper, position: [-9.6, -2.5], title: Hopper 2, kind: hopper, area: line-2, status: running, level: 31, temp: 18.7 }
+    - { id: cv-5, model: conveyor, position: [-8, -2.5], title: "Line 2 · section 1", kind: conveyor, area: line-2, status: running, speed: 24, temp: 55 }
+    - { id: cv-6, model: conveyor, position: [-6, -2.5], title: "Line 2 · section 2", kind: conveyor, area: line-2, status: running, speed: 24, temp: 59 }
+    - { id: cv-7, model: conveyor, position: [-4, -2.5], title: "Line 2 · section 3", kind: conveyor, area: line-2, status: running, speed: 24, temp: 57 }
+    - { id: cv-8, model: conveyor, position: [-2, -2.5], title: "Line 2 · section 4", kind: conveyor, area: line-2, status: running, speed: 24, temp: 60 }
+    - { id: tb-1, model: table, position: [0.6, -6], rotation: 90, title: Packing table 1, area: line-1, clickable: false }
+    - { id: tb-2, model: table, position: [0.6, -2.5], rotation: 90, title: Packing table 2, area: line-2, clickable: false }
+    # Syrup tanks
+    - { id: tk-1, model: tank, position: [-15.5, -7], title: Tank 1 · syrup, kind: tank, area: line-1, status: running, level: 64, temp: 7.1 }
+    - { id: tk-2, model: tank, position: [-15.5, -5], title: Tank 2 · syrup, kind: tank, area: line-1, status: running, level: 38, temp: 6.8 }
+    - { id: tk-3, model: tank, position: [-15.5, -3], title: Tank 3 · water, kind: tank, area: line-2, status: running, level: 17, temp: 7.4 }
+    # Storage
+    - { id: r-1, model: rack, position: [10, -8.5], title: Rack A1, area: storage }
+    - { id: r-2, model: rack, position: [10, -5], title: Rack A2, area: storage }
+    - { id: r-3, model: rack, position: [10, -1.5], title: Rack A3, area: storage }
+    - { id: r-4, model: rack, position: [15, -8.5], title: Rack B1, area: storage }
+    - { id: r-5, model: rack, position: [15, -5], title: Rack B2, area: storage }
+    - { id: r-6, model: rack, position: [15, -1.5], title: Rack B3, area: storage }
+    # Dispatch: pallets with cartons on them
+    - { id: p-1, model: pallet, position: [-4.5, 8], title: Pallet 1, area: dispatch, clickable: false }
+    - { id: p-2, model: pallet, position: [-1.5, 8], title: Pallet 2, area: dispatch, clickable: false }
+    - { id: p-3, model: pallet, position: [1.5, 8], title: Pallet 3, area: dispatch, clickable: false }
+    - { id: c-1, model: carton, position: [-4.5, 0.14, 8], title: Order 4471, area: dispatch, description: "24 cases, for Store 12" }
+    - { id: c-2, model: carton, position: [-1.5, 0.14, 8], title: Order 4472, area: dispatch, description: "18 cases, for Store 3" }
+    - { id: c-3, model: carton, position: [-4.5, 0.65, 8], rotation: 90, title: Order 4471, area: dispatch, clickable: false }
+    # Vehicles, driving their paths at the speed the feed gives
+    - { id: fl-1, model: forklift, path: aisle, speed: 1.2, title: Forklift 1, kind: vehicle, area: vehicles, status: running, battery: 64 }
+    - { id: amr-1, model: amr, path: tug, speed: 0.8, title: Robot 1, kind: vehicle, area: vehicles, status: running, battery: 81 }
+    - { id: amr-2, model: amr, path: dock, speed: 0.8, progress: 0.5, title: Robot 2, kind: vehicle, area: vehicles, status: running, battery: 47 }
+    # Ceiling fans and the air sensors
+    - { id: fan-1, model: fan, position: [-5, 5.6, -4.2], title: Fan 1, kind: fan, area: line-1, effect: spin, spin: 120, status: running, rpm: 60 }
+    - { id: fan-2, model: fan, position: [11, 5.6, -5], title: Fan 2, kind: fan, area: storage, effect: spin, spin: 120, status: running, rpm: 60 }
+    - { id: env-1, shape: sensor, position: [-14, 2.4, 6], title: Air · receiving, kind: sensor, area: line-1, air: 24.2, humidity: 48 }
+    - { id: env-2, shape: sensor, position: [-5, 2.4, -9.5], title: Air · lines, kind: sensor, area: line-1, air: 27.1, humidity: 51 }
+    - { id: env-3, shape: sensor, position: [12.5, 2.4, 2], title: Air · storage, kind: sensor, area: storage, air: 29.3, humidity: 55 }
+    # Safety
+    - { id: x-1, model: extinguisher, position: [-17.4, 0], title: Extinguisher, clickable: false }
+    - { id: x-2, model: extinguisher, position: [17.4, 4], title: Extinguisher, clickable: false }
+    - { id: x-3, model: sign, position: [-1, 4.8], rotation: 30, title: Wet floor sign, clickable: false }
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    min-height: 100svh
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@lg": { height: 100svh }
+  children:
+    # ---------------------------------------------------------------- the header and tiles
+    - type: element
+      props: { tag: header }
+      style: { display: flex, flex-wrap: wrap, align-items: center, gap: 16, padding: 16px 20px, border-bottom: 1px solid $color.border }
+      children:
+        - type: stack
+          props: { gap: 2 }
+          style: { margin-inline-end: auto }
+          children:
+            - { type: ui-heading, props: { level: 3, text: Packing hall } }
+            - type: ui-text
+              props: { variant: muted, text: "{{ live.plant ? 'Live · ' + live.plant.time : 'Waiting for the line data' }}" }
+        - type: element
+          style: { display: grid, grid-template-columns: "repeat(2, minmax(0, 1fr))", gap: 8, width: 100%, "@md": { grid-template-columns: "repeat(4, minmax(110px, 1fr))", width: auto } }
+          children:
+            - { type: ui-stat, props: { label: Cases an hour, value: "{{ live.plant ? live.plant.output : 1250 }}" } }
+            - { type: ui-stat, props: { label: OEE, value: "{{ live.plant ? live.plant.oee : 82 }}%" } }
+            - { type: ui-stat, props: { label: Running, value: "{{ live.plant ? live.plant.running : 19 }}" } }
+            - { type: ui-stat, props: { label: In alarm, value: "{{ alarms.length }}" } }
+
+    - type: element
+      style: { display: flex, flex-direction: column, flex: 1, min-height: 0, "@lg": { flex-direction: row } }
+      children:
+        # ---------------------------------------------------------------- the twin
+        - type: ui-twin
+          attrs: { id: hall }
+          style: { flex: 1, min-width: 0, min-height: 520, border-radius: 0 }
+          props:
+            height: 100%
+            title: Packing hall
+            objects: "{{ hall }}"
+            filter: { area: "{{ area == 'all' ? '' : area }}" }
+            live: { stream: api/twin/plant/stream }
+            bindLive: live
+            bind: picked
+            bindObject: machine
+            bindAlarms: alarms
+            bindView: view
+            follow: "{{ following }}"
+            toneBy: { field: status, tones: "{{ tones }}" }
+            alarmBy: { field: status, values: [fault] }
+            models:
+              hopper: ../twin/models/hopper.glb
+              conveyor: ../twin/models/conveyor.glb
+              table: ../twin/models/table_ss.glb
+              tank: ../twin/models/ibc_tank.glb
+              rack: ../twin/models/rack.glb
+              pallet: ../twin/models/pallet.glb
+              carton: ../twin/models/carton.glb
+              forklift: ../twin/models/forklift.glb
+              amr: { url: ../twin/models/amr.glb, fit: 1.1 }
+              fan: { url: ../twin/models/hvls_fan.glb, fit: 4 }
+              extinguisher: ../twin/models/extinguisher.glb
+              sign: ../twin/models/floor_sign.glb
+            readouts:
+              - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, when: { kind: conveyor } }
+              - { field: speed, label: Belt, unit: m/min, tag: false, when: { kind: conveyor } }
+              - { field: level, label: Level, unit: "%", decimals: 0, warn: 25, alarm: 10, below: true, when: { kind: [hopper, tank] } }
+              - { field: temp, label: Temperature, unit: °C, tag: false, when: { kind: [hopper, tank] } }
+              - { field: battery, label: Battery, unit: "%", decimals: 0, warn: 30, alarm: 15, below: true, when: { kind: vehicle } }
+              - { field: air, label: Air, unit: °C, warn: 30, alarm: 35, when: { kind: sensor } }
+              - { field: humidity, label: Humidity, unit: "%", decimals: 0, tag: false, when: { kind: sensor } }
+              - { field: rpm, label: Fan, unit: rpm, tag: false, when: { kind: fan } }
+            paths:
+              - { id: aisle, points: [[6.5, -9.8], [6.5, 4.5], [-11.5, 4.5], [-11.5, -9.8]], closed: true, tone: warning, width: 0.1 }
+              - { id: tug, points: [[-17, 8.5], [-12.5, 8.5], [-12.5, -9.8], [-17, -9.8]], closed: true, tone: info, flow: true, width: 0.08 }
+              - { id: dock, points: [[-6, 10.2], [6, 10.2], [6, 9.6], [-6, 9.6]], closed: true, tone: info, width: 0.06 }
+            zones:
+              - { id: receiving, center: [-15, 0], size: [6, 22], tone: neutral, label: Receiving }
+              - { id: lines, center: [-5, -4.2], size: [12, 7], tone: primary, label: "Lines 1 and 2", title: Production lines, description: "Two canning lines, 24 cases a minute each" }
+              - { id: storage, center: [12.5, -5], size: [11, 12], tone: info, label: Storage }
+              - { id: dispatch, center: [0, 8], size: [14, 5], tone: success, label: Dispatch }
+            walls:
+              - { points: [[-12, 11], [-18, 11], [-18, -11], [18, -11], [18, 11], [4, 11]], height: 2.4, opacity: 0.5 }
+              - { points: [[7, 1], [7, -11]], height: 1.2, thickness: 0.1, color: "#f59e0b", opacity: 0.8 }
+            ground: { size: [40, 26], grid: 1 }
+            views:
+              - { id: overview, label: Overview, position: [16, 26, 30], target: [0, 0, -1] }
+              - { id: lines, label: Lines, position: [-2, 8, 6], target: [-5, 0, -4.5] }
+              - { id: storage, label: Storage, position: [4, 9, 6], target: [12.5, 0, -5] }
+              - { id: dispatch, label: Dispatch, position: [0, 6, 16], target: [0, 0, 8] }
+              - { id: top, label: Top, position: [0, 42, 0.1], target: [0, 0, 0] }
+          children:
+            - type: ui-twin-panel
+              props: { position: top-left }
+              children:
+                - type: ui-toggle-group
+                  props: { bind: area, variant: outline, size: sm, options: [{ value: all, label: All }, { value: line-1, label: Line 1 }, { value: line-2, label: Line 2 }, { value: storage, label: Storage }, { value: vehicles, label: Vehicles }] }
+                  style: { background: $color.surface, border-radius: $radius.md }
+
+        # ---------------------------------------------------------------- the side
+        - type: element
+          props: { tag: aside }
+          attrs: { aria-label: Machines }
+          style:
+            display: flex
+            flex-direction: column
+            gap: 16
+            box-sizing: border-box
+            padding: 16px
+            border-top: 1px solid $color.border
+            "@lg": { width: 340, flex: none, overflow-y: auto, border-top: none, border-left: 1px solid $color.border }
+          children:
+            - type: if
+              props: { when: "{{ machine }}" }
+              children:
+                - type: ui-card
+                  props: { title: "{{ machine.title }}", description: "{{ machine.id }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 10 }
+                      style: { font-size: 14 }
+                      children:
+                        - type: if
+                          props: { when: "{{ machine.status }}" }
+                          children: [ { type: ui-status-badge, props: { status: "{{ machine.status }}", tones: "{{ tones }}" } } ]
+                        - type: if
+                          props: { when: "{{ machine.level != null }}" }
+                          children:
+                            - { type: text, props: { value: "Level {{ machine.level }}%" } }
+                            - { type: ui-progress, props: { value: "{{ machine.level }}" } }
+                        - type: if
+                          props: { when: "{{ machine.battery != null }}" }
+                          children:
+                            - { type: text, props: { value: "Battery {{ machine.battery }}%" } }
+                            - { type: ui-progress, props: { value: "{{ machine.battery }}" } }
+                        - type: if
+                          props: { when: "{{ machine.temp != null }}" }
+                          children: [ { type: text, props: { value: "Temperature {{ machine.temp }} °C" } } ]
+                        - type: if
+                          props: { when: "{{ machine.speed != null && machine.kind == 'conveyor' }}" }
+                          children: [ { type: text, props: { value: "Belt {{ machine.speed }} m/min" } } ]
+                        - type: if
+                          props: { when: "{{ machine.air != null }}" }
+                          children: [ { type: text, props: { value: "Air {{ machine.air }} °C · humidity {{ machine.humidity }}%" } } ]
+                        - type: if
+                          props: { when: "{{ machine.description }}" }
+                          children: [ { type: text, props: { value: "{{ machine.description }}" }, style: { color: $color.muted } } ]
+                    - type: ui-card-footer
+                      children:
+                        - type: if
+                          props: { when: "{{ machine.kind == 'vehicle' }}" }
+                          children:
+                            - type: ui-button
+                              props: { label: "{{ following == machine.id ? 'Stop following' : 'Follow' }}", size: sm }
+                              on: { click: { action: set_state, key: following, value: "{{ following == machine.id ? '' : machine.id }}" } }
+                        - type: ui-button
+                          props: { label: Close, size: sm, variant: outline }
+                          on: { click: { action: set_state, key: picked, value: null } }
+
+            - { type: ui-heading, props: { level: 4, text: Machines and vehicles } }
+            - type: element
+              props: { tag: ul }
+              attrs: { aria-label: Machines and vehicles }
+              style: { list-style: none, margin: 0 -8px, padding: 0 }
+              children:
+                - type: list
+                  props: { items: "{{ hall }}", as: m, key: "{{ m.id }}" }
+                  style: { display: contents }
+                  children:
+                    - type: if
+                      props: { when: "{{ m.kind && m.kind != 'sensor' && (area == 'all' || m.area == area) }}" }
+                      children:
+                        - type: element
+                          props: { tag: li }
+                          children:
+                            - type: element
+                              props: { tag: button }
+                              attrs: { type: button, aria-pressed: "{{ picked == m.id }}", data-machine: "{{ m.id }}" }
+                              style:
+                                display: flex
+                                align-items: center
+                                gap: 10
+                                box-sizing: border-box
+                                width: 100%
+                                padding: 7px 8px
+                                border: 0
+                                border-radius: $radius.md
+                                background: "{{ picked == m.id ? 'var(--color-subtle)' : 'transparent' }}"
+                                color: inherit
+                                font: inherit
+                                text-align: start
+                                cursor: pointer
+                                ":hover": { background: $color.subtle }
+                                ":focus-visible": { outline: 2px solid $color.primary, outline-offset: -2px }
+                              on:
+                                click: { action: set_state, key: picked, value: "{{ m.id }}" }
+                              children:
+                                - type: element
+                                  style: { display: flex, flex-direction: column, flex: 1, min-width: 0 }
+                                  children:
+                                    - { type: text, props: { value: "{{ m.title }}" }, style: { font-size: 14, font-weight: 500 } }
+                                    - type: text
+                                      props: { value: "{{ live[m.id] && live[m.id].temp != null ? live[m.id].temp + ' °C' : live[m.id] && live[m.id].level != null ? live[m.id].level + '% full' : live[m.id] && live[m.id].battery != null ? 'Battery ' + live[m.id].battery + '%' : m.id }}" }
+                                      style: { color: $color.muted, font-size: 12 }
+                                - { type: ui-status-badge, props: { status: "{{ live[m.id] ? live[m.id].status : m.status }}", tones: "{{ tones }}" } }

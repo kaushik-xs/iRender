@@ -1,0 +1,222 @@
+# Block: a cold store's sensors in 3D. Fourteen temperature sensors and three door contacts,
+# polled from examples/serve.py every three seconds (`api/twin/coldstore`). Each sensor is
+# coloured by its temperature on one scale (`colorBy`), and each room has its own limits
+# (readouts with `when`): past them a sensor turns warning, then alarm. Freezer B's door is
+# left open now and then: watch its sensors warm up. Click a room, or pick it above the list,
+# to see only its sensors.
+#
+#   cargo run -p irender-cli -- render examples/blocks/twin-02.yaml --ui-kit --icon-kit --twin-kit -o twin-02.html
+version: 1
+state:
+  room: all
+  picked: null
+  sensor: null
+  alarms: []
+  live: {}
+  rooms: [ { value: all, label: All rooms }, { value: freezer-a, label: Freezer A }, { value: freezer-b, label: Freezer B }, { value: chiller, label: Chiller }, { value: dock, label: Dock } ]
+  names: { s-01: "Freezer A · 1", s-02: "Freezer A · 2", s-03: "Freezer A · 3", s-04: "Freezer A · 4", s-05: "Freezer B · 1", s-06: "Freezer B · 2", s-07: "Freezer B · 3", s-08: "Freezer B · 4", s-09: "Chiller · 1", s-10: "Chiller · 2", s-11: "Chiller · 3", s-12: "Chiller · 4", s-13: "Dock · 1", s-14: "Dock · 2", d-1: Freezer A door, d-2: Freezer B door, d-3: Chiller door }
+  store:
+    - { id: s-01, shape: sensor, size: 0.35, position: [-10, 3.4, -6.8], title: "Freezer A · 1", kind: sensor, room: freezer-a, temp: -20.2, humidity: 77, battery: 93 }
+    - { id: s-02, shape: sensor, size: 0.35, position: [-5, 3.4, -6.8], title: "Freezer A · 2", kind: sensor, room: freezer-a, temp: -19.8, humidity: 76, battery: 86 }
+    - { id: s-03, shape: sensor, size: 0.35, position: [-10, 3.4, -1.2], title: "Freezer A · 3", kind: sensor, room: freezer-a, temp: -20.6, humidity: 75, battery: 79 }
+    - { id: s-04, shape: sensor, size: 0.35, position: [-5, 3.4, -1.2], title: "Freezer A · 4", kind: sensor, room: freezer-a, temp: -20.2, humidity: 74, battery: 72 }
+    - { id: s-05, shape: sensor, size: 0.35, position: [-10, 3.4, 1.2], title: "Freezer B · 1", kind: sensor, room: freezer-b, temp: -19.0, humidity: 73, battery: 65 }
+    - { id: s-06, shape: sensor, size: 0.35, position: [-5, 3.4, 1.2], title: "Freezer B · 2", kind: sensor, room: freezer-b, temp: -19.8, humidity: 72, battery: 98 }
+    - { id: s-07, shape: sensor, size: 0.35, position: [-10, 3.4, 6.8], title: "Freezer B · 3", kind: sensor, room: freezer-b, temp: -19.4, humidity: 71, battery: 91 }
+    - { id: s-08, shape: sensor, size: 0.35, position: [-5, 3.4, 6.8], title: "Freezer B · 4", kind: sensor, room: freezer-b, temp: -19.0, humidity: 70, battery: 84 }
+    - { id: s-09, shape: sensor, size: 0.35, position: [0, 3.4, -7], title: "Chiller · 1", kind: sensor, room: chiller, temp: 3.2, humidity: 69, battery: 77 }
+    - { id: s-10, shape: sensor, size: 0.35, position: [9, 3.4, -7], title: "Chiller · 2", kind: sensor, room: chiller, temp: 3.6, humidity: 68, battery: 70 }
+    - { id: s-11, shape: sensor, size: 0.35, position: [0, 3.4, -1], title: "Chiller · 3", kind: sensor, room: chiller, temp: 4.0, humidity: 67, battery: 63 }
+    - { id: s-12, shape: sensor, size: 0.35, position: [9, 3.4, -1], title: "Chiller · 4", kind: sensor, room: chiller, temp: 3.2, humidity: 66, battery: 96 }
+    - { id: s-13, shape: sensor, size: 0.35, position: [1, 3.4, 5.5], title: "Dock · 1", kind: sensor, room: dock, temp: 11.8, humidity: 65, battery: 89 }
+    - { id: s-14, shape: sensor, size: 0.35, position: [9, 3.4, 5.5], title: "Dock · 2", kind: sensor, room: dock, temp: 12.2, humidity: 64, battery: 82 }
+    - { id: d-1, shape: box, size: [0.12, 2.2, 1.4], color: "#94a3b8", position: [-3, -4.5], title: Freezer A door, kind: door, room: freezer-a, door: closed }
+    - { id: d-2, shape: box, size: [0.12, 2.2, 1.4], color: "#94a3b8", position: [-3, 5.25], title: Freezer B door, kind: door, room: freezer-b, door: closed }
+    - { id: d-3, shape: box, size: [1.4, 2.2, 0.12], color: "#94a3b8", position: [4.75, 1], title: Chiller door, kind: door, room: chiller, door: closed }
+    - { id: rack-1, model: rack, position: [-7.5, -6.2], title: Rack 1, room: freezer-a, clickable: false }
+    - { id: rack-2, model: rack, position: [-7.5, -1.9], title: Rack 2, room: freezer-a, clickable: false }
+    - { id: rack-3, model: rack, position: [-7.5, 1.9], title: Rack 3, room: freezer-b, clickable: false }
+    - { id: rack-4, model: rack, position: [-7.5, 6.2], title: Rack 4, room: freezer-b, clickable: false }
+    - { id: rack-5, model: rack, position: [2, -6.4], title: Rack 5, room: chiller, clickable: false }
+    - { id: rack-6, model: rack, position: [7, -6.4], title: Rack 6, room: chiller, clickable: false }
+    - { id: rack-7, model: rack, position: [2, -2], title: Rack 7, room: chiller, clickable: false }
+    - { id: rack-8, model: rack, position: [7, -2], title: Rack 8, room: chiller, clickable: false }
+    - { id: pallet-1, model: pallet, position: [0, 4.5], room: dock, clickable: false }
+    - { id: crate-1, model: crate, position: [0, 0.14, 4.5], room: dock, clickable: false }
+    - { id: pallet-2, model: pallet, position: [2.5, 4.5], room: dock, clickable: false }
+    - { id: crate-2, model: crate, position: [2.5, 0.14, 4.5], room: dock, clickable: false }
+    - { id: pallet-3, model: pallet, position: [5, 6.5], room: dock, clickable: false }
+    - { id: crate-3, model: crate, position: [5, 0.14, 6.5], room: dock, clickable: false }
+    - { id: jack-1, model: jack, position: [8.5, 3.2], rotation: -60, title: Pallet jack, room: dock, clickable: false }
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    min-height: 100svh
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@lg": { flex-direction: row, height: 100svh }
+  children:
+    - type: element
+      props: { tag: aside }
+      attrs: { aria-label: Sensors }
+      style:
+        display: flex
+        flex-direction: column
+        gap: 14
+        box-sizing: border-box
+        padding: 20px 16px
+        border-bottom: 1px solid $color.border
+        "@lg": { width: 340, flex: none, overflow-y: auto, border-bottom: none, border-right: 1px solid $color.border }
+      children:
+        - type: stack
+          props: { gap: 2 }
+          children:
+            - { type: ui-heading, props: { level: 3, text: Cold store } }
+            - type: ui-text
+              props: { variant: muted, text: "{{ live['s-01'] ? '14 sensors and 3 doors, every 3 seconds' : 'Waiting for the sensors' }}" }
+        - type: if
+          props: { when: "{{ alarms.length > 0 }}" }
+          children:
+            - type: ui-alert
+              props: { variant: destructive, title: "{{ alarms.length }} in alarm" }
+              children:
+                - type: element
+                  props: { tag: ul }
+                  style: { margin: 0, padding-inline-start: 18 }
+                  children:
+                    - type: list
+                      props: { items: "{{ alarms }}", as: a }
+                      style: { display: contents }
+                      children:
+                        - type: element
+                          props: { tag: li }
+                          children:
+                            - type: element
+                              props: { tag: button }
+                              attrs: { type: button }
+                              style: { padding: 0, border: 0, background: none, color: inherit, font: inherit, text-decoration: underline, cursor: pointer }
+                              on: { click: { action: set_state, key: picked, value: "{{ a }}" } }
+                              children: [ { type: text, props: { value: "{{ names[a] }}" } } ]
+        - type: else
+          children: [ { type: ui-alert, props: { variant: success, title: All within limits } } ]
+        - type: ui-field
+          props: { label: Room }
+          children: [ { type: ui-select, props: { bind: room, options: "{{ rooms }}" } } ]
+        - type: element
+          props: { tag: ul }
+          attrs: { aria-label: Sensors }
+          style: { list-style: none, margin: 0 -8px, padding: 0 }
+          children:
+            - type: list
+              props: { items: "{{ store }}", as: s, key: "{{ s.id }}" }
+              style: { display: contents }
+              children:
+                - type: if
+                  props: { when: "{{ (s.kind == 'sensor' || s.kind == 'door') && (room == 'all' || s.room == room) }}" }
+                  children:
+                    - type: element
+                      props: { tag: li }
+                      children:
+                        - type: element
+                          props: { tag: button }
+                          attrs: { type: button, aria-pressed: "{{ picked == s.id }}", data-sensor: "{{ s.id }}" }
+                          style:
+                            display: flex
+                            align-items: center
+                            gap: 10
+                            box-sizing: border-box
+                            width: 100%
+                            padding: 6px 8px
+                            border: 0
+                            border-radius: $radius.md
+                            background: "{{ picked == s.id ? 'var(--color-subtle)' : 'transparent' }}"
+                            color: inherit
+                            font: inherit
+                            text-align: start
+                            cursor: pointer
+                            ":hover": { background: $color.subtle }
+                            ":focus-visible": { outline: 2px solid $color.primary, outline-offset: -2px }
+                          on: { click: { action: set_state, key: picked, value: "{{ s.id }}" } }
+                          children:
+                            - { type: text, props: { value: "{{ s.title }}" }, style: { flex: 1, font-size: 14 } }
+                            - type: if
+                              props: { when: "{{ s.kind == 'door' }}" }
+                              children:
+                                - type: ui-status-badge
+                                  props: { status: "{{ live[s.id] ? live[s.id].door : s.door }}", tones: { open: danger, closed: success } }
+                            - type: else
+                              children:
+                                - type: text
+                                  props: { value: "{{ live[s.id] ? live[s.id].temp : s.temp }} °C" }
+                                  style: { font-variant-numeric: tabular-nums, font-weight: 600, color: "{{ includes(alarms, s.id) ? 'var(--color-danger)' : 'inherit' }}" }
+
+    - type: ui-twin
+      attrs: { id: store }
+      style: { flex: 1, min-width: 0, min-height: 520, border-radius: 0 }
+      props:
+        height: 100%
+        title: Cold store
+        objects: "{{ store }}"
+        filter: { room: "{{ room == 'all' ? '' : room }}" }
+        live: { url: api/twin/coldstore, every: 3000 }
+        bindLive: live
+        bind: picked
+        bindObject: sensor
+        bindAlarms: alarms
+        bindZone: room
+        alarmBy: { field: door, values: [open] }
+        colorBy: { field: temp, min: -25, max: 15, colors: ["#1d4ed8", "#06b6d4", "#22c55e", "#eab308", "#dc2626"] }
+        environment: { preset: day }
+        camera: { position: [0, 22, 20], target: [0, 0, 0] }
+        models:
+          rack: ../twin/models/rack.glb
+          pallet: ../twin/models/pallet.glb
+          crate: ../twin/models/crate_blue.glb
+          jack: ../twin/models/pallet_jack.glb
+        readouts:
+          - { field: temp, label: Temperature, unit: °C, decimals: 1, warn: -17, alarm: -14, when: { room: [freezer-a, freezer-b], kind: sensor } }
+          - { field: temp, label: Temperature, unit: °C, decimals: 1, warn: 6, alarm: 8, when: { room: chiller, kind: sensor } }
+          - { field: temp, label: Temperature, unit: °C, decimals: 1, warn: 15, alarm: 20, when: { room: dock, kind: sensor } }
+          - { field: humidity, label: Humidity, unit: "%", decimals: 0, tag: false, when: { kind: sensor } }
+          - { field: battery, label: Battery, unit: "%", decimals: 0, tag: false, when: { kind: sensor } }
+          - { field: door, label: Door, when: { kind: door } }
+        zones:
+          - { id: freezer-a, center: [-7.5, -4], size: [9, 8], tone: info, label: Freezer A, title: Freezer A, description: "Kept at −20 °C; alarm over −14 °C" }
+          - { id: freezer-b, center: [-7.5, 4], size: [9, 8], tone: info, label: Freezer B, title: Freezer B, description: "Kept at −20 °C; alarm over −14 °C" }
+          - { id: chiller, center: [4.5, -3.5], size: [15, 9], tone: success, label: Chiller, title: Chiller, description: "Kept at 2 to 5 °C; alarm over 8 °C" }
+          - { id: dock, center: [4.5, 4.5], size: [15, 7], tone: neutral, label: Dock, title: Dock, description: "Not cooled; alarm over 20 °C" }
+        walls:
+          - { points: [[-12, -8], [12, -8], [12, 8], [-12, 8]], closed: true, height: 3.6, opacity: 0.45 }
+          - { points: [[-12, 0], [-3, 0]], height: 3.6, opacity: 0.45 }
+          - { points: [[-3, -8], [-3, -5.2]], height: 3.6, opacity: 0.45 }
+          - { points: [[-3, -3.8], [-3, 4.55]], height: 3.6, opacity: 0.45 }
+          - { points: [[-3, 5.95], [-3, 8]], height: 3.6, opacity: 0.45 }
+          - { points: [[-3, 1], [4.05, 1]], height: 3.6, opacity: 0.45 }
+          - { points: [[5.45, 1], [12, 1]], height: 3.6, opacity: 0.45 }
+        ground: { size: [28, 20], grid: 1 }
+        views:
+          - { id: all, label: Store, position: [0, 22, 20], target: [0, 0, 0] }
+          - { id: freezers, label: Freezers, position: [-1, 10, 9], target: [-7.5, 0, 0] }
+          - { id: chiller, label: Chiller, position: [12, 9, 6], target: [4.5, 0, -3.5] }
+          - { id: top, label: Top, position: [0, 30, 0.1], target: [0, 0, 0] }
+      children:
+        - type: ui-twin-panel
+          props: { position: bottom-left }
+          children:
+            - type: element
+              style: { padding: 8px 10px, border: 1px solid $color.border, border-radius: $radius.md, background: $color.surface, font-size: 12 }
+              children:
+                - { type: text, props: { value: Temperature }, style: { display: block, font-weight: 600, margin-bottom: 4 } }
+                - type: element
+                  attrs: { role: img, aria-label: "Colours from blue at −25 °C to red at 15 °C" }
+                  style: { width: 180, height: 8, border-radius: 4, background: "linear-gradient(90deg, #1d4ed8, #06b6d4, #22c55e, #eab308, #dc2626)" }
+                - type: element
+                  style: { display: flex, justify-content: space-between, color: $color.muted, margin-top: 2 }
+                  children:
+                    - { type: text, props: { value: −25 °C } }
+                    - { type: text, props: { value: −5 °C } }
+                    - { type: text, props: { value: 15 °C } }
+

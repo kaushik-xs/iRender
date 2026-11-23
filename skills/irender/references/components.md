@@ -2,7 +2,7 @@
 
 # Components
 
-Every component with all kits enabled. Each entry: name and summary, then one line per prop (name, type, description), its `parts`, and whether it takes `children`. Core built-ins come first, then `ui-*` (ui-kit), `ui-chart` / `ui-sparkline` / `ui-live-data` (chart-kit), `ui-flow*` (flow-kit), `ui-map*` (map-kit) and `ui-icon` (icon-kit).
+Every component with all kits enabled. Each entry: name and summary, then one line per prop (name, type, description), its `parts`, and whether it takes `children`. Core built-ins come first, then `ui-*` (ui-kit), `ui-chart` / `ui-sparkline` / `ui-live-data` (chart-kit), `ui-flow*` (flow-kit), `ui-map*` (map-kit), `ui-twin*` (twin-kit) and `ui-icon` (icon-kit).
 
 ```
 element: Any HTML element. Set attributes with `attrs`.
@@ -2227,6 +2227,52 @@ ui-map-popup: What a `ui-map`'s popup shows, with the selected marker in scope a
   children: yes
 ui-map-panel: Content that floats above a `ui-map`, e.g. a legend or a search box. It doesn't move with the map.
   position     one of: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right  Corner or edge of the map (default top-left)
+  children: yes
+ui-twin: A digital twin: a 3D world drawn with three.js from models of most formats, every part of it configurable and able to use state, with machine and sensor values shown on the objects, alarms, paths things follow, zones, views and editing the layout. A `ui-twin-popup` child is the popup's content; `ui-twin-panel` children float above it.
+  models       any  The models by name: `{ forklift: models/forklift.glb, pump: { url, scale, units: m | cm | mm | in | ft, up: y | z, rotate, fit, origin: base | center | none, format, mtl, color } }`. glTF / GLB (with Draco, meshopt and KTX2), OBJ (with `mtl`), FBX, STL, PLY, DAE, 3MF, 3DS, WRL and USD / USDZ. `fit`: the largest side in metres, or `[w, h, d]` to fit in. Each is made to stand on the ground at its middle unless `origin` says otherwise
+  objects      any  What's in the world, as rows: `{ id, model | shape: box | cylinder | sphere | cone | sensor | point, size, color, position: [x, z] | [x, y, z], rotation (degrees, or [x, y, z]), scale, title, description, label, tone, alarm, effect, path, speed, progress, loop, face, attach, animation, opacity, clickable, href, … }`, in metres with y up. Any other fields are the object's data (a machine's speed, a sensor's value): `readouts` show them. Usually from data or state, so they move when it changes
+  readouts     any  Values shown on the objects that have them: `[{ field, label, unit, decimals, warn, alarm, below, tag, when, models }]`. Past `warn` an object turns warning, past `alarm` it's in alarm (`below: true`: under them); `when` (a `filter`) or `models` limit a readout to some objects, so each kind can have its own limits. The first two are on its tag (`tag` says otherwise); all are in its popup
+  colorBy      any  Colours objects by a value: `{ field, min, max, colors: [blue, green, yellow, red] }`, e.g. temperatures
+  live         any  Machine and sensor values from a feed of the twin's own: `{ url, every: 5000 }` polled, or `{ stream: url }` (server-sent events). Each answer is rows with an `id`, or `{ <id>: { field: value } }`, merged into the objects with that id
+  paths        any  Routes: `{ id, points: [[x, z], …], closed, width, tone, color, flow, height, show }`. `flow: true` (or a speed) moves stripes along it; an object with `path` follows it at `speed` m/s (default 1), or stands at `progress` (0 to 1)
+  zones        any  Areas on the ground: `{ id, points: [[x, z], …] | center: [x, z] and size: [w, d], tone, color, label, title, description, height, opacity }`. With `bindZone` or a `title` they can be clicked
+  walls        any  Walls: `{ points: [[x, z], …], closed, height (default 3), thickness (default 0.2), color, opacity }`
+  ground       any  `{ size: [w, d], center, color, grid: 1 (metres a cell) | false }`, or false for none. Default: big enough for everything, with a 1 m grid
+  environment  any  `{ preset: studio | day | night, light (default 1), shadows (default true), background, fog }`
+  camera       any  `{ position: [x, y, z], target: [x, y, z], fov }`. The camera moves there when it changes. Default: fitted to the world
+  views        any  Named views, shown as buttons: `[{ id, label, position, target }]`
+  world        any  All of the above in one object (`{ models, objects, paths, zones, walls, ground, environment, camera, views, readouts, colorBy }`), e.g. a layout kept in state; a prop of its own wins
+  src          any  The address of such a world as JSON, fetched in the browser
+  follow       any  The id of an object the camera follows, keeping its distance
+  filter       any  Shows only the objects that pass: `{ field: condition }`, as `ui-data-table`'s and `ui-chart`'s `filter`, e.g. a `ui-filters` panel's `bind`
+  toneBy       any  Tones objects by a field: `{ field: status, tones: { running: success, idle: neutral, fault: danger } }`; a ring in it is drawn under each
+  alarmBy      any  Which objects are in alarm: `{ field: status, values: [fault] }`, or `alarm: true` on a row, or a readout past `alarm`. They glow red, get a `!` tag, and a new one is announced
+  effectBy     any  Animates objects by a field: `{ field: state, effects: { running: spin } }`, or `effect` on a row: `pulse`, `glow`, `blink`, `spin` (`spin`: degrees a second) or `bob`. Still, where the viewer asked for less motion
+  labels       one of: auto, all, none  Tags over objects: `auto` (default) for those with a `label`, readouts or an alarm; `all`; `none` (alarms still)
+  editable     any  Objects can be dragged on the ground, or moved with Alt and the arrow keys and turned with Alt+R (needs `bindObjects`)
+  snap         any  Metres moves snap to, e.g. 0.5
+  palette      any  While `editable`, things to add, as rows like `objects` without a place: `[{ label, model | shape, title, … }]`. Clicked, one is added in the middle of the view; dragged into it, where it's dropped. Delete removes the selected object
+  bind         statekey  State key with the selected object's id (null when none). Setting it selects that object and brings it into view
+  bindObject   statekey  State key with the selected object itself, with its latest values
+  bindZone     statekey  State key with the id of the zone last clicked
+  bindView     statekey  State key with the current view's id; setting it moves the camera there
+  bindAlarms   statekey  State key with the ids of the objects in alarm, e.g. for a count
+  bindObjects  statekey  State key the objects are in: a moved one's `position` and `rotation` are written back to its row
+  bindLive     statekey  State key that gets the latest values from `live`, as `{ <id>: { field: value } }`, e.g. for a list or totals beside the twin
+  bindCamera   statekey  State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`
+  popup        bool  Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)
+  controls     bool  Zoom and fit buttons (default true)
+  gestures     one of: orbit, none  `orbit` (default): drag to turn, right-drag or two fingers to move, wheel or pinch to zoom. `none`: the camera stays put
+  transition   number  Milliseconds an object takes to move to a new place from the data (default 600; 0 jumps)
+  quality      one of: high, low  `low`: no shadows or smoothing, for big worlds or slow devices
+  height       any  Number (px) or CSS length; default 480. The width is the container's
+  title        any  Names the view for screen readers (default `3D view`)
+  parts: controls
+  children: yes
+ui-twin-popup: What a `ui-twin`'s popup shows, with the selected object (and its latest values) in scope as `object`.
+  children: yes
+ui-twin-panel: Content that floats above a `ui-twin`, e.g. a legend, counts or filters. It doesn't move with the camera.
+  position     one of: top-left, top-center, top-right, bottom-left, bottom-center, bottom-right  Corner or edge of the view (default top-left)
   children: yes
 ui-icon: An SVG icon from the icon kit's packs, drawn in the current text colour.
   name         string (required)  `pack:icon` (e.g. `logistics:truck`) or a bare `icon`, found in the first pack that has it

@@ -6,7 +6,8 @@ _Last updated: 2026-11-23._
 
 ## Suggested next
 
-1. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
+1. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23: next, try it on phones and with big worlds (instancing), and history on readouts (see Twin kit next phases).
+2. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
 
@@ -244,6 +245,16 @@ These came out of the React Flow research on the builder and client-ui-next repo
 - [ ] Not built: searching for an address and routes (both need a service), drawing shapes, turned pictures, markers of any components, vector tiles (MapLibre), spreading out markers on the same spot.
 - [ ] OpenStreetMap's own tiles are for light use; a busy site needs its own tile server or a provider (`tiles`). Opened as a file (no address to send), a page may be refused tiles.
 - [ ] The other kits' browser renderer (irender-wasm) doesn't include maps.
+
+## Twin kit next phases
+
+- [x] **Digital twins** (2026-11-23): `irender-twin-kit`'s `ui-twin`, drawn with three.js 0.183.2: models of most formats (glTF with Draco, meshopt and KTX2, OBJ, FBX, STL, PLY, DAE, 3MF, 3DS, WRL, USD) put right by `units`, `up`, `fit`; objects, shapes, paths with flow, zones, walls, ground, light presets and views, all configuration that may use state, or one `world` / `src`; readouts with limits per kind (`when`), alarms, tones, effects, `colorBy`; a `live` feed (polled or streamed) and `bindLive`; paths driven by speed or progress, `attach`, `follow`; popups of any components and panels; editing with a palette, snap, keys and write-back; the objects as a list for the keyboard; a list of objects and values without WebGL (the Twins page, blocks twin-01 to twin-03, `tools/simready/`). Browser tests in Chrome (SwiftShader), WebKit and Firefox.
+- [ ] **Nothing tried on a phone or a big world.** Drawn on a Mac in Chrome, Firefox and WebKit; not on phones or tablets, and not with more than about 40 objects. Every object is its own copy of its model: hundreds of the same one (pallets, cartons) want instancing. Idea: `instanced: true` on a model.
+- [ ] **No history on the objects.** A popup of its own can show a chart from the page's state, but the twin keeps only the latest values. Idea: `history: n` per readout, drawn as a sparkline in the popup.
+- [ ] Not built: picking several objects, sizing and stretching by hand, walls and zones edited by hand, measuring, cutting a building away floor by floor (a `floors` list, as `ui-plan` has), labels in 3D that hide behind walls, outlines on hover, VR and AR, a top view without perspective.
+- [ ] **USD straight from SimReady:** three.js's USD reader takes a single file; SimReady's assets refer to other layers and textures, so they're converted with `tools/simready/` (Python with usd-core) first. The converter hasn't been run in this repo's CI.
+- [ ] Models, worlds and feeds from other sites need CORS. Feeds are anonymous: no headers or credentials (`live` has no `headers` yet).
+- [ ] The other kits' browser renderer (irender-wasm) doesn't include twins.
 
 ## Icon kit: packs not drawn yet
 

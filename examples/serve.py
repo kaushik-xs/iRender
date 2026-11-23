@@ -28,6 +28,12 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/available JSON: whether a name is free (`?value=<name>`), for ui-form's `remote` rule:
                 { valid } or { valid: false, message }. admin, root, support, help, imran and
                 ada are taken.
+  api/twin/plant         JSON: the packing hall's machines, vehicles and sensors (block twin-01), by id:
+                         { "cv-1": { status, speed, temp }, …, "plant": { output, oee, … } }. A motor
+                         on line 1 overheats and line 2 stops for a while every few minutes.
+  api/twin/plant/stream  the same, as server-sent events, once a second
+  api/twin/coldstore     JSON: the cold store's sensors and doors (block twin-02); freezer B's door
+                         is left open now and then and its sensors warm up.
   api/records   POST anything as JSON: answers { id, size }, the same for the same x-queued-id.
   api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
@@ -206,6 +212,81 @@ def render_reply(name):
     return _rendered[name]
 
 
+def wave(t, period, lo, hi, phase=0.0):
+    """Between lo and hi and back, once a period."""
+    return lo + (hi - lo) * (0.5 + 0.5 * math.sin(2 * math.pi * (t / period + phase)))
+
+
+def plant():
+    """The packing hall in block twin-01, now. Every value follows the clock, so a page
+    polling and one streaming agree."""
+    t = time.time()
+    out = {}
+    cycle = t % 240
+    line2_stopped = 150 <= cycle < 195
+    for i in range(1, 9):
+        line = 1 if i <= 4 else 2
+        stopped = line == 2 and line2_stopped
+        temp = wave(t, 90, 52, 62, i / 8)
+        if i == 3:
+            # Its bearing heats up for two minutes, then it's put right.
+            heat = min(1, max(0, (cycle - 40) / 80)) if cycle < 160 else 0
+            temp += 33 * heat
+        if stopped:
+            temp -= 8
+        out[f"cv-{i}"] = {
+            "status": "stopped" if stopped else "fault" if temp >= 85 else "running",
+            "speed": 0 if stopped else round(wave(t, 30, 23, 25, i / 5), 1),
+            "temp": round(temp, 1),
+        }
+    for i, phase in ((1, 0.0), (2, 0.4)):
+        level = 100 - ((t / 1.5 + phase * 100) % 95)
+        out[f"hp-{i}"] = {"status": "running", "level": round(level), "temp": round(wave(t, 60, 18, 21, phase), 1)}
+    for i in range(1, 4):
+        level = 100 - ((t / 6 + i * 23) % 92)
+        out[f"tk-{i}"] = {"status": "running", "level": round(level), "temp": round(wave(t, 120, 6, 8, i / 3), 1)}
+    for vid, period, phase in (("fl-1", 600, 0.1), ("amr-1", 420, 0.5), ("amr-2", 360, 0.8)):
+        battery = wave(t, period, 12, 96, phase)
+        charging = battery < 22
+        out[vid] = {"status": "charging" if charging else "running", "battery": round(battery), "speed": 0 if charging else 1.2 if vid == "fl-1" else 0.8}
+    for i in (1, 2):
+        out[f"fan-{i}"] = {"status": "stopped" if line2_stopped and i == 2 else "running", "effect": "none" if line2_stopped and i == 2 else "spin", "rpm": 0 if line2_stopped and i == 2 else round(wave(t, 50, 58, 62, i / 2))}
+    for i, base in ((1, 24), (2, 27), (3, 29)):
+        out[f"env-{i}"] = {"air": round(base + wave(t, 300, -1.5, 1.5, i / 3), 1), "humidity": round(wave(t, 400, 42, 58, i / 3))}
+    running = sum(1 for v in out.values() if v.get("status") == "running")
+    out["plant"] = {
+        "output": round(wave(t, 120, 1180, 1320) * (0.55 if line2_stopped else 1)),
+        "oee": round(wave(t, 200, 78, 86) * (0.8 if line2_stopped else 1), 1),
+        "running": running,
+        "time": datetime.fromtimestamp(int(t), timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+    return out
+
+
+COLD_ROOMS = {"freezer-a": (-21, 4), "freezer-b": (-20, 4), "chiller": (3, 4), "dock": (11, 2)}
+
+
+def coldstore():
+    """The cold store in block twin-02, now: sensors s-01 to s-14 and doors d-1 to d-3."""
+    t = time.time()
+    cycle = t % 300
+    # Freezer B's door is left open for a minute and a half, and its air warms up.
+    open_b = 60 <= cycle < 150
+    warm = min(1, max(0, (cycle - 60) / 70)) if cycle < 210 else 0
+    warm = warm if cycle < 150 else max(0, 1 - (cycle - 150) / 60)
+    rooms = ["freezer-a"] * 4 + ["freezer-b"] * 4 + ["chiller"] * 4 + ["dock"] * 2
+    out = {}
+    for i, room in enumerate(rooms, 1):
+        base, spread = COLD_ROOMS[room]
+        temp = base + spread * (wave(t, 180, -0.5, 0.5, i / 7))
+        if room == "freezer-b":
+            temp += 13 * warm * (1 - 0.15 * (i - 5))
+        out[f"s-{i:02d}"] = {"temp": round(temp, 1), "humidity": round(wave(t, 240, 70, 85, i / 5)), "battery": 100 - (i * 7) % 40}
+    for i, room in ((1, "freezer-a"), (2, "freezer-b"), (3, "chiller")):
+        out[f"d-{i}"] = {"door": "open" if (i == 2 and open_b) else "closed"}
+    return out
+
+
 def metrics():
     t = time.time()
     return {
@@ -229,6 +310,12 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(budget_projects(query.get("parent", "")))
         if "/api/uploads/" in path:
             return self.uploaded(path)
+        if path.endswith("/api/twin/plant/stream"):
+            return self.events(plant)
+        if path.endswith("/api/twin/plant"):
+            return self.send_json(plant())
+        if path.endswith("/api/twin/coldstore"):
+            return self.send_json(coldstore())
         if path.endswith("/api/available"):
             from urllib.parse import parse_qsl
             query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
@@ -387,6 +474,20 @@ class Handler(SimpleHTTPRequestHandler):
                     "amount": round(random.lognormvariate(5.5, 0.6)),
                 }
                 self.wfile.write(f"data: {json.dumps(order)}\n\n".encode())
+                self.wfile.flush()
+                time.sleep(1)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def events(self, make):
+        """What `make` gives, as a server-sent event once a second."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        try:
+            while True:
+                self.wfile.write(f"data: {json.dumps(make())}\n\n".encode())
                 self.wfile.flush()
                 time.sleep(1)
         except (BrokenPipeError, ConnectionResetError):

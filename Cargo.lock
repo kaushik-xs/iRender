@@ -433,6 +433,7 @@ dependencies = [
  "irender-icon-kit",
  "irender-map-kit",
  "irender-markdown-kit",
+ "irender-twin-kit",
  "irender-ui-kit",
  "schemars",
  "serde_json",
@@ -512,6 +513,16 @@ dependencies = [
  "indexmap",
  "irender-core",
  "lightningcss",
+ "serde_json",
+]
+
+[[package]]
+name = "irender-twin-kit"
+version = "0.7.0"
+dependencies = [
+ "irender-core",
+ "irender-html",
+ "irender-ui-kit",
  "serde_json",
 ]
 
