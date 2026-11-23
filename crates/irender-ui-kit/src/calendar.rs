@@ -38,6 +38,8 @@ macro_rules! calendar_props {
             PropDef::new("presets", PropKind::Any, "Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`"),
             PropDef::new("dropdowns", PropKind::Bool, "Month and year menus in place of the caption, for dates far away such as birthdays"),
             PropDef::new("bindRange", PropKind::StateKey, "State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter"),
+            PropDef::new("compare", PropKind::Any, "With `mode: range`, a period to compare with: `true`, or the kinds offered, from `previous`, `lastYear` and `custom`"),
+            PropDef::new("bindCompare", PropKind::StateKey, "With `compare`, a state key holding the comparison, `{ type, from, to }` (the dates it covers), or null while it's off"),
             PropDef::new("name", PropKind::String, "Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)"),
             PropDef::new("locale", PropKind::String, "Locale for names and formats (default: the document's `lang`, else the browser's)"),
             PropDef::new("label", PropKind::Any, "Accessible name"),
@@ -62,6 +64,9 @@ const PICKER_PROPS: &[PropDef] = calendar_props![
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
     StyleBlock::from_pairs(p)
 }
+
+/// The comparison's colour, faint: the second series colour, as charts draw it.
+const CMP_TINT: &str = "color-mix(in srgb, var(--color-chart-2, var(--color-warning, #f59e0b)) 14%, var(--ui-bg, var(--color-background, var(--color-surface))))";
 
 const TINT: &str = "color-mix(in srgb, var(--color-primary) 12%, var(--ui-bg, var(--color-background, var(--color-surface))))";
 
@@ -169,6 +174,13 @@ fn calendar_style() -> StyleBlock {
             "& [data-cal-grids] td > button[data-range-end], & [data-cal-grids] td > button[data-range-start]",
             pairs(&[("background", "color-mix(in srgb, var(--color-primary) 30%, var(--ui-bg, var(--color-background, var(--color-surface))))")]),
         )
+        // The comparison: a band in a second colour, and a bar under each of its days
+        // that shows through the range's own colour where the two overlap.
+        .nest("& [data-cal-grids] td > button[data-compare]", pairs(&[("background", CMP_TINT), ("border-radius", "0"), ("box-shadow", concat!("inset 0 -3px 0 ", "var(--color-chart-2, var(--color-warning, #f59e0b))"))]))
+        .nest(
+            "& [data-cal-grids] td > button[data-compare-start], & [data-cal-grids] td > button[data-compare-end]",
+            pairs(&[("background", "color-mix(in srgb, var(--color-chart-2, var(--color-warning, #f59e0b)) 32%, var(--ui-bg, var(--color-background, var(--color-surface))))")]),
+        )
         .nest(
             "& [data-cal-grids] td > button[aria-pressed=true]",
             pairs(&[("background", PRIMARY), ("color", "var(--color-on-primary)"), ("font-weight", "var(--font-weight-medium, 500)")]),
@@ -193,6 +205,28 @@ fn calendar_style() -> StyleBlock {
             ]),
         )
         .nest("& [data-cal-time] input:focus-visible", pairs(&[("outline", "none"), ("border-color", RING)]))
+        .nest("& [data-cal-compare]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("padding-top", pad!(8)), ("border-top", "var(--border-width, 1px) solid var(--color-border)")]))
+        .nest("& [data-cal-compare] > label", pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(8)), ("font-weight", "var(--font-weight-medium, 500)"), ("cursor", "pointer"), ("width", "fit-content")]))
+        .nest("& [data-cal-compare] input[type=checkbox]", pairs(&[("width", "16px"), ("height", "16px"), ("margin", "0"), ("accent-color", "var(--color-primary)")]))
+        .nest("& [data-cal-compare-kinds]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(4))]))
+        .nest(
+            "& [data-cal-compare-kinds] button",
+            pairs(&[
+                ("height", ctl!(28)),
+                ("padding", pad!(0, 10)),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-sm)"),
+                ("background", "transparent"),
+                ("color", "inherit"),
+                ("font", "inherit"),
+                ("font-size", fs!(13)),
+                ("cursor", "pointer"),
+            ]),
+        )
+        .nest("& [data-cal-compare-kinds] button:hover", pairs(&[("background", SUBTLE)]))
+        .nest("& [data-cal-compare-kinds] button[aria-pressed=true]", pairs(&[("background", TINT), ("border-color", PRIMARY), ("font-weight", "var(--font-weight-medium, 500)")]))
+        .nest("& [data-cal-compare-text]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("color", MUTED), ("font-size", fs!(13))]))
+        .nest("& [data-cal-compare-text]::before", pairs(&[("content", "''"), ("flex-shrink", "0"), ("width", "10px"), ("height", "10px"), ("border-radius", "2px"), ("background", "var(--color-chart-2, var(--color-warning, #f59e0b))")]))
         .nest("& [data-cal-foot]", pairs(&[("display", "flex"), ("justify-content", "space-between"), ("gap", gap!(8))]))
         .nest("& [data-cal-foot]:empty", pairs(&[("display", "none")]))
         .nest(
@@ -225,6 +259,10 @@ static PICKER: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-cal-trigger] svg", pairs(&[("flex-shrink", "0"), ("color", MUTED)]))
         .nest("& [data-cal-text]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
         .nest("&[data-empty] [data-cal-text]", pairs(&[("color", MUTED)]))
+        // The value keeps its room; the comparison after it is what's cut short.
+        .nest("& [data-cal-text]:has(+ [data-cal-vs]:not([hidden]))", pairs(&[("flex-shrink", "0"), ("max-width", "100%")]))
+        .nest("& [data-cal-vs]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("color", MUTED), ("font-size", fs!(13))]))
+        .nest("& [data-cal-vs][hidden]", pairs(&[("display", "none")]))
         .nest(
             "& [data-cal-x]",
             pairs(&[
@@ -304,6 +342,7 @@ static INPUT_GROUP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ]),
     )
     .nest("& [data-cal-input]::placeholder", pairs(&[("color", MUTED)]))
+    .nest("& [data-cal-vs]", pairs(&[("flex-shrink", "1"), ("padding-inline-end", pad!(6))]))
     .nest("& [data-cal-x]", pairs(&[("position", "static"), ("transform", "none")]))
     .nest(
         "& [data-cal-trigger]",
@@ -347,6 +386,9 @@ fn dynamic(cx: &RenderCx<'_>, node: &Node, name: &str, v: &Val) -> Result<Json, 
         Val::Lit(other) => Ok(other.clone()),
     }
 }
+
+/// What a range may be compared with.
+pub(crate) const COMPARE: &[&str] = &["previous", "lastYear", "custom"];
 
 /// The names `presets` may use.
 pub(crate) const PRESETS: &[&str] = &[
@@ -401,11 +443,32 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
         }
         Some(_) => return Err(RenderError::new(node, "`presets` must be a list")),
     };
+    let compare = match cx.prop(node, "compare") {
+        None | Some(Json::Null) | Some(Json::Bool(false)) => Json::Null,
+        Some(Json::Bool(true)) => json!(COMPARE),
+        Some(Json::Array(list)) if !list.is_empty() => {
+            for k in &list {
+                if !k.as_str().is_some_and(|k| COMPARE.contains(&k)) {
+                    return Err(RenderError::new(node, format!("`compare` kinds are {}, got `{}`", COMPARE.join(", "), expr::stringify(k))));
+                }
+            }
+            Json::Array(list)
+        }
+        Some(_) => return Err(RenderError::new(node, format!("`compare` is `true` or a list of {}", COMPARE.join(", ")))),
+    };
+    if !compare.is_null() && (mode != "range" || time) {
+        return Err(RenderError::new(node, "`compare` goes with `mode: range`, without `time`"));
+    }
+    if compare.is_null() && s("bindCompare").is_some() {
+        return Err(RenderError::new(node, "`bindCompare` needs `compare`"));
+    }
     let months = num("months").unwrap_or(1.0).clamp(1.0, 3.0) as u8;
     let opt = |name: &str| node.prop(name).map(|v| dynamic(cx, node, name, v)).transpose();
     Ok(json!({
         "bind": s("bind"),
         "bindRange": s("bindRange"),
+        "compare": compare,
+        "bindCompare": s("bindCompare"),
         "value": if s("bind").is_none() { cx.prop(node, "value").unwrap_or(Json::Null) } else { Json::Null },
         "picker": kind,
         "mode": mode,
@@ -449,6 +512,14 @@ fn hidden_inputs(cx: &mut RenderCx<'_>, node: &Node, value: &Json) -> Result<(),
             Json::Object(o) => vec![(format!("{name}[from]"), text(o.get("from"))), (format!("{name}[to]"), text(o.get("to")))],
             Json::Array(a) => a.iter().map(|v| (name.clone(), text(Some(v)))).collect(),
             v => vec![(name.clone(), text(Some(v)))],
+        };
+        // The comparison, while it's on.
+        let compare = cx.prop_string(node, "bindCompare").map(|k| cx.lookup(&[k])).unwrap_or(Json::Null);
+        let inputs = match compare.as_object() {
+            Some(c) if cx.prop(node, "compare").is_some_and(|v| v != Json::Null && v != Json::Bool(false)) => {
+                inputs.into_iter().chain([(format!("{name}[compareFrom]"), text(c.get("from"))), (format!("{name}[compareTo]"), text(c.get("to")))]).collect()
+            }
+            _ => inputs,
         };
         for (n, v) in inputs {
             let mut i = Element::new("input");
@@ -591,6 +662,7 @@ impl Component for DatePicker {
                 input.attr("disabled", d.clone());
             }
             cx.open(&input, node)?;
+            vs(cx, node, &config)?;
             if config["clearable"] == json!(true) {
                 let mut x = Element::new("button");
                 x.attr("type", "button").attr("data-cal-x", true).attr("aria-label", cx.label("Clear")).attr("hidden", empty).text(lit("✕"));
@@ -642,6 +714,7 @@ impl Component for DatePicker {
         text.attr("data-cal-text", true).attr("data-placeholder", placeholder).text(lit(shown));
         cx.open(&text, node)?;
         cx.close("span");
+        vs(cx, node, &config)?;
         cx.close("button");
         if config["clearable"] == json!(true) {
             let mut x = Element::new("button");
@@ -652,6 +725,18 @@ impl Component for DatePicker {
 
         finish(cx, node, config, &pop, &anchor, &value)
     }
+}
+
+/// With `compare`, where the behaviour writes what the value is compared with.
+fn vs(cx: &mut RenderCx<'_>, node: &Node, config: &Json) -> Result<(), RenderError> {
+    if config["compare"].is_null() {
+        return Ok(());
+    }
+    let mut span = Element::new("span");
+    span.attr("data-cal-vs", true).attr("hidden", true);
+    cx.open(&span, node)?;
+    cx.close("span");
+    Ok(())
 }
 
 /// The popover holding the calendar, the live region and the hidden inputs, then the

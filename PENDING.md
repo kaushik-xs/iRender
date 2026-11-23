@@ -128,6 +128,7 @@ _Last updated: 2026-11-23._
   - [ ] No time zone: values are local wall-clock times.
   - [x] Interface text follows the document's `labels`; dates and month names follow `locale` (2026-11-19).
   - [ ] No week picker and no "multiple months" mode beyond three months side by side.
+  - [x] A period to compare with (`compare`, `bindCompare`, 2026-11-23): the previous period, the same one last year, or a custom one picked on the calendar, drawn as a band in the second chart colour and as "vs …" in the button (gallery's Compared period, block data-table-02). Not done yet: not with `time`; nothing typed for it with `input`; a chart can't draw both periods as two series of one chart (the block shows the comparison as a chart of its own), and charts take the band's colour only from `color.chart-2`.
   - [x] Quarter presets (2026-11-20): `quarters` (the last four, named by their financial year), `lastQuarter`, `lastYear` and `yearToDate` in the calendar, the filters panel (with its own `fiscalStart`) and the data table's date filter (with the column's `presets` and `fiscalStart`).
 - [ ] **Menus** (`ui-menubar`, `ui-navigation-menu`, submenus, checkbox and radio items shipped 2026-11-18):
   - [ ] The navigation menu's panels don't share one animated viewport that morphs between items, as Radix's does; each panel opens on its own.

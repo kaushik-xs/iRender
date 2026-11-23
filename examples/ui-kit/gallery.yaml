@@ -261,6 +261,8 @@ state:
   booking: null
   period: null
   periodDates: null
+  compared: { from: "2026-11-01", to: "2026-11-22" }
+  periodVs: { type: previous }
   month: "2026-11"
   quarter: null
   quarterDates: null
@@ -1134,6 +1136,18 @@ root:
                             months: 2
                             max: today
                             presets: [today, last7, last30, thisMonth, lastMonth, thisQuarter, yearToDate]
+                    - type: ui-field
+                      props: { label: Compared period, description: "Turn on Compare under the calendar: the previous period, last year's, or pick one. periodVs = {{ periodVs }}" }
+                      children:
+                        - type: ui-date-picker
+                          props:
+                            bind: compared
+                            bindCompare: periodVs
+                            mode: range
+                            months: 2
+                            max: today
+                            compare: true
+                            presets: [last7, last30, thisMonth, lastMonth, thisQuarter]
                     - type: ui-field
                       props: { label: Month, description: "month = {{ month }}" }
                       children:

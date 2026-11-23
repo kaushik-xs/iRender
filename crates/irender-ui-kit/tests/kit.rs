@@ -1265,6 +1265,28 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "weekStart": 7 })).contains("0 (Sunday)"));
     assert!(err(json!({ "presets": ["someday"] })).contains("unknown preset"));
     assert!(err(json!({ "presets": [{ "from": "today" }] })).contains("`{ label, from, to }`"));
+    // A comparison goes with a range of days or months, not with one date or with times.
+    assert!(err(json!({ "compare": true })).contains("`mode: range`"));
+    assert!(err(json!({ "compare": true, "mode": "range", "time": true })).contains("without `time`"));
+    assert!(err(json!({ "compare": ["nextYear"], "mode": "range" })).contains("`compare` kinds are previous, lastYear, custom"));
+    assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
+    let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
+    assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn date_picker_compare_structure() {
+    let page = render_with(
+        json!({ "type": "ui-date-picker", "props": { "bind": "when", "bindCompare": "vs", "compare": ["previous", "custom"], "mode": "range", "name": "when" } }),
+        json!({ "when": { "from": "2026-03-01", "to": "2026-03-31" }, "vs": { "type": "previous", "from": "2026-01-29", "to": "2026-02-28" } }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A place for "vs …" after the value, filled by the behaviour, and the comparison in the form.
+    assert!(body.contains(r#"2026-03-01 – 2026-03-31</span><span data-cal-vs hidden></span>"#), "{body}");
+    assert!(body.contains(r#"<input type="hidden" name="when[compareFrom]" value="2026-01-29"><input type="hidden" name="when[compareTo]" value="2026-02-28">"#), "{body}");
+    assert!(body.contains(r#""compare":["previous","custom"]"#) || body.contains(r#"&quot;compare&quot;:[&quot;previous&quot;,&quot;custom&quot;]"#), "{body}");
 }
 
 #[test]

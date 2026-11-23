@@ -381,6 +381,8 @@ Not replicated:
         months: 2
         max: today
         presets: [last7, last30, thisMonth, lastMonth, thisQuarter, yearToDate]
+        compare: true                    # a Compare switch: the period before, last year's, or one picked
+        bindCompare: periodVs            # { type: previous, from: 2026-01-29, to: 2026-02-28 }
 - { type: ui-date-picker, props: { bind: meeting, time: true, step: 15 } }            # 2026-03-10T14:30
 - { type: ui-date-picker, props: { bind: quarter, picker: quarter, fiscalStart: 4 } }  # 2026-Q1: April to June 2026
 - { type: ui-calendar, props: { bind: shifts, mode: multiple, disabledDays: [0, 6] } }
@@ -400,7 +402,8 @@ Not replicated:
 | `presets` | Shortcuts beside the calendar: `today`, `yesterday`, `tomorrow`, `last7`, `last30`, `last90`, `next7`, `next30`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `thisYear`, `lastYear`, `yearToDate`, `monthToDate`, `quarters` (the quarter today is in and the three before it, each its own button: `Q3 2026`, or `Q3 FY2026–27` on a financial year), or `{ label, from, to }` with dates or `today±N`. Quarters and years follow `fiscalStart`; the preset that matches the value shows pressed. |
 | `dropdowns` | Month and year menus in place of the caption, for dates far away such as a birthday. |
 | `bindRange` | A state key that gets the dates the value covers as `{ from, to }`: a quarter's first and last days, say. Give it to a chart's or a data table's `filter` to filter by the pick. |
-| `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date. |
+| `compare`, `bindCompare` | With `mode: range` (not `time`): a Compare switch under the calendar, and a period to compare the range with. `true` offers `previous` (as many days, months, quarters or years just before), `lastYear` (the same dates a year earlier) and `custom` (the next two picks on the calendar set it); a list offers just those, the first being what the switch turns on. `bindCompare` holds `{ type, from, to }`, the dates compared, or null while it's off: give it to a chart's or a table's `filter` beside `bindRange`. The previous period and last year's follow the range as it changes; a custom one stays put. The comparison shows on the calendar as a band in the second chart colour, and after the value in the button as `vs …`. Clearing the value turns it off. |
+| `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date; with a comparison, `name[compareFrom]` and `name[compareTo]` too. |
 | `label` | The accessible name. In a `ui-field`, its label names the picker's button. |
 | `clearable` | A ✕ in the picker's button (a Clear link under `ui-calendar`). |
 | `input`, `bindError` | The picker only: a text field to type the value in, with the calendar's button beside it; see [Typing a date](#typing-a-date). |
@@ -414,7 +417,7 @@ The calendar follows the WAI-ARIA date picker pattern: a grid with one cell in t
 - Escape closes the picker, and focus goes back to its button.
 - A live region says what was picked.
 
-Days outside the month show muted (left out when two months show), today is marked, and the value's text in the button follows the locale. Each change fires a bubbling `change` event with `{ value, range }`.
+Days outside the month show muted (left out when two months show), today is marked, and the value's text in the button follows the locale. Each change fires a bubbling `change` event with `{ value, range }` (and `compare`, with `compare`).
 
 ### Typing a date
 

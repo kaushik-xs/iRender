@@ -212,8 +212,8 @@
    "group": "Forms",
    "title": "Date picker and calendar",
    "nav": "Date picker",
-   "summary": "Pick a day (with a time), a month, a quarter or a year; one, a range or several. Limits, disabled days, presets, financial years and typing the date are props. bindRange gives the exact dates picked, ready for a chart's or a table's filter.",
-   "usage": "- type: ui-date-picker\n  props: { bind: period, bindRange: periodDates, mode: range, months: 2, presets: [last7, thisMonth, yearToDate] }\n- { type: ui-date-picker, props: { bind: due, input: true, min: today, bindError: dueError } }\n- { type: ui-calendar, props: { bind: days, mode: multiple, disabledDays: [0, 6] } }",
+   "summary": "Pick a day (with a time), a month, a quarter or a year; one, a range or several. Limits, disabled days, presets, financial years and typing the date are props. bindRange gives the exact dates picked, ready for a chart's or a table's filter, and compare adds a period to compare them with: the one before, last year's, or one picked.",
+   "usage": "- type: ui-date-picker\n  props: { bind: period, bindRange: periodDates, mode: range, months: 2, presets: [last7, thisMonth, yearToDate], compare: true, bindCompare: periodVs }\n- { type: ui-date-picker, props: { bind: due, input: true, min: today, bindError: dueError } }\n- { type: ui-calendar, props: { bind: days, mode: multiple, disabledDays: [0, 6] } }",
    "components": [
     "ui-date-picker",
     "ui-calendar"

@@ -3,6 +3,8 @@
 #   (`bindView`) after its filters and search, so filtering the table redraws them.
 # - A period picker (`ui-date-picker`, a range with presets) writes the dates it covers
 #   to `periodDates` (`bindRange`), which the table filters by, so the charts follow too.
+#   Its Compare switch adds the period before (or one picked) as `periodVs`
+#   (`bindCompare`), and a chart of that period shows beside the others.
 # - Clicking a region's bar filters the table (`bind: region` on the chart, `filter`
 #   on the table), and clicking it again clears it.
 # - Cells hold charts too: a sparkline per row (`cell: sparkline`), and each row opens
@@ -19,6 +21,7 @@ state:
   region: null
   period: null
   periodDates: null
+  periodVs: null
   picked: []
   toast: null
 root:
@@ -49,6 +52,8 @@ root:
             months: 2
             clearable: true
             placeholder: All of 2026
+            compare: [previous, custom]
+            bindCompare: periodVs
             min: "2026-01-01"
             max: "2026-12-31"
             locale: en-US
@@ -89,6 +94,23 @@ root:
           props: { title: Revenue by month, description: The rows that pass the filters }
           children:
             - { type: ui-chart, props: { type: area, data: "{{ view }}", x: month, y: amount, aggregate: sum, sort: month, smooth: true, height: 220 } }
+        - type: if
+          props: { when: "{{ periodVs.to }}" }
+          children:
+            - type: ui-card
+              props: { title: "Revenue by region, compared", description: "{{ periodVs.from }} to {{ periodVs.to }}" }
+              children:
+                - type: ui-chart
+                  props:
+                    type: bar
+                    data: "{{ orders }}"
+                    filter: { date: "{{ periodVs }}", region: "{{ region }}" }
+                    x: region
+                    y: amount
+                    aggregate: sum
+                    sort: -amount
+                    height: 220
+                    option: { yAxis: { axisLabel: { formatter: "${value}" } } }
         - type: ui-card
           props: { title: Orders by status }
           children:

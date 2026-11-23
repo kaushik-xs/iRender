@@ -7376,6 +7376,94 @@ fn date_range_with_times_in_chrome() {
     );
 }
 
+/// `compare` on a range: the previous period and last year's follow the range, a custom
+/// one takes two picks, and the comparison shows on the calendar, the button and the form.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn date_range_compare_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "period": { "from": "2026-03-01", "to": "2026-03-31" }, "vs": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-date-picker", "props": { "id": "cmp", "bind": "period", "bindCompare": "vs", "compare": true, "mode": "range", "months": 2, "name": "p", "locale": "en-US" } },
+            { "type": "ui-calendar", "props": { "id": "inline", "mode": "range", "compare": ["previous"], "presets": [{ "label": "Week", "from": "2026-03-09", "to": "2026-03-15" }], "locale": "en-US" } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const P = (id) => document.getElementById(id).closest("[data-i-x]");
+      const J = (v) => JSON.stringify(v);
+      try {
+        const el = P("cmp"), open = async () => { el.querySelector("[data-cal-trigger]").click(); await wait(10); };
+        const box = () => el.querySelector("[data-cal-compare]");
+        const marked = () => [...el.querySelectorAll("[data-compare]")].map((b) => b.dataset.key);
+        await open();
+        log("off", box().querySelectorAll("button").length, el.querySelector("[data-cal-vs]").hidden);
+        const check = box().querySelector("input"); check.focus(); check.click(); await wait(10);
+        log("previous", J(S().vs), document.activeElement.getAttribute("data-cal-ctl"));
+        log("text", box().querySelector("[data-cal-compare-text]").textContent);
+        log("vs", el.querySelector("[data-cal-vs]").textContent);
+        box().querySelector('[data-compare-kind="lastYear"]').click(); await wait(10);
+        log("last year", J(S().vs));
+        // A new range: the comparison follows it.
+        el.querySelector('[data-key="2026-03-10"]').click(); await wait(5);
+        el.querySelector('[data-key="2026-03-16"]').click(); await wait(10);
+        log("follows", J(S().period), J(S().vs), el.querySelector("[data-cal-pop]").matches(":popover-open"));
+        // Custom: two picks on the same calendar.
+        await open();
+        box().querySelector('[data-compare-kind="custom"]').click(); await wait(10);
+        log("custom", box().querySelector("[data-cal-compare-text]").textContent);
+        el.querySelector('[data-key="2026-03-04"]').click(); await wait(5);
+        log("half", J(S().vs), J(S().period), box().querySelector("[data-cal-compare-text]").textContent);
+        el.querySelector('[data-key="2026-03-02"]').click(); await wait(10);
+        log("picked", J(S().vs), J(S().period));
+        await open();
+        log("marked", marked().join(","), el.querySelector('[data-key="2026-03-03"]').getAttribute("aria-label"));
+        log("form", [...el.querySelectorAll("input[type=hidden]")].map((i) => `${i.name}=${i.value}`).join(" "));
+        log("title", el.querySelector("[data-cal-trigger]").title);
+        box().querySelector("input").click(); await wait(10);
+        log("off again", J(S().vs), marked().length, el.querySelector("[data-cal-vs]").hidden);
+
+        // Not bound: kept here, and told in `change`.
+        const cal = P("inline"); let seen = null;
+        cal.addEventListener("change", (e) => (seen = e.detail?.compare));
+        cal.querySelector("[data-cal-compare] input").click(); await wait(10);
+        cal.querySelector("[data-preset]").click(); await wait(10);
+        log("inline", J(seen), cal.querySelectorAll("[data-compare]").length, cal.querySelectorAll("[data-compare-kinds]").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("date-range-compare", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "off 0 true",
+            // As many days just before: March's 31 days.
+            r#"previous {"type":"previous","from":"2026-01-29","to":"2026-02-28"} compare"#,
+            "text vs Jan 29, 2026 – Feb 28, 2026",
+            "vs vs Jan 29, 2026 – Feb 28, 2026",
+            r#"last year {"type":"lastYear","from":"2025-03-01","to":"2025-03-31"}"#,
+            r#"follows {"from":"2026-03-10","to":"2026-03-16"} {"type":"lastYear","from":"2025-03-10","to":"2025-03-16"} false"#,
+            "custom Pick the comparison's first day",
+            // The range stays as it was while the comparison is picked.
+            r#"half {"type":"custom","from":"2026-03-04","to":null} {"from":"2026-03-10","to":"2026-03-16"} Pick the comparison's last day"#,
+            r#"picked {"type":"custom","from":"2026-03-02","to":"2026-03-04"} {"from":"2026-03-10","to":"2026-03-16"}"#,
+            "marked 2026-03-02,2026-03-03,2026-03-04 Tuesday, March 3, 2026, compared",
+            "form p[from]=2026-03-10 p[to]=2026-03-16 p[compareFrom]=2026-03-02 p[compareTo]=2026-03-04",
+            "title Mar 10, 2026 – Mar 16, 2026 vs Mar 2, 2026 – Mar 4, 2026",
+            "off again null 0 true",
+            r#"inline {"type":"previous","from":"2026-03-02","to":"2026-03-08"} 7 0"#,
+        ],
+        "\n{result}"
+    );
+}
+
 /// `loading` on a command palette: while items are fetched, a Loading row shows (and
 /// the list says it's busy) and the empty message waits; items that arrive show.
 #[test]

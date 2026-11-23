@@ -152,13 +152,64 @@
     }
     function write(v) {
       const out = mode === "range" ? (v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null) : mode === "multiple" ? v : v && cfg.time ? `${v}T${time || "00:00"}` : v;
+      // The previous period and last year's follow the range.
+      const c = readCompare();
+      if (c && c.type !== "custom") storeCompare({ type: c.type, ...derive(c.type, v) });
       if (cfg.bindRange) api.set(cfg.bindRange, rangeOf(v));
       if (cfg.bind) api.set(cfg.bind, out);
       else {
         local = out;
         render();
       }
-      api.emit("change", { value: out, range: rangeOf(v) });
+      api.emit("change", { value: out, range: rangeOf(v), compare: kinds ? rawCompare() ?? null : undefined });
+    }
+
+    // ---- a period to compare with (`compare`, ranges only): the one before, the same
+    // one a year earlier, or one picked on the calendar. Kept as the dates it covers,
+    // `{ type, from, to }`, or null while it's off.
+    const kinds = mode === "range" && Array.isArray(cfg.compare) && cfg.compare.length ? cfg.compare : null;
+    let localCompare = null, picking = false;
+    const rawCompare = () => (cfg.bindCompare ? api.state[cfg.bindCompare] : localCompare);
+    function readCompare() {
+      const c = rawCompare();
+      if (!kinds || !isObj(c) || !kinds.includes(c.type)) return null;
+      return { type: c.type, from: keyOf(c.from), to: keyOf(c.to) };
+    }
+    // The period `type` makes of a whole range, as keys.
+    function derive(type, v) {
+      if (!v.from || !v.to) return { from: null, to: null };
+      if (type === "lastYear") {
+        const back = (k) => (kind === "day" ? isoDay(addMonths(u.start(k), -12)) : u.step(k, { month: -12, quarter: -4, year: -1 }[kind]));
+        return { from: back(v.from), to: back(v.to) };
+      }
+      if (type !== "previous") return { from: null, to: null };
+      // As many days (months, quarters, years) as the range, just before it.
+      let n = 1;
+      if (kind === "day") n = Math.round((u.start(v.to) - u.start(v.from)) / DAY) + 1;
+      else for (let k = v.from; k !== v.to && n < 1e4; k = u.step(k, 1)) n++;
+      return { from: u.step(v.from, -n), to: u.step(v.to, -n) };
+    }
+    function storeCompare(c) {
+      const out = c ? { type: c.type, from: c.from ? isoDay(u.start(c.from)) : null, to: c.to ? isoDay(u.end(c.to)) : null } : null;
+      const was = rawCompare() ?? null;
+      if (JSON.stringify(was) === JSON.stringify(out)) return false;
+      if (cfg.bindCompare) api.set(cfg.bindCompare, out);
+      else localCompare = out;
+      return true;
+    }
+    // A change made from the comparison's own controls.
+    function writeCompare(c) {
+      if (!storeCompare(c)) return render(true);
+      if (!cfg.bindCompare) render(true);
+      const v = read();
+      api.emit("change", { value: mode === "range" && v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null, range: rangeOf(v), compare: rawCompare() ?? null });
+    }
+    // The previous period and last year's kept in step with a range set elsewhere.
+    function followCompare() {
+      const c = readCompare();
+      if (!c || c.type === "custom") return;
+      const d = derive(c.type, read());
+      if (d.from !== c.from || d.to !== c.to) storeCompare({ type: c.type, ...d });
     }
 
     // ---- limits
@@ -213,6 +264,11 @@
       if (!v) return "";
       return cfg.time && time ? `${label(v)}, ${timeText(time)}` : label(v);
     }
+
+    // A comparison as text: `Feb 1, 2026 – Feb 28, 2026`.
+    const spanText = (r) => (!r.from ? "" : !r.to ? `${label(r.from)} – …` : r.from === r.to ? label(r.from) : `${label(r.from)} – ${label(r.to)}`);
+    // Labels: "Previous period", "Same period last year", "Custom"
+    const KINDS = { previous: "Previous period", lastYear: "Same period last year", custom: "Custom" };
 
     // ---- presets: names, or `{ label, from, to }` with dates or `today±N`
     // Labels: "Today", "Yesterday", "Tomorrow", "Last 7 days", "Last 30 days", "Last 90 days", "Next 7 days", "Next 30 days", "This week", "Last week", "This month", "Last month", "Next month", "This quarter", "Last quarter", "This year", "Last year", "Year to date", "Month to date"
@@ -355,8 +411,15 @@
       const focused = keepFocus ?? body.contains(document.activeElement);
       const chosen = (k) => (mode === "range" ? k === v.from || k === v.to : mode === "multiple" ? v.includes(k) : k === v);
       // A range in progress shows up to the cell under the pointer.
-      const [a, b] = mode === "range" && v.from ? [v.from, v.to ?? hover ?? v.from].sort((x, y) => u.start(x) - u.start(y)) : [null, null];
+      const span = (r, live) => (r?.from ? [r.from, r.to ?? (live ? hover : null) ?? r.from].sort((x, y) => u.start(x) - u.start(y)) : [null, null]);
+      const [a, b] = mode === "range" ? span(v, !picking) : [null, null];
       const between = (k) => a && u.start(k) > u.start(a) && u.start(k) < u.start(b);
+      // The comparison, drawn over the range, and while it's picked up to the pointer.
+      const c = readCompare();
+      const [ca, cb] = span(c, picking);
+      const compared = (k) => ca && u.start(k) >= u.start(ca) && u.start(k) <= u.start(cb);
+      // A control of the comparison's that had focus gets it back.
+      const ctl = body.contains(document.activeElement) ? document.activeElement.getAttribute("data-cal-ctl") : null;
 
       const wrap = h("div", { "data-cal-wrap": true });
       if (cfg.presets?.length) {
@@ -417,7 +480,7 @@
               type: "button",
               "data-key": k,
               tabindex: k === focus && !(outside && pageCount > 1) ? "0" : "-1",
-              "aria-label": label(k, true),
+              "aria-label": compared(k) ? `${label(k, true)}, ${L("compared")}` : label(k, true),
               "aria-pressed": sel ? "true" : "false",
               "aria-disabled": off ? "true" : null,
               "aria-current": k === t ? "date" : null,
@@ -426,6 +489,9 @@
               "data-in-range": between(k) || null,
               "data-range-start": a && k === a ? true : null,
               "data-range-end": b && k === b ? true : null,
+              "data-compare": compared(k) || null,
+              "data-compare-start": ca && k === ca ? true : null,
+              "data-compare-end": cb && k === cb ? true : null,
             }, cellText(k));
             tr.append(h("td", { role: "gridcell", "aria-selected": sel ? "true" : "false" }, btn));
           }
@@ -447,12 +513,26 @@
         const input = h("input", { type: "time", step: String(Math.round(cfg.step * 60)), value: time, "aria-label": L("Time"), "data-cal-time-input": true });
         main.append(h("label", { "data-cal-time": true }, L("Time"), input));
       }
+      if (kinds) {
+        const box = h("div", { "data-cal-compare": true });
+        box.append(h("label", {}, h("input", { type: "checkbox", "data-cal-ctl": "compare", checked: !!c }), L("Compare")));
+        if (c) {
+          const group = h("div", { "data-cal-compare-kinds": true, role: "group", "aria-label": L("Compare with") });
+          for (const t of kinds) group.append(h("button", { type: "button", "data-compare-kind": t, "data-cal-ctl": t, "aria-pressed": c.type === t ? "true" : "false" }, L(KINDS[t])));
+          if (kinds.length > 1 || kinds[0] === "custom") box.append(group);
+          const text = picking ? (c.from && !c.to ? L("Pick the comparison's last day") : L("Pick the comparison's first day"))
+            : c.from ? L("vs {range}", { range: spanText(c) }) : L("Pick a range to compare");
+          box.append(h("div", { "data-cal-compare-text": true }, text));
+        }
+        main.append(box);
+      }
       const foot = h("div", { "data-cal-foot": true });
       if (cfg.clearable && !popover) foot.append(h("button", { type: "button", "data-cal-clear": true }, L("Clear")));
       main.append(foot);
       wrap.append(main);
       body.replaceChildren(wrap);
-      if (focused) body.querySelector(`[data-key="${focus}"]`)?.focus({ preventScroll: true });
+      if (ctl) body.querySelector(`[data-cal-ctl="${ctl}"]`)?.focus({ preventScroll: true });
+      else if (focused) body.querySelector(`[data-key="${focus}"]`)?.focus({ preventScroll: true });
       sync(v);
     }
 
@@ -471,11 +551,19 @@
         el.toggleAttribute("data-empty", !text);
       }
       if (clearX) clearX.hidden = !text;
+      const vs = $("[data-cal-vs]"), c = readCompare();
+      if (vs) {
+        vs.hidden = !(text && c?.from && c.to);
+        vs.textContent = vs.hidden ? "" : L("vs {range}", { range: spanText(c) });
+        if (trigger && !field && !vs.hidden) trigger.title = `${text} ${vs.textContent}`;
+      }
       const hidden = $("[data-cal-hidden]");
       if (hidden && cfg.name) {
         const inputs = mode === "range" ? [[`${cfg.name}[from]`, ends(v).from ?? ""], [`${cfg.name}[to]`, ends(v).to ?? ""]]
           : mode === "multiple" ? v.map((k) => [cfg.name, k])
           : [[cfg.name, v ? (cfg.time ? `${v}T${time || "00:00"}` : v) : ""]];
+        const cv = c && rawCompare();
+        if (cv) inputs.push([`${cfg.name}[compareFrom]`, cv.from ?? ""], [`${cfg.name}[compareTo]`, cv.to ?? ""]);
         hidden.replaceChildren(...inputs.map(([n, val]) => h("input", { type: "hidden", name: n, value: val })));
       }
     }
@@ -492,6 +580,20 @@
         if (popover && cfg.closeOnSelect) close();
       } else if (mode === "multiple") {
         write(v.includes(k) ? v.filter((x) => x !== k) : [...v, k].sort((x, y) => u.start(x) - u.start(y)));
+      } else if (picking) {
+        // A custom comparison: two picks, as a range takes.
+        const c = readCompare();
+        hover = null;
+        if (!c?.from || c.to) {
+          writeCompare({ type: "custom", from: k, to: null });
+          say(L("Comparison starts {date}; pick the end", { date: label(k, true) }));
+        } else {
+          const [from, to] = [c.from, k].sort((x, y) => u.start(x) - u.start(y));
+          picking = false;
+          writeCompare({ type: "custom", from, to });
+          say(L("Comparing with {from} to {to}", { from: label(from, true), to: label(to, true) }));
+          if (popover && cfg.closeOnSelect && read().to) close();
+        }
       } else if (!v.from || v.to) {
         hover = null;
         write({ from: k, to: null });
@@ -508,6 +610,8 @@
     function clear() {
       hover = null;
       time = fromTime = toTime = "";
+      picking = false;
+      if (kinds) storeCompare(null);
       write(mode === "range" ? { from: null, to: null } : mode === "multiple" ? [] : null);
       say(L("Cleared"));
     }
@@ -516,7 +620,8 @@
     function move(k) {
       focus = k;
       reveal(k);
-      if (mode === "range" && read().from && !read().to) hover = k;
+      const r = picking ? readCompare() : read();
+      if (mode === "range" && r?.from && !r.to) hover = k;
       render(true);
     }
     body.addEventListener("keydown", (e) => {
@@ -576,9 +681,30 @@
       }
       if (b.hasAttribute("data-preset")) return applyPreset(cfg.presets[Number(b.getAttribute("data-preset"))]);
       if (b.hasAttribute("data-cal-clear")) return clear();
+      if (b.hasAttribute("data-compare-kind")) {
+        const t = b.getAttribute("data-compare-kind"), c = readCompare();
+        hover = null;
+        // Custom starts from the dates compared now, and takes the next two picks.
+        picking = t === "custom";
+        if (t === "custom") {
+          say(L("Pick the comparison's first day"));
+          return writeCompare({ type: t, from: c?.from ?? null, to: c?.to ?? null });
+        }
+        return writeCompare({ type: t, ...derive(t, read()) });
+      }
     });
     body.addEventListener("change", (e) => {
       const t = e.target;
+      if (t.matches('[data-cal-ctl="compare"]')) {
+        hover = null;
+        if (!t.checked) {
+          picking = false;
+          return writeCompare(null);
+        }
+        const k = kinds[0];
+        picking = k === "custom";
+        return writeCompare({ type: k, ...derive(k, read()) });
+      }
       if (t.matches("[data-cal-month], [data-cal-year]")) {
         const y = body.querySelector("[data-cal-year]").value, m = body.querySelector("[data-cal-month]").value;
         view = `${y}-${pad(m)}`;
@@ -601,8 +727,8 @@
     body.addEventListener("mouseover", (e) => {
       const k = e.target.closest?.("[data-key]")?.getAttribute("data-key");
       if (!k || mode !== "range") return;
-      const v = read();
-      if (!v.from || v.to || hover === k) return;
+      const v = picking ? readCompare() : read();
+      if (!v?.from || v.to || hover === k) return;
       hover = k;
       render(false);
     });
@@ -618,6 +744,7 @@
     if (pop) {
       pop.addEventListener("toggle", (e) => {
         if (e.newState !== "open") return;
+        picking = false;
         focus = first();
         view = pageOf(focus);
         render(true);
@@ -822,6 +949,7 @@
     const handle = {
       update() {
         readTimes();
+        followCompare();
         if (!popover || pop?.matches(":popover-open")) render();
         else sync(read());
       },
@@ -833,6 +961,7 @@
         render(false);
       },
     };
+    followCompare();
     if (popover) sync(read());
     else render(false);
     return handle;
