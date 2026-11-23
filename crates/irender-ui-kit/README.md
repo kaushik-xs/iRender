@@ -68,6 +68,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
+| `ui-virtual-list` | `items` (required), `itemKey`, `height` (default 400), `itemHeight` (default 40), `gap`, `bindRange`, `endThreshold` (default 10), `emptyText`, `label` | A long list that keeps only the items in view in the page; children are each item, with `item` and `index` in scope. See below. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
 | `ui-text` | `text`, `variant` (p, lead, large, small, muted, code, blockquote), `tag` | Takes children, e.g. inline `code`. |
@@ -740,6 +741,16 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 ```yaml
 - { type: ui-presence, props: { people: "{{ viewers }}", me: "{{ user.id }}", max: 3, announce: true } }
 # viewers: [{ id: u1, name: Asha Rao, status: active, where: Editing Budget }, { id: u2, name: Ravi Kumar, status: idle, avatar: /a/ravi.jpg }]
+```
+
+**`ui-virtual-list`** shows a long list, thousands of items or a hundred thousand, keeping only those in view (and a few either side) in the page, with space above and below standing in for the rest, so it scrolls smoothly. Its children are each item, with `item` and `index` in scope; items may differ in height, as they're measured while they're drawn (`itemHeight` is where it starts), and they're placed by that average height. It scrolls inside `height` (default 400) and takes focus, so the keys scroll it; each item is a `listitem` with its place in the whole list (`aria-posinset`, `aria-setsize`). `bindRange` gets the places in view, `{ from, to, total }`, for "Showing 120–140 of 5,000"; `end` fires when the last `endThreshold` items come into view, once for each length of list, for the page to load more. `itemKey` (default `id`) keeps an item's nodes as the list changes. The server writes the first 30 items, for a page read before the script runs. For rows with columns, sorting and filters, the data table's `virtual` does the same.
+
+```yaml
+- type: ui-virtual-list
+  props: { items: "{{ rows }}", height: 480, itemHeight: 48, bindRange: showing }
+  on: { end: { action: submit, endpoint: /api/rows, method: GET, into: more } }
+  children:
+    - { type: text, props: { value: "{{ item.name }}" } }
 ```
 
 **`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.

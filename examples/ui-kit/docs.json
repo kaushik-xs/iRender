@@ -86,7 +86,8 @@
   "ui-form-builder": "2026-11-23",
   "ui-countdown": "2026-11-23",
   "ui-compare-slider": "2026-11-23",
-  "ui-presence": "2026-11-23"
+  "ui-presence": "2026-11-23",
+  "ui-virtual-list": "2026-11-23"
  },
  "sections": [
   {
@@ -462,6 +463,17 @@
     "ui-data-table-toolbar",
     "ui-data-table-bulk",
     "ui-data-table-detail"
+   ]
+  },
+  {
+   "id": "virtual-list",
+   "group": "Data display",
+   "title": "Virtual list",
+   "nav": "Virtual list",
+   "summary": "A long list (thousands of items, or a hundred thousand) that keeps only the items in view in the page, with space standing in for the rest, so it scrolls smoothly. Each item is your own content, measured as it's drawn; bindRange says which are showing, and end fires near the bottom to load more.",
+   "usage": "- type: ui-virtual-list\n  props: { items: \"{{ rows }}\", height: 480, itemHeight: 48, bindRange: showing }\n  on: { end: { action: submit, endpoint: /api/rows, method: GET } }\n  children:\n    - { type: text, props: { value: \"{{ item.name }}\" } }",
+   "components": [
+    "ui-virtual-list"
    ]
   },
   {

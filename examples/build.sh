@@ -40,7 +40,7 @@ for block in login-03 login-04 signup sidebar-03 sidebar-07 settings pricing err
 done
 $irender render examples/blocks/dashboard-01.yaml --data examples/blocks/dashboard-01.data.json \
   --ui-kit --chart-kit --icon-kit --title "dashboard-01" -o "$out/blocks/dashboard-01.html"
-for block in data-table-01 data-table-02; do
+for block in data-table-01 data-table-02 inventory-01; do
   $irender render "examples/blocks/$block.yaml" --data "examples/blocks/$block.data.json" \
     --ui-kit --chart-kit --icon-kit --title "$block" -o "$out/blocks/$block.html"
 done

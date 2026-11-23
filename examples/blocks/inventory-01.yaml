@@ -1,0 +1,56 @@
+# Block: a warehouse's stock, 5,000 items in one list. `ui-virtual-list` keeps only the
+# items in view in the page (scroll it, or focus it and use the keys), measuring them as
+# it goes; `bindRange` says which are showing. The items come from server data
+# (inventory-01.data.json), each one a row of its own content: name, place, count, status.
+#
+#   cargo run -p irender-cli -- render examples/blocks/inventory-01.yaml \
+#     --data examples/blocks/inventory-01.data.json --ui-kit --icon-kit -o inventory-01.html
+version: 1
+state:
+  showing: null
+root:
+  type: stack
+  props: { gap: 16 }
+  style:
+    max-width: 920px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, align: end, gap: 12 }
+      style: { flex-wrap: wrap }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          style: { flex: 1 }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: Warehouses, href: "#" }, { label: Pune DC, href: "#" }, { label: Stock } ] } }
+            - { type: ui-heading, props: { level: 2, text: Stock at Pune DC } }
+            - type: ui-text
+              props: { variant: muted, text: "{{ showing ? 'Showing ' + (showing.from + 1) + '–' + (showing.to + 1) + ' of ' + showing.total + ' items' : 'All items' }}" }
+        - { type: ui-button, props: { label: Count stock, variant: outline, icon: list } }
+    - type: element
+      style: { display: grid, grid-template-columns: "1fr 120px 90px 120px", gap: 12px, padding: "0 16px", color: $color.muted, font-size: 12px, font-weight: 600, text-transform: uppercase, letter-spacing: 0.04em }
+      attrs: { aria-hidden: "true" }
+      children:
+        - { type: text, props: { value: Item } }
+        - { type: text, props: { value: Bin } }
+        - { type: text, props: { value: Count } }
+        - { type: text, props: { value: Status } }
+    - type: ui-virtual-list
+      props: { items: "{{ stock }}", height: 520, itemHeight: 52, bindRange: showing, label: Stock items }
+      children:
+        - type: element
+          style: { display: grid, grid-template-columns: "1fr 120px 90px 120px", gap: 12px, align-items: center, padding: 8px 16px, border-bottom: 1px solid $color.border }
+          children:
+            - type: stack
+              props: { gap: 0 }
+              children:
+                - { type: text, props: { value: "{{ item.name }}" }, style: { font-weight: 500 } }
+                - { type: text, props: { value: "{{ item.id }}" }, style: { color: $color.muted, font-size: 12px } }
+            - { type: text, props: { value: "{{ item.bin }}" }, style: { font-family: "ui-monospace, monospace", font-size: 13px } }
+            - { type: text, props: { value: "{{ item.qty }}" }, style: { font-variant-numeric: tabular-nums } }
+            - { type: ui-status-badge, props: { status: "{{ item.status }}", tones: { In stock: success, Low: warning, Out of stock: danger } } }

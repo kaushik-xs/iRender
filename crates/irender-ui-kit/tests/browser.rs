@@ -7464,6 +7464,81 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-virtual-list`: a hundred thousand items with only those in view in the page, their
+/// places for screen readers, the range in view, `end` near the end (once a length),
+/// items of different heights, and an empty list.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn virtual_list_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "rows": [], "range": null, "ends": 0, "tall": [] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-virtual-list", "attrs": { "id": "v" }, "props": { "items": "{{ rows }}", "height": 300, "itemHeight": 30, "bindRange": "range", "label": "Rows" },
+              "on": { "end": { "action": "set_state", "key": "ends", "value": "{{ ends + 1 }}" } },
+              "children": [ { "type": "element", "style": { "height": "30px" }, "children": [ { "type": "text", "props": { "value": "{{ item.name }} #{{ index }}" } } ] } ] },
+            { "type": "ui-virtual-list", "attrs": { "id": "t" }, "props": { "items": "{{ tall }}", "height": 200, "emptyText": "No rows" },
+              "children": [ { "type": "element", "style": { "height": "{{ item.h }}px" }, "children": [ { "type": "text", "props": { "value": "{{ item.id }}" } } ] } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Past the list's 16 ms scroll throttle and its first measuring.
+      const frames = () => wait(60);
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const v = document.getElementById("v").closest("[data-vl]");
+      const drawn = (el = v) => [...el.querySelectorAll("[data-vl-item]")];
+      const first = (el = v) => drawn(el)[0];
+      try {
+        const t0 = performance.now();
+        api.set("rows", Array.from({ length: 100000 }, (_, i) => ({ id: i, name: `Row ${i}` }))); await frames();
+        log("loaded", drawn().length < 60, first().textContent, first().getAttribute("aria-posinset"), first().getAttribute("aria-setsize"), v.scrollHeight > 100000 * 25, performance.now() - t0 < 3000);
+        log("range", JSON.stringify(S().range), S().ends);
+        v.scrollTop = 50000 * 30; v.dispatchEvent(new Event("scroll")); await frames();
+        const shown = drawn().map((d) => Number(d.getAttribute("aria-posinset")));
+        log("middle", drawn().length < 60, shown.includes(50001), S().range.from > 49000 && S().range.to < 51000, S().range.total);
+        v.scrollTop = v.scrollHeight; v.dispatchEvent(new Event("scroll")); await frames();
+        log("end", drawn().at(-1).textContent, S().ends, S().range.to);
+        v.dispatchEvent(new Event("scroll")); await frames();
+        log("end again", S().ends);
+        api.set("rows", [...S().rows, ...Array.from({ length: 50 }, (_, i) => ({ id: 100000 + i, name: `More ${i}` }))]); await frames();
+        v.scrollTop = v.scrollHeight; v.dispatchEvent(new Event("scroll")); await frames();
+        log("more", drawn().at(-1).textContent, S().ends, drawn().at(-1).getAttribute("aria-setsize"));
+
+        const t = document.getElementById("t").closest("[data-vl]");
+        log("empty", getComputedStyle(t.querySelector("[data-vl-empty]")).display, t.querySelector("[data-vl-empty]").textContent);
+        api.set("tall", Array.from({ length: 1000 }, (_, i) => ({ id: `T${i}`, h: i % 2 ? 80 : 20 }))); await frames();
+        t.scrollTop = 500 * 50; t.dispatchEvent(new Event("scroll")); await frames();
+        const at = drawn(t).map((d) => Number(d.getAttribute("aria-posinset")));
+        // Placed by their average height: what's drawn covers the view, with no gap.
+        const pad = t.querySelector("[data-vl-pad=top]").offsetHeight, tall = drawn(t).reduce((h, d) => h + d.getBoundingClientRect().height, 0);
+        log("heights", at.length < 40, pad <= t.scrollTop, pad + tall >= t.scrollTop + t.clientHeight, getComputedStyle(t.querySelector("[data-vl-empty]")).display);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("virtual-list", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // A few dozen of 100,000 in the page, each with its place in the whole list.
+            "loaded true Row 0 #0 1 100000 true true",
+            r#"range {"from":0,"to":21,"total":100000} 0"#,
+            "middle true true true 100000",
+            "end Row 99999 #99999 1 99999",
+            // `end` once for each length of list.
+            "end again 1",
+            "more More 49 #100049 2 100050",
+            "empty block No rows",
+            "heights true true true none",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-presence`: the stack (named with the count, past `max` behind `+N`), the list (each
 /// status in words, `(you)`, what they're on), colours by place or as given, and people
 /// joining and leaving from state, said with `announce`.

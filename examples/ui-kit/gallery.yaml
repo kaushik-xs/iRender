@@ -283,6 +283,8 @@ state:
   slaLeft: null
   slaStatus: null
   compareAt: 50
+  vlCount: 200
+  vlRange: null
   here:
     - { id: u1, name: Asha Rao, status: active, where: Editing Budget 2027 }
     - { id: u2, name: Kaushik Sundar, status: active, where: Viewing Summary }
@@ -2024,6 +2026,36 @@ root:
                 - { type: if, props: { when: "{{ api.data_table.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.data_table }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- virtual-list
+            - type: element
+              props: { tag: section }
+              attrs: { id: virtual-list, aria-labelledby: virtual-list-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.virtual_list }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Only the rows in view are in the page. Scroll near the end and it fires end, which loads 200 more here (up to 1,000); block inventory-01 has 5,000." }
+                - type: ui-virtual-list
+                  props: { items: "{{ range(vlCount) }}", height: 300, itemHeight: 44, bindRange: vlRange, label: Numbers }
+                  style: { max-width: 520 }
+                  on: { end: { action: set_state, key: vlCount, value: "{{ vlCount < 1000 ? vlCount + 200 : vlCount }}" } }
+                  children:
+                    - type: element
+                      style: { display: flex, justify-content: space-between, align-items: center, padding: 10px 14px, border-bottom: 1px solid $color.border }
+                      children:
+                        - { type: text, props: { value: "Row {{ item + 1 }}" } }
+                        - { type: ui-badge, props: { text: "{{ item % 3 == 0 ? 'Fizz' : 'Row' }}", variant: "{{ item % 3 == 0 ? 'default' : 'secondary' }}" } }
+                - { type: ui-text, props: { variant: muted, text: "{{ vlCount }} loaded; showing {{ vlRange ? (vlRange.from + 1) + '–' + (vlRange.to + 1) : '' }}" } }
+                - { type: if, props: { when: "{{ api.virtual_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.virtual_list }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

@@ -154,6 +154,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-countdown", json!({ "to": "+1h" })),
         ("ui-compare-slider", json!({ "before": "/a.jpg", "after": "/b.jpg" })),
         ("ui-presence", json!({ "people": [] })),
+        ("ui-virtual-list", json!({ "items": [] })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -183,6 +184,7 @@ fn every_component_is_prefixed_documented_and_renders() {
             "ui-app-shell" | "ui-app-screen" => root = json!({ "type": "ui-app-shell", "props": { "bind": "k" }, "children": [{ "type": "ui-app-screen", "props": { "value": "a", "label": "A" } }] }),
             "ui-error-summary" | "ui-save-bar" => root = json!({ "type": "ui-form", "children": [root] }),
             "ui-tile" => root = json!({ "type": "ui-dashboard-grid", "children": [root] }),
+            "ui-virtual-list" => root["children"] = json!([{ "type": "text", "props": { "value": "{{ item }}" } }]),
             "ui-rail-panel" => root = json!({ "type": "ui-rail-layout", "props": { "bind": "k", "items": [{ "id": "a", "label": "A" }] }, "children": [{ "type": "ui-rail-panel", "props": { "for": "a" } }] }),
             _ => {}
         }
@@ -223,7 +225,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 205);
+    assert_eq!(kit, 206);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1278,6 +1280,28 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn virtual_list_structure_and_mistakes() {
+    let rows: Vec<Json> = (0..100).map(|i| json!({ "id": format!("r{i}"), "name": format!("Row {i}") })).collect();
+    let page = render_with(
+        json!({ "type": "ui-virtual-list", "props": { "items": "{{ rows }}", "itemHeight": 30, "label": "Rows" }, "children": [ { "type": "text", "props": { "value": "{{ item.name }}" } } ] }),
+        json!({ "rows": rows }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A focusable scrolling area; a list the behaviour supplies, its first 30 written now.
+    assert!(body.contains(r#"tabindex="0" data-vl aria-label="Rows" role="region""#), "{body}");
+    assert!(body.contains(r#"<div data-vl-item="r0" role="listitem" aria-posinset="1"><span>Row 0</span></div>"#), "{body}");
+    assert!(body.contains(r#"aria-posinset="30"><span>Row 29</span>"#) && !body.contains("Row 30<"), "{body}");
+    // The rest stand in as space below: 70 rows of 30px.
+    assert!(body.contains("<p data-vl-empty hidden>Nothing to show</p>") && page.css.contains("2100px"), "{body}");
+
+    let err = |root: Json| render_with(root, json!({ "rows": [] }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "type": "ui-virtual-list", "props": { "items": "{{ rows }}" } })).contains("children are each item"));
+    assert!(err(json!({ "type": "ui-virtual-list", "props": { "items": "{{ rows }}", "itemHeight": 1 }, "children": [ { "type": "text", "props": { "value": "x" } } ] })).contains("`itemHeight` is px"));
 }
 
 #[test]
