@@ -111,6 +111,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-sidebar-action` | `label` (required), `icon` (default ⋯), `showOnHover` | A small button beside a group's label (Add project) or at the end of an item's row (⋯). It runs its `on.click`, or opens its `ui-menu-item` children as a dropdown menu. `showOnHover` hides an item's until the row is hovered or has focus. Hidden while the sidebar is narrowed to icons. Part: `menu`. |
 | `ui-input-otp` | `bind`, `length` (default 6, at most 12), `pattern` (digits, letters, alphanumeric), `groups` (e.g. `[3, 3]`), `mask`, `label` (when no visible label names it), `name`, `disabled`, `invalid`, `id` | A one-time code in a row of boxes, after shadcn/ui's InputOTP. One real text field lies over the boxes, so typing, pasting, and the phone's suggestion of a code from a message (`autocomplete="one-time-code"`) all work, it's one stop in the tab order, and screen readers read it as one field; the boxes draw its characters and the caret. What the `pattern` doesn't allow is dropped (a pasted `123-456` gives `123456`), letters are kept in capitals, and `mask` shows dots. `groups` puts a dash between groups. Filling the last box fires a bubbling `complete` event (`detail.value`) for `on: { complete: … }`; clearing `bind` from state empties it. In a `ui-field`, the label names it. Part: `input`. |
 | `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
+| `ui-color-picker` | see [Colour picker](#colour-picker) | A colour: picked on a saturation and brightness area with hue and opacity sliders, typed as any CSS colour, taken from the screen, or chosen from swatches. A button opens it; `inline` shows it on the page. |
 | `ui-date-picker`, `ui-calendar` | see [Date picker](#date-picker) | A day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years. The picker opens the calendar from a button; `ui-calendar` shows it inline. |
 | `ui-command` | `placeholder`, `label`, `empty` (default `No results found.`), `id`, `rank` (default true), `bindSearch`, `loading`, `loadingText` (default `Loading…`) | A command palette: a search box over a list of actions, filtered as you type: every word must match the label, at its start, at a word's start, inside it or as its letters in order (`stg` finds Settings), or the `keywords`. The best matches come first, in each group and of the groups (a label starting with what's typed, then a word starting with it, then inside, then letters in order; keywords count less, shorter labels win ties), and the matched letters are marked (with the CSS Custom Highlight API, where the browser has it). `rank: false` keeps the items' order. An item with `page: theme` opens the `ui-command-page` with that `id` (and the palette stays open): its items show in place of the rest, the page's `title` as a crumb in the search box, and Backspace in the empty box (or Escape, or the crumb) goes back; pages can open pages. `bindSearch` keeps the search text in state, both ways, to fetch items for it; while they're fetched, `loading` (e.g. `{{ searching }}`) shows a Loading row with a spinner, announced to screen readers, marks the list busy and holds back the empty message. Up and Down move between items, skipping disabled ones; Home and End jump while the box is empty; Enter runs the active item; Escape clears the search. Focus stays in the search box. Parts: `search`, `input`, `list`, `loading`, `empty`. |
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
@@ -364,6 +365,38 @@ Not replicated:
 - Chip animations.
 - Values that are whole option objects: values are plain values, and their labels come from the options.
 - `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
+
+## Colour picker
+
+`ui-color-picker` is a button showing a colour that opens a panel to pick one: a saturation and brightness area, a hue slider, an opacity slider (`alpha`), a text field that takes any CSS colour (`#1e3a8a`, `rgb(30 58 138)`, `hsl(…)`, `rebeccapurple`), an eyedropper where the browser has one (Chrome and Edge), and swatches. Its behaviour (about 4 KB gzipped) is added only to pages that use it.
+
+```yaml
+- type: ui-field
+  props: { label: Brand colour }
+  children:
+    - type: ui-color-picker
+      props:
+        bind: brand                      # "#1e3a8a"
+        alpha: true                      # "#1e3a8a80" at half opacity
+        clearable: true
+        swatches: ["#0f172a", "#2563eb", "#16a34a", { value: "#ffffff", label: White }]
+- { type: ui-color-picker, props: { bind: tint, inline: true, format: rgb } }      # "rgb(30, 58, 138)"
+- { type: ui-color-picker, props: { bind: tag, custom: false, swatches: [{ value: "#ef4444", label: Red }, { value: "#22c55e", label: Green }] } }
+```
+
+| prop | |
+|---|---|
+| `bind`, `value` | The state key holding the colour, or the starting colour when not bound: text in `format`, or null for none. Whatever state holds is read as any CSS colour. |
+| `format` | `hex` (default: `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`, `rgba(…, 0.5)`) or `hsl` (`hsl(224, 64%, 33%)`, `hsla(…)`): what's written to state, in the comma form charts read too. |
+| `alpha` | An opacity slider; without it colours are written opaque. |
+| `swatches` | Colours to pick with one click: CSS colours, or `{ value, label }` (the label names it for screen readers and on hover). The one matching the value shows pressed. |
+| `custom` | The area, sliders and text field (default true). `false` leaves only the swatches, and a pick closes the popover: a palette of set colours. |
+| `eyedropper` | The button that takes a colour from the screen (default true); it shows only where the browser has the EyeDropper API. |
+| `inline` | The panel on the page, without the button and popover. In a `ui-field`, the label names its text field. |
+| `placeholder`, `clearable`, `align`, `disabled` | The button's text while there's no colour (default `Pick a colour`), a ✕ that clears it (a Clear button inline), which edge the popover lines up with, and turning it off. |
+| `name` | A hidden input carries the colour in a form. |
+
+The area is a slider for the keyboard: ←/→ change the saturation and ↑/↓ the brightness, a point at a time (Shift: ten). The hue and opacity are range inputs. A typed colour is taken as soon as it's one, and a mistake is marked on Enter or on leaving the field; Escape puts back the colour. The hue stays where it was while the colour is grey, white or black, so moving to a colour again keeps it. Each change fires a bubbling `change` event with `{ value }`.
 
 ## Date picker
 

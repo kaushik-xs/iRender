@@ -7464,6 +7464,111 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-color-picker`: the area's keys, the hue and opacity sliders, typed colours (any
+/// CSS colour, or a mistake), swatches, clearing, each format, and state set elsewhere.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn color_picker_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "a": "#1e3a8a", "s": null, "r": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-color-picker", "props": { "id": "a", "bind": "a", "alpha": true, "clearable": true, "name": "brand", "swatches": ["#16a34a", { "value": "#ffffff", "label": "White" }] } },
+            { "type": "ui-color-picker", "props": { "id": "g", "inline": true, "format": "hsl", "value": "#808080" } },
+            { "type": "ui-color-picker", "props": { "id": "s", "bind": "s", "custom": false, "swatches": [{ "value": "#ef4444", "label": "Red" }, { "value": "#3b82f6", "label": "Blue" }] } },
+            { "type": "ui-color-picker", "props": { "id": "r", "bind": "r", "inline": true, "format": "rgb", "alpha": true } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), api = root.__irender, S = () => api.state;
+      const P = (id) => document.getElementById(id).closest("[data-i-x]");
+      const key = (t, k, shift) => t.dispatchEvent(new KeyboardEvent("keydown", { key: k, shiftKey: !!shift, bubbles: true }));
+      const slide = (t, v) => { t.value = String(v); t.dispatchEvent(new Event("input", { bubbles: true })); };
+      const type = (t, v) => { t.value = v; t.dispatchEvent(new Event("input", { bubbles: true })); t.dispatchEvent(new Event("change", { bubbles: true })); };
+      try {
+        const a = P("a"), $ = (s) => a.querySelector(s);
+        log("start", $("[data-color-value]").textContent, $("[data-color-chip]").style.getPropertyValue("--swatch"));
+        $("[data-color-trigger]").click(); await wait(10);
+        log("open", document.activeElement.hasAttribute("data-color-area"), $("[data-color-hue]").value, $("[data-color-text]").value);
+        key($("[data-color-area]"), "ArrowUp", true); await wait(5);
+        log("brighter", S().a, $("[data-color-area]").getAttribute("aria-valuetext"));
+        slide($("[data-color-hue]"), 0); await wait(5);
+        log("hue", S().a);
+        slide($("[data-color-alpha]"), 50); await wait(5);
+        log("alpha", S().a);
+        type($("[data-color-text]"), "rebeccapurple"); await wait(5);
+        log("typed", S().a);
+        type($("[data-color-text]"), "nope"); await wait(5);
+        log("mistake", S().a, $("[data-color-text]").getAttribute("aria-invalid"));
+        $("[data-color-text]").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(5);
+        log("escape", $("[data-color-text]").value, $("[data-color-text]").getAttribute("aria-invalid"));
+        $('[data-swatch="1"]').click(); await wait(5);
+        log("swatch", S().a, [...a.querySelectorAll("[data-swatch]")].map((b) => b.getAttribute("aria-pressed")).join(","), $("[data-color-live]").textContent);
+        log("form", a.querySelector("input[type=hidden]").value);
+        $("[data-color-x]").click(); await wait(5);
+        log("cleared", S().a, $("[data-color-value]").textContent, a.hasAttribute("data-empty"), $("[data-color-x]").hidden);
+        api.set("a", "hsl(0, 100%, 50%)"); await wait(5);
+        log("from state", $("[data-color-value]").textContent, $("[data-color-hue]").value);
+
+        // Grey keeps the hue picked: the format writes it.
+        const g = P("g"); let seen = null;
+        g.addEventListener("change", (e) => (seen = e.detail.value));
+        slide(g.querySelector("[data-color-hue]"), 200); await wait(5);
+        log("grey", seen, g.querySelector("[data-color-text]").value);
+        key(g.querySelector("[data-color-area]"), "ArrowRight", true); await wait(5);
+        log("hsl", seen);
+
+        // Only swatches: a pick closes it.
+        const sw = P("s");
+        sw.querySelector("[data-color-trigger]").click(); await wait(10);
+        log("swatches", document.activeElement.getAttribute("aria-label"), !!sw.querySelector("[data-color-area]"));
+        sw.querySelector('[data-swatch="1"]').click(); await wait(10);
+        log("picked", S().s, sw.querySelector("[data-color-pop]").matches(":popover-open"), document.activeElement === sw.querySelector("[data-color-trigger]"));
+
+        const r = P("r"), rt = r.querySelector("[data-color-text]");
+        type(rt, "hsl(120, 100%, 50%)"); await wait(5);
+        log("rgb", S().r);
+        type(rt, "#ff000080"); await wait(5);
+        log("rgba", S().r, r.querySelector("[data-color-alpha]").value);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("color-picker", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start #1e3a8a linear-gradient(#1e3a8a, #1e3a8a)",
+            "open true 224 #1e3a8a",
+            // Shift+↑: ten points brighter.
+            "brighter #2445a3 Saturation 78%, brightness 64%",
+            "hue #a32424",
+            "alpha #a3242480",
+            // Any CSS colour; a whole colour has no opacity.
+            "typed #663399",
+            "mistake #663399 true",
+            "escape #663399 ",
+            "swatch #ffffff false,true White picked",
+            "form #ffffff",
+            "cleared  Pick a colour true true",
+            "from state #ff0000 0",
+            // Grey keeps the hue picked.
+            "grey hsl(200, 0%, 50%) hsl(200, 0%, 50%)",
+            "hsl hsl(200, 5%, 48%)",
+            "swatches Red false",
+            "picked #3b82f6 false true",
+            "rgb rgb(0, 255, 0)",
+            "rgba rgba(255, 0, 0, 0.5) 50",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `loading` on a command palette: while items are fetched, a Loading row shows (and
 /// the list says it's busy) and the empty message waits; items that arrive show.
 #[test]

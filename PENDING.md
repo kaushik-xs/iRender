@@ -11,6 +11,8 @@ _Last updated: 2026-11-23._
 
 ## Gaps you'd hit in real use
 
+- [ ] **`ui-color-picker`** (2026-11-23; gallery, block report-01): no recent colours, no OKLCH or other wide-gamut formats (typed `oklch()` is read through the browser into sRGB), no contrast check against a background, and the eyedropper only where the browser has one (Chrome and Edge). The area isn't tried with touch on real phones.
+
 - [ ] **CSS-wide keywords in conditional dynamic styles.** A dynamic `inherit`, `initial`, `unset` or `revert` works in a plain declaration (it's set on the property inline), but under `:hover`, a media query or a nested selector it can't reach the property and counts as no value. Idea: for those, compile one rule per keyword keyed on a data attribute.
 - [ ] **Touch dragging isn't tried on real phones.** The kanban board, tree and flow palette pick an item up after a 300 ms hold (2026-11-19); that's tested with Chrome's emulated touch input and with touch pointer events in Chrome, WebKit and Firefox, not on an iPhone or an Android phone.
 - [ ] **Older browsers aren't tested.** The browser tests run in Chrome, and in Playwright's WebKit and Firefox (CI, and `tools/playwright/dump-dom.js` locally), which are recent builds (Safari 27.2, Firefox 159 on 2026-11-17). Safari releases and Firefox ESR without the Popover API, invoker commands, `closedby` or `<details name>` aren't covered. Anchor positioning has a fallback script (2026-11-20), tested by turning the browser's own off; `anchor()` and `anchor-size()` in a document's own CSS aren't handled by it.
@@ -339,6 +341,8 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - telecom: `roaming` (f), `network-outage`, `fibre-optic`
 
 ## Housekeeping
+
+- [ ] **Intermittent `components::app_lock_asks_for_the_pin`** (browser test): failed once in the full run on 2026-11-23 and once in two runs on its own without that day's changes; it passes most runs. Look for a fixed wait like the one fixed on 2026-11-22.
 
 - [ ] **Browser tests under heavy load.** The tests wait on the page rather than fixed times: chat and server-backed tests (combobox, remote and lazy data tables) wait for the answer with message-channel turns, which hold Chrome's virtual time still, and the menubar and data table tree tests `settle()` until the page stops changing (2026-11-19). Two full Firefox runs at once now pass (4 of 4; before, 2 of 4 failed). Left: with three full Chrome runs at once, the chat threads page sometimes uses up its 30 s virtual-time budget (about 1 run in 3 at that load; a single run, as in CI, hasn't failed).
 - [x] **`{{ }}` inside an action's object or list is filled in** (2026-11-20): a `set_state` value, `submit`'s `body` fields and `call`'s `args`, however deep, are built when the action runs (Rust and the browser runtime agree). Component props are left to their components.

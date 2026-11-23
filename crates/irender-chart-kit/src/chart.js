@@ -1468,6 +1468,9 @@
       }
 
       if (isObj(p.option)) o = merge(o, p.option);
+      // A null at the top (`color: null` from state) leaves that to the defaults: it's
+      // dropped, so the chart starts over without it rather than keeping the last value.
+      for (const k of Object.keys(o)) if (o[k] === null) delete o[k];
       o = functions(o);
       if (cfg.safe) o = sanitize(o);
       if (o.series && !Array.isArray(o.series)) o.series = [o.series];

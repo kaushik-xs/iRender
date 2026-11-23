@@ -63,6 +63,7 @@ macro_rules! fs {
 
 mod agent;
 mod calendar;
+mod color;
 mod camera;
 mod carousel;
 mod chat;
@@ -326,6 +327,7 @@ pub fn register(registry: &mut Registry) {
         .register(carousel::Carousel)
         .register(calendar::Calendar)
         .register(calendar::DatePicker)
+        .register(color::ColorPicker)
         .register(data_table::DataTable)
         .register(data_table::Child::COLUMN)
         .register(data_table::Child::TOOLBAR)
@@ -590,6 +592,7 @@ const CONTROLS: &[&str] = &[
     "input", "textarea", "select", "ui-input", "ui-textarea", "ui-select", "ui-checkbox", "ui-switch", "ui-slider",
     "ui-radio-group", "ui-combobox", "ui-date-picker", "ui-input-otp", "ui-number-input", "ui-json-editor",
     "ui-tags-input", "ui-masked-input", "ui-phone-input", "ui-time-picker", "ui-mention-input", "ui-tree-select", "ui-code-editor",
+    "ui-color-picker",
 ];
 
 /// The `attrs` that reach the element a control focuses: the inner `<input>` for kit
@@ -603,6 +606,9 @@ fn focus_attrs(node: &mut Node) -> &mut IndexMap<String, Val> {
         // With `input`, the text field; otherwise the button that opens the calendar.
         "ui-date-picker" if typed_date(node) => &mut node.parts.entry("input".into()).or_default().attrs,
         "ui-date-picker" => &mut node.parts.entry("trigger".into()).or_default().attrs,
+        // Inline, its text field; otherwise the button that opens it.
+        "ui-color-picker" if inline_color(node) => &mut node.parts.entry("input".into()).or_default().attrs,
+        "ui-color-picker" => &mut node.parts.entry("trigger".into()).or_default().attrs,
         _ => &mut node.attrs,
     }
 }
@@ -615,8 +621,15 @@ fn focus_attr<'a>(node: &'a Node, name: &str) -> Option<&'a Val> {
         "ui-json-editor" | "ui-code-editor" => node.parts.get("textarea")?.attrs.get(name),
         "ui-date-picker" if typed_date(node) => node.parts.get("input")?.attrs.get(name),
         "ui-date-picker" => node.parts.get("trigger")?.attrs.get(name),
+        "ui-color-picker" if inline_color(node) => node.parts.get("input")?.attrs.get(name),
+        "ui-color-picker" => node.parts.get("trigger")?.attrs.get(name),
         _ => node.attrs.get(name),
     }
+}
+
+/// A colour picker shown on the page, without its button.
+fn inline_color(node: &Node) -> bool {
+    matches!(node.prop("inline"), Some(Val::Lit(Json::Bool(true))))
 }
 
 /// A date picker with a text field to type in.

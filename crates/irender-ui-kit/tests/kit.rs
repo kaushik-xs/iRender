@@ -217,7 +217,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 198);
+    assert_eq!(kit, 199);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1272,6 +1272,46 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn color_picker_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-field", "props": { "label": "Brand" }, "children": [
+            { "type": "ui-color-picker", "props": { "bind": "brand", "name": "brand", "clearable": true, "swatches": ["#1e3a8a", { "value": "#fff", "label": "White" }] } } ] }),
+        json!({ "brand": "#1e3a8a" }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // The field's label names the button that opens the panel.
+    assert!(body.contains(r#"<label for="field-root-control">"#), "{body}");
+    assert!(body.contains(r#"<button id="field-root-control" type="button" data-color-trigger popovertarget="color-picker-root-children-0-panel" aria-haspopup="dialog">"#), "{body}");
+    assert!(body.contains(r##"<span data-color-value data-placeholder="Pick a colour">#1e3a8a</span>"##), "{body}");
+    assert!(body.contains(r#"role="slider" tabindex="0" aria-label="Saturation and brightness""#), "{body}");
+    assert!(body.contains(r#"aria-label="White" title="White" aria-pressed="false""#), "{body}");
+    assert!(body.contains(r##"<input type="hidden" name="brand" value="#1e3a8a">"##), "{body}");
+    // Colours reach CSS only through the behaviour.
+    assert!(!body.contains("--swatch"), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-color-picker")));
+
+    // Inline, the field's label names its text field.
+    let inline = plain(
+        &render_with(
+            json!({ "type": "ui-field", "props": { "label": "Tint" }, "children": [ { "type": "ui-color-picker", "props": { "bind": "tint", "inline": true, "alpha": true } } ] }),
+            json!({ "tint": null }),
+            json!({}),
+        )
+        .unwrap()
+        .body,
+    );
+    assert!(inline.contains(r#"id="field-root-control""#) && inline.contains("data-color-text") && inline.contains(r#"aria-label="Opacity""#), "{inline}");
+    assert!(!inline.contains("data-color-pop") && !inline.contains(r#"aria-label="Colour value""#), "{inline}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-color-picker", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "custom": false })).contains("needs `swatches`"));
+    assert!(err(json!({ "swatches": [1] })).contains("each swatch"));
+    assert!(err(json!({ "swatches": "red" })).contains("must be a list"));
 }
 
 #[test]
