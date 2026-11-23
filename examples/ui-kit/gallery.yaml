@@ -56,6 +56,8 @@ state:
   edChanges: {}
   fmName: Ada
   fmEmail: ""
+  fmUser: ""
+  fmChecking: []
   fmErrors: {}
   fmDirty: false
   stStep: pick
@@ -1240,13 +1242,14 @@ root:
                   children: *head
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
                 - type: ui-form
-                  props: { bindErrors: fmErrors, bindDirty: fmDirty, rules: { fmName: { label: Name, required: true }, fmEmail: { label: Email, required: true, type: email } } }
+                  props: { bindErrors: fmErrors, bindDirty: fmDirty, bindChecking: fmChecking, rules: { fmName: { label: Name, required: true }, fmEmail: { label: Email, required: true, type: email }, fmUser: { label: Username, minLength: 3, remote: api/available } } }
                   on: { submit: { action: set_state, key: fmDirty, value: false } }
                   style: { display: flex, flex-direction: column, gap: 16, max-width: 520 }
                   children:
                     - { type: ui-error-summary }
                     - { type: ui-field, props: { label: Name, error: "{{ fmErrors.fmName }}" }, children: [ { type: ui-input, props: { bind: fmName } } ] }
                     - { type: ui-field, props: { label: Email, error: "{{ fmErrors.fmEmail }}" }, children: [ { type: ui-input, props: { bind: fmEmail } } ] }
+                    - { type: ui-field, props: { label: Username, description: "{{ includes(fmChecking, 'fmUser') ? 'Checking…' : 'Asked of the server: admin and root are taken' }}", error: "{{ fmErrors.fmUser }}" }, children: [ { type: ui-input, props: { bind: fmUser } } ] }
                     - { type: ui-save-bar, props: { position: inline } }
                     - { type: ui-button, props: { label: Submit, type: submit }, style: { align-self: flex-start } }
                 - { type: if, props: { when: "{{ api.form.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }

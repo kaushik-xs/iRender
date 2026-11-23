@@ -1212,10 +1212,11 @@ ui-import: Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns ar
   locale       string  How numbers and dates are read (default: the document's `lang`, else the browser's)
   id           any  Element id (default: derived from the document)
   children: no
-ui-form: A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. Put a `ui-error-summary` and a `ui-save-bar` in it.
-  rules        any  What each state key must be: `{ email: { label, required, type: email|url|number|date, min, max, minLength, maxLength, pattern, match: otherKey, message } }`. Any of them may use state, e.g. `required: "{{ kind == 'company' }}"`
+ui-form: A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. A `remote` rule asks the server (is this name taken?). Put a `ui-error-summary` and a `ui-save-bar` in it.
+  rules        any  What each state key must be: `{ email: { label, required, type: email|url|number|date, min, max, minLength, maxLength, pattern, match: otherKey, message, remote } }`. Any of them may use state, e.g. `required: "{{ kind == 'company' }}"`. `remote: /api/available` (or `{ url, param, wait, message, headers }`) asks the server once the other rules pass, `wait` ms (default 400) after the value last changed: GET `url?value=…` (`param` renames it; `{value}` in the url is replaced instead), answered by `true`, `{ valid: true }`, or what's wrong (`false`, a text, `{ valid: false, message }`). A submit waits for it; if the server can't be reached the value passes (it's checked again when sent) and the form fires `failed`
   bindErrors   statekey  State key that gets `{ key: message }` for the fields left so far (all of them once submitting was tried); give it to each `ui-field`'s `error`
-  bindValid    statekey  State key that gets true while every rule is met
+  bindValid    statekey  State key that gets true while every rule is met (not while a `remote` one is being asked)
+  bindChecking statekey  State key that gets the keys whose `remote` rule is being asked, e.g. for a field's `description: "{{ includes(checking, 'handle') ? 'Checking…' : '' }}"`
   bindTried    statekey  State key that gets true once submitting was tried with something wrong
   keys         any  State keys whose changes are unsaved changes (default: those with `rules`)
   bindDirty    statekey  State key that gets true while there are unsaved changes; set it to false once saved (a `submit` that succeeds does)

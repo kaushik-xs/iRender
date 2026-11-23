@@ -2,7 +2,7 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-22._
+_Last updated: 2026-11-23._
 
 ## Suggested next
 
@@ -38,7 +38,7 @@ _Last updated: 2026-11-22._
   - [ ] **Editable cells** (`edit` on data table columns; block data-table-08): no editing in nested, grouped or API-grouped tables; no drag handle to fill; one date at a time (the browser's own date field); undo is the table's, not the form's. A remote table's edits are the page's to save.
   - [ ] **`ui-import`** (import-01): no `.xls`; everything is read in the browser, so files past about 50,000 rows are slow; no mapping of values (a sheet's "M" to Male), only of columns; matches aren't remembered between files.
   - [ ] **`ui-repeater`** (invoice-01, profile-01): a row's fields are its own controls; a kit component that binds a state key (a combobox, a date picker) can't be one. Rows move without animation.
-  - [ ] **`ui-form`** (invoice-01, profile-01, data-table-08): no asynchronous rules (is this name taken?), and a field inside a list item isn't tracked.
+  - [ ] **`ui-form`** (invoice-01, profile-01, data-table-08): a field inside a list item isn't tracked. A `remote` rule (2026-11-23) asks the server with GET only, one key's value at a time (not two fields together).
   - [ ] **`ui-stepper`** (intake-01): no saved furthest step, so going back asks for Next again unless steps have `valid`.
   - [ ] **`ui-comments`, `ui-mention-input`** (record-01, review-01): plain text only, no Markdown or attachments; `people` are in the page, not searched from an API.
   - [ ] **`ui-phone-input`** (intake-01): groups and lengths of some 40 countries, general rules for the rest; numbers aren't checked against real ranges. **`ui-time-picker`**: no time zones.

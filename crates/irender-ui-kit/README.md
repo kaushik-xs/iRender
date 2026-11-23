@@ -121,7 +121,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-chat-input` | `messages` (required), `endpoint`, `body`, `headers`, `bindFiles`, `bind`, `waiting`, `threads`, `thread`, `placeholder`, `label`, `suggestions`, `disabled` | The box a message is written in; sends to `endpoint` and streams the reply in. Children go in its toolbar. |
 | `ui-typing-indicator` | `label` (default `Typing`) | Three bouncing dots. |
 | `ui-carousel` | `label` (default `Carousel`), `size` (each slide's width; default `min(280px, 85%)`), `gap` (default 12), `dots`, `loop`, `autoplay` (ms) | Slides in a row that scrolls sideways and snaps to each; children are the slides, and a `list` with `style: { display: contents }` works. The arrow buttons, Left and Right on the focused track, and swiping move a slide at a time, to the next slide's own start, so slides of different widths step evenly; a button hides at its end, unless `loop` goes round to the other. `dots` adds a dot per slide under it, the current one marked, each going to its slide. `autoplay: 5000` moves on every 5 seconds, round and round, with a pause button; it waits while the pointer or focus is on it, the tab is hidden, or the reader prefers less motion. Each slide is a `group` named "2 of 5". Parts: `track`, `previous`, `next`, `dots`, `play`. |
-| `ui-form` | `rules`, `bindErrors`, `bindValid`, `bindTried`, `keys`, `bindDirty`, `guard`, `guardText`, `disabled` | A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. Put a `ui-error-summary` and a `ui-save-bar` in it. See [Forms](#forms). |
+| `ui-form` | `rules`, `bindErrors`, `bindValid`, `bindChecking`, `bindTried`, `keys`, `bindDirty`, `guard`, `guardText`, `disabled` | A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), which knows its unsaved changes. A `remote` rule asks the server (is this name taken?). Put a `ui-error-summary` and a `ui-save-bar` in it. See [Forms](#forms). |
 | `ui-error-summary` | `title`, `errors` | What's wrong in the `ui-form` it's in, listed once submitting was tried; each message goes to its field. See [Forms](#forms). |
 | `ui-save-bar` | `text`, `saveLabel`, `discardLabel`, `saving`, `disabled`, `position` (sticky, fixed, inline) | Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons. See [Forms](#forms). |
 | `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
@@ -924,6 +924,7 @@ A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent e
       end: { label: End, type: date, min: "{{ start }}", message: After the start }
       topics: { label: Topics, min: 1, max: 5 }          # a list, by how many it has
       again: { match: password, message: The two don't match }
+      handle: { label: Handle, required: true, remote: /api/available }   # asked of the server
   on: { submit: { action: submit, endpoint: /api/save, method: POST, body: { email: "{{ email }}" } } }
   children:
     - { type: ui-error-summary }     # what's wrong, once submitting was tried; each goes to its field
@@ -932,6 +933,8 @@ A reply sends its UI as `ui` or `html`: in the JSON reply, or as a server-sent e
 ```
 
 Unsaved changes are the `keys` (by default, those with rules) compared with how they were. They're saved when a `submit` action answers ok, or when the page sets `bindDirty` to false. Any rule may use state.
+
+A `remote` rule asks the server whether a value is accepted (is this name taken?), once the other rules pass and 400 ms after typing stops (`wait`): a GET to the url with `?value=…` (`param` renames it, `{value}` in the url is replaced instead). The server answers `true` or `{ valid: true }`, or what's wrong: `false`, a text, or `{ valid: false, message }`. Answers are remembered, `bindChecking` lists the keys being asked (for a "Checking…" under the field), `bindValid` is false meanwhile, and a submit waits for the answer. A server that can't be reached lets the value pass, as the server checks it again when it's sent, and the form fires `failed`. `examples/serve.py` answers `api/available` for profile-01's handle.
 
 **`ui-stepper`** shows a process's steps and the current one's panel, with Back, Next and Finish (`on: { finish: … }`). `bind` holds the current `ui-step`'s `value`. A later step waits until the ones before it are done, or are `valid`; `linear: false` lets people go anywhere. It needs no script.
 

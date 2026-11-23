@@ -20,11 +20,15 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "rules",
         PropKind::Any,
-        "What each state key must be: `{ email: { label, required, type: email|url|number|date, min, max, minLength, maxLength, pattern, match: otherKey, message } }`. \
-         Any of them may use state, e.g. `required: \"{{ kind == 'company' }}\"`",
+        "What each state key must be: `{ email: { label, required, type: email|url|number|date, min, max, minLength, maxLength, pattern, match: otherKey, message, remote } }`. \
+         Any of them may use state, e.g. `required: \"{{ kind == 'company' }}\"`. \
+         `remote: /api/available` (or `{ url, param, wait, message, headers }`) asks the server once the other rules pass, `wait` ms (default 400) after the value last changed: \
+         GET `url?value=…` (`param` renames it; `{value}` in the url is replaced instead), answered by `true`, `{ valid: true }`, or what's wrong (`false`, a text, `{ valid: false, message }`). \
+         A submit waits for it; if the server can't be reached the value passes (it's checked again when sent) and the form fires `failed`",
     ),
     PropDef::new("bindErrors", PropKind::StateKey, "State key that gets `{ key: message }` for the fields left so far (all of them once submitting was tried); give it to each `ui-field`'s `error`"),
-    PropDef::new("bindValid", PropKind::StateKey, "State key that gets true while every rule is met"),
+    PropDef::new("bindValid", PropKind::StateKey, "State key that gets true while every rule is met (not while a `remote` one is being asked)"),
+    PropDef::new("bindChecking", PropKind::StateKey, "State key that gets the keys whose `remote` rule is being asked, e.g. for a field's `description: \"{{ includes(checking, 'handle') ? 'Checking…' : '' }}\"`"),
     PropDef::new("bindTried", PropKind::StateKey, "State key that gets true once submitting was tried with something wrong"),
     PropDef::new("keys", PropKind::Any, "State keys whose changes are unsaved changes (default: those with `rules`)"),
     PropDef::new("bindDirty", PropKind::StateKey, "State key that gets true while there are unsaved changes; set it to false once saved (a `submit` that succeeds does)"),
@@ -116,7 +120,7 @@ static BAR: LazyLock<StyleBlock> = LazyLock::new(|| {
 
 const BAR_IN: &str = "@keyframes ui-save-bar {\n  from { opacity: 0; transform: translateY(8px); }\n}";
 
-const RULES: &[&str] = &["label", "required", "type", "min", "max", "minLength", "maxLength", "pattern", "match", "message"];
+const RULES: &[&str] = &["label", "required", "type", "min", "max", "minLength", "maxLength", "pattern", "match", "message", "remote"];
 
 impl Component for Form {
     fn name(&self) -> &'static str {
@@ -126,7 +130,7 @@ impl Component for Form {
     fn info(&self) -> ComponentInfo {
         ComponentInfo {
             doc: "A form whose fields are checked by `rules` as they're left and when it's submitted (`on: { submit: … }` runs only when all is right), \
-                  which knows its unsaved changes. Put a `ui-error-summary` and a `ui-save-bar` in it.",
+                  which knows its unsaved changes. A `remote` rule asks the server (is this name taken?). Put a `ui-error-summary` and a `ui-save-bar` in it.",
             props: PROPS,
             parts: &[],
             children: true,
@@ -149,6 +153,11 @@ impl Component for Form {
             if let Some(bad) = r.keys().find(|k| !RULES.contains(&k.as_str())) {
                 return Err(RenderError::new(node, format!("unknown rule `{bad}` for `{key}`; there are {}", RULES.join(", "))));
             }
+            match r.get("remote") {
+                None | Some(Json::String(_)) => {}
+                Some(Json::Object(o)) if o.contains_key("url") || o.contains_key("$irender") => {}
+                Some(_) => return Err(RenderError::new(node, format!("`remote` for `{key}` must be a url or `{{ url, param, wait, message }}`"))),
+            }
         }
         let keys = match cx.prop(node, "keys") {
             None | Some(Json::Null) => rules.as_object().map(|m| m.keys().map(|k| json!(k)).collect()).unwrap_or_default(),
@@ -158,7 +167,7 @@ impl Component for Form {
         let bind = |n: &str| cx.prop_string(node, n);
         let config = json!({
             "rules": rules, "keys": keys,
-            "errors": bind("bindErrors"), "valid": bind("bindValid"), "tried": bind("bindTried"), "dirty": bind("bindDirty"),
+            "errors": bind("bindErrors"), "valid": bind("bindValid"), "tried": bind("bindTried"), "dirty": bind("bindDirty"), "checking": bind("bindChecking"),
             "guard": cx.prop(node, "guard").is_some_and(|v| expr::truthy(&v)),
             "disabled": node.prop("disabled").map(|d| crate::data_table::dynamic(cx, node, "disabled", d)).transpose()?,
             "locale": crate::locale(cx, node),

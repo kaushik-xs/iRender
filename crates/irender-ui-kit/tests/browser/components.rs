@@ -228,6 +228,61 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn form_asks_the_server_with_remote_rules() {
+    check(
+        "form-remote",
+        r##"
+state: { user: "", errors: {}, valid: false, checking: [], sent: 0 }
+root:
+  type: ui-form
+  props: { bindErrors: errors, bindValid: valid, bindChecking: checking, rules: { user: { label: User, minLength: 3, remote: { url: /avail, wait: 300 } } } }
+  on: { submit: { action: set_state, key: sent, value: "{{ sent + 1 }}" } }
+  children:
+    - { type: ui-input, props: { bind: user }, attrs: { id: user } }
+    - { type: ui-button, props: { label: Go, type: submit }, attrs: { id: go } }
+"##,
+        r##"
+        const asked = []; let release;
+        window.fetch = (u) => {
+          asked.push(String(u)); const v = new URL(u, "http://x").searchParams.get("value");
+          if (v === "down") return Promise.reject(new Error("down"));
+          if (v === "slow") return new Promise((r) => { release = (ok) => r({ ok: true, json: () => Promise.resolve(ok) }); });
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(v === "taken" ? { valid: false, message: "Taken" } : { valid: true }) });
+        };
+        const fails = []; document.addEventListener("failed", (e) => fails.push(e.detail.key));
+        const user = $("#user");
+        // Too short by the other rules: not asked.
+        type(user, "ab"); await wait(400); log(asked.length, S().checking);
+        // Asked a while after typing stops; shown once the field is left.
+        type(user, "taken"); log(S().checking, S().valid, $("form").getAttribute("aria-busy")); await wait(350); log(asked, S().checking, S().errors); user.blur(); $("#go").focus(); await wait(160); log(S().errors);
+        // Only the last of quick changes is asked; an answer had before isn't asked again.
+        type(user, "fine"); await wait(100); type(user, "fine2"); await wait(350); log(asked.length, asked.at(-1), S().valid, S().errors);
+        type(user, "taken"); log(asked.length, S().checking, S().errors);
+        // A submit waits for the answer, asked at once.
+        type(user, "slow"); $("#go").click(); await wait(10); log(asked.at(-1), S().sent); release(true); await wait(10); log(S().sent, S().valid);
+        // Not valid while it's being asked.
+        type(user, "slower"); log(S().valid); await wait(350);
+        // Can't be reached: it passes, and the form says so.
+        type(user, "down"); await wait(350); log(fails, S().valid, S().errors); $("#go").click(); await wait(10); log(S().sent);
+"##,
+        &[
+            "0 []",
+            r#"["user"] false true"#,
+            r#"["/avail?value=taken"] [] {}"#,
+            r#"{"user":"Taken"}"#,
+            "2 /avail?value=fine2 true {}",
+            r#"2 [] {"user":"Taken"}"#,
+            "/avail?value=slow 0",
+            "1 true",
+            "false",
+            r#"["user"] true {}"#,
+            "2",
+        ],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn import_reads_matches_checks_and_hands_over() {
     check(
         "import",

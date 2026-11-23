@@ -1,6 +1,7 @@
 # Block: a member's profile, for a club or any site with accounts. `ui-form` checks the
-# fields, knows its unsaved changes and asks before they're lost; the bar at the foot saves
-# or discards them. The picture is cropped in the browser, contacts are a repeater of cards,
+# fields, asks the server whether a handle is taken (`remote`; examples/serve.py answers),
+# knows its unsaved changes and asks before they're lost; the bar at the foot saves or
+# discards them. The picture is cropped in the browser, contacts are a repeater of cards,
 # and the session asks before it ends.
 #
 #   cargo run -p irender-cli -- render examples/blocks/profile-01.yaml --ui-kit --icon-kit -o profile-01.html
@@ -9,6 +10,7 @@ state:
   toast: null
   dirty: false
   errors: {}
+  checking: []
   crop: false
   picture: null
   name: Farah Siddiqui
@@ -45,11 +47,12 @@ root:
           props:
             bindDirty: dirty
             bindErrors: errors
+            bindChecking: checking
             guard: true
             keys: [name, handle, about, topics, phone, contacts, picture]
             rules:
               name: { label: Name, required: true, minLength: 2 }
-              handle: { label: Handle, required: true, pattern: "[a-z0-9_]{3,20}", message: "3 to 20 small letters, digits or _" }
+              handle: { label: Handle, required: true, pattern: "[a-z0-9_]{3,20}", message: "3 to 20 small letters, digits or _", remote: api/available }
               about: { label: About, maxLength: 160 }
               topics: { label: Topics, min: 1, max: 5 }
           on:
@@ -79,7 +82,7 @@ root:
                   style: { display: grid, gap: 16px, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(2, minmax(0, 1fr))" } }
                   children:
                     - { type: ui-field, props: { label: Name, error: "{{ errors.name }}" }, children: [ { type: ui-input, props: { bind: name } } ] }
-                    - { type: ui-field, props: { label: Handle, error: "{{ errors.handle }}" }, children: [ { type: ui-input-group, props: { prefix: "@" }, children: [ { type: ui-input, props: { bind: handle } } ] } ] }
+                    - { type: ui-field, props: { label: Handle, description: "{{ includes(checking, 'handle') ? 'Checking…' : 'Try admin or imran: they are taken' }}", error: "{{ errors.handle }}" }, children: [ { type: ui-input-group, props: { prefix: "@" }, children: [ { type: ui-input, props: { bind: handle } } ] } ] }
                     - { type: ui-field, props: { label: Phone }, children: [ { type: ui-phone-input, props: { bind: phone } } ] }
                     - { type: ui-field, props: { label: Topics, error: "{{ errors.topics }}" }, children: [ { type: ui-tags-input, props: { bind: topics, suggestions: [Running, Birds, Baking, Books, Chess], max: 5 } } ] }
                     - { type: ui-field, props: { label: About, error: "{{ errors.about }}" }, children: [ { type: ui-textarea, props: { bind: about, rows: 3 } } ], style: { grid-column: 1 / -1 } }

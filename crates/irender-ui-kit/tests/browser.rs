@@ -1054,16 +1054,17 @@ fn sidebar_remembers_in_chrome() {
         { "type": "ui-sidebar-trigger" } ] });
     let doc = serde_json::json!({ "version": 1, "state": { "nav": true, "docs": false, "plain": true },
         "root": { "type": "stack", "children": [ layout("a", "nav", serde_json::json!(true)), layout("b", "docs", serde_json::json!("docs-pages")), layout("c", "plain", serde_json::json!(null)) ] } });
-    let early = r#"<script>localStorage.clear(); localStorage.setItem("irender-sidebar:nav", "false"); localStorage.setItem("irender-sidebar:docs-pages", "true");</script>"#;
+    let early = r#"<script>localStorage.clear(); localStorage.setItem("irender-sidebar:nav", "false"); localStorage.setItem("irender-sidebar:docs-pages", "true");
+    // Seen as it's set: a frame or two can pass before `load`.
+    new MutationObserver((l) => l.forEach((m) => { if (m.target.id === "a" && m.target.hasAttribute("data-restoring")) window.restoring = true; })).observe(document, { subtree: true, attributes: true, attributeFilter: ["data-restoring"] });</script>"#;
     let driver = r##"<script>
     window.addEventListener("load", async () => {
       const out = []; const log = (...a) => out.push(a.join(" "));
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const $ = (s) => document.querySelector(s), S = () => $("[data-i-root]").__irender.state;
-      const restoring = $("#a").hasAttribute("data-restoring");
       await wait(150);
       try {
-        log("restored", S().nav, S().docs, S().plain, $("#a").dataset.state, $("#b").dataset.state, restoring, $("#a").hasAttribute("data-restoring"));
+        log("restored", S().nav, S().docs, S().plain, $("#a").dataset.state, $("#b").dataset.state, !!window.restoring, $("#a").hasAttribute("data-restoring"));
         $("#a [data-sidebar-trigger]").click(); await wait(20);
         $("#b [data-sidebar-trigger]").click(); await wait(20);
         $("#c [data-sidebar-trigger]").click(); await wait(20);

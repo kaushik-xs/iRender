@@ -25,6 +25,9 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                     with group=<value> too, that group's rows, a batch at a time.
   api/upload        POST multipart (field `file`): keeps the file in memory for this run and
                     answers { id, url } for ui-file-upload. Files over 10 MB get 413.
+  api/available JSON: whether a name is free (`?value=<name>`), for ui-form's `remote` rule:
+                { valid } or { valid: false, message }. admin, root, support, help, imran and
+                ada are taken.
   api/records   POST anything as JSON: answers { id, size }, the same for the same x-queued-id.
   api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
@@ -69,6 +72,7 @@ _rendered = {}
 # Uploaded files, in memory for this run: id -> (name, type, bytes).
 UPLOADS = {}
 # Records sent by the app blocks: queued id -> record id.
+TAKEN = {"admin", "root", "support", "help", "imran", "ada"}
 RECORDS = {}
 MAX_UPLOAD = 10 * 1024 * 1024
 
@@ -225,6 +229,13 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(budget_projects(query.get("parent", "")))
         if "/api/uploads/" in path:
             return self.uploaded(path)
+        if path.endswith("/api/available"):
+            from urllib.parse import parse_qsl
+            query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
+            name = query.get("value", "").strip().lower()
+            if name in TAKEN:
+                return self.send_json({"valid": False, "message": f"@{name} is taken"})
+            return self.send_json({"valid": True})
         if path.endswith("/api/shipments"):
             from urllib.parse import parse_qsl
             query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))

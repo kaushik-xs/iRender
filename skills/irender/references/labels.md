@@ -764,6 +764,7 @@ root: …
 `form.js`
 
 ```yaml
+"Not available": "Not available"
 "Required": "Required"
 "Enter an email address": "Enter an email address"
 "Enter a web address": "Enter a web address"

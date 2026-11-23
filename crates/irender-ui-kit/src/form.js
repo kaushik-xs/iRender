@@ -1,6 +1,7 @@
 // irender-ui-kit: `ui-form`. Checks the state keys with rules, says what's wrong for the
 // fields left so far, stops a submit while anything is (and goes to the first such field),
-// and compares the form's keys with how they were to know its unsaved changes.
+// and compares the form's keys with how they were to know its unsaved changes. A `remote`
+// rule asks the server once the others pass, a while after typing stops; a submit waits for it.
 // `ui-error-summary` lists the messages; `ui-save-bar` shows while there are changes.
 (() => {
   const L = (t, v) => window.__irender.label(t, v);
@@ -33,12 +34,69 @@
     const env = () => ({ ...api.state, ...(api.scope() ?? {}) });
     const live = (v) => Array.isArray(v) ? v.map(live) : isObj(v) ? ("$irender" in v ? window.__irender.evaluate(v.$irender, env()) : Object.fromEntries(Object.entries(v).map(([k, x]) => [k, live(x)]))) : v;
     const snap = () => Object.fromEntries(cfg.keys.map((k) => [k, api.state[k] ?? null]));
-    let base = snap(), tried = false, wasDirty = null;
+    let base = snap(), tried = false, wasDirty = null, waiting = false;
     const touched = new Set();
+    // ---- remote rules: the check under way per key, and answers already had.
+    const asking = new Map(), answers = new Map(), checking = new Set();
+    const spec = (r) => (typeof r.remote === "string" ? { url: r.remote } : r.remote);
+    function ask(key, r, v, at) {
+      const s = spec(r), text = String(v), param = encodeURIComponent(s.param ?? "value");
+      const url = s.url.includes("{value}") ? s.url.replaceAll("{value}", encodeURIComponent(text)) : `${s.url}${s.url.includes("?") ? "&" : "?"}${param}=${encodeURIComponent(text)}`;
+      at.ctl = new AbortController();
+      at.timer = null;
+      const done = (message) => {
+        if (asking.get(key) !== at) return;
+        at.done = true;
+        at.message = message;
+        if (message !== undefined) answers.set(`${key}\u0000${at.sig}`, message);
+        draw();
+      };
+      fetch(url, { headers: { accept: "application/json", ...(s.headers ?? {}) }, signal: at.ctl.signal })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((a) => {
+          // true, { valid: true } or { ok: true } is accepted; text is what's wrong.
+          const ok = a === true || (isObj(a) && (a.valid ?? a.ok) === true);
+          done(ok ? null : (typeof a === "string" && a) || (isObj(a) && a.message) || s.message || L("Not available"));
+        })
+        .catch((e) => {
+          if (e?.name === "AbortError") return;
+          // Not known: the server checks it again when it's sent.
+          api.emit("failed", { key, error: String(e?.message ?? e) });
+          done(undefined);
+        });
+    }
+    // What the server said of the key's value: a message, null when accepted, or undefined
+    // while it's being asked (it's asked a while after the value last changed).
+    function remote(key, r, v) {
+      const sig = JSON.stringify(v);
+      let at = asking.get(key);
+      if (at?.sig === sig) return at.done ? at.message : undefined;
+      if (at) {
+        clearTimeout(at.timer);
+        at.ctl?.abort();
+      }
+      at = { sig, done: false };
+      asking.set(key, at);
+      const had = `${key}\u0000${sig}`;
+      if (answers.has(had)) return Object.assign(at, { done: true, message: answers.get(had) }).message;
+      at.timer = setTimeout(() => ask(key, r, v, at), waiting ? 0 : Number(spec(r).wait ?? 400));
+      return undefined;
+    }
+    // Asks now what's still waiting for typing to stop.
+    function hurry() {
+      for (const [key, at] of asking) if (at.timer) {
+        clearTimeout(at.timer);
+        ask(key, live(cfg.rules[key]), api.state[key], at);
+      }
+    }
 
     // What's wrong with each key, whether shown yet or not.
     function check() {
       const out = {};
+      checking.clear();
       for (const [key, rule] of Object.entries(cfg.rules)) {
         const r = live(rule), v = api.state[key], s = typeof v === "string" ? v : v === null || v === undefined ? "" : String(v);
         const list = Array.isArray(v);
@@ -65,6 +123,17 @@
             if (!new RegExp(`^(?:${r.pattern})$`, "u").test(s)) say(L("Not in the right format"));
           } catch { /* a pattern the browser can't read checks nothing */ }
         }
+        if (!out[key] && r.remote && spec(r)?.url) {
+          const m = remote(key, r, v);
+          if (m === undefined && !asking.get(key).done) checking.add(key);
+          else if (m) out[key] = m;
+        }
+      }
+      // A key that's blank or wrong by the other rules isn't asked about.
+      for (const [key, at] of asking) if (!checking.has(key) && !at.done) {
+        clearTimeout(at.timer);
+        at.ctl?.abort();
+        asking.delete(key);
       }
       return out;
     }
@@ -82,7 +151,16 @@
         el.__errors = all;
         el.__tried = tried;
         put(cfg.errors, Object.fromEntries(Object.entries(all).filter(([k]) => tried || touched.has(k))));
-        put(cfg.valid, !keys.length);
+        put(cfg.valid, !keys.length && !checking.size);
+        put(cfg.checking, [...checking]);
+        el.toggleAttribute("data-form-checking", checking.size > 0);
+        el.setAttribute("aria-busy", String(checking.size > 0));
+        // A submit that waited for the server, now answered.
+        if (waiting && !checking.size) {
+          waiting = false;
+          // After this drawing, which another can't start inside.
+          queueMicrotask(() => (keys.length ? submitted(keys) : el.requestSubmit()));
+        }
         put(cfg.tried, tried && keys.length > 0);
         const d = isDirty();
         wasDirty = d;
@@ -114,9 +192,17 @@
       e.preventDefault();
       if (e.target !== el) return;
       const wrong = Object.keys(check());
-      if (!wrong.length && !live(cfg.disabled)) return;
+      if (!wrong.length && !checking.size && !live(cfg.disabled)) return;
       // Before the form's own `submit` actions, which then don't run.
       e.stopImmediatePropagation();
+      if (!wrong.length && checking.size && !live(cfg.disabled)) {
+        waiting = true;
+        hurry();
+        return;
+      }
+      submitted(wrong);
+    });
+    function submitted(wrong) {
       tried = true;
       draw();
       const summary = [...el.querySelectorAll("[data-i-x=ui-error-summary]")].find(mine);
@@ -131,7 +217,7 @@
         }
       }
       api.emit("invalid", { errors: check() });
-    });
+    }
     el.addEventListener("irender:submitted", (e) => {
       if (!e.detail?.ok) return;
       saved();
