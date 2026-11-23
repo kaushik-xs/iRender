@@ -7464,6 +7464,83 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-approval`: where it stands by each stage's rule, deciding on your turn (not on
+/// another's, nor a later stage's), a reason needed to reject or ask for changes, `done`,
+/// sending again, changes pausing it, and decisions from elsewhere.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn approval_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "me": "asha", "st": null, "dones": 0, "flow": [
+            { "id": "lead", "title": "Lead", "approvers": [ { "id": "ravi", "name": "Ravi Kumar", "decision": "approved" } ] },
+            { "id": "rev", "title": "Reviewers", "rule": 2, "approvers": [ { "id": "asha", "name": "Asha Rao" }, { "id": "mei", "name": "Mei Lin", "decision": "approved" }, { "id": "dev", "name": "Dev Lal" } ] },
+            { "id": "legal", "title": "Legal", "approvers": [ { "id": "sam", "name": "Sam Okafor" } ] } ] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-approval", "attrs": { "id": "ap" }, "props": { "bind": "flow", "me": "{{ me }}", "owner": "kim", "bindStatus": "st" },
+              "on": { "done": { "action": "set_state", "key": "dones", "value": "{{ dones + 1 }}" } } },
+            { "type": "ui-approval", "attrs": { "id": "ro" }, "props": { "bind": "flow", "me": "asha", "readOnly": true } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const ap = document.getElementById("ap"), $ = (s) => ap.querySelector(s);
+      const states = () => [...ap.querySelectorAll("[data-ap-stage]")].map((s) => s.dataset.state).join(",");
+      const top = () => $("[data-ap-summary]").textContent;
+      const act = (d) => $(`[data-ap-act="${d}"]`);
+      const as = async (who) => { api.set("me", who); await wait(10); };
+      try {
+        log("start", states(), top(), S().st, [...ap.querySelectorAll("[data-ap-rule]")].map((r) => r.textContent).join(" | "));
+        log("mine", !!act("approved"), !!document.getElementById("ro").querySelector("[data-ap-act]"));
+        act("approved").click(); await wait(10);
+        log("approved", states(), top(), JSON.stringify(S().flow[1].approvers[0]).includes('"decision":"approved"'), !!S().flow[1].approvers[0].at, $("[data-ap-live]").textContent);
+        await as("dev");
+        log("not their turn", !!act("approved"));
+        await as("sam");
+        act("rejected").click(); await wait(10);
+        log("needs a reason", $("[data-ap-error]")?.textContent, $("textarea").getAttribute("aria-invalid"), document.activeElement === $("textarea"));
+        $("textarea").value = "Missing the data clause."; $("textarea").dispatchEvent(new Event("input", { bubbles: true }));
+        act("rejected").click(); await wait(10);
+        log("rejected", states(), top(), S().st, S().dones, !!act("resend"));
+        await as("kim");
+        log("owner", !!act("resend"));
+        act("resend").click(); await wait(10);
+        log("sent again", states(), S().st, S().flow.flatMap((s) => s.approvers).some((p) => p.decision));
+        await as("ravi");
+        $("textarea").value = "Add the cost centre."; $("textarea").dispatchEvent(new Event("input", { bubbles: true }));
+        act("changes").click(); await wait(10);
+        log("changes", states(), top(), S().st);
+        // A decision from elsewhere: Ravi takes it back and approves.
+        api.set("flow", S().flow.map((s, i) => (i ? s : { ...s, approvers: [{ id: "ravi", name: "Ravi Kumar", decision: "approved" }] }))); await wait(10);
+        log("from elsewhere", states(), top());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("approval", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r#"start approved,current,waiting Waiting for Reviewers1 of 2 approvals · stage 2 of 3 pending Approved | Waiting · 2 of 3 must approve | Up next"#,
+            r#"mine true false"#,
+            r#"approved approved,approved,current Waiting for Legal0 of 1 approvals · stage 3 of 3 true true Approved: Reviewers. Waiting for Legal. 0 of 1 approvals · stage 3 of 3"#,
+            r#"not their turn false"#,
+            r#"needs a reason Say why you're rejecting it true true"#,
+            r#"rejected approved,approved,rejected Rejected by Sam OkaforMissing the data clause. rejected 1 false"#,
+            r#"owner true"#,
+            r#"sent again current,waiting,waiting pending false"#,
+            r#"changes changes,waiting,waiting Ravi Kumar asked for changesAdd the cost centre. changes"#,
+            r#"from elsewhere approved,current,waiting Waiting for Reviewers0 of 2 approvals · stage 2 of 3"#,
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-file-browser`: a folder's items (folders first), opening and going up, selecting
 /// with the keys, opening a file, renaming (and a clash), a new folder, deleting and
 /// undoing, moving from the menu and by dragging onto the breadcrumb (not into itself),

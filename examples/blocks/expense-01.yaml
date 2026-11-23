@@ -5,11 +5,20 @@
 # - Click a receipt to preview it: the image, the PDF, and the .xlsx as a table, read in
 #   the browser. Arrows go through them.
 # - Download all saves the receipts as one zip; Submit needs at least one receipt.
+# - Submitting sends it for approval (`ui-approval`): the line manager, then any one of
+#   finance. "Viewing as" switches who's looking, to decide on each one's turn; asking for
+#   changes or rejecting needs a reason, and then the claimant can send it again.
 #
 #   cargo run -p irender-cli -- render examples/blocks/expense-01.yaml --ui-kit --icon-kit -o expense-01.html
 version: 1
 state:
   toast: null
+  submitted: false
+  claimStatus: pending
+  viewer: ravi
+  approval:
+    - { id: manager, title: Line manager, approvers: [ { id: ravi, name: Ravi Kumar } ] }
+    - { id: finance, title: Finance, rule: any, approvers: [ { id: asha, name: Asha Rao }, { id: mei, name: Mei Lin } ] }
   purpose: Client visit, Mumbai
   advance: 10000
   receipts:
@@ -47,7 +56,7 @@ root:
                 - type: element
                   style: { display: flex, gap: 8px, align-items: center, flex-wrap: wrap }
                   children:
-                    - { type: ui-badge, props: { text: Draft, variant: secondary } }
+                    - { type: ui-status-badge, props: { status: "{{ !submitted ? 'Draft' : claimStatus == 'pending' ? 'Waiting for approval' : claimStatus == 'changes' ? 'Changes requested' : claimStatus == 'approved' ? 'Approved' : 'Rejected' }}", tones: { Waiting for approval: info, Changes requested: warning } } }
                     - { type: ui-text, props: { variant: muted, text: "3–5 Nov 2026 · 5 expenses · ₹23,320" } }
             - type: element
               style: { display: flex, gap: 8px }
@@ -56,8 +65,26 @@ root:
                   props: { label: Save draft, variant: outline }
                   on: { click: { action: set_state, key: toast, value: { title: Draft saved } } }
                 - type: ui-button
-                  props: { label: Submit claim, disabled: "{{ receipts.length == 0 }}" }
-                  on: { click: { action: set_state, key: toast, value: { title: Claim submitted, description: "{{ receipts.length }} receipts attached. Your manager will review it." } } }
+                  props: { label: "{{ submitted ? 'Submitted' : 'Submit claim' }}", disabled: "{{ receipts.length == 0 || submitted }}" }
+                  on:
+                    click:
+                      - { action: set_state, key: submitted, value: true }
+                      - { action: set_state, key: toast, value: { title: Claim submitted, description: "{{ receipts.length }} receipts attached. Your manager will review it." } }
+        - type: if
+          props: { when: "{{ submitted }}" }
+          children:
+            - type: ui-card
+              props: { title: Approval, description: "The line manager, then any one of finance." }
+              children:
+                - type: ui-field
+                  props: { label: Viewing as, orientation: horizontal }
+                  style: { margin-bottom: 16px, max-width: 360px }
+                  children:
+                    - type: ui-select
+                      props: { bind: viewer, options: [ { value: kaushik, label: Kaushik (sent it) }, { value: ravi, label: Ravi (line manager) }, { value: asha, label: Asha (finance) }, { value: mei, label: Mei (finance) } ] }
+                - type: ui-approval
+                  props: { bind: approval, me: "{{ viewer }}", owner: kaushik, bindStatus: claimStatus, label: Claim approval }
+                  on: { done: { action: set_state, key: toast, value: { title: "Claim {{ claimStatus }}" } } }
         - type: ui-card
           props: { title: Expenses }
           children:

@@ -156,6 +156,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-presence", json!({ "people": [] })),
         ("ui-virtual-list", json!({ "items": [] })),
         ("ui-file-browser", json!({ "bind": "k" })),
+        ("ui-approval", json!({ "bind": "k" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -226,7 +227,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 207);
+    assert_eq!(kit, 208);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1281,6 +1282,28 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn approval_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-approval", "props": { "bind": "flow", "me": "{{ me }}", "id": "ap" } }),
+        json!({ "me": "a", "flow": [{ "title": "Lead", "rule": "any", "approvers": [{ "id": "a", "name": "Asha" }, { "id": "b", "name": "Bo", "decision": "approved" }] }] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A named section the behaviour fills, `me` following state.
+    assert!(body.contains(r#"id="ap" aria-label="Approval""#) && body.contains("<div data-ap-summary></div><div data-ap-view></div>"), "{body}");
+    assert!(body.contains(r#"&quot;me&quot;:{&quot;$irender&quot;"#) && body.contains(r#"&quot;readOnly&quot;:false"#), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-approval")));
+
+    let err = |flow: Json| render_with(json!({ "type": "ui-approval", "props": { "bind": "k" } }), json!({ "k": flow }), json!({})).unwrap_err().to_string();
+    assert!(err(json!("x")).contains("must hold a list of stages"));
+    assert!(err(json!([{ "title": "A" }])).contains("stage 1 needs `approvers`"));
+    assert!(err(json!([{ "approvers": [{ "id": "a", "name": "A" }], "rule": 3 }])).contains("`rule` is `all`, `any` or a number up to its approvers"));
+    assert!(err(json!([{ "approvers": [{ "name": "A" }] }])).contains("needs an `id` and a `name`"));
+    assert!(err(json!([{ "approvers": [{ "id": "a", "name": "A", "decision": "ok" }] }])).contains("a decision is approved, changes, rejected"));
 }
 
 #[test]

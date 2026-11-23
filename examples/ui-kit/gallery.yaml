@@ -287,6 +287,12 @@ state:
   vlRange: null
   gFolder: null
   gOpened: null
+  apMe: asha
+  apStatus: null
+  apFlow:
+    - { id: lead, title: Team lead, approvers: [ { id: ravi, name: Ravi Kumar, decision: approved, comment: Looks good., at: "2026-11-21T10:15" } ] }
+    - { id: review, title: Reviewers, rule: 2, approvers: [ { id: asha, name: Asha Rao }, { id: mei, name: Mei Lin, decision: approved, at: "2026-11-22T09:40" }, { id: dev, name: Dev Lal } ] }
+    - { id: legal, title: Legal, approvers: [ { id: sam, name: Sam Okafor } ] }
   gFiles:
     - { id: d1, name: Designs, folder: true, modified: "2026-11-20T10:00" }
     - { id: d2, name: Reports, folder: true, modified: "2026-11-18T09:00" }
@@ -2162,6 +2168,36 @@ root:
                 - { type: if, props: { when: "{{ api.file_browser.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.file_browser }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- approval
+            - type: element
+              props: { tag: section }
+              attrs: { id: approval, aria-labelledby: approval-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.approval }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Switch who's looking to decide on their turn: Reviewers needs 2 of 3. Asking for changes or rejecting needs a reason; then Kaushik, who sent it, can send it again." }
+                - type: ui-field
+                  props: { label: Viewing as, orientation: horizontal }
+                  style: { max-width: 360 }
+                  children:
+                    - type: ui-select
+                      props: { bind: apMe, options: [ { value: kaushik, label: Kaushik (sent it) }, { value: asha, label: Asha (reviewer) }, { value: dev, label: Dev (reviewer) }, { value: sam, label: Sam (legal) } ] }
+                - type: element
+                  style: { max-width: 620 }
+                  children:
+                    - { type: ui-approval, props: { bind: apFlow, me: "{{ apMe }}", owner: kaushik, bindStatus: apStatus } }
+                - { type: ui-text, props: { variant: muted, text: "apStatus = {{ apStatus }}" } }
+                - { type: if, props: { when: "{{ api.approval.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.approval }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

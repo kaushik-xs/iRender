@@ -88,7 +88,8 @@
   "ui-compare-slider": "2026-11-23",
   "ui-presence": "2026-11-23",
   "ui-virtual-list": "2026-11-23",
-  "ui-file-browser": "2026-11-23"
+  "ui-file-browser": "2026-11-23",
+  "ui-approval": "2026-11-23"
  },
  "sections": [
   {
@@ -283,6 +284,17 @@
    "components": [
     "ui-stepper",
     "ui-step"
+   ]
+  },
+  {
+   "id": "approval",
+   "group": "Forms",
+   "title": "Approval",
+   "nav": "Approval",
+   "summary": "A sign-off in stages (a manager, then finance, then a director), each approved when its rule is met: all its approvers, any one, or a number. Who decided what, when and why; on your turn, Approve, Request changes or Reject (the last two with a reason); after changes or a rejection, whoever sent it can send it again.",
+   "usage": "- { type: ui-approval, props: { bind: approval, me: \"{{ user.id }}\", owner: \"{{ claim.by }}\", bindStatus: status } }\n# approval: [{ title: Manager, approvers: [{ id: ravi, name: Ravi Kumar }] }, { title: Finance, rule: any, approvers: [{ id: asha, name: Asha Rao }, { id: mei, name: Mei Lin }] }]",
+   "components": [
+    "ui-approval"
    ]
   },
   {
