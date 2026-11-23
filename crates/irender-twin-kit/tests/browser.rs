@@ -41,6 +41,9 @@ fn beacon() -> String {
     data_url("model/obj", include_bytes!("../../../examples/twin/models/beacon.obj"))
 }
 
+/// The views are small and `quality: low` (no shadows or smoothing): CI's Chrome draws WebGL
+/// in software, where a full-size view with shadows takes a long time a frame.
+///
 /// Renders `doc` with `driver` appended, runs it in Chrome and returns what the driver
 /// wrote into `<pre id="result">`, one line per check. `head` goes before the page's own
 /// scripts. None when there's no Chrome, or the browser can't draw WebGL.
@@ -135,7 +138,7 @@ fn objects_readouts_alarms_and_selection() {
             { "id": "m2", "model": "beacon", "position": [3, 0], "title": "Machine 2", "temp": 72, "status": "running", "area": "a" },
             { "id": "m3", "shape": "box", "size": [1, 2, 1], "position": [-3, 1, 0], "title": "Machine 3", "status": "fault", "area": "b" },
             { "id": "s1", "shape": "sensor", "position": [0, 2, 3], "title": "Sensor", "air": 30 } ] },
-        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": {
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260,
             "objects": "{{ rows }}", "bind": "picked", "bindObject": "obj", "bindAlarms": "alarms",
             "filter": { "area": "{{ area }}" },
             "models": { "pallet": pallet(), "beacon": { "url": beacon(), "color": "#f59e0b" } },
@@ -201,7 +204,7 @@ fn paths_views_live_data_and_editing() {
             { "id": "a", "shape": "box", "position": [1, 1], "title": "Box" },
             { "id": "b", "shape": "cylinder", "size": [1, 2], "position": { "x": -2, "z": 0 }, "rotation": 0, "title": "Can" } ] },
         "root": { "type": "element", "children": [
-            { "type": "ui-twin", "attrs": { "id": "p" }, "props": {
+            { "type": "ui-twin", "attrs": { "id": "p" }, "props": { "quality": "low", "height": 260,
                 "paths": [{ "id": "line", "points": [[0, 0], [10, 0]] }],
                 "views": [{ "id": "top", "label": "Top", "position": [0, 30, 0.1], "target": [0, 0, 0] }],
                 "bindView": "view",
@@ -211,7 +214,7 @@ fn paths_views_live_data_and_editing() {
                     { "id": "fixed", "shape": "box", "path": "line", "progress": 0.5, "title": "Fixed" },
                     { "id": "moving", "shape": "box", "path": "line", "speed": 2, "title": "Moving" },
                     { "id": "fed", "shape": "box", "position": [0, 5], "title": "Fed" } ] } },
-            { "type": "ui-twin", "attrs": { "id": "e" }, "props": {
+            { "type": "ui-twin", "attrs": { "id": "e" }, "props": { "quality": "low", "height": 260,
                 "objects": "{{ layout }}", "bindObjects": "layout", "editable": true, "snap": 0.5,
                 "palette": [{ "label": "Crate", "shape": "box", "title": "Crate" }] } } ] } });
     let head = r#"<script>window.fetch = (u) => Promise.resolve({ ok: true, json: () => Promise.resolve(String(u).includes("feed") ? [{ id: "fed", load: 87 }] : {}) });</script>"#;
@@ -221,7 +224,8 @@ fn paths_views_live_data_and_editing() {
       log("progress", near(pos("fixed").x, 5), near(pos("fixed").z, 0));
       const x0 = pos("moving").x;
       for (let i = 0; i < 30 && near(pos("moving").x, x0, 0.01); i++) await wait(100);
-      log("moving", pos("moving").x > x0, "facing", near(twin("p").items.get("moving").group.rotation.y, Math.PI / 2));
+      // Somewhere else: it may have come round the end of the path again.
+      log("moving", !near(pos("moving").x, x0, 0.01), "facing", near(twin("p").items.get("moving").group.rotation.y, Math.PI / 2));
       log("live", S().values.fed.load, tag("p", "fed").textContent);
       $("p", '[data-twin-view="top"]').click(); await wait(80);
       const c = twin("p").camera.position;
@@ -263,7 +267,7 @@ fn paths_views_live_data_and_editing() {
 #[ignore = "needs Chrome; run with --ignored"]
 fn without_webgl_the_objects_are_listed() {
     let doc = json!({ "version": 1,
-        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": {
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260,
             "readouts": [{ "field": "temp", "label": "Temp", "unit": "°C", "alarm": 80 }],
             "objects": [{ "id": "a", "title": "Oven", "temp": 91 }, { "id": "b", "title": "Mixer" }] } } });
     let head = "<script>HTMLCanvasElement.prototype.getContext = () => null;</script>";
