@@ -836,6 +836,11 @@
         if (popup?.id === selected && proto && !popup.plain) api.list(proto, [items.get(selected).rec.row]);
         else if (popup?.id === selected) fillPopup(popup.box, items.get(selected).rec);
       }
+      if (adding !== null && items.has(adding)) {
+        const id = adding;
+        adding = null;
+        select(id, { popup: true });
+      }
       if (!loading) progress();
       wake();
     }
@@ -907,7 +912,7 @@
       if (b.textContent !== text) b.textContent = text;
       b.setAttribute("aria-pressed", String(selected === r.id));
     }
-    let focused = null;
+    let focused = null, adding = null;
 
     // ---------------------------------------------------------------- selecting
     function select(id, o = {}) {
@@ -1392,9 +1397,11 @@
       api.set(key, [...rows, row]);
       api.emit("add", { id, object: row });
       live.textContent = L("Added {title}", { title: row.title });
-      // The view has the focus, so the keys move and turn what's just been added.
+      // Selected as soon as it's drawn, and the view has the focus, so the keys move,
+      // turn or remove what's just been added.
       host.focus({ preventScroll: true });
-      nextFrame(() => select(id, { popup: true }));
+      if (items.has(id)) select(id, { popup: true });
+      else adding = id;
     }
     function drawPalette() {
       if (!paletteBox) return;

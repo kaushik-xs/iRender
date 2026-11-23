@@ -1,0 +1,95 @@
+# Digital twins: A world from configuration. One example of irender-twin-kit; twin/index.yaml
+# links them all, and blocks twin-01 to twin-03 are whole pages.
+#
+#   cargo run -p irender-cli -- render examples/twin/world.yaml --ui-kit --twin-kit -o twin/world.html
+#
+# The models are in examples/twin/models, next to the page (see models/CREDITS.md).
+version: 1
+state:
+  # A world from configuration
+  view: overview
+  # Machine data
+  motorTemp: 64
+  beltSpeed: 24
+  fault: false
+  machine: null
+  # Coloured by value
+  heat: 0
+  # Paths
+  amrSpeed: 0.8
+  liftAt: 30
+  following: ""
+  # Popups
+  job: null
+  # Live
+  live: {}
+  # Editing
+  desk:
+    - { id: table-1, model: table, position: [-1.5, 0], title: Table 1 }
+    - { id: table-2, model: table, position: [1.5, 0], title: Table 2 }
+    - { id: drum-1, model: drum, position: [0, 2], title: Drum 1 }
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: element
+      props: { tag: nav }
+      attrs: { aria-label: Twin examples }
+      style: { display: flex, flex-wrap: wrap, gap: 4, padding-bottom: 12, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: All twins, variant: ghost, size: sm, href: index.html } }
+        - { type: ui-button, props: { label: "A world from configuration", variant: secondary, size: sm, href: world.html }, attrs: { aria-current: page } }
+        - { type: ui-button, props: { label: "Machine data and limits", variant: ghost, size: sm, href: machine-data.html } }
+        - { type: ui-button, props: { label: "Coloured by value", variant: ghost, size: sm, href: colour-by-value.html } }
+        - { type: ui-button, props: { label: "Paths and following", variant: ghost, size: sm, href: paths.html } }
+        - { type: ui-button, props: { label: "Popups of your own", variant: ghost, size: sm, href: popups.html } }
+        - { type: ui-button, props: { label: "Any model format", variant: ghost, size: sm, href: formats.html } }
+        - { type: ui-button, props: { label: "Live data", variant: ghost, size: sm, href: live-data.html } }
+        - { type: ui-button, props: { label: "Editing a layout", variant: ghost, size: sm, href: editing.html } }
+    - type: stack
+      props: { gap: 6 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: "A world from configuration" } }
+        - { type: ui-text, props: { variant: lead, text: "Models by name, objects placed in metres, zones and walls, a path with flow, and named views. Drag to turn it, right-drag to move it, scroll to zoom; with the keyboard, the arrows turn it and + and − zoom." } }
+    - type: ui-twin
+      attrs: { id: world }
+      props:
+        height: 600
+        title: A small warehouse
+        bindView: view
+        models: { rack: models/rack.glb, pallet: models/pallet.glb, forklift: models/forklift.glb, carton: models/carton.glb, conveyor: models/conveyor.glb }
+        objects:
+          - { id: r1, model: rack, position: [-4, -3], title: Rack 1 }
+          - { id: r2, model: rack, position: [-4, 0], title: Rack 2 }
+          - { id: c1, model: conveyor, position: [3, -3], title: Conveyor 1 }
+          - { id: c2, model: conveyor, position: [5, -3], title: Conveyor 2 }
+          - { id: p1, model: pallet, position: [3, 2.5], title: Pallet }
+          - { id: b1, model: carton, position: [3, 0.14, 2.5], title: Order 1200, description: 12 cases }
+          - { id: f1, model: forklift, path: route, speed: 1, title: Forklift }
+          - { id: pillar, shape: box, size: [0.4, 3, 0.4], position: [0, 3], color: "#a1a1aa", title: Pillar }
+        paths:
+          - { id: route, points: [[-1.5, -4.5], [-1.5, 4], [6, 4], [6, -1]], closed: true, flow: true, tone: warning }
+        zones:
+          - { id: store, center: [-4, -1.5], size: [5.5, 6], tone: info, label: Storage }
+          - { id: pack, center: [4, -3], size: [5, 2.2], tone: success, label: Packing }
+        walls:
+          - { points: [[-8, -6], [8, -6], [8, 6], [-8, 6]], closed: true, height: 1.2, opacity: 0.5 }
+        views:
+          - { id: overview, label: Overview, position: [9, 11, 13], target: [0, 0, 0] }
+          - { id: storage, label: Storage, position: [1, 5, 4], target: [-4, 1, -1.5] }
+          - { id: top, label: Top, position: [0, 20, 0.1], target: [0, 0, 0] }
+    - type: element
+      style: { display: flex, flex-wrap: wrap, gap: 8, align-items: center, padding-top: 16, border-top: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: "Next: Machine data and limits", href: machine-data.html } }
+        - { type: text, props: { value: "Whole pages:" }, style: { margin-left: auto, color: $color.muted, font-size: 14 } }
+        - { type: ui-button, props: { label: Packing hall, variant: outline, size: sm, href: ../blocks/twin-01.html } }
+        - { type: ui-button, props: { label: Cold store, variant: outline, size: sm, href: ../blocks/twin-02.html } }
+        - { type: ui-button, props: { label: Layout planner, variant: outline, size: sm, href: ../blocks/twin-03.html } }

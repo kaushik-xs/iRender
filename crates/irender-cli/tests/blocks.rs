@@ -48,12 +48,18 @@ fn blocks_index_lists_every_block() {
 #[test]
 fn twin_blocks_and_gallery_render() {
     let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../../examples");
-    for doc in ["blocks/twin-01.yaml", "blocks/twin-02.yaml", "blocks/twin-03.yaml", "twin/gallery.yaml"] {
+    let pages = ["world", "machine-data", "colour-by-value", "paths", "popups", "formats", "live-data", "editing"].map(|p| format!("twin/{p}.yaml"));
+    for doc in ["blocks/twin-01.yaml", "blocks/twin-02.yaml", "blocks/twin-03.yaml"].map(String::from).into_iter().chain(pages) {
         let out = Command::new(env!("CARGO_BIN_EXE_irender")).args(["render", &format!("{root}/{doc}"), "--ui-kit", "--icon-kit", "--twin-kit"]).output().unwrap();
         let stderr = String::from_utf8_lossy(&out.stderr);
         assert!(out.status.success() && stderr.trim().is_empty(), "{doc}:\n{stderr}");
         assert!(String::from_utf8_lossy(&out.stdout).contains("data-twin-canvas"), "{doc}");
     }
+    // The index only links them: no 3D view of its own.
+    let out = Command::new(env!("CARGO_BIN_EXE_irender")).args(["render", &format!("{root}/twin/index.yaml"), "--ui-kit", "--twin-kit"]).output().unwrap();
+    assert!(out.status.success() && out.stderr.is_empty(), "{}", String::from_utf8_lossy(&out.stderr));
+    let html = String::from_utf8_lossy(&out.stdout);
+    assert!(!html.contains("data-twin-canvas") && html.contains("world.html") && html.contains("../blocks/twin-01.html"));
 }
 
 #[test]

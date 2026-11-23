@@ -1,0 +1,99 @@
+# Digital twins: machine data and limits. One example of irender-twin-kit; twin/index.yaml
+# links them all, and blocks twin-01 to twin-03 are whole pages.
+#
+#   cargo run -p irender-cli -- render examples/twin/machine-data.yaml --ui-kit --twin-kit -o twin/machine-data.html
+#
+# The models are in examples/twin/models, next to the page (see models/CREDITS.md).
+version: 1
+state:
+  # A world from configuration
+  view: overview
+  # Machine data
+  motorTemp: 64
+  beltSpeed: 24
+  fault: false
+  machine: null
+  # Coloured by value
+  heat: 0
+  # Paths
+  amrSpeed: 0.8
+  liftAt: 30
+  following: ""
+  # Popups
+  job: null
+  # Live
+  live: {}
+  # Editing
+  desk:
+    - { id: table-1, model: table, position: [-1.5, 0], title: Table 1 }
+    - { id: table-2, model: table, position: [1.5, 0], title: Table 2 }
+    - { id: drum-1, model: drum, position: [0, 2], title: Drum 1 }
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: element
+      props: { tag: nav }
+      attrs: { aria-label: Twin examples }
+      style: { display: flex, flex-wrap: wrap, gap: 4, padding-bottom: 12, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: All twins, variant: ghost, size: sm, href: index.html } }
+        - { type: ui-button, props: { label: "A world from configuration", variant: ghost, size: sm, href: world.html } }
+        - { type: ui-button, props: { label: "Machine data and limits", variant: secondary, size: sm, href: machine-data.html }, attrs: { aria-current: page } }
+        - { type: ui-button, props: { label: "Coloured by value", variant: ghost, size: sm, href: colour-by-value.html } }
+        - { type: ui-button, props: { label: "Paths and following", variant: ghost, size: sm, href: paths.html } }
+        - { type: ui-button, props: { label: "Popups of your own", variant: ghost, size: sm, href: popups.html } }
+        - { type: ui-button, props: { label: "Any model format", variant: ghost, size: sm, href: formats.html } }
+        - { type: ui-button, props: { label: "Live data", variant: ghost, size: sm, href: live-data.html } }
+        - { type: ui-button, props: { label: "Editing a layout", variant: ghost, size: sm, href: editing.html } }
+    - type: stack
+      props: { gap: 6 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: "Machine data and limits" } }
+        - { type: ui-text, props: { variant: lead, text: "Any field of an object is its data. Readouts say which to show, with their unit and limits: past warn the machine turns warning, past alarm it's in alarm, glows red and is announced. Move the sliders, or make it fault." } }
+    - type: element
+      style: { display: grid, gap: 16, grid-template-columns: "minmax(0, 1fr)", "@lg": { grid-template-columns: "minmax(0, 2fr) minmax(0, 1fr)" } }
+      children:
+        - type: ui-twin
+          attrs: { id: machine }
+          props:
+            height: 340
+            title: A conveyor's data
+            bindObject: machine
+            models: { conveyor: models/conveyor.glb }
+            toneBy: { field: status, tones: { running: success, fault: danger } }
+            alarmBy: { field: status, values: [fault] }
+            readouts:
+              - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85 }
+              - { field: speed, label: Belt, unit: m/min, warn: 28, alarm: 32 }
+            objects:
+              - { id: cv, model: conveyor, position: [0, 0], title: Conveyor 4, status: "{{ fault ? 'fault' : 'running' }}", temp: "{{ motorTemp }}", speed: "{{ beltSpeed }}" }
+            camera: { position: [3.5, 3, 4.5], target: [0, 0.6, 0] }
+        - type: stack
+          props: { gap: 16 }
+          children:
+            - type: ui-field
+              props: { label: "Motor {{ motorTemp }} °C" }
+              children: [ { type: ui-slider, props: { bind: motorTemp, min: 40, max: 95 } } ]
+            - type: ui-field
+              props: { label: "Belt {{ beltSpeed }} m/min" }
+              children: [ { type: ui-slider, props: { bind: beltSpeed, min: 0, max: 35 } } ]
+            - { type: ui-switch, props: { bind: fault, label: Fault } }
+            - type: text
+              props: { value: "{{ machine ? (machine.status == 'fault' ? 'In alarm: fault' : motorTemp >= 85 ? 'In alarm: motor too hot' : motorTemp >= 70 || beltSpeed >= 28 ? 'Warning' : 'Within limits') : '' }}" }
+              style: { font-size: 14, color: $color.muted }
+    - type: element
+      style: { display: flex, flex-wrap: wrap, gap: 8, align-items: center, padding-top: 16, border-top: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: "Next: Coloured by value", href: colour-by-value.html } }
+        - { type: text, props: { value: "Whole pages:" }, style: { margin-left: auto, color: $color.muted, font-size: 14 } }
+        - { type: ui-button, props: { label: Packing hall, variant: outline, size: sm, href: ../blocks/twin-01.html } }
+        - { type: ui-button, props: { label: Cold store, variant: outline, size: sm, href: ../blocks/twin-02.html } }
+        - { type: ui-button, props: { label: Layout planner, variant: outline, size: sm, href: ../blocks/twin-03.html } }

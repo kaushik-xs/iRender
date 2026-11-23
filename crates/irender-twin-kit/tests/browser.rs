@@ -219,7 +219,8 @@ fn paths_views_live_data_and_editing() {
       await ready("p", "e");
       const pos = (id) => twin("p").items.get(id).group.position;
       log("progress", near(pos("fixed").x, 5), near(pos("fixed").z, 0));
-      const x0 = pos("moving").x; await wait(500);
+      const x0 = pos("moving").x;
+      for (let i = 0; i < 30 && near(pos("moving").x, x0, 0.01); i++) await wait(100);
       log("moving", pos("moving").x > x0, "facing", near(twin("p").items.get("moving").group.rotation.y, Math.PI / 2));
       log("live", S().values.fed.load, tag("p", "fed").textContent);
       $("p", '[data-twin-view="top"]').click(); await wait(80);

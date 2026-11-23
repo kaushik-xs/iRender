@@ -10,10 +10,10 @@ irender_twin_kit::register(&mut engine.registry);
 From the CLI, add `--twin-kit` to `validate`, `render` or `components`:
 
 ```sh
-cargo run -p irender-cli -- render examples/twin/gallery.yaml --ui-kit --twin-kit -o twin/index.html
+cargo run -p irender-cli -- render examples/twin/world.yaml --ui-kit --twin-kit -o twin/world.html
 ```
 
-[`examples/twin/gallery.yaml`](../../examples/twin/gallery.yaml) shows each feature. The blocks are whole pages: [`twin-01`](../../examples/blocks/twin-01.yaml) a packing hall with live machine data, [`twin-02`](../../examples/blocks/twin-02.yaml) a cold store's temperature sensors, and [`twin-03`](../../examples/blocks/twin-03.yaml) a layout planner. Their models are NVIDIA SimReady assets ([credits](../../examples/twin/models/CREDITS.md)).
+[`examples/twin/`](../../examples/twin/) has a page per feature, linked from its [index](../../examples/twin/index.yaml). The blocks are whole pages: [`twin-01`](../../examples/blocks/twin-01.yaml) a packing hall with live machine data, [`twin-02`](../../examples/blocks/twin-02.yaml) a cold store's temperature sensors, and [`twin-03`](../../examples/blocks/twin-03.yaml) a layout planner. Their models are NVIDIA SimReady assets ([credits](../../examples/twin/models/CREDITS.md)).
 
 ## A world
 

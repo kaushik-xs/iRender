@@ -1,0 +1,101 @@
+# Digital twins from irender-twin-kit: one page per example, so a browser draws one 3D
+# view at a time. This page only links them, with a picture of each.
+#
+#   cargo run -p irender-cli -- render examples/twin/index.yaml --ui-kit --twin-kit -o twin/index.html
+#
+# The pictures in previews/ are screenshots of the pages (tools: examples/twin/previews.cjs).
+version: 1
+state:
+  examples:
+    - { href: world.html, image: previews/world.jpg, title: "A world from configuration", text: "Models by name, objects placed in metres, zones and walls, a path with flow, and named views. Drag to turn it, right-drag to move it, scroll to zoom; with the keyboard, the arrows turn it and + and − zoom." }
+    - { href: machine-data.html, image: previews/machine-data.jpg, title: "Machine data and limits", text: "Any field of an object is its data. Readouts say which to show, with their unit and limits: past warn the machine turns warning, past alarm it's in alarm, glows red and is announced. Move the sliders, or make it fault." }
+    - { href: colour-by-value.html, image: previews/colour-by-value.jpg, title: "Coloured by value", text: "colorBy colours objects along a scale by a field: here nine temperature sensors over a floor, from blue at 0 °C to red at 40 °C. A sensor is a small sphere that shows its value." }
+    - { href: paths.html, image: previews/paths.jpg, title: "Paths and following", text: "An object with a path drives it at its speed in metres a second, or stands at progress (0 to 1) along it, so a feed can say where it is. The camera can follow one." }
+    - { href: popups.html, image: previews/popups.jpg, title: "Popups of your own", text: "Without a popup of its own, an object's popup shows its title, description and readouts. A ui-twin-popup is any components, with the object in scope as object; ui-twin-panel floats above the view." }
+    - { href: formats.html, image: previews/formats.jpg, title: "Any model format", text: "glTF and GLB (with Draco, meshopt and KTX2 compression), OBJ with its MTL, FBX, STL, PLY, Collada, 3MF, 3DS, VRML and USD. units, up, scale, fit and rotate put a model right: here an STL drawn in millimetres with z up, and an OBJ beside a GLB." }
+    - { href: live-data.html, image: previews/live-data.jpg, title: "Live data", text: "live polls an address or follows a stream of server-sent events, and merges each answer into the objects with the same id. Here, a packing line from examples/serve.py, every two seconds; bindLive keeps the values in state too." }
+    - { href: editing.html, image: previews/editing.jpg, title: "Editing a layout", text: "editable with bindObjects: drag objects to move them, Alt and the arrows move the selected one, Alt+R turns it, Delete removes it, and the palette adds more. Each change is written back to the rows in state. Block twin-03 is a whole planner." }
+  blocks:
+    - { href: ../blocks/twin-01.html, image: previews/twin-01.jpg, title: "Packing hall", text: "Machines, vehicles and air sensors streamed in live; limits that turn them warning or alarm, robots driven by the feed's speed, and views of each area. Needs examples/serve.py for its feed.", id: twin-01 }
+    - { href: ../blocks/twin-02.html, image: previews/twin-02.jpg, title: "Cold store", text: "Fourteen temperature sensors coloured by value, each room with its own limits, doors left open raising alarms, and a room clicked showing only its sensors. Needs examples/serve.py for its feed.", id: twin-02 }
+    - { href: ../blocks/twin-03.html, image: previews/twin-03.jpg, title: "Layout planner", text: "Drag machines to move them, add more from a palette, turn and remove them, with the layout as JSON that can be edited too.", id: twin-03 }
+root:
+  type: stack
+  props: { gap: 32 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 40px 24px 80px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 8 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: Digital twins } }
+        - type: ui-text
+          props:
+            variant: lead
+            text: "irender-twin-kit draws 3D worlds with three.js from models of most formats. Everything in a world is configuration that may use state: the models, where things stand, the paths they follow, zones, walls, light and views. Machine and sensor values come from state or a feed of the twin's own, show on the objects, and raise warnings and alarms past their limits. Each example is a page of its own."
+
+    - { type: ui-heading, props: { level: 2, text: Examples } }
+    - attrs: { aria-label: Examples }
+      type: element
+      props: { tag: ul }
+      style: { display: grid, gap: 20, margin: 0, padding: 0, list-style: none, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(2, minmax(0, 1fr))" }, "@lg": { grid-template-columns: "repeat(3, minmax(0, 1fr))" } }
+      children:
+        - type: list
+          props: { items: "{{ examples }}", as: e }
+          style: { display: contents }
+          children:
+            - &card
+              type: element
+              props: { tag: li }
+              children:
+                - type: element
+                  props: { tag: a }
+                  attrs: { href: "{{ e.href }}" }
+                  style:
+                    display: flex
+                    flex-direction: column
+                    height: 100%
+                    overflow: hidden
+                    border: 1px solid $color.border
+                    border-radius: 12
+                    color: inherit
+                    text-decoration: none
+                    ":hover": { border-color: $color.muted }
+                    ":focus-visible": { outline: 2px solid $color.primary, outline-offset: 2px }
+                  children:
+                    - type: element
+                      props: { tag: img }
+                      attrs: { src: "{{ e.image }}", alt: "", loading: lazy, width: 640, height: 400 }
+                      style: { display: block, width: 100%, height: auto, aspect-ratio: "16 / 10", object-fit: cover, background: $color.subtle, border-bottom: 1px solid $color.border }
+                    - type: stack
+                      props: { gap: 4 }
+                      style: { padding: 14px 16px 16px }
+                      children:
+                        - type: element
+                          style: { display: flex, gap: 8, align-items: center }
+                          children:
+                            - { type: text, props: { value: "{{ e.title }}" }, style: { font-weight: 600 } }
+                            - type: if
+                              props: { when: "{{ e.id }}" }
+                              children: [ { type: ui-badge, props: { text: "{{ e.id }}", variant: secondary } } ]
+                        - { type: text, props: { value: "{{ e.text }}" }, style: { color: $color.muted, font-size: 14, line-height: 1.45 } }
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Blocks } }
+        - { type: ui-text, props: { variant: muted, text: "Whole pages built on a twin, also on the Blocks page." } }
+    - attrs: { aria-label: Blocks }
+      type: element
+      props: { tag: ul }
+      style: { display: grid, gap: 20, margin: 0, padding: 0, list-style: none, grid-template-columns: "minmax(0, 1fr)", "@md": { grid-template-columns: "repeat(2, minmax(0, 1fr))" }, "@lg": { grid-template-columns: "repeat(3, minmax(0, 1fr))" } }
+      children:
+        - type: list
+          props: { items: "{{ blocks }}", as: e }
+          style: { display: contents }
+          children:
+            - *card

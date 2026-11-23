@@ -50,10 +50,16 @@ done
 # The twins draw 3D models from twin/models.
 mkdir -p "$out/twin/models"
 cp examples/twin/models/*.glb examples/twin/models/*.obj examples/twin/models/*.stl "$out/twin/models/"
+mkdir -p "$out/twin/previews"
+cp examples/twin/previews/*.jpg "$out/twin/previews/"
 for block in twin-01 twin-02 twin-03; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --icon-kit --twin-kit --title "$block" -o "$out/blocks/$block.html"
 done
-$irender render examples/twin/gallery.yaml --ui-kit --twin-kit --title "Digital twins" -o "$out/twin/index.html"
+# One page per example, so a browser draws one 3D view at a time; the index only links them.
+$irender render examples/twin/index.yaml --ui-kit --twin-kit --title "Digital twins" -o "$out/twin/index.html"
+for page in world machine-data colour-by-value paths popups formats live-data editing; do
+  $irender render "examples/twin/$page.yaml" --ui-kit --twin-kit --title "$page" -o "$out/twin/$page.html"
+done
 # The sites are on a map. --ui-kit --chart-kit --icon-kit --map-kit --title "map-01" -o "$out/blocks/map-01.html"
 # Installable apps: each in a folder of its own, with its manifest and service worker.
 for app in field-01 keep-01; do

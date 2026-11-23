@@ -1,0 +1,100 @@
+# Digital twins: popups of your own. One example of irender-twin-kit; twin/index.yaml
+# links them all, and blocks twin-01 to twin-03 are whole pages.
+#
+#   cargo run -p irender-cli -- render examples/twin/popups.yaml --ui-kit --twin-kit -o twin/popups.html
+#
+# The models are in examples/twin/models, next to the page (see models/CREDITS.md).
+version: 1
+state:
+  # A world from configuration
+  view: overview
+  # Machine data
+  motorTemp: 64
+  beltSpeed: 24
+  fault: false
+  machine: null
+  # Coloured by value
+  heat: 0
+  # Paths
+  amrSpeed: 0.8
+  liftAt: 30
+  following: ""
+  # Popups
+  job: null
+  # Live
+  live: {}
+  # Editing
+  desk:
+    - { id: table-1, model: table, position: [-1.5, 0], title: Table 1 }
+    - { id: table-2, model: table, position: [1.5, 0], title: Table 2 }
+    - { id: drum-1, model: drum, position: [0, 2], title: Drum 1 }
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: element
+      props: { tag: nav }
+      attrs: { aria-label: Twin examples }
+      style: { display: flex, flex-wrap: wrap, gap: 4, padding-bottom: 12, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: All twins, variant: ghost, size: sm, href: index.html } }
+        - { type: ui-button, props: { label: "A world from configuration", variant: ghost, size: sm, href: world.html } }
+        - { type: ui-button, props: { label: "Machine data and limits", variant: ghost, size: sm, href: machine-data.html } }
+        - { type: ui-button, props: { label: "Coloured by value", variant: ghost, size: sm, href: colour-by-value.html } }
+        - { type: ui-button, props: { label: "Paths and following", variant: ghost, size: sm, href: paths.html } }
+        - { type: ui-button, props: { label: "Popups of your own", variant: secondary, size: sm, href: popups.html }, attrs: { aria-current: page } }
+        - { type: ui-button, props: { label: "Any model format", variant: ghost, size: sm, href: formats.html } }
+        - { type: ui-button, props: { label: "Live data", variant: ghost, size: sm, href: live-data.html } }
+        - { type: ui-button, props: { label: "Editing a layout", variant: ghost, size: sm, href: editing.html } }
+    - type: stack
+      props: { gap: 6 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: "Popups of your own" } }
+        - { type: ui-text, props: { variant: lead, text: "Without a popup of its own, an object's popup shows its title, description and readouts. A ui-twin-popup is any components, with the object in scope as object; ui-twin-panel floats above the view." } }
+    - type: ui-twin
+      attrs: { id: popups }
+      props:
+        height: 600
+        title: Pallets to pick
+        bind: job
+        models: { pallet: models/pallet.glb, crate: models/crate_green.glb }
+        camera: { position: [0, 5, 6], target: [0, 0, 0] }
+        toneBy: { field: state, tones: { ready: success, waiting: warning, late: danger } }
+        objects:
+          - { id: P-1, model: pallet, position: [-2.5, 0], title: Pallet P-1, state: ready, order: "Store 12", lines: 24, done: 24 }
+          - { id: P-2, model: pallet, position: [0, 0], title: Pallet P-2, state: waiting, order: "Store 3", lines: 18, done: 11 }
+          - { id: P-3, model: pallet, position: [2.5, 0], title: Pallet P-3, state: late, order: "Store 7", lines: 30, done: 6 }
+          - { id: c1, model: crate, position: [-2.5, 0.14, 0], clickable: false }
+          - { id: c2, model: crate, position: [0, 0.14, 0], clickable: false }
+      children:
+        - type: ui-twin-popup
+          children:
+            - type: element
+              style: { display: flex, align-items: center, gap: 8 }
+              children:
+                - { type: text, props: { value: "{{ object.title }}" }, style: { font-weight: 600 } }
+                - { type: ui-status-badge, props: { status: "{{ object.state }}", tones: { ready: success, waiting: warning, late: danger } } }
+            - { type: text, props: { value: "For {{ object.order }} · {{ object.done }} of {{ object.lines }} lines picked" }, style: { color: $color.muted, font-size: 13 } }
+            - { type: ui-progress, props: { value: "{{ object.done * 100 / object.lines }}" } }
+            - type: ui-button
+              props: { label: Close, size: sm, variant: outline }
+              on: { click: { action: set_state, key: job, value: null } }
+        - type: ui-twin-panel
+          props: { position: top-left }
+          children:
+            - { type: ui-badge, props: { text: "{{ job ? 'Picked ' + job : 'Click a pallet' }}", variant: secondary } }
+    - type: element
+      style: { display: flex, flex-wrap: wrap, gap: 8, align-items: center, padding-top: 16, border-top: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: "Next: Any model format", href: formats.html } }
+        - { type: text, props: { value: "Whole pages:" }, style: { margin-left: auto, color: $color.muted, font-size: 14 } }
+        - { type: ui-button, props: { label: Packing hall, variant: outline, size: sm, href: ../blocks/twin-01.html } }
+        - { type: ui-button, props: { label: Cold store, variant: outline, size: sm, href: ../blocks/twin-02.html } }
+        - { type: ui-button, props: { label: Layout planner, variant: outline, size: sm, href: ../blocks/twin-03.html } }
