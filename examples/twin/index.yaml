@@ -18,6 +18,7 @@ state:
   blocks:
     - { href: ../blocks/twin-01.html, image: previews/twin-01.jpg, title: "Packing hall", text: "Machines, vehicles and air sensors streamed in live; limits that turn them warning or alarm, robots driven by the feed's speed, and views of each area. Needs examples/serve.py for its feed.", id: twin-01 }
     - { href: ../blocks/twin-02.html, image: previews/twin-02.jpg, title: "Cold store", text: "Fourteen temperature sensors coloured by value, each room with its own limits, doors left open raising alarms, and a room clicked showing only its sensors. Needs examples/serve.py for its feed.", id: twin-02 }
+    - { href: ../blocks/twin-04.html, image: previews/twin-04.jpg, title: "Bottling line", text: "A dairy's line from silos to cold store: pasteurising, sugar and pH, fill, cap torque and rejects, with the food safety checks' limits and bottles riding the belt. Needs examples/serve.py for its feed.", id: twin-04 }
     - { href: ../blocks/twin-03.html, image: previews/twin-03.jpg, title: "Layout planner", text: "Drag machines to move them, add more from a palette, turn and remove them, with the layout as JSON that can be edited too.", id: twin-03 }
 root:
   type: stack

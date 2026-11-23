@@ -52,7 +52,7 @@ mkdir -p "$out/twin/models"
 cp examples/twin/models/*.glb examples/twin/models/*.obj examples/twin/models/*.stl "$out/twin/models/"
 mkdir -p "$out/twin/previews"
 cp examples/twin/previews/*.jpg "$out/twin/previews/"
-for block in twin-01 twin-02 twin-03; do
+for block in twin-01 twin-02 twin-03 twin-04; do
   $irender render "examples/blocks/$block.yaml" --ui-kit --icon-kit --twin-kit --title "$block" -o "$out/blocks/$block.html"
 done
 # One page per example, so a browser draws one 3D view at a time; the index only links them.

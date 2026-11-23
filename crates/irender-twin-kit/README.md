@@ -13,7 +13,7 @@ From the CLI, add `--twin-kit` to `validate`, `render` or `components`:
 cargo run -p irender-cli -- render examples/twin/world.yaml --ui-kit --twin-kit -o twin/world.html
 ```
 
-[`examples/twin/`](../../examples/twin/) has a page per feature, linked from its [index](../../examples/twin/index.yaml). The blocks are whole pages: [`twin-01`](../../examples/blocks/twin-01.yaml) a packing hall with live machine data, [`twin-02`](../../examples/blocks/twin-02.yaml) a cold store's temperature sensors, and [`twin-03`](../../examples/blocks/twin-03.yaml) a layout planner. Their models are NVIDIA SimReady assets ([credits](../../examples/twin/models/CREDITS.md)).
+[`examples/twin/`](../../examples/twin/) has a page per feature, linked from its [index](../../examples/twin/index.yaml). The blocks are whole pages: [`twin-01`](../../examples/blocks/twin-01.yaml) a packing hall with live machine data, [`twin-02`](../../examples/blocks/twin-02.yaml) a cold store's temperature sensors, [`twin-03`](../../examples/blocks/twin-03.yaml) a layout planner, and [`twin-04`](../../examples/blocks/twin-04.yaml) a dairy's bottling line with its food safety checks. Their models are NVIDIA SimReady assets ([credits](../../examples/twin/models/CREDITS.md)).
 
 ## A world
 

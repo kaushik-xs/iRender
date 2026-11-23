@@ -1,0 +1,286 @@
+# Block: a dairy's bottling line as a digital twin, with its food safety checks. Milk comes in
+# to chilled silos, is pasteurised and mixed, filled into bottles that ride the belt at the
+# line's speed, capped, weighed and packed into crates, then kept in a cold store.
+#
+# Sensor values stream from examples/serve.py (`api/twin/bottling/stream`) and are merged into
+# the objects by id. The critical control points have limits of their own: the pasteuriser's
+# holding temperature must stay at 72 °C or over (below it, it diverts the milk and the line
+# stops), raw milk and the cold store at 4 °C or under. Every few minutes the pasteuriser dips
+# and later a cold store sensor warms up, so the alarms can be seen. Models: NVIDIA SimReady
+# (examples/twin/models/CREDITS.md); the pasteuriser, filler and capper are boxes.
+#
+#   cargo run -p irender-cli -- render examples/blocks/twin-04.yaml --ui-kit --icon-kit --twin-kit -o twin-04.html
+version: 1
+state:
+  area: all
+  picked: null
+  item: null
+  alarms: []
+  live: {}
+  view: overview
+  tones: { running: success, stopped: warning, diverting: danger, cleaning: info, idle: neutral }
+  # The checks a food safety plan names, with where their values come from.
+  ccps:
+    - { id: pas-1, name: Pasteurising, limit: "72 °C or over", field: temp, unit: °C }
+    - { id: tk-1, name: "Raw milk, silo 1", limit: "4 °C or under", field: temp, unit: °C }
+    - { id: tk-2, name: "Raw milk, silo 2", limit: "4 °C or under", field: temp, unit: °C }
+    - { id: cs-1, name: "Cold store, front", limit: "4 °C or under", field: temp, unit: °C }
+    - { id: cs-2, name: "Cold store, back", limit: "4 °C or under", field: temp, unit: °C }
+  plant:
+    # Reception: chilled silos
+    - { id: tk-1, model: tank, position: [-12, -5.5], title: Silo 1 · raw milk, kind: silo, area: reception, status: running, level: 68, temp: 3.2 }
+    - { id: tk-2, model: tank, position: [-12, -3], title: Silo 2 · raw milk, kind: silo, area: reception, status: running, level: 41, temp: 3.5 }
+    - { id: tk-3, model: tank, position: [-12, -0.5], title: Tank 3 · juice base, kind: tank, area: reception, status: running, level: 77, temp: 6.1, brix: 11.1 }
+    # Processing: the pasteuriser and the mixer
+    - { id: pas-1, shape: box, size: [2.6, 1.8, 1.2], color: "#cbd5e1", position: [-6.5, -5.5], title: Pasteuriser, description: "Heats milk to 75 °C and holds it; under 72 °C it diverts the milk back", kind: pasteuriser, area: processing, status: running, temp: 75.2, flow: 7900, label: Pasteuriser }
+    - { id: mix-1, model: hopper, position: [-6.5, -2.4], title: Mixer, kind: mixer, area: processing, status: running, brix: 12, ph: 6.68, level: 60 }
+    # Filling: filler, the belt, capper, checkweigher, then crates
+    - { id: fil-1, shape: box, size: [1.6, 2.1, 1.6], color: "#94a3b8", position: [-6.6, 2], title: Filler, kind: filler, area: filling, status: running, bpm: 120, fill: 500.2, label: Filler }
+    - { id: cv-1, model: conveyor, position: [-4.8, 2], title: Belt 1, kind: belt, area: filling, status: running }
+    - { id: cv-2, model: conveyor, position: [-2.8, 2], title: Belt 2, kind: belt, area: filling, status: running }
+    - { id: cv-3, model: conveyor, position: [-0.8, 2], title: Belt 3, kind: belt, area: filling, status: running }
+    - { id: cv-4, model: conveyor, position: [1.2, 2], title: Belt 4, kind: belt, area: filling, status: running }
+    - { id: cv-5, model: conveyor, position: [3.2, 2], title: Belt 5, kind: belt, area: filling, status: running }
+    - { id: cap-1, shape: box, size: [0.8, 1.7, 0.7], color: "#94a3b8", position: [-2.8, 0.9], title: Capper, kind: capper, area: filling, status: running, torque: 18 }
+    - { id: chk-1, shape: box, size: [0.9, 1.2, 0.7], color: "#94a3b8", position: [1.2, 0.9], title: Checkweigher, kind: checkweigher, area: filling, status: running, rejects: 4, weight: 531 }
+    - { id: b-1, model: milk, path: belt, speed: 0.5, progress: 0, clickable: false }
+    - { id: b-2, model: milk, path: belt, speed: 0.5, progress: 0.1, clickable: false }
+    - { id: b-3, model: milk, path: belt, speed: 0.5, progress: 0.2, clickable: false }
+    - { id: b-4, model: milk, path: belt, speed: 0.5, progress: 0.3, clickable: false }
+    - { id: b-5, model: milk, path: belt, speed: 0.5, progress: 0.4, clickable: false }
+    - { id: b-6, model: milk, path: belt, speed: 0.5, progress: 0.5, clickable: false }
+    - { id: b-7, model: milk, path: belt, speed: 0.5, progress: 0.6, clickable: false }
+    - { id: b-8, model: milk, path: belt, speed: 0.5, progress: 0.7, clickable: false }
+    - { id: b-9, model: milk, path: belt, speed: 0.5, progress: 0.8, clickable: false }
+    - { id: b-10, model: milk, path: belt, speed: 0.5, progress: 0.9, clickable: false }
+    # Dispatch: crates of bottles on pallets
+    - { id: p-1, model: pallet, position: [8, 5], area: dispatch, clickable: false }
+    - { id: p-2, model: pallet, position: [10.5, 5], area: dispatch, clickable: false }
+    - { id: k-1, model: crate, position: [7.7, 0.14, 4.8], area: dispatch, title: Crates for Store 4, description: "4 crates, 96 bottles" }
+    - { id: k-2, model: crate, position: [8.3, 0.14, 5.2], area: dispatch, clickable: false }
+    - { id: k-3, model: crate, position: [7.7, 0.39, 4.8], area: dispatch, clickable: false }
+    - { id: k-4, model: crate, position: [10.5, 0.14, 5], area: dispatch, title: Crates for Store 9, description: "1 crate, 24 bottles" }
+    # Cold store
+    - { id: k-5, model: crate, position: [8, -6], area: cold, clickable: false }
+    - { id: k-6, model: crate, position: [8, 0.25, -6], area: cold, clickable: false }
+    - { id: k-7, model: crate, position: [8, 0.5, -6], area: cold, clickable: false }
+    - { id: k-8, model: crate, position: [9, -6], area: cold, clickable: false }
+    - { id: k-9, model: crate, position: [9, 0.25, -6], area: cold, clickable: false }
+    - { id: k-10, model: crate, position: [11.5, -4], rotation: 90, area: cold, clickable: false }
+    - { id: k-11, model: crate, position: [11.5, 0.25, -4], rotation: 90, area: cold, clickable: false }
+    - { id: cs-1, shape: sensor, position: [8.5, 2.2, -2.5], title: Cold store · front, kind: cold, area: cold, temp: 3.0, humidity: 82 }
+    - { id: cs-2, shape: sensor, position: [12, 2.2, -7], title: Cold store · back, kind: cold, area: cold, temp: 3.2, humidity: 80 }
+    - { id: env-1, shape: sensor, position: [-1, 2.6, -6], title: Hall air, kind: room, area: processing, air: 22.4, humidity: 52 }
+    - { id: x-1, model: sign, position: [0.5, -0.6], rotation: -20, clickable: false }
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    min-height: 100svh
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+    "@lg": { height: 100svh }
+  children:
+    # ---------------------------------------------------------------- the header and tiles
+    - type: element
+      props: { tag: header }
+      style: { display: flex, flex-wrap: wrap, align-items: center, gap: 16, padding: 16px 20px, border-bottom: 1px solid $color.border }
+      children:
+        - type: stack
+          props: { gap: 2 }
+          style: { margin-inline-end: auto }
+          children:
+            - { type: ui-heading, props: { level: 3, text: Bottling line } }
+            - type: ui-text
+              props: { variant: muted, text: "{{ live.line ? live.line.product + ' · batch ' + live.line.batch + ' · ' + live.line.time : 'Waiting for the line data' }}" }
+        - type: element
+          style: { display: grid, grid-template-columns: "repeat(2, minmax(0, 1fr))", gap: 8, width: 100%, "@md": { grid-template-columns: "repeat(4, minmax(120px, 1fr))", width: auto } }
+          children:
+            - { type: ui-stat, props: { label: Bottles a minute, value: "{{ live.line ? live.line.bpm : 120 }}" } }
+            - { type: ui-stat, props: { label: Made this batch, value: "{{ live.line ? live.line.made : 9800 }}" } }
+            - { type: ui-stat, props: { label: Rejected, value: "{{ live.line ? live.line.rejects : 4 }}" } }
+            - { type: ui-stat, props: { label: Food safety alarms, value: "{{ live.line ? live.line.ccp : 0 }}" } }
+
+    - type: element
+      style: { display: flex, flex-direction: column, flex: 1, min-height: 0, "@lg": { flex-direction: row } }
+      children:
+        # ---------------------------------------------------------------- the twin
+        - type: ui-twin
+          attrs: { id: line }
+          style: { flex: 1, min-width: 0, min-height: 520, border-radius: 0 }
+          props:
+            height: 100%
+            title: Bottling line
+            objects: "{{ plant }}"
+            filter: { area: "{{ area == 'all' ? '' : area }}" }
+            live: { stream: api/twin/bottling/stream }
+            bindLive: live
+            bind: picked
+            bindObject: item
+            bindAlarms: alarms
+            bindView: view
+            toneBy: { field: status, tones: "{{ tones }}" }
+            alarmBy: { field: status, values: [diverting, fault] }
+            models:
+              tank: ../twin/models/ibc_tank.glb
+              hopper: ../twin/models/hopper.glb
+              conveyor: ../twin/models/conveyor.glb
+              milk: ../twin/models/milk.glb
+              crate: ../twin/models/crate_red.glb
+              pallet: ../twin/models/pallet.glb
+              sign: ../twin/models/floor_sign.glb
+            readouts:
+              - { field: temp, label: Milk, unit: °C, decimals: 1, warn: 4.5, alarm: 6, when: { kind: silo } }
+              - { field: temp, label: Juice, unit: °C, decimals: 1, warn: 8, alarm: 10, when: { kind: tank } }
+              - { field: level, label: Level, unit: "%", decimals: 0, warn: 20, alarm: 10, below: true, when: { kind: [silo, tank, mixer] } }
+              - { field: brix, label: Sugar, unit: °Bx, decimals: 1, tag: false, when: { kind: [tank, mixer] } }
+              - { field: ph, label: pH, decimals: 2, when: { kind: mixer } }
+              - { field: temp, label: Holding, unit: °C, decimals: 1, warn: 72.5, alarm: 72, below: true, when: { kind: pasteuriser } }
+              - { field: flow, label: Flow, unit: L/h, decimals: 0, tag: false, when: { kind: pasteuriser } }
+              - { field: bpm, label: Speed, unit: /min, decimals: 0, when: { kind: filler } }
+              - { field: fill, label: Fill, unit: ml, decimals: 1, tag: false, when: { kind: filler } }
+              - { field: torque, label: Cap torque, unit: Ncm, decimals: 0, when: { kind: capper } }
+              - { field: rejects, label: Rejected, decimals: 0, warn: 30, alarm: 50, when: { kind: checkweigher } }
+              - { field: weight, label: Weight, unit: g, decimals: 1, tag: false, when: { kind: checkweigher } }
+              - { field: temp, label: Air, unit: °C, decimals: 1, warn: 4.5, alarm: 7, when: { kind: cold } }
+              - { field: air, label: Air, unit: °C, decimals: 1, warn: 28, alarm: 32, when: { kind: room } }
+              - { field: humidity, label: Humidity, unit: "%", decimals: 0, tag: false, when: { kind: [cold, room] } }
+            paths:
+              # The milk's way through the plant, as pipes overhead, and the belt the bottles ride.
+              - { id: pipe-1, points: [[-11.3, 2.2, -5.5], [-7.8, 2.2, -5.5]], tone: info, flow: 0.6, width: 0.08 }
+              - { id: pipe-2, points: [[-11.3, 2.2, -3], [-9.5, 2.2, -3], [-9.5, 2.2, -5.5]], tone: info, flow: 0.6, width: 0.08 }
+              - { id: pipe-3, points: [[-5.2, 2.2, -5.5], [-5.2, 2.2, -2.4], [-6, 2.2, -2.4]], tone: info, flow: 0.6, width: 0.08 }
+              - { id: pipe-4, points: [[-6.5, 2.2, -1.7], [-6.5, 2.2, 2]], tone: info, flow: 0.6, width: 0.08 }
+              - { id: belt, points: [[-5.7, 0.76, 2], [4.1, 0.76, 2]], show: false }
+            zones:
+              - { id: reception, center: [-12, -2.5], size: [4, 11], tone: neutral, label: Reception }
+              - { id: processing, center: [-6, -4], size: [6, 7], tone: primary, label: Processing, title: Processing, description: "Pasteurising is a critical control point: 72 °C or over, held 15 seconds" }
+              - { id: filling, center: [-0.8, 2.5], size: [13, 3.2], tone: success, label: Filling }
+              - { id: dispatch, center: [9.2, 5], size: [6, 4], tone: neutral, label: Dispatch }
+            walls:
+              - { points: [[-14, -9], [14, -9], [14, 9], [-14, 9]], closed: true, height: 2.4, opacity: 0.4 }
+              # The cold store, with its door on the left.
+              - { points: [[6, -2.8], [6, -9]], height: 2.8, opacity: 0.55, color: "#93c5fd" }
+              - { points: [[6, -1.2], [6, -1], [14, -1]], height: 2.8, opacity: 0.55, color: "#93c5fd" }
+            ground: { size: [30, 20], grid: 1 }
+            views:
+              - { id: overview, label: Overview, position: [6, 20, 22], target: [-1, 0, -1] }
+              - { id: process, label: Process, position: [-3, 7, 4], target: [-8, 0, -3] }
+              - { id: filling, label: Filling, position: [-0.5, 4.5, 8.5], target: [-1, 0.8, 1.6] }
+              - { id: cold, label: Cold store, position: [4, 7, 3], target: [10, 0, -5] }
+          children:
+            - type: ui-twin-panel
+              props: { position: top-left }
+              children:
+                - type: ui-toggle-group
+                  props: { bind: area, variant: outline, size: sm, options: [{ value: all, label: All }, { value: reception, label: Reception }, { value: processing, label: Processing }, { value: filling, label: Filling }, { value: cold, label: Cold store }] }
+                  style: { background: $color.surface, border-radius: $radius.md }
+
+        # ---------------------------------------------------------------- the side
+        - type: element
+          props: { tag: aside }
+          attrs: { aria-label: Food safety }
+          style:
+            display: flex
+            flex-direction: column
+            gap: 16
+            box-sizing: border-box
+            padding: 16px
+            border-top: 1px solid $color.border
+            "@lg": { width: 360, flex: none, overflow-y: auto, border-top: none, border-left: 1px solid $color.border }
+          children:
+            - type: if
+              props: { when: "{{ alarms.length > 0 }}" }
+              children:
+                - type: ui-alert
+                  props: { variant: destructive, title: "{{ alarms.length }} in alarm", description: "Pick one in the list below or on the line to see it." }
+            - type: ui-card
+              props: { title: Critical control points, description: "From the plant's food safety plan" }
+              children:
+                - type: element
+                  props: { tag: ul }
+                  attrs: { aria-label: Critical control points }
+                  style: { list-style: none, margin: 0 -8px, padding: 0 }
+                  children:
+                    - type: list
+                      props: { items: "{{ ccps }}", as: c, key: "{{ c.id }}" }
+                      style: { display: contents }
+                      children:
+                        - type: element
+                          props: { tag: li }
+                          children:
+                            - type: element
+                              props: { tag: button }
+                              attrs: { type: button, aria-pressed: "{{ picked == c.id }}", data-ccp: "{{ c.id }}" }
+                              style:
+                                display: flex
+                                align-items: center
+                                gap: 10
+                                box-sizing: border-box
+                                width: 100%
+                                padding: 7px 8px
+                                border: 0
+                                border-radius: $radius.md
+                                background: "{{ picked == c.id ? 'var(--color-subtle)' : 'transparent' }}"
+                                color: inherit
+                                font: inherit
+                                text-align: start
+                                cursor: pointer
+                                ":hover": { background: $color.subtle }
+                                ":focus-visible": { outline: 2px solid $color.primary, outline-offset: -2px }
+                              on: { click: { action: set_state, key: picked, value: "{{ c.id }}" } }
+                              children:
+                                - type: element
+                                  style: { display: flex, flex-direction: column, flex: 1, min-width: 0 }
+                                  children:
+                                    - { type: text, props: { value: "{{ c.name }}" }, style: { font-size: 14, font-weight: 500 } }
+                                    - { type: text, props: { value: "{{ c.limit }}" }, style: { color: $color.muted, font-size: 12 } }
+                                - type: text
+                                  props: { value: "{{ live[c.id] ? live[c.id][c.field] : '–' }} {{ c.unit }}" }
+                                  style: { font-variant-numeric: tabular-nums, font-weight: 600, color: "{{ includes(alarms, c.id) ? 'var(--color-danger)' : 'inherit' }}" }
+                                - type: if
+                                  props: { when: "{{ includes(alarms, c.id) }}" }
+                                  children: [ { type: ui-badge, props: { text: Alarm, variant: destructive } } ]
+                                - type: else
+                                  children: [ { type: ui-badge, props: { text: OK, variant: success } } ]
+
+            - type: if
+              props: { when: "{{ item }}" }
+              children:
+                - type: ui-card
+                  props: { title: "{{ item.title }}", description: "{{ item.id }}{{ item.description ? ' · ' + item.description : '' }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 8 }
+                      style: { font-size: 14 }
+                      children:
+                        - type: if
+                          props: { when: "{{ item.status }}" }
+                          children: [ { type: ui-status-badge, props: { status: "{{ item.status }}", tones: "{{ tones }}" } } ]
+                        - type: if
+                          props: { when: "{{ item.temp != null }}" }
+                          children: [ { type: text, props: { value: "Temperature {{ item.temp }} °C" } } ]
+                        - type: if
+                          props: { when: "{{ item.level != null }}" }
+                          children:
+                            - { type: text, props: { value: "Level {{ item.level }}%" } }
+                            - { type: ui-progress, props: { value: "{{ item.level }}" } }
+                        - type: if
+                          props: { when: "{{ item.bpm != null }}" }
+                          children: [ { type: text, props: { value: "{{ item.bpm }} bottles a minute, {{ item.fill }} ml each" } } ]
+                        - type: if
+                          props: { when: "{{ item.brix != null }}" }
+                          children: [ { type: text, props: { value: "Sugar {{ item.brix }} °Bx{{ item.ph ? ', pH ' + item.ph : '' }}" } } ]
+                        - type: if
+                          props: { when: "{{ item.rejects != null }}" }
+                          children: [ { type: text, props: { value: "{{ item.rejects }} rejected this batch, last {{ item.weight }} g" } } ]
+                        - type: if
+                          props: { when: "{{ item.humidity != null }}" }
+                          children: [ { type: text, props: { value: "Humidity {{ item.humidity }}%" } } ]
+                    - type: ui-card-footer
+                      children:
+                        - type: ui-button
+                          props: { label: Close, size: sm, variant: outline }
+                          on: { click: { action: set_state, key: picked, value: null } }

@@ -39,6 +39,13 @@ pallet warehouse_pallet_a01 1 512
 pallet_jack palletJack_lowProfile_a01 0.2 512
 rack rack_large_empty_a01 0.5 512
 table_ss table_metal_stainless_a03 0.6 512
+milk food_processed_milk_a01 0.25 256
+bottle_water food_beverage_bottledWater_b01 0.25 256
+bottle_drink food_beverage_bottledDrink_a01 0.15 256
+juice_box food_beverage_boxedDrink_a01 0.25 256
+can_red food_beverage_can_b01 0.25 256
+crate_red crate_red_a01 0.1 512
+crate_yellow crate_yellow_a01 0.1 512
 "
 fi
 

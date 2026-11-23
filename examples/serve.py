@@ -34,6 +34,12 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/twin/plant/stream  the same, as server-sent events, once a second
   api/twin/coldstore     JSON: the cold store's sensors and doors (block twin-02); freezer B's door
                          is left open now and then and its sensors warm up.
+  api/twin/bottling       JSON: the bottling line in block twin-04, by id: silos, the pasteuriser,
+                         the mixer, filler, capper, checkweigher, conveyors, the bottles on the belt,
+                         cold store and room sensors, and "line" (product, batch, speed, counts).
+                         The pasteuriser dips under 72 °C and diverts now and then, which stops the
+                         line; a cold store sensor warms up later in the same five minutes.
+  api/twin/bottling/stream  the same, as server-sent events, once a second
   api/records   POST anything as JSON: answers { id, size }, the same for the same x-queued-id.
   api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
@@ -263,6 +269,44 @@ def plant():
     return out
 
 
+def bottling():
+    """The bottling line in block twin-04, now. A five-minute story: the pasteuriser's
+    holding temperature dips under 72 °C and it diverts (the line stops for want of
+    milk), then a cold store sensor warms up while its door is left open."""
+    t = time.time()
+    cycle = t % 300
+    dip = 60 <= cycle < 100
+    stopped = 70 <= cycle < 115
+    warm = min(1, max(0, (cycle - 180) / 40)) if 180 <= cycle < 260 else 0
+    hold = 75 + wave(t, 40, -0.6, 0.6) - (4.2 * math.sin(math.pi * (cycle - 60) / 40) if dip else 0)
+    bpm = 0 if stopped else round(wave(t, 60, 118, 124))
+    made = int(t / 60 * 120) % 40000
+    out = {
+        "pas-1": {"status": "diverting" if hold < 72 else "running", "temp": round(hold, 1), "flow": round(wave(t, 90, 7600, 8100))},
+        "mix-1": {"status": "running", "brix": round(wave(t, 120, 11.6, 12.3), 1), "ph": round(wave(t, 150, 6.62, 6.74), 2), "level": round(100 - (t / 3 % 80))},
+        "fil-1": {"status": "stopped" if stopped else "running", "bpm": bpm, "fill": round(500 + wave(t, 20, -1.2, 1.4), 1)},
+        "cap-1": {"status": "stopped" if stopped else "running", "torque": round(wave(t, 25, 17, 20))},
+        "chk-1": {"status": "stopped" if stopped else "running", "rejects": int(made / 2100) % 60, "weight": round(wave(t, 15, 528, 534), 1)},
+        "cs-1": {"temp": round(wave(t, 200, 2.4, 3.4), 1), "humidity": round(wave(t, 300, 78, 86))},
+        "cs-2": {"temp": round(wave(t, 220, 2.6, 3.6) + 5 * warm, 1), "humidity": round(wave(t, 260, 76, 84))},
+        "env-1": {"air": round(wave(t, 400, 21, 24), 1), "humidity": round(wave(t, 350, 48, 60))},
+    }
+    for i, base in ((1, 3.1), (2, 3.6)):
+        out[f"tk-{i}"] = {"status": "running", "level": round(100 - ((t / 5 + i * 31) % 85)), "temp": round(base + wave(t, 180, -0.3, 0.3, i / 2), 1)}
+    out["tk-3"] = {"status": "running", "level": round(100 - (t / 7 % 85)), "temp": round(6.2 + wave(t, 200, -0.4, 0.4), 1), "brix": round(wave(t, 300, 10.8, 11.4), 1)}
+    for i in range(1, 6):
+        out[f"cv-{i}"] = {"status": "stopped" if stopped else "running"}
+    for i in range(1, 11):
+        out[f"b-{i}"] = {"speed": 0 if stopped else 0.5}
+    ccp = sum(1 for v in (hold < 72, out["cs-2"]["temp"] >= 7, out["tk-1"]["temp"] >= 6, out["tk-2"]["temp"] >= 6) if v)
+    out["line"] = {
+        "product": "Whole milk 500 ml", "batch": f"B-{int(t // 3600) % 1000:03d}", "bpm": bpm, "made": made,
+        "rejects": out["chk-1"]["rejects"], "ccp": ccp,
+        "time": datetime.fromtimestamp(int(t), timezone.utc).isoformat().replace("+00:00", "Z"),
+    }
+    return out
+
+
 COLD_ROOMS = {"freezer-a": (-21, 4), "freezer-b": (-20, 4), "chiller": (3, 4), "dock": (11, 2)}
 
 
@@ -314,6 +358,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self.events(plant)
         if path.endswith("/api/twin/plant"):
             return self.send_json(plant())
+        if path.endswith("/api/twin/bottling/stream"):
+            return self.events(bottling)
+        if path.endswith("/api/twin/bottling"):
+            return self.send_json(bottling())
         if path.endswith("/api/twin/coldstore"):
             return self.send_json(coldstore())
         if path.endswith("/api/available"):

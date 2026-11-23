@@ -82,4 +82,5 @@ root:
         - { type: text, props: { value: "Whole pages:" }, style: { margin-left: auto, color: $color.muted, font-size: 14 } }
         - { type: ui-button, props: { label: Packing hall, variant: outline, size: sm, href: ../blocks/twin-01.html } }
         - { type: ui-button, props: { label: Cold store, variant: outline, size: sm, href: ../blocks/twin-02.html } }
+        - { type: ui-button, props: { label: Bottling line, variant: outline, size: sm, href: ../blocks/twin-04.html } }
         - { type: ui-button, props: { label: Layout planner, variant: outline, size: sm, href: ../blocks/twin-03.html } }

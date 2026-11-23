@@ -25,5 +25,12 @@ compressed with meshopt and their textures re-encoded as WebP. `tools/simready/`
 | `pallet_jack.glb` | `palletJack_lowProfile_a01` |
 | `rack.glb` | `rack_large_empty_a01` |
 | `table_ss.glb` | `table_metal_stainless_a03` |
+| `milk.glb` | `food_processed_milk_a01` |
+| `bottle_water.glb` | `food_beverage_bottledWater_b01` |
+| `bottle_drink.glb` | `food_beverage_bottledDrink_a01` |
+| `juice_box.glb` | `food_beverage_boxedDrink_a01` |
+| `can_red.glb` | `food_beverage_can_b01` |
+| `crate_red.glb` | `crate_red_a01` |
+| `crate_yellow.glb` | `crate_yellow_a01` |
 
 `beacon.obj` and `bracket.stl` were made for these examples (`examples/twin/models`), to show other formats: an OBJ in metres, and an STL in millimetres with z up.
