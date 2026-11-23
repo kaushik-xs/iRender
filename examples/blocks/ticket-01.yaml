@@ -1,5 +1,6 @@
 # Block: a support ticket. The status is a `ui-status-badge` that changes colour with
-# state, the SLA a `ui-progress-ring`, the history a `ui-timeline` of who did what
+# state, the SLA a `ui-progress-ring` with a `ui-countdown` of the time left (warning under
+# 8 hours, danger under 2, counting up once it's late), the history a `ui-timeline` of who did what
 # (field changes as old → new, comments quoted), and once the ticket is resolved the
 # customer's rating is a `ui-rating`.
 # - Resolve sets the status, adds an entry to the timeline and asks for a rating.
@@ -100,7 +101,14 @@ root:
                         - type: stack
                           style: { gap: 2px, font-size: 14px }
                           children:
-                            - { type: text, props: { value: "{{ resolved ? 'Met: resolved in time' : '7 h 40 min left' }}" }, style: { font-weight: 600 } }
+                            - type: if
+                              props: { when: "{{ resolved }}" }
+                              children: [ { type: text, props: { value: "Met: resolved in time" }, style: { font-weight: 600 } } ]
+                            # Times from when the page opens, so the demo is always running.
+                            - type: if
+                              props: { when: "{{ !resolved }}" }
+                              children:
+                                - { type: ui-countdown, props: { to: +7h 40m, from: -16h 20m, warn: 8h, danger: 2h, label: Time left to resolve }, style: { font-weight: 600, min-width: 160 } }
                             - { type: text, props: { value: "Due 4 Nov, 09:12" }, style: { color: $color.muted } }
                 - type: ui-card
                   props: { title: Details }

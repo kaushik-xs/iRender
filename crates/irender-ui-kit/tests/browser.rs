@@ -7464,6 +7464,84 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-countdown`: the status as thresholds pass, said once each; `end` on reaching zero
+/// (not for a deadline already past on arrival); counting up; `endText`; units, clock and
+/// tiles; times from when the page opened. Under the test browser's virtual time the
+/// clock hardly moves, so the deadline is moved instead.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn countdown_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "due": null, "left": null, "st": null, "ended": 0, "far": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-countdown", "attrs": { "id": "c" }, "props": { "to": "{{ due }}", "warn": "8s", "danger": 3, "bindLeft": "left", "bindStatus": "st", "label": "Reply due" },
+              "on": { "end": { "action": "set_state", "key": "ended", "value": "{{ ended + 1 }}" } } },
+            { "type": "ui-countdown", "attrs": { "id": "rel" }, "props": { "to": "+1h 30m", "from": "-30m" } },
+            { "type": "ui-countdown", "attrs": { "id": "past" }, "props": { "to": "-90s" }, "on": { "end": { "action": "set_state", "key": "ended", "value": 99 } } },
+            { "type": "ui-countdown", "attrs": { "id": "stop" }, "props": { "to": "-1s", "overdue": false, "endText": "Sale over" } },
+            { "type": "ui-countdown", "attrs": { "id": "u" }, "props": { "to": "{{ far }}" } },
+            { "type": "ui-countdown", "attrs": { "id": "k" }, "props": { "to": "{{ far }}", "format": "clock" } },
+            { "type": "ui-countdown", "attrs": { "id": "t" }, "props": { "to": "{{ far }}", "variant": "tiles" } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const q = (id, s = "[data-cd-text]") => document.getElementById(id).querySelector(s);
+      const c = document.getElementById("c");
+      const at = (sec) => new Date(Date.now() + sec * 1000 + 400).toISOString();
+      const show = () => [S().st, S().left, c.dataset.tone, q("c").textContent, q("c", "[data-cd-live]").textContent].join(" | ");
+      try {
+        api.set("due", at(20)); await wait(20);
+        log("ok", show());
+        api.set("due", at(7)); await wait(20);
+        log("warning", show());
+        api.set("due", at(7)); await wait(20);
+        log("again", q("c", "[data-cd-live]").textContent === "Reply due: 7 seconds left");
+        api.set("due", at(2)); await wait(20);
+        log("danger", show());
+        api.set("due", at(-1)); await wait(20);
+        log("over", show(), "ended", S().ended);
+        api.set("due", at(-3725)); await wait(20);
+        log("later", q("c").textContent, "ended", S().ended);
+        log("past on arrival", q("past").textContent, "|", q("stop").textContent);
+        log("relative", q("rel").textContent, Math.round(parseFloat(document.getElementById("rel").style.getPropertyValue("--used"))));
+        api.set("far", at(2 * 86400 + 4 * 3600 + 5 * 60)); await wait(20);
+        log("days", q("u").textContent, "|", q("k").textContent, "|", [...document.querySelectorAll("#t [data-cd-tile] b")].map((b) => b.textContent).join(":"));
+        api.set("far", at(65)); await wait(20);
+        log("minutes", q("u").textContent, "|", q("k").textContent);
+        log("timer", c.getAttribute("role"), c.getAttribute("aria-label"), q("c").getAttribute("datetime") === new Date(Date.parse(S().due)).toISOString());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("countdown", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "ok ok | 20 | neutral | 20s | ",
+            // Each threshold said once, as it passes.
+            "warning warning | 7 | warning | 7s | Reply due: 7 seconds left",
+            "again true",
+            "danger danger | 2 | danger | 2s | Reply due: 2 seconds left",
+            "over over | -1 | danger | 1s overdue | Reply due: Overdue ended 1",
+            "later 1h 2m overdue ended 1",
+            // Already past when the page opened: no `end`.
+            "past on arrival 1m 30s overdue | Sale over",
+            // +1h 30m from -30m: a quarter used.
+            "relative 1h 30m 25",
+            "days 2d 4h | 2d 04:05:00 | 02:04:05:00",
+            "minutes 1m 05s | 0:01:05",
+            "timer timer Reply due true",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-form-builder`: adding from the palette, the inspector (the key following the label
 /// until it's typed), moving and deleting, the preview's checks and answers, and the
 /// document, which must resolve and render as a page of its own.

@@ -11,6 +11,8 @@ _Last updated: 2026-11-23._
 
 ## Gaps you'd hit in real use
 
+- [ ] **`ui-countdown`** (2026-11-23; gallery, block ticket-01): the browser's clock is trusted (a server's time isn't asked for), no business hours (an SLA that stops overnight or at weekends), no pausing (a ticket waiting on the customer), and only the two largest units. Times from state are read as the browser reads dates: one without a zone (`2026-12-01T17:00`) is local time.
+
 - [ ] **`ui-form-builder`** (2026-11-23; gallery, block form-designer-01): no conditions (show a field when another has an answer), no columns or field widths, no rules beyond required, email and limits (no patterns or lengths), no file, phone, time or rating fields, and no undo. Dragging from the palette is the browser's drag and drop, so by touch a type is added with a tap; a document can't be read back into fields.
 
 - [ ] **`ui-sortable-list`** (2026-11-23; gallery, block settings): one list at a time (nothing is dragged between two lists; `ui-transfer-list` and the kanban do that), no nesting, no animation as items make way, and dragging is tried with pointer events in Chrome, not on real phones. A drag shows where the item lands with a line, not by moving the others.

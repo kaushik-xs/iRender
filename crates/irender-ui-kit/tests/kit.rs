@@ -151,6 +151,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-gauge", json!({ "value": 50 })),
         ("ui-sortable-list", json!({ "bind": "k" })),
         ("ui-form-builder", json!({ "bind": "k" })),
+        ("ui-countdown", json!({ "to": "+1h" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -220,7 +221,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 202);
+    assert_eq!(kit, 203);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1275,6 +1276,28 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn countdown_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-countdown", "props": { "to": "{{ due }}", "from": "{{ opened }}", "warn": "1h", "danger": 900, "label": "Reply due" } }),
+        json!({ "due": "2026-12-01T17:00:00Z", "opened": "2026-12-01T09:00:00Z" }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A timer named by its label, the deadline in a `<time>` until the behaviour counts.
+    assert!(body.contains(r#"data-status="ok" role="timer" aria-label="Reply due""#), "{body}");
+    assert!(body.contains(r#"<time data-cd-text datetime="2026-12-01T17:00:00Z">2026-12-01T17:00:00Z</time>"#), "{body}");
+    assert!(body.contains("data-cd-bar") && body.contains(r#"&quot;warn&quot;:3600.0"#) && body.contains(r#"&quot;danger&quot;:900.0"#), "{body}");
+    let tiles = plain(&render_with(json!({ "type": "ui-countdown", "props": { "to": "+1d", "variant": "tiles" } }), json!({}), json!({})).unwrap().body);
+    assert_eq!(tiles.matches("data-cd-tile=").count(), 4, "{tiles}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-countdown", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "to": "+1h", "warn": "soon" })).contains("`warn` is seconds"));
+    assert!(err(json!({ "to": "+1h", "danger": "2w" })).contains("`danger` is seconds"));
+    assert!(err(json!({ "to": "+1h", "warn": "10m", "danger": "1h" })).contains("`danger` comes after `warn`"));
 }
 
 #[test]

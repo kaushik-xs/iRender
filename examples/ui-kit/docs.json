@@ -83,7 +83,8 @@
   "ui-color-picker": "2026-11-23",
   "ui-gauge": "2026-11-23",
   "ui-sortable-list": "2026-11-23",
-  "ui-form-builder": "2026-11-23"
+  "ui-form-builder": "2026-11-23",
+  "ui-countdown": "2026-11-23"
  },
  "sections": [
   {
@@ -560,6 +561,17 @@
    "usage": "- type: ui-gauge\n  props: { value: \"{{ oee }}\", unit: \"%\", target: 85, bands: [{ to: 60, tone: danger }, { to: 85, tone: warning }, { tone: success }] }\n- { type: ui-gauge, props: { value: \"{{ oil }}\", min: 20, max: 120, unit: °C, shape: half, needle: true } }",
    "components": [
     "ui-gauge"
+   ]
+  },
+  {
+   "id": "countdown",
+   "group": "Data display",
+   "title": "Countdown",
+   "nav": "Countdown",
+   "summary": "The time left to a deadline: a ticket's SLA, an offer, a launch. It turns to warning and danger tones as thresholds pass, counts up once overdue (or says it's over), shows a bar of the time used when it knows the start, and comes as text, a clock or tiles. The seconds left and the status go to state, and it fires end at zero.",
+   "usage": "- { type: ui-countdown, props: { to: \"{{ ticket.due }}\", from: \"{{ ticket.opened }}\", warn: 1h, danger: 15m, label: First reply due } }\n- { type: ui-countdown, props: { to: \"2026-12-24T18:00\", variant: tiles } }\n- { type: ui-countdown, props: { to: +15m, overdue: false, endText: Offer ended } }   # from when the page opens",
+   "components": [
+    "ui-countdown"
    ]
   },
   {
