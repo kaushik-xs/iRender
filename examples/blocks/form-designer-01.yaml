@@ -1,0 +1,61 @@
+# Block: a form being designed, for whoever looks after a site's sign-in sheets, surveys
+# or requests. `ui-form-builder` adds field types from its palette (a click, or dragged
+# onto the form), puts them in order (dragged by a grip, or the arrow keys on it) and sets
+# each one up: label, key, help, choices, limits, required. Preview tries the form, its
+# checks included; Document gives it out as an iRender document of the kit's own form
+# (`ui-form` with its rules), also kept in `formDoc` for the page to save.
+#
+#   cargo run -p irender-cli -- render examples/blocks/form-designer-01.yaml --ui-kit --icon-kit -o form-designer-01.html
+version: 1
+state:
+  toast: null
+  formName: Visitor sign-in
+  formDoc: null
+  fields:
+    - { id: about_you, type: section, label: About you, description: We keep this for 30 days. }
+    - { id: full_name, type: text, label: Full name, required: true, placeholder: As on your ID }
+    - { id: company, type: text, label: Company }
+    - { id: email, type: email, label: Email, required: true, description: We send your badge here. }
+    - { id: your_visit, type: section, label: Your visit }
+    - { id: host, type: select, label: Who are you here to see?, required: true, options: [Reception, Facilities, Finance, Sales], placeholder: Pick a team }
+    - { id: arriving, type: date, label: Arriving on, required: true, min: "2026-11-23" }
+    - { id: needs, type: checkboxes, label: Anything you need?, options: [Parking, Step-free access, A guest Wi-Fi code] }
+    - { id: safety, type: checkbox, label: I've read the site's safety notes, required: true }
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1240px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { direction: row, align: end, gap: 12 }
+      style: { flex-wrap: wrap }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          style: { flex: 1, min-width: 260 }
+          children:
+            - { type: ui-breadcrumb, props: { items: [ { label: Front desk, href: "#" }, { label: Forms, href: "#" }, { label: Edit form } ] } }
+            - type: stack
+              props: { direction: row, gap: 10, align: center }
+              children:
+                - { type: ui-heading, props: { level: 2, text: "{{ formName }}" } }
+                - { type: ui-badge, props: { text: Draft, variant: outline } }
+            - { type: ui-text, props: { variant: muted, text: "{{ fields.length }} fields and sections. Build it, try it under Preview, and take its document under Document." } }
+        - type: ui-field
+          props: { label: Form name }
+          style: { width: 240 }
+          children: [ { type: ui-input, props: { bind: formName } } ]
+        - type: ui-button
+          props: { label: Save draft, variant: outline }
+          on: { click: { action: set_state, key: toast, value: { title: Draft saved, description: "{{ formName }}, with {{ fields.length }} fields." } } }
+        - type: ui-button
+          props: { label: Publish }
+          on: { click: { action: set_state, key: toast, value: { title: "{{ formName }} is live", description: The front desk tablet shows it from now on. } } }
+    - { type: ui-form-builder, props: { bind: fields, bindDocument: formDoc, submitLabel: Sign in, label: "{{ formName }}, form builder" } }
+    - { type: ui-toaster, props: { bind: toast } }

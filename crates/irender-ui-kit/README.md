@@ -130,6 +130,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
 | `ui-repeater` | `bind` (required), `fields` (required), `layout` (table, stack), `newItem`, `min`, `max`, `reorderable`, `duplicable`, `addLabel`, `itemLabel`, `label`, `emptyText`, `disabled`, `bindErrors`, `bindTotals`, `showErrors`, `locale`, `id` | Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`. See [Forms](#forms). |
 | `ui-sortable-list` | `bind` (required), `itemKey` (default `id`), `labelField` (default `label`), `numbered`, `removable`, `emptyText`, `label`, `disabled` | A list in state put in order by dragging each item's grip (mouse, touch or pen) or from the keyboard; children are each item's content. See below. |
+| `ui-form-builder` | `bind` (required), `bindDocument`, `types`, `submitLabel`, `endpoint`, `label`, `id` | A form put together in the browser: field types from a palette, put in order, set up in an inspector, tried in a preview, and given out as an iRender document of the kit's own form. See below. |
 | `ui-import` | `bind` (required), `bindImported`, `fields` (required), `url`, `params`, `batchSize`, `accept`, `maxRows`, `skipInvalid`, `template`, `title`, `locale`, `id` | Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns are matched to `fields`, the rows put right in an editable table, and the good ones handed over (an `import` event and `bindImported`) or posted to `url`. See [Import](#import). |
 | `ui-tags-input` | `bind` (required), `suggestions`, `only`, `max`, `pattern`, `strict`, `lowercase`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Tags typed one after another: Enter or a comma adds one, a pasted list adds them all, Backspace takes the last. |
 | `ui-masked-input` | `bind` (required), `mask` (required), `raw`, `bindComplete`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Text in a fixed shape, like a card number, a postcode or a policy number, put in shape as it's typed. |
@@ -1030,6 +1031,14 @@ A `remote` rule asks the server whether a value is accepted (is this name taken?
   children:
     - { type: text, props: { value: "{{ item.label }}" } }
 - { type: ui-sortable-list, props: { bind: menuOrder } }   # ["Home", "Orders", "Reports"]
+```
+
+**`ui-form-builder`** lets people put a form together in the page: a sign-in sheet, a survey, a request form. Under **Build**, a palette of field types (short and long text, email, number, date, a dropdown, one choice, several choices, yes or no, and a section heading) adds one after the field picked, with a click or by dragging it onto the form. Fields are put in order by dragging their grips (mouse, finger or pen) or with ↑ and ↓ on a grip, picked to be set up in the inspector (label, key, help, placeholder, choices one on each line, lowest and highest or earliest and latest, required), and duplicated or deleted (Delete on a field). A field's key follows its label until one is typed, and keys stay unique. **Preview** tries the form, with its required, email and limit checks, and shows what it would send. **Document** gives the form out as YAML or JSON, with Copy: an iRender page of the kit's own form, `ui-form` with `rules` for what was asked, `ui-field`s with the right control (`ui-input`, `ui-textarea`, `ui-number-input`, `ui-date-picker`, `ui-select`, `ui-radio-group`, `ui-toggle-group`, `ui-checkbox`), sections as `ui-form-section`, an error summary and a submit button. With `endpoint` it posts the answers there as JSON; without, it thanks the person. `bind` holds the fields (`{ id, type, label, description, placeholder, required, options, min, max }`) and `bindDocument` the document, both kept up to date; `types` narrows the palette.
+
+```yaml
+- type: ui-form-builder
+  props: { bind: fields, bindDocument: formDoc, submitLabel: Sign in, endpoint: /api/sign-ins }
+# fields: [{ id: name, type: text, label: Your name, required: true }, { id: team, type: select, label: Team, options: [Ops, Sales] }]
 ```
 
 ## Import

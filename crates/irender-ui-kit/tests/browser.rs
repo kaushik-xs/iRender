@@ -7464,6 +7464,145 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-form-builder`: adding from the palette, the inspector (the key following the label
+/// until it's typed), moving and deleting, the preview's checks and answers, and the
+/// document, which must resolve and render as a page of its own.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn form_builder_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "fields": [{ "id": "name", "type": "text", "label": "Name", "required": true }, { "id": "team", "type": "select", "label": "Team", "options": ["A", "B"] }], "doc": null },
+        "root": { "type": "ui-form-builder", "attrs": { "id": "fb" }, "props": { "bind": "fields", "bindDocument": "doc", "submitLabel": "Send" } } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const fb = document.getElementById("fb"), $ = (s) => fb.querySelector(s);
+      const ids = () => S().fields.map((f) => f.id).join(",");
+      const type = (input, v, ev = "input") => { input.value = v; input.dispatchEvent(new Event(ev, { bubbles: true })); };
+      const live = () => $("[data-fb-live]").textContent;
+      try {
+        log("start", ids(), $('[aria-current=true]')?.dataset.fbCard, $("[data-fb-inspector] input").value);
+        const num = $('[data-fb-type="number"]'); num.focus(); num.click(); await wait(10);
+        log("added", ids(), live(), document.activeElement === num, $('[aria-current=true]').dataset.fbCard);
+        const ins = () => [...$("[data-fb-inspector]").querySelectorAll("input, textarea")];
+        log("inspector", ins().map((i) => i.id.split("-in-")[1]).join(","));
+        type(ins()[0], "Guests"); await wait(10);
+        log("label", ids(), ins()[1].value);
+        type(ins().find((i) => i.id.endsWith("-min")), "1"); type(ins().find((i) => i.id.endsWith("-max")), "10"); await wait(10);
+        type(ins()[1], "Party size!", "change"); await wait(10);
+        type(ins()[0], "Guests coming"); await wait(10);
+        log("key typed", ids(), JSON.stringify(S().fields[1]));
+        ins().find((i) => i.type === "checkbox").click(); await wait(10);
+        const grip = $('[data-fb-card="party_size"] [data-fb-grip]'); grip.focus();
+        grip.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })); await wait(10);
+        log("moved", ids(), live(), document.activeElement?.closest("[data-fb-card]")?.dataset.fbCard);
+        $('[data-fb-card="team"] [data-fb-pick]').click(); await wait(10);
+        type($("[data-fb-inspector] textarea"), "Red\n\nBlue \nGreen"); await wait(10);
+        log("choices", JSON.stringify(S().fields.find((f) => f.id === "team").options));
+        $('[data-fb-card="team"] [data-fb-duplicate]').click(); await wait(10);
+        log("duplicated", ids());
+        $('[data-fb-card="team_copy"] [data-fb-delete]').click(); await wait(10);
+        log("deleted", ids(), live());
+
+        $('[data-fb-tab="preview"]').click(); await wait(10);
+        const pv = $('[data-fb-panel="preview"]');
+        pv.querySelector("form").requestSubmit(); await wait(10);
+        log("tried", [...pv.querySelectorAll("[data-fb-error]")].map((e) => e.textContent).join(" | "), document.activeElement?.id?.split("-pv-")[1]);
+        const by = (id) => pv.querySelector(`[id$="-pv-${id}"]`);
+        type(by("name"), "Asha"); type(by("party_size"), "12"); await wait(10);
+        log("limit", [...pv.querySelectorAll("[data-fb-error]")].map((e) => e.textContent).join(" | "));
+        type(by("party_size"), "3"); await wait(10);
+        pv.querySelector("form").requestSubmit(); await wait(10);
+        log("sent", pv.querySelector("pre")?.textContent.replace(/\s+/g, ""));
+
+        $('[data-fb-tab="document"]').click(); await wait(10);
+        const code = () => $('[data-fb-panel="document"] code').textContent;
+        log("yaml", code().split("\n").slice(0, 3).join(" / "));
+        [...$('[data-fb-panel="document"]').querySelectorAll("button")].find((b) => b.textContent === "JSON").click(); await wait(10);
+        log("json", JSON.parse(code()).root.type, JSON.stringify(JSON.parse(code())) === JSON.stringify(S().doc));
+        log("DOC", JSON.stringify(S().doc));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("form-builder", &html) else { return };
+    let (lines, made) = result.split_once("\nDOC ").unwrap_or_else(|| panic!("\n{result}"));
+    assert_eq!(
+        lines.lines().collect::<Vec<_>>(),
+        [
+            "start name,team name Name",
+            // Added after the field picked; focus stays on the palette.
+            "added name,number,team Number added: Number true number",
+            "inspector label,key,desc,ph,min,max,req",
+            // The key follows the label until it's typed.
+            "label name,guests,team guests",
+            r#"key typed name,party_size,team {"id":"party_size","type":"number","label":"Guests coming","min":1,"max":10}"#,
+            "moved party_size,name,team Guests coming moved to 1 of 3 party_size",
+            r#"choices ["Red","Blue","Green"]"#,
+            "duplicated party_size,name,team,team_copy",
+            "deleted party_size,name,team Team (copy) deleted",
+            // The preview checks the form as the document will.
+            "tried Guests coming is required. | Name is required. party_size",
+            "limit Guests coming must be at most 10.",
+            r#"sent {"party_size":3,"name":"Asha","team":null}"#,
+            "yaml version: 1 / state: /   party_size: null",
+            "json stack true",
+        ],
+        "\n{result}"
+    );
+    // The document the builder made is a page of its own.
+    let made = irender_core::parse(made.trim(), Format::Json).unwrap_or_else(|e| panic!("{e}\n{made}"));
+    let ir = engine.resolve(&made).unwrap_or_else(|d| panic!("{d}"));
+    engine.render(&ir, &serde_json::json!({})).unwrap();
+}
+
+/// Every field type, with an `endpoint`: the document the builder makes resolves and
+/// renders, and posts each answer.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn form_builder_every_type_in_chrome() {
+    let fields: Vec<serde_json::Value> = ["text", "textarea", "email", "number", "date", "select", "radio", "checkboxes", "checkbox", "section"]
+        .iter()
+        .map(|t| serde_json::json!({ "id": format!("f_{t}"), "type": t, "label": format!("A {t}"), "required": true, "description": "Help", "placeholder": "Type", "options": ["x", "y"], "min": if *t == "date" { serde_json::json!("2026-01-01") } else { serde_json::json!(1) }, "max": if *t == "date" { serde_json::json!("2026-12-31") } else { serde_json::json!(9) } }))
+        .collect();
+    let doc = serde_json::json!({ "version": 1, "state": { "fields": fields, "doc": null },
+        "root": { "type": "ui-form-builder", "props": { "bind": "fields", "bindDocument": "doc", "endpoint": "/api/answers" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      await new Promise((r) => setTimeout(r, 50));
+      const pre = document.createElement("pre"); pre.id = "result";
+      pre.textContent = JSON.stringify(document.querySelector("[data-i-root]").__irender.state.doc); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("form-builder-types", &html) else { return };
+    let made: serde_json::Value = serde_json::from_str(result.trim()).unwrap_or_else(|e| panic!("{e}\n{result}"));
+    // Posted as JSON: every answer, from state.
+    assert_eq!(made["root"]["on"]["submit"]["endpoint"], "/api/answers", "{made}");
+    assert_eq!(made["root"]["on"]["submit"]["body"].as_object().unwrap().len(), 9, "{made}");
+    assert_eq!(made["root"]["props"]["rules"]["f_email"]["type"], "email", "{made}");
+    assert_eq!(made["root"]["props"]["rules"]["f_date"]["min"], "2026-01-01", "{made}");
+    let parsed = irender_core::parse(&made.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&parsed).unwrap_or_else(|d| panic!("{d}\n{made}"));
+    engine.render(&ir, &serde_json::json!({})).unwrap();
+    // Each type as the kit's own control; the section holds the fields after it (none here).
+    let text = made.to_string();
+    for kind in ["ui-input", "ui-textarea", "ui-number-input", "ui-date-picker", "ui-select", "ui-radio-group", "ui-toggle-group", "ui-checkbox", "ui-form-section", "ui-error-summary"] {
+        assert!(text.contains(&format!("\"type\":\"{kind}\"")), "{kind} missing: {made}");
+    }
+}
+
 /// `ui-sortable-list`: the keyboard (pick up, move, put down, put back; Alt and the arrows),
 /// dragging a grip with a pointer, removing, plain values, and each item's own content.
 #[test]

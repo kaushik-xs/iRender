@@ -80,6 +80,7 @@ root:
           - { id: invoice-01, category: forms, title: "An invoice being written: lines that add up, checks on the client and dates, a signature, and codes to pay with", kits: [ui-kit, icon-kit], height: 1240 }
           - { id: intake-01, category: forms, title: "A clinic's new-patient form in steps: phone, insurance number, visit times, a questionnaire and consent", kits: [ui-kit, icon-kit], height: 720 }
           - { id: supplier-01, category: forms, title: "A supplier's details: a form of two columns, sections side by side, one with its heading beside three columns of fields", kits: [ui-kit, icon-kit], height: 1160 }
+          - { id: form-designer-01, category: forms, title: "A visitor sign-in form being designed: fields added and ordered by dragging, set up in an inspector, tried in a preview, and given out as an iRender document", kits: [ui-kit, icon-kit], height: 860 }
           - { id: profile-01, category: forms, title: "A member's profile: a cropped picture, checked fields, contact cards, unsaved changes, and a session that asks before it ends", kits: [ui-kit, icon-kit], height: 1180 }
           - { id: record-01, category: dashboard, title: "A wind turbine's record: figures with trends, facts edited in place, pictures, what changed, and comments", kits: [ui-kit, icon-kit], height: 1240 }
           - { id: pivot-01, category: table, title: "A hospital's admissions in a pivot table: drag fields, fold groups, sort, tint, export, and see the rows behind a cell", kits: [ui-kit, icon-kit], height: 900 }

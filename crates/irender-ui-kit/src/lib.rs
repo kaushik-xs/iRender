@@ -66,6 +66,7 @@ mod calendar;
 mod color;
 mod gauge;
 mod sortable;
+mod form_builder;
 mod camera;
 mod carousel;
 mod chat;
@@ -211,6 +212,7 @@ pub fn register(registry: &mut Registry) {
         .register(status::ProgressRing)
         .register(gauge::Gauge)
         .register(sortable::SortableList)
+        .register(form_builder::FormBuilder)
         .register(status::Timeline)
         .register(status::TimelineItem)
         .register(lightbox::Lightbox)

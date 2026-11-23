@@ -150,6 +150,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-questionnaire", json!({ "bind": "k", "questions": [] })),
         ("ui-gauge", json!({ "value": 50 })),
         ("ui-sortable-list", json!({ "bind": "k" })),
+        ("ui-form-builder", json!({ "bind": "k" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -219,7 +220,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 201);
+    assert_eq!(kit, 202);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1274,6 +1275,27 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn form_builder_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-form-builder", "props": { "bind": "fields", "id": "fb", "types": ["text", "section"], "endpoint": "/api/answers" } }),
+        json!({ "fields": [] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // Three tabs and their panels, the first showing; the behaviour fills them.
+    assert!(body.contains(r#"<button type="button" role="tab" id="fb-tab-build" aria-controls="fb-build" aria-selected="true" tabindex="0" data-fb-tab="build">Build</button>"#), "{body}");
+    assert!(body.contains(r#"<div role="tabpanel" id="fb-document" aria-labelledby="fb-tab-document" data-fb-panel="document" hidden></div>"#), "{body}");
+    assert!(body.contains(r#"&quot;types&quot;:[&quot;text&quot;,&quot;section&quot;]"#) && body.contains(r#"&quot;submitLabel&quot;:&quot;Submit&quot;"#), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-form-builder")));
+
+    let err = |props: Json, state: Json| render_with(json!({ "type": "ui-form-builder", "props": props }), state, json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "bind": "k", "types": ["slider"] }), json!({ "k": [] })).contains("`types` are text, textarea"));
+    assert!(err(json!({ "bind": "k", "endpoint": "javascript:alert(1)" }), json!({ "k": [] })).contains("path on the site or an http(s) URL"));
+    assert!(err(json!({ "bind": "k" }), json!({ "k": "nope" })).contains("must hold a list of fields"));
 }
 
 #[test]

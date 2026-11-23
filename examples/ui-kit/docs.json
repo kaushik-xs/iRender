@@ -82,7 +82,8 @@
   "ui-form-section": "2026-11-23",
   "ui-color-picker": "2026-11-23",
   "ui-gauge": "2026-11-23",
-  "ui-sortable-list": "2026-11-23"
+  "ui-sortable-list": "2026-11-23",
+  "ui-form-builder": "2026-11-23"
  },
  "sections": [
   {
@@ -298,6 +299,17 @@
    "usage": "- type: ui-sortable-list\n  props: { bind: priorities, numbered: true, removable: true }\n  children:\n    - { type: text, props: { value: \"{{ item.label }}\" } }\n- { type: ui-sortable-list, props: { bind: menuOrder } }   # plain values",
    "components": [
     "ui-sortable-list"
+   ]
+  },
+  {
+   "id": "form-builder",
+   "group": "Forms",
+   "title": "Form builder",
+   "nav": "Form builder",
+   "summary": "A form put together in the browser: field types from a palette (clicked or dragged), put in order by dragging or the keyboard, and set up in an inspector (label, key, help, choices, limits, required). Preview tries the form with its checks; Document gives it out as an iRender document of the kit's own form, ui-form with its rules, also kept in state.",
+   "usage": "- type: ui-form-builder\n  props: { bind: fields, bindDocument: formDoc, submitLabel: Sign in }\n# fields: [{ id: name, type: text, label: Your name, required: true }, { id: team, type: select, label: Team, options: [A, B] }]",
+   "components": [
+    "ui-form-builder"
    ]
   },
   {
