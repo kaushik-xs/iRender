@@ -328,6 +328,7 @@
       return { obj, clips: obj.animations ?? got?.animations ?? [] };
     }
     // Loaded once, made to stand on the ground at its middle, in metres, y up.
+    const opened = new Set(); // the models loaded so far, by key
     function template(spec) {
       const key = JSON.stringify(spec);
       if (!templates.has(key)) {
@@ -362,9 +363,46 @@
           });
           outer.updateMatrixWorld(true);
           return { scene: outer, clips, skinned, size: new T.Box3().setFromObject(outer).getSize(new T.Vector3()) };
+        }).then(async (t) => {
+          await warm(t);
+          opened.add(key);
+          return t;
         }));
       }
       return templates.get(key);
+    }
+    // A model's GPU work before any object shows it, without holding the page: its shaders
+    // compile in parallel (as a copy and as instances), and its textures go up a few at a
+    // time. Done all at once in the first frame that drew it, it could stop the page.
+    async function warm(t) {
+      if (!renderer) return;
+      const probe = new T.Group();
+      probe.add(t.scene.clone(true));
+      t.scene.traverse((o) => {
+        if (o.isMesh && !o.isSkinnedMesh) {
+          const im = new T.InstancedMesh(o.geometry, o.material, 1);
+          im.castShadow = im.receiveShadow = true;
+          probe.add(im);
+        }
+      });
+      try {
+        if (renderer.compileAsync) await renderer.compileAsync(probe, camera, scene);
+        const textures = new Set();
+        t.scene.traverse((o) => {
+          for (const m of [].concat(o.material ?? [])) for (const v of Object.values(m)) if (v?.isTexture) textures.add(v);
+        });
+        let start = performance.now();
+        for (const tex of textures) {
+          renderer.initTexture(tex);
+          if (performance.now() - start > 8) {
+            await new Promise((r) => nextFrame(r));
+            start = performance.now();
+          }
+        }
+      } catch (e) {
+        console.warn("ui-twin:", e);
+      }
+      probe.traverse((o) => o.isInstancedMesh && o.dispose());
     }
     let SkeletonUtils = null;
     const copy = async (t) => {
@@ -404,7 +442,68 @@
     }
 
     // ---------------------------------------------------------------- drawing things
-    const bodyKey = (r) => JSON.stringify([r.model ? specOf(r.model) : null, r.shape, r.size, r.model ? null : r.color, r.model ? null : r.tone]);
+    // A model whose objects look alike is drawn once per part for all of them (instancing):
+    // a few draw calls however many there are. One that needs a look of its own (a glow, an
+    // alarm, a colour by value, see-through, its own animation) is a copy of its own while
+    // it does, so nothing looks different.
+    const ownLook = (r) => !!(r.alarm || r.heat || r.opacity < 1 || r.animation || (r.effect && r.effect !== "spin" && r.effect !== "bob" && r.effect !== "pulse"));
+    const bodyKey = (r) => JSON.stringify([r.model ? specOf(r.model) : null, r.shape, r.size, r.model ? null : r.color, r.model ? null : r.tone, r.model ? ownLook(r) : null]);
+    const batches = new Map(); // a model's key → its instanced parts and the objects drawn with them
+    function batchFor(key, t) {
+      let b = batches.get(key);
+      if (b) return b;
+      const parts = [];
+      t.scene.updateMatrixWorld(true);
+      t.scene.traverse((o) => {
+        if (o.isMesh && !o.isSkinnedMesh) parts.push({ geometry: o.geometry, material: o.material, local: o.matrixWorld.clone(), im: null });
+      });
+      b = { parts, slots: [], cap: 0 };
+      batches.set(key, b);
+      return b;
+    }
+    // Room for every object of a batch: each part is an InstancedMesh, made bigger by doubling.
+    function roomFor(b) {
+      if (b.slots.length <= b.cap) return;
+      b.cap = Math.max(8, b.cap * 2, b.slots.length);
+      for (const part of b.parts) {
+        if (part.im) {
+          world.remove(part.im);
+          part.im.dispose();
+        }
+        const im = new T.InstancedMesh(part.geometry, part.material, b.cap);
+        im.instanceMatrix.setUsage(T.DynamicDrawUsage);
+        im.castShadow = im.receiveShadow = true;
+        // Its instances move, so its bounds would be out of date for culling; they're
+        // worked out again for picking.
+        im.frustumCulled = false;
+        im.userData.batch = b;
+        part.im = im;
+        world.add(im);
+      }
+    }
+    const m4 = { a: null };
+    // Each instance where its object is: the object's place, its body's own turn (a spinning
+    // fan), then the part's place in the model.
+    function placeInstances() {
+      if (!batches.size) return;
+      world.updateMatrixWorld();
+      const m = (m4.a ||= new T.Matrix4());
+      for (const b of batches.values()) {
+        roomFor(b);
+        for (const part of b.parts) {
+          b.slots.forEach((it, i) => part.im.setMatrixAt(i, m.multiplyMatrices(it.body.matrixWorld, part.local)));
+          part.im.count = b.slots.length;
+          part.im.instanceMatrix.needsUpdate = true;
+          part.im.boundingSphere = null;
+        }
+      }
+    }
+    function unbatch(it) {
+      if (!it.batch) return;
+      const i = it.batch.slots.indexOf(it);
+      if (i >= 0) it.batch.slots.splice(i, 1);
+      it.batch = null;
+    }
     let loading = 0, loaded = 0;
     let busy = false;
     function progress() {
@@ -427,13 +526,20 @@
       let made;
       if (r.model) {
         const spec = specOf(r.model);
-        loading++;
-        progress();
+        // Counted while it loads; one already loaded (an object turning to its own copy for an
+        // alarm and back) isn't loading.
+        const counted = !(spec && opened.has(JSON.stringify(spec)));
+        if (counted) {
+          loading++;
+          progress();
+        }
         try {
           if (!spec) throw new Error(`no model named ${r.model}`);
           const t = await template(spec);
           if (it.key !== key || !items.has(it.id)) return;
-          made = { obj: await copy(t), size: t.size.clone(), clips: t.clips };
+          made = !t.skinned && !ownLook(r)
+            ? { obj: new T.Group(), size: t.size.clone(), clips: [], batch: batchFor(JSON.stringify(spec), t) }
+            : { obj: await copy(t), size: t.size.clone(), clips: t.clips };
         } catch (e) {
           console.warn("ui-twin:", e.message);
           api.emit("failed", { id: r.id, model: r.model, error: e.message });
@@ -444,18 +550,26 @@
           g.add(m);
           made = { obj: g, size: new T.Vector3(1, 1, 1) };
         } finally {
-          loaded++;
-          progress();
+          if (counted) {
+            loaded++;
+            progress();
+          }
         }
       } else made = shapeMesh(r);
       if (it.body) {
         it.group.remove(it.body);
         dispose(it.body, true);
       }
+      unbatch(it);
       it.body = made.obj;
+      if (made.batch) {
+        it.batch = made.batch;
+        made.batch.slots.push(it);
+      }
       it.size = made.size;
       it.mats = null;
       it.group.add(it.body);
+      reshadow();
       it.mixer?.stopAllAction();
       it.mixer = null;
       it.clips = made.clips ?? [];
@@ -750,7 +864,7 @@
       const bg = e.background;
       scene.background = bg && bg !== "none" && CSS.supports("color", bg) ? new T.Color(ink(bg).css) : null;
       scene.fog = e.fog ? new T.Fog(scene.background ?? new T.Color(colors.backdrop), r * 2, r * 6) : null;
-      wake();
+      reshadow();
     }
     function themed() {
       const probe = make("i", { hidden: "" });
@@ -793,6 +907,7 @@
       for (const [id, it] of items) if (!want.has(id)) {
         it.group.parent?.remove(it.group);
         dispose(it.group, true);
+        unbatch(it);
         it.tag?.remove();
         it.option?.remove();
         items.delete(id);
@@ -842,12 +957,13 @@
         select(id, { popup: true });
       }
       if (!loading) progress();
-      wake();
+      reshadow();
     }
     function place(it) {
       const r = it.rec;
       it.group.position.set(r.pos.x, r.pos.y, r.pos.z);
       it.group.rotation.set(r.rot.x, r.rot.y, r.rot.z);
+      shadowsNow = true;
     }
     let ringing = null;
     function alarms() {
@@ -1013,7 +1129,10 @@
     }
     function fit(quick) {
       const b = extent();
-      for (const it of items.values()) if (it.group.parent) b.expandByObject(it.group);
+      for (const it of items.values()) if (it.group.parent) {
+        b.expandByObject(it.group);
+        if (it.batch && it.size) b.expandByPoint(it.group.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, it.size.y, 0)));
+      }
       const c = b.getCenter(new T.Vector3()), s = b.getSize(new T.Vector3());
       const r = Math.max(2, s.length() / 2);
       const d = (r / Math.sin(deg(camera.fov / 2))) * 0.72;
@@ -1091,6 +1210,7 @@
           if (r.row.face !== false) it.group.rotation.set(r.rot.x, at.yaw + r.rot.y, r.rot.z);
           else it.group.rotation.set(r.rot.x, r.rot.y, r.rot.z);
           moving ||= speed !== 0;
+          casters ||= speed !== 0;
         } else if (it.move) {
           const f = Math.min(1, (now - it.move.t) / it.move.dur), e = 1 - (1 - f) ** 3;
           const { from } = it.move;
@@ -1099,20 +1219,21 @@
           dy = Math.atan2(Math.sin(dy), Math.cos(dy));
           it.group.rotation.set(r.rot.x, it.move.yaw + dy * e, r.rot.z);
           if (f >= 1) it.move = null;
-          moving = true;
+          moving = casters = true;
         }
         if (!it.body) continue;
         if (!still && r.effect === "spin") {
           it.body.rotation.y += dt * deg(fin(r.row.spin) ? num(r.row.spin) : 90);
-          moving = true;
+          moving = casters = true;
         }
         if (!still && r.effect === "bob") {
           it.body.position.y = 0.06 * (1 + Math.sin(t * 3));
-          moving = true;
+          moving = casters = true;
         }
         if (it.mixer) {
           it.mixer.update(still ? 0 : dt);
           moving ||= !still;
+          casters ||= !still;
         }
         if (!still && (r.alarm || r.effect === "blink")) {
           paint(it, t);
@@ -1221,6 +1342,23 @@
       const shift = b.left < c.left + 8 ? c.left + 8 - b.left : b.right > c.right - 8 ? c.right - 8 - b.right : 0;
       if (Math.abs(shift) < b.width) box.style.setProperty("--shift", `${shift}px`);
     }
+    // The shadow map is drawn again only when something that casts a shadow has changed: the
+    // sun's shadows don't depend on the camera, so turning the view costs no shadow pass.
+    // What moves on its own (on a path, spinning) redraws it at most every 50 ms; anything
+    // else (the data, a drag, a model loaded) at once.
+    let casters = false, shadowsNow = true, shadowAt = 0, frameMs = 0;
+    const reshadow = () => {
+      shadowsNow = true;
+      wake();
+    };
+    function shadows(now) {
+      if (!renderer.shadowMap.enabled) return;
+      if (shadowsNow || (casters && now - shadowAt >= 50)) {
+        renderer.shadowMap.needsUpdate = true;
+        shadowAt = now;
+        shadowsNow = casters = false;
+      }
+    }
     function frame(now) {
       raf = null;
       if (stopped) return;
@@ -1230,8 +1368,13 @@
       const moving = step(now, dt);
       const turned = controls.update();
       if (dirty || moving || turned) {
+        const t1 = performance.now();
+        placeInstances();
+        shadows(now);
         renderer.render(scene, camera);
         place2d();
+        // How long a frame's work takes on the main thread, smoothed, for `info`.
+        frameMs = frameMs ? frameMs * 0.9 + (performance.now() - t1) * 0.1 : performance.now() - t1;
         dirty = false;
         el.__frames = (el.__frames || 0) + 1;
       }
@@ -1255,8 +1398,16 @@
     function pick(e) {
       caster ||= new T.Raycaster();
       caster.setFromCamera(pointerAt(e), camera);
-      const targets = [...[...items.values()].filter((it) => it.rec.clickable && it.group.visible).map((it) => it.group), ...zones.filter((z) => z.clickable).map((z) => z.mesh)];
+      const instanced = [...batches.values()].flatMap((b) => b.parts.map((p) => p.im).filter(Boolean));
+      const targets = [...[...items.values()].filter((it) => it.rec.clickable && it.group.visible).map((it) => it.group), ...instanced, ...zones.filter((z) => z.clickable).map((z) => z.mesh)];
       for (const h of caster.intersectObjects(targets, true)) {
+        // An instance stands for the object in that place of its batch.
+        const b = h.object.userData.batch;
+        if (b) {
+          const it = b.slots[h.instanceId];
+          if (it?.rec.clickable && items.get(it.id) === it) return { item: it };
+          continue;
+        }
         for (let o = h.object; o; o = o.parent) {
           if (o.userData.item !== undefined) return { item: items.get(o.userData.item) };
           if (o.userData.zone !== undefined) return { zone: zones.find((z) => z.id === o.userData.zone), point: h.point };
@@ -1580,6 +1731,7 @@
         renderer.outputColorSpace = T.SRGBColorSpace;
         renderer.toneMapping = T.NeutralToneMapping;
         renderer.shadowMap.enabled = cfg.quality !== "low";
+        renderer.shadowMap.autoUpdate = false;
         renderer.shadowMap.type = T.PCFShadowMap;
         renderer.setClearColor(0x000000, 0);
         renderer.domElement.setAttribute("aria-hidden", "true");
@@ -1692,12 +1844,16 @@
       get controls() {
         return controls;
       },
+      // What the last frame drew: draw calls, triangles, programs, textures.
+      get info() {
+        return renderer ? { ms: Math.round(frameMs * 100) / 100, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, programs: renderer.info.programs?.length ?? 0, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries } : null;
+      },
       items,
       // Where the middle of an object is drawn in the view, in px from its top left.
       at(id) {
         const it = items.get(str(id));
         if (!it || !camera) return null;
-        const p = new T.Box3().setFromObject(it.body ?? it.group).getCenter(new T.Vector3()).project(camera);
+        const p = (it.batch ? it.group.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, (it.size?.y ?? 0) / 2, 0)) : new T.Box3().setFromObject(it.body ?? it.group).getCenter(new T.Vector3())).project(camera);
         return { x: round(((p.x + 1) / 2) * host.clientWidth, 1), y: round(((1 - p.y) / 2) * host.clientHeight, 1) };
       },
       select: (id) => select(id, { popup: true, fly: true }),

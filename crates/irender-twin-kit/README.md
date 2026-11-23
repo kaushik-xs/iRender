@@ -173,6 +173,16 @@ With `editable: true` and `bindObjects`, objects can be dragged on the ground (s
 
 Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup.
 
+## Smoothness
+
+A twin draws a frame only when something changed: the camera, an object, the data. Three things keep those frames short:
+
+- **Shadows are drawn again only when something that casts one changes.** The sun's shadows don't depend on the camera, so turning or zooming the view costs no shadow pass. Objects that move on their own (on a path, spinning) redraw them at most every 50 ms; a change from the data, a drag or a model loading redraws them at once.
+- **Objects of the same model are drawn together** (instancing): a few draw calls per model however many objects use it. An object that needs a look of its own (in alarm, glowing, coloured by value, see-through, animated) is drawn as a copy of its own for as long as it does, so nothing looks different.
+- **A model's GPU work is done before it's shown:** its shaders compile in the background (in parallel where the browser can) and its textures go up a few at a time, instead of all in the first frame that draws it.
+
+On a laptop (Apple M4 Pro, Chrome), turning the camera around block twin-01 (38 objects, about 1.2 million triangles) holds 60 frames a second with no frame over 20 ms; the page is blocked for about 130 ms while it loads, most of it three.js itself. `quality: low` turns shadows and smoothing off for slower devices.
+
 ## three.js
 
 three.js isn't inlined. A page loads it as ES modules, once, from jsDelivr, when a twin comes near the view, along with the loaders its models need. [`TwinKit`](src/lib.rs) points it elsewhere, e.g. your own copy:
