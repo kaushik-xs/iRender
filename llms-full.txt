@@ -2430,6 +2430,7 @@ ui-twin: A digital twin: a 3D world drawn with three.js from models of most form
   gestures     one of: orbit, none  `orbit` (default): drag to turn, right-drag or two fingers to move, wheel or pinch to zoom. `none`: the camera stays put
   transition   number  Milliseconds an object takes to move to a new place from the data (default 600; 0 jumps)
   quality      one of: high, low  `low`: no shadows or smoothing, for big worlds or slow devices
+  motionScale  number  While the camera moves, the view is drawn at this share of its resolution each way (default 0.65), and sharp again 400 ms after it stops; 1 keeps it sharp
   height       any  Number (px) or CSS length; default 480. The width is the container's
   title        any  Names the view for screen readers (default `3D view`)
   parts: controls
@@ -5046,6 +5047,7 @@ A twin draws a frame only when something changed: the camera, an object, the dat
 
 - **Shadows are drawn again only when something that casts one changes.** The sun's shadows don't depend on the camera, so turning or zooming the view costs no shadow pass. Objects that move on their own (on a path, spinning) redraw them at most every 50 ms; a change from the data, a drag or a model loading redraws them at once.
 - **Objects of the same model are drawn together** (instancing): a few draw calls per model however many objects use it. An object that needs a look of its own (in alarm, glowing, coloured by value, see-through, animated) is drawn as a copy of its own for as long as it does, so nothing looks different.
+- **While the camera moves, the view is drawn at a lower resolution** (`motionScale`, default 0.65 of the pixels each way, so about 40% of them), and sharp again 400 ms after it stops. Only the camera's moving counts: objects moving on their own keep a still view sharp. `motionScale: 1` turns it off.
 - **A model's GPU work is done before it's shown:** its shaders compile in the background (in parallel where the browser can) and its textures go up a few at a time, instead of all in the first frame that draws it.
 
 On a laptop (Apple M4 Pro, Chrome), turning the camera around block twin-01 (38 objects, about 1.2 million triangles) holds 60 frames a second with no frame over 20 ms; the page is blocked for about 130 ms while it loads, most of it three.js itself. `quality: low` turns shadows and smoothing off for slower devices.

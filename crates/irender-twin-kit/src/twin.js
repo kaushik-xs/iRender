@@ -1359,6 +1359,33 @@
         shadowsNow = casters = false;
       }
     }
+    // While the camera moves, the view is drawn at a lower resolution (`motionScale` of the
+    // pixels each way); it's drawn sharp again once the camera has been still for 400 ms.
+    // Objects moving on their own don't lower it: with the camera still, the view stays sharp.
+    const sharp = () => Math.min(devicePixelRatio || 1, cfg.quality === "low" ? 1 : 2);
+    const scale = fin(cfg.motionScale) ? Math.min(1, Math.max(0.25, num(cfg.motionScale))) : 0.65;
+    let lastCam = null, movedAt = 0, soft = false, restoreTimer = 0;
+    function motion(now) {
+      if (scale >= 1) return;
+      const m = camera.matrixWorld;
+      const moved = lastCam && !lastCam.equals(m);
+      lastCam = (lastCam ?? new T.Matrix4()).copy(m);
+      if (moved) {
+        movedAt = now;
+        if (!soft) {
+          soft = true;
+          renderer.setPixelRatio(sharp() * scale);
+          el.setAttribute("data-moving", "");
+        }
+        clearTimeout(restoreTimer);
+        restoreTimer = setTimeout(wake, 420);
+      } else if (soft && now - movedAt >= 400) {
+        soft = false;
+        renderer.setPixelRatio(sharp());
+        el.removeAttribute("data-moving");
+        dirty = true;
+      }
+    }
     function frame(now) {
       raf = null;
       if (stopped) return;
@@ -1367,8 +1394,12 @@
       last = now;
       const moving = step(now, dt);
       const turned = controls.update();
+      // Still soft from moving: drawn once more when it's sharp again.
+      if (soft && !moving && !turned && !flight && performance.now() - movedAt >= 400) dirty = true;
       if (dirty || moving || turned) {
         const t1 = performance.now();
+        camera.updateMatrixWorld();
+        motion(now);
         placeInstances();
         shadows(now);
         renderer.render(scene, camera);
@@ -1727,7 +1758,7 @@
         } catch {
           throw new Error(L("This browser can't draw 3D (WebGL is off or unavailable)."));
         }
-        renderer.setPixelRatio(Math.min(devicePixelRatio || 1, cfg.quality === "low" ? 1 : 2));
+        renderer.setPixelRatio(sharp());
         renderer.outputColorSpace = T.SRGBColorSpace;
         renderer.toneMapping = T.NeutralToneMapping;
         renderer.shadowMap.enabled = cfg.quality !== "low";
@@ -1846,7 +1877,7 @@
       },
       // What the last frame drew: draw calls, triangles, programs, textures.
       get info() {
-        return renderer ? { ms: Math.round(frameMs * 100) / 100, calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, programs: renderer.info.programs?.length ?? 0, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries } : null;
+        return renderer ? { ms: Math.round(frameMs * 100) / 100, pixelRatio: renderer.getPixelRatio(), calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, programs: renderer.info.programs?.length ?? 0, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries } : null;
       },
       items,
       // Where the middle of an object is drawn in the view, in px from its top left.

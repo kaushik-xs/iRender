@@ -129,6 +129,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("gestures", PropKind::Enum(&["orbit", "none"]), "`orbit` (default): drag to turn, right-drag or two fingers to move, wheel or pinch to zoom. `none`: the camera stays put"),
     PropDef::new("transition", PropKind::Number, "Milliseconds an object takes to move to a new place from the data (default 600; 0 jumps)"),
     PropDef::new("quality", PropKind::Enum(&["high", "low"]), "`low`: no shadows or smoothing, for big worlds or slow devices"),
+    PropDef::new("motionScale", PropKind::Number, "While the camera moves, the view is drawn at this share of its resolution each way (default 0.65), and sharp again 400 ms after it stops; 1 keeps it sharp"),
     PropDef::new("height", PropKind::Any, "Number (px) or CSS length; default 480. The width is the container's"),
     PropDef::new("title", PropKind::Any, "Names the view for screen readers (default `3D view`)"),
 ];
@@ -208,6 +209,7 @@ impl Component for Twin {
             "popup": cx.prop(node, "popup") != Some(Json::Bool(false)),
             "gestures": cx.prop_string(node, "gestures").unwrap_or_else(|| "orbit".into()),
             "quality": cx.prop_string(node, "quality").unwrap_or_else(|| "high".into()),
+            "motionScale": cx.prop(node, "motionScale"),
             "transition": cx.prop(node, "transition"),
             // Documents the policy doesn't trust can't link an object to a script.
             "safe": !(policy.allow_event_attributes && policy.allow_unsafe_urls),

@@ -175,6 +175,14 @@ fn objects_readouts_alarms_and_selection() {
       // Where it's drawn in the view.
       const p = twin("w").at("m1");
       log("on screen", p.x > 0 && p.x < 1000 && p.y > 0 && p.y < 900);
+      // Softer while the camera moves, sharp again once it's still (`quality: low` is 1 sharp).
+      const ratio = () => twin("w").info.pixelRatio;
+      for (let i = 0; i < 40 && ratio() !== 1; i++) await wait(50);
+      twin("w").camera.position.x += 1; twin("w").controls.update();
+      for (let i = 0; i < 40 && ratio() === 1; i++) await wait(20);
+      log("moving", ratio(), document.getElementById("w").hasAttribute("data-moving"));
+      for (let i = 0; i < 40 && ratio() !== 1; i++) await wait(50);
+      log("still", ratio(), document.getElementById("w").hasAttribute("data-moving"));
     "##;
     let Some(lines) = run("objects", doc, "", &guarded(driver)) else { return };
     check(
@@ -192,6 +200,8 @@ fn objects_readouts_alarms_and_selection() {
             r#"follows 66 Machine 2Motor66°C ["m3"]"#,
             r#"filtered ["m1","m2"] 2"#,
             "on screen true",
+            "moving 0.65 true",
+            "still 1 false",
         ],
     );
 }

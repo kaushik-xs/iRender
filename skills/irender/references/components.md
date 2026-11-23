@@ -2265,6 +2265,7 @@ ui-twin: A digital twin: a 3D world drawn with three.js from models of most form
   gestures     one of: orbit, none  `orbit` (default): drag to turn, right-drag or two fingers to move, wheel or pinch to zoom. `none`: the camera stays put
   transition   number  Milliseconds an object takes to move to a new place from the data (default 600; 0 jumps)
   quality      one of: high, low  `low`: no shadows or smoothing, for big worlds or slow devices
+  motionScale  number  While the camera moves, the view is drawn at this share of its resolution each way (default 0.65), and sharp again 400 ms after it stops; 1 keeps it sharp
   height       any  Number (px) or CSS length; default 480. The width is the container's
   title        any  Names the view for screen readers (default `3D view`)
   parts: controls
