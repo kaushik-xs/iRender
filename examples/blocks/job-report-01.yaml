@@ -1,0 +1,88 @@
+# Block: a finished job's report, for anyone whose work is seen in pictures: repairs,
+# cleaning, painting, gardens. `ui-compare-slider` puts the before and after photos one
+# over the other: drag the divider (or focus it and use the arrow keys), or jump to
+# either side; the place is kept in state. The details, the work done and the customer's
+# sign-off sit beside it.
+#
+#   cargo run -p irender-cli -- render examples/blocks/job-report-01.yaml --ui-kit --icon-kit -o job-report-01.html
+version: 1
+state:
+  split: 50
+  approved: false
+  toast: null
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-breadcrumb, props: { items: [ { label: Jobs, href: "#" }, { label: Hillview Court, href: "#" }, { label: JOB-4817 } ] } }
+        - type: stack
+          props: { direction: row, gap: 10, align: center }
+          style: { flex-wrap: wrap }
+          children:
+            - { type: ui-heading, props: { level: 2, text: "Damp wall repaired, flat 12" } }
+            - { type: ui-status-badge, props: { status: "{{ approved ? 'Approved' : 'Done' }}", tones: { Approved: success, Done: info } } }
+        - { type: ui-text, props: { variant: muted, text: "Finished 21 Nov by Meera Iyer · 2 visits · 9 hours" } }
+    - type: element
+      style: { display: grid, grid-template-columns: "minmax(0, 1fr)", gap: 20, "@md": { grid-template-columns: "minmax(0, 1.7fr) minmax(260px, 1fr)" } }
+      children:
+        - type: ui-card
+          props: { title: Before and after, description: "Drag the divider across the photo, or focus it and use the arrow keys." }
+          children:
+            - type: ui-compare-slider
+              props:
+                bind: split
+                before: media/wall-before.svg
+                after: media/wall-after.svg
+                beforeAlt: "The living room wall before: damp stains, two cracks and peeling paint, the picture hung crooked"
+                afterAlt: "The same wall after: filled, sealed and painted, the picture rehung, a plant by the skirting"
+                caption: "Living room, north wall. Photos from the same spot, 12 and 21 Nov."
+                label: Living room wall, before and after
+            - type: stack
+              props: { direction: row, gap: 8 }
+              style: { margin-top: 12 }
+              children:
+                - { type: ui-button, props: { label: Before, variant: outline, size: sm }, on: { click: { action: set_state, key: split, value: 100 } } }
+                - { type: ui-button, props: { label: Half and half, variant: outline, size: sm }, on: { click: { action: set_state, key: split, value: 50 } } }
+                - { type: ui-button, props: { label: After, variant: outline, size: sm }, on: { click: { action: set_state, key: split, value: 0 } } }
+        - type: stack
+          props: { gap: 20 }
+          children:
+            - type: ui-card
+              props: { title: Details }
+              children:
+                - type: ui-description-list
+                  children:
+                    - { type: ui-description-item, props: { label: Property, value: "Hillview Court, flat 12" } }
+                    - { type: ui-description-item, props: { label: Reported, value: "2026-11-10", format: date } }
+                    - { type: ui-description-item, props: { label: Cause, value: A blocked gutter above the window } }
+                    - { type: ui-description-item, props: { label: Cost, value: 18450, format: currency, currency: INR } }
+            - type: ui-card
+              props: { title: Work done }
+              children:
+                - type: element
+                  props: { tag: ol }
+                  style: { margin: 0, padding-left: 20px, display: flex, flex-direction: column, gap: 6px, font-size: 14px }
+                  children:
+                    - { type: element, props: { tag: li }, children: [ { type: text, props: { value: Cleared the gutter and checked the downpipe } } ] }
+                    - { type: element, props: { tag: li }, children: [ { type: text, props: { value: Let the wall dry for a week; raked out and filled the cracks } } ] }
+                    - { type: element, props: { tag: li }, children: [ { type: text, props: { value: Sealed with a stain block and painted two coats } } ] }
+            - type: ui-card
+              props: { title: Sign-off, description: "{{ approved ? 'Approved by the tenant on 22 Nov.' : 'Waiting for the tenant to check the work.' }}" }
+              children:
+                - type: ui-button
+                  props: { label: "{{ approved ? 'Approved' : 'Approve the work' }}", disabled: "{{ approved }}" }
+                  on:
+                    click:
+                      - { action: set_state, key: approved, value: true }
+                      - { action: set_state, key: toast, value: { title: Work approved, description: JOB-4817 is closed. } }
+    - { type: ui-toaster, props: { bind: toast } }

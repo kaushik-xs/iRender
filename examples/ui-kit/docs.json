@@ -84,7 +84,8 @@
   "ui-gauge": "2026-11-23",
   "ui-sortable-list": "2026-11-23",
   "ui-form-builder": "2026-11-23",
-  "ui-countdown": "2026-11-23"
+  "ui-countdown": "2026-11-23",
+  "ui-compare-slider": "2026-11-23"
  },
  "sections": [
   {
@@ -605,6 +606,17 @@
    "usage": "- { type: ui-lightbox, props: { images: [ { src: a.jpg, caption: One }, { src: b.jpg } ], max: 6, download: true } }",
    "components": [
     "ui-lightbox"
+   ]
+  },
+  {
+   "id": "compare-slider",
+   "group": "Data display",
+   "title": "Compare slider",
+   "nav": "Compare slider",
+   "summary": "Two pictures of the same thing, before and after, one over the other, with a divider dragged across to show more of either: repairs, edits, renovations, seasons. Mouse, touch, pen and the keyboard all move it; it can run up and down, follow the mouse, crop both to a ratio, and keep its place in state.",
+   "usage": "- type: ui-compare-slider\n  props: { before: /photos/wall-before.jpg, after: /photos/wall-after.jpg, beforeAlt: The damp wall, afterAlt: The wall repaired, bind: split }\n- { type: ui-compare-slider, props: { before: a.jpg, after: b.jpg, orientation: vertical, ratio: 4/3, hover: true } }",
+   "components": [
+    "ui-compare-slider"
    ]
   },
   {

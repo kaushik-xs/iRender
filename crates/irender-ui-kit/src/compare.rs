@@ -1,0 +1,216 @@
+//! `ui-compare-slider`: two pictures of the same thing, before and after, one over the
+//! other, with a divider dragged across to show more of either. The divider is a native
+//! range input over the whole picture, so a mouse, a finger, a pen and the keyboard (the
+//! arrows, Home, End, Page Up and Down) all move it, and screen readers know what it is;
+//! `compare.js` keeps the picture, the spoken value and `bind` in step with it.
+
+use crate::{forms, lit, widget};
+use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
+use irender_html::{Component, Element, RenderCx, RenderError};
+use serde_json::{Value as Json, json};
+use std::sync::LazyLock;
+
+const SCRIPT: &str = include_str!("compare.js");
+
+const PROPS: &[PropDef] = &[
+    PropDef::new("before", PropKind::Any, "The first picture's address").required(),
+    PropDef::new("after", PropKind::Any, "The second picture's address, the same size and framing").required(),
+    PropDef::new("beforeAlt", PropKind::Any, "What the first picture shows, for screen readers"),
+    PropDef::new("afterAlt", PropKind::Any, "What the second picture shows, for screen readers"),
+    PropDef::new("beforeLabel", PropKind::Any, "On the first picture's side (default `Before`); empty for none"),
+    PropDef::new("afterLabel", PropKind::Any, "On the second picture's side (default `After`); empty for none"),
+    PropDef::new("position", PropKind::Number, "Where the divider starts, 0–100 from the first side (default 50)"),
+    PropDef::new("bind", PropKind::StateKey, "State key holding the divider's place, 0–100, both ways"),
+    PropDef::new("orientation", PropKind::Enum(&["horizontal", "vertical"]), "`horizontal` (default: the divider moves left and right) or `vertical` (up and down)"),
+    PropDef::new("hover", PropKind::Bool, "The divider follows a mouse without pressing"),
+    PropDef::new("ratio", PropKind::Any, "Width to height, e.g. `16/9` or `1`: both pictures fill it, cropped (default: the first picture's own)"),
+    PropDef::new("caption", PropKind::Any, "Text under the pictures"),
+    PropDef::new("label", PropKind::Any, "Names the comparison for screen readers (default `Before and after`)"),
+];
+
+fn pairs(p: &[(&str, &str)]) -> StyleBlock {
+    StyleBlock::from_pairs(p)
+}
+
+/// The divider's place, clamped.
+const POS: &str = "min(100, max(0, var(--pos, 50)))";
+
+static COMPARE: LazyLock<StyleBlock> = LazyLock::new(|| {
+    pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("max-width", "100%")])
+        .nest(
+            "& [data-cmp-frame]",
+            pairs(&[("position", "relative"), ("overflow", "hidden"), ("border-radius", "var(--radius-card, var(--radius-lg))"), ("background", "color-mix(in srgb, var(--color-text) 6%, transparent)"), ("user-select", "none")]),
+        )
+        .nest("& [data-cmp-frame] img", pairs(&[("display", "block"), ("width", "100%"), ("height", "auto"), ("pointer-events", "none")]))
+        // With a ratio, both fill it; without, the first sets the size and the second covers it.
+        .nest("& [data-cmp-frame][data-ratio] img", pairs(&[("position", "absolute"), ("inset", "0"), ("height", "100%"), ("object-fit", "cover")]))
+        .nest("& [data-cmp-after]", pairs(&[("position", "absolute"), ("inset", "0"), ("height", "100%"), ("object-fit", "cover")]))
+        .nest("&:not([data-vertical]) [data-cmp-after]", pairs(&[("clip-path", &format!("inset(0 0 0 calc({POS} * 1%))"))]))
+        .nest("&[data-vertical] [data-cmp-after]", pairs(&[("clip-path", &format!("inset(calc({POS} * 1%) 0 0 0)"))]))
+        // The divider: a line with a round handle.
+        .nest("& [data-cmp-line]", pairs(&[("position", "absolute"), ("background", "#fff"), ("box-shadow", "0 0 0 1px rgb(0 0 0 / 0.2), 0 0 8px rgb(0 0 0 / 0.3)"), ("pointer-events", "none")]))
+        .nest("&:not([data-vertical]) [data-cmp-line]", pairs(&[("top", "0"), ("bottom", "0"), ("width", "2px"), ("left", &format!("calc({POS} * 1%)")), ("transform", "translateX(-50%)")]))
+        .nest("&[data-vertical] [data-cmp-line]", pairs(&[("left", "0"), ("right", "0"), ("height", "2px"), ("top", &format!("calc({POS} * 1%)")), ("transform", "translateY(-50%)")]))
+        .nest(
+            "& [data-cmp-handle]",
+            pairs(&[
+                ("position", "absolute"),
+                ("top", "50%"),
+                ("left", "50%"),
+                ("display", "grid"),
+                ("place-items", "center"),
+                ("width", "38px"),
+                ("height", "38px"),
+                ("border-radius", "50%"),
+                ("background", "#fff"),
+                ("color", "#18181b"),
+                ("box-shadow", "0 2px 8px rgb(0 0 0 / 0.3)"),
+                ("transform", "translate(-50%, -50%)"),
+            ]),
+        )
+        .nest("&[data-vertical] [data-cmp-handle] svg", pairs(&[("transform", "rotate(90deg)")]))
+        .nest("& [data-cmp-frame]:has(input:focus-visible) [data-cmp-handle]", forms::focus_ring())
+        // The range input over the whole picture: invisible, but what's dragged and focused.
+        .nest(
+            "& [data-cmp-frame] input",
+            pairs(&[("position", "absolute"), ("inset", "0"), ("width", "100%"), ("height", "100%"), ("margin", "0"), ("opacity", "0"), ("cursor", "ew-resize"), ("touch-action", "pan-y")]),
+        )
+        .nest("&[data-vertical] [data-cmp-frame] input", pairs(&[("writing-mode", "vertical-lr"), ("cursor", "ns-resize"), ("touch-action", "pan-x")]))
+        .nest(
+            "& [data-cmp-tag]",
+            pairs(&[
+                ("position", "absolute"),
+                ("padding", pad!(2, 8)),
+                ("border-radius", "var(--radius-sm)"),
+                ("background", "rgb(0 0 0 / 0.55)"),
+                ("color", "#fff"),
+                ("font-size", fs!(12)),
+                ("font-weight", "var(--font-weight-medium, 500)"),
+                ("pointer-events", "none"),
+                ("transition", "opacity .15s"),
+            ]),
+        )
+        .nest("& [data-cmp-tag=before]", pairs(&[("top", "10px"), ("inset-inline-start", "10px")]))
+        .nest("&:not([data-vertical]) [data-cmp-tag=after]", pairs(&[("top", "10px"), ("inset-inline-end", "10px")]))
+        .nest("&[data-vertical] [data-cmp-tag=after]", pairs(&[("bottom", "10px"), ("inset-inline-start", "10px")]))
+        // A label fades as the divider covers its side.
+        .nest("&[data-near=before] [data-cmp-tag=before], &[data-near=after] [data-cmp-tag=after]", pairs(&[("opacity", "0")]))
+        // Right to left, the first picture is on the right, as the range runs.
+        .nest("&:dir(rtl):not([data-vertical]) [data-cmp-after]", pairs(&[("clip-path", &format!("inset(0 calc({POS} * 1%) 0 0)"))]))
+        .nest("&:dir(rtl):not([data-vertical]) [data-cmp-line]", pairs(&[("left", &format!("calc(100% - {POS} * 1%)"))]))
+        .nest("& figcaption", pairs(&[("color", "var(--color-muted)"), ("font-size", fs!(13))]))
+});
+
+const ARROWS: &str = r#"<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5"/></svg>"#;
+
+pub struct CompareSlider;
+
+impl Component for CompareSlider {
+    fn name(&self) -> &'static str {
+        "ui-compare-slider"
+    }
+
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either.",
+            props: PROPS,
+            parts: &[],
+            children: false,
+            open_props: false,
+        }
+    }
+
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let bind = cx.prop_string(node, "bind").filter(|k| !k.is_empty());
+        let start = match &bind {
+            Some(k) => cx.lookup(std::slice::from_ref(k)),
+            None => cx.prop(node, "position").unwrap_or(json!(50)),
+        };
+        let start = if start.is_null() { 50.0 } else { expr::to_num(&start) };
+        if !(0.0..=100.0).contains(&start) {
+            return Err(RenderError::new(node, "the divider's place (`position`, or what `bind` holds) is from 0 to 100"));
+        }
+        let ratio = match cx.prop(node, "ratio").filter(|v| !v.is_null()) {
+            None => None,
+            Some(v) => {
+                let text = expr::stringify(&v);
+                let ok = text.split('/').map(str::trim).all(|p| p.parse::<f64>().is_ok_and(|n| n > 0.0)) && text.split('/').count() <= 2;
+                if !ok {
+                    return Err(RenderError::new(node, "`ratio` is width to height: `16/9`, `4/3`, `1`"));
+                }
+                Some(text.replace(' ', ""))
+            }
+        };
+        let vertical = cx.prop_string(node, "orientation").as_deref() == Some("vertical");
+        widget::kit(cx);
+        cx.global_js("ui-compare-slider", SCRIPT);
+        let before_label = node.prop("beforeLabel").cloned().unwrap_or_else(|| lit(cx.label("Before")));
+        let after_label = node.prop("afterLabel").cloned().unwrap_or_else(|| lit(cx.label("After")));
+
+        let mut style = StyleBlock::new();
+        style.push("--pos", StyleValue::Static(start.to_string()));
+        let mut root = cx.element("figure", node);
+        root.base_style_ref(&COMPARE)
+            .base_style(style)
+            .base_style(StyleBlock::new().set("margin", "0"))
+            .behavior("ui-compare-slider", json!({ "bind": bind, "hover": widget::flag(cx, node, "hover", false), "vertical": vertical }))
+            .attr("role", "group")
+            .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Before and after"))));
+        if vertical {
+            root.attr("data-vertical", true);
+        }
+        cx.open(&root, node)?;
+        let mut frame = Element::new("div");
+        frame.attr("data-cmp-frame", true);
+        if let Some(r) = &ratio {
+            frame.attr("data-ratio", true).base_style(StyleBlock::new().set("aspect-ratio", r.clone()));
+        }
+        cx.open(&frame, node)?;
+        for (which, src, alt) in [("before", "before", "beforeAlt"), ("after", "after", "afterAlt")] {
+            let mut img = Element::new("img");
+            img.attr("src", node.prop(src).cloned().unwrap_or_else(|| lit("")))
+                .attr("alt", node.prop(alt).cloned().unwrap_or_else(|| lit("")))
+                .attr("draggable", "false")
+                .attr("decoding", "async");
+            img.attr(if which == "before" { "data-cmp-before" } else { "data-cmp-after" }, true);
+            cx.open(&img, node)?;
+        }
+        for (which, text) in [("before", &before_label), ("after", &after_label)] {
+            if matches!(text, Val::Lit(Json::String(s)) if s.is_empty()) {
+                continue;
+            }
+            let mut tag = Element::new("span");
+            tag.attr("data-cmp-tag", which).attr("aria-hidden", "true").text(text.clone());
+            cx.open(&tag, node)?;
+            cx.close("span");
+        }
+        let mut line = Element::new("span");
+        line.attr("data-cmp-line", true).attr("aria-hidden", "true");
+        cx.open(&line, node)?;
+        let mut handle = Element::new("span");
+        handle.attr("data-cmp-handle", true);
+        cx.open(&handle, node)?;
+        cx.markup(ARROWS);
+        cx.close("span");
+        cx.close("span");
+        let mut input = Element::new("input");
+        input
+            .attr("type", "range")
+            .attr("min", "0")
+            .attr("max", "100")
+            .attr("step", "1")
+            .attr("value", start.to_string())
+            .attr("aria-label", cx.label("Divider"))
+            .attr("aria-orientation", if vertical { "vertical" } else { "horizontal" });
+        cx.open(&input, node)?;
+        cx.close("div");
+        if let Some(c) = node.prop("caption") {
+            let mut cap = Element::new("figcaption");
+            cap.text(c.clone());
+            cx.open(&cap, node)?;
+            cx.close("figcaption");
+        }
+        cx.close("figure");
+        Ok(())
+    }
+}

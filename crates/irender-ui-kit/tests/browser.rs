@@ -7464,6 +7464,72 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-compare-slider`: the range moves the divider and `bind`, state moves them back, a
+/// side's label fades as it's covered, and the clip follows: across, up and down, right
+/// to left, and after the mouse with `hover`.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn compare_slider_in_chrome() {
+    // A blank 400×200 picture.
+    let img = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'/%3E";
+    let doc = serde_json::json!({ "version": 1, "state": { "at": 50 },
+        "root": { "type": "stack", "style": { "width": "400px" }, "children": [
+            { "type": "ui-compare-slider", "attrs": { "id": "a" }, "props": { "bind": "at", "before": img, "after": img, "beforeAlt": "Before", "afterAlt": "After" } },
+            { "type": "ui-compare-slider", "attrs": { "id": "v" }, "props": { "before": img, "after": img, "orientation": "vertical", "ratio": "2/1", "hover": true, "position": 20 } },
+            { "type": "element", "attrs": { "dir": "rtl" }, "children": [
+                { "type": "ui-compare-slider", "attrs": { "id": "r" }, "props": { "before": img, "after": img, "position": 30, "beforeLabel": "" } } ] } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const $ = (id, s) => document.getElementById(id).querySelector(s);
+      const clip = (id) => getComputedStyle($(id, "[data-cmp-after]")).clipPath;
+      const line = (id) => { const f = $(id, "[data-cmp-frame]").getBoundingClientRect(), l = $(id, "[data-cmp-line]").getBoundingClientRect(); return Math.round(((l.left + l.width / 2 - f.left) / f.width) * 100); };
+      try {
+        const a = $("a", "input");
+        log("start", getComputedStyle(document.getElementById("a")).getPropertyValue("--pos"), a.getAttribute("aria-valuetext"), clip("a"), line("a"));
+        a.value = "30"; a.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        log("dragged", S().at, clip("a"), line("a"), a.getAttribute("aria-valuetext"));
+        api.set("at", 5); await wait(10);
+        log("from state", a.value, document.getElementById("a").dataset.near, getComputedStyle($("a", "[data-cmp-tag=before]")).opacity);
+        api.set("at", 95); await wait(10);
+        log("other side", document.getElementById("a").dataset.near, getComputedStyle($("a", "[data-cmp-tag=after]")).opacity);
+
+        const v = document.getElementById("v"), f = $("v", "[data-cmp-frame]").getBoundingClientRect();
+        log("vertical", clip("v"), $("v", "input").getAttribute("aria-orientation"), Math.round(f.width / f.height * 10) / 10);
+        $("v", "[data-cmp-frame]").dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse", clientX: f.left + 10, clientY: f.top + f.height * 0.75 }));
+        await wait(10);
+        log("hover", $("v", "input").value, clip("v"));
+
+        log("rtl", clip("r"), line("r"), document.getElementById("r").querySelectorAll("[data-cmp-tag]").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("compare-slider", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "start 50 Before 50%, after 50% inset(0px 0px 0px 50%) 50",
+            "dragged 30 inset(0px 0px 0px 30%) 30 Before 30%, after 70%",
+            // A side's label fades as the divider covers it.
+            "from state 5 before 0",
+            "other side after 0",
+            "vertical inset(20% 0px 0px) vertical 2",
+            "hover 75 inset(75% 0px 0px)",
+            // Right to left: the first picture on the right; an empty label left out.
+            "rtl inset(0px 30% 0px 0px) 70 1",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-countdown`: the status as thresholds pass, said once each; `end` on reaching zero
 /// (not for a deadline already past on arrival); counting up; `endText`; units, clock and
 /// tiles; times from when the page opened. Under the test browser's virtual time the

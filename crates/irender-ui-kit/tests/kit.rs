@@ -152,6 +152,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-sortable-list", json!({ "bind": "k" })),
         ("ui-form-builder", json!({ "bind": "k" })),
         ("ui-countdown", json!({ "to": "+1h" })),
+        ("ui-compare-slider", json!({ "before": "/a.jpg", "after": "/b.jpg" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -221,7 +222,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 203);
+    assert_eq!(kit, 204);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1276,6 +1277,27 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn compare_slider_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-compare-slider", "props": { "bind": "at", "before": "/a.jpg", "after": "/b.jpg", "beforeAlt": "Old", "afterAlt": "New", "ratio": "16 / 9", "caption": "Kitchen" } }),
+        json!({ "at": 30 }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A figure: both pictures described, the labels, the divider as a range input.
+    assert!(body.contains(r#"role="group" aria-label="Before and after""#), "{body}");
+    assert!(body.contains(r#"<img src="/a.jpg" alt="Old" draggable="false" decoding="async" data-cmp-before>"#), "{body}");
+    assert!(body.contains(r#"<span data-cmp-tag="after" aria-hidden="true">After</span>"#), "{body}");
+    assert!(body.contains(r#"<input type="range" min="0" max="100" step="1" value="30" aria-label="Divider" aria-orientation="horizontal">"#), "{body}");
+    assert!(body.contains("<figcaption>Kitchen</figcaption>") && body.contains("data-ratio"), "{body}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-compare-slider", "props": props }), json!({}), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "before": "a", "after": "b", "position": 120 })).contains("from 0 to 100"));
+    assert!(err(json!({ "before": "a", "after": "b", "ratio": "wide" })).contains("`ratio` is width to height"));
 }
 
 #[test]

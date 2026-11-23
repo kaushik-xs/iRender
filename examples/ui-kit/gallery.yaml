@@ -282,6 +282,7 @@ state:
   builtDoc: null
   slaLeft: null
   slaStatus: null
+  compareAt: 50
   month: "2026-11"
   quarter: null
   quarterDates: null
@@ -2361,6 +2362,40 @@ root:
                 - { type: if, props: { when: "{{ api.lightbox.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.lightbox }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- compare-slider
+            - type: element
+              props: { tag: section }
+              attrs: { id: compare-slider, aria-labelledby: compare-slider-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.compare_slider }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Drag anywhere on the picture, or focus it: the arrow keys move the divider a step, Page Up and Down ten, Home and End to either side." }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24, align-items: start }
+                  children:
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - type: ui-compare-slider
+                          props: { bind: compareAt, before: blocks/media/wall-before.svg, after: blocks/media/wall-after.svg, beforeAlt: A damp and cracked wall, afterAlt: The same wall repaired and painted, caption: "Kept in state: compareAt = {{ compareAt }}" }
+                        - type: stack
+                          props: { direction: row, gap: 8 }
+                          children:
+                            - { type: ui-button, props: { label: Before, variant: outline, size: sm }, on: { click: { action: set_state, key: compareAt, value: 100 } } }
+                            - { type: ui-button, props: { label: After, variant: outline, size: sm }, on: { click: { action: set_state, key: compareAt, value: 0 } } }
+                    - type: ui-compare-slider
+                      props: { before: blocks/media/wall-before.svg, after: blocks/media/wall-after.svg, orientation: vertical, ratio: 4/3, hover: true, beforeLabel: Reported, afterLabel: Fixed, position: 35, caption: "Up and down, cropped to 4:3, following the mouse" }
+                - { type: if, props: { when: "{{ api.compare_slider.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.compare_slider }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 
