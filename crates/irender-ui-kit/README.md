@@ -67,6 +67,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
 | `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
+| `ui-file-browser` | `bind` (required), `bindFolder`, `bindSelection`, `bindOpen`, `view` (grid, list), `editable` (default true), `rootLabel`, `height`, `locale`, `label`, `id` | Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu. See below. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-virtual-list` | `items` (required), `itemKey`, `height` (default 400), `itemHeight` (default 40), `gap`, `bindRange`, `endThreshold` (default 10), `emptyText`, `label` | A long list that keeps only the items in view in the page; children are each item, with `item` and `index` in scope. See below. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
@@ -751,6 +752,13 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
   on: { end: { action: submit, endpoint: /api/rows, method: GET, into: more } }
   children:
     - { type: text, props: { value: "{{ item.name }}" } }
+```
+
+**`ui-file-browser`** shows folders and files one folder at a time, as a grid (with `thumb` pictures) or a list (name, modified, size), with a breadcrumb back up. `bind` holds them as a flat list, `{ id, name, parent, folder, size, modified, thumb, url }`, `parent` being the folder's `id` (none: the top) and `folder: true` making one; every change goes back to it. The bar searches the open folder, sorts (name, newest, largest, kind; folders first), switches the view, adds a folder, moves and deletes. Selecting: a click, ⌘/Ctrl or Shift with it for several, or the keys (arrows, by rows in the grid; Shift and ⌘/Ctrl too; Space; ⌘/Ctrl+A). Enter or a double click opens a folder, or a file into `bindOpen` with an `open` event; Backspace or Alt+↑ goes up. F2 renames in place (a name already in the folder is refused), Delete deletes with an Undo at the foot for ten seconds, and items move by dragging onto a folder or the breadcrumb (by touch, hold first), or from the Move to menu, which never offers a folder inside what's moving. Names that clash on a move get `(2)`. `bindFolder` keeps the open folder in state, both ways, and `bindSelection` gets the selection. `editable: false` leaves browsing and opening. Uploading is the page's: put a `ui-file-upload` beside it and add what it uploads to the list.
+
+```yaml
+- { type: ui-file-browser, props: { bind: files, bindFolder: folder, bindOpen: opened, height: 460 } }
+# files: [{ id: f1, name: Contracts, folder: true }, { id: a1, name: NDA.pdf, parent: f1, size: 52000, modified: 2026-10-12T15:30 }]
 ```
 
 **`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.

@@ -155,6 +155,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-compare-slider", json!({ "before": "/a.jpg", "after": "/b.jpg" })),
         ("ui-presence", json!({ "people": [] })),
         ("ui-virtual-list", json!({ "items": [] })),
+        ("ui-file-browser", json!({ "bind": "k" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -225,7 +226,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 206);
+    assert_eq!(kit, 207);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1280,6 +1281,27 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn file_browser_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-file-browser", "props": { "bind": "files", "bindFolder": "at", "id": "fm", "height": 300, "view": "list" } }),
+        json!({ "files": [{ "id": "d", "name": "Docs", "folder": true }, { "id": "a", "name": "a.pdf", "parent": "d" }], "at": null }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A named region the behaviour fills: the bar, the files' area, the foot, a live region.
+    assert!(body.contains(r#"id="fm" role="region" aria-label="Files""#), "{body}");
+    assert!(body.contains("<div data-fm-bar></div>") && body.contains("<div data-fm-foot></div>") && body.contains("data-fm-live"), "{body}");
+    assert!(body.contains(r#"&quot;view&quot;:&quot;list&quot;"#) && body.contains(r#"&quot;editable&quot;:true"#) && page.css.contains("300px"), "{body}");
+    assert!(page.scripts.iter().any(|s| s.contains("ui-file-browser")) && page.scripts.iter().any(|s| s.contains("__irenderTouchDrag")));
+
+    let err = |state: Json| render_with(json!({ "type": "ui-file-browser", "props": { "bind": "k" } }), state, json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "k": "nope" })).contains("must hold a list"));
+    assert!(err(json!({ "k": [{ "id": 1 }] })).contains("item 1 needs an `id` and a `name`"));
+    assert!(err(json!({ "k": [{ "id": 1, "name": "a" }, { "id": 1, "name": "b" }] })).contains("two items have the `id` `1`"));
 }
 
 #[test]

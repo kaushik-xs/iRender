@@ -87,7 +87,8 @@
   "ui-countdown": "2026-11-23",
   "ui-compare-slider": "2026-11-23",
   "ui-presence": "2026-11-23",
-  "ui-virtual-list": "2026-11-23"
+  "ui-virtual-list": "2026-11-23",
+  "ui-file-browser": "2026-11-23"
  },
  "sections": [
   {
@@ -495,6 +496,17 @@
    "usage": "- type: ui-tree\n  props:\n    nodes: \"{{ places }}\"        # { id, label, children }\n    bindNodes: places           # moves, adds and deletions are written back\n    bind: picked                # the selected id; bindNode: the node itself\n    checkable: true\n    bindChecked: checked\n    addable: true\n    deletable: true\n    movable: true\n    search: true\n    counts: true",
    "components": [
     "ui-tree"
+   ]
+  },
+  {
+   "id": "file-browser",
+   "group": "Data display",
+   "title": "File browser",
+   "nav": "File browser",
+   "summary": "Folders and files to browse one folder at a time, as a grid or a list, with a breadcrumb back up: search, sort, select several, rename, new folders, delete with undo, and move by dragging onto a folder or the breadcrumb (by touch too) or from a Move to menu. The files are a flat list in state, each with its folder as parent.",
+   "usage": "- { type: ui-file-browser, props: { bind: files, bindFolder: folder, bindOpen: opened, height: 460 } }\n# files: [{ id: f1, name: Contracts, folder: true }, { id: a1, name: NDA.pdf, parent: f1, size: 52000, modified: 2026-10-12T15:30 }]",
+   "components": [
+    "ui-file-browser"
    ]
   },
   {

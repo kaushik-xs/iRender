@@ -285,6 +285,16 @@ state:
   compareAt: 50
   vlCount: 200
   vlRange: null
+  gFolder: null
+  gOpened: null
+  gFiles:
+    - { id: d1, name: Designs, folder: true, modified: "2026-11-20T10:00" }
+    - { id: d2, name: Reports, folder: true, modified: "2026-11-18T09:00" }
+    - { id: x1, name: Logo.svg, parent: d1, size: 2100, modified: "2026-11-20T10:00", thumb: blocks/media/belem.svg }
+    - { id: x2, name: Brand guide.pdf, parent: d1, size: 3200000, modified: "2026-11-19T12:00" }
+    - { id: x3, name: Q3 results.xlsx, parent: d2, size: 64000, modified: "2026-10-04T16:00" }
+    - { id: x4, name: Notes.txt, size: 900, modified: "2026-11-22T08:30" }
+    - { id: x5, name: Backup.zip, size: 52000000, modified: "2026-11-01T02:00" }
   here:
     - { id: u1, name: Asha Rao, status: active, where: Editing Budget 2027 }
     - { id: u2, name: Kaushik Sundar, status: active, where: Viewing Summary }
@@ -2131,6 +2141,27 @@ root:
                 - { type: if, props: { when: "{{ api.tree.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.tree }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- file-browser
+            - type: element
+              props: { tag: section }
+              attrs: { id: file-browser, aria-labelledby: file-browser-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.file_browser }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Double-click a folder (or Enter) to open it; Backspace goes up. ⌘ or Shift with a click selects several; F2 renames, Delete deletes (Undo is at the foot); drag files onto a folder or the breadcrumb to move them." }
+                - { type: ui-file-browser, props: { bind: gFiles, bindFolder: gFolder, bindOpen: gOpened, height: 320, rootLabel: My files } }
+                - { type: ui-text, props: { variant: muted, text: "Opened: {{ gOpened ? gOpened.name : 'nothing yet' }} · open folder: {{ gFolder || 'the top' }}" } }
+                - { type: if, props: { when: "{{ api.file_browser.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.file_browser }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

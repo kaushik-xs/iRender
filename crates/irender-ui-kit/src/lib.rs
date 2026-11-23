@@ -71,6 +71,7 @@ mod countdown;
 mod compare;
 mod presence;
 mod virtual_list;
+mod file_browser;
 mod camera;
 mod carousel;
 mod chat;
@@ -221,6 +222,7 @@ pub fn register(registry: &mut Registry) {
         .register(compare::CompareSlider)
         .register(presence::Presence)
         .register(virtual_list::VirtualList)
+        .register(file_browser::FileBrowser)
         .register(status::Timeline)
         .register(status::TimelineItem)
         .register(lightbox::Lightbox)

@@ -7464,6 +7464,147 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-file-browser`: a folder's items (folders first), opening and going up, selecting
+/// with the keys, opening a file, renaming (and a clash), a new folder, deleting and
+/// undoing, moving from the menu and by dragging onto the breadcrumb (not into itself),
+/// searching, sorting and the list view.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn file_browser_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "folder": null, "sel": [], "opened": null, "opens": 0, "files": [
+            { "id": "docs", "name": "Docs", "folder": true },
+            { "id": "pics", "name": "Pictures", "folder": true },
+            { "id": "a", "name": "b.txt", "size": 10 },
+            { "id": "b", "name": "a.pdf", "size": 5000 },
+            { "id": "c", "name": "c.zip", "size": 900 },
+            { "id": "d", "name": "Inside.docx", "parent": "docs", "size": 1 } ] },
+        "root": { "type": "ui-file-browser", "attrs": { "id": "fm" }, "props": { "bind": "files", "bindFolder": "folder", "bindSelection": "sel", "bindOpen": "opened", "rootLabel": "Home" },
+            "on": { "open": { "action": "set_state", "key": "opens", "value": "{{ opens + 1 }}" } } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const fm = document.getElementById("fm"), $ = (s) => fm.querySelector(s);
+      const names = () => [...fm.querySelectorAll("[data-fm-item]")].map((i) => i.querySelector("[data-fm-name]")?.textContent ?? "[input]").join(",");
+      const crumbs = () => [...fm.querySelectorAll("[data-fm-crumbs] button")].map((b) => b.textContent).join(" > ");
+      const item = (id) => fm.querySelector(`[data-fm-item="${id}"]`);
+      const key = (k, o = {}) => { const t = document.activeElement; t.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...o })); };
+      const files = () => S().files.map((f) => `${f.name}@${f.parent ?? "-"}`).sort().join(" ");
+      const live = () => $("[data-fm-live]").textContent;
+      const btn = (t) => [...fm.querySelectorAll("[data-fm-bar] > button")].find((b) => b.textContent === t);
+      try {
+        log("top", names(), $("[data-fm-foot]").textContent, crumbs());
+        item("docs").dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); await wait(10);
+        log("opened folder", S().folder, crumbs(), names(), live());
+        key("Backspace"); await wait(10);
+        log("up", S().folder, crumbs(), $("[data-fm-files]").getAttribute("aria-activedescendant")?.endsWith("docs"), JSON.stringify(S().sel));
+        // The keys: right to the next, Shift+right adds, ⌘A all, Escape none.
+        key("ArrowRight"); await wait(5); key("ArrowRight", { shiftKey: true }); await wait(5);
+        log("keys", JSON.stringify(S().sel), $("[data-fm-foot]").textContent);
+        key("a", { metaKey: true }); await wait(5);
+        log("all", S().sel.length); key("Escape"); await wait(5);
+        key("End"); await wait(5); key("Enter"); await wait(10);
+        log("open file", S().opened?.name, S().opens, live());
+
+        // Rename b.txt; then try a name already there.
+        item("a").click(); await wait(5); key("F2"); await wait(10);
+        const input = $("[data-fm-rename]");
+        log("rename", input.value, input.selectionStart, input.selectionEnd);
+        input.value = "notes.txt"; input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(10);
+        log("renamed", S().files.find((f) => f.id === "a").name, live());
+        item("a").click(); await wait(5); key("F2"); await wait(10);
+        const again = $("[data-fm-rename]"); again.value = "A.PDF"; again.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(10);
+        log("clash", !!$("[data-fm-rename]"), $("[data-fm-rename]")?.getAttribute("aria-invalid"), live());
+        $("[data-fm-rename]").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(10);
+
+        btn("New folder").click(); await wait(10);
+        const nf = $("[data-fm-rename]");
+        log("new folder", nf?.value, S().files.filter((f) => f.folder).length);
+        nf.value = "Archive"; nf.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(10);
+        log("named", names());
+
+        item("c").click(); await wait(5); key("Delete"); await wait(10);
+        log("deleted", names().includes("c.zip"), $("[data-fm-undo]").textContent.replace("Undo", " [Undo]"));
+        $("[data-fm-undo] button").click(); await wait(10);
+        log("undone", names().includes("c.zip"), $("[data-fm-undo]").hidden);
+
+        // Move c.zip into Pictures from the menu.
+        item("c").click(); await wait(5); btn("Move to…").click(); await wait(10);
+        const menu = fm.querySelector("[data-fm-menu]");
+        log("menu", [...menu.querySelectorAll("button")].map((b) => b.textContent).join(","));
+        [...menu.querySelectorAll("button")].find((b) => b.textContent === "Pictures").click(); await wait(10);
+        log("moved", S().files.find((f) => f.id === "c").parent, live());
+        // Docs can't go into itself: its own name isn't offered.
+        item("docs").click(); await wait(5); btn("Move to…").click(); await wait(10);
+        log("not into itself", [...fm.querySelectorAll("[data-fm-menu] button")].map((b) => b.textContent).join(","));
+        document.querySelector("[data-fm-menu]").hidePopover(); await wait(10);
+
+        // Drag a.pdf into Docs, then back to Home on the breadcrumb.
+        const drag = async (from, to) => {
+          const dt = new DataTransfer();
+          from.dispatchEvent(new DragEvent("dragstart", { bubbles: true, dataTransfer: dt }));
+          to.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }));
+          to.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+          from.dispatchEvent(new DragEvent("dragend", { bubbles: true, dataTransfer: dt }));
+          await wait(10);
+        };
+        item("b").click(); await wait(5);
+        await drag(item("b"), item("docs"));
+        log("dragged", S().files.find((f) => f.id === "b").parent, live());
+        item("docs").dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); await wait(10);
+        item("b").click(); await wait(5);
+        await drag(item("b"), fm.querySelector('[data-fm-crumb=""] button'));
+        log("to the top", S().files.find((f) => f.id === "b").parent ?? "-", names());
+        fm.querySelector('[data-fm-crumb=""] button').click(); await wait(10);
+
+        const search = $("[data-fm-bar] input[type=search]"); search.value = "PDF"; search.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        log("search", names(), document.activeElement === $("[data-fm-bar] input[type=search]"));
+        const field = $("[data-fm-bar] input[type=search]"); field.value = ""; field.dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        const sort = $("[data-fm-bar] select"); sort.value = "size"; sort.dispatchEvent(new Event("change", { bubbles: true })); await wait(10);
+        log("by size", names());
+        btn("List").click(); await wait(10);
+        log("list", $("[data-fm-files]").dataset.view, !!$("[data-fm-head]"), item("b").querySelector("[data-fm-size]").textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("file-browser", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r#"top Docs,Pictures,a.pdf,b.txt,c.zip 5 items Home"#,
+            r#"opened folder docs Home &gt; Docs Inside.docx Docs, 1 item"#,
+            r#"up  Home true ["docs"]"#,
+            r#"keys ["pics","b"] 2 of 5 selected"#,
+            r#"all 5"#,
+            r#"open file c.zip 1 Opened c.zip"#,
+            r#"rename b.txt 0 1"#,
+            r#"renamed notes.txt Renamed to notes.txt"#,
+            r#"clash true true There's already a A.PDF here"#,
+            r#"new folder New folder 3"#,
+            r#"named Archive,Docs,Pictures,a.pdf,c.zip,notes.txt"#,
+            r#"deleted false c.zip deleted [Undo]"#,
+            r#"undone true true"#,
+            r#"menu Home,Archive,Docs,Pictures"#,
+            r#"moved pics c.zip moved to Pictures"#,
+            r#"not into itself Home,Archive,Pictures"#,
+            r#"dragged docs a.pdf moved to Docs"#,
+            r#"to the top - Inside.docx"#,
+            r#"search a.pdf true"#,
+            r#"by size Archive,Docs,Pictures,a.pdf,notes.txt"#,
+            r#"list list true 5 KB"#,
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-virtual-list`: a hundred thousand items with only those in view in the page, their
 /// places for screen readers, the range in view, `end` near the end (once a length),
 /// items of different heights, and an empty list.
