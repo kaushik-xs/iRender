@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.8.2"
+version = "0.8.3"
 edition = "2024"
 rust-version = "1.88"
 license = "Apache-2.0"
@@ -12,16 +12,16 @@ repository = "https://github.com/kaushik-xs/iRender"
 [workspace.dependencies]
 # Without their default features, so a crate can leave them off: Cargo before 1.89
 # can't turn off a default the workspace turned on. Crates that want them say so.
-irender-core = { path = "crates/irender-core", version = "0.8.2", default-features = false }
-irender-style = { path = "crates/irender-style", version = "0.8.2", default-features = false }
-irender-html = { path = "crates/irender-html", version = "0.8.2", default-features = false }
-irender-ui-kit = { path = "crates/irender-ui-kit", version = "0.8.2" }
-irender-chart-kit = { path = "crates/irender-chart-kit", version = "0.8.2" }
-irender-icon-kit = { path = "crates/irender-icon-kit", version = "0.8.2" }
-irender-flow-kit = { path = "crates/irender-flow-kit", version = "0.8.2" }
-irender-markdown-kit = { path = "crates/irender-markdown-kit", version = "0.8.2" }
-irender-map-kit = { path = "crates/irender-map-kit", version = "0.8.2" }
-irender-twin-kit = { path = "crates/irender-twin-kit", version = "0.8.2" }
+irender-core = { path = "crates/irender-core", version = "0.8.3", default-features = false }
+irender-style = { path = "crates/irender-style", version = "0.8.3", default-features = false }
+irender-html = { path = "crates/irender-html", version = "0.8.3", default-features = false }
+irender-ui-kit = { path = "crates/irender-ui-kit", version = "0.8.3" }
+irender-chart-kit = { path = "crates/irender-chart-kit", version = "0.8.3" }
+irender-icon-kit = { path = "crates/irender-icon-kit", version = "0.8.3" }
+irender-flow-kit = { path = "crates/irender-flow-kit", version = "0.8.3" }
+irender-markdown-kit = { path = "crates/irender-markdown-kit", version = "0.8.3" }
+irender-map-kit = { path = "crates/irender-map-kit", version = "0.8.3" }
+irender-twin-kit = { path = "crates/irender-twin-kit", version = "0.8.3" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 indexmap = { version = "2", features = ["serde"] }
