@@ -238,7 +238,8 @@ static RING: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("stroke", "var(--tone)"),
                 ("stroke-dasharray", "100"),
                 // `--ui-value` is set per element; clamped so bad values stay in range.
-                ("stroke-dashoffset", "calc(100 - min(100, max(0, var(--ui-value))))"),
+                // In px (a unit of the path, with `pathLength`): Firefox drops a unitless `calc()`.
+                ("stroke-dashoffset", "calc((100 - min(100, max(0, var(--ui-value)))) * 1px)"),
                 ("transition", "stroke-dashoffset .3s"),
             ]),
         )

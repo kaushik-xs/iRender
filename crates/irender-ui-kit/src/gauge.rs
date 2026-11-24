@@ -62,7 +62,7 @@ static GAUGE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-band]", pairs(&[("stroke", "color-mix(in srgb, var(--band) 35%, transparent)")]))
         .nest(
             "& [data-arc]",
-            pairs(&[("stroke", "var(--tone)"), ("stroke-dasharray", "100 200"), ("stroke-dashoffset", &format!("calc(100 - {P})")), ("transition", "stroke-dashoffset .4s, stroke .4s")]),
+            pairs(&[("stroke", "var(--tone)"), ("stroke-dasharray", "100 200"), ("stroke-dashoffset", &format!("calc((100 - {P}) * 1px)")), ("transition", "stroke-dashoffset .4s, stroke .4s")]),
         )
         // Needle and target point up at rest and turn about the dial's centre.
         .nest("& [data-needle], & [data-target]", pairs(&[("transform-box", "view-box"), ("transition", "transform .4s")]))

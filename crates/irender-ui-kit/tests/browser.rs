@@ -8558,7 +8558,8 @@ fn gauge_in_chrome() {
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const api = document.querySelector("[data-i-root]").__irender, g = document.getElementById("g");
       const show = () => [
-        getComputedStyle(g.querySelector("[data-arc]")).strokeDashoffset,
+        // As a number: engines write it differently (`calc(28px)`, `28px`, `0%`).
+        Math.round(parseFloat(getComputedStyle(g.querySelector("[data-arc]")).strokeDashoffset.replace(/^calc\(/, ""))),
         getComputedStyle(g.querySelector("[data-needle]")).transform !== "none",
         g.dataset.tone, g.getAttribute("aria-valuetext"), g.querySelector("[data-gauge-value]").textContent,
       ].join(" | ");
@@ -8586,11 +8587,11 @@ fn gauge_in_chrome() {
         [
             // 72 of 100: the arc's dash 28 short of the end, the needle at -120° + 72 × 2.4°,
             // the target (85) at 84°.
-            "start calc(28px) | true | warning | 72 %, Fair | 72% 53 84",
-            "high calc(5px) | true | success | 95 %, Good | 95% 108",
+            "start 28 | true | warning | 72 %, Fair | 72% 53 84",
+            "high 5 | true | success | 95 %, Good | 95% 108",
             // Past the end: the dial stops there, the figure doesn't.
-            "past max 0% | true | success | 140 %, Good | 140% 120",
-            "low calc(90px) | true | danger | 10 %, Poor | 10% 0",
+            "past max 0 | true | success | 140 %, Good | 140% 120",
+            "low 90 | true | danger | 10 %, Poor | 10% 0",
         ],
         "\n{result}"
     );
