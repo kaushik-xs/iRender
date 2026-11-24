@@ -55,10 +55,9 @@
       const q = { method: "POST", headers: {}, label: "", ...item, id: item.id ?? id(), at: Date.now(), tries: 0, next: 0, status: "waiting", error: null };
       await db.put("queue", q.id, q);
       tell({ type: "queue" });
-      // Sent by the browser when the connection's back, even with the page closed, where it can.
-      try {
-        await (await self.navigator?.serviceWorker?.ready)?.sync?.register("irender-queue");
-      } catch { /* sent when the app is next open */ }
+      // Sent by the browser when the connection's back, even with the page closed, where it
+      // can. Not waited for: `ready` never settles on a page without a service worker.
+      self.navigator?.serviceWorker?.ready?.then((r) => r.sync?.register("irender-queue")).catch(() => { /* sent when the app is next open */ });
       return q;
     },
     async remove(qid) {

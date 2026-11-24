@@ -418,10 +418,11 @@
     const cfg = api.config, key = `lock:${cfg.name ?? "app"}`, N = cfg.digits, TRIES = cfg.tries ?? 5, AFTER = cfg.after ?? 5, HIDDEN = cfg.hidden ?? 30;
     const methods = list(cfg.methods).length ? cfg.methods : ["passkey", "pin"], canKey = methods.includes("passkey") && has(), canPin = methods.includes("pin") && !!crypto.subtle;
     const body = D.body(el);
-    let set = null, locked = false, pin = "", step = null, first = "", note = "", last = Date.now(), away = 0, tick = 0, said = "";
+    // `saved`: something was saved here, so what the store had at the start is out of date.
+    let set = null, saved = false, locked = false, pin = "", step = null, first = "", note = "", last = Date.now(), away = 0, tick = 0, said = "";
     const ready = () => !!set && (set.pin || set.passkey);
     const hash = async (text, salt) => b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: bytes(salt), iterations: 210000 }, await crypto.subtle.importKey("raw", new TextEncoder().encode(text), "PBKDF2", false, ["deriveBits"]), 256));
-    const put = (v) => ((set = v), v ? O.db.put("kv", key, v) : O.db.del("kv", key)).catch(() => {});
+    const put = (v) => ((set = v), (saved = true), v ? O.db.put("kv", key, v) : O.db.del("kv", key)).catch(() => {});
     const tell = () => cfg.bindLocked && !!api.state[cfg.bindLocked] !== locked && api.set(cfg.bindLocked, locked);
     // ---- the cover
     const dots = make("div", { "data-lk-dots": "", role: "img" }), line = make("p", { "data-w-note": "", role: "alert" }), title = make("h2");
@@ -587,6 +588,8 @@
     }, 1000);
     draw();
     O.db.get("kv", key).then((v) => {
+      // A slow store (a busy device) may answer after a PIN was set here: that one stands.
+      if (saved) return;
       set = v ?? null;
       if (K.value(api, cfg.reset)) return reset();
       draw();

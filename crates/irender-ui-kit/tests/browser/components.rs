@@ -25,8 +25,17 @@ fn run_with(name: &str, doc: &str, driver: &str, head: &str) -> Option<String> {
       const out = [];
       const log = (...a) => out.push(a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ").replace(/[\u202f\u00a0]/g, " "));
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      // Each turn yields once (a message, which the page's clock doesn't wait for), and every
+      // 50th waits a little on that clock: without it Chrome's virtual time never goes idle,
+      // and answers from other threads (IndexedDB, say) don't get back to the page. It gives
+      // up after 10 seconds and 40,000 turns (or 400,000, should the clock stand still), and
+      // says so, rather than going on as if `f` held.
       const until = async (f) => {{
-        for (let i = 0; i < 40000 && !f(); i++) await new Promise((r) => {{ const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); }});
+        const start = Date.now();
+        for (let i = 0; !f(); i++) {{
+          if (i >= 400000 || (i >= 40000 && Date.now() - start > 10000)) throw new Error("until: still waiting after " + i + " turns");
+          await (i % 50 ? new Promise((r) => {{ const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); }}) : wait(10));
+        }}
       }};
       // A promise that doesn't follow the page's clock: storage, locks, workers, media.
       const real = async (p) => {{ let v, d = false, x; p.then((r) => {{ v = r; d = true; }}, (e) => {{ x = e; d = true; }}); await until(() => d); if (x) throw x; return v; }};
