@@ -66,6 +66,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-timeline` + `ui-timeline-item` | `items`, `label`, `group` (day), `relative`, `since`, `limit`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
 | `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
 | `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
+| `ui-whiteboard` | `bind` (required), `bindView`, `tools`, `colors`, `readOnly`, `height`, `label`, `id` | A board without edges: pen, sticky notes, shapes, arrows and text to select, move, resize and write in, with pan, zoom, undo and SVG export. See below. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-file-browser` | `bind` (required), `bindFolder`, `bindSelection`, `bindOpen`, `view` (grid, list), `editable` (default true), `rootLabel`, `height`, `locale`, `label`, `id` | Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu. See below. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
@@ -760,6 +761,13 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 ```yaml
 - { type: ui-file-browser, props: { bind: files, bindFolder: folder, bindOpen: opened, height: 460 } }
 # files: [{ id: f1, name: Contracts, folder: true }, { id: a1, name: NDA.pdf, parent: f1, size: 52000, modified: 2026-10-12T15:30 }]
+```
+
+**`ui-whiteboard`** is a board without edges, drawn as SVG. `bind` holds its items in the board's own units, `{ id, type, x, y, w, h, points, text, color }`: `pen` (a stroke, `points` from `x`, `y`), `note` (a sticky note), `rect`, `ellipse`, `arrow` (two `points`) and `text`. The tools, each with a key: Select (V: a click, Shift for more, or a box; drag to move; the corner to resize), Hand (H, or hold Space, the middle button or two fingers), Pen (P), Sticky note (N), Rectangle (R), Ellipse (O), Arrow (A) and Text (T); a shape is dragged out, or a click gives it its usual size, and the tool goes back to Select. Double-click (or Enter on) a note or text to write in it. A colour picked colours what's selected. ⌘/Ctrl+Z undoes and Shift with it redoes, Delete deletes, ⌘/Ctrl+D duplicates, the arrows nudge (Shift: ten); with something selected, Tab goes to the next item, and Escape lets go so Tab leaves the board. The wheel scrolls, with ⌘/Ctrl (or a pinch) it zooms at the pointer; + and − zoom, 0 fits everything. Export downloads it as an SVG file. `bindView` keeps the view, `{ x, y, zoom }`, both ways; `tools` and `colors` narrow the toolbar; `readOnly` leaves looking and moving around. The board is one stop for the keyboard, named and described as a whiteboard; what's selected is said.
+
+```yaml
+- { type: ui-whiteboard, props: { bind: board, bindView: view, height: 600 } }
+# board: [{ id: n1, type: note, x: 20, y: 20, w: 170, h: 120, text: Ideas }, { id: a1, type: arrow, x: 200, y: 80, points: [[0, 0], [80, 0]] }]
 ```
 
 **`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.

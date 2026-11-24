@@ -89,7 +89,8 @@
   "ui-presence": "2026-11-23",
   "ui-virtual-list": "2026-11-23",
   "ui-file-browser": "2026-11-23",
-  "ui-approval": "2026-11-23"
+  "ui-approval": "2026-11-23",
+  "ui-whiteboard": "2026-11-23"
  },
  "sections": [
   {
@@ -519,6 +520,17 @@
    "usage": "- { type: ui-file-browser, props: { bind: files, bindFolder: folder, bindOpen: opened, height: 460 } }\n# files: [{ id: f1, name: Contracts, folder: true }, { id: a1, name: NDA.pdf, parent: f1, size: 52000, modified: 2026-10-12T15:30 }]",
    "components": [
     "ui-file-browser"
+   ]
+  },
+  {
+   "id": "whiteboard",
+   "group": "Data display",
+   "title": "Whiteboard",
+   "nav": "Whiteboard",
+   "summary": "A board without edges: draw with a pen, add sticky notes, rectangles, ellipses, arrows and text; select (a click, Shift, a box), move, resize, write in notes, undo and redo; pan and zoom with the hand, Space, two fingers, the wheel or a pinch; and export it as SVG. The items are a list in state, in the board's own units.",
+   "usage": "- { type: ui-whiteboard, props: { bind: board, bindView: view, height: 600 } }\n# board: [{ id: n1, type: note, x: 20, y: 20, w: 170, h: 120, text: Ideas }, { id: a1, type: arrow, x: 200, y: 80, points: [[0, 0], [80, 0]] }]",
+   "components": [
+    "ui-whiteboard"
    ]
   },
   {

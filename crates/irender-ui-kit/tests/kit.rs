@@ -157,6 +157,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-virtual-list", json!({ "items": [] })),
         ("ui-file-browser", json!({ "bind": "k" })),
         ("ui-approval", json!({ "bind": "k" })),
+        ("ui-whiteboard", json!({ "bind": "k" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -227,7 +228,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 208);
+    assert_eq!(kit, 209);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1282,6 +1283,28 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn whiteboard_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-whiteboard", "props": { "bind": "board", "id": "wb", "tools": ["select", "pen"], "colors": ["red", "#00f"], "height": 300 } }),
+        json!({ "board": [{ "id": "n", "type": "note", "x": 0, "y": 0, "w": 10, "h": 10 }] }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A toolbar and a focusable board the behaviour draws into.
+    assert!(body.contains(r#"id="wb" data-tool="select""#) && body.contains(r#"data-wb-bar role="toolbar" aria-label="Whiteboard tools""#), "{body}");
+    assert!(body.contains(r#"data-wb-stage tabindex="0" role="application" aria-roledescription="whiteboard" aria-label="Whiteboard""#), "{body}");
+    assert!(body.contains(r#"&quot;tools&quot;:[&quot;select&quot;,&quot;pen&quot;]"#) && body.contains(r#"&quot;colors&quot;:[&quot;red&quot;,&quot;#00f&quot;]"#) && page.css.contains("300px"), "{body}");
+    let ro = plain(&render_with(json!({ "type": "ui-whiteboard", "props": { "bind": "k", "readOnly": true } }), json!({ "k": [] }), json!({})).unwrap().body);
+    assert!(ro.contains(r#"data-tool="hand" data-readonly"#), "{ro}");
+
+    let err = |props: Json, state: Json| render_with(json!({ "type": "ui-whiteboard", "props": props }), state, json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "bind": "k" }), json!({ "k": [{ "id": 1, "type": "star" }] })).contains("item 1: `type` is pen, note"));
+    assert!(err(json!({ "bind": "k" }), json!({ "k": [{ "type": "note" }] })).contains("item 1 needs an `id`"));
+    assert!(err(json!({ "bind": "k", "tools": ["laser"] }), json!({ "k": [] })).contains("`tools` are select, hand"));
 }
 
 #[test]

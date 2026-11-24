@@ -287,6 +287,12 @@ state:
   vlRange: null
   gFolder: null
   gOpened: null
+  wbItems:
+    - { id: w1, type: note, x: 20, y: 20, w: 170, h: 120, text: "Double-click me to write", color: "#fef08a" }
+    - { id: w2, type: rect, x: 240, y: 30, w: 150, h: 90, color: "#2563eb" }
+    - { id: w3, type: arrow, x: 195, y: 75, points: [[0, 0], [40, 0]], color: "#1f2937" }
+    - { id: w4, type: text, x: 255, y: 60, w: 130, h: 30, text: A box, color: "#2563eb" }
+  wbView: null
   apMe: asha
   apStatus: null
   apFlow:
@@ -2198,6 +2204,27 @@ root:
                 - { type: if, props: { when: "{{ api.approval.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.approval }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- whiteboard
+            - type: element
+              props: { tag: section }
+              attrs: { id: whiteboard, aria-labelledby: whiteboard-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.whiteboard }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Tools: V select, H hand (or hold Space), P pen, N note, R rectangle, O ellipse, A arrow, T text. ⌘Z undoes, Delete deletes, ⌘D duplicates, arrows nudge; ⌘ and the wheel (or a pinch) zoom." }
+                - { type: ui-whiteboard, props: { bind: wbItems, bindView: wbView, height: 420 } }
+                - { type: ui-text, props: { variant: muted, text: "{{ wbItems.length }} items on the board" } }
+                - { type: if, props: { when: "{{ api.whiteboard.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.whiteboard }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

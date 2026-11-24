@@ -73,6 +73,7 @@ mod presence;
 mod virtual_list;
 mod file_browser;
 mod approval;
+mod whiteboard;
 mod camera;
 mod carousel;
 mod chat;
@@ -225,6 +226,7 @@ pub fn register(registry: &mut Registry) {
         .register(virtual_list::VirtualList)
         .register(file_browser::FileBrowser)
         .register(approval::Approval)
+        .register(whiteboard::Whiteboard)
         .register(status::Timeline)
         .register(status::TimelineItem)
         .register(lightbox::Lightbox)

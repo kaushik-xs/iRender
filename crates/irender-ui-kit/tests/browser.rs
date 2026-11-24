@@ -7464,6 +7464,143 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-whiteboard`: the items drawn; selecting (a click, Shift, a box), moving, undo and
+/// redo; the pen, a rectangle dragged out, a note placed and written in; the keys (N, Tab,
+/// ⌘D, Delete, arrows); zooming into `bindView`; export; and read only.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn whiteboard_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "view": null, "board": [
+            { "id": "n1", "type": "note", "x": 0, "y": 0, "w": 100, "h": 80, "text": "Idea" },
+            { "id": "r1", "type": "rect", "x": 200, "y": 0, "w": 100, "h": 60, "color": "#2563eb" },
+            { "id": "a1", "type": "arrow", "x": 110, "y": 30, "points": [[0, 0], [80, 0]] } ] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-whiteboard", "attrs": { "id": "wb" }, "props": { "bind": "board", "bindView": "view", "height": 400 } },
+            { "type": "ui-whiteboard", "attrs": { "id": "ro" }, "props": { "bind": "board", "readOnly": true, "height": 200 } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const wb = document.getElementById("wb"), stage = wb.querySelector("[data-wb-stage]");
+      const ids = () => S().board.map((i) => i.id).join(",");
+      const at = (id) => { const i = S().board.find((x) => x.id === id); return `${Math.round(i.x)},${Math.round(i.y)}`; };
+      const shown = () => [...wb.querySelectorAll("[data-wb-item]")].map((g) => g.dataset.type).join(",");
+      const sel = () => wb.querySelectorAll("[data-wb-stage] svg > g:last-child > rect[stroke-dasharray]").length;
+      const live = () => wb.querySelector("[data-wb-live]").textContent;
+      // A pointer on the board at board point (x, y), the view being (24, 24) in at 100%.
+      const r = () => stage.getBoundingClientRect();
+      const pt = (x, y) => ({ clientX: r().left + x + 24, clientY: r().top + y + 24 });
+      const ev = (type, x, y, o = {}, target) => (target ?? document.elementFromPoint(pt(x, y).clientX, pt(x, y).clientY) ?? stage).dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, button: 0, buttons: 1, isPrimary: true, ...pt(x, y), ...o }));
+      const drag = async (x0, y0, x1, y1, o) => { ev("pointerdown", x0, y0, o); await wait(5); for (let k = 1; k <= 4; k++) { ev("pointermove", x0 + (x1 - x0) * k / 4, y0 + (y1 - y0) * k / 4, o, stage); await wait(2); } ev("pointerup", x1, y1, o, stage); await wait(10); };
+      const key = (k, o = {}) => stage.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...o }));
+      try {
+        log("drawn", shown(), wb.querySelector("[data-wb-note] div").textContent, wb.querySelector("[data-wb-empty]").hidden);
+        // Select the note, Shift-add the rectangle, move both by dragging the note.
+        ev("pointerdown", 50, 40); ev("pointerup", 50, 40, {}, stage); await wait(10);
+        log("picked", sel(), live());
+        ev("pointerdown", 250, 30, { shiftKey: true }); ev("pointerup", 250, 30, {}, stage); await wait(10);
+        log("two", sel());
+        await drag(50, 40, 80, 70);
+        log("moved", at("n1"), at("r1"), at("a1"), live());
+        key("z", { metaKey: true }); await wait(10);
+        log("undone", at("n1"), at("r1"));
+        key("z", { metaKey: true, shiftKey: true }); await wait(10);
+        log("redone", at("n1"));
+        key("Escape"); await wait(5);
+        // A box round empty space and the arrow only.
+        await drag(100, -20, 210, 60);
+        log("box", sel());
+        key("Escape");
+
+        // The pen.
+        key("p"); await wait(5);
+        await drag(0, 200, 120, 260);
+        const pen = S().board.at(-1);
+        log("pen", pen.type, pen.points.length > 3, Math.round(pen.x), Math.round(pen.y), wb.querySelector('[data-wb-tool="pen"]').getAttribute("aria-pressed"));
+        // A rectangle dragged out; the tool goes back to Select.
+        key("r"); await wait(5);
+        await drag(300, 200, 420, 280);
+        const rect = S().board.at(-1);
+        log("rect", rect.type, Math.round(rect.w), Math.round(rect.h), wb.querySelector('[data-wb-tool="select"]').getAttribute("aria-pressed"));
+        // A note with a click, written in.
+        wb.querySelector('[data-wb-tool="note"]').click(); await wait(5);
+        ev("pointerdown", 500, 100); ev("pointerup", 500, 100, {}, stage); await wait(10);
+        const ed = wb.querySelector("[data-wb-edit]");
+        log("note", S().board.at(-1).type, !!ed, document.activeElement === ed);
+        ed.value = "Ship it"; ed.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(10);
+        log("written", S().board.at(-1).text, !wb.querySelector("[data-wb-edit]"), document.activeElement === stage);
+
+        // The keys: Tab goes along, ⌘D duplicates, arrows nudge, Delete deletes, N adds a note.
+        key("Tab"); await wait(5);
+        log("tab", live().split(",")[0]);
+        const before = S().board.length;
+        key("d", { metaKey: true }); await wait(10);
+        log("dup", S().board.length - before);
+        const copy = S().board.at(-1);
+        key("ArrowRight", { shiftKey: true }); await wait(10);
+        log("nudge", Math.round(S().board.at(-1).x - copy.x));
+        key("Delete"); await wait(10);
+        log("deleted", S().board.length === before, live());
+        key("n"); await wait(10);
+        log("key note", S().board.at(-1).type, !!wb.querySelector("[data-wb-edit]"));
+        wb.querySelector("[data-wb-edit]").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(10);
+
+        // Zoom at a point with ⌘ and the wheel, then fit.
+        stage.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -300, ctrlKey: true, ...pt(0, 0) })); await wait(10);
+        log("zoom", S().view.zoom > 2.5, wb.querySelector("[data-wb-zoom]").textContent);
+        key("0"); await wait(10);
+        log("fit", S().view.zoom < 1.5);
+
+        // Export: the file as it would be saved.
+        let saved = null;
+        const make = URL.createObjectURL;
+        URL.createObjectURL = (b) => { saved = b; return make.call(URL, b); };
+        HTMLAnchorElement.prototype.click = function () {};
+        wb.querySelector('[aria-label="Export as SVG"]').click(); await wait(10);
+        const text = await saved.text();
+        log("export", saved.type, text.startsWith("<svg"), text.includes(">Ship it</text>"));
+
+        const ro = document.getElementById("ro");
+        log("read only", [...ro.querySelectorAll("[data-wb-tool]")].map((b) => b.dataset.wbTool).join(","), !!ro.querySelector('[aria-label="Undo"]'));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("whiteboard", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r#"drawn note,rect,arrow Idea true"#,
+            r#"picked 1 Sticky note: Idea, 1 of 3"#,
+            r#"two 2"#,
+            r#"moved 30,30 230,30 110,30 2 items moved"#,
+            r#"undone 0,0 200,0"#,
+            r#"redone 30,30"#,
+            r#"box 1"#,
+            r#"pen pen true 0 200 true"#,
+            r#"rect rect 120 80 true"#,
+            r#"note note true true"#,
+            r#"written Ship it true true"#,
+            r#"tab Sticky note: Idea"#,
+            r#"dup 1"#,
+            r#"nudge 10"#,
+            r#"deleted true 1 item deleted"#,
+            r#"key note note true"#,
+            r#"zoom true 272%"#,
+            r#"fit true"#,
+            r#"export image/svg+xml true true"#,
+            r#"read only select,hand false"#,
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-approval`: where it stands by each stage's rule, deciding on your turn (not on
 /// another's, nor a later stage's), a reason needed to reject or ask for changes, `done`,
 /// sending again, changes pausing it, and decisions from elsewhere.
