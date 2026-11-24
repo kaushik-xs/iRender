@@ -2,7 +2,7 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-23._
+_Last updated: 2026-11-24._
 
 ## Suggested next
 
@@ -10,6 +10,8 @@ _Last updated: 2026-11-23._
 2. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
+
+- [ ] **Marked days on `ui-event-calendar`** (`days`, `yearEvents`; 2026-11-24; gallery, block calendar-01): a shade in a tone, a label and badges per day, apart from events. Marks don't repeat (a rota's every-Sunday closure is listed day by day, or worked out in state), badges aren't clickable (a click picks the day), and there's no slot for arbitrary content in a day: the label and badges are text.
 
 - [ ] **`ui-mindmap`** (2026-11-24; gallery, block brainstorm-01): one long line per topic (long labels are cut short with … and shown whole on hover), no notes, links, icons or images on topics, no lines between topics in different branches, no reordering by dragging (a drop puts a topic last inside another; the keys don't reorder either), and the layout is balanced left and right only (no radial or top-down).
 

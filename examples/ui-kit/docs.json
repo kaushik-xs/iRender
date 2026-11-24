@@ -561,11 +561,12 @@
    "group": "Data display",
    "title": "Event calendar",
    "nav": "Event calendar",
-   "summary": "Events in a month grid, a week of hours, or a list by day, coloured by category. Overlapping meetings sit side by side in the week; events over several days run across them. A click on an event or a day goes to state, for a details panel or adding one; the arrow keys move through the days.",
-   "usage": "- type: ui-event-calendar\n  props:\n    events: \"{{ events }}\"   # [{ id, title, start, end, category }]\n    categories: { Meetings: info, Maintenance: warning }\n    bindEvent: event\n    bindDay: day",
+   "summary": "Events in a month grid, a week of hours, or a list by day, coloured by category. Overlapping meetings sit side by side in the week; events over several days run across them. A click on an event or a day goes to state, for a details panel or adding one; the arrow keys move through the days. days marks days apart from events: a shade in a tone, a label beside the date and badges under it, such as who's on; with yearEvents false the year tints only those.",
+   "usage": "- type: ui-event-calendar\n  props:\n    events: \"{{ events }}\"   # [{ id, title, start, end, category }]\n    categories: { Meetings: info, Maintenance: warning }\n    days: \"{{ coverage }}\"   # [{ date, end, tone, label, items }]\n    bindEvent: event\n    bindDay: day",
    "components": [
     "ui-event-calendar"
-   ]
+   ],
+   "new": "2026-11-24"
   },
   {
    "id": "timeline",

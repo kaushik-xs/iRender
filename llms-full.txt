@@ -1662,6 +1662,8 @@ ui-event-calendar: Events in a month grid, a week of hours, or a list by day, co
   view         one of: day, week, month, year, list  The view to start in: `day`, `week`, `month` (default), `year` or `list`
   views        any  Which views to offer, in order (default all five: day, week, month, year, list); one hides the switch
   date         any  The day to show to start with (default today)
+  days         any  Marks on days, apart from events: `[{ date, end, tone, label, items }]` (or a map of date → `{ tone, label, items }`). `tone` shades the day, `label` is written beside its date, and `items` are small badges under it (text, or `{ text, tone }`); `end` makes it a run of days
+  yearEvents   bool  The year view tints days with events (default true); false tints only the `days` with a tone
   categories   any  Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend
   bindEvent    statekey  State key that gets the event clicked
   bindEvents   statekey  State key holding the events: makes them movable (drag them, or Alt and the arrow keys) and writes the list back
@@ -3841,6 +3843,7 @@ As an activity feed, with each entry's `when` a date and time (`2026-11-20T16:40
     bindEvent: event           # the event clicked
     bindDay: day               # the day picked, e.g. to add an event on it
     bindEvents: events         # makes events movable; the list is written back
+    days: "{{ coverage }}"     # marks on days: [{ date, end, tone, label, items }]
     view: month                # or day, week, year, list
 ```
 
@@ -3854,7 +3857,9 @@ As an activity feed, with each entry's `when` a date and time (`2026-11-20T16:40
 
 **Year** shows twelve small months, the days with events tinted in the first one's colour with a dot. A click or Enter on a day picks it and opens it in the day view; a month's name opens the month.
 
-**List** gives the month's days that have events, each event with its time (or All day, or "Until 6:00" on the last day of one that started the day before), its colour and category.
+**Marked days.** `days` marks days apart from events, say a rota's cover or closures: `[{ date, end, tone, label, items }]`, or a map of date → `{ tone, label, items }`. `tone` shades the day in that colour (in the month, the week's column and the year), `label` is written beside the date, and `items` are small badges under it, text or `{ text, tone }`; `end` makes one a run of days (its last). Two on one day share it, the later tone winning. Each day's name for screen readers gets its label and badges. In the year, a marked day with a tone takes it over its events' colour; `yearEvents: false` tints only the marked days. The list shows marked days too, the label beside the date and the badges under it.
+
+**List** gives the month's days that have events (or marks), each event with its time (or All day, or "Until 6:00" on the last day of one that started the day before), its colour and category.
 
 **Moving.** The arrows move a day, a week, a month or a year, as the view shows; Today comes back, and the switch changes view (`views` picks which, in order, from day, week, month, year and list, all five by default; `bindView` gets the change). It starts in `view`, or Month when it's offered. `date` sets where it starts, `today` the day treated as today, `weekStart` Sunday (0) or Monday (1, the default), and `locale` how dates and times are written.
 
@@ -3862,7 +3867,7 @@ As an activity feed, with each entry's `when` a date and time (`2026-11-20T16:40
 
 **Keyboard and screen readers.** The days are a grid with one tab stop: the arrow keys move a day (or a week, up and down), Home and End to the week's ends, Page Up and Page Down a month, and Enter or Space picks the day (`bindDay`, and a `day` event). Tab then reaches that day's events. Each day is named with its date and how many events it has, each event with its title, time and category, and a change of month or week is announced. A click on an event fires `open` (and sets `bindEvent`); moving fires `navigate`.
 
-**Props.** `events` (required), `view`, `views`, `date`, `categories`, `bindEvent`, `bindEvents`, `snap`, `bindDay`, `bindView`, `hours`, `weekStart`, `maxPerDay`, `today`, `locale`, `emptyText`, `label` (default `Calendar`); part `toolbar`.
+**Props.** `events` (required), `view`, `views`, `date`, `days`, `yearEvents`, `categories`, `bindEvent`, `bindEvents`, `snap`, `bindDay`, `bindView`, `hours`, `weekStart`, `maxPerDay`, `today`, `locale`, `emptyText`, `label` (default `Calendar`); part `toolbar`.
 
 ## Kanban board
 

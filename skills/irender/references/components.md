@@ -1497,6 +1497,8 @@ ui-event-calendar: Events in a month grid, a week of hours, or a list by day, co
   view         one of: day, week, month, year, list  The view to start in: `day`, `week`, `month` (default), `year` or `list`
   views        any  Which views to offer, in order (default all five: day, week, month, year, list); one hides the switch
   date         any  The day to show to start with (default today)
+  days         any  Marks on days, apart from events: `[{ date, end, tone, label, items }]` (or a map of date → `{ tone, label, items }`). `tone` shades the day, `label` is written beside its date, and `items` are small badges under it (text, or `{ text, tone }`); `end` makes it a run of days
+  yearEvents   bool  The year view tints days with events (default true); false tints only the `days` with a tone
   categories   any  Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend
   bindEvent    statekey  State key that gets the event clicked
   bindEvents   statekey  State key holding the events: makes them movable (drag them, or Alt and the arrow keys) and writes the list back

@@ -4853,6 +4853,86 @@ fn event_calendar_year_and_day_in_chrome() {
     );
 }
 
+/// The event calendar's marked days (`days`): a shade in a tone, a label beside the date
+/// and badges under it in the month, the week and the list; in the year, only the marked
+/// days with `yearEvents: false`; and new marks from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn event_calendar_days_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": {
+            "events": [ { "id": 1, "title": "Audit", "start": "2026-11-05T10:00", "end": "2026-11-05T11:00" } ],
+            "days": [
+                { "date": "2026-11-03", "tone": "danger", "label": "Closed" },
+                { "date": "2026-11-04", "tone": "warning", "items": ["Morning", { "text": "Night", "tone": "info" }] },
+                { "date": "2026-11-04", "label": "Short" },
+                { "date": "2026-11-05", "items": ["Morning", "Evening"] },
+                { "date": "2026-12-24", "end": "2026-12-26", "tone": "success", "label": "Holidays" },
+                { "date": "nonsense", "tone": "danger" } ] },
+        "root": { "type": "ui-event-calendar", "props": { "events": "{{ events }}", "days": "{{ days }}", "yearEvents": false,
+            "date": "2026-11-04", "today": "2026-11-18", "locale": "en-GB" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const C = document.querySelector("[data-i-x=ui-event-calendar]");
+      const $ = (s) => C.querySelector(s), $$ = (s) => [...C.querySelectorAll(s)];
+      const day = (d) => $(`[data-ev-day="${d}"]`);
+      const cell = (d) => { const c = day(d); return [c.hasAttribute("data-shade") ? "shade:" + c.getAttribute("data-tone") : "plain", c.querySelector("[data-ev-note]")?.textContent ?? "-", [...c.querySelectorAll("[data-ev-badge]")].map((b) => b.textContent + (b.getAttribute("data-tone") ? ":" + b.getAttribute("data-tone") : "")).join("/") || "-"].join(" "); };
+      try {
+        log("3 Nov", cell("2026-11-03"), "|", day("2026-11-03").getAttribute("aria-label"));
+        log("4 Nov", cell("2026-11-04"), "|", day("2026-11-04").getAttribute("aria-label"));
+        log("5 Nov", cell("2026-11-05"), "|", day("2026-11-05").querySelectorAll("[data-ev-event]").length, "event");
+        log("6 Nov", cell("2026-11-06"));
+        const bg = (d) => getComputedStyle(day(d)).backgroundColor;
+        log("tinted", bg("2026-11-03") !== bg("2026-11-06"), bg("2026-11-03") !== bg("2026-11-04"));
+        // The week: the column and the all-day cell shaded, the label and badges above.
+        $('[data-ev-view="week"]').click(); await wait(0);
+        const ad = (d) => $(`[data-ev-cell-date="${d}"]`);
+        log("week", ad("2026-11-03").getAttribute("data-tone"), $('[data-ev-date-col="2026-11-03"]').hasAttribute("data-shade"), ad("2026-11-04").textContent, ad("2026-11-06").hasAttribute("data-shade"));
+        // The list: days with marks as well as days with events.
+        $('[data-ev-view="list"]').click(); await wait(0);
+        log("list", $$("[data-ev-group]").map((g) => g.getAttribute("data-ev-group").slice(8) + "=" + (g.querySelector("h4 [data-ev-note]")?.textContent ?? "-") + "[" + g.querySelectorAll("[data-ev-badge]").length + "]" + g.querySelectorAll("[data-ev-event]").length).join(" | "));
+        // The year: only the marked days with a tone, the label on hover.
+        $('[data-ev-view="year"]').click(); await wait(0);
+        log("year", $$("[data-ev-mini] [data-shade]").map((d) => d.getAttribute("data-ev-day").slice(5) + ":" + d.getAttribute("data-tone")).join(","), "| busy", $$("[data-ev-mini] [data-busy]").length, "|", day("2026-12-25").title);
+        // From state: a new mark redraws.
+        root.__irender.set("days", [{ date: "2026-11-20", tone: "info", label: "Stocktake" }]); await wait(0);
+        log("state", $$("[data-ev-mini] [data-shade]").map((d) => d.getAttribute("data-ev-day").slice(5)).join(","));
+        // As a map of date → mark.
+        root.__irender.set("days", { "2026-11-09": { tone: "danger", label: "Closed" }, "2026-11-10": { items: ["A"] } }); await wait(0);
+        $('[data-ev-view="month"]').click(); await wait(0);
+        log("map", cell("2026-11-09"), "|", cell("2026-11-10"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("events-days", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "3 Nov shade:danger Closed - | Tuesday 3 November, Closed",
+            // Two marks on a day share it: the tone of one, the label of the other.
+            "4 Nov shade:warning Short Morning/Night:info | Wednesday 4 November, Short, Morning, Night",
+            "5 Nov plain - Morning/Evening | 1 event",
+            "6 Nov plain - -",
+            "tinted true true",
+            "week danger true ShortMorningNight false",
+            "list 03=Closed[0]0 | 04=Short[2]0 | 05=-[2]1",
+            // The year tints only the marked days with a tone (`yearEvents: false`).
+            "year 11-03:danger,11-04:warning,12-24:success,12-25:success,12-26:success | busy 0 | Holidays",
+            "state 11-20",
+            "map shade:danger Closed - | plain - A",
+        ],
+        "\n{result}"
+    );
+}
+
 /// The rail layout: sections as a vertical tab list, each with its panel; a click on
 /// the section shown folds the panel; the fold button; the arrow keys; and state.
 #[test]

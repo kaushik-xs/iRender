@@ -26,6 +26,12 @@ const PROPS: &[PropDef] = &[
     PropDef::new("view", PropKind::Enum(VIEWS), "The view to start in: `day`, `week`, `month` (default), `year` or `list`"),
     PropDef::new("views", PropKind::Any, "Which views to offer, in order (default all five: day, week, month, year, list); one hides the switch"),
     PropDef::new("date", PropKind::Any, "The day to show to start with (default today)"),
+    PropDef::new(
+        "days",
+        PropKind::Any,
+        "Marks on days, apart from events: `[{ date, end, tone, label, items }]` (or a map of date → `{ tone, label, items }`). `tone` shades the day, `label` is written beside its date, and `items` are small badges under it (text, or `{ text, tone }`); `end` makes it a run of days",
+    ),
+    PropDef::new("yearEvents", PropKind::Bool, "The year view tints days with events (default true); false tints only the `days` with a tone"),
     PropDef::new("categories", PropKind::Any, "Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend"),
     PropDef::new("bindEvent", PropKind::StateKey, "State key that gets the event clicked"),
     PropDef::new(
@@ -109,6 +115,33 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-month] [data-ev-day][data-picked]", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 7%, transparent)")]))
         .nest("& [data-ev-date]", pairs(&[("align-self", "flex-start"), ("display", "grid"), ("place-items", "center"), ("min-width", "24px"), ("height", "24px"), ("padding", pad!(0, 4)), ("box-sizing", "border-box"), ("border-radius", "999px"), ("font-size", fs!(12)), ("font-weight", "var(--font-weight-medium, 500)"), ("font-variant-numeric", "tabular-nums")]))
         .nest("& [data-today] > [data-ev-date]", pairs(&[("background", PRIMARY), ("color", "var(--color-on-primary, #fff)")]))
+        // Marked days (`days`): a shade in their tone, a label beside the date, badges under it.
+        .nest("& [data-ev-month] [data-ev-day][data-shade]", pairs(&[("background", "color-mix(in srgb, var(--tone) 11%, var(--color-surface, #fff))")]))
+        .nest("& [data-ev-month] [data-ev-day][data-shade]:hover", pairs(&[("background", "color-mix(in srgb, var(--tone) 18%, var(--color-surface, #fff))")]))
+        .nest("& [data-ev-month] [data-ev-day][data-shade][data-outside]", pairs(&[("background", "color-mix(in srgb, var(--tone) 5%, var(--color-surface, #fff))")]))
+        .nest("& :is([data-ev-col], [data-ev-allday-cell])[data-shade]", pairs(&[("background-color", "color-mix(in srgb, var(--tone) 8%, transparent)")]))
+        .nest("& [data-ev-day-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("min-width", "0")]))
+        .nest("& [data-ev-note]", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap"), ("color", "color-mix(in srgb, var(--tone, var(--color-muted)) 75%, var(--color-text))"), ("font-size", fs!(11)), ("font-weight", "var(--font-weight-medium, 500)")]))
+        .nest("& [data-ev-badges]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", "3px"), ("min-width", "0")]))
+        .nest(
+            "& [data-ev-badge]",
+            pairs(&[
+                ("--tone", MUTED),
+                ("max-width", "100%"),
+                ("box-sizing", "border-box"),
+                ("padding", pad!(0, 6)),
+                ("border-radius", "999px"),
+                ("background", "color-mix(in srgb, var(--tone) 14%, var(--color-surface, #fff))"),
+                ("color", "color-mix(in srgb, var(--tone) 75%, var(--color-text))"),
+                ("font-size", fs!(11)),
+                ("font-weight", "var(--font-weight-medium, 500)"),
+                ("line-height", "1.6"),
+                ("white-space", "nowrap"),
+                ("overflow", "hidden"),
+                ("text-overflow", "ellipsis"),
+            ]),
+        )
+        .nest("& [data-ev-group] [data-ev-badges]", pairs(&[("padding", pad!(0, 12, 12))]))
         .nest("& [data-ev-chips]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0")]))
         .nest(
             "& [data-ev-more]",
@@ -184,6 +217,7 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ev-mini] [data-ev-day]:focus-visible", pairs(&[("box-shadow", "inset 0 0 0 2px var(--color-ring, var(--color-primary))")]))
         .nest("& [data-ev-mini] [data-busy]", pairs(&[("background", "color-mix(in srgb, var(--tone) 16%, transparent)"), ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& [data-ev-mini] [data-busy]::after", pairs(&[("content", "''"), ("position", "absolute"), ("bottom", "2px"), ("width", "4px"), ("height", "4px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
+        .nest("& [data-ev-mini] [data-shade]", pairs(&[("background", "color-mix(in srgb, var(--tone) 22%, transparent)"), ("color", "color-mix(in srgb, var(--tone) 80%, var(--color-text))"), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& [data-ev-mini] [data-today]", pairs(&[("background", PRIMARY), ("color", "var(--color-on-primary, #fff)")]))
         // List: days with their events.
         .nest("& [data-ev-list]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-card, var(--radius-lg))"), ("overflow", "hidden")]))
@@ -213,7 +247,9 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-ev-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
         );
-    tone_rules(tone_rules(tone_rules(b, "& [data-ev-event]"), "& [data-ev-legend] > span"), "& [data-ev-mini] [data-ev-day]")
+    ["& [data-ev-event]", "& [data-ev-legend] > span", "& [data-ev-mini] [data-ev-day]", "& [data-ev-month] [data-ev-day]", "& :is([data-ev-col], [data-ev-allday-cell], [data-ev-group])", "& [data-ev-badge]"]
+        .into_iter()
+        .fold(b, tone_rules)
 });
 
 const CHEVRON_LEFT: &str = r#"<svg data-flip width="16" height="16" style="width:calc(16px * var(--size-icon, 1));height:calc(16px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8 10 12.5"/></svg>"#;
@@ -277,6 +313,8 @@ impl Component for EventCalendar {
         let config = json!({
             "events": dynamic(cx, node, "events", node.prop("events").expect("required"))?,
             "categories": categories,
+            "days": node.prop("days").map(|d| dynamic(cx, node, "days", d)).transpose()?,
+            "yearEvents": crate::widget::flag(cx, node, "yearEvents", true),
             "view": view,
             "views": views,
             "date": node.prop("date").map(|d| dynamic(cx, node, "date", d)).transpose()?,

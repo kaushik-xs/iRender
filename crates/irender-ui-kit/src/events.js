@@ -5,7 +5,8 @@
 // event writes it to `bindEvent` (and fires `open`); on a day, its date to `bindDay`
 // (and fires `day`), for adding one. With `bindEvents`, events move: dragged to another
 // time or day (or resized by a timed one's foot), or with Alt and the arrow keys; the
-// list goes back to state with their new dates, written as they were.
+// list goes back to state with their new dates, written as they were. `days` marks days
+// apart from events: a shade in a tone, a label beside the date, badges under it.
 (window.__irenderBehaviors ||= {})["ui-event-calendar"] = (el, api) => {
   const cfg = api.config;
   const $ = (s, from = el) => from.querySelector(s);
@@ -82,6 +83,42 @@
   }
   const on = (list, d) => list.filter((e) => e.first <= d && d <= e.last);
 
+  // ---- marked days: date → { tone, labels, items }, from `[{ date, end, tone, label, items }]`
+  // or a map of date → `{ tone, label, items }`. Two on one day share it; the later tone wins.
+  function marks() {
+    const v = resolve(cfg.days);
+    const list = Array.isArray(v) ? v : isObj(v) ? Object.entries(v).map(([date, m]) => ({ ...(isObj(m) ? m : { label: m }), date })) : [];
+    const out = new Map();
+    for (const m of list) {
+      const from = isObj(m) ? parse(m.date) : null;
+      if (!from) continue;
+      const to = parse(m.end) ?? from;
+      for (let d = day(from), n = 0; d <= to && n < 400; d = addDays(d, 1), n++) {
+        const at = out.get(iso(d)) ?? { tone: null, labels: [], items: [] };
+        if (m.tone) at.tone = m.tone;
+        if (m.label != null && m.label !== "") at.labels.push(String(m.label));
+        for (const it of Array.isArray(m.items) ? m.items : m.items != null ? [m.items] : []) at.items.push(isObj(it) ? { text: String(it.text ?? it.label ?? ""), tone: it.tone ?? null } : { text: String(it), tone: null });
+        out.set(iso(d), at);
+      }
+    }
+    return out;
+  }
+  // A mark's words for a day's name: "No shifts, Morning, Night".
+  const said = (m) => (m ? [...m.labels, ...m.items.map((i) => i.text)].filter(Boolean).map((t) => `, ${t}`).join("") : "");
+  // Its label beside the date (or the date alone), and its badges.
+  function dated(m, date) {
+    if (!m?.labels.length) return [date];
+    const head = make("div", { "data-ev-day-head": "" });
+    head.append(date, make("span", { "data-ev-note": "", "aria-hidden": "true", title: m.labels.join(", ") }, m.labels.join(", ")));
+    return [head];
+  }
+  function badges(m) {
+    if (!m?.items.length) return [];
+    const box = make("div", { "data-ev-badges": "", "aria-hidden": "true" });
+    for (const it of m.items) box.append(make("span", { "data-ev-badge": "", "data-tone": it.tone, title: it.text }, it.text));
+    return [box];
+  }
+
   // ---- where we are
   let view = cfg.view ?? "month";
   let cursor = parse(resolve(cfg.date)) ?? today(); // the day keyboard focus is on, and what's shown around it
@@ -115,7 +152,7 @@
     return fmt({ month: "long", year: "numeric" }).format(cursor);
   }
 
-  function month(list) {
+  function month(list, marked) {
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
     const start = startOfWeek(first);
     const weeks = Math.ceil(((first - start) / 864e5 + new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate()) / 7);
@@ -130,18 +167,20 @@
     for (let w = 0; w < weeks; w++) {
       const row = make("div", { role: "row", "data-ev-week": "" });
       for (let i = 0; i < 7; i++) {
-        const d = addDays(start, w * 7 + i), here = on(list, d);
+        const d = addDays(start, w * 7 + i), here = on(list, d), m = marked.get(iso(d));
         const cell = make("div", {
           role: "gridcell",
           "data-ev-day": iso(d),
           tabindex: sameDay(d, cursor) ? 0 : -1,
+          "data-shade": !!m?.tone,
+          "data-tone": m?.tone ?? null,
           "data-outside": d.getMonth() !== cursor.getMonth(),
           "data-today": sameDay(d, today()),
           "data-picked": iso(d) === picked(),
           "aria-selected": iso(d) === picked() ? "true" : "false",
-          "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${L(["{n} event", "{n} events"], { n: here.length })}` : ""}`,
+          "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${said(m)}${here.length ? `, ${L(["{n} event", "{n} events"], { n: here.length })}` : ""}`,
         });
-        cell.append(make("span", { "data-ev-date": "", "aria-hidden": "true" }, String(d.getDate())));
+        cell.append(...dated(m, make("span", { "data-ev-date": "", "aria-hidden": "true" }, String(d.getDate()))), ...badges(m));
         const chips = make("div", { "data-ev-chips": "" });
         here.slice(0, here.length > max ? max - 1 : max).forEach((e) => chips.append(chip(e, d)));
         if (here.length > max) {
@@ -156,13 +195,13 @@
   }
 
   // The week's days, or (the day view) just the one: hours down, days across.
-  function week(list, days = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i))) {
+  function week(list, marked, days = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(cursor), i))) {
     const hours = Math.max(1, hourTo - hourFrom);
     const wrap = make("div", { "data-ev-weekview": "", style: `--hours: ${hours}; --days: ${days.length}` });
     const head = make("div", { "data-ev-week-head": "" });
     head.append(make("div", { "aria-hidden": "true" }));
     for (const d of days) {
-      const h = make("button", { type: "button", "data-ev-day": iso(d), "data-today": sameDay(d, today()), tabindex: sameDay(d, cursor) ? 0 : -1, "aria-label": fmt({ weekday: "long", day: "numeric", month: "long" }).format(d) });
+      const h = make("button", { type: "button", "data-ev-day": iso(d), "data-today": sameDay(d, today()), tabindex: sameDay(d, cursor) ? 0 : -1, "aria-label": fmt({ weekday: "long", day: "numeric", month: "long" }).format(d) + said(marked.get(iso(d))) });
       h.append(make("span", {}, fmt({ weekday: "short" }).format(d)), make("b", {}, String(d.getDate())));
       head.append(h);
     }
@@ -171,7 +210,10 @@
     const allDay = make("div", { "data-ev-allday": "" });
     allDay.append(make("div", { "data-ev-hour": "" }, L("All day")));
     for (const d of days) {
-      const cell = make("div", { "data-ev-allday-cell": "", "data-ev-cell-date": iso(d) });
+      const m = marked.get(iso(d));
+      const cell = make("div", { "data-ev-allday-cell": "", "data-ev-cell-date": iso(d), "data-shade": !!m?.tone, "data-tone": m?.tone ?? null });
+      if (m?.labels.length) cell.append(make("span", { "data-ev-note": "", "aria-hidden": "true" }, m.labels.join(", ")));
+      cell.append(...badges(m));
       on(list, d).filter((e) => e.allDay || e.first < e.last).forEach((e) => cell.append(chip(e, d)));
       allDay.append(cell);
     }
@@ -181,7 +223,8 @@
     for (let h = hourFrom; h < hourTo; h++) labels.append(make("div", { "data-ev-hour": "" }, time(new Date(2000, 0, 1, h))));
     grid.append(labels);
     for (const d of days) {
-      const col = make("div", { "data-ev-col": "", "data-ev-date-col": iso(d), "data-today": sameDay(d, today()) });
+      const tone = marked.get(iso(d))?.tone;
+      const col = make("div", { "data-ev-col": "", "data-ev-date-col": iso(d), "data-today": sameDay(d, today()), "data-shade": !!tone, "data-tone": tone ?? null });
       // Timed events on the day, laid side by side where they overlap.
       const items = on(list, d).filter((e) => !e.allDay && e.first.getTime() === e.last.getTime());
       // Events that overlap, directly or through others, share the width in lanes; the
@@ -231,11 +274,12 @@
   }
 
   // The year: twelve small months, the days with events marked in their colour.
-  function year(list) {
+  // With `days`, a day marked with a tone is tinted in it; `yearEvents: false` leaves only those.
+  function year(list, marked) {
     const y = cursor.getFullYear();
     const wrap = make("div", { "data-ev-year": "" });
     const busy = new Map();
-    for (const e of list) for (let d = e.first; d <= e.last; d = addDays(d, 1)) if (d.getFullYear() === y) busy.set(iso(d), [...(busy.get(iso(d)) ?? []), e]);
+    if (cfg.yearEvents !== false) for (const e of list) for (let d = e.first; d <= e.last; d = addDays(d, 1)) if (d.getFullYear() === y) busy.set(iso(d), [...(busy.get(iso(d)) ?? []), e]);
     for (let m = 0; m < 12; m++) {
       const first = new Date(y, m, 1), start = startOfWeek(first), days = new Date(y, m + 1, 0).getDate();
       const box = make("section", { "data-ev-mini": "" });
@@ -248,7 +292,7 @@
       for (let w = 0; w < weeks; w++) {
         const row = make("div", { role: "row" });
         for (let i = 0; i < 7; i++) {
-          const d = addDays(start, w * 7 + i), here = busy.get(iso(d)) ?? [];
+          const d = addDays(start, w * 7 + i), here = busy.get(iso(d)) ?? [], mark = marked.get(iso(d));
           if (d.getMonth() !== m) {
             row.append(make("span", { role: "gridcell", "aria-hidden": "true" }));
             continue;
@@ -259,8 +303,10 @@
             tabindex: sameDay(d, cursor) ? 0 : -1,
             "data-today": sameDay(d, today()),
             "data-busy": here.length > 0,
-            "data-tone": here[0]?.tone ?? null,
-            "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${here.length ? `, ${L(["{n} event", "{n} events"], { n: here.length })}` : ""}`,
+            "data-shade": !!mark?.tone,
+            "data-tone": mark?.tone ?? here[0]?.tone ?? null,
+            title: mark?.labels.length ? mark.labels.join(", ") : null,
+            "aria-label": `${fmt({ weekday: "long", day: "numeric", month: "long" }).format(d)}${said(mark)}${here.length ? `, ${L(["{n} event", "{n} events"], { n: here.length })}` : ""}`,
           }, String(d.getDate()));
           row.append(cell);
         }
@@ -272,17 +318,20 @@
     return wrap;
   }
 
-  function agenda(list) {
-    // The month around the cursor, day by day, only days with events.
+  function agenda(list, marked) {
+    // The month around the cursor, day by day, only days with events or marks.
     const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1), last = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
     const box = make("div", { "data-ev-list": "" });
     for (let d = first; d <= last; d = addDays(d, 1)) {
-      const here = on(list, d);
-      if (!here.length) continue;
-      const group = make("section", { "data-ev-group": iso(d), "data-today": sameDay(d, today()), "aria-label": fmt({ weekday: "long", day: "numeric", month: "long" }).format(d) });
+      const here = on(list, d), m = marked.get(iso(d));
+      if (!here.length && !m) continue;
+      const group = make("section", { "data-ev-group": iso(d), "data-today": sameDay(d, today()), "data-tone": m?.tone ?? null, "aria-label": fmt({ weekday: "long", day: "numeric", month: "long" }).format(d) + said(m) });
       const h = make("h4", {});
       h.append(make("b", {}, String(d.getDate())), make("span", {}, fmt({ weekday: "long", month: "short" }).format(d)));
-      group.append(h);
+      if (m?.labels.length) h.append(make("span", { "data-ev-note": "" }, m.labels.join(", ")));
+      const side = make("div", {});
+      side.append(h, ...badges(m));
+      group.append(side);
       const ul = make("ul", {});
       for (const e of here) {
         const li = make("li", {});
@@ -309,7 +358,8 @@
     $("[data-ev-title]").textContent = title();
     for (const b of $$("[data-ev-view]")) b.setAttribute("aria-pressed", b.getAttribute("data-ev-view") === view ? "true" : "false");
     body.setAttribute("data-view", view);
-    body.replaceChildren(view === "week" ? week(list) : view === "day" ? week(list, [cursor]) : view === "year" ? year(list) : view === "list" ? agenda(list) : month(list));
+    const marked = marks();
+    body.replaceChildren(view === "week" ? week(list, marked) : view === "day" ? week(list, marked, [cursor]) : view === "year" ? year(list, marked) : view === "list" ? agenda(list, marked) : month(list, marked));
     // The focused day's events join the tab order after it.
     const at = iso(cursor);
     for (const c of $$(`[data-ev-day="${at}"] :is([data-ev-event], [data-ev-more]), :is([data-ev-date-col="${at}"], [data-ev-cell-date="${at}"]) [data-ev-event]`)) c.tabIndex = 0;
@@ -577,7 +627,7 @@
   draw(false);
   return {
     update() {
-      const now = [resolve(cfg.events), resolve(cfg.categories), picked()];
+      const now = [resolve(cfg.events), resolve(cfg.categories), resolve(cfg.days), picked()];
       if (last && now.every((v, i) => v === last[i])) return;
       last = now;
       const focused = body.contains(document.activeElement) && document.activeElement.matches("[data-ev-day]");

@@ -230,6 +230,15 @@ state:
     - { id: 6, title: Diwali, start: "2026-11-08", category: Holidays }
     - { id: 7, title: Quarterly review, start: "2026-11-18T14:00", end: "2026-11-18T16:00", category: Meetings }
     - { id: 8, title: Boiler inspection, start: "2026-11-24", category: Maintenance }
+  calDays:
+    - { date: "2026-11-01", tone: danger, label: Closed }
+    - { date: "2026-11-02", end: "2026-11-06", items: [Early, Late] }
+    - { date: "2026-11-07", tone: warning, label: Short, items: [Early] }
+    - { date: "2026-11-08", tone: danger, label: Holiday }
+    - { date: "2026-11-09", end: "2026-11-13", items: [Early, Late, { text: Night, tone: info }] }
+    - { date: "2026-11-14", tone: warning, label: Short, items: [Early] }
+    - { date: "2026-11-15", tone: danger, label: Closed }
+    - { date: "2026-12-24", end: "2026-12-26", tone: danger, label: Holiday }
   folder: src
   folderNode: null
   folders:
@@ -2308,6 +2317,15 @@ root:
                     date: "2026-11-04"
                     label: Gallery calendar
                 - { type: ui-text, props: { variant: muted, text: "{{ calEvent ? 'Opened: ' + calEvent.title : calDay ? 'Picked ' + calDay : 'Click an event or a day; try Week, and the arrow keys.' }}" } }
+                - { type: ui-text, props: { variant: muted, text: "Marked days: days gives a day a shade, a label and badges apart from its events, here who's on. With yearEvents false, the year tints only the marked days." }, style: { margin-top: 12 } }
+                - type: ui-event-calendar
+                  props:
+                    events: []
+                    days: "{{ calDays }}"
+                    yearEvents: false
+                    views: [month, week, year]
+                    date: "2026-11-04"
+                    label: Rota calendar
                 - { type: if, props: { when: "{{ api.event_calendar.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.event_calendar }}", as: c }
