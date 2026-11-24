@@ -1,0 +1,57 @@
+# Block: a project's kick-off, as a mind map (`ui-mindmap`). Branches go both sides of the
+# central topic, each in its colour. Pick a topic and press Tab for one inside it, Enter for
+# one beside it, or just type to write over it; drag a topic onto another to move it there;
+# Space folds a branch; ⌘Z undoes. The same map is the outline beside it (`ui-tree` reads
+# the same shape), and the topic picked in either is the other's too.
+#
+#   cargo run -p irender-cli -- render examples/blocks/brainstorm-01.yaml --ui-kit --icon-kit -o brainstorm-01.html
+version: 1
+state:
+  picked: root
+  plan:
+    id: root
+    label: Mobile app relaunch
+    children:
+      - id: goals
+        label: Goals
+        children: [ { id: g1, label: Ratings above 4.5 }, { id: g2, label: Sign-up in under a minute }, { id: g3, label: Half the support tickets } ]
+      - id: users
+        label: Who it's for
+        children: [ { id: u1, label: New customers }, { id: u2, label: Shop staff on the floor } ]
+      - id: work
+        label: Work
+        children:
+          - { id: w1, label: Design, children: [ { id: w11, label: New onboarding }, { id: w12, label: Dark mode } ] }
+          - { id: w2, label: Build, children: [ { id: w21, label: Offline basket }, { id: w22, label: Faster search } ] }
+          - { id: w3, label: Test, children: [ { id: w31, label: Beta with 200 users } ] }
+      - id: risks
+        label: Risks
+        children: [ { id: r1, label: App store review delays }, { id: r2, label: Old phones too slow } ]
+      - id: dates
+        label: Dates
+        collapsed: true
+        children: [ { id: d1, label: Beta on 15 Jan }, { id: d2, label: Launch on 1 Mar } ]
+root:
+  type: stack
+  props: { gap: 16 }
+  style:
+    max-width: 1280px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: "Kick-off: {{ plan.label }}" } }
+        - { type: ui-text, props: { variant: muted, text: "Tab adds a topic inside, Enter one beside it; type to write; drag a topic onto another to move it." } }
+    - type: element
+      style: { display: grid, grid-template-columns: "minmax(0, 1fr)", gap: 16, "@md": { grid-template-columns: "minmax(0, 1fr) 260px" }, align-items: start }
+      children:
+        - { type: ui-mindmap, props: { bind: plan, bindSelected: picked, height: 560, label: Kick-off mind map } }
+        - type: ui-card
+          props: { title: Outline, description: "The same map, as a list" }
+          children:
+            - { type: ui-tree, props: { nodes: "{{ plan.children }}", bind: picked, expanded: true, label: Outline } }

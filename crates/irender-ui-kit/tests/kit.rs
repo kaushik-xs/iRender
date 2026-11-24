@@ -158,6 +158,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-file-browser", json!({ "bind": "k" })),
         ("ui-approval", json!({ "bind": "k" })),
         ("ui-whiteboard", json!({ "bind": "k" })),
+        ("ui-mindmap", json!({ "bind": "k" })),
     ];
     let mut kit = 0;
     let mut broken = Vec::new();
@@ -228,7 +229,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 209);
+    assert_eq!(kit, 210);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1283,6 +1284,27 @@ fn date_picker_structure_and_mistakes() {
     assert!(err(json!({ "compare": "yes", "mode": "range" })).contains("`true` or a list"));
     let lone = render_with(json!({ "type": "ui-calendar", "props": { "bindCompare": "vs", "mode": "range" } }), json!({ "vs": null }), json!({}));
     assert!(lone.unwrap_err().to_string().contains("needs `compare`"));
+}
+
+#[test]
+fn mindmap_structure_and_mistakes() {
+    let page = render_with(
+        json!({ "type": "ui-mindmap", "props": { "bind": "map", "id": "mm", "layout": "right", "height": 320 } }),
+        json!({ "map": { "id": "c", "label": "Plan", "children": [{ "id": "a", "label": "Goals" }] } }),
+        json!({}),
+    )
+    .unwrap();
+    let body = plain(&page.body);
+    // A toolbar, and a tree named by the central topic for the behaviour to draw.
+    assert!(body.contains(r#"data-mm-bar role="toolbar" aria-label="Mind map tools""#), "{body}");
+    assert!(body.contains(r#"data-mm-stage tabindex="0" role="tree" aria-label="Plan""#), "{body}");
+    assert!(body.contains(r#"&quot;layout&quot;:&quot;right&quot;"#) && page.css.contains("320px"), "{body}");
+
+    let err = |map: Json| render_with(json!({ "type": "ui-mindmap", "props": { "bind": "k" } }), json!({ "k": map }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "label": "x" })).contains("needs an `id` and a `label`"));
+    assert!(err(json!({ "id": "c" })).contains("topic `c` needs a `label`"));
+    assert!(err(json!({ "id": "c", "label": "x", "children": [{ "id": "c", "label": "y" }] })).contains("two topics have the `id` `c`"));
+    assert!(err(json!({ "id": "c", "label": "x", "children": "no" })).contains("`children` must be a list"));
 }
 
 #[test]

@@ -11,6 +11,8 @@ _Last updated: 2026-11-23._
 
 ## Gaps you'd hit in real use
 
+- [ ] **`ui-mindmap`** (2026-11-24; gallery, block brainstorm-01): one long line per topic (long labels are cut short with … and shown whole on hover), no notes, links, icons or images on topics, no lines between topics in different branches, no reordering by dragging (a drop puts a topic last inside another; the keys don't reorder either), and the layout is balanced left and right only (no radial or top-down).
+
 - [ ] **`ui-whiteboard`** (2026-11-23; gallery, block retro-01): one person at a time (several people's edits from a server just replace the items: no merging and no live cursors), no connectors that stay joined to shapes, no images or frames, no grouping, layers or locking, no copy and paste between boards, pen strokes aren't resized, and the undo history is the page's only. Export is SVG; no PNG.
 
 - [ ] **`ui-approval`** (2026-11-23; gallery, block expense-01): stages run one after another (none side by side), no delegating or reassigning an approver, no due dates or reminders per stage, and no history of earlier rounds once it's sent again (the decisions are cleared). Who may decide is shown, not enforced: the server checks it.

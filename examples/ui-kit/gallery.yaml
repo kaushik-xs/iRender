@@ -293,6 +293,15 @@ state:
     - { id: w3, type: arrow, x: 195, y: 75, points: [[0, 0], [40, 0]], color: "#1f2937" }
     - { id: w4, type: text, x: 255, y: 60, w: 130, h: 30, text: A box, color: "#2563eb" }
   wbView: null
+  mmPicked: null
+  mmMap:
+    id: m0
+    label: Holiday
+    children:
+      - { id: m1, label: Where, children: [ { id: m11, label: Lisbon }, { id: m12, label: Porto } ] }
+      - { id: m2, label: When, children: [ { id: m21, label: First week of May } ] }
+      - { id: m3, label: Packing, children: [ { id: m31, label: Walking shoes }, { id: m32, label: Adapter } ] }
+      - { id: m4, label: Budget, collapsed: true, children: [ { id: m41, label: Flights }, { id: m42, label: Stays } ] }
   apMe: asha
   apStatus: null
   apFlow:
@@ -2225,6 +2234,27 @@ root:
                 - { type: if, props: { when: "{{ api.whiteboard.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.whiteboard }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- mindmap
+            - type: element
+              props: { tag: section }
+              attrs: { id: mindmap, aria-labelledby: mindmap-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.mindmap }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Pick a topic: the arrows move (towards the middle is its parent), Tab adds one inside, Enter one beside, typing writes over it, Space folds, Delete deletes, ⌘Z undoes. Drag a topic onto another to move it." }
+                - { type: ui-mindmap, props: { bind: mmMap, bindSelected: mmPicked, height: 420 } }
+                - { type: ui-text, props: { variant: muted, text: "mmPicked = {{ mmPicked }}" } }
+                - { type: if, props: { when: "{{ api.mindmap.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.mindmap }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

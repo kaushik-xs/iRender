@@ -67,6 +67,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
 | `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
 | `ui-whiteboard` | `bind` (required), `bindView`, `tools`, `colors`, `readOnly`, `height`, `label`, `id` | A board without edges: pen, sticky notes, shapes, arrows and text to select, move, resize and write in, with pan, zoom, undo and SVG export. See below. |
+| `ui-mindmap` | `bind` (required), `bindSelected`, `layout` (balanced, right), `colors`, `readOnly`, `height`, `label`, `id` | A mind map: a central topic with coloured branches both sides; topics added, written, folded, moved and deleted from the keyboard or the mouse. See below. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-file-browser` | `bind` (required), `bindFolder`, `bindSelection`, `bindOpen`, `view` (grid, list), `editable` (default true), `rootLabel`, `height`, `locale`, `label`, `id` | Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu. See below. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
@@ -768,6 +769,14 @@ Charts and the table work together in three ways, all in the [`data-table-02`](.
 ```yaml
 - { type: ui-whiteboard, props: { bind: board, bindView: view, height: 600 } }
 # board: [{ id: n1, type: note, x: 20, y: 20, w: 170, h: 120, text: Ideas }, { id: a1, type: arrow, x: 200, y: 80, points: [[0, 0], [80, 0]] }]
+```
+
+**`ui-mindmap`** is a mind map: the central topic in the middle, its first branches shared between both sides by size (`layout: right` puts them all on the right), each in a colour of its own (`colors`, or a topic's own `color`), joined by curves. `bind` holds the map as a tree, `{ id, label, children, collapsed, color }`, the shape `ui-tree` reads, so the same state can be its outline too. Pick a topic (a click, or the keys) and: the arrows go to its parent (towards the middle), its first child (away) and its siblings (up and down), Home to the middle; Tab adds a topic inside it and Enter one beside it, each ready to write in; typing writes over it (F2 or a double click edits it); Space folds it (a folded topic shows how many are inside); Delete deletes it and what's inside (never the middle); ⌘/Ctrl+Z undoes, with Shift redoes. Drag a topic onto another to move it there (not into itself); drag the space to pan; ⌘/Ctrl and the wheel, or a pinch, zoom; Fit shows it all, and a map too big to start with is fitted. Export saves it as an SVG file. It's a `tree` for screen readers, each topic a `treeitem` with its level and whether it's folded; `bindSelected` keeps the topic picked. `readOnly` leaves looking, folding and moving around.
+
+```yaml
+- { type: ui-mindmap, props: { bind: plan, bindSelected: picked, height: 560 } }
+- { type: ui-tree, props: { nodes: "{{ plan.children }}", bind: picked } }   # the same map as an outline
+# plan: { id: root, label: Launch, children: [{ id: g, label: Goals, children: [{ id: g1, label: 500 sign-ups }] }] }
 ```
 
 **`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.

@@ -81,6 +81,7 @@ root:
           - { id: invoice-01, category: forms, title: "An invoice being written: lines that add up, checks on the client and dates, a signature, and codes to pay with", kits: [ui-kit, icon-kit], height: 1240 }
           - { id: intake-01, category: forms, title: "A clinic's new-patient form in steps: phone, insurance number, visit times, a questionnaire and consent", kits: [ui-kit, icon-kit], height: 720 }
           - { id: supplier-01, category: forms, title: "A supplier's details: a form of two columns, sections side by side, one with its heading beside three columns of fields", kits: [ui-kit, icon-kit], height: 1160 }
+          - { id: brainstorm-01, category: app, title: "A project kick-off as a mind map: branches both sides, topics added, written, folded and moved from the keyboard, with the same map as an outline", kits: [ui-kit, icon-kit], height: 720 }
           - { id: retro-01, category: app, title: "A sprint retro on a whiteboard: sticky notes in columns, arrows and drawing, with who's in it and the time left", kits: [ui-kit, icon-kit], height: 760 }
           - { id: drive-01, category: app, title: "A team's shared files: folders as a grid or a list, search, sort, rename, new folders, delete with undo, and moving by dragging onto a folder", kits: [ui-kit, icon-kit], height: 720 }
           - { id: job-report-01, category: forms, title: "A finished repair's report: before and after photos with a divider to drag, the details, the work done and the customer's sign-off", kits: [ui-kit, icon-kit], height: 760 }

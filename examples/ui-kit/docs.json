@@ -90,7 +90,8 @@
   "ui-virtual-list": "2026-11-23",
   "ui-file-browser": "2026-11-23",
   "ui-approval": "2026-11-23",
-  "ui-whiteboard": "2026-11-23"
+  "ui-whiteboard": "2026-11-23",
+  "ui-mindmap": "2026-11-24"
  },
  "sections": [
   {
@@ -531,6 +532,17 @@
    "usage": "- { type: ui-whiteboard, props: { bind: board, bindView: view, height: 600 } }\n# board: [{ id: n1, type: note, x: 20, y: 20, w: 170, h: 120, text: Ideas }, { id: a1, type: arrow, x: 200, y: 80, points: [[0, 0], [80, 0]] }]",
    "components": [
     "ui-whiteboard"
+   ]
+  },
+  {
+   "id": "mindmap",
+   "group": "Data display",
+   "title": "Mind map",
+   "nav": "Mind map",
+   "summary": "A central topic with branches on both sides, each first branch in its colour. Topics are added (Tab inside, Enter beside), written (type over one, F2 or a double click), folded, moved by dragging onto another and deleted, from the keyboard or the mouse; it pans, zooms, undoes and exports as SVG. The map is a tree in state, the shape ui-tree reads.",
+   "usage": "- { type: ui-mindmap, props: { bind: plan, bindSelected: picked, height: 560 } }\n# plan: { id: root, label: Launch, children: [{ id: g, label: Goals, children: [{ id: g1, label: 500 sign-ups }] }] }",
+   "components": [
+    "ui-mindmap"
    ]
   },
   {

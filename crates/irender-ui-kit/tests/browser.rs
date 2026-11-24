@@ -7464,6 +7464,150 @@ fn date_range_compare_in_chrome() {
     );
 }
 
+/// `ui-mindmap`: a tree for screen readers laid out both sides; the arrows; Tab, Enter
+/// and typing to add and write topics; folding, deleting (not the middle), undo and redo;
+/// dragging a topic onto another (not into itself); `bindSelected`; export; read only.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn mindmap_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "sel": null, "map": { "id": "c", "label": "Centre", "children": [
+            { "id": "a", "label": "Alpha", "children": [ { "id": "a1", "label": "A one" }, { "id": "a2", "label": "A two" } ] },
+            { "id": "b", "label": "Beta", "children": [ { "id": "b1", "label": "B one" } ] },
+            { "id": "g", "label": "Gamma" } ] } },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-mindmap", "attrs": { "id": "mm" }, "props": { "bind": "map", "bindSelected": "sel", "height": 420 } },
+            { "type": "ui-mindmap", "attrs": { "id": "ro" }, "props": { "bind": "map", "readOnly": true, "height": 200 } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const mm = document.getElementById("mm"), stage = mm.querySelector("[data-mm-stage]");
+      const topic = (id) => mm.querySelector(`[data-mm-topic="${id}"]`);
+      const side = (id) => { const c = topic("c").getBoundingClientRect(), t = topic(id).getBoundingClientRect(); return t.left > c.right ? "R" : t.right < c.left ? "L" : "M"; };
+      const key = (k, o = {}) => stage.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...o }));
+      const tree = (t = S().map) => t.label + (t.children?.length ? `(${t.children.map((c) => tree(c)).join(" ")})` : "");
+      const live = () => mm.querySelector("[data-mm-live]").textContent;
+      try {
+        stage.focus(); await wait(10);
+        log("tree", stage.getAttribute("role"), topic("a").getAttribute("role"), topic("a").getAttribute("aria-level"), topic("a").getAttribute("aria-expanded"), stage.getAttribute("aria-activedescendant") === topic("c").id, S().sel);
+        log("sides", ["a", "b", "g"].map((id) => `${id}:${side(id)}`).join(" "), side("a1"), side("b1"));
+        // The arrows: away from the middle to a child, towards it to the parent, up and down.
+        key("ArrowRight"); await wait(5);
+        const first = S().sel;
+        key(side(first) === "R" ? "ArrowRight" : "ArrowLeft"); await wait(5);
+        log("away", first, S().sel, live());
+        key("ArrowDown"); await wait(5);
+        log("down", S().sel);
+        key(side(S().sel) === "R" ? "ArrowLeft" : "ArrowRight"); await wait(5);
+        log("towards", S().sel);
+        key("Home"); await wait(5);
+        log("home", S().sel);
+
+        // Tab adds a topic inside Alpha, written straight away.
+        key("ArrowRight"); await wait(5);
+        while (S().sel !== "a") { key("ArrowDown"); await wait(5); if (S().sel === "g" || S().sel === "b") { key("ArrowUp"); await wait(5); } if (S().sel !== "a" && S().sel !== "b" && S().sel !== "g") break; }
+        key("Tab"); await wait(10);
+        const ed = mm.querySelector("[data-mm-edit]");
+        log("tab", !!ed, ed?.value, document.activeElement === ed);
+        ed.value = "A three"; ed.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(10);
+        log("written", tree(), document.activeElement === stage);
+        // Enter adds one beside it; Escape leaves its name as it is.
+        key("Enter"); await wait(10);
+        mm.querySelector("[data-mm-edit]").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(10);
+        log("beside", tree());
+        // Typing writes over the topic.
+        key("Z"); await wait(10);
+        const over = mm.querySelector("[data-mm-edit]");
+        log("typed", over.value);
+        over.value = "Zed"; over.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(10);
+        log("renamed", tree());
+
+        // Fold Alpha, unfold it.
+        stage.focus(); S(); api.set("sel", "a");
+        topic("a").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, button: 0 })); stage.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1 })); await wait(10);
+        key(" "); await wait(10);
+        log("folded", S().map.children[0].collapsed, topic("a").getAttribute("aria-expanded"), !!topic("a1"), mm.querySelector('[data-mm-fold="a"] text')?.textContent);
+        key(" "); await wait(10);
+        log("unfolded", !!topic("a1"));
+        // Delete Beta (and what's inside); the middle can't go.
+        topic("b").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, button: 0 })); stage.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1 })); await wait(10);
+        key("Delete"); await wait(10);
+        log("deleted", tree(), live());
+        key("Home"); key("Delete"); await wait(10);
+        log("not the middle", !!S().map);
+        key("z", { metaKey: true }); await wait(10);
+        log("undone", tree());
+        key("z", { metaKey: true, shiftKey: true }); await wait(10);
+        log("redone", tree());
+        key("z", { metaKey: true }); await wait(10);
+
+        // Drag "A one" onto Gamma; then try Alpha into its own child (nothing happens).
+        const drag = async (from, to) => {
+          const f = topic(from).getBoundingClientRect(), t = topic(to).getBoundingClientRect();
+          const p = (type, x, y, target) => (target ?? stage).dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 2, button: 0, clientX: x, clientY: y }));
+          p("pointerdown", f.left + 10, f.top + f.height / 2, topic(from).querySelector("rect:not([data-mm-ring])"));
+          for (let k = 1; k <= 5; k++) { p("pointermove", f.left + 10 + (t.left + t.width / 2 - f.left - 10) * k / 5, f.top + f.height / 2 + (t.top + t.height / 2 - f.top - f.height / 2) * k / 5); await wait(2); }
+          p("pointerup", t.left + t.width / 2, t.top + t.height / 2); await wait(10);
+        };
+        await drag("a1", "g");
+        log("dragged", tree(), S().sel);
+        await drag("a", "a2");
+        log("not into itself", tree());
+
+        // Export, as the file would be saved.
+        let saved = null;
+        const make = URL.createObjectURL;
+        URL.createObjectURL = (b) => { saved = b; return make.call(URL, b); };
+        HTMLAnchorElement.prototype.click = function () {};
+        mm.querySelector('[aria-label="Export as SVG"]').click(); await wait(10);
+        const text = await saved.text();
+        log("export", saved.type, text.startsWith("<svg"), text.includes(">Centre</text>"), text.includes("role="));
+
+        const ro = document.getElementById("ro");
+        ro.querySelector("[data-mm-stage]").focus();
+        ro.querySelector("[data-mm-stage]").dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+        ro.querySelector("[data-mm-stage]").dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true })); await wait(10);
+        log("read only", ro.querySelectorAll("[data-mm-bar] button").length, !!ro.querySelector("[data-mm-edit]"), tree() === tree());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("mindmap", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            r#"tree tree treeitem 2 true true c"#,
+            r#"sides a:R b:L g:L R L"#,
+            r#"away a a1 A one, level 3"#,
+            r#"down a2"#,
+            r#"towards a"#,
+            r#"home c"#,
+            r#"tab true New topic true"#,
+            r#"written Centre(Alpha(A one A two A three) Beta(B one) Gamma) true"#,
+            r#"beside Centre(Alpha(A one A two A three New topic) Beta(B one) Gamma)"#,
+            r#"typed Z"#,
+            r#"renamed Centre(Alpha(A one A two A three Zed) Beta(B one) Gamma)"#,
+            r#"folded true false false 4"#,
+            r#"unfolded true"#,
+            r#"deleted Centre(Alpha(A one A two A three Zed) Gamma) Beta and 1 inside it deleted"#,
+            r#"not the middle true"#,
+            r#"undone Centre(Alpha(A one A two A three Zed) Beta(B one) Gamma)"#,
+            r#"redone Centre(Alpha(A one A two A three Zed) Gamma)"#,
+            r#"dragged Centre(Alpha(A two A three Zed) Beta(B one) Gamma(A one)) a1"#,
+            r#"not into itself Centre(Alpha(A two A three Zed) Beta(B one) Gamma(A one))"#,
+            r#"export image/svg+xml true true false"#,
+            r#"read only 5 false true"#,
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-whiteboard`: the items drawn; selecting (a click, Shift, a box), moving, undo and
 /// redo; the pen, a rectangle dragged out, a note placed and written in; the keys (N, Tab,
 /// ⌘D, Delete, arrows); zooming into `bindView`; export; and read only.
