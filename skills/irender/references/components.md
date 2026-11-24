@@ -705,14 +705,148 @@ ui-progress-ring: A circular progress with the value in the middle.
   label        any  What it measures, for screen readers, e.g. `Project progress`
   tone         one of: neutral, info, success, warning, danger, primary  Its colour (default `primary`)
   children: no
+ui-gauge: A figure on a dial from `min` to `max`, with coloured bands, a target and a needle; follows state without a script.
+  value        any (required)  The figure. Follows state when it uses it, e.g. `{{ line.oee }}`
+  min          number  The dial's start (default 0)
+  max          number  The dial's end (default 100)
+  unit         any  After the figure, smaller, e.g. `%` or `°C`
+  text         any  In the middle in place of the value, e.g. a rounded or formatted one; empty for none
+  bands        any  Coloured stretches of the dial, in order: `{ to, tone, label }`, the last without `to` running to `max`. The value takes the tone of the band it's in
+  tone         one of: neutral, info, success, warning, danger, primary  The value's colour (default: its band's, else `primary`)
+  target       any  A mark across the dial at this value; may use state
+  needle       bool  A needle pointing at the value, as well as the arc
+  shape        one of: arc, half  `arc` (default, 240°) or `half` (a semicircle)
+  size         number  Width in px (default 160)
+  thickness    number  The dial's width in px (default: a twelfth of the size)
+  scale        bool  `min` and `max` at the dial's ends (default true)
+  caption      any  Text under the dial, e.g. what it measures
+  label        any  What it measures, for screen readers (default: `caption`)
+  children: no
+ui-sortable-list: A list in state put in order by dragging each item's grip, or from the keyboard; children are each item's content, with `item` and `index` in scope.
+  bind         statekey (required)  State key holding the list, in order: plain values or objects
+  itemKey      string  With objects, the field that tells them apart (default `id`)
+  labelField   string  With objects, the field shown and read out for each (default `label`)
+  numbered     bool  Each item's place before it: 1, 2, 3
+  removable    bool  A button on each item that takes it out of the list
+  emptyText    any  Shown while the list is empty (default `Nothing here yet`)
+  label        any  Names the list for screen readers (default `List`)
+  disabled     any  Boolean or expression: no moving or removing
+  id           any  Element id (default: derived from the document)
+  children: yes
+ui-form-builder: A form put together in the browser: field types added from a palette, put in order, set up in an inspector, tried in a preview, and given out as an iRender document of the kit's own form.
+  bind         statekey (required)  State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max }`
+  bindDocument statekey  State key that gets the form as an iRender document, kept up to date
+  types        any  The field types offered, from `text`, `textarea`, `email`, `number`, `date`, `select`, `radio`, `checkboxes`, `checkbox`, `section` (default all)
+  submitLabel  any  The generated form's submit button (default `Submit`)
+  endpoint     string  Where the generated form posts its answers (as JSON); without it, the form thanks the person instead
+  label        any  Names the builder for screen readers (default `Form builder`)
+  id           any  Element id (default: derived from the document)
+  children: no
+ui-countdown: The time left to a deadline, turning to warning and danger as thresholds pass and counting up once overdue; as text or tiles, with a bar of the time used.
+  to           any (required)  The deadline: a date and time (`2026-12-01T17:00`, `2026-12-01T17:00:00Z`), milliseconds, or `+7h 40m` from when the page opens; may use state
+  from         any  When the time started, as `to` (`-16h 20m`: before the page opened): a bar shows how much of it is used
+  warn         any  Time left when it turns to the warning tone: seconds, or `90s`, `30m`, `4h`, `2d`
+  danger       any  Time left when it turns to the danger tone, as `warn`
+  overdue      bool  Past the deadline, count up as overdue (default true); false shows `endText`
+  endText      any  Shown once it's over, with `overdue: false` (default `Time's up`)
+  format       one of: units, clock  `units` (default: `2d 4h`, `13m 05s`) or `clock` (`2:04:13`, `3d 02:04:13`)
+  variant      one of: inline, tiles  `inline` (default: text with a dot in its tone) or `tiles` (days, hours, minutes and seconds in boxes)
+  bindLeft     statekey  State key that gets the seconds left (below zero once overdue), every second
+  bindStatus   statekey  State key that gets `ok`, `warning`, `danger` or `over` as it changes
+  label        any  What it counts down to, for screen readers, e.g. `First reply due`
+  children: no
+ui-compare-slider: Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either.
+  before       any (required)  The first picture's address
+  after        any (required)  The second picture's address, the same size and framing
+  beforeAlt    any  What the first picture shows, for screen readers
+  afterAlt     any  What the second picture shows, for screen readers
+  beforeLabel  any  On the first picture's side (default `Before`); empty for none
+  afterLabel   any  On the second picture's side (default `After`); empty for none
+  position     number  Where the divider starts, 0–100 from the first side (default 50)
+  bind         statekey  State key holding the divider's place, 0–100, both ways
+  orientation  one of: horizontal, vertical  `horizontal` (default: the divider moves left and right) or `vertical` (up and down)
+  hover        bool  The divider follows a mouse without pressing
+  ratio        any  Width to height, e.g. `16/9` or `1`: both pictures fill it, cropped (default: the first picture's own)
+  caption      any  Text under the pictures
+  label        any  Names the comparison for screen readers (default `Before and after`)
+  children: no
+ui-presence: Who's here now: stacked avatars with a status dot and a colour each, then `+3`; a click lists everyone, their status and what they're on.
+  people       any (required)  Who's here: `{ id, name, avatar, initials, status, color, where }`; `status` is active, idle, busy, away or offline, `color` 1–8 (default: by place), `where` what they're on. From state, it follows
+  max          number  Avatars shown before `+3` (default 4)
+  size         number  Avatar size in px (default 28)
+  me           any  The `id` of whoever's looking: `(you)` after their name
+  announce     bool  Say who joins and leaves, for screen readers
+  align        one of: start, end  The list's edge lined up with the avatars (default `end`)
+  label        any  What it shows (default `People here`)
+  id           any  Element id (default: derived from the document)
+  parts: trigger, popover
+  children: no
+ui-virtual-list: A long list that keeps only the items in view in the page, so thousands scroll smoothly; children are each item, with `item` and `index` in scope.
+  items        any (required)  The items: a list, usually from state (`{{ rows }}`); it follows
+  itemKey      string  The field that tells items apart (default `id`, else their place)
+  height       any  The scrolling area's height: px or a CSS length (default 400)
+  itemHeight   number  An item's height in px to start from, before items are measured (default 40)
+  gap          number  Space between items in px (default 0)
+  bindRange    statekey  State key that gets the places in view, `{ from, to, total }`, as it scrolls
+  endThreshold number  How many items from the end `end` fires, to load more (default 10)
+  emptyText    any  Shown while there are no items (default `Nothing to show`)
+  label        any  Names the list for screen readers
+  children: yes
+ui-file-browser: Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu.
+  bind         statekey (required)  State key holding the files and folders, a flat list: `{ id, name, parent, folder, size, modified, thumb, url }`; `parent` is the folder's `id` (none: the top), `folder: true` for a folder
+  bindFolder   statekey  State key holding the open folder's `id` (null: the top), both ways
+  bindSelection statekey  State key that gets the `id`s selected
+  bindOpen     statekey  State key that gets the file opened (a double click, or Enter); `open` fires too
+  view         one of: grid, list  How the folder shows to start with (default `grid`); a button switches
+  editable     bool  New folders, renaming, deleting and moving (default true)
+  rootLabel    any  The top folder's name in the breadcrumb (default `Files`)
+  height       any  The files' area's height: px or a CSS length (default: as tall as they are)
+  locale       string  How dates and sizes are written (default: the document's `lang`)
+  label        any  Names it for screen readers (default `Files`)
+  id           any  Element id (default: derived from the document)
+  children: no
+ui-approval: A sign-off in stages, each approved when its rule is met: who decided what, when and why; Approve, Request changes and Reject on your turn.
+  bind         statekey (required)  State key holding the stages, in order: `{ id, title, rule, approvers: [{ id, name, avatar, decision, comment, at }] }`; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected
+  me           any  The `id` of whoever's looking: on their turn, they get the buttons to decide
+  owner        any  The `id` of whoever sent it: after changes or a rejection, they can send it again
+  bindStatus   statekey  State key that gets `pending`, `changes`, `rejected` or `approved`, as it changes
+  readOnly     bool  Only shows where it stands: no buttons
+  locale       string  How times are written (default: the document's `lang`)
+  label        any  Names it for screen readers (default `Approval`)
+  id           any  Element id (default: derived from the document)
+  children: no
+ui-whiteboard: A board without edges: draw with a pen, add sticky notes, shapes, arrows and text, select, move, resize and edit them, pan and zoom, undo, and export it as SVG.
+  bind         statekey (required)  State key holding the items, in the board's units: `{ id, type, x, y, w, h, points, text, color }`; `type` is pen, note, rect, ellipse, arrow or text
+  bindView     statekey  State key holding the view, `{ x, y, zoom }`, both ways
+  tools        any  The tools offered, from select, hand, pen, note, rect, ellipse, arrow, text (default all)
+  colors       any  The colours to pick from: CSS colours (default eight)
+  readOnly     bool  Look and move around only
+  height       any  Its height: px or a CSS length (default 480)
+  label        any  Names it for screen readers (default `Whiteboard`)
+  id           any  Element id (default: derived from the document)
+  children: no
+ui-mindmap: A mind map: a central topic with coloured branches on both sides; add, write, fold, move and delete topics from the keyboard or the mouse, pan, zoom, undo and export.
+  bind         statekey (required)  State key holding the map: the central topic, `{ id, label, children, collapsed, color }`, children the same
+  bindSelected statekey  State key that gets the `id` of the topic selected
+  layout       one of: balanced, right  `balanced` (default: branches on both sides) or `right`
+  colors       any  Colours for the first branches, in turn (default eight)
+  readOnly     bool  Look, fold and move around only
+  height       any  Its height: px or a CSS length (default 480)
+  label        any  Names it for screen readers (default: the central topic)
+  id           any  Element id (default: derived from the document)
+  children: no
 ui-timeline: Activity, newest first or as given: who did what and when, with field changes (old → new) and comments. Entries are `ui-timeline-item` children and/or `items`.
   items        any  Entries with the `ui-timeline-item` props, after any children. From state, like `{{ history }}`, it redraws as it changes
   label        any  Names it for screen readers (default `Activity`)
+  group        one of: day  A heading over each day's entries: Today, Yesterday, a weekday, a date (entries' `when` a date and time, in order)
+  relative     bool  Each `when` as how long ago (`5 min ago`, `3 h ago`), kept up to date, with the full date on hover
+  since        any  Entries after this date and time (a last visit, say) are marked New; may use state
+  limit        number  Show the first this many entries, then a button for the rest
   children: yes
 ui-timeline-item: One entry of a `ui-timeline`. Children go under its line.
   who          any  Who did it, shown first in bold
   action       any  What they did, after the name: `changed the status`, `commented`
-  when         any  When, as text: `2 hours ago`, `4 Nov, 10:42`
+  when         any  When: text (`4 Nov, 10:42`), or a date and time (`2026-11-04T10:42`) for the timeline's `group`, `relative` and `since`
   initials     any  In the avatar when there's no image (default: from `who`)
   avatar       any  Avatar image URL
   changes      any  Fields changed: `[{ field, from, to }]`, shown as from → to
@@ -1891,6 +2025,8 @@ ui-calendar: An inline calendar: days (with a time), months, quarters or years; 
   presets      any  Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`
   dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
   bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
+  compare      any  With `mode: range`, a period to compare with: `true`, or the kinds offered, from `previous`, `lastYear` and `custom`
+  bindCompare  statekey  With `compare`, a state key holding the comparison, `{ type, from, to }` (the dates it covers), or null while it's off
   name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
   locale       string  Locale for names and formats (default: the document's `lang`, else the browser's)
   label        any  Accessible name
@@ -1914,6 +2050,8 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
   presets      any  Shortcuts beside the calendar: names (`last7`, `thisMonth`, `lastQuarter`, `yearToDate`, …) or `{ label, from, to }`
   dropdowns    bool  Month and year menus in place of the caption, for dates far away such as birthdays
   bindRange    statekey  State key that gets the dates the value covers, `{ from, to }`: a chart's or a table's filter
+  compare      any  With `mode: range`, a period to compare with: `true`, or the kinds offered, from `previous`, `lastYear` and `custom`
+  bindCompare  statekey  With `compare`, a state key holding the comparison, `{ type, from, to }` (the dates it covers), or null while it's off
   name         string  Form field name: hidden inputs carry the value (`name[from]` and `name[to]` for a range)
   locale       string  Locale for names and formats (default: the document's `lang`, else the browser's)
   label        any  Accessible name
@@ -1925,6 +2063,24 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
   closeOnSelect bool  Close once a value is complete (default true; with `time` or `multiple`, false)
   align        one of: start, end  The popover's edge lined up with the button (default `start`)
   disabled     any  Boolean or expression
+  parts: trigger, input, popover
+  children: no
+ui-color-picker: A colour: picked on an area with hue and opacity sliders, typed as any CSS colour, taken from the screen, or chosen from swatches. A button opens it in a popover; `inline` shows it on the page.
+  bind         statekey  State key holding the colour as text in `format` (`#1e3a8a`), or null
+  value        any  Starting colour, when not bound
+  format       one of: hex, rgb, hsl  How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`) or `hsl` (`hsl(224, 64%, 33%)`)
+  alpha        bool  An opacity slider too
+  swatches     any  Colours to pick with one click: CSS colours, or `{ value, label }`
+  custom       bool  The area, sliders and text field (default true); false leaves just the swatches
+  eyedropper   bool  A button to take a colour from the screen, where the browser has one (default true)
+  inline       bool  The panel on the page, without the button and popover
+  placeholder  any  The button's text while there's no colour (default `Pick a colour`)
+  clearable    bool  A button that clears the colour (to null)
+  align        one of: start, end  The popover's edge lined up with the button (default `start`)
+  name         string  Form field name: a hidden input carries the colour
+  label        any  Accessible name
+  disabled     any  Boolean or expression
+  id           any  Element id (default: derived from the document)
   parts: trigger, input, popover
   children: no
 ui-data-table: A data table: sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries. Children are `ui-data-table-column`s (a cell template, with the row as `row`), `ui-data-table-toolbar`, `ui-data-table-bulk` and `ui-data-table-detail`.

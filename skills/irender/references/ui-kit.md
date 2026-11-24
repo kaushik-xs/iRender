@@ -46,6 +46,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-illustration` | `name` (not-found, server-error, forbidden, maintenance, offline, no-data, no-results, out-of-stock, empty-cart, empty-inbox, no-notifications, session-expired, payment-failed, coming-soon, all-done, no-access, upload-failed, too-many-requests, no-people, deleted, empty-calendar, welcome), `size` (default 240), `primary`, `secondary`, `label`, `animate` | An original, flat drawing for an error page or an empty state, 4 : 3. It's coloured by the theme: the primary colour, a secondary one (`color.brand-2`, else `color.chart-2`, else amber), light tints of both, and neutrals mixed from the text and background colours, so it follows a palette, the custom colours picked with `ui-theme-colors`, and dark mode. `primary` and `secondary` set its own colours (and may use state; null goes back to the theme's). Decorative unless it has a `label`. `animate` (true, or from state) brings it to life a little: a planet floats, a gear turns, a light blinks, sparkles twinkle; still for readers who prefer less motion. The blocks have whole error pages (404, 500, 403, 503, offline, an expired session) and a page of empty states. |
 | `ui-empty` | `title`, `description`, `icon`, `illustration`, `illustrationSize` (default 200) | A placeholder for a page or list with nothing in it yet; children (usually buttons) follow the text. Parts: `icon`, `title`, `description`. |
 | `ui-avatar` | `src`, `alt`, `fallback`, `size` | Initials when there's no `src`. |
+| `ui-presence` | `people` (required), `max` (default 4), `size` (default 28), `me`, `announce`, `align`, `label`, `id` | Who's here now: stacked avatars with a status dot and a colour each, then `+3`; a click lists everyone, their status and what they're on. See below. |
 | `ui-separator` | `orientation`, `decorative`, `label` | With `label`, a horizontal line with text in the middle, like "Or continue with". |
 | `ui-skeleton` | `width`, `height`, `round` | Pulses gently; still for people who ask their system for reduced motion. |
 | `ui-spinner` | `size` (default 16), `label` (default `Loading`) | A spinning ring in the text colour, `role="status"`. Slows down for people who ask for reduced motion. |
@@ -58,15 +59,21 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-number-input` | `bind` (required), `currency`, `prefix`, `suffix`, `locale`, `min`, `max`, `step`, `decimals`, `stepper`, `placeholder`, `label`, `name`, `disabled`, `invalid`, `id` | A number or an amount, grouped in the locale's way as it's typed (`1,25,000` in en-IN, `125.000` in de-DE), keeping the caret among the same digits. State gets a plain number, or null when empty. `currency` (an ISO code) puts its symbol first, tells screen readers ("in INR") and sets the decimals; Up and Down step it by `step` (Shift for ten), as do the − and + buttons with `stepper`; leaving the field clamps it to `min` and `max` and rounds it to `decimals`. Works in a `ui-field`, like the other controls. Part: `input`. |
 | `ui-notifications` | `items` (required), `bindItems`, `bindItem`, `inline`, `tab`, `title`, `label`, `emptyText`, `caughtUp`, `allHref`, `closeOnOpen` | A bell with an unread count that opens a panel of notifications (`{ id, title, body, who, when, read, archived, tone }`, newest first): Unread and All tabs, a dot to mark one read or unread, an archive button, and Mark all as read. Changes go to `bindItems`; a click opens one into `bindItem`, marks it read and closes the panel, firing `open` (`read` and `archive` fire too). `who` (a name, or `{ name, initials, avatar }`) shows initials or a photo; without it, a dot in the item's `tone`. Up and Down move through the list, Escape closes it, and the bell's label says how many are unread. `inline` puts the panel in the page instead, for a notifications page. Parts: `bell`, `panel`. |
 | `ui-status-badge` | `status` (required), `tones`, `labels`, `dot` (default true) | A status in its colour. See [Status and activity](#status-and-activity). |
+| `ui-gauge` | `value` (required), `min`, `max`, `unit`, `text`, `bands`, `tone`, `target`, `needle`, `shape` (arc, half), `size`, `thickness`, `scale`, `caption`, `label` | A figure on a dial with coloured bands, a target and a needle; follows state without a script. See below. |
+| `ui-countdown` | `to` (required), `from`, `warn`, `danger`, `overdue`, `endText`, `format` (units, clock), `variant` (inline, tiles), `bindLeft`, `bindStatus`, `label` | The time left to a deadline, turning to warning and danger as thresholds pass and counting up once overdue; fires `end` at zero. See below. |
 | `ui-progress-ring` | `value` (0–100, required), `size` (px, default 48), `thickness`, `text`, `label`, `tone` | A circular progress with the value in the middle; follows state without a script. |
 | `ui-json-editor` | `bind` (required), `bindValid`, `type` (`object`, `array`, `any`), `rows` (default 10), `indent` (default 2), `label`, `format` (default true) | A JSON text area: highlighted, with line numbers, checked as you type. An error waits for a pause in the typing (or leaving the field), then gives its line, column and a plain reason (`Trailing comma before '}'`, `Keys need double quotes`) and marks the line; a fix shows at once. The value goes to `bind` only while the text is valid (and of `type`), and a change to it from outside is shown formatted. Tab indents (Shift+Tab takes it back; Escape, then Tab, leaves), Enter keeps the indent, and Format tidies the text or jumps to the error. Works in a `ui-field`. Parts: `bar`, `textarea`, `error`; event `change` with `{ value }`. |
 | `ui-rating` | `bind` or `value`, `half`, `max` (default 5), `size`, `label`, `clearable` (default true), `disabled`, `name` | Stars to pick a rating, or to show one (fractions fill part of a star). |
 | `ui-password-checklist` | `value` (required), `rules`, `bindValid`, `meter` (default true), `label` | A password's rules, ticked as they're met, with a strength bar. |
-| `ui-timeline` + `ui-timeline-item` | `items`, `label`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
+| `ui-timeline` + `ui-timeline-item` | `items`, `label`, `group` (day), `relative`, `since`, `limit`; item: `who`, `action`, `when`, `initials`, `avatar`, `changes`, `comment`, `tone` | Who did what and when, with field changes (old → new) and comments. |
 | `ui-event-calendar` | see [Event calendar](#event-calendar) | Events in a month grid, a week of hours or a list by day, coloured by category. |
 | `ui-kanban` | see [Kanban board](#kanban-board) | Columns of cards to drag between, or move with Alt and the arrow keys. |
+| `ui-whiteboard` | `bind` (required), `bindView`, `tools`, `colors`, `readOnly`, `height`, `label`, `id` | A board without edges: pen, sticky notes, shapes, arrows and text to select, move, resize and write in, with pan, zoom, undo and SVG export. See below. |
+| `ui-mindmap` | `bind` (required), `bindSelected`, `layout` (balanced, right), `colors`, `readOnly`, `height`, `label`, `id` | A mind map: a central topic with coloured branches both sides; topics added, written, folded, moved and deleted from the keyboard or the mouse. See below. |
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
+| `ui-file-browser` | `bind` (required), `bindFolder`, `bindSelection`, `bindOpen`, `view` (grid, list), `editable` (default true), `rootLabel`, `height`, `locale`, `label`, `id` | Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu. See below. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
+| `ui-virtual-list` | `items` (required), `itemKey`, `height` (default 400), `itemHeight` (default 40), `gap`, `bindRange`, `endThreshold` (default 10), `emptyText`, `label` | A long list that keeps only the items in view in the page; children are each item, with `item` and `index` in scope. See below. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
 | `ui-text` | `text`, `variant` (p, lead, large, small, muted, code, blockquote), `tag` | Takes children, e.g. inline `code`. |
@@ -113,6 +120,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-sidebar-action` | `label` (required), `icon` (default ⋯), `showOnHover` | A small button beside a group's label (Add project) or at the end of an item's row (⋯). It runs its `on.click`, or opens its `ui-menu-item` children as a dropdown menu. `showOnHover` hides an item's until the row is hovered or has focus. Hidden while the sidebar is narrowed to icons. Part: `menu`. |
 | `ui-input-otp` | `bind`, `length` (default 6, at most 12), `pattern` (digits, letters, alphanumeric), `groups` (e.g. `[3, 3]`), `mask`, `label` (when no visible label names it), `name`, `disabled`, `invalid`, `id` | A one-time code in a row of boxes, after shadcn/ui's InputOTP. One real text field lies over the boxes, so typing, pasting, and the phone's suggestion of a code from a message (`autocomplete="one-time-code"`) all work, it's one stop in the tab order, and screen readers read it as one field; the boxes draw its characters and the caret. What the `pattern` doesn't allow is dropped (a pasted `123-456` gives `123456`), letters are kept in capitals, and `mask` shows dots. `groups` puts a dash between groups. Filling the last box fires a bubbling `complete` event (`detail.value`) for `on: { complete: … }`; clearing `bind` from state empties it. In a `ui-field`, the label names it. Part: `input`. |
 | `ui-combobox` | see [Combobox](#combobox) | A searchable select in the style of react-select: multi-select, groups, async, creatable. |
+| `ui-color-picker` | see [Colour picker](#colour-picker) | A colour: picked on a saturation and brightness area with hue and opacity sliders, typed as any CSS colour, taken from the screen, or chosen from swatches. A button opens it; `inline` shows it on the page. |
 | `ui-date-picker`, `ui-calendar` | see [Date picker](#date-picker) | A day (with a time), month, quarter or year; one, a range or several; presets, limits and financial years. The picker opens the calendar from a button; `ui-calendar` shows it inline. |
 | `ui-command` | `placeholder`, `label`, `empty` (default `No results found.`), `id`, `rank` (default true), `bindSearch`, `loading`, `loadingText` (default `Loading…`) | A command palette: a search box over a list of actions, filtered as you type: every word must match the label, at its start, at a word's start, inside it or as its letters in order (`stg` finds Settings), or the `keywords`. The best matches come first, in each group and of the groups (a label starting with what's typed, then a word starting with it, then inside, then letters in order; keywords count less, shorter labels win ties), and the matched letters are marked (with the CSS Custom Highlight API, where the browser has it). `rank: false` keeps the items' order. An item with `page: theme` opens the `ui-command-page` with that `id` (and the palette stays open): its items show in place of the rest, the page's `title` as a crumb in the search box, and Backspace in the empty box (or Escape, or the crumb) goes back; pages can open pages. `bindSearch` keeps the search text in state, both ways, to fetch items for it; while they're fetched, `loading` (e.g. `{{ searching }}`) shows a Loading row with a spinner, announced to screen readers, marks the list busy and holds back the empty message. Up and Down move between items, skipping disabled ones; Home and End jump while the box is empty; Enter runs the active item; Escape clears the search. Focus stays in the search box. Parts: `search`, `input`, `list`, `loading`, `empty`. |
 | `ui-command-dialog` | as `ui-command`, plus `trigger`, `triggerVariant`, `shortcut` (e.g. `mod+k`: ⌘K on Apple devices, Ctrl+K elsewhere), `title` (default `Command palette`) | The palette in a modal, opened by its trigger, the shortcut, or a button with `commandfor` its id. Running an item closes it, and it opens with an empty search. |
@@ -128,7 +136,10 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-form-section` | `title`, `description`, `columns`, `layout` (stacked, aside), `span`, `level` | A titled group of fields with columns of its own; sections go in a `ui-form`, side by side when it has `columns`, or in each other. See [Forms](#forms). |
 | `ui-save-bar` | `text`, `saveLabel`, `discardLabel`, `saving`, `disabled`, `position` (sticky, fixed, inline) | Shown while the `ui-form` it's in has unsaved changes: Save submits the form, Discard puts its fields back. Children go before the buttons. See [Forms](#forms). |
 | `ui-stepper` + `ui-step` | stepper: `bind` (required), `orientation` (horizontal, vertical), `linear`, `clickable`, `buttons`, `nextLabel`, `backLabel`, `finishLabel`, `complete`, `label`, `id`; step: `value`, `label` (required), `description`, `icon`, `optional`, `valid`, `error`, `disabled` | The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s. See [Forms](#forms). |
+| `ui-approval` | `bind` (required), `me`, `owner`, `bindStatus`, `readOnly`, `locale`, `label`, `id` | A sign-off in stages, each approved when its rule is met: who decided what, when and why; Approve, Request changes and Reject on your turn. See below. |
 | `ui-repeater` | `bind` (required), `fields` (required), `layout` (table, stack), `newItem`, `min`, `max`, `reorderable`, `duplicable`, `addLabel`, `itemLabel`, `label`, `emptyText`, `disabled`, `bindErrors`, `bindTotals`, `showErrors`, `locale`, `id` | Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`. See [Forms](#forms). |
+| `ui-sortable-list` | `bind` (required), `itemKey` (default `id`), `labelField` (default `label`), `numbered`, `removable`, `emptyText`, `label`, `disabled` | A list in state put in order by dragging each item's grip (mouse, touch or pen) or from the keyboard; children are each item's content. See below. |
+| `ui-form-builder` | `bind` (required), `bindDocument`, `types`, `submitLabel`, `endpoint`, `label`, `id` | A form put together in the browser: field types from a palette, put in order, set up in an inspector, tried in a preview, and given out as an iRender document of the kit's own form. See below. |
 | `ui-import` | `bind` (required), `bindImported`, `fields` (required), `url`, `params`, `batchSize`, `accept`, `maxRows`, `skipInvalid`, `template`, `title`, `locale`, `id` | Rows from a spreadsheet (CSV, Excel, or pasted cells): its columns are matched to `fields`, the rows put right in an editable table, and the good ones handed over (an `import` event and `bindImported`) or posted to `url`. See [Import](#import). |
 | `ui-tags-input` | `bind` (required), `suggestions`, `only`, `max`, `pattern`, `strict`, `lowercase`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Tags typed one after another: Enter or a comma adds one, a pasted list adds them all, Backspace takes the last. |
 | `ui-masked-input` | `bind` (required), `mask` (required), `raw`, `bindComplete`, `placeholder`, `label`, `name`, `disabled`, `invalid` | Text in a fixed shape, like a card number, a postcode or a policy number, put in shape as it's typed. |
@@ -148,6 +159,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-item-group` + `ui-item` | item-group: `label`, `variant` (divided, cards, plain); item: `title`, `description`, `icon`, `image`, `initials`, `meta`, `tone` (neutral, info, success, warning, danger, primary), `href`, `selected`, `disabled`, `size` (default, sm), `variant` (plain, outline, muted) | A list of `ui-item`s (a `list` works as its child). |
 | `ui-comments` | `bind` (required), `user`, `people`, `reactions`, `resolvable`, `replies`, `editable`, `order` (oldest, newest), `placeholder`, `emptyText`, `maxLength`, `label`, `disabled`, `locale` | Comments in threads: replies, mentions, reactions, resolving, editing one's own. Each change is written to `bind` and fires an event. |
 | `ui-lightbox` | `images` (required), `layout` (grid, row, masonry, stack), `minWidth`, `ratio`, `max`, `captions`, `download`, `bind`, `label` | Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save. |
+| `ui-compare-slider` | `before`, `after` (required), `beforeAlt`, `afterAlt`, `beforeLabel`, `afterLabel`, `position`, `bind`, `orientation` (horizontal, vertical), `hover`, `ratio`, `caption`, `label` | Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either. See below. |
 | `ui-pivot` | `rows` (required), `fields`, `down`, `across`, `values`, `filter`, `bind`, `editable`, `totals` (both, rows, columns, none), `subtotals`, `heat`, `bindCell`, `export`, `height`, `title`, `emptyText`, `locale` | A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell. See [Pivot table](#pivot-table). |
 | `ui-scheduler` | `resources` (required), `events` (required), `bindEvents`, `bindEvent`, `bindDate`, `bindView`, `view` (day, week, month), `views`, `from`, `to`, `snap`, `overlap` (allow, mark, prevent), `creatable`, `newEvent`, `moveResources`, `bindClashes`, `rowLabel`, `rowHeight`, `height`, `now`, `label`, `locale` | Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked. See [Scheduler](#scheduler). |
 | `ui-plan` | `items`, `layout`, `data`, `floors`, `bindFloor`, `multiple`, `max`, `available`, `bindPicked`, `bindTotal`, `width`, `height`, `image`, `bindItems`, `bind`, `bindItem`, `tones`, `grid`, `filter`, `search`, `legend`, `viewHeight`, `label` | Things placed on a drawing: rooms, seats, bays, beds, plots, machines. Zoomed and moved, picked (one or several), coloured by status, and rearranged by dragging. Aircraft cabins, buses, trains, cinemas, theatres, auditoriums, stadiums, halls, car parks and offices come from a few words, on one floor or several. See [Plan](#plan). |
@@ -367,6 +379,38 @@ Not replicated:
 - Values that are whole option objects: values are plain values, and their labels come from the options.
 - `searchUrl` must be a path on the same site or an http(s) URL, and options loaded from it keep only the labels the API gives.
 
+## Colour picker
+
+`ui-color-picker` is a button showing a colour that opens a panel to pick one: a saturation and brightness area, a hue slider, an opacity slider (`alpha`), a text field that takes any CSS colour (`#1e3a8a`, `rgb(30 58 138)`, `hsl(…)`, `rebeccapurple`), an eyedropper where the browser has one (Chrome and Edge), and swatches. Its behaviour (about 4 KB gzipped) is added only to pages that use it.
+
+```yaml
+- type: ui-field
+  props: { label: Brand colour }
+  children:
+    - type: ui-color-picker
+      props:
+        bind: brand                      # "#1e3a8a"
+        alpha: true                      # "#1e3a8a80" at half opacity
+        clearable: true
+        swatches: ["#0f172a", "#2563eb", "#16a34a", { value: "#ffffff", label: White }]
+- { type: ui-color-picker, props: { bind: tint, inline: true, format: rgb } }      # "rgb(30, 58, 138)"
+- { type: ui-color-picker, props: { bind: tag, custom: false, swatches: [{ value: "#ef4444", label: Red }, { value: "#22c55e", label: Green }] } }
+```
+
+| prop | |
+|---|---|
+| `bind`, `value` | The state key holding the colour, or the starting colour when not bound: text in `format`, or null for none. Whatever state holds is read as any CSS colour. |
+| `format` | `hex` (default: `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`, `rgba(…, 0.5)`) or `hsl` (`hsl(224, 64%, 33%)`, `hsla(…)`): what's written to state, in the comma form charts read too. |
+| `alpha` | An opacity slider; without it colours are written opaque. |
+| `swatches` | Colours to pick with one click: CSS colours, or `{ value, label }` (the label names it for screen readers and on hover). The one matching the value shows pressed. |
+| `custom` | The area, sliders and text field (default true). `false` leaves only the swatches, and a pick closes the popover: a palette of set colours. |
+| `eyedropper` | The button that takes a colour from the screen (default true); it shows only where the browser has the EyeDropper API. |
+| `inline` | The panel on the page, without the button and popover. In a `ui-field`, the label names its text field. |
+| `placeholder`, `clearable`, `align`, `disabled` | The button's text while there's no colour (default `Pick a colour`), a ✕ that clears it (a Clear button inline), which edge the popover lines up with, and turning it off. |
+| `name` | A hidden input carries the colour in a form. |
+
+The area is a slider for the keyboard: ←/→ change the saturation and ↑/↓ the brightness, a point at a time (Shift: ten). The hue and opacity are range inputs. A typed colour is taken as soon as it's one, and a mistake is marked on Enter or on leaving the field; Escape puts back the colour. The hue stays where it was while the colour is grey, white or black, so moving to a colour again keeps it. Each change fires a bubbling `change` event with `{ value }`.
+
 ## Date picker
 
 `ui-date-picker` is a button that opens a calendar in a popover, in the style of shadcn/ui's date picker; `ui-calendar` is the calendar on its own, inline. They take the same props, and their behaviour (about 8 KB gzipped) is added only to pages that use them.
@@ -383,6 +427,8 @@ Not replicated:
         months: 2
         max: today
         presets: [last7, last30, thisMonth, lastMonth, thisQuarter, yearToDate]
+        compare: true                    # a Compare switch: the period before, last year's, or one picked
+        bindCompare: periodVs            # { type: previous, from: 2026-01-29, to: 2026-02-28 }
 - { type: ui-date-picker, props: { bind: meeting, time: true, step: 15 } }            # 2026-03-10T14:30
 - { type: ui-date-picker, props: { bind: quarter, picker: quarter, fiscalStart: 4 } }  # 2026-Q1: April to June 2026
 - { type: ui-calendar, props: { bind: shifts, mode: multiple, disabledDays: [0, 6] } }
@@ -402,7 +448,8 @@ Not replicated:
 | `presets` | Shortcuts beside the calendar: `today`, `yesterday`, `tomorrow`, `last7`, `last30`, `last90`, `next7`, `next30`, `thisWeek`, `lastWeek`, `thisMonth`, `lastMonth`, `nextMonth`, `thisQuarter`, `lastQuarter`, `thisYear`, `lastYear`, `yearToDate`, `monthToDate`, `quarters` (the quarter today is in and the three before it, each its own button: `Q3 2026`, or `Q3 FY2026–27` on a financial year), or `{ label, from, to }` with dates or `today±N`. Quarters and years follow `fiscalStart`; the preset that matches the value shows pressed. |
 | `dropdowns` | Month and year menus in place of the caption, for dates far away such as a birthday. |
 | `bindRange` | A state key that gets the dates the value covers as `{ from, to }`: a quarter's first and last days, say. Give it to a chart's or a data table's `filter` to filter by the pick. |
-| `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date. |
+| `compare`, `bindCompare` | With `mode: range` (not `time`): a Compare switch under the calendar, and a period to compare the range with. `true` offers `previous` (as many days, months, quarters or years just before), `lastYear` (the same dates a year earlier) and `custom` (the next two picks on the calendar set it); a list offers just those, the first being what the switch turns on. `bindCompare` holds `{ type, from, to }`, the dates compared, or null while it's off: give it to a chart's or a table's `filter` beside `bindRange`. The previous period and last year's follow the range as it changes; a custom one stays put. The comparison shows on the calendar as a band in the second chart colour, and after the value in the button as `vs …`. Clearing the value turns it off. |
+| `name` | Hidden inputs carry the value in a form: `name`, or `name[from]` and `name[to]` for a range, or one per date; with a comparison, `name[compareFrom]` and `name[compareTo]` too. |
 | `label` | The accessible name. In a `ui-field`, its label names the picker's button. |
 | `clearable` | A ✕ in the picker's button (a Clear link under `ui-calendar`). |
 | `input`, `bindError` | The picker only: a text field to type the value in, with the calendar's button beside it; see [Typing a date](#typing-a-date). |
@@ -416,7 +463,7 @@ The calendar follows the WAI-ARIA date picker pattern: a grid with one cell in t
 - Escape closes the picker, and focus goes back to its button.
 - A live region says what was picked.
 
-Days outside the month show muted (left out when two months show), today is marked, and the value's text in the button follows the locale. Each change fires a bubbling `change` event with `{ value, range }`.
+Days outside the month show muted (left out when two months show), today is marked, and the value's text in the button follows the locale. Each change fires a bubbling `change` event with `{ value, range }` (and `compare`, with `compare`).
 
 ### Typing a date
 
@@ -664,6 +711,76 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **`ui-status-badge`** shows a status in its colour. Common statuses know their tone, ignoring case, spaces, `-` and `_`: Done, Complete, Paid, Approved, Active, Resolved, Delivered and Published are `success`; Open, New, To do and Scheduled are `info`; In progress is `primary`; In review, Pending, Waiting, On hold and Partial are `warning`; Overdue, Blocked, Failed, Rejected, Cancelled, Unpaid and Error are `danger`; Draft, Closed, Archived and Inactive are `neutral`, as is anything unknown. `tones` adds or overrides (`{ Shipped: success }`), and `labels` changes the text shown (`{ in_progress: In progress }`). Tones take the theme's `color.success`, `color.warning`, `color.info` and `color.destructive` when it has them. A status from state changes colour as it changes.
 
+**`ui-gauge`** shows a figure on a dial from `min` (default 0) to `max` (default 100): a 240° arc, or a semicircle with `shape: half`, the figure in the middle with its `unit`, and `min` and `max` at the ends (`scale: false` hides them). `bands` colour stretches of the dial, `[{ to: 60, tone: danger, label: Poor }, { to: 85, tone: warning, label: Fair }, { tone: success, label: Good }]`, the last running to `max`, and the value's arc takes the tone of the band it's in (`tone` sets one for good). `target` marks a value across the dial, and `needle: true` adds a needle. Like the ring, it's drawn on the server and follows state without a script: the arc, needle, target and tone move together, easing unless reduced motion is asked for. A value past either end stops the dial there and still shows itself. It's a `meter` for screen readers, read as the figure, its unit and its band's label ("82.6 %, Getting full"); `label` (default `caption`) names it. `text` replaces the figure, for one that's rounded or formatted. The chart kit's `gauge` type is the full one, with ECharts: several pointers, ticks and animation; this one is for a figure in a tile.
+
+```yaml
+- type: ui-gauge
+  props:
+    value: "{{ line.oee }}"
+    unit: "%"
+    target: 85
+    caption: Overall equipment effectiveness
+    bands: [{ to: 60, tone: danger, label: Poor }, { to: 85, tone: warning, label: Fair }, { tone: success, label: Good }]
+- { type: ui-gauge, props: { value: "{{ oil }}", min: 20, max: 120, unit: °C, shape: half, needle: true } }
+```
+
+**`ui-countdown`** shows the time left to `to`: a ticket's SLA, an offer, a launch. `to` (and `from`) is a date and time, milliseconds, or a time from when the page opens (`+15m`, `-2h 30m`), and may come from state. Under `warn` it turns to the warning tone and under `danger` to the danger one (seconds, or `90s`, `30m`, `4h`, `2d`); past the deadline it counts up as overdue, or with `overdue: false` shows `endText` (default `Time's up`). `format: units` (default) shows the two largest units that matter (`2d 4h`, `13m 05s`), `clock` a clock (`2:04:13`, `3d 02:04:13`); `variant: tiles` shows days, hours, minutes and seconds in boxes, with the deadline under them. With `from`, a bar shows how much of the time is used. It's a `timer` for screen readers: the text isn't read out every second, and each status is said once as it starts ("Reply due: 59 minutes left", "Overdue"). `bindLeft` gets the seconds left every second (below zero once overdue), `bindStatus` gets `ok`, `warning`, `danger` or `over`, and `on: { end: … }` runs when it reaches zero on the page (not for a deadline already past when it opens).
+
+```yaml
+- { type: ui-countdown, props: { to: "{{ ticket.due }}", from: "{{ ticket.opened }}", warn: 1h, danger: 15m, label: First reply due, bindStatus: slaStatus } }
+- { type: ui-countdown, props: { to: "2026-12-24T18:00", variant: tiles, label: Doors open } }
+- type: ui-countdown
+  props: { to: +15m, overdue: false, endText: The offer has ended }
+  on: { end: { action: set_state, key: offerOpen, value: false } }
+```
+
+**`ui-compare-slider`** puts two pictures of the same thing one over the other, `before` and `after`: a repair, an edit, a renovation, a season. A divider shows the first on one side and the second on the other; drag anywhere on the picture to move it (mouse, finger or pen), or focus it: the arrow keys move it a step, Page Up and Down ten, Home and End to either side. It's a range input underneath, so screen readers hear "Before 40%, after 60%"; give each picture a `beforeAlt` and `afterAlt`. `beforeLabel` and `afterLabel` (default `Before` and `After`, empty for none) sit on their sides and fade as the divider covers them. `position` (0–100, default 50) is where it starts, or `bind` keeps it in state both ways, so buttons can jump to either side. `orientation: vertical` runs it up and down, `hover` lets a mouse move it without pressing, and `ratio` (`16/9`, `1`) crops both pictures to that shape; without it the first picture sets the size and the second covers it, so they should match. Right to left, the first picture is on the right.
+
+```yaml
+- type: ui-compare-slider
+  props: { before: /photos/wall-12-nov.jpg, after: /photos/wall-21-nov.jpg, beforeAlt: The damp wall, afterAlt: The wall repaired, bind: split, caption: Living room, north wall }
+- { type: ui-compare-slider, props: { before: a.jpg, after: b.jpg, orientation: vertical, ratio: 4/3, hover: true } }
+```
+
+**`ui-presence`** shows who's here now: the people looking at a page, a document or a board. Each of `people` (`{ id, name, avatar, initials, status, color, where }`) is an avatar (their picture, else their initials, else their name's first letter) with a dot for their `status` (active, idle, busy, away; offline fades them) and a ring in their `color` (1–8, the theme's chart colours; by default by place). The first `max` overlap, then `+3` for the rest. The stack is one button, named "People here: 6", that opens everyone in a list, each with their status in words and `where` they are ("Active · Editing Budget"), `(you)` after the one whose `id` is `me`. From state, it follows as people come and go, with no script; `announce` adds one that says who joins and who leaves, for screen readers.
+
+```yaml
+- { type: ui-presence, props: { people: "{{ viewers }}", me: "{{ user.id }}", max: 3, announce: true } }
+# viewers: [{ id: u1, name: Asha Rao, status: active, where: Editing Budget }, { id: u2, name: Ravi Kumar, status: idle, avatar: /a/ravi.jpg }]
+```
+
+**`ui-virtual-list`** shows a long list, thousands of items or a hundred thousand, keeping only those in view (and a few either side) in the page, with space above and below standing in for the rest, so it scrolls smoothly. Its children are each item, with `item` and `index` in scope; items may differ in height, as they're measured while they're drawn (`itemHeight` is where it starts), and they're placed by that average height. It scrolls inside `height` (default 400) and takes focus, so the keys scroll it; each item is a `listitem` with its place in the whole list (`aria-posinset`, `aria-setsize`). `bindRange` gets the places in view, `{ from, to, total }`, for "Showing 120–140 of 5,000"; `end` fires when the last `endThreshold` items come into view, once for each length of list, for the page to load more. `itemKey` (default `id`) keeps an item's nodes as the list changes. The server writes the first 30 items, for a page read before the script runs. For rows with columns, sorting and filters, the data table's `virtual` does the same.
+
+```yaml
+- type: ui-virtual-list
+  props: { items: "{{ rows }}", height: 480, itemHeight: 48, bindRange: showing }
+  on: { end: { action: submit, endpoint: /api/rows, method: GET, into: more } }
+  children:
+    - { type: text, props: { value: "{{ item.name }}" } }
+```
+
+**`ui-file-browser`** shows folders and files one folder at a time, as a grid (with `thumb` pictures) or a list (name, modified, size), with a breadcrumb back up. `bind` holds them as a flat list, `{ id, name, parent, folder, size, modified, thumb, url }`, `parent` being the folder's `id` (none: the top) and `folder: true` making one; every change goes back to it. The bar searches the open folder, sorts (name, newest, largest, kind; folders first), switches the view, adds a folder, moves and deletes. Selecting: a click, ⌘/Ctrl or Shift with it for several, or the keys (arrows, by rows in the grid; Shift and ⌘/Ctrl too; Space; ⌘/Ctrl+A). Enter or a double click opens a folder, or a file into `bindOpen` with an `open` event; Backspace or Alt+↑ goes up. F2 renames in place (a name already in the folder is refused), Delete deletes with an Undo at the foot for ten seconds, and items move by dragging onto a folder or the breadcrumb (by touch, hold first), or from the Move to menu, which never offers a folder inside what's moving. Names that clash on a move get `(2)`. `bindFolder` keeps the open folder in state, both ways, and `bindSelection` gets the selection. `editable: false` leaves browsing and opening. Uploading is the page's: put a `ui-file-upload` beside it and add what it uploads to the list.
+
+```yaml
+- { type: ui-file-browser, props: { bind: files, bindFolder: folder, bindOpen: opened, height: 460 } }
+# files: [{ id: f1, name: Contracts, folder: true }, { id: a1, name: NDA.pdf, parent: f1, size: 52000, modified: 2026-10-12T15:30 }]
+```
+
+**`ui-whiteboard`** is a board without edges, drawn as SVG. `bind` holds its items in the board's own units, `{ id, type, x, y, w, h, points, text, color }`: `pen` (a stroke, `points` from `x`, `y`), `note` (a sticky note), `rect`, `ellipse`, `arrow` (two `points`) and `text`. The tools, each with a key: Select (V: a click, Shift for more, or a box; drag to move; the corner to resize), Hand (H, or hold Space, the middle button or two fingers), Pen (P), Sticky note (N), Rectangle (R), Ellipse (O), Arrow (A) and Text (T); a shape is dragged out, or a click gives it its usual size, and the tool goes back to Select. Double-click (or Enter on) a note or text to write in it. A colour picked colours what's selected. ⌘/Ctrl+Z undoes and Shift with it redoes, Delete deletes, ⌘/Ctrl+D duplicates, the arrows nudge (Shift: ten); with something selected, Tab goes to the next item, and Escape lets go so Tab leaves the board. The wheel scrolls, with ⌘/Ctrl (or a pinch) it zooms at the pointer; + and − zoom, 0 fits everything. Export downloads it as an SVG file. `bindView` keeps the view, `{ x, y, zoom }`, both ways; `tools` and `colors` narrow the toolbar; `readOnly` leaves looking and moving around. The board is one stop for the keyboard, named and described as a whiteboard; what's selected is said.
+
+```yaml
+- { type: ui-whiteboard, props: { bind: board, bindView: view, height: 600 } }
+# board: [{ id: n1, type: note, x: 20, y: 20, w: 170, h: 120, text: Ideas }, { id: a1, type: arrow, x: 200, y: 80, points: [[0, 0], [80, 0]] }]
+```
+
+**`ui-mindmap`** is a mind map: the central topic in the middle, its first branches shared between both sides by size (`layout: right` puts them all on the right), each in a colour of its own (`colors`, or a topic's own `color`), joined by curves. `bind` holds the map as a tree, `{ id, label, children, collapsed, color }`, the shape `ui-tree` reads, so the same state can be its outline too. Pick a topic (a click, or the keys) and: the arrows go to its parent (towards the middle), its first child (away) and its siblings (up and down), Home to the middle; Tab adds a topic inside it and Enter one beside it, each ready to write in; typing writes over it (F2 or a double click edits it); Space folds it (a folded topic shows how many are inside); Delete deletes it and what's inside (never the middle); ⌘/Ctrl+Z undoes, with Shift redoes. Drag a topic onto another to move it there (not into itself); drag the space to pan; ⌘/Ctrl and the wheel, or a pinch, zoom; Fit shows it all, and a map too big to start with is fitted. Export saves it as an SVG file. It's a `tree` for screen readers, each topic a `treeitem` with its level and whether it's folded; `bindSelected` keeps the topic picked. `readOnly` leaves looking, folding and moving around.
+
+```yaml
+- { type: ui-mindmap, props: { bind: plan, bindSelected: picked, height: 560 } }
+- { type: ui-tree, props: { nodes: "{{ plan.children }}", bind: picked } }   # the same map as an outline
+# plan: { id: root, label: Launch, children: [{ id: g, label: Goals, children: [{ id: g1, label: 500 sign-ups }] }] }
+```
+
 **`ui-progress-ring`** is `ui-progress` as a ring: `value` from 0 to 100 (clamped), the value in the middle (or `text`, empty for none), a `size` in px and a `tone`. It follows state without a script, easing to the new value unless reduced motion is asked for.
 
 **`ui-rating`** picks a rating with stars, as radio buttons: a click or the arrow keys pick, hovering previews, and a click on the chosen star clears it (`clearable: false` stops that). With `value` instead of `bind`, it shows a rating read-only, like an average of 4.3, filling part of a star, with the number beside it; screen readers hear "Rating: 4.3 out of 5".
@@ -671,6 +788,12 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 **`ui-password-checklist`** goes under a password input: `value: "{{ password }}"`. Each rule is ticked as it's met, and a bar shows the strength (Weak, Fair, Good, Strong). `rules` are `length` (8 characters, or `{ length: 12 }`), `lower`, `upper`, `number`, `symbol`, or `{ label, pattern }` with a regular expression; the default is the five presets. `bindValid` gets true while every rule is met, for a button's `disabled: "{{ !valid }}"`. Each rule is read with "met" or "not met".
 
 **`ui-timeline`** lists activity: `ui-timeline-item` children and/or `items` from state, which redraw as they change. An entry has `who` (with an avatar, the initials, or for a name from state its first letter), `action`, `when`, `changes` (`[{ field, from, to }]`, shown as from → to with the old value struck through), a quoted `comment`, and children under it. An entry with no `who` is an event, shown with a dot in its `tone`.
+
+As an activity feed, with each entry's `when` a date and time (`2026-11-20T16:40`) and the entries in order: `group: day` puts a heading over each day's first entry (Today, Yesterday, a weekday for the last week, then the date) and shows each entry's time of day; `relative` shows how long ago instead (`just now`, `5 min. ago`, `3 hr. ago`; past a day the time or the date), kept up to date each minute, with the full date on hover; `since` (a last visit, say, from state) marks the entries after it New; and `limit` shows the first so many, with a "Show 4 more" button for the rest, which moves focus to the first of them. These need a small script, added only to pages that use them; entries from state get them again whenever they change.
+
+```yaml
+- { type: ui-timeline, props: { items: "{{ activity }}", group: day, relative: true, since: "{{ lastVisit }}", limit: 10, label: Team activity } }
+```
 
 ## Event calendar
 
@@ -971,7 +1094,32 @@ A `remote` rule asks the server whether a value is accepted (is this name taken?
 
 **`ui-stepper`** shows a process's steps and the current one's panel, with Back, Next and Finish (`on: { finish: … }`). `bind` holds the current `ui-step`'s `value`. A later step waits until the ones before it are done, or are `valid`; `linear: false` lets people go anywhere. It needs no script.
 
+**`ui-approval`** shows a sign-off in stages: a manager, then finance, then a director. `bind` holds the stages, `{ id, title, rule, approvers: [{ id, name, avatar, decision, comment, at }] }`; a stage is approved when its `rule` is met (`all`, the default, `any`, or a number of its approvers), rejected once it no longer can be, and waiting when someone asks for changes. The first stage not approved is the current one; those after it wait. At the top, what it comes to ("Waiting for Finance: 1 of 2 approvals", "Rejected by Sam Okafor" with the reason); under it each stage with its approvers, what they decided, when, and their comment. When `me` is an approver on the current stage who hasn't decided, they get Approve, Request changes and Reject, with a comment (needed for the last two); the decision goes back to state with its time, a `decide` event fires, and `done` when it's approved or rejected. After changes or a rejection, `owner` (when it's `me`) can send it again, which clears the decisions. `bindStatus` gets `pending`, `changes`, `rejected` or `approved`; `readOnly` leaves out the buttons. Who may decide is for the server to check too: this only shows the buttons to the right person.
+
+```yaml
+- { type: ui-approval, props: { bind: approval, me: "{{ user.id }}", owner: "{{ claim.by }}", bindStatus: status } }
+# approval: [{ title: Manager, approvers: [{ id: ravi, name: Ravi Kumar }] }, { title: Finance, rule: any, approvers: [{ id: asha, name: Asha Rao }, { id: mei, name: Mei Lin }] }]
+```
+
 **`ui-repeater`** is rows of `fields`, kept as a list of objects. `type: computed` fields work out `compute` over the row's fields (`qty * price`), `summary` totals them under the rows and in `bindTotals`, and `bindErrors` says what's wrong. Enter goes to the same field of the next row. Children are drawn after the fields with the row as `item`, and a native control of theirs marked `attrs: { data-field: name }` is kept in step too; components that `bind` a state key can't be a row's field.
+
+**`ui-sortable-list`** puts a list in state in order: priorities, a menu, steps, a playlist. Each item has a grip to drag with a mouse, a finger or a pen (it doesn't scroll the page, so there's no wait before a drag), and a line shows where the item lands; the page scrolls near the window's edges. From the keyboard, Tab reaches each grip (↑ and ↓ go between them): Space or Enter picks the item up, ↑ and ↓ (Home and End) move it, Space puts it down and Escape puts it back; Alt with ↑ or ↓ moves it straight away. Each step is said in a live region ("Bravo moved to 4 of 4"). The list is plain values or objects with an `id` (`itemKey` names another field); children are each item's content, with `item` and `index` in scope, and without them it shows the item (or its `label`, `labelField`). `numbered` puts each item's place before it, and `removable` adds a ✕ that takes it out, focus moving to the next item. The new order goes straight to state, and a bubbling `change` event says `{ value, moved, from, to }` (or `{ value, removed }`).
+
+```yaml
+- type: ui-sortable-list
+  props: { bind: priorities, numbered: true, removable: true }
+  children:
+    - { type: text, props: { value: "{{ item.label }}" } }
+- { type: ui-sortable-list, props: { bind: menuOrder } }   # ["Home", "Orders", "Reports"]
+```
+
+**`ui-form-builder`** lets people put a form together in the page: a sign-in sheet, a survey, a request form. Under **Build**, a palette of field types (short and long text, email, number, date, a dropdown, one choice, several choices, yes or no, and a section heading) adds one after the field picked, with a click or by dragging it onto the form. Fields are put in order by dragging their grips (mouse, finger or pen) or with ↑ and ↓ on a grip, picked to be set up in the inspector (label, key, help, placeholder, choices one on each line, lowest and highest or earliest and latest, required), and duplicated or deleted (Delete on a field). A field's key follows its label until one is typed, and keys stay unique. **Preview** tries the form, with its required, email and limit checks, and shows what it would send. **Document** gives the form out as YAML or JSON, with Copy: an iRender page of the kit's own form, `ui-form` with `rules` for what was asked, `ui-field`s with the right control (`ui-input`, `ui-textarea`, `ui-number-input`, `ui-date-picker`, `ui-select`, `ui-radio-group`, `ui-toggle-group`, `ui-checkbox`), sections as `ui-form-section`, an error summary and a submit button. With `endpoint` it posts the answers there as JSON; without, it thanks the person. `bind` holds the fields (`{ id, type, label, description, placeholder, required, options, min, max }`) and `bindDocument` the document, both kept up to date; `types` narrows the palette.
+
+```yaml
+- type: ui-form-builder
+  props: { bind: fields, bindDocument: formDoc, submitLabel: Sign in, endpoint: /api/sign-ins }
+# fields: [{ id: name, type: text, label: Your name, required: true }, { id: team, type: select, label: Team, options: [Ops, Sales] }]
+```
 
 ## Import
 

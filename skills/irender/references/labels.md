@@ -75,9 +75,50 @@ root: …
 "Questions": "Questions"
 ```
 
+`approval.js`
+
+```yaml
+"All of {n} must approve": "All of {n} must approve"
+"Any one of {n} can approve": "Any one of {n} can approve"
+"{k} of {n} must approve": "{k} of {n} must approve"
+"Approved": "Approved"
+"Rejected": "Rejected"
+"Changes requested": "Changes requested"
+"Waiting": "Waiting"
+"Up next": "Up next"
+"All {n} stages signed off": { one: "{n} stage signed off", other: "All {n} stages signed off" }
+"Rejected by {name}": "Rejected by {name}"
+"{name} asked for changes": "{name} asked for changes"
+"Waiting for {stage}": "Waiting for {stage}"
+"Stage {n}": "Stage {n}"
+"{yes} of {need} approvals · stage {n} of {total}": "{yes} of {need} approvals · stage {n} of {total}"
+"Nothing to approve yet": "Nothing to approve yet"
+"Not yet": "Not yet"
+"Optional when approving": "Optional when approving"
+"Your decision": "Your decision"
+"Your decision, {name}": "Your decision, {name}"
+"Approve": "Approve"
+"Request changes": "Request changes"
+"Reject": "Reject"
+"Send it again": "Send it again"
+"Say why you're rejecting it": "Say why you're rejecting it"
+"Say what needs to change": "Say what needs to change"
+"{decision}: {stage}": "{decision}: {stage}"
+"Sent again": "Sent again"
+```
+
+`approval.rs`
+
+```yaml
+"Approval": "Approval"
+```
+
 `calendar.js`
 
 ```yaml
+"Previous period": "Previous period"
+"Same period last year": "Same period last year"
+"Custom": "Custom"
 "Today": "Today"
 "Yesterday": "Yesterday"
 "Tomorrow": "Tomorrow"
@@ -111,13 +152,22 @@ root: …
 "Presets": "Presets"
 "Month": "Month"
 "Year": "Year"
+"compared": "compared"
 "End time": "End time"
 "Start time": "Start time"
 "End": "End"
 "Start": "Start"
 "Time": "Time"
+"Compare": "Compare"
+"Compare with": "Compare with"
+"Pick the comparison's last day": "Pick the comparison's last day"
+"Pick the comparison's first day": "Pick the comparison's first day"
+"vs {range}": "vs {range}"
+"Pick a range to compare": "Pick a range to compare"
 "Clear": "Clear"
 "{date} selected": "{date} selected"
+"Comparison starts {date}; pick the end": "Comparison starts {date}; pick the end"
+"Comparing with {from} to {to}": "Comparing with {from} to {to}"
 "Range starts {date}; pick the end": "Range starts {date}; pick the end"
 "{from} to {to} selected": "{from} to {to} selected"
 "Cleared": "Cleared"
@@ -320,6 +370,30 @@ root: …
 "Code": "Code"
 ```
 
+`color.js`
+
+```yaml
+"Cleared": "Cleared"
+"Saturation {s}%, brightness {v}%": "Saturation {s}%, brightness {v}%"
+"Enter a colour like #1e3a8a or rgb(30, 58, 138)": "Enter a colour like #1e3a8a or rgb(30, 58, 138)"
+"{color} picked": "{color} picked"
+```
+
+`color.rs`
+
+```yaml
+"Colour": "Colour"
+"Pick a colour": "Pick a colour"
+"Clear": "Clear"
+"Choose a colour": "Choose a colour"
+"Saturation and brightness": "Saturation and brightness"
+"Hue": "Hue"
+"Opacity": "Opacity"
+"Colour value": "Colour value"
+"Pick a colour from the screen": "Pick a colour from the screen"
+"Swatches": "Swatches"
+```
+
 `combobox.js`
 
 ```yaml
@@ -394,6 +468,48 @@ root: …
 
 ```yaml
 "Comments": "Comments"
+```
+
+`compare.js`
+
+```yaml
+"Before {a}%, after {b}%": "Before {a}%, after {b}%"
+```
+
+`compare.rs`
+
+```yaml
+"Before": "Before"
+"After": "After"
+"Before and after": "Before and after"
+"Divider": "Divider"
+```
+
+`countdown.js`
+
+```yaml
+"{n}d": "{n}d"
+"{n}h": "{n}h"
+"{n}m": "{n}m"
+"{n}s": "{n}s"
+"{n} days": { one: "{n} day", other: "{n} days" }
+"{n} hours": { one: "{n} hour", other: "{n} hours" }
+"{n} minutes": { one: "{n} minute", other: "{n} minutes" }
+"{n} seconds": { one: "{n} second", other: "{n} seconds" }
+"Until {when}": "Until {when}"
+"{time} overdue": "{time} overdue"
+"{time} left": "{time} left"
+"Overdue": "Overdue"
+```
+
+`countdown.rs`
+
+```yaml
+"Days": "Days"
+"Hours": "Hours"
+"Minutes": "Minutes"
+"Seconds": "Seconds"
+"Time's up": "Time's up"
 ```
 
 `dashboard_grid.js`
@@ -682,6 +798,51 @@ root: …
 "It needs at least {n} points": "It needs at least {n} points"
 ```
 
+`file_browser.js`
+
+```yaml
+"{name}, {n} items": { one: "{name}, {n} item", other: "{name}, {n} items" }
+"Nothing here matches “{q}”": "Nothing here matches “{q}”"
+"This folder is empty": "This folder is empty"
+"Name": "Name"
+"Modified": "Modified"
+"Size": "Size"
+"Folder": "Folder"
+"{n} items": { one: "{n} item", other: "{n} items" }
+"Folders": "Folders"
+"Search this folder": "Search this folder"
+"Sort by": "Sort by"
+"Newest": "Newest"
+"Largest": "Largest"
+"Kind": "Kind"
+"Grid": "Grid"
+"List": "List"
+"New folder": "New folder"
+"Move to…": "Move to…"
+"Delete": "Delete"
+"{n} of {total} selected": "{n} of {total} selected"
+"Undo": "Undo"
+"Opened {name}": "Opened {name}"
+"{name} added": "{name} added"
+"Rename {name}": "Rename {name}"
+"There's already a {name} here": "There's already a {name} here"
+"Renamed to {name}": "Renamed to {name}"
+"{name} deleted": "{name} deleted"
+"{n} items deleted": "{n} items deleted"
+"Undo is at the foot.": "Undo is at the foot."
+"Undone": "Undone"
+"{name} moved to {folder}": "{name} moved to {folder}"
+"{n} items moved to {folder}": "{n} items moved to {folder}"
+"Move to": "Move to"
+"{n} selected": "{n} selected"
+```
+
+`file_browser.rs`
+
+```yaml
+"Files": "Files"
+```
+
 `filters.js`
 
 ```yaml
@@ -793,6 +954,92 @@ root: …
 "Unsaved changes": "Unsaved changes"
 "Discard": "Discard"
 "Save": "Save"
+```
+
+`form_builder.js`
+
+```yaml
+"Short text": "Short text"
+"Long text": "Long text"
+"Email": "Email"
+"Number": "Number"
+"Date": "Date"
+"Dropdown": "Dropdown"
+"One choice": "One choice"
+"Several choices": "Several choices"
+"Yes or no": "Yes or no"
+"Section": "Section"
+"New section": "New section"
+"Option 1": "Option 1"
+"Option 2": "Option 2"
+"Option 3": "Option 3"
+"{type} added: {label}": "{type} added: {label}"
+"{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
+"{name} deleted": "{name} deleted"
+"{label} (copy)": "{label} (copy)"
+"{name} added": "{name} added"
+"Add a field": "Add a field"
+"Add {type}, or drag it onto the form": "Add {type}, or drag it onto the form"
+"The form": "The form"
+"Field settings": "Field settings"
+"The arrow keys move it; drag it with a mouse or a finger.": "The arrow keys move it; drag it with a mouse or a finger."
+"Move {name}": "Move {name}"
+"Untitled": "Untitled"
+"required": "required"
+"Duplicate {name}": "Duplicate {name}"
+"Duplicate": "Duplicate"
+"Delete {name}": "Delete {name}"
+"Delete": "Delete"
+"Add a field from the list, or drag one here.": "Add a field from the list, or drag one here."
+"Pick a field to set it up.": "Pick a field to set it up."
+"Title": "Title"
+"Label": "Label"
+"Key": "Key"
+"The answer is kept under this name.": "The answer is kept under this name."
+"Description": "Description"
+"Help text": "Help text"
+"Placeholder": "Placeholder"
+"Choices": "Choices"
+"One on each line.": "One on each line."
+"Earliest": "Earliest"
+"Lowest": "Lowest"
+"Latest": "Latest"
+"Highest": "Highest"
+"Must be ticked": "Must be ticked"
+"Required": "Required"
+"Tick this to go on.": "Tick this to go on."
+"{label} is required.": "{label} is required."
+"Enter an email address, like name@example.com.": "Enter an email address, like name@example.com."
+"{label} must be at least {n}.": "{label} must be at least {n}."
+"{label} must be at most {n}.": "{label} must be at most {n}."
+"Pick a date on or after {date}.": "Pick a date on or after {date}."
+"Pick a date on or before {date}.": "Pick a date on or before {date}."
+"Thank you, your answers are in. This is what the form sent:": "Thank you, your answers are in. This is what the form sent:"
+"Try it again": "Try it again"
+"Preview": "Preview"
+"The form has no fields yet: add some under Build.": "The form has no fields yet: add some under Build."
+"Choose…": "Choose…"
+"{n} answers need a look": { one: "{n} answer needs a look", other: "{n} answers need a look" }
+"Thank you, your answers are in.": "Thank you, your answers are in."
+"Thank you": "Thank you"
+"Your answers are in.": "Your answers are in."
+"Copied": "Copied"
+"Couldn't copy: select the text and copy it": "Couldn't copy: select the text and copy it"
+"Copy": "Copy"
+"Format": "Format"
+"A page of its own: render it with irender and the UI kit, or put its root in a page and its state beside the page's.": "A page of its own: render it with irender and the UI kit, or put its root in a page and its state beside the page's."
+"The form as an iRender document": "The form as an iRender document"
+```
+
+`form_builder.rs`
+
+```yaml
+"Submit": "Submit"
+"Form builder": "Form builder"
+"View": "View"
+"Build": "Build"
+"Preview": "Preview"
+"Document": "Document"
 ```
 
 `geo.js`
@@ -1145,6 +1392,43 @@ root: …
 "This reply has UI that can't be shown here.": "This reply has UI that can't be shown here."
 ```
 
+`mindmap.js`
+
+```yaml
+"level {n}": "level {n}"
+"folded": "folded"
+"open": "open"
+"Add a topic inside": "Add a topic inside"
+"Topic": "Topic"
+"Add a topic beside": "Add a topic beside"
+"Delete": "Delete"
+"Fold or unfold": "Fold or unfold"
+"Undo": "Undo"
+"Redo": "Redo"
+"Zoom out": "Zoom out"
+"Zoom in": "Zoom in"
+"Fit everything": "Fit everything"
+"Export as SVG": "Export as SVG"
+"New topic": "New topic"
+"Topic added": "Topic added"
+"{name} and {n} inside it deleted": "{name} and {n} inside it deleted"
+"{name} deleted": "{name} deleted"
+"{name} folded, {n} inside": "{name} folded, {n} inside"
+"{name} unfolded": "{name} unfolded"
+"{name} moved into {target}": "{name} moved into {target}"
+"Undone": "Undone"
+"Redone": "Redone"
+"Renamed to {name}": "Renamed to {name}"
+"Exported": "Exported"
+```
+
+`mindmap.rs`
+
+```yaml
+"Mind map": "Mind map"
+"Mind map tools": "Mind map tools"
+```
+
 `navigation.rs`
 
 ```yaml
@@ -1338,6 +1622,25 @@ root: …
 "Field": "Field"
 "Stalls": "Stalls"
 "Circle": "Circle"
+```
+
+`presence.js`
+
+```yaml
+"{name} joined": "{name} joined"
+"{name} left": "{name} left"
+```
+
+`presence.rs`
+
+```yaml
+"Active": "Active"
+"Idle": "Idle"
+"Busy": "Busy"
+"Away": "Away"
+"Offline": "Offline"
+"People here": "People here"
+"(you)": "(you)"
 ```
 
 `pwa.js`
@@ -1631,6 +1934,24 @@ root: …
 "Toggle sidebar": "Toggle sidebar"
 ```
 
+`sortable.js`
+
+```yaml
+"{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
+"{name} put back at {n}": "{name} put back at {n}"
+"{name} put down at {n} of {total}": "{name} put down at {n} of {total}"
+"{name} picked up, at {n} of {total}": "{name} picked up, at {n} of {total}"
+"{name} removed": "{name} removed"
+```
+
+`sortable.rs`
+
+```yaml
+"Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
+"List": "List"
+"Nothing here yet": "Nothing here yet"
+```
+
 `stat.js`
 
 ```yaml
@@ -1676,6 +1997,16 @@ root: …
 "Row added": "Row added"
 "{n} rows deleted": { one: "{n} row deleted", other: "{n} rows deleted" }
 "{n} cells pasted": { one: "{n} cell pasted", other: "{n} cells pasted" }
+```
+
+`timeline.js`
+
+```yaml
+"Today": "Today"
+"Yesterday": "Yesterday"
+"just now": "just now"
+"New": "New"
+"Show {n} more": { one: "Show {n} more", other: "Show {n} more" }
 ```
 
 `tree.js`
@@ -1760,6 +2091,59 @@ root: …
 "No files yet.": "No files yet."
 "Download": "Download"
 "Close": "Close"
+```
+
+`virtual_list.rs`
+
+```yaml
+"Nothing to show": "Nothing to show"
+```
+
+`whiteboard.js`
+
+```yaml
+"Select": "Select"
+"Hand": "Hand"
+"Pen": "Pen"
+"Sticky note": "Sticky note"
+"Rectangle": "Rectangle"
+"Ellipse": "Ellipse"
+"Arrow": "Arrow"
+"Text": "Text"
+"Nothing on the board yet": "Nothing on the board yet"
+"Pick a tool and draw, or press N for a sticky note": "Pick a tool and draw, or press N for a sticky note"
+"Colour {c}": "Colour {c}"
+"Undo": "Undo"
+"Undo (⌘Z)": "Undo (⌘Z)"
+"Redo": "Redo"
+"Redo (⇧⌘Z)": "Redo (⇧⌘Z)"
+"Delete": "Delete"
+"Zoom out": "Zoom out"
+"Zoom in": "Zoom in"
+"Fit everything": "Fit everything"
+"Export as SVG": "Export as SVG"
+"{n} items moved": { one: "{n} item moved", other: "{n} items moved" }
+"Drawing added": "Drawing added"
+"{kind} added": "{kind} added"
+"{kind} text": "{kind} text"
+"Text changed": "Text changed"
+"{name}, {n} of {total}": "{name}, {n} of {total}"
+"{n} selected": "{n} selected"
+"{n} items deleted": { one: "{n} item deleted", other: "{n} items deleted" }
+"Undone": "Undone"
+"Redone": "Redone"
+"{n} items duplicated": { one: "{n} item duplicated", other: "{n} items duplicated" }
+"Empty whiteboard": "Empty whiteboard"
+"Nothing to export": "Nothing to export"
+"Exported": "Exported"
+```
+
+`whiteboard.rs`
+
+```yaml
+"Whiteboard tools": "Whiteboard tools"
+"whiteboard": "whiteboard"
+"Whiteboard": "Whiteboard"
 ```
 
 ## Markdown kit
