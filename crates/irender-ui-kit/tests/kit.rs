@@ -152,6 +152,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-sortable-list", json!({ "bind": "k" })),
         ("ui-form-builder", json!({ "bind": "k" })),
         ("ui-countdown", json!({ "to": "+1h" })),
+        ("ui-iframe", json!({ "src": "https://example.com" })),
         ("ui-compare-slider", json!({ "before": "/a.jpg", "after": "/b.jpg" })),
         ("ui-presence", json!({ "people": [] })),
         ("ui-virtual-list", json!({ "items": [] })),
@@ -229,7 +230,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 210);
+    assert_eq!(kit, 211);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -1457,6 +1458,35 @@ fn countdown_structure_and_mistakes() {
     assert!(err(json!({ "to": "+1h", "warn": "soon" })).contains("`warn` is seconds"));
     assert!(err(json!({ "to": "+1h", "danger": "2w" })).contains("`danger` is seconds"));
     assert!(err(json!({ "to": "+1h", "warn": "10m", "danger": "1h" })).contains("`danger` comes after `warn`"));
+}
+
+#[test]
+fn iframe_structure_and_mistakes() {
+    let body = plain(&render_with(
+        json!({ "type": "element", "children": [
+            { "type": "ui-iframe", "props": { "src": "{{ url }}", "title": "Map", "ratio": "16 / 9" } },
+            { "type": "ui-iframe", "props": { "src": "https://example.org", "sandbox": ["scripts", "allow-forms"], "allow": ["fullscreen", "camera"], "loading": "eager" } },
+            { "type": "ui-iframe", "props": { "src": "https://example.org", "sandbox": false, "allow": "" } }
+        ] }),
+        json!({ "url": "https://example.com/map" }),
+        json!({}),
+    )
+    .unwrap()
+    .body);
+    // Sandboxed and lazy by default, its `src` following state.
+    assert!(body.contains(r#"<iframe src="https://example.com/map" title="Map" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allow="fullscreen" data-i-b="#), "{body}");
+    assert!(body.contains(r#"loading="eager" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-forms" allow="fullscreen; camera"></iframe>"#), "{body}");
+    assert!(body.contains(r#"<iframe src="https://example.org" title="Embedded page" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>"#), "{body}");
+
+    let err = |props: Json| render_with(json!({ "type": "ui-iframe", "props": props }), json!({ "list": [] }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "src": "x", "sandbox": ["top-navigation"] })).contains("`sandbox` can't allow `top-navigation`"));
+    assert!(err(json!({ "src": "x", "sandbox": "{{ list }}" })).contains("`sandbox` can't use state"));
+
+    // The untrusted policy refuses frames, the kit's as well as a plain `iframe`.
+    let mut untrusted = Engine::untrusted();
+    irender_ui_kit::register(&mut untrusted.registry);
+    let ir = untrusted.load(&json!({ "version": 1, "root": { "type": "ui-iframe", "props": { "src": "https://example.com" } } }).to_string(), Format::Json).unwrap();
+    assert!(untrusted.render(&ir, &json!({})).unwrap_err().to_string().contains("tag `iframe` is not allowed"));
 }
 
 #[test]

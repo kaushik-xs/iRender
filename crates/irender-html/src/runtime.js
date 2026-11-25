@@ -326,7 +326,9 @@
             const aria = /^aria-/i.test(b.n) && typeof v === "boolean";
             const s = aria ? String(v) : v === true ? "" : str(v);
             if (v === null || (v === false && !aria) || (URL_ATTRS.has(b.n) && !safeUrl(s))) el.removeAttribute(b.n);
-            else el.setAttribute(b.n, s);
+            // Only when it changes: setting an iframe's `src` (or a media element's) again,
+            // even to the same address, loads it again.
+            else if (el.getAttribute(b.n) !== s) el.setAttribute(b.n, s);
             if (b.n === "value" || b.n === "checked") el[b.n] = b.n === "checked" ? truthy(v) : s;
           } else if (b.k === "var") {
             // As the server writes it: `initial` when there's no value, so an ancestor's

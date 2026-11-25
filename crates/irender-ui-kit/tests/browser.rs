@@ -9207,3 +9207,49 @@ fn tabs_by_keyboard_in_chrome() {
         "\n{result}"
     );
 }
+
+/// `ui-iframe`: its size (a height, or a ratio of its width), its `src` following state,
+/// an unsafe address dropped, and no reload when other state changes.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn iframe_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "url": "about:blank#one", "other": 0 },
+        "root": { "type": "element", "style": { "width": 800 }, "children": [
+            { "type": "ui-iframe", "attrs": { "id": "a" }, "props": { "src": "{{ url }}" } },
+            { "type": "ui-iframe", "attrs": { "id": "b" }, "props": { "src": "about:blank", "ratio": "16 / 9", "bordered": false } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender;
+      const a = document.getElementById("a"), b = document.getElementById("b");
+      const box = (el) => { const r = el.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}`; };
+      try {
+        log("sizes", box(a), box(b));
+        log("sandbox", a.sandbox.contains("allow-scripts"), a.sandbox.contains("allow-top-navigation"), a.loading, a.allow);
+        // A real page (a fragment change never reloads), then other state changing.
+        const page = URL.createObjectURL(new Blob(["<p>framed</p>"], { type: "text/html" }));
+        api.set("url", page); await new Promise((r) => a.addEventListener("load", r, { once: true }));
+        let loads = 0; a.addEventListener("load", () => loads++);
+        for (let i = 1; i <= 5; i++) { api.set("other", i); await wait(50); }
+        log("other state", loads, "loads");
+        api.set("url", "about:blank#two"); await wait(20);
+        log("src", a.getAttribute("src"));
+        api.set("url", "javascript:alert(1)"); await wait(20);
+        log("unsafe", a.hasAttribute("src"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("iframe", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["sizes 800x400 800x450", "sandbox true false lazy fullscreen", "other state 0 loads", "src about:blank#two", "unsafe false"],
+        "\n{result}"
+    );
+}

@@ -91,7 +91,8 @@
   "ui-file-browser": "2026-11-23",
   "ui-approval": "2026-11-23",
   "ui-whiteboard": "2026-11-23",
-  "ui-mindmap": "2026-11-24"
+  "ui-mindmap": "2026-11-24",
+  "ui-iframe": "2026-11-25"
  },
  "sections": [
   {
@@ -690,6 +691,17 @@
    "usage": "- type: ui-compare-slider\n  props: { before: /photos/wall-before.jpg, after: /photos/wall-after.jpg, beforeAlt: The damp wall, afterAlt: The wall repaired, bind: split }\n- { type: ui-compare-slider, props: { before: a.jpg, after: b.jpg, orientation: vertical, ratio: 4/3, hover: true } }",
    "components": [
     "ui-compare-slider"
+   ]
+  },
+  {
+   "id": "iframe",
+   "group": "Data display",
+   "title": "Iframe",
+   "nav": "Iframe",
+   "summary": "Another page shown inside this one: a map, a video, a form, a report from another tool, or one of your own pages. It goes anywhere a component can: in a card, a tab, a dialog or a grid cell. Sandboxed by default (it can run its scripts and forms, not take over this page), loaded as it nears the screen, at a height or a width-to-height ratio, and its address can come from state. The untrusted policy refuses it, as it refuses a plain iframe.",
+   "usage": "- { type: ui-iframe, props: { src: https://example.com/report, title: Monthly report, height: 480 } }\n- { type: ui-iframe, props: { src: \"{{ videoUrl }}\", title: Product tour, ratio: \"16 / 9\", allow: [fullscreen, picture-in-picture] } }\n- { type: ui-iframe, props: { src: /widgets/status.html, title: Status, sandbox: [], bordered: false } }   # no scripts at all",
+   "components": [
+    "ui-iframe"
    ]
   },
   {

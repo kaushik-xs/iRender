@@ -1042,6 +1042,12 @@ root: …
 "Document": "Document"
 ```
 
+`frame.rs`
+
+```yaml
+"Embedded page": "Embedded page"
+```
+
 `geo.js`
 
 ```yaml

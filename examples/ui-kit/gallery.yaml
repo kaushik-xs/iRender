@@ -290,6 +290,7 @@ state:
     - { id: comments, type: textarea, label: Anything else?, placeholder: Optional }
   builtDoc: null
   slaLeft: null
+  framePage: blocks/login-03.html
   slaStatus: null
   compareAt: 50
   vlCount: 200
@@ -2629,6 +2630,51 @@ root:
                 - { type: if, props: { when: "{{ api.compare_slider.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.compare_slider }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- iframe
+            - type: element
+              props: { tag: section }
+              attrs: { id: iframe, aria-labelledby: iframe-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.iframe }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "Blocks from this site, each a page of its own. The buttons change the address in state (framePage = {{ framePage }}); the frame follows." }
+                - type: ui-card
+                  props: { title: In a card }
+                  children:
+                    - type: stack
+                      props: { gap: 12 }
+                      children:
+                        - type: stack
+                          props: { direction: row, gap: 8 }
+                          children:
+                            - { type: ui-button, props: { label: Sign in, variant: "{{ framePage == 'blocks/login-03.html' ? 'secondary' : 'outline' }}", size: sm }, on: { click: { action: set_state, key: framePage, value: blocks/login-03.html } } }
+                            - { type: ui-button, props: { label: Pricing, variant: "{{ framePage == 'blocks/pricing.html' ? 'secondary' : 'outline' }}", size: sm }, on: { click: { action: set_state, key: framePage, value: blocks/pricing.html } } }
+                            - { type: ui-button, props: { label: Not found, variant: "{{ framePage == 'blocks/error-404.html' ? 'secondary' : 'outline' }}", size: sm }, on: { click: { action: set_state, key: framePage, value: blocks/error-404.html } } }
+                        - { type: ui-iframe, props: { src: "{{ framePage }}", title: A block, ratio: "16 / 10" } }
+                - type: element
+                  style: { display: grid, grid-template-columns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24, align-items: start }
+                  children:
+                    - type: stack
+                      props: { gap: 6 }
+                      children:
+                        - { type: ui-label, props: { text: "A fixed height (240px), no border" } }
+                        - { type: ui-iframe, props: { src: blocks/error-offline.html, title: Offline page, height: 240, bordered: false } }
+                    - type: stack
+                      props: { gap: 6 }
+                      children:
+                        - { type: ui-label, props: { text: "sandbox: [] — shown, but its scripts don't run" } }
+                        - { type: ui-iframe, props: { src: blocks/settings.html, title: Settings without scripts, height: 240, sandbox: [] } }
+                - { type: if, props: { when: "{{ api.iframe.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.iframe }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

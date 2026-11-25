@@ -68,6 +68,7 @@ mod gauge;
 mod sortable;
 mod form_builder;
 mod countdown;
+mod frame;
 mod compare;
 mod presence;
 mod virtual_list;
@@ -222,6 +223,7 @@ pub fn register(registry: &mut Registry) {
         .register(sortable::SortableList)
         .register(form_builder::FormBuilder)
         .register(countdown::Countdown)
+        .register(frame::Iframe)
         .register(compare::CompareSlider)
         .register(presence::Presence)
         .register(virtual_list::VirtualList)

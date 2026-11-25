@@ -1,7 +1,8 @@
 # Block: a documentation page. Pages on the left, the article in the middle, and "On this
 # page" on the right: a `ui-scroll-spy`, whose link for the section being read is marked
 # as you scroll. Both side columns stay in view; on a phone they fold away. The snippets
-# are `ui-code-block`s: highlighted, with a copy button.
+# are `ui-code-block`s: highlighted, with a copy button; Next steps shows a block running in
+# a `ui-iframe`.
 #
 #   cargo run -p irender-cli -- render examples/blocks/docs-01.yaml --ui-kit --icon-kit -o docs-01.html
 version: 1
@@ -95,6 +96,7 @@ root:
                     title: Next steps
                     body: "Add state and actions to make the page interactive, put charts in it with the chart kit, or start from a block: a dashboard, a data table, a chat, settings, pricing and more, each one document to copy."
                     code: null
+                    preview: dashboard-01.html
               style: { display: contents }
               children:
                 - type: element
@@ -108,6 +110,12 @@ root:
                       props: { when: "{{ s.code }}" }
                       children:
                         - { type: ui-code-block, props: { code: "{{ s.code }}", language: "{{ s.lang }}", title: "{{ s.file }}", lineNumbers: "{{ s.lang == 'yaml' }}" } }
+                    # A block running inside the article, as a reader would see it.
+                    - type: if
+                      props: { when: "{{ s.preview }}" }
+                      children:
+                        - { type: ui-iframe, props: { src: "{{ s.preview }}", title: The dashboard-01 block, ratio: "16 / 10" } }
+                        - { type: ui-button, props: { label: Open the dashboard block, variant: link, href: "{{ s.preview }}" }, style: { align-self: start, padding: 0 } }
             - type: element
               style: { display: flex, justify-content: space-between, gap: 12, margin-top: 32, padding-top: 24, border-top: 1px solid $color.border }
               children:

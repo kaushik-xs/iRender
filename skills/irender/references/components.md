@@ -755,6 +755,17 @@ ui-countdown: The time left to a deadline, turning to warning and danger as thre
   bindStatus   statekey  State key that gets `ok`, `warning`, `danger` or `over` as it changes
   label        any  What it counts down to, for screen readers, e.g. `First reply due`
   children: no
+ui-iframe: Another page shown inside this one: sandboxed, loaded as it nears the screen, at a height or a ratio.
+  src          any (required)  The page's address; may use state
+  title        any  Names the frame for screen readers (default `Embedded page`)
+  height       any  Number (px) or CSS length (default 400); ignored with `ratio`
+  ratio        any  Width / height instead of a height: `"16 / 9"`, `1.5`
+  sandbox      any  What the page may do: a list from `scripts`, `same-origin`, `forms`, `popups`, `popups-to-escape-sandbox`, `modals`, `downloads`, `presentation`, `pointer-lock`, `orientation-lock`, `top-navigation-by-user-activation`, `storage-access-by-user-activation`; `[]` for nothing, `false` for no sandbox (default `[scripts, same-origin, forms, popups, popups-to-escape-sandbox]`)
+  allow        any  Browser features it may use: a list like `[fullscreen, clipboard-write, camera]`, or the `allow` attribute's text (default `[fullscreen]`)
+  loading      one of: lazy, eager  Default `lazy`: loaded as it nears the screen
+  referrerPolicy any  Default `strict-origin-when-cross-origin`
+  bordered     bool  A border and rounded corners (default true)
+  children: no
 ui-compare-slider: Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either.
   before       any (required)  The first picture's address
   after        any (required)  The second picture's address, the same size and framing
