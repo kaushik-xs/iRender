@@ -179,12 +179,17 @@ The selected object opens a popup with its title, description and readouts. A `u
 
 With `editable: true` and `bindObjects`, objects can be dragged on the ground (snapping to `snap` metres). The selected one moves with Alt and the arrow keys, turns 90° with Alt+R (Alt+Shift+R back), and Delete removes it; its popup has Rotate and Remove too. `palette` offers things to add: clicked, one goes in the middle of the view; dragged into it, where it's dropped. Each change is written back to its row in the form the row had (`[x, z]`, `[x, y, z]`, `{ x, z }` or `x` and `z` fields), and the twin fires `move`, `add` or `remove`. Objects on a path or attached to another aren't moved by hand.
 
+### Several at once
+
+With `multiple: true`, ⌘, Ctrl or Shift and a click adds an object to the ones picked or takes it away (on the view, its tag or the list), Shift and a drag from the floor draws a box and picks what's in it, and ⌘A (with the view focused) picks them all. Each picked one has its ring; the last one picked is the selected one (`bind`, its popup when it's alone), and `bindSelected` has all their ids (set it to pick them). Editable, they move together: dragging one drags the others with it, Alt and the arrows move them all, Alt+R turns each about itself, and Delete removes them all, written back in one change. The twin fires `selectionchange` with `{ ids, objects }`, and `selectMany(ids)` and `selection` are on the element's `__twin`.
+
 ## Events
 
 | event | detail |
 |---|---|
 | `ready` | `{ objects }`, once the models have loaded |
 | `select` | `{ id, object }` |
+| `selectionchange` | `{ ids, objects }`, with `multiple` |
 | `zoneselect` | `{ id, zone }` |
 | `alarm` | `{ id, object }`, for each new alarm |
 | `data` | `{ count }`, for each answer from `live` |
@@ -193,7 +198,7 @@ With `editable: true` and `bindObjects`, objects can be dragged on the ground (s
 
 ## Gestures and keys
 
-Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup.
+Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup, then the selection. With `multiple`, Shift-drag from the floor draws a box (see [Several at once](#several-at-once)); otherwise it moves the view as right-drag does.
 
 ## Smoothness
 

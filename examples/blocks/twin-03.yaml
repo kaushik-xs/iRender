@@ -1,6 +1,7 @@
 # Block: planning a layout in 3D. The layout is a list of objects in state: drag one to move
 # it (it snaps to half a metre), Alt and the arrow keys move the selected one, Alt+R turns
-# it, Delete removes it, and the palette adds more, clicked or dragged in. Every change is
+# it, Delete removes it, and the palette adds more, clicked or dragged in. ⌘ or Shift and a
+# click picks several (Shift and a drag from the floor, a box of them), moved together. Every change is
 # written back to the list, which the JSON editor shows and can change too. The camera's
 # place is kept in state, to copy into a view.
 #
@@ -9,6 +10,7 @@ version: 1
 state:
   picked: null
   item: null
+  selection: []
   camera: null
   layout:
     - { id: rack-1, model: rack, position: [-6, -4], title: Rack 1 }
@@ -42,6 +44,8 @@ root:
         snap: 0.5
         bind: picked
         bindObject: item
+        multiple: true
+        bindSelected: selection
         bindCamera: camera
         labels: all
         models:
@@ -87,9 +91,20 @@ root:
           props: { gap: 2 }
           children:
             - { type: ui-heading, props: { level: 3, text: Layout } }
-            - { type: ui-text, props: { variant: muted, text: "{{ layout.length }} objects · drag to move, Alt+R to turn, Delete to remove" } }
+            - { type: ui-text, props: { variant: muted, text: "{{ layout.length }} objects · drag to move, Alt+R to turn, Delete to remove; ⌘ or Shift to pick several" } }
         - type: if
-          props: { when: "{{ item }}" }
+          props: { when: "{{ selection.length > 1 }}" }
+          children:
+            - type: ui-card
+              props: { title: "{{ selection.length }} picked", description: "Drag one or use Alt and the arrows to move them together; Delete removes them all." }
+              children:
+                - type: list
+                  props: { items: "{{ selection }}", as: id }
+                  style: { display: flex, flex-wrap: wrap, gap: 6 }
+                  children:
+                    - { type: ui-badge, props: { text: "{{ id }}", variant: secondary } }
+        - type: if
+          props: { when: "{{ item && selection.length <= 1 }}" }
           children:
             - type: ui-card
               props: { title: "{{ item.title }}", description: "{{ item.id }} · {{ item.model || item.shape }}" }

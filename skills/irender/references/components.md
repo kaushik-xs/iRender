@@ -2423,10 +2423,12 @@ ui-twin: A digital twin: a 3D world drawn with three.js from models of most form
   labels       one of: auto, all, none  Tags over objects: `auto` (default) for those with a `label`, readouts or an alarm; `all`; `none` (alarms still)
   editable     any  Objects can be dragged on the ground, or moved with Alt and the arrow keys and turned with Alt+R (needs `bindObjects`)
   snap         any  Metres moves snap to, e.g. 0.5
+  multiple     bool  Several objects picked at once: ⌘, Ctrl or Shift and a click adds or takes one away (on the view, a tag or the list), Shift and a drag from the floor draws a box around more, ⌘A picks them all. Editable, they're dragged, moved, turned and removed together. The last one picked is the selected one (`bind`); all are in `bindSelected`
   palette      any  While `editable`, things to add, as rows like `objects` without a place: `[{ label, model | shape, title, … }]`. Clicked, one is added in the middle of the view; dragged into it, where it's dropped. Delete removes the selected object
   bind         statekey  State key with the selected object's id (null when none). Setting it selects that object and brings it into view
   bindObject   statekey  State key with the selected object itself, with its latest values
   bindZone     statekey  State key with the id of the zone last clicked
+  bindSelected statekey  State key with the ids of the objects picked (with `multiple`, several; else the selected one's); setting it picks them
   bindView     statekey  State key with the current view's id; setting it moves the camera there
   bindAlarms   statekey  State key with the ids of the objects in alarm, e.g. for a count
   bindObjects  statekey  State key the objects are in: a moved one's `position` and `rotation` are written back to its row

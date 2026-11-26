@@ -58,7 +58,7 @@ root:
       props: { gap: 6 }
       children:
         - { type: ui-heading, props: { level: 1, text: "Editing a layout" } }
-        - { type: ui-text, props: { variant: lead, text: "editable with bindObjects: drag objects to move them, Alt and the arrows move the selected one, Alt+R turns it, Delete removes it, and the palette adds more. Each change is written back to the rows in state. Block twin-03 is a whole planner." } }
+        - { type: ui-text, props: { variant: lead, text: "editable with bindObjects: drag objects to move them, Alt and the arrows move the selected one, Alt+R turns it, Delete removes it, and the palette adds more. With multiple, ⌘ or Shift and a click picks several, Shift and a drag from the floor draws a box around them, and they move, turn and go together. Each change is written back to the rows in state. Block twin-03 is a whole planner." } }
     - type: ui-twin
       attrs: { id: editing }
       props:
@@ -67,6 +67,7 @@ root:
         objects: "{{ desk }}"
         bindObjects: desk
         editable: true
+        multiple: true
         snap: 0.5
         labels: all
         camera: { position: [0, 6, 7], target: [0, 0, 0] }

@@ -154,7 +154,7 @@
       return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)]));
     };
     const WORLD = ["models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy"];
-    const LIVE = [...WORLD, "world", "src", "live", "follow", "filter", "toneBy", "alarmBy", "effectBy", "labels", "editable", "snap", "palette", "lod"];
+    const LIVE = [...WORLD, "world", "src", "live", "follow", "filter", "toneBy", "alarmBy", "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple"];
     const props = {}, fixed = cfg.props;
     let fetched = null; // the world from `src`
     const read = () => {
@@ -184,7 +184,10 @@
 
     let T = null, renderer = null, scene = null, camera = null, controls = null, world = null;
     let items = new Map(), recs = [], zones = [], walls = [], paths = new Map(), pathMeshes = [];
-    let selected = null, popup = null, ground = null, grid = null, sun = null, hemi = null, sel = null;
+    let selected = null, popup = null, ground = null, grid = null, sun = null, hemi = null, ringOf = null;
+    // With `multiple`, the objects picked together (the selected one among them); else just it.
+    const picked = new Set(), sels = [];
+    const multi = () => !!props.multiple;
     const live$ = new Map(); // id → the latest values from `live`
     const colors = {};
     let stopped = false;
@@ -1235,13 +1238,14 @@
         dress(it);
         ringFor(it);
       }
-      sel && sel.material.color.set(colors.primary);
+      for (const m of sels) m.material.color.set(colors.primary);
       wake();
     }
 
     // ---------------------------------------------------------------- objects
     const t0 = performance.now();
     function sync() {
+      let gone = false;
       collect();
       const want = new Map(recs.map((r) => [r.id, r]));
       for (const [id, it] of items) if (!want.has(id)) {
@@ -1252,8 +1256,10 @@
         it.tag?.remove();
         it.option?.remove();
         items.delete(id);
-        if (selected === id) select(null);
+        if (picked.delete(id) || selected === id) gone = true;
       }
+      // What's left of the picked ones stays picked.
+      if (gone) pickMany([...picked], { popup: false });
       const now = performance.now(), dur = fin(cfg.transition) ? num(cfg.transition) : 600;
       for (const r of recs) {
         let it = items.get(r.id);
@@ -1328,7 +1334,8 @@
       }
       if (!it.tag) {
         it.tag = make("button", { type: "button", "data-twin-tag": r.id, tabindex: "-1" });
-        it.tag.addEventListener("click", () => select(r.id, { popup: true }));
+        it.tag.addEventListener("click", (e) => (adds(e) ? toggle(r.id) : select(r.id, { popup: true })));
+        it.tag.toggleAttribute("data-selected", picked.has(r.id));
         tagLayer.append(it.tag);
       }
       const t = it.tag;
@@ -1360,7 +1367,7 @@
       if (!it.option) {
         it.option = make("li");
         const b = make("button", { type: "button", "data-twin-option": r.id });
-        b.addEventListener("click", () => select(r.id, { popup: true, fly: true, keys: true }));
+        b.addEventListener("click", (e) => (adds(e) ? toggle(r.id) : select(r.id, { popup: true, fly: true, keys: true })));
         b.addEventListener("focus", () => (focused = r.id, wake()));
         b.addEventListener("blur", () => (focused = null, wake()));
         it.option.append(b);
@@ -1368,7 +1375,7 @@
       const b = it.option.firstChild;
       const text = [r.title || r.id, r.alarm ? L("Alarm") : null, ...r.reads.map((x) => `${x.label} ${x.text}`)].filter(Boolean).join(", ");
       if (b.textContent !== text) b.textContent = text;
-      b.setAttribute("aria-pressed", String(selected === r.id));
+      b.setAttribute("aria-pressed", String(picked.has(r.id)));
     }
     let focused = null, adding = null;
 
@@ -1378,19 +1385,55 @@
       if (id !== null && !items.has(id)) id = null;
       const was = selected;
       selected = id;
-      for (const it of items.values()) it.option?.firstChild.setAttribute("aria-pressed", String(it.id === id));
-      for (const it of items.values()) it.tag?.toggleAttribute("data-selected", it.id === id);
+      if (!o.keep) {
+        picked.clear();
+        if (id !== null) picked.add(id);
+      }
+      marked(o.quiet);
       set("bindObject", id === null ? null : items.get(id).rec.row);
+      // From `bindSelected`, `bind` follows (quietly: no events).
+      if (o.bind) set("bind", id === null ? null : (items.get(id).rec.row.id ?? id));
       if (!o.quiet) {
         set("bind", id === null ? null : (items.get(id).rec.row.id ?? id));
         if (id !== was) api.emit("select", { id: id === null ? null : items.get(id).rec.row.id ?? id, object: id === null ? null : items.get(id).rec.row });
       }
-      if (id === null) close(false);
-      else {
+      if (id === null || picked.size > 1) close(false);
+      if (id !== null) {
         if (o.fly) flyTo(items.get(id));
-        if (o.popup !== false && cfg.popup) openPopup(items.get(id), o.keys);
+        if (o.popup !== false && cfg.popup && picked.size <= 1) openPopup(items.get(id), o.keys);
       }
       wake();
+    }
+    // Several at once (`multiple`): the last one is the selected one, with its popup when
+    // it's alone.
+    function pickMany(ids, o = {}) {
+      ids = [...new Set([].concat(ids ?? []).map(str))].filter((id) => items.has(id));
+      if (!multi()) ids = ids.slice(-1);
+      picked.clear();
+      ids.forEach((id) => picked.add(id));
+      const one = o.primary !== undefined && ids.includes(str(o.primary)) ? str(o.primary) : ids.includes(selected) ? selected : ids.at(-1) ?? null;
+      select(one, { ...o, keep: true, popup: ids.length === 1 && o.popup !== false });
+      if (ids.length > 1) live.textContent = L("{n} selected", { n: ids.length });
+    }
+    // In or out of the objects picked (⌘, Ctrl or Shift and a click).
+    function toggle(id) {
+      const ids = [...picked];
+      pickMany(picked.has(id) ? ids.filter((x) => x !== id) : [...ids, id], { popup: false, primary: picked.has(id) ? undefined : id });
+    }
+    const adds = (e) => multi() && (e.metaKey || e.ctrlKey || e.shiftKey);
+    // Marks the picked ones in the list and on their tags, and says which they are.
+    let lastPicked = "[]";
+    function marked(quiet) {
+      for (const it of items.values()) {
+        it.option?.firstChild.setAttribute("aria-pressed", String(picked.has(it.id)));
+        it.tag?.toggleAttribute("data-selected", picked.has(it.id));
+      }
+      const rows = [...picked].map((id) => items.get(id).rec.row), ids = rows.map((r, i) => r.id ?? [...picked][i]);
+      const now = JSON.stringify(ids);
+      if (now === lastPicked) return;
+      lastPicked = now;
+      set("bindSelected", ids);
+      if (!quiet) api.emit("selectionchange", { ids, objects: rows });
     }
     function fillPopup(box, r) {
       box.querySelectorAll(":scope > :not([data-twin-close])").forEach((n) => n.remove());
@@ -1633,16 +1676,24 @@
         } else if (!flight) flyTo(fit2);
         followAt = p;
       } else followAt = null;
-      // The selection ring.
+      // A ring under each picked object, from a pool.
       const s = selected !== null ? items.get(selected) : null;
-      if (s && s.size) {
-        const p = s.group.getWorldPosition(v3());
-        sel.visible = true;
-        sel.position.set(p.x, 0.02, p.z);
-        sel.scale.setScalar(Math.max(0.45, (Math.hypot(s.size.x * s.rec.scale.x, s.size.z * s.rec.scale.z) / 2 + 0.25)));
-      } else sel.visible = false;
+      let n = 0;
+      for (const id of picked) {
+        const x = items.get(id);
+        if (!x?.size) continue;
+        if (!sels[n]) {
+          sels[n] = ringOf(1);
+          sels[n].material.color.set(colors.primary);
+        }
+        const m = sels[n++], p = x.group.getWorldPosition(v3());
+        m.visible = true;
+        m.position.set(p.x, 0.02, p.z);
+        m.scale.setScalar(Math.max(0.45, Math.hypot(x.size.x * x.rec.scale.x, x.size.z * x.rec.scale.z) / 2 + 0.25));
+      }
+      for (; n < sels.length; n++) sels[n].visible = false;
       const f = focused !== null ? items.get(focused) : null;
-      if (f && f !== s && f.size) {
+      if (f && !picked.has(f.id) && f.size) {
         const p = f.group.getWorldPosition(v3());
         hover.visible = true;
         hover.position.set(p.x, 0.02, p.z);
@@ -1871,7 +1922,57 @@
       const s = fin(props.snap) ? num(props.snap) : 0;
       return s > 0 ? Math.round(n / s) * s : round(n, 3);
     };
+    // Where an object's middle is in the view, in pixels from its top left; null behind it.
+    function onScreen(it) {
+      const p = (it.batch ? it.group.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, (it.size?.y ?? 0) / 2, 0)) : new T.Box3().setFromObject(it.body ?? it.group).getCenter(new T.Vector3())).project(camera);
+      return p.z > 1 ? null : { x: round(((p.x + 1) / 2) * host.clientWidth, 1), y: round(((1 - p.y) / 2) * host.clientHeight, 1) };
+    }
+    // With `multiple`, Shift and a drag from where there's no object draws a box: what's
+    // in it is picked too. It's the view's before the camera's (Shift-drag pans otherwise).
+    let box = null;
+    function bindBox() {
+      const at = (e) => {
+        const r = host.getBoundingClientRect();
+        return { x: e.clientX - r.left, y: e.clientY - r.top };
+      };
+      const rect = () => ({ l: Math.min(box.a.x, box.b.x), t: Math.min(box.a.y, box.b.y), r: Math.max(box.a.x, box.b.x), b: Math.max(box.a.y, box.b.y) });
+      host.addEventListener("pointerdown", (e) => {
+        if (!multi() || !e.shiftKey || e.button !== 0 || !renderer || e.target !== renderer.domElement || pick(e)?.item) return;
+        e.stopPropagation();
+        box = { a: at(e), b: at(e), id: e.pointerId, el: make("div", { "data-twin-box": "" }), base: [...picked] };
+        tagLayer.append(box.el);
+        try {
+          host.setPointerCapture(e.pointerId);
+        } catch {
+          // A pointer the browser doesn't track (a synthetic one): moves still come here.
+        }
+      }, true);
+      host.addEventListener("pointermove", (e) => {
+        if (!box || e.pointerId !== box.id) return;
+        e.stopPropagation();
+        box.b = at(e);
+        const q = rect();
+        Object.assign(box.el.style, { transform: `translate(${q.l}px, ${q.t}px)`, width: `${q.r - q.l}px`, height: `${q.b - q.t}px` });
+      }, true);
+      const end = (e) => {
+        if (!box || e.pointerId !== box.id) return;
+        e.stopPropagation();
+        const q = rect(), was = box;
+        box = null;
+        was.el.remove();
+        if (e.type === "pointercancel" || (q.r - q.l < 4 && q.b - q.t < 4)) return;
+        const inside = [...items.values()].filter((it) => {
+          if (!it.rec.clickable || !it.group.visible) return false;
+          const p = onScreen(it);
+          return p && p.x >= q.l && p.x <= q.r && p.y >= q.t && p.y <= q.b;
+        });
+        pickMany([...was.base, ...inside.map((it) => it.id)], { popup: false });
+      };
+      host.addEventListener("pointerup", end, true);
+      host.addEventListener("pointercancel", end, true);
+    }
     function bindPointer() {
+      bindBox();
       const c = renderer.domElement;
       c.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
@@ -1882,7 +1983,9 @@
         if (!it || it.rec.path !== null || it.rec.attach !== null) return;
         const g = groundPoint(e);
         if (!g) return;
-        dragging = { it, off: { x: it.group.position.x - g.x, z: it.group.position.z - g.z }, moved: false, id: e.pointerId };
+        // A picked one drags the others picked with it, each keeping its place to it.
+        const all = (picked.has(it.id) ? [...picked].map((id) => items.get(id)) : [it]).filter((x) => x && x.rec.path === null && x.rec.attach === null);
+        dragging = { it, all: all.map((x) => ({ it: x, off: { x: x.group.position.x - g.x, z: x.group.position.z - g.z } })), moved: false, id: e.pointerId };
         controls.enabled = false;
         c.setPointerCapture(e.pointerId);
       });
@@ -1891,9 +1994,10 @@
           const g = groundPoint(e);
           if (!g) return;
           dragging.moved = true;
-          const r = dragging.it.rec;
-          r.pos = { ...r.pos, x: snapTo(g.x + dragging.off.x), z: snapTo(g.z + dragging.off.z) };
-          place(dragging.it);
+          for (const { it, off } of dragging.all) {
+            it.rec.pos = { ...it.rec.pos, x: snapTo(g.x + off.x), z: snapTo(g.z + off.z) };
+            place(it);
+          }
           host.setAttribute("data-dragging", "");
           return wake();
         }
@@ -1914,7 +2018,7 @@
           controls.enabled = true;
           host.removeAttribute("data-dragging");
           if (d.moved) {
-            writeBack(d.it);
+            writeBack(...d.all.map((x) => x.it));
             down = null;
             return;
           }
@@ -1924,7 +2028,8 @@
         down = null;
         if (far) return;
         const hit = pick(e);
-        if (hit?.item) select(hit.item.id, { popup: true });
+        if (hit?.item && adds(e)) toggle(hit.item.id);
+        else if (hit?.item) select(hit.item.id, { popup: true });
         else if (hit?.zone) {
           set("bindZone", hit.zone.row.id ?? hit.zone.id);
           api.emit("zoneselect", { id: hit.zone.row.id ?? hit.zone.id, zone: hit.zone.row });
@@ -1938,13 +2043,17 @@
       c.addEventListener("pointercancel", up);
     }
     let hoverQueued = false;
-    // A moved object's place and turn, written back to its row in the same form.
-    function writeBack(it) {
+    // Moved objects' places and turns, written back to their rows in the same form, at once.
+    function writeBack(...its) {
       const key = cfg.bindObjects, rows = api.state[key];
-      if (!Array.isArray(rows)) return;
-      const r = it.rec, p = { x: round(r.pos.x), y: round(r.pos.y), z: round(r.pos.z) }, yaw = round((r.rot.y * 180) / Math.PI, 1);
+      if (!Array.isArray(rows) || !its.length) return;
+      const by = new Map(its.map((it) => [it.id, it]));
+      const moved = [];
       const next = rows.map((row, i) => {
-        if (!isObj(row) || str(row.id ?? i) !== it.id) return row;
+        const it = isObj(row) ? by.get(str(row.id ?? i)) : null;
+        if (!it) return row;
+        const r = it.rec, p = { x: round(r.pos.x), y: round(r.pos.y), z: round(r.pos.z) }, yaw = round((r.rot.y * 180) / Math.PI, 1);
+        moved.push({ id: r.row.id ?? it.id, position: [p.x, p.y, p.z], rotation: yaw });
         const o = { ...row };
         if (Array.isArray(row.position)) o.position = row.position.length === 2 ? [p.x, p.z] : [p.x, p.y, p.z];
         else if (isObj(row.position)) o.position = { ...row.position, x: p.x, z: p.z };
@@ -1958,25 +2067,29 @@
         return o;
       });
       api.set(key, next);
-      api.emit("move", { id: r.row.id ?? it.id, position: [p.x, p.y, p.z], rotation: yaw });
+      for (const m of moved) api.emit("move", m);
     }
-    function turnBy(it, dir) {
-      if (!it) return;
-      const r = it.rec;
-      r.rot = { ...r.rot, y: r.rot.y + dir * (Math.PI / 2) };
-      place(it);
-      writeBack(it);
-      live.textContent = L("Turned to {deg}°", { deg: Math.round((((r.rot.y * 180) / Math.PI) % 360 + 360) % 360) });
+    // Each turned a quarter about itself.
+    function turnBy(its, dir) {
+      its = [].concat(its).filter(Boolean);
+      if (!its.length) return;
+      for (const it of its) {
+        it.rec.rot = { ...it.rec.rot, y: it.rec.rot.y + dir * (Math.PI / 2) };
+        place(it);
+      }
+      writeBack(...its);
+      const r = its[0].rec;
+      live.textContent = its.length > 1 ? L("Turned {n}", { n: its.length }) : L("Turned to {deg}°", { deg: Math.round((((r.rot.y * 180) / Math.PI) % 360 + 360) % 360) });
       wake();
     }
-    function removeObject(id) {
-      const key = cfg.bindObjects, rows = api.state[key], it = items.get(id);
-      if (!Array.isArray(rows) || !it) return;
-      const row = it.rec.row, title = it.rec.title || id;
+    function removeObject(...ids) {
+      const key = cfg.bindObjects, rows = api.state[key], its = ids.map((id) => items.get(id)).filter(Boolean);
+      if (!Array.isArray(rows) || !its.length) return;
+      const gone = new Set(its.map((it) => it.id));
       select(null);
-      api.set(key, rows.filter((x, i) => !(isObj(x) && str(x.id ?? i) === id)));
-      live.textContent = L("Removed {title}", { title });
-      api.emit("remove", { id: row.id ?? id, object: row });
+      api.set(key, rows.filter((x, i) => !(isObj(x) && gone.has(str(x.id ?? i)))));
+      live.textContent = its.length > 1 ? L("Removed {n}", { n: its.length }) : L("Removed {title}", { title: its[0].rec.title || its[0].id });
+      for (const it of its) api.emit("remove", { id: it.rec.row.id ?? it.id, object: it.rec.row });
       host.focus({ preventScroll: true });
     }
     // Adds what the palette offers, where it's dropped or in the middle of the view.
@@ -2041,29 +2154,36 @@
         return;
       }
       const it = selected !== null ? items.get(selected) : null;
-      // Moving and turning the selected object.
-      if (it && editable() && e.altKey && it.rec.path === null && it.rec.attach === null) {
+      // Moving and turning the picked objects (the selected one, or all of them).
+      const all = [...picked].map((id) => items.get(id)).filter((x) => x && x.rec.path === null && x.rec.attach === null);
+      if (it && editable() && e.altKey && all.length) {
         const s = fin(props.snap) && num(props.snap) > 0 ? num(props.snap) : 0.5;
         const d = { ArrowLeft: [-s, 0], ArrowRight: [s, 0], ArrowUp: [0, -s], ArrowDown: [0, s] }[e.key];
         if (d) {
           e.preventDefault();
-          const r = it.rec;
-          r.pos = { ...r.pos, x: snapTo(r.pos.x + d[0]), z: snapTo(r.pos.z + d[1]) };
-          place(it);
-          writeBack(it);
-          live.textContent = L("Moved to {x}, {z}", { x: round(r.pos.x, 2), z: round(r.pos.z, 2) });
+          for (const x of all) {
+            x.rec.pos = { ...x.rec.pos, x: snapTo(x.rec.pos.x + d[0]), z: snapTo(x.rec.pos.z + d[1]) };
+            place(x);
+          }
+          writeBack(...all);
+          const r = (all.includes(it) ? it : all[0]).rec;
+          live.textContent = all.length > 1 ? L("Moved {n}", { n: all.length }) : L("Moved to {x}, {z}", { x: round(r.pos.x, 2), z: round(r.pos.z, 2) });
           return wake();
         }
         if (e.code === "KeyR") {
           e.preventDefault();
-          return turnBy(it, e.shiftKey ? -1 : 1);
+          return turnBy(all, e.shiftKey ? -1 : 1);
         }
       }
       if (it && editable() && (e.key === "Delete" || e.key === "Backspace") && !e.target.closest?.("input, textarea, [contenteditable]")) {
         e.preventDefault();
-        return removeObject(it.id);
+        return removeObject(...picked);
       }
       if (e.target !== host && !e.target.closest?.("[data-twin-list]")) return;
+      if (multi() && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        return pickMany([...items.values()].filter((x) => x.rec.clickable).map((x) => x.id), { popup: false });
+      }
       const off = camera.position.clone().sub(controls.target);
       const sph = new T.Spherical().setFromVector3(off);
       const pan = (dx, dz) => {
@@ -2160,8 +2280,12 @@
 
     // ---------------------------------------------------------------- starting
     let hover = null;
+    // Once: it's called both when the page opens in view and when it comes into view, and
+    // the renderer only exists once three.js has loaded.
+    let started = false;
     async function start() {
-      if (renderer || stopped) return;
+      if (started || renderer || stopped) return;
+      started = true;
       say(L("Loading 3D view…"), true);
       el.setAttribute("data-loading", "");
       try {
@@ -2194,7 +2318,7 @@
         scene.add(hemi, sun, sun.target);
         world = new T.Group();
         scene.add(world);
-        const ringOf = (o) => {
+        ringOf = (o) => {
           const m = new T.Mesh(new T.RingGeometry(0.88, 1, 64), new T.MeshBasicMaterial({ transparent: true, opacity: o, depthWrite: false, side: T.DoubleSide }));
           m.rotation.x = -Math.PI / 2;
           m.renderOrder = 3;
@@ -2215,8 +2339,6 @@
         controls.addEventListener("change", look);
         controls.addEventListener("end", () => set("bindCamera", view()));
         themed();
-        sel = ringOf(1);
-        sel.material.color.set(colors.primary);
         hover = ringOf(0.6);
         hover.material.color.set(colors.primary);
         resize();
@@ -2228,6 +2350,8 @@
         if (!loading) say("");
         const at = cfg.bind ? api.state[cfg.bind] : null;
         if (at !== null && at !== undefined) select(at, { quiet: true, popup: false });
+        const many = cfg.bindSelected ? api.state[cfg.bindSelected] : null;
+        if (Array.isArray(many) && many.length) pickMany(many, { quiet: true, bind: true, popup: false });
       } catch (e) {
         failed(e instanceof Error ? e : new Error(String(e)));
       }
@@ -2297,11 +2421,14 @@
       // Where the middle of an object is drawn in the view, in px from its top left.
       at(id) {
         const it = items.get(str(id));
-        if (!it || !camera) return null;
-        const p = (it.batch ? it.group.getWorldPosition(new T.Vector3()).add(new T.Vector3(0, (it.size?.y ?? 0) / 2, 0)) : new T.Box3().setFromObject(it.body ?? it.group).getCenter(new T.Vector3())).project(camera);
-        return { x: round(((p.x + 1) / 2) * host.clientWidth, 1), y: round(((1 - p.y) / 2) * host.clientHeight, 1) };
+        return it && camera ? onScreen(it) : null;
       },
       select: (id) => select(id, { popup: true, fly: true }),
+      // Several (`multiple`): their ids, the last the selected one; and which are picked.
+      selectMany: (ids) => pickMany(ids, { popup: false }),
+      get selection() {
+        return [...picked];
+      },
       fit: () => fit(true),
       update() {
         if (cfg.reactive) read();
@@ -2328,6 +2455,10 @@
             lastBind = now;
             if (str(now) !== str(selected)) select(now, { quiet: true, fly: true, popup: now !== null });
           }
+        }
+        if (cfg.bindSelected) {
+          const now = api.state[cfg.bindSelected];
+          if (Array.isArray(now) && JSON.stringify(now) !== lastPicked) pickMany(now, { quiet: true, bind: true, popup: false });
         }
         if (cfg.bindView) {
           const now = api.state[cfg.bindView] ?? null;

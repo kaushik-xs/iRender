@@ -120,6 +120,9 @@ const POSTLUDE: &str = r##"
   const pre = document.createElement("pre"); pre.id = "result";
   pre.textContent = out.concat(__errors.filter((e) => !/WebGL|GPU stall/.test(e)).map((e) => "error " + e)).join("\n");
   document.body.append(pre);
+  // Chrome writes the page out when its virtual time is spent, and a twin that's still
+  // drawing frames spends it at the real pace: without them, it's spent at once.
+  document.querySelectorAll("[data-i-x=ui-twin]").forEach((e) => e.remove());
 "##;
 
 /// Turns the driver's "no webgl" into a first line `run` skips on.
@@ -463,4 +466,62 @@ fn alarm_tags_that_overlap_are_counted() {
     "##;
     let Some(lines) = run("pile", doc, "", &guarded(driver)) else { return };
     check(lines, &["far off a+2,far", "close a,b,c"]);
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn several_objects_picked_moved_and_removed_together() {
+    let row = |id: &str, x: i32, z: i32| json!({ "id": id, "shape": "box", "position": [x, z], "title": id });
+    let doc = json!({ "version": 1,
+        "state": { "picked": null, "sel": [], "layout": [row("a", -3, 0), row("b", 0, 0), row("c", 3, 2), row("d", 4, 3)] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 300, "objects": "{{ layout }}",
+            "bind": "picked", "bindSelected": "sel", "bindObjects": "layout", "editable": true, "multiple": true, "labels": "none",
+            "camera": { "position": [0, 12, 10], "target": [0, 0, 0] } } } });
+    let driver = r##"
+      await ready("w");
+      const tw = twin("w"), opt = (id) => $("w", `[data-twin-option="${id}"]`), rings = () => tw.scene.children.filter((o) => o.isMesh && o.visible && o.geometry.type === "RingGeometry" && o.material.opacity === 1).length;
+      const xs = () => S().layout.map((r) => r.id + ":" + r.position[0]).join(" ");
+      opt("a").click(); await wait(50);
+      log("one", JSON.stringify(S().sel), S().picked, popup("w") !== "none");
+      opt("b").dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true })); await wait(200);
+      log("two", JSON.stringify(S().sel), S().picked, popup("w"), rings(), $("w", "[data-twin-live]").textContent);
+      opt("a").dispatchEvent(new MouseEvent("click", { bubbles: true, metaKey: true })); await wait(50);
+      log("out again", JSON.stringify(S().sel));
+      // A box from the floor around c and d, with Shift: added to b.
+      const cv = $("w", "canvas"), r = cv.getBoundingClientRect(), pc = tw.at("c"), pd = tw.at("d");
+      const l = Math.min(pc.x, pd.x) - 40, t = Math.min(pc.y, pd.y) - 40, rr = Math.max(pc.x, pd.x) + 90, bb = Math.max(pc.y, pd.y) + 90;
+      const ev = (type, x, y) => cv.dispatchEvent(new PointerEvent(type, { clientX: r.left + x, clientY: r.top + y, button: 0, pointerId: 7, shiftKey: true, bubbles: true }));
+      // From the floor beyond them (bottom right) to above and left of them.
+      ev("pointerdown", rr, bb); ev("pointermove", (l + rr) / 2, (t + bb) / 2); ev("pointermove", l, t);
+      log("box drawn", $$("w", "[data-twin-box]").length, tw.controls.enabled);
+      ev("pointerup", l, t); await wait(200);
+      log("boxed", JSON.stringify(S().sel), $$("w", "[data-twin-box]").length, rings());
+      // Moved together with the keys; a, not picked, stays.
+      const view = $("w", "[data-twin-canvas]"); view.focus();
+      key(view, "ArrowRight", { altKey: true }); await wait(80);
+      log("moved", xs(), $("w", "[data-twin-live]").textContent);
+      // Picked from state, then all with ⌘A, then removed together.
+      set("sel", ["a", "d"]); await wait(80);
+      log("from state", [...tw.selection].join(), S().picked);
+      view.focus(); key(view, "a", { metaKey: true }); await wait(50);
+      log("all", JSON.stringify(S().sel));
+      set("sel", ["b", "c"]); await wait(80); view.focus();
+      key(view, "Delete"); await wait(80);
+      log("removed", S().layout.map((r) => r.id).join(), JSON.stringify(S().sel), $("w", "[data-twin-live]").textContent);
+    "##;
+    let Some(lines) = run("multi", doc, "", &guarded(driver)) else { return };
+    check(
+        lines,
+        &[
+            r#"one ["a"] a true"#,
+            r#"two ["a","b"] b none 2 2 selected"#,
+            r#"out again ["b"]"#,
+            "box drawn 1 true",
+            r#"boxed ["b","c","d"] 0 3"#,
+            "moved a:-3 b:0.5 c:3.5 d:4.5 Moved 3",
+            "from state a,d d",
+            r#"all ["a","b","c","d"]"#,
+            r#"removed a,d [] Removed 2"#,
+        ],
+    );
 }

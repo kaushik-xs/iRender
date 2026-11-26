@@ -6,7 +6,7 @@ _Last updated: 2026-11-26._
 
 ## Suggested next
 
-1. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23, history on readouts, big worlds, simpler models far away, colours by value as instances and alarm tags that don't pile up on 2026-11-26: next, trying it on phones and tablets (needs real devices), then picking several objects and measuring (see Twin kit next phases).
+1. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23, history on readouts, big worlds, simpler models far away, colours by value as instances and alarm tags that don't pile up on 2026-11-26: next, trying it on phones and tablets (needs real devices), then measuring and walls and zones edited by hand (see Twin kit next phases).
 2. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
@@ -298,7 +298,9 @@ These came out of the React Flow research on the builder and client-ui-next repo
 - [x] **The browser tests waited too little in Chrome's virtual time** (2026-11-26): it races ahead while SwiftShader compiles shaders, so a test sometimes went on before its models were drawn (about one run in three of big_worlds). `ready` now allows 300 s of it, and the budget is 600 s. The other kits' browser tests use the same kind of wait; none has been seen to fail this way.
 - [ ] **Nothing tried on a phone or tablet.** Drawn on a Mac in Chrome, Firefox and WebKit.
 - [x] **History on readouts** (`history: n`; 2026-11-26; twin/live-data, block twin-01): an object's last n values, a point each time one changes, drawn as a sparkline in its popup. Not done: the points have no times (a steady value is one point however long it holds), nothing seeds them from a server (they start when the page opens), they're not on tags or in a `ui-twin-popup` of the page's own (`object` has only the latest values), and no limit lines on the sparkline.
-- [ ] Not built: picking several objects, sizing and stretching by hand, walls and zones edited by hand, measuring, cutting a building away floor by floor (a `floors` list, as `ui-plan` has), labels in 3D that hide behind walls, outlines on hover, VR and AR, a top view without perspective.
+- [x] **Several objects at once** (`multiple`, `bindSelected`; 2026-11-26; twin/editing, block twin-03): ⌘/Ctrl/Shift and a click, Shift and a box dragged from the floor, ⌘A; moved, turned and removed together, written back in one change. Not done: no copy and paste, no aligning or spacing them out, no turning them about their middle (each turns about itself), and on a phone there's no way to add one to the picked (no Shift; a long press could).
+- [x] **A twin opened in view started twice** (found 2026-11-26): once when the page opened and again when it came into view, before the first had its renderer, so it made two renderers and did its work twice, keeping the second.
+- [ ] Not built: sizing and stretching by hand, walls and zones edited by hand, measuring, cutting a building away floor by floor (a `floors` list, as `ui-plan` has), labels in 3D that hide behind walls, outlines on hover, VR and AR, a top view without perspective.
 - [ ] **USD straight from SimReady:** three.js's USD reader takes a single file; SimReady's assets refer to other layers and textures, so they're converted with `tools/simready/` (Python with usd-core) first. The converter hasn't been run in this repo's CI.
 - [ ] Models, worlds and feeds from other sites need CORS. Feeds are anonymous: no headers or credentials (`live` has no `headers` yet).
 - [ ] The other kits' browser renderer (irender-wasm) doesn't include twins.

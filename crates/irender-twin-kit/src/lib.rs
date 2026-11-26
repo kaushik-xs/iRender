@@ -121,10 +121,17 @@ const PROPS: &[PropDef] = &[
     PropDef::new("effectBy", PropKind::Any, "Animates objects by a field: `{ field: state, effects: { running: spin } }`, or `effect` on a row: `pulse`, `glow`, `blink`, `spin` (`spin`: degrees a second) or `bob`. Still, where the viewer asked for less motion"),
     PropDef::new("labels", PropKind::Enum(&["auto", "all", "none"]), "Tags over objects: `auto` (default) for those with a `label`, readouts or an alarm; `all`; `none` (alarms still)"),
     PropDef::new("editable", PropKind::Any, "Objects can be dragged on the ground, or moved with Alt and the arrow keys and turned with Alt+R (needs `bindObjects`)"),
+    PropDef::new(
+        "multiple",
+        PropKind::Bool,
+        "Several objects picked at once: ⌘, Ctrl or Shift and a click adds or takes one away (on the view, a tag or the list), Shift and a drag from the floor draws a box around more, ⌘A picks them all. \
+         Editable, they're dragged, moved, turned and removed together. The last one picked is the selected one (`bind`); all are in `bindSelected`",
+    ),
     PropDef::new("snap", PropKind::Any, "Metres moves snap to, e.g. 0.5"),
     PropDef::new("palette", PropKind::Any, "While `editable`, things to add, as rows like `objects` without a place: `[{ label, model | shape, title, … }]`. Clicked, one is added in the middle of the view; dragged into it, where it's dropped. Delete removes the selected object"),
     PropDef::new("bind", PropKind::StateKey, "State key with the selected object's id (null when none). Setting it selects that object and brings it into view"),
     PropDef::new("bindObject", PropKind::StateKey, "State key with the selected object itself, with its latest values"),
+    PropDef::new("bindSelected", PropKind::StateKey, "State key with the ids of the objects picked (with `multiple`, several; else the selected one's); setting it picks them"),
     PropDef::new("bindZone", PropKind::StateKey, "State key with the id of the zone last clicked"),
     PropDef::new("bindView", PropKind::StateKey, "State key with the current view's id; setting it moves the camera there"),
     PropDef::new("bindAlarms", PropKind::StateKey, "State key with the ids of the objects in alarm, e.g. for a count"),
@@ -150,9 +157,9 @@ const PROPS: &[PropDef] = &[
 /// Props the browser resolves against state; the rest are read once on the server.
 const LIVE: &[&str] = &[
     "models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy", "world", "src", "live", "follow", "filter", "toneBy", "alarmBy",
-    "effectBy", "labels", "editable", "snap", "palette", "lod",
+    "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple",
 ];
-const BINDINGS: &[&str] = &["bind", "bindObject", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive"];
+const BINDINGS: &[&str] = &["bind", "bindObject", "bindSelected", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive"];
 
 impl Component for Twin {
     fn name(&self) -> &'static str {
@@ -495,6 +502,18 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("pointer-events", "auto"),
             ("cursor", "default"),
             ("z-index", "2"),
+        ]),
+    )
+    .nest(
+        "& [data-twin-box]",
+        pairs(&[
+            ("position", "absolute"),
+            ("left", "0"),
+            ("top", "0"),
+            ("border", "1px solid var(--color-primary, #18181b)"),
+            ("border-radius", "2px"),
+            ("background", "color-mix(in srgb, var(--color-primary, #18181b) 10%, transparent)"),
+            ("pointer-events", "none"),
         ]),
     )
     .nest("& [data-twin-popup][data-below]", pairs(&[("translate", "calc(-50% + var(--shift, 0px)) 24px")]))
