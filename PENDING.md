@@ -6,7 +6,7 @@ _Last updated: 2026-11-26._
 
 ## Suggested next
 
-1. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23, history on readouts, big worlds and simpler models far away on 2026-11-26: next, colour by value as instances (a whole hall coloured by temperature is still copies) and trying it on phones (see Twin kit next phases).
+1. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23, history on readouts, big worlds, simpler models far away and colours by value as instances on 2026-11-26: next, fewer tags in big worlds (alarm tags pile up, thousands of tags are thousands of elements) and trying it on phones (see Twin kit next phases).
 2. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
@@ -290,8 +290,10 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - [ ] Two levels only (full and far), switched at once (no fade between them), and the same distance for every part of a model.
   - [ ] Simplified on the page's own thread, a part at a time: a model of one huge part (a million triangles) holds it while it's made. Not kept between visits: each page load makes them again. Idea: in a worker, kept in the service worker's cache.
   - [ ] A simplified part shares its model's vertices (only its triangles are fewer), so it saves drawing, not memory. Parts with several materials aren't simplified. Far, a model can look a little lighter (inner frames left out).
-  - [ ] Objects drawn as copies of their own (glowing by `effect`, coloured by value, see-through, animated, skinned) are always in full.
-- [ ] **Coloured by value, glowing or blinking by `effect`, see-through and animated objects are still copies of their own**, a few draw calls each: a whole hall coloured by temperature is as slow as before. Idea: a colour per instance on the batch's own materials, as alarms have.
+  - [ ] Objects drawn as copies of their own (glowing or blinking by `effect`, see-through, animated, skinned, shapes in alarm) are always in full.
+- [x] **Colours by value and shapes as instances** (2026-11-26): a model coloured by `colorBy` is an instance in a batch whose materials glow in each instance's colour (a per-instance attribute read by a patched shader); shapes are batched by kind and size, each in its own colour, sensors glowing. 1,000 models coloured by value and 1,000 sensors went from 4,003 draw calls and 36 million triangles (copies had no LOD) to 11 and 7 million: 32 to 57 fps turning, 128 to 47 MB. The glowing batches' shaders compile in the background (the longest pause while loading 340 → 205 ms).
+- [ ] **Still copies of their own:** glowing or blinking by `effect`, see-through, animated and skinned objects, and shapes in alarm (their pulse is per object). Idea: per-instance opacity and a pulse in the shader.
+- [ ] **A glowing batch's shader is patched** (`onBeforeCompile`) where three.js adds the emissive: a later three.js that renames `emissivemap_fragment` would stop the glow (with a warning in the console). The browser tests check the colours, not the pixels.
 - [ ] **Tags in alarm all show,** however many overlap (in alarm they always win), and thousands of tags are thousands of elements. Idea: past some hundreds, tags only for what's near the camera, warning or in alarm.
 - [ ] **Nothing tried on a phone or tablet.** Drawn on a Mac in Chrome, Firefox and WebKit.
 - [x] **History on readouts** (`history: n`; 2026-11-26; twin/live-data, block twin-01): an object's last n values, a point each time one changes, drawn as a sparkline in its popup. Not done: the points have no times (a steady value is one point however long it holds), nothing seeds them from a server (they start when the page opens), they're not on tags or in a `ui-twin-popup` of the page's own (`object` has only the latest values), and no limit lines on the sparkline.

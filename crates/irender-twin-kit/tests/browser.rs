@@ -157,7 +157,11 @@ fn objects_readouts_alarms_and_selection() {
       log("tones", tag("w", "m1").dataset.tone, tag("w", "m2").dataset.tone, tag("w", "m3").dataset.tone, "alarm", tag("w", "m3").hasAttribute("data-alarm"));
       log("alarms", S().alarms, $("w", "[data-twin-live]").textContent);
       const s = twin("w").items.get("s1");
-      log("heat", "#" + s.mats[0].emissive.getHexString(), "raised", near(s.group.position.y, 2));
+      // A sensor is an instance: its colour and glow are its batch's, at its place in it.
+      const part = s.batch.parts[0], at = s.batch.drawn.indexOf(s), c = new (twin("w").three.Color)();
+      part.im.getColorAt(at, c);
+      const glow = new (twin("w").three.Color)(part.glow.getX(at), part.glow.getY(at), part.glow.getZ(at)).multiplyScalar(1 / 0.55);
+      log("heat", "#" + c.getHexString(), "#" + glow.getHexString(), "raised", near(s.group.position.y, 2));
       // A value past its limit is an alarm, and the change is announced.
       set("rows", S().rows.map((r) => (r.id === "m2" ? { ...r, temp: 90 } : r))); await wait(80);
       log("hotter", tag("w", "m2").textContent, tag("w", "m2").dataset.tone, S().alarms, $("w", "[data-twin-live]").textContent);
@@ -194,7 +198,7 @@ fn objects_readouts_alarms_and_selection() {
             "tags m1:64°C | m2:72°C | m3:!Machine 3 | s1:30.0°C",
             "tones success warning danger alarm true",
             r#"alarms ["m3"] "#,
-            "heat #bf0040 raised true",
+            "heat #bf0040 #bf0040 raised true",
             r#"hotter !90°C danger ["m2","m3"] Alarm: Machine 2"#,
             "picked m1 Machine 1 Machine 1Motor64°C true",
             "closed null none m1",
@@ -397,5 +401,42 @@ fn models_are_simpler_far_away() {
     check(
         lines,
         &["simplified ready 6 true true", "own far model ready true", "never null null", "far p1,p2 0 c1 n1", "picked p2", "close p1 p2"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn coloured_by_value_and_shapes_are_instances() {
+    let doc = json!({ "version": 1,
+        "state": { "rows": [
+            { "id": "cold", "model": "pallet", "position": [-2, 0], "air": 0 },
+            { "id": "hot", "model": "pallet", "position": [0, 0], "air": 40 },
+            { "id": "red", "shape": "box", "position": [2, 0], "color": "#ff0000" },
+            { "id": "ok", "shape": "box", "position": [3.5, 0], "tone": "success" },
+            { "id": "bad", "shape": "box", "position": [5, 0], "alarm": true } ] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260, "objects": "{{ rows }}", "labels": "none",
+            "models": { "pallet": pallet() }, "camera": { "position": [1, 7, 9], "target": [1, 0, 0] },
+            "colorBy": { "field": "air", "min": 0, "max": 40, "colors": ["#0000ff", "#ff0000"] } } } });
+    let driver = r##"
+      await ready("w");
+      const tw = twin("w"), it = (id) => tw.items.get(id), C = tw.three.Color;
+      for (let i = 0; i < 40 && !["cold", "red"].every((id) => it(id).batch?.drawn); i++) await wait(50);
+      // The glow an instance has, as the colour it's in (at the power it glows at).
+      const glow = (id, power = 0.55) => { const b = it(id).batch, i = b.drawn.indexOf(it(id)), g = b.parts[0].glow; return "#" + new C(g.getX(i), g.getY(i), g.getZ(i)).multiplyScalar(1 / power).getHexString(); };
+      const colour = (id) => { const b = it(id).batch, c = new C(); b.parts[0].im.getColorAt(b.drawn.indexOf(it(id)), c); return "#" + c.getHexString(); };
+      log("models", it("cold").batch === it("hot").batch, !!it("cold").batch.tint, glow("cold"), glow("hot"));
+      // A new value is a new glow, in the same batch.
+      const was = it("cold").batch;
+      set("rows", S().rows.map((r) => (r.id === "cold" ? { ...r, air: 40 } : r))); await wait(150);
+      log("changed", it("cold").batch === was, glow("cold"));
+      log("shapes", it("red").batch === it("ok").batch, colour("red"), colour("ok") !== colour("red"), glow("red"));
+      // In alarm, a shape is a copy of its own, glowing.
+      log("alarm", !it("bad").batch, it("bad").body.children.length);
+      log("no meshes of their own", ["cold", "hot", "red", "ok"].every((id) => it(id).body.children.length === 0));
+    "##;
+    let Some(lines) = run("heat", doc, "", &guarded(driver)) else { return };
+    check(
+        lines,
+        &["models true true #0000ff #ff0000", "changed true #ff0000", "shapes true #ff0000 true #000000", "alarm true 1", "no meshes of their own true"],
     );
 }

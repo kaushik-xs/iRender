@@ -457,27 +457,28 @@
       return SkeletonUtils.clone(t.scene);
     };
     // A shape, standing on the ground: box, cylinder, sphere, cone, sensor or none.
-    function shapeMesh(r) {
+    // A shape's geometry and height, standing on the ground; none for `none` or `point`.
+    function shapeGeometry(r) {
       const sz = Array.isArray(r.size) ? r.size.map(num) : fin(r.size) ? [num(r.size)] : [];
+      if (r.shape === "cylinder" || r.shape === "cone") {
+        const d = sz[0] || 1, h = sz[1] || 1;
+        return { geo: r.shape === "cone" ? new T.ConeGeometry(d / 2, h, 32) : new T.CylinderGeometry(d / 2, d / 2, h, 32), h };
+      }
+      if (r.shape === "sphere" || r.shape === "sensor") {
+        const d = sz[0] || (r.shape === "sensor" ? 0.35 : 1);
+        return { geo: new T.SphereGeometry(d / 2, 24, 16), h: d };
+      }
+      if (r.shape === "none" || r.shape === "point") return null;
+      const [w = 1, h = 1, d = w] = sz;
+      return { geo: new T.BoxGeometry(w, h, d), h };
+    }
+    function shapeMesh(r) {
       const color = r.color && CSS.supports("color", r.color) ? ink(r.color).css : r.tone ? colors[r.tone] : colors.shape;
       const mat = new T.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05 });
-      let geo, h;
-      if (r.shape === "cylinder" || r.shape === "cone") {
-        const d = sz[0] || 1;
-        h = sz[1] || 1;
-        geo = r.shape === "cone" ? new T.ConeGeometry(d / 2, h, 32) : new T.CylinderGeometry(d / 2, d / 2, h, 32);
-      } else if (r.shape === "sphere" || r.shape === "sensor") {
-        const d = sz[0] || (r.shape === "sensor" ? 0.35 : 1);
-        h = d;
-        geo = new T.SphereGeometry(d / 2, 24, 16);
-        if (r.shape === "sensor") mat.emissiveIntensity = 0.6;
-      } else if (r.shape === "none" || r.shape === "point") {
-        return { obj: new T.Group(), size: new T.Vector3(0.2, 0.2, 0.2) };
-      } else {
-        const [w = 1, hh = 1, d = w] = sz;
-        h = hh;
-        geo = new T.BoxGeometry(w, h, d);
-      }
+      const s = shapeGeometry(r);
+      if (!s) return { obj: new T.Group(), size: new T.Vector3(0.2, 0.2, 0.2) };
+      const { geo, h } = s;
+      if (r.shape === "sensor") mat.emissiveIntensity = 0.6;
       const mesh = new T.Mesh(geo, mat);
       mesh.position.y = h / 2;
       mesh.castShadow = mesh.receiveShadow = true;
@@ -490,11 +491,13 @@
     // ---------------------------------------------------------------- drawing things
     // A model whose objects look alike is drawn once per part for all of them (instancing):
     // a few draw calls however many there are. One that needs a look of its own (a glow, an
-    // colour by value, see-through, its own animation) is a copy of its own while it does,
-    // so nothing looks different. Those in alarm are instances of their own, glowing together.
-    const ownLook = (r) => !!(r.heat || r.opacity < 1 || r.animation || (r.effect && r.effect !== "spin" && r.effect !== "bob" && r.effect !== "pulse"));
-    const lookOf = (r) => (ownLook(r) ? "own" : r.alarm ? "alarm" : null);
-    const bodyKey = (r) => JSON.stringify([r.model ? specOf(r.model) : null, r.shape, r.size, r.model ? null : r.color, r.model ? null : r.tone, r.model ? lookOf(r) : null]);
+    // see-through, its own animation) is a copy of its own while it does, so nothing looks
+    // different. Those in alarm are instances of their own, glowing together; those coloured
+    // by value too, each glowing in its own colour. Shapes are instances as well, each in
+    // its own colour, but one in alarm is a copy.
+    const ownLook = (r) => !!(r.opacity < 1 || r.animation || (r.effect && r.effect !== "spin" && r.effect !== "bob" && r.effect !== "pulse"));
+    const lookOf = (r) => (ownLook(r) || (r.alarm && !r.model) ? "own" : r.alarm ? "alarm" : r.heat && r.model ? "heat" : null);
+    const bodyKey = (r) => JSON.stringify([r.model ? specOf(r.model) : null, r.shape, r.size, r.model ? null : r.color, r.model ? null : r.tone, lookOf(r)]);
     const batches = new Map(); // a model's key → its instanced parts and the objects drawn with them
     // A model's meshes as a batch's parts, each where it is in the model.
     const partsOf = (scene, lit) => {
@@ -505,20 +508,91 @@
       });
       return parts;
     };
-    function batchFor(key, t, alarm, spec) {
+    function batchFor(key, t, look, spec) {
       let b = batches.get(key);
       if (b) return b;
       const glowing = [];
-      // In alarm: the same parts in materials of their own, which glow.
+      // In alarm: the same parts in materials of their own, which glow together. Coloured
+      // by value: in materials that glow in each instance's colour.
       const lit = (m) => {
-        if (!alarm) return m;
+        if (look === "heat") return glowMaterial(m);
+        if (look !== "alarm") return m;
         const c = m.clone();
         if (c.emissive) glowing.push(c.emissive.set(colors.danger) && c);
         return c;
       };
       b = { parts: partsOf(t.scene, lit), slots: [], cap: 0, glowing, t, spec, model: JSON.stringify(spec), lit, far: null, farParts: null, farAt: Infinity };
+      if (look === "heat") b.tint = (it) => [null, it.rec.heat, 0.55];
       batches.set(key, b);
       return b;
+    }
+    // A material that glows in each instance's own colour (`glow`, one per instance), not
+    // its emissive's. It has no emissive map of its own then, as one glowing by value hasn't.
+    function glowMaterial(m) {
+      const c = m.clone();
+      c.onBeforeCompile = (sh) => {
+        if (!sh.fragmentShader.includes("#include <emissivemap_fragment>") || !sh.vertexShader.includes("#include <begin_vertex>")) {
+          console.warn("ui-twin: this three.js's shaders can't glow by instance; colours by value won't show");
+          return;
+        }
+        sh.vertexShader = sh.vertexShader
+          .replace("#include <common>", "#include <common>\nattribute vec3 glow;\nvarying vec3 vGlow;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\nvGlow = glow;");
+        sh.fragmentShader = sh.fragmentShader
+          .replace("#include <common>", "#include <common>\nvarying vec3 vGlow;")
+          .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance = vGlow;");
+      };
+      c.customProgramCacheKey = () => "ui-twin-glow";
+      return c;
+    }
+    // A glowing batch's shaders, compiled in the background (as a model's are, see warm)
+    // before it's drawn: compiled in the frame that first drew it, they could stop the page.
+    async function warmBatch(b) {
+      b.warming = true;
+      loading++;
+      progress();
+      const probe = new T.Group();
+      for (const p of b.parts) {
+        const g = new T.BufferGeometry();
+        g.setIndex(p.geometry.index);
+        for (const [k, a] of Object.entries(p.geometry.attributes)) if (k !== "glow") g.setAttribute(k, a);
+        g.setAttribute("glow", new T.InstancedBufferAttribute(new Float32Array(3), 3));
+        const im = new T.InstancedMesh(g, p.material, 1);
+        im.castShadow = im.receiveShadow = true;
+        // Shapes have a colour each too, which is another program.
+        if (!b.spec) im.setColorAt(0, new T.Color(1, 1, 1));
+        probe.add(im);
+      }
+      try {
+        if (renderer.compileAsync) await renderer.compileAsync(probe, camera, scene);
+      } catch (e) {
+        console.warn("ui-twin:", e);
+      }
+      probe.traverse((o) => o.isInstancedMesh && o.dispose());
+      b.ready = true;
+      loaded++;
+      progress();
+      wake();
+    }
+    // Shapes of one kind and size, drawn together: each in its own colour (`color`, its
+    // tone's, or the kit's), a sensor glowing in its value's colour or its tone's.
+    function shapeBatch(r) {
+      const key = `shape ${JSON.stringify([r.shape, r.size])}`;
+      let b = batches.get(key);
+      if (!b) {
+        const s = shapeGeometry(r);
+        if (!s) return null;
+        const mat = glowMaterial(new T.MeshStandardMaterial({ color: "#ffffff", roughness: 0.6, metalness: 0.05 }));
+        b = { parts: [{ geometry: s.geo, material: mat, local: new T.Matrix4().makeTranslation(0, s.h / 2, 0), im: null }], slots: [], cap: 0, glowing: [], spec: null, far: null, farParts: null, farAt: Infinity };
+        b.size = (s.geo.boundingBox || (s.geo.computeBoundingBox(), s.geo.boundingBox)).getSize(new T.Vector3());
+        b.tint = (it) => {
+          const x = it.rec, base = x.color && CSS.supports("color", x.color) ? ink(x.color).css : x.tone ? colors[x.tone] : colors.shape;
+          if (x.shape === "sensor") return [x.heat ?? base, x.heat ?? (x.tone ? colors[x.tone] : colors.info), x.heat ? 0.55 : 0.6];
+          return [base, x.heat, 0.55];
+        };
+        batches.set(key, b);
+      }
+      return { obj: new T.Group(), size: b.size.clone(), batch: b };
     }
     // Room for every object of a batch: each part is an InstancedMesh, made bigger by doubling.
     // The far parts, once they're ready, get theirs then.
@@ -530,6 +604,22 @@
         if (part.im) {
           world.remove(part.im);
           part.im.dispose();
+        }
+        // A colour for each instance to glow in, on a geometry of the part's own (its
+        // vertices shared): the same model's other batches have room for other numbers.
+        if (b.tint) {
+          if (!part.ownGeometry) {
+            const g = new T.BufferGeometry();
+            g.setIndex(part.geometry.index);
+            for (const [k, a] of Object.entries(part.geometry.attributes)) g.setAttribute(k, a);
+            for (const x of part.geometry.groups) g.addGroup(x.start, x.count, x.materialIndex);
+            g.boundingSphere = part.geometry.boundingSphere;
+            g.boundingBox = part.geometry.boundingBox;
+            part.geometry = part.ownGeometry = g;
+          }
+          part.glow = new T.InstancedBufferAttribute(new Float32Array(b.cap * 3), 3);
+          part.glow.setUsage(T.DynamicDrawUsage);
+          part.geometry.setAttribute("glow", part.glow);
         }
         const im = new T.InstancedMesh(part.geometry, part.material, b.cap);
         im.instanceMatrix.setUsage(T.DynamicDrawUsage);
@@ -550,6 +640,7 @@
     // every model used by many objects). Only objects drawn together have it.
     const LOD_MANY = 100;
     function farOf(b) {
+      if (!b.spec) return null;
       const f = b.spec.far, lod = props.lod ?? "auto";
       if (f === false || lod === false || lod === "none") return null;
       if (typeof f === "string") return { url: f };
@@ -597,8 +688,8 @@
     // A part with fewer triangles, null when it's too small to see from afar, or the part
     // itself when it can't be made simpler (several materials, or few triangles already).
     async function simpler(p, ratio, tiny, S) {
-      const g = p.geometry;
-      if (simplified.has(g)) return simplified.get(g);
+      const g = p.geometry, key = g.index ?? g.attributes.position;
+      if (simplified.has(key)) return simplified.get(key);
       g.boundingSphere || g.computeBoundingSphere();
       let out = g;
       const tris = (g.index ? g.index.count : g.attributes.position.count) / 3;
@@ -616,12 +707,12 @@
         if (!kept.length) out = null;
         else if (kept.length < idx.length * 0.9) {
           out = new T.BufferGeometry();
-          for (const [k, a] of Object.entries(base.attributes)) out.setAttribute(k, a);
+          for (const [k, a] of Object.entries(base.attributes)) if (k !== "glow") out.setAttribute(k, a);
           out.setIndex(new T.BufferAttribute(kept, 1));
           out.computeBoundingSphere();
         }
       }
-      simplified.set(g, out);
+      simplified.set(key, out);
       return out;
     }
     const m4 = { a: null };
@@ -642,6 +733,19 @@
         return f.intersectsSphere(s);
       };
     }
+    // Each instance's colour (shapes) and glow: `[colour, glow colour, glow power]`.
+    const tint = { c: null };
+    function tintAt(part, tints) {
+      const c = (tint.c ||= new T.Color());
+      tints.forEach(([base, glow, power], i) => {
+        if (base) part.im.setColorAt(i, c.set(base));
+        if (glow) c.set(glow).multiplyScalar(power);
+        else c.setRGB(0, 0, 0);
+        part.glow.setXYZ(i, c.r, c.g, c.b);
+      });
+      part.glow.needsUpdate = true;
+      if (part.im.instanceColor) part.im.instanceColor.needsUpdate = true;
+    }
     const sameList = (a, b) => a && a.length === b.length && a.every((x, i) => x === b[i]);
     // Each instance where its object is: the object's place, its body's own turn (a spinning
     // fan), then the part's place in the model. `moved`: something but the camera has moved,
@@ -653,6 +757,11 @@
       placeRings(seen, moved);
       const m = (m4.a ||= new T.Matrix4());
       for (const b of batches.values()) {
+        // One glowing in each instance's colour shows once its shaders are ready.
+        if (b.tint && !b.ready) {
+          if (!b.warming) warmBatch(b);
+          continue;
+        }
         if (b.far === null) {
           const f = farOf(b);
           if (f) farFor(b, f);
@@ -664,11 +773,15 @@
         if (!moved && sameList(b.drawn, drawn) && sameList(b.drawnFar, far)) continue;
         b.drawn = drawn;
         b.drawnFar = far;
-        for (const [list, parts] of [[drawn, b.parts], [far, b.farParts ?? []]]) for (const part of parts) {
-          list.forEach((it, i) => part.im.setMatrixAt(i, m.multiplyMatrices(it.body.matrixWorld, part.local)));
-          part.im.count = list.length;
-          part.im.instanceMatrix.needsUpdate = true;
-          part.im.boundingSphere = null;
+        for (const [list, parts] of [[drawn, b.parts], [far, b.farParts ?? []]]) {
+          const tints = b.tint && list.map(b.tint);
+          for (const part of parts) {
+            list.forEach((it, i) => part.im.setMatrixAt(i, m.multiplyMatrices(it.body.matrixWorld, part.local)));
+            if (tints) tintAt(part, tints);
+            part.im.count = list.length;
+            part.im.instanceMatrix.needsUpdate = true;
+            part.im.boundingSphere = null;
+          }
         }
       }
     }
@@ -711,8 +824,9 @@
           if (!spec) throw new Error(`no model named ${r.model}`);
           const t = await template(spec);
           if (it.key !== key || !items.has(it.id)) return;
-          made = !t.skinned && !ownLook(r)
-            ? { obj: new T.Group(), size: t.size.clone(), clips: [], batch: batchFor(JSON.stringify(spec) + (r.alarm ? " alarm" : ""), t, r.alarm, spec) }
+          const look = lookOf(r);
+          made = !t.skinned && look !== "own"
+            ? { obj: new T.Group(), size: t.size.clone(), clips: [], batch: batchFor(JSON.stringify(spec) + (look ? ` ${look}` : ""), t, look, spec) }
             : { obj: await copy(t), size: t.size.clone(), clips: t.clips };
         } catch (e) {
           console.warn("ui-twin:", e.message);
@@ -729,7 +843,7 @@
             progress();
           }
         }
-      } else made = shapeMesh(r);
+      } else made = (lookOf(r) !== "own" && shapeBatch(r)) || shapeMesh(r);
       if (it.body) {
         it.group.remove(it.body);
         dispose(it.body, true);
