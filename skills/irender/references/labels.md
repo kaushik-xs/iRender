@@ -941,6 +941,7 @@ root: …
 "At most {n} characters": "At most {n} characters"
 "Doesn't match": "Doesn't match"
 "Not in the right format": "Not in the right format"
+"{n} to fix": { one: "{n} to fix", other: "{n} to fix" }
 "There are {n} problems": { one: "There's a problem", other: "There are {n} problems" }
 ```
 

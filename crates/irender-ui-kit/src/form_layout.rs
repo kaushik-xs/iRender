@@ -3,9 +3,10 @@
 //! what's in them. They nest, so a form of two columns can hold a section of three. The
 //! columns fall to two and then one as the space they're in narrows (container queries,
 //! so a form in a drawer stacks too). A `collapsible` section folds under its heading
-//! (a native `<details>`); the form opens it to go to a field inside.
+//! (a native `<details>`), saying while folded how many of its fields need fixing; the
+//! form opens it to go to a field inside.
 
-use crate::{MUTED, TEXT, id_with, instance_id, lit};
+use crate::{DESTRUCTIVE, MUTED, TEXT, id_with, instance_id, lit};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, expr};
 use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::Value as Json;
@@ -66,13 +67,18 @@ static SECTION: LazyLock<StyleBlock> = LazyLock::new(|| {
         // Folding: the heading is the `<summary>`, with a chevron that turns as it opens.
         .nest(
             "& > details > summary",
-            pairs(&[("grid-template-columns", "minmax(0, 1fr) auto"), ("column-gap", gap!(12)), ("align-items", "center"), ("list-style", "none"), ("cursor", "pointer"), ("border-radius", "var(--radius-control, var(--radius-md))")]),
+            pairs(&[("grid-template-columns", "minmax(0, 1fr) auto auto"), ("column-gap", gap!(12)), ("align-items", "center"), ("list-style", "none"), ("cursor", "pointer"), ("border-radius", "var(--radius-control, var(--radius-md))")]),
         )
         .nest("& > details > summary > *", pairs(&[("grid-column", "1")]))
+        .nest(
+            "& > details > summary > [data-section-count]",
+            pairs(&[("grid-column", "2"), ("grid-row", "1 / span 2"), ("padding", pad!(2, 8)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-destructive) 12%, transparent)"), ("color", DESTRUCTIVE), ("font-size", fs!(12)), ("font-weight", "var(--font-weight-medium, 500)"), ("white-space", "nowrap")]),
+        )
+        .nest("& > details:is([open], :not([data-wrong])) > summary > [data-section-count]", pairs(&[("display", "none")]))
         .nest("& > details > summary::-webkit-details-marker", pairs(&[("display", "none")]))
         .nest(
             "& > details > summary::after",
-            pairs(&[("content", "'⌄'"), ("grid-column", "2"), ("grid-row", "1 / span 2"), ("color", MUTED), ("line-height", "1"), ("transition", "transform .2s")]),
+            pairs(&[("content", "'⌄'"), ("grid-column", "3"), ("grid-row", "1 / span 2"), ("color", MUTED), ("line-height", "1"), ("transition", "transform .2s")]),
         )
         .nest("& > details[open] > summary::after", pairs(&[("transform", "rotate(180deg)")]))
         .nest("& > details > summary:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
@@ -189,6 +195,13 @@ impl Component for FormSection {
                 p.attr("id", id_with(&id, "-description")).text(d.clone());
                 cx.open(&p, node)?;
                 cx.close("p");
+            }
+            if fold {
+                // Filled in by the form: how many fields in it need fixing.
+                let mut n = Element::new("span");
+                n.attr("data-section-count", true);
+                cx.open(&n, node)?;
+                cx.close("span");
             }
             cx.close(head_tag);
         }

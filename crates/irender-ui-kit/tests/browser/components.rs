@@ -298,9 +298,13 @@ root:
         // A submit with a wrong field in it opens the section and goes there.
         $("#go").click(); await wait(30); log(d.open, S().errors.email);
         $("[role=alert] button").click(); await wait(30); log(d.open, document.activeElement === email);
-        sum.click(); await wait(30); $("[role=alert] button").click(); await wait(30); log(d.open, document.activeElement === email);
+        // Folded, it says how many of its fields need fixing; open, or once they're right, it doesn't.
+        const count = $("[data-section-count]"), shown = () => count.checkVisibility() ? count.textContent : "-";
+        log(shown()); sum.click(); await wait(30); log(d.open, shown());
+        $("[role=alert] button").click(); await wait(30); log(d.open, document.activeElement === email);
+        type(email, "a@b.co"); sum.click(); await wait(30); log(d.open, shown(), d.hasAttribute("data-wrong"));
 "##,
-        &["false false Contact grid", "true true true", "true", "false", "true Required", "true true", "true true"],
+        &["false false Contact grid", "true true true", "true", "false", "true Required", "true true", "-", "false 1 to fix", "true true", "false - false"],
     );
 }
 

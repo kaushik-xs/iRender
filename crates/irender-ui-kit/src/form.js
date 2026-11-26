@@ -174,6 +174,18 @@
         const off = !!live(cfg.disabled);
         if (off !== !!el.inert) el.inert = off;
         for (const s of el.querySelectorAll("[data-i-x=ui-error-summary]")) s.__x?.draw?.();
+        // Folded sections say how many of their fields are wrong, once that's shown.
+        for (const d of el.querySelectorAll("details[data-section-in]")) {
+          if (!mine(d)) continue;
+          const wrong = new Set();
+          for (const n of d.querySelectorAll("[data-i-bind], [data-i-x]")) {
+            const k = n.getAttribute("data-i-bind") ?? n.__xc?.bind;
+            if (k in all && (tried || touched.has(k))) wrong.add(k);
+          }
+          d.toggleAttribute("data-wrong", wrong.size > 0);
+          const c = d.querySelector(":scope > summary > [data-section-count]");
+          if (c) c.textContent = wrong.size ? L(["{n} to fix", "{n} to fix"], { n: wrong.size }) : "";
+        }
       } finally {
         drawing = false;
       }

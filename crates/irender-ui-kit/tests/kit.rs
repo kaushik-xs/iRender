@@ -2262,7 +2262,7 @@ fn form_columns_and_sections_mix() {
     let fold = |props: Json| plain(&render_with(json!({ "type": "ui-form-section", "props": props, "children": [ field("X", json!(1)) ] }), json!({ "shut": false }), json!({})).unwrap().body);
     let body = fold(json!({ "title": "More", "description": "Optional", "collapsible": true }));
     assert!(body.contains(r#"<details data-section-in open><summary data-section-head><h3 id="#), "{body}");
-    assert!(body.contains("</p></summary><div data-form-columns>") && body.contains("</details></div>"), "{body}");
+    assert!(body.contains("</p><span data-section-count></span></summary><div data-form-columns>") && body.contains("</details></div>"), "{body}");
     assert!(!fold(json!({ "title": "More", "collapsible": true, "open": "{{ shut }}" })).contains(" open>"));
     assert!(fold(json!({ "title": "More" })).contains("<div data-section-in><div data-section-head>"));
     let bad = render_with(json!({ "type": "ui-form-section", "props": { "collapsible": true }, "children": [] }), json!({}), json!({}));
