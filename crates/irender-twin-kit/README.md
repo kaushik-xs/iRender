@@ -87,13 +87,14 @@ An object's data is any of its fields. `readouts` say which to show, how, and wh
 
 ```yaml
 readouts:
-  - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, when: { kind: conveyor } }
+  - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, history: 40, when: { kind: conveyor } }
   - { field: level, label: Level, unit: "%", decimals: 0, warn: 25, alarm: 10, below: true }
   - { field: humidity, label: Humidity, unit: "%", tag: false }
 ```
 
 - An object's first two readouts are on its tag over it (`tag` says otherwise), and all of them are in its popup.
 - Past `warn` an object turns warning; past `alarm` it's in alarm. `below: true` is for values that mustn't fall, like a tank's level or a battery.
+- `history: n` keeps an object's last n values of a readout (a point each time it changes, up to 500) and draws them as a sparkline beside it in the popup. They're kept in the page, from when it opened; an object that leaves the world forgets them.
 - `when` (a `filter`, as the data table's) or `models` limit a readout to some objects, so each kind of machine, or each room, can have its own limits.
 - `colorBy: { field, min, max, colors }` colours objects along a scale by a value, e.g. temperatures from blue to red. `sensor` shapes take the colour themselves; models glow with it.
 

@@ -130,12 +130,12 @@ root:
               extinguisher: ../twin/models/extinguisher.glb
               sign: ../twin/models/floor_sign.glb
             readouts:
-              - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, when: { kind: conveyor } }
+              - { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, history: 40, when: { kind: conveyor } }
               - { field: speed, label: Belt, unit: m/min, tag: false, when: { kind: conveyor } }
               - { field: level, label: Level, unit: "%", decimals: 0, warn: 25, alarm: 10, below: true, when: { kind: [hopper, tank] } }
               - { field: temp, label: Temperature, unit: °C, tag: false, when: { kind: [hopper, tank] } }
               - { field: battery, label: Battery, unit: "%", decimals: 0, warn: 30, alarm: 15, below: true, when: { kind: vehicle } }
-              - { field: air, label: Air, unit: °C, warn: 30, alarm: 35, when: { kind: sensor } }
+              - { field: air, label: Air, unit: °C, warn: 30, alarm: 35, history: 40, when: { kind: sensor } }
               - { field: humidity, label: Humidity, unit: "%", decimals: 0, tag: false, when: { kind: sensor } }
               - { field: rpm, label: Fan, unit: rpm, tag: false, when: { kind: fan } }
             paths:

@@ -57,7 +57,7 @@ root:
       props: { gap: 6 }
       children:
         - { type: ui-heading, props: { level: 1, text: "Live data" } }
-        - { type: ui-text, props: { variant: lead, text: "live polls an address or follows a stream of server-sent events, and merges each answer into the objects with the same id. Here, a packing line from examples/serve.py, every two seconds; bindLive keeps the values in state too." } }
+        - { type: ui-text, props: { variant: lead, text: "live polls an address or follows a stream of server-sent events, and merges each answer into the objects with the same id. Here, a packing line from examples/serve.py, every two seconds; bindLive keeps the values in state too, and history: 30 draws a readout's last thirty values in the popup." } }
     - type: ui-twin
       attrs: { id: live }
       props:
@@ -68,7 +68,7 @@ root:
         models: { conveyor: models/conveyor.glb }
         toneBy: { field: status, tones: { running: success, stopped: warning, fault: danger } }
         alarmBy: { field: status, values: [fault] }
-        readouts: [ { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85 }, { field: speed, label: Belt, unit: m/min, tag: false } ]
+        readouts: [ { field: temp, label: Motor, unit: °C, warn: 70, alarm: 85, history: 30 }, { field: speed, label: Belt, unit: m/min, tag: false } ]
         camera: { position: [0, 4.5, 6], target: [0, 0.5, 0] }
         objects:
           - { id: cv-1, model: conveyor, position: [-3, 0], title: Section 1 }

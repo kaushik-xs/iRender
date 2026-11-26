@@ -289,3 +289,31 @@ fn without_webgl_the_objects_are_listed() {
     let Some(lines) = run("nogl", doc, head, driver) else { return };
     check(lines, &["3D view unavailable", "Oven · Temp 91°C:alarm | Mixer:undefined"]);
 }
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn readout_history_is_a_sparkline_in_the_popup() {
+    let doc = json!({ "version": 1,
+        "state": { "rows": [{ "id": "a", "shape": "box", "position": [0, 0], "title": "Oven", "temp": 60, "load": 5 }] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260, "objects": "{{ rows }}",
+            "readouts": [{ "field": "temp", "label": "Temp", "unit": "°C", "history": 3 }, { "field": "load", "label": "Load" }] } } });
+    let driver = r##"
+      await ready("w");
+      const temp = (t) => set("rows", [{ ...S().rows[0], temp: t }]);
+      const spark = () => $("w", "[data-twin-spark]");
+      const points = () => spark()?.querySelector("polyline").getAttribute("points").split(" ").length ?? 0;
+      twin("w").select("a"); await wait(80);
+      log("one value", points(), $$("w", "[data-twin-popup] dd").map((d) => d.textContent).join(","));
+      temp(64); await wait(80);
+      log("two", points(), spark().getAttribute("aria-label"));
+      // The same value again isn't a point; past `history` the oldest go.
+      temp(64); await wait(80); temp(70); await wait(80); temp(66); await wait(80);
+      log("kept", points(), spark().getAttribute("aria-label"));
+      // Gone from the world, it forgets them.
+      set("rows", []); await wait(80); set("rows", [{ id: "a", shape: "box", position: [0, 0], title: "Oven", temp: 50 }]); await wait(80);
+      twin("w").select("a"); await wait(80);
+      log("back", points());
+    "##;
+    let Some(lines) = run("history", doc, "", &guarded(driver)) else { return };
+    check(lines, &["one value 0 60°C,5", "two 2 Last 2: 60°C to 64°C", "kept 3 Last 3: 64°C to 70°C", "back 0"]);
+}

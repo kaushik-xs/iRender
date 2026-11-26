@@ -95,7 +95,7 @@ const PROPS: &[PropDef] = &[
          title, description, label, tone, alarm, effect, path, speed, progress, loop, face, attach, animation, opacity, clickable, href, … }`, in metres with y up. \
          Any other fields are the object's data (a machine's speed, a sensor's value): `readouts` show them. Usually from data or state, so they move when it changes",
     ),
-    PropDef::new("readouts", PropKind::Any, "Values shown on the objects that have them: `[{ field, label, unit, decimals, warn, alarm, below, tag, when, models }]`. Past `warn` an object turns warning, past `alarm` it's in alarm (`below: true`: under them); `when` (a `filter`) or `models` limit a readout to some objects, so each kind can have its own limits. The first two are on its tag (`tag` says otherwise); all are in its popup"),
+    PropDef::new("readouts", PropKind::Any, "Values shown on the objects that have them: `[{ field, label, unit, decimals, warn, alarm, below, tag, when, models, history }]`. Past `warn` an object turns warning, past `alarm` it's in alarm (`below: true`: under them); `when` (a `filter`) or `models` limit a readout to some objects, so each kind can have its own limits. The first two are on its tag (`tag` says otherwise); all are in its popup. `history: n` keeps an object's last n values (a point each time it changes, up to 500) and draws them as a sparkline in its popup"),
     PropDef::new("colorBy", PropKind::Any, "Colours objects by a value: `{ field, min, max, colors: [blue, green, yellow, red] }`, e.g. temperatures"),
     PropDef::new("live", PropKind::Any, "Machine and sensor values from a feed of the twin's own: `{ url, every: 5000 }` polled, or `{ stream: url }` (server-sent events). Each answer is rows with an `id`, or `{ <id>: { field: value } }`, merged into the objects with that id"),
     PropDef::new("paths", PropKind::Any, "Routes: `{ id, points: [[x, z], …], closed, width, tone, color, flow, height, show }`. `flow: true` (or a speed) moves stripes along it; an object with `path` follows it at `speed` m/s (default 1), or stands at `progress` (0 to 1)"),
@@ -484,6 +484,7 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [data-twin-popup] > dl", pairs(&[("display", "grid"), ("grid-template-columns", "auto auto"), ("gap", "2px 16px"), ("margin", "8px 0 0")]))
     .nest("& [data-twin-popup] dt", pairs(&[("color", MUTED)]))
     .nest("& [data-twin-popup] dd", pairs(&[("margin", "0"), ("text-align", "end"), ("font-variant-numeric", "tabular-nums"), ("font-weight", "600")]))
+    .nest("& [data-twin-spark]", pairs(&[("display", "inline-block"), ("margin-inline-end", "8px"), ("vertical-align", "middle"), ("opacity", "0.85")]))
     .nest("& [data-twin-edit]", pairs(&[("display", "flex"), ("gap", "6px"), ("margin-top", "10px")]))
     .nest(
         "& [data-twin-edit] button",

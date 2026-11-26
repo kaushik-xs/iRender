@@ -230,7 +230,9 @@
       const n = Number(v), over = (t) => fin(t) && (o.below ? n <= num(t) : n >= num(t));
       return over(o.alarm) ? "alarm" : over(o.warn) ? "warn" : null;
     };
-    function readings(m) {
+    // A readout's last values per object (`history: n`): a point each time its value changes.
+    const hist = new Map();
+    function readings(m, id) {
       const rs = Array.isArray(W("readouts")) ? W("readouts") : [];
       const out = [];
       for (const o of rs) {
@@ -239,8 +241,16 @@
         if (isObj(o.when) && !passes(m, o.when)) continue;
         const v = field(m, o.field);
         if (v === undefined || v === null || v === "") continue;
+        let past = null;
+        const n = fin(o.history) ? Math.min(500, Math.floor(num(o.history))) : 0;
+        if (n > 1 && isNum(v)) {
+          const k = `${id}\u0000${o.field}`;
+          past = hist.get(k) ?? [];
+          if (past.at(-1) !== Number(v)) past = [...past, Number(v)].slice(-n);
+          hist.set(k, past);
+        }
         // The object's first two are on its tag, unless `tag` says otherwise.
-        out.push({ field: o.field, label: str(o.label ?? o.field), text: fmt(v, o), level: levelOf(o, v), tag: o.tag ?? out.filter((x) => x.tag).length < 2 });
+        out.push({ field: o.field, label: str(o.label ?? o.field), text: fmt(v, o), level: levelOf(o, v), tag: o.tag ?? out.filter((x) => x.tag).length < 2, past, o });
       }
       return out;
     }
@@ -262,7 +272,7 @@
         const m = live$.has(id) ? { ...m0, ...live$.get(id) } : m0;
         if (m.show === false || !passes(m, props.filter)) return [];
         seen.add(id);
-        const reads = readings(m);
+        const reads = readings(m, id);
         const worst = reads.some((x) => x.level === "alarm") ? "alarm" : reads.some((x) => x.level === "warn") ? "warn" : null;
         const alarm = typeof m.alarm === "boolean" ? m.alarm : alarmed(m) || worst === "alarm";
         const by = props.effectBy;
@@ -279,6 +289,26 @@
           opacity: fin(m.opacity) ? num(m.opacity) : 1, clickable: m.clickable !== false, animation: m.animation, href: m.href,
         }];
       });
+      // What's gone from the world forgets its values; what's only filtered out keeps them.
+      if (hist.size) {
+        const ids = new Set(objects.map((m, i) => (isObj(m) ? str(m.id ?? i) : null)));
+        for (const k of hist.keys()) if (!ids.has(k.slice(0, k.indexOf("\u0000")))) hist.delete(k);
+      }
+    }
+    // A readout's last values as a line, its latest a dot; the label says their range.
+    function spark(x) {
+      const p = x.past, w = 64, h = 18, lo = Math.min(...p), hi = Math.max(...p);
+      const at = (v, i) => [(i / (p.length - 1)) * (w - 4) + 2, hi === lo ? h / 2 : h - 2 - ((v - lo) / (hi - lo)) * (h - 4)].map((n) => +n.toFixed(1));
+      const pts = p.map(at), [cx, cy] = pts.at(-1);
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+      svg.setAttribute("width", w);
+      svg.setAttribute("height", h);
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", L("Last {n}: {low} to {high}", { n: p.length, low: fmt(lo, x.o), high: fmt(hi, x.o) }));
+      svg.setAttribute("data-twin-spark", "");
+      svg.innerHTML = `<polyline points="${pts.join(" ")}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="2" fill="currentColor"/>`;
+      return svg;
     }
 
     // ---------------------------------------------------------------- models
@@ -1057,7 +1087,11 @@
       if (r.description) parts.push(make("p", {}, str(r.description)));
       if (r.reads.length) {
         const dl = make("dl");
-        for (const x of r.reads) dl.append(make("dt", {}, x.label), make("dd", { "data-level": x.level }, x.text));
+        for (const x of r.reads) {
+          const dd = make("dd", { "data-level": x.level }, x.text);
+          if (x.past?.length > 1) dd.prepend(spark(x));
+          dl.append(make("dt", {}, x.label), dd);
+        }
         parts.push(dl);
       }
       if (r.href && allowed(r.href) && (!cfg.safe || /^(https?:|[/?#.]|[^:]*$)/i.test(r.href))) parts.push(make("a", { href: r.href }, L("Open")));
