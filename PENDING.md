@@ -33,7 +33,7 @@ _Last updated: 2026-11-26._
 
 - [ ] **`ui-compare-slider`** (2026-11-23; gallery, block job-report-01): two pictures only (no third, no video), no zooming into both together, and no fade between them as another way to compare. On a phone the picture is a range input, so a sideways swipe moves the divider rather than the page; tried in Chrome, not on real phones.
 
-- [ ] **`ui-countdown`** (2026-11-23; gallery, block ticket-01): the browser's clock is trusted (a server's time isn't asked for), no business hours (an SLA that stops overnight or at weekends), no pausing (a ticket waiting on the customer), and only the two largest units. Times from state are read as the browser reads dates: one without a zone (`2026-12-01T17:00`) is local time.
+- [ ] **`ui-countdown`** (2026-11-23; gallery, block ticket-01): the browser's clock is trusted (a server's time isn't asked for), no business hours (an SLA that stops overnight or at weekends), and only the two largest units. Pausing (`paused`, 2026-11-26; gallery): the pause moves the deadline on the page only; the server keeps it by setting a new `to`. Times from state are read as the browser reads dates: one without a zone (`2026-12-01T17:00`) is local time.
 
 - [ ] **`ui-form-builder`** (2026-11-23; gallery, block form-designer-01): no conditions (show a field when another has an answer), no columns or field widths, no rules beyond required, email and limits (no patterns or lengths), no file, phone, time or rating fields, and no undo. Dragging from the palette is the browser's drag and drop, so by touch a type is added with a tap; a document can't be read back into fields.
 

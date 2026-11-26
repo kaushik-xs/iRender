@@ -492,6 +492,7 @@ root: …
 "{n}h": "{n}h"
 "{n}m": "{n}m"
 "{n}s": "{n}s"
+"Paused": "Paused"
 "{n} days": { one: "{n} day", other: "{n} days" }
 "{n} hours": { one: "{n} hour", other: "{n} hours" }
 "{n} minutes": { one: "{n} minute", other: "{n} minutes" }
@@ -499,6 +500,7 @@ root: …
 "Until {when}": "Until {when}"
 "{time} overdue": "{time} overdue"
 "{time} left": "{time} left"
+"paused": "paused"
 "Overdue": "Overdue"
 ```
 

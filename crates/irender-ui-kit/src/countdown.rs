@@ -20,6 +20,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("endText", PropKind::Any, "Shown once it's over, with `overdue: false` (default `Time's up`)"),
     PropDef::new("format", PropKind::Enum(&["units", "clock"]), "`units` (default: `2d 4h`, `13m 05s`) or `clock` (`2:04:13`, `3d 02:04:13`)"),
     PropDef::new("variant", PropKind::Enum(&["inline", "tiles"]), "`inline` (default: text with a dot in its tone) or `tiles` (days, hours, minutes and seconds in boxes)"),
+    PropDef::new("paused", PropKind::Any, "While true (e.g. `{{ ticket.status == 'waiting' }}`), the time left stands still and it says Paused; on resuming the deadline moves out by the pause. A new `to` from the page replaces the moved one"),
     PropDef::new("bindLeft", PropKind::StateKey, "State key that gets the seconds left (below zero once overdue), every second"),
     PropDef::new("bindStatus", PropKind::StateKey, "State key that gets `ok`, `warning`, `danger` or `over` as it changes"),
     PropDef::new("label", PropKind::Any, "What it counts down to, for screen readers, e.g. `First reply due`"),
@@ -35,6 +36,8 @@ static COUNTDOWN: LazyLock<StyleBlock> = LazyLock::new(|| {
             .nest("& [data-cd-line]", pairs(&[("display", "inline-flex"), ("align-items", "center"), ("gap", gap!(6)), ("white-space", "nowrap")]))
             .nest("& [data-cd-dot]", pairs(&[("flex", "none"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
             .nest("&[data-status=over] [data-cd-dot], &[data-status=danger] [data-cd-dot]", pairs(&[("animation", "ui-cd-pulse 1.2s ease-in-out infinite")]))
+            // Paused: still, and muted, whatever the time left.
+            .nest("&[data-paused] [data-cd-dot]", pairs(&[("animation", "none"), ("background", MUTED)]))
             .nest("&:not([data-status=ok]) [data-cd-text]", pairs(&[("color", "color-mix(in srgb, var(--tone) 85%, var(--color-text))"), ("font-weight", "var(--font-weight-medium, 500)")]))
             .nest(
                 "& [data-cd-bar]",
@@ -115,7 +118,7 @@ impl Component for Countdown {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["to", "from"], &["format", "variant"], &["bindLeft", "bindStatus"])?;
+        let mut config = widget::config(cx, node, &["to", "from", "paused"], &["format", "variant"], &["bindLeft", "bindStatus"])?;
         let mut limit = |name: &str| -> Result<Option<f64>, RenderError> {
             match cx.prop(node, name).filter(|v| !v.is_null()) {
                 Some(v) => {

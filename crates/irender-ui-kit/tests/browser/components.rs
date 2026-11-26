@@ -237,6 +237,39 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn countdown_stands_still_while_paused() {
+    check(
+        "countdown-paused",
+        r##"
+state: { due: "+60s", hold: false, left: null, st: null, ended: 0 }
+root:
+  type: ui-countdown
+  props: { to: "{{ due }}", paused: "{{ hold }}", bindLeft: left, bindStatus: st, warn: 20s }
+  attrs: { id: c }
+  on: { end: { action: set_state, key: ended, value: "{{ ended + 1 }}" } }
+"##,
+        r##"
+        const c = $("#c"), text = () => $("[data-cd-text]", c).textContent, due = () => Date.parse($("[data-cd-text]", c).getAttribute("datetime"));
+        await wait(2000); const left0 = S().left, due0 = due(); log(left0 >= 57 && left0 <= 58, c.hasAttribute("data-paused"));
+        // Paused: the time left stands still, and says so.
+        root.__irender.set("hold", true); await wait(5000);
+        log(S().left === left0, text() === `${left0}s · Paused`, c.hasAttribute("data-paused"), c.getAttribute("aria-description").endsWith(", paused"));
+        // Resumed: it goes on from there, the deadline five seconds later.
+        root.__irender.set("hold", false); await wait(2000);
+        log(left0 - S().left, Math.round((due() - due0) / 1000), c.hasAttribute("data-paused"));
+        // A new deadline from the page has the pause in it already: nothing is added.
+        root.__irender.set("due", new Date(Date.now() + 30200).toISOString()); await wait(50);
+        log(S().left, S().st);
+        // Paused past zero, it doesn't end; resumed, it does.
+        root.__irender.set("due", new Date(Date.now() + 1500).toISOString()); root.__irender.set("hold", true); await wait(3000);
+        log(S().st, S().ended); root.__irender.set("hold", false); await wait(2000); log(S().st, S().ended);
+"##,
+        &["true false", "true true true true", "2 5 false", "30 ok", "warning 0", "over 1"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn stepper_keeps_the_furthest_step_reached() {
     check(
         "stepper-furthest",

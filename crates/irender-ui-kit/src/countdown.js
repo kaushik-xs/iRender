@@ -3,6 +3,7 @@
 // sets the status: ok, warning (under `warn`), danger (under `danger`), over. The status
 // goes to `bindStatus` and is said once when it changes; the seconds left go to
 // `bindLeft`. At zero it fires `end`. Past it, it counts up as overdue, or shows `endText`.
+// While `paused`, the time left stands still; resumed, the deadline moves out by the pause.
 (window.__irenderBehaviors ||= {})["ui-countdown"] = (el, api) => {
   const cfg = api.config, K = window.__irenderKit, L = (t, v) => window.__irender.label(t, v);
   const text = el.querySelector("[data-cd-text]"), bar = el.querySelector("[data-cd-bar]");
@@ -51,28 +52,45 @@
   }
 
   let status = null, lastLeft;
+  // Pauses on this page: since when (while paused), and how long in all, which a new `to`
+  // (the page's own, with the pause in it) clears.
+  let since = null, shift = 0, wasTo;
   function draw() {
-    const to = ms(K.value(api, cfg.to)), from = ms(K.value(api, cfg.from));
+    const raw = K.value(api, cfg.to), paused = !!K.value(api, cfg.paused), real = Date.now();
+    if (wasTo !== undefined && JSON.stringify(raw) !== wasTo) shift = 0;
+    wasTo = JSON.stringify(raw);
+    if (paused && since === null) since = real;
+    if (!paused && since !== null) (shift += real - since), (since = null);
+    // The time as it's counted: stood still while paused.
+    const now = (since ?? real) - shift;
+    el.toggleAttribute("data-paused", paused);
+    const to = ms(raw), from = ms(K.value(api, cfg.from));
     if (to === null) {
       text.textContent = "";
       return;
     }
-    const left = Math.round((to - Date.now()) / 1000), s = Math.abs(left);
+    const left = Math.round((to - now) / 1000), s = Math.abs(left);
+    // The deadline as it now falls, moved out by the pauses.
+    const due = to + (real - now);
     const next = left <= 0 ? "over" : cfg.danger !== undefined && left <= cfg.danger ? "danger" : cfg.warn !== undefined && left <= cfg.warn ? "warning" : "ok";
     el.setAttribute("data-status", next);
     el.setAttribute("data-tone", { ok: "neutral", warning: "warning", danger: "danger", over: "danger" }[next]);
     const shown = cfg.format === "clock" ? clock(s) : units(s);
-    if (left > 0) text.textContent = tiles ? L("Until {when}", { when: new Date(to).toLocaleString(document.documentElement.lang || undefined, { dateStyle: "medium", timeStyle: "short" }) }) : shown;
+    if (left > 0) text.textContent = tiles ? L("Until {when}", { when: new Date(due).toLocaleString(document.documentElement.lang || undefined, { dateStyle: "medium", timeStyle: "short" }) }) : shown;
     else if (cfg.overdue) text.textContent = L("{time} overdue", { time: shown });
     else text.textContent = cfg.endText;
+    // Labels: "Paused"
+    if (paused) text.textContent = `${text.textContent} · ${L("Paused")}`;
     if (tiles) {
       const v = Math.max(0, left), n = { days: Math.floor(v / 86400), hours: Math.floor(v / 3600) % 24, minutes: Math.floor(v / 60) % 60, seconds: v % 60 };
       for (const t of tiles.querySelectorAll("[data-cd-tile]")) t.querySelector("b").textContent = p2(n[t.getAttribute("data-cd-tile")]);
       if (left <= 0) text.textContent = cfg.overdue ? L("{time} overdue", { time: shown }) : cfg.endText;
+      if (paused) text.textContent = left > 0 ? L("Paused") : `${text.textContent} · ${L("Paused")}`;
     }
-    text.setAttribute("datetime", new Date(to).toISOString());
-    el.setAttribute("aria-description", left > 0 ? L("{time} left", { time: spoken(s) }) : cfg.overdue ? L("{time} overdue", { time: spoken(s) }) : cfg.endText);
-    if (bar && from !== null && to > from) el.style.setProperty("--used", String(Math.min(100, Math.max(0, ((Date.now() - from) / (to - from)) * 100))));
+    text.setAttribute("datetime", new Date(due).toISOString());
+    const said = left > 0 ? L("{time} left", { time: spoken(s) }) : cfg.overdue ? L("{time} overdue", { time: spoken(s) }) : cfg.endText;
+    el.setAttribute("aria-description", paused ? `${said}, ${L("paused")}` : said);
+    if (bar && from !== null && to > from) el.style.setProperty("--used", String(Math.min(100, Math.max(0, ((now - from) / (to - from)) * 100))));
     if (bar) requestAnimationFrame(() => el.setAttribute("data-cd-ready", ""));
     // Noted before it's written: writing it calls `update`, which draws again.
     if (left !== lastLeft) {
@@ -80,7 +98,7 @@
       if (cfg.bindLeft) api.set(cfg.bindLeft, left);
     }
     // `end` when it reaches zero on the page, not for a deadline already past on arrival.
-    if (next === "over" && status !== null && status !== "over") api.emit("end", { to: new Date(to).toISOString() });
+    if (next === "over" && status !== null && status !== "over") api.emit("end", { to: new Date(due).toISOString() });
     if (next !== status) {
       // Said when it changes, not on every tick; nothing on the first draw unless it's late.
       const name = el.getAttribute("aria-label");
