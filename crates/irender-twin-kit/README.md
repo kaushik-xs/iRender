@@ -153,6 +153,7 @@ An object whose `position` or `rotation` changes in the data moves there over `t
 | `bindLive` | the latest values from `live` |
 | `bindCamera` | `{ position, target }` once the camera has moved: copy it into `views` |
 | `bindObjects` | the objects' list, written back when they're moved, added or removed |
+| `bindMeasure` | the last measurement, `{ from, to, distance, across, up }` in metres |
 
 `filter` shows only the objects that pass, e.g. a `ui-filters` panel's `bind`, or an area picked in a toggle group.
 
@@ -181,6 +182,10 @@ With `editable: true` and `bindObjects`, objects can be dragged on the ground (s
 
 With `multiple: true`, ⌘, Ctrl or Shift and a click adds an object to the ones picked or takes it away (on the view, its tag or the list), Shift and a drag from the floor draws a box and picks what's in it, and ⌘A (with the view focused) picks them all. Each picked one has its ring; the last one picked is the selected one (`bind`, its popup when it's alone), and `bindSelected` has all their ids (set it to pick them). Editable, they move together: dragging one drags the others with it, Alt and the arrows move them all, Alt+R turns each about itself, and Delete removes them all, written back in one change. The twin fires `selectionchange` with `{ ids, objects }`, and `selectMany(ids)` and `selection` are on the element's `__twin`.
 
+## Measuring
+
+With `measure: true` the controls have a ruler (M with the view focused does the same). Turned on, two clicks on objects, walls or the floor draw a line between them with its length; when it slopes, how far across and how far up as well. Picked from a tag or the objects' list (so from the keyboard too), an object counts from its middle on the floor. A third click starts again, and Escape (or the ruler) stops. The line is drawn over everything, so one through a wall still shows. `bindMeasure` holds the last one, the twin fires `measure` with it, and `measure(a, b)` on the element's `__twin` takes two ids or points (`[x, z]` or `[x, y, z]`) and draws it; `measure(null)` clears it.
+
 ## Events
 
 | event | detail |
@@ -191,12 +196,13 @@ With `multiple: true`, ⌘, Ctrl or Shift and a click adds an object to the ones
 | `zoneselect` | `{ id, zone }` |
 | `alarm` | `{ id, object }`, for each new alarm |
 | `data` | `{ count }`, for each answer from `live` |
+| `measure` | `{ from, to, distance, across, up }` |
 | `move`, `add`, `remove` | `{ id, position, rotation }` or `{ id, object }` |
 | `failed` | `{ error }`, with `model` or `live` when that's what failed |
 
 ## Gestures and keys
 
-Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup, then the selection. With `multiple`, Shift-drag from the floor draws a box (see [Several at once](#several-at-once)); otherwise it moves the view as right-drag does.
+Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup, then the selection. With `measure`, M turns the ruler on and off. With `multiple`, Shift-drag from the floor draws a box (see [Several at once](#several-at-once)); otherwise it moves the view as right-drag does.
 
 ## Smoothness
 

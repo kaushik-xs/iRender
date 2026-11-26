@@ -2424,17 +2424,19 @@ ui-twin: A digital twin: a 3D world drawn with three.js from models of most form
   effectBy     any  Animates objects by a field: `{ field: state, effects: { running: spin } }`, or `effect` on a row: `pulse`, `glow`, `blink`, `spin` (`spin`: degrees a second) or `bob`. Still, where the viewer asked for less motion
   labels       one of: auto, all, none  Tags over objects: `auto` (default) for those with a `label`, readouts or an alarm; `all`; `none` (alarms still)
   editable     any  Objects can be dragged on the ground, or moved with Alt and the arrow keys and turned with Alt+R (needs `bindObjects`)
-  snap         any  Metres moves snap to, e.g. 0.5
   multiple     bool  Several objects picked at once: ⌘, Ctrl or Shift and a click adds or takes one away (on the view, a tag or the list), Shift and a drag from the floor draws a box around more, ⌘A picks them all. Editable, they're dragged, moved, turned and removed together. The last one picked is the selected one (`bind`); all are in `bindSelected`
+  snap         any  Metres moves snap to, e.g. 0.5
+  measure      any  A ruler button among the controls (or M with the view focused): two clicks, on objects, walls or the floor, and the distance between them is drawn and said, with how far across and how far up when both count. Picked from a tag or the list, an object counts from its middle on the floor. Escape stops
   palette      any  While `editable`, things to add, as rows like `objects` without a place: `[{ label, model | shape, title, … }]`. Clicked, one is added in the middle of the view; dragged into it, where it's dropped. Delete removes the selected object
   bind         statekey  State key with the selected object's id (null when none). Setting it selects that object and brings it into view
   bindObject   statekey  State key with the selected object itself, with its latest values
-  bindZone     statekey  State key with the id of the zone last clicked
   bindSelected statekey  State key with the ids of the objects picked (with `multiple`, several; else the selected one's); setting it picks them
+  bindZone     statekey  State key with the id of the zone last clicked
   bindView     statekey  State key with the current view's id; setting it moves the camera there
   bindAlarms   statekey  State key with the ids of the objects in alarm, e.g. for a count
   bindObjects  statekey  State key the objects are in: a moved one's `position` and `rotation` are written back to its row
   bindLive     statekey  State key that gets the latest values from `live`, as `{ <id>: { field: value } }`, e.g. for a list or totals beside the twin
+  bindMeasure  statekey  State key with the last measurement, `{ from, to, distance, across, up }` in metres (null when none)
   bindCamera   statekey  State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`
   popup        bool  Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)
   controls     bool  Zoom and fit buttons (default true)

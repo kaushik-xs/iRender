@@ -525,3 +525,65 @@ fn several_objects_picked_moved_and_removed_together() {
         ],
     );
 }
+
+#[test]
+#[ignore = "needs Chrome and three.js from the CDN"]
+fn measuring_between_points_and_objects() {
+    let row = |id: &str, x: i32, z: i32| json!({ "id": id, "shape": "box", "position": [x, z], "title": id });
+    let doc = json!({ "version": 1,
+        "state": { "picked": null, "m": null, "on": true },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 300, "objects": [row("a", -3, 0), row("b", 3, 0)],
+            "bind": "picked", "bindMeasure": "m", "measure": "{{ on }}", "labels": "none",
+            "camera": { "position": [0, 12, 10], "target": [0, 0, 0] } } } });
+    let driver = r##"
+      await ready("w");
+      const tw = twin("w"), T = tw.three, btn = $("w", "[data-twin-action=measure]"), opt = (id) => $("w", `[data-twin-option="${id}"]`);
+      const tag = () => { const t = $("w", "[data-twin-measure]"); return t && t.style.visibility !== "hidden" ? t.textContent : "none"; };
+      log("button", btn.hidden, btn.getAttribute("aria-pressed"), tw.measuring);
+      btn.click(); await wait(50);
+      log("on", btn.getAttribute("aria-pressed"), tw.measuring, $("w", "[data-twin-note]").textContent);
+      // From the list: one object to another, from their middles on the floor; nothing's selected.
+      opt("a").click(); await wait(50);
+      log("half", JSON.stringify(S().m), $("w", "[data-twin-note]").textContent);
+      opt("b").click(); await wait(80);
+      log("objects", JSON.stringify(S().m), tag(), S().picked, $("w", "[data-twin-live]").textContent);
+      // Two clicks on the floor, 4 m apart.
+      const cv = $("w", "canvas"), r = cv.getBoundingClientRect();
+      const click = (x, y, z) => {
+        const p = new T.Vector3(x, y, z).project(tw.camera), at = { clientX: r.left + ((p.x + 1) / 2) * r.width, clientY: r.top + ((1 - p.y) / 2) * r.height, button: 0, pointerId: 3, bubbles: true };
+        cv.dispatchEvent(new PointerEvent("pointerdown", at)); cv.dispatchEvent(new PointerEvent("pointerup", at));
+      };
+      // The camera's controls would capture this made-up pointer, which Chrome refuses.
+      tw.controls.enabled = false;
+      click(0, 0, 4); await wait(30); click(0, 0, 0); await wait(80);
+      tw.controls.enabled = true;
+      log("floor", Math.round(S().m.distance * 10) / 10, Math.round(S().m.up * 10) / 10, S().picked);
+      // A sloping one says across and up too.
+      tw.measure([0, 0, 0], [3, 4, 0]); await wait(80);
+      log("slope", S().m.distance, S().m.across, S().m.up, tag());
+      // M and Escape: off, and the line goes.
+      const view = $("w", "[data-twin-canvas]"); view.focus();
+      key(view, "Escape"); await wait(50);
+      log("escape", btn.getAttribute("aria-pressed"), tw.measuring, S().m, tag(), tw.scene.children.some((o) => o.isLine && o.visible));
+      key(view, "m"); await wait(50);
+      log("m", tw.measuring);
+      // Turned off from state, the button goes with it.
+      set("on", false); await wait(80);
+      log("off", btn.hidden, tw.measuring);
+    "##;
+    let Some(lines) = run("measure", doc, "", &guarded(driver)) else { return };
+    check(
+        lines,
+        &[
+            "button false false false",
+            "on true true Click two points to measure between them",
+            "half null Click a second point",
+            r#"objects {"from":[-3,0,0],"to":[3,0,0],"distance":6,"across":6,"up":0} 6 m null 6 m between them"#,
+            "floor 4 0 null",
+            "slope 5 3 4 5 m↔ 3 · ↕ 4",
+            "escape false false null none false",
+            "m true",
+            "off true false",
+        ],
+    );
+}

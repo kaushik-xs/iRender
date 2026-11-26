@@ -154,7 +154,7 @@
       return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)]));
     };
     const WORLD = ["models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy"];
-    const LIVE = [...WORLD, "world", "src", "live", "follow", "filter", "toneBy", "alarmBy", "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple"];
+    const LIVE = [...WORLD, "world", "src", "live", "follow", "filter", "toneBy", "alarmBy", "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple", "measure"];
     const props = {}, fixed = cfg.props;
     let fetched = null; // the world from `src`
     const read = () => {
@@ -1229,6 +1229,7 @@
       colors.muted = css("var(--color-muted, #71717a)");
       colors.backdrop = css("var(--color-subtle, #f4f4f5)");
       probe.remove();
+      for (const o of [ruler.line, ruler.ends]) o?.material.color.set(colors.primary);
       if (!scene) return;
       drawGround();
       drawZones();
@@ -1334,7 +1335,7 @@
       }
       if (!it.tag) {
         it.tag = make("button", { type: "button", "data-twin-tag": r.id, tabindex: "-1" });
-        it.tag.addEventListener("click", (e) => (adds(e) ? toggle(r.id) : select(r.id, { popup: true })));
+        it.tag.addEventListener("click", (e) => (measuring() ? measureAt(floorOf(r.id)) : adds(e) ? toggle(r.id) : select(r.id, { popup: true })));
         it.tag.toggleAttribute("data-selected", picked.has(r.id));
         tagLayer.append(it.tag);
       }
@@ -1367,7 +1368,7 @@
       if (!it.option) {
         it.option = make("li");
         const b = make("button", { type: "button", "data-twin-option": r.id });
-        b.addEventListener("click", (e) => (adds(e) ? toggle(r.id) : select(r.id, { popup: true, fly: true, keys: true })));
+        b.addEventListener("click", (e) => (measuring() ? measureAt(floorOf(r.id)) : adds(e) ? toggle(r.id) : select(r.id, { popup: true, fly: true, keys: true })));
         b.addEventListener("focus", () => (focused = r.id, wake()));
         b.addEventListener("blur", () => (focused = null, wake()));
         it.option.append(b);
@@ -1783,6 +1784,12 @@
         s.node.__more = more;
         s.node.__size = null;
       }
+      const end = ruler.b ?? ruler.at;
+      if (ruler.tag && ruler.a && end) {
+        const xy = put(ruler.tag, q.lerpVectors(ruler.a, end, 0.5));
+        if (xy) move(ruler.tag, xy);
+        show(ruler.tag, !!xy);
+      }
       if (popup) {
         const at = popup.zone ? popup.zone.at : items.has(popup.id) ? top(items.get(popup.id)) : null;
         const xy = at && put(popup.box, at);
@@ -1937,7 +1944,7 @@
       };
       const rect = () => ({ l: Math.min(box.a.x, box.b.x), t: Math.min(box.a.y, box.b.y), r: Math.max(box.a.x, box.b.x), b: Math.max(box.a.y, box.b.y) });
       host.addEventListener("pointerdown", (e) => {
-        if (!multi() || !e.shiftKey || e.button !== 0 || !renderer || e.target !== renderer.domElement || pick(e)?.item) return;
+        if (!multi() || !e.shiftKey || e.button !== 0 || !renderer || measuring() || e.target !== renderer.domElement || pick(e)?.item) return;
         e.stopPropagation();
         box = { a: at(e), b: at(e), id: e.pointerId, el: make("div", { "data-twin-box": "" }), base: [...picked] };
         tagLayer.append(box.el);
@@ -1977,7 +1984,7 @@
       c.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
         down = { x: e.clientX, y: e.clientY };
-        if (!editable()) return;
+        if (!editable() || measuring()) return;
         const hit = pick(e);
         const it = hit?.item;
         if (!it || it.rec.path !== null || it.rec.attach !== null) return;
@@ -2006,7 +2013,10 @@
           hoverQueued = true;
           nextFrame(() => {
             hoverQueued = false;
-            const h = renderer && pick(e);
+            if (!renderer) return;
+            // Half measured, the line follows the pointer.
+            if (measuring()) return ruler.a && !ruler.b && ((ruler.at = surfacePoint(e)), rulerDraw());
+            const h = pick(e);
             c.style.cursor = h ? (editable() && h.item ? "grab" : "pointer") : "";
           });
         }
@@ -2027,6 +2037,7 @@
         const far = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5;
         down = null;
         if (far) return;
+        if (measuring()) return measureAt(surfacePoint(e));
         const hit = pick(e);
         if (hit?.item && adds(e)) toggle(hit.item.id);
         else if (hit?.item) select(hit.item.id, { popup: true });
@@ -2043,6 +2054,98 @@
       c.addEventListener("pointercancel", up);
     }
     let hoverQueued = false;
+
+    // ---------------------------------------------------------------- measuring
+    // With `measure`, the ruler (its button, or M): two clicks, on objects, walls or the
+    // floor, and the distance between them is drawn and said. Picked from a tag or the
+    // list, an object counts from its middle on the floor. Drawn over everything, so a
+    // line through a wall still shows.
+    const ruler = { on: false, a: null, b: null, at: null, line: null, ends: null, tag: null };
+    const measuring = () => ruler.on && !!props.measure;
+    function surfacePoint(e) {
+      caster ||= new T.Raycaster();
+      caster.setFromCamera(pointerAt(e), camera);
+      const instanced = [...batches.values()].flatMap((b) => [...b.parts, ...(b.farParts ?? [])].map((p) => p.im).filter(Boolean));
+      const targets = [...[...items.values()].filter((it) => it.group.visible).map((it) => it.group), ...instanced, ...walls, ...zones.map((z) => z.mesh)];
+      const h = caster.intersectObjects(targets, true)[0];
+      return h ? h.point.clone() : groundPoint(e);
+    }
+    const floorOf = (id) => {
+      const it = items.get(str(id));
+      return it ? it.group.getWorldPosition(v3()).setY(0) : null;
+    };
+    function measureMode(on) {
+      ruler.on = !!on && !!props.measure;
+      host.toggleAttribute("data-measuring", ruler.on);
+      for (const b of el.querySelectorAll("[data-twin-action=measure]")) b.setAttribute("aria-pressed", String(ruler.on));
+      if (ruler.on) {
+        select(null);
+        say(L("Click two points to measure between them"), true);
+        host.focus({ preventScroll: true });
+      } else {
+        say("");
+        measure(null);
+      }
+    }
+    // The distance from one point to another, drawn; null clears it.
+    function measure(a, b) {
+      ruler.a = a ?? null;
+      ruler.b = (a && b) ?? null;
+      ruler.at = null;
+      rulerDraw();
+      if (!ruler.b) return (set("bindMeasure", null), null);
+      // To the centimetre.
+      const d = ruler.b.clone().sub(ruler.a), m = { from: ruler.a.toArray().map((x) => round(x, 2)), to: ruler.b.toArray().map((x) => round(x, 2)), distance: round(d.length(), 2), across: round(Math.hypot(d.x, d.z), 2), up: round(d.y, 2) };
+      set("bindMeasure", m);
+      api.emit("measure", m);
+      live.textContent = L("{d} m between them", { d: metres(m.distance) });
+      return m;
+    }
+    function measureAt(p) {
+      if (!p) return;
+      if (ruler.a && !ruler.b) {
+        say("");
+        measure(ruler.a, p);
+      } else {
+        measure(p);
+        say(L("Click a second point"), true);
+      }
+    }
+    const metres = (n) => numbers(2).format(n);
+    function rulerDraw() {
+      const to = ruler.b ?? ruler.at, pts = [ruler.a, to].filter(Boolean);
+      if (!ruler.line && pts.length) {
+        const over = { color: colors.primary, depthTest: false, depthWrite: false, transparent: true };
+        const dot = make("canvas", { width: 32, height: 32 }), g = dot.getContext("2d");
+        g.fillStyle = "#fff";
+        g.beginPath();
+        g.arc(16, 16, 15, 0, Math.PI * 2);
+        g.fill();
+        ruler.line = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial(over));
+        ruler.ends = new T.Points(new T.BufferGeometry(), new T.PointsMaterial({ ...over, size: 11, sizeAttenuation: false, map: new T.CanvasTexture(dot), alphaTest: 0.5 }));
+        for (const o of [ruler.line, ruler.ends]) {
+          o.renderOrder = 10;
+          o.frustumCulled = false;
+          o.raycast = () => {};
+          scene.add(o);
+        }
+        ruler.tag = make("div", { "data-twin-measure": "", "aria-hidden": "true" });
+        tagLayer.append(ruler.tag);
+      }
+      if (!ruler.line) return;
+      ruler.line.geometry.setFromPoints(pts);
+      ruler.ends.geometry.setFromPoints(pts);
+      ruler.line.visible = ruler.ends.visible = pts.length > 0;
+      if (to && ruler.a) {
+        const d = to.clone().sub(ruler.a), across = Math.hypot(d.x, d.z);
+        ruler.tag.replaceChildren(make("span", {}, `${metres(d.length())} m`));
+        // Across and up as well when the line slopes.
+        if (Math.abs(d.y) >= 0.01 && across >= 0.01) ruler.tag.append(make("small", {}, `↔ ${metres(across)} · ↕ ${metres(Math.abs(d.y))}`));
+      }
+      ruler.tag.__on = undefined;
+      ruler.tag.style.visibility = to && ruler.a ? "" : "hidden";
+      look();
+    }
     // Moved objects' places and turns, written back to their rows in the same form, at once.
     function writeBack(...its) {
       const key = cfg.bindObjects, rows = api.state[key];
@@ -2112,6 +2215,11 @@
       if (items.has(id)) select(id, { popup: true });
       else adding = id;
     }
+    // The ruler's button is there while `measure` is.
+    function drawRuler() {
+      for (const b of el.querySelectorAll("[data-twin-action=measure]")) b.hidden = !props.measure;
+      if (!props.measure && ruler.on) measureMode(false);
+    }
     function drawPalette() {
       if (!paletteBox) return;
       const entries = editable() && Array.isArray(props.palette) ? props.palette.filter(isObj) : [];
@@ -2146,6 +2254,11 @@
     function keys(e) {
       if (!renderer || e.target.closest?.("[data-twin-views], [data-twin-controls], [data-twin-panel], [data-twin-palette]")) return;
       if (e.target.closest?.("[data-twin-popup]") && e.key !== "Escape") return;
+      if (e.key === "Escape" && measuring()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return measureMode(false);
+      }
       if (e.key === "Escape" && (popup || selected !== null)) {
         e.preventDefault();
         e.stopPropagation();
@@ -2180,6 +2293,10 @@
         return removeObject(...picked);
       }
       if (e.target !== host && !e.target.closest?.("[data-twin-list]")) return;
+      if (props.measure && (e.key === "m" || e.key === "M") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        return measureMode(!ruler.on);
+      }
       if (multi() && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
         return pickMany([...items.values()].filter((x) => x.rec.clickable).map((x) => x.id), { popup: false });
@@ -2211,7 +2328,8 @@
       const b = e.target.closest?.("[data-twin-action]");
       if (!b || !renderer) return;
       const a = b.dataset.twinAction, off = camera.position.clone().sub(controls.target);
-      if (a === "fit") fit();
+      if (a === "measure") measureMode(!ruler.on);
+      else if (a === "fit") fit();
       else if (a === "zoom-in" || a === "zoom-out") {
         off.multiplyScalar(a === "zoom-in" ? 0.75 : 1 / 0.75);
         off.clampLength(controls.minDistance, controls.maxDistance);
@@ -2364,6 +2482,7 @@
       drawGround();
       drawViews();
       drawPalette();
+      drawRuler();
       if (first) cameraStart();
       wake();
     }
@@ -2430,6 +2549,16 @@
         return [...picked];
       },
       fit: () => fit(true),
+      // The distance between two objects (ids) or points (`[x, z]`, `[x, y, z]`), drawn;
+      // `measure(null)` clears it.
+      measure(a, b) {
+        if (!camera) return null;
+        const p = (v) => (isObj(v) || Array.isArray(v) ? ((v = vec(v)) && new T.Vector3(v.x, v.y, v.z)) : floorOf(v));
+        return a === null || a === undefined ? measure(null) : measure(p(a), p(b));
+      },
+      get measuring() {
+        return measuring();
+      },
       update() {
         if (cfg.reactive) read();
         load();
@@ -2447,6 +2576,7 @@
           if (changed("world", "ground", "walls", "zones", "environment")) drawGround();
           if (changed("world", "views")) drawViews();
           if (changed("palette", "editable")) drawPalette();
+          if (changed("measure")) drawRuler();
           if (changed("camera") && isObj(props.camera) && vec(props.camera.position)) fly(props.camera.position, props.camera.target);
         }
         if (cfg.bind) {

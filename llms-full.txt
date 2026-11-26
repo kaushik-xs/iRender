@@ -2589,17 +2589,19 @@ ui-twin: A digital twin: a 3D world drawn with three.js from models of most form
   effectBy     any  Animates objects by a field: `{ field: state, effects: { running: spin } }`, or `effect` on a row: `pulse`, `glow`, `blink`, `spin` (`spin`: degrees a second) or `bob`. Still, where the viewer asked for less motion
   labels       one of: auto, all, none  Tags over objects: `auto` (default) for those with a `label`, readouts or an alarm; `all`; `none` (alarms still)
   editable     any  Objects can be dragged on the ground, or moved with Alt and the arrow keys and turned with Alt+R (needs `bindObjects`)
-  snap         any  Metres moves snap to, e.g. 0.5
   multiple     bool  Several objects picked at once: ⌘, Ctrl or Shift and a click adds or takes one away (on the view, a tag or the list), Shift and a drag from the floor draws a box around more, ⌘A picks them all. Editable, they're dragged, moved, turned and removed together. The last one picked is the selected one (`bind`); all are in `bindSelected`
+  snap         any  Metres moves snap to, e.g. 0.5
+  measure      any  A ruler button among the controls (or M with the view focused): two clicks, on objects, walls or the floor, and the distance between them is drawn and said, with how far across and how far up when both count. Picked from a tag or the list, an object counts from its middle on the floor. Escape stops
   palette      any  While `editable`, things to add, as rows like `objects` without a place: `[{ label, model | shape, title, … }]`. Clicked, one is added in the middle of the view; dragged into it, where it's dropped. Delete removes the selected object
   bind         statekey  State key with the selected object's id (null when none). Setting it selects that object and brings it into view
   bindObject   statekey  State key with the selected object itself, with its latest values
-  bindZone     statekey  State key with the id of the zone last clicked
   bindSelected statekey  State key with the ids of the objects picked (with `multiple`, several; else the selected one's); setting it picks them
+  bindZone     statekey  State key with the id of the zone last clicked
   bindView     statekey  State key with the current view's id; setting it moves the camera there
   bindAlarms   statekey  State key with the ids of the objects in alarm, e.g. for a count
   bindObjects  statekey  State key the objects are in: a moved one's `position` and `rotation` are written back to its row
   bindLive     statekey  State key that gets the latest values from `live`, as `{ <id>: { field: value } }`, e.g. for a list or totals beside the twin
+  bindMeasure  statekey  State key with the last measurement, `{ from, to, distance, across, up }` in metres (null when none)
   bindCamera   statekey  State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`
   popup        bool  Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)
   controls     bool  Zoom and fit buttons (default true)
@@ -4472,11 +4474,11 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 - { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: { field: count, name: Defects }, limit: 6 } }
 # One row per ticket, counted by reason; the threshold from a control.
 - { type: ui-chart, props: { type: pareto, data: "{{ tickets }}", x: reason, aggregate: count, threshold: "{{ cutoff }}" } }
+# Down the side, for long names.
+- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, horizontal: true } }
 ```
 
 ## Drill-downs
-# Down the side, for long names.
-- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, horizontal: true } }
 
 `drill` lists the fields to click down through. The chart starts grouped by the first field (summed unless `aggregate` says otherwise). Clicking a bar or slice filters to it and groups by the next field. A trail at the top left (`‹ All › Europe`) goes back up a level. The marks morph between levels.
 
@@ -5372,6 +5374,7 @@ An object whose `position` or `rotation` changes in the data moves there over `t
 | `bindLive` | the latest values from `live` |
 | `bindCamera` | `{ position, target }` once the camera has moved: copy it into `views` |
 | `bindObjects` | the objects' list, written back when they're moved, added or removed |
+| `bindMeasure` | the last measurement, `{ from, to, distance, across, up }` in metres |
 
 `filter` shows only the objects that pass, e.g. a `ui-filters` panel's `bind`, or an area picked in a toggle group.
 
@@ -5396,26 +5399,31 @@ The selected object opens a popup with its title, description and readouts. A `u
 
 With `editable: true` and `bindObjects`, objects can be dragged on the ground (snapping to `snap` metres). The selected one moves with Alt and the arrow keys, turns 90° with Alt+R (Alt+Shift+R back), and Delete removes it; its popup has Rotate and Remove too. `palette` offers things to add: clicked, one goes in the middle of the view; dragged into it, where it's dropped. Each change is written back to its row in the form the row had (`[x, z]`, `[x, y, z]`, `{ x, z }` or `x` and `z` fields), and the twin fires `move`, `add` or `remove`. Objects on a path or attached to another aren't moved by hand.
 
-## Events
 ### Several at once
 
 With `multiple: true`, ⌘, Ctrl or Shift and a click adds an object to the ones picked or takes it away (on the view, its tag or the list), Shift and a drag from the floor draws a box and picks what's in it, and ⌘A (with the view focused) picks them all. Each picked one has its ring; the last one picked is the selected one (`bind`, its popup when it's alone), and `bindSelected` has all their ids (set it to pick them). Editable, they move together: dragging one drags the others with it, Alt and the arrows move them all, Alt+R turns each about itself, and Delete removes them all, written back in one change. The twin fires `selectionchange` with `{ ids, objects }`, and `selectMany(ids)` and `selection` are on the element's `__twin`.
 
+## Measuring
+
+With `measure: true` the controls have a ruler (M with the view focused does the same). Turned on, two clicks on objects, walls or the floor draw a line between them with its length; when it slopes, how far across and how far up as well. Picked from a tag or the objects' list (so from the keyboard too), an object counts from its middle on the floor. A third click starts again, and Escape (or the ruler) stops. The line is drawn over everything, so one through a wall still shows. `bindMeasure` holds the last one, the twin fires `measure` with it, and `measure(a, b)` on the element's `__twin` takes two ids or points (`[x, z]` or `[x, y, z]`) and draws it; `measure(null)` clears it.
+
+## Events
 
 | event | detail |
 |---|---|
 | `ready` | `{ objects }`, once the models have loaded |
 | `select` | `{ id, object }` |
-| `zoneselect` | `{ id, zone }` |
 | `selectionchange` | `{ ids, objects }`, with `multiple` |
+| `zoneselect` | `{ id, zone }` |
 | `alarm` | `{ id, object }`, for each new alarm |
 | `data` | `{ count }`, for each answer from `live` |
+| `measure` | `{ from, to, distance, across, up }` |
 | `move`, `add`, `remove` | `{ id, position, rotation }` or `{ id, object }` |
 | `failed` | `{ error }`, with `model` or `live` when that's what failed |
 
 ## Gestures and keys
 
-Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup, then the selection. With `multiple`, Shift-drag from the floor draws a box (see [Several at once](#several-at-once)); otherwise it moves the view as right-drag does.
+Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pinch to zoom. `gestures: none` keeps the camera where the document puts it. The view takes the focus: the arrow keys turn it, Shift and the arrows move it, + and − zoom, and Home fits the world. The objects are also a list for the keyboard and screen readers, after the view: it shows while it has the focus, and picking one selects it and flies to it. Escape closes the popup, then the selection. With `measure`, M turns the ruler on and off. With `multiple`, Shift-drag from the floor draws a box (see [Several at once](#several-at-once)); otherwise it moves the view as right-drag does.
 
 ## Smoothness
 

@@ -128,6 +128,12 @@ const PROPS: &[PropDef] = &[
          Editable, they're dragged, moved, turned and removed together. The last one picked is the selected one (`bind`); all are in `bindSelected`",
     ),
     PropDef::new("snap", PropKind::Any, "Metres moves snap to, e.g. 0.5"),
+    PropDef::new(
+        "measure",
+        PropKind::Any,
+        "A ruler button among the controls (or M with the view focused): two clicks, on objects, walls or the floor, and the distance between them is drawn and said, \
+         with how far across and how far up when both count. Picked from a tag or the list, an object counts from its middle on the floor. Escape stops",
+    ),
     PropDef::new("palette", PropKind::Any, "While `editable`, things to add, as rows like `objects` without a place: `[{ label, model | shape, title, … }]`. Clicked, one is added in the middle of the view; dragged into it, where it's dropped. Delete removes the selected object"),
     PropDef::new("bind", PropKind::StateKey, "State key with the selected object's id (null when none). Setting it selects that object and brings it into view"),
     PropDef::new("bindObject", PropKind::StateKey, "State key with the selected object itself, with its latest values"),
@@ -137,6 +143,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("bindAlarms", PropKind::StateKey, "State key with the ids of the objects in alarm, e.g. for a count"),
     PropDef::new("bindObjects", PropKind::StateKey, "State key the objects are in: a moved one's `position` and `rotation` are written back to its row"),
     PropDef::new("bindLive", PropKind::StateKey, "State key that gets the latest values from `live`, as `{ <id>: { field: value } }`, e.g. for a list or totals beside the twin"),
+    PropDef::new("bindMeasure", PropKind::StateKey, "State key with the last measurement, `{ from, to, distance, across, up }` in metres (null when none)"),
     PropDef::new("bindCamera", PropKind::StateKey, "State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`"),
     PropDef::new("popup", PropKind::Bool, "Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)"),
     PropDef::new("controls", PropKind::Bool, "Zoom and fit buttons (default true)"),
@@ -157,9 +164,9 @@ const PROPS: &[PropDef] = &[
 /// Props the browser resolves against state; the rest are read once on the server.
 const LIVE: &[&str] = &[
     "models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy", "world", "src", "live", "follow", "filter", "toneBy", "alarmBy",
-    "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple",
+    "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple", "measure",
 ];
-const BINDINGS: &[&str] = &["bind", "bindObject", "bindSelected", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive"];
+const BINDINGS: &[&str] = &["bind", "bindObject", "bindSelected", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive", "bindMeasure"];
 
 impl Component for Twin {
     fn name(&self) -> &'static str {
@@ -320,10 +327,15 @@ impl Component for Twin {
             let mut controls = cx.part("div", node, "controls");
             controls.base_style_ref(&CONTROLS).attr("data-twin-controls", true);
             cx.open(&controls, node)?;
-            for (action, label, icon) in CONTROL_BUTTONS {
+            // The ruler while `measure` may be on: the browser hides it when it's off.
+            let ruler = !matches!(cx.prop(node, "measure"), None | Some(Json::Bool(false)) | Some(Json::Null));
+            for (action, label, icon) in CONTROL_BUTTONS.iter().chain(ruler.then_some(&MEASURE_BUTTON)) {
                 let label = cx.label(label);
                 let mut b = Element::new("button");
                 b.base_style_ref(&CONTROL).attr("type", "button").attr("aria-label", label.as_str()).attr("title", label.as_str()).attr("data-twin-action", *action);
+                if *action == "measure" {
+                    b.attr("aria-pressed", "false");
+                }
                 cx.open(&b, node)?;
                 cx.markup(icon);
                 cx.close("button");
@@ -377,6 +389,11 @@ const CONTROL_BUTTONS: &[(&str, &str, &str)] = &[
     ("zoom-out", "Zoom out", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 8h10"/></svg>"#),
     ("fit", "Fit view", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>"#),
 ];
+const MEASURE_BUTTON: (&str, &str, &str) = (
+    "measure",
+    "Measure",
+    r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 11 11 1.5l3.5 3.5L5 14.5z"/><path d="m4.5 8 1.5 1.5M7 5.5 8.5 7M9.5 3l1.5 1.5"/></svg>"#,
+);
 
 const TEXT: &str = "var(--color-text, #18181b)";
 const MUTED: &str = "var(--color-muted, #71717a)";
@@ -505,6 +522,29 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         ]),
     )
     .nest(
+        "& [data-twin-measure]",
+        pairs(&[
+            ("position", "absolute"),
+            ("left", "0"),
+            ("top", "0"),
+            ("display", "grid"),
+            ("justify-items", "center"),
+            ("padding", "2px 8px"),
+            ("border-radius", "var(--radius-sm, 4px)"),
+            ("background", "var(--color-primary, #18181b)"),
+            ("color", "var(--color-on-primary, #fff)"),
+            ("font-size", "12px"),
+            ("font-weight", "600"),
+            ("font-variant-numeric", "tabular-nums"),
+            ("line-height", "1.35"),
+            ("white-space", "nowrap"),
+            ("translate", "-50% -50%"),
+            ("pointer-events", "none"),
+            ("z-index", "1"),
+        ]),
+    )
+    .nest("& [data-twin-measure] small", pairs(&[("font-size", "10px"), ("font-weight", "500"), ("opacity", "0.8")]))
+    .nest(
         "& [data-twin-box]",
         pairs(&[
             ("position", "absolute"),
@@ -562,6 +602,7 @@ static CANVAS: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& canvas", pairs(&[("display", "block"), ("outline", "none")]))
         .nest("&:focus-visible", pairs(&[("outline", RING), ("outline-offset", "-2px")]))
         .nest("&[data-dragging] canvas", pairs(&[("cursor", "grabbing !important")]))
+        .nest("&[data-measuring] canvas", pairs(&[("cursor", "crosshair !important")]))
 });
 
 /// Out of sight, for screen readers.
@@ -742,6 +783,8 @@ static CONTROL: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("&:last-child", pairs(&[("border-bottom", "none")]))
     .nest("&:hover", pairs(&[("background", SUBTLE)]))
+    .nest("&[aria-pressed=true]", pairs(&[("background", "var(--color-primary, #18181b)"), ("color", "var(--color-on-primary, #fff)")]))
+    .nest("&[hidden]", pairs(&[("display", "none")]))
     .nest("&:focus-visible", pairs(&[("outline", RING), ("outline-offset", "-2px")]))
 });
 
