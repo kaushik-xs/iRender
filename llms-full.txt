@@ -5343,7 +5343,7 @@ Each answer is either a list of rows with an `id`, or `{ "<id>": { "field": valu
 ## Status, alarms and effects
 
 - `toneBy: { field: status, tones: { running: success, fault: danger } }`, or `tone` on a row, draws a ring of that tone around the object's footprint. A warning or alarm from its values comes before its status's tone.
-- `alarmBy: { field: status, values: [fault] }`, `alarm: true` on a row, or a readout past `alarm` puts an object in alarm. It glows red, gets a `!` tag that stays above the others, `bindAlarms` gets its id, it's announced to screen readers, and the twin fires `alarm`.
+- `alarmBy: { field: status, values: [fault] }`, `alarm: true` on a row, or a readout past `alarm` puts an object in alarm. It glows red, gets a `!` tag that stays above the others (alarms side by side on screen share one, counted: `+2`), `bindAlarms` gets its id, it's announced to screen readers, and the twin fires `alarm`.
 - `effectBy`, or `effect` on a row: `pulse`, `glow`, `blink`, `spin` (with `spin` in degrees a second, e.g. a fan) or `bob`. All of them hold still where the viewer asked for less motion.
 
 ## Paths and movement

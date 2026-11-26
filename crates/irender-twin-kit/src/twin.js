@@ -1710,12 +1710,28 @@
             for (let cy = Math.floor((s.t - 2) / C); cy <= Math.floor((s.b + 2) / C); cy++) if (f(cx * 65536 + cy)) return true;
           return false;
         };
+        // An alarm's tag covers any other, but not another alarm's: one hidden behind it is
+        // counted on it instead ("+2"), so a crowded hall isn't a pile of red. The selected
+        // one always shows.
         for (const s of shown) {
-          const hit = each(s, (c) => cells.get(c)?.some((k) => s.l < k.r + 2 && s.r > k.l - 2 && s.t < k.b + 2 && s.b > k.t - 2));
-          keep(s, !hit || s.rank >= 4);
-          if (!hit || s.rank >= 4) each(s, (c) => void (cells.get(c) ?? cells.set(c, []).get(c)).push(s));
+          s.more = 0;
+          let by = null;
+          each(s, (c) => cells.get(c)?.some((k) => s.l < k.r + 2 && s.r > k.l - 2 && s.t < k.b + 2 && s.b > k.t - 2 && (by = k)));
+          const on = !by || s.rank >= 5;
+          keep(s, on);
+          if (on) each(s, (c) => void (cells.get(c) ?? cells.set(c, []).get(c)).push(s));
+          else if (s.rank === 4 && by.rank >= 4) by.more++;
         }
       } else for (const s of shown) keep(s, true);
+      for (const s of shown) {
+        const more = s.more ? `+${s.more}` : null;
+        if (s.node.__more === more) continue;
+        if (more) s.node.setAttribute("data-more", more);
+        else s.node.removeAttribute("data-more");
+        // Wider or narrower with its count: measured again next time.
+        s.node.__more = more;
+        s.node.__size = null;
+      }
       if (popup) {
         const at = popup.zone ? popup.zone.at : items.has(popup.id) ? top(items.get(popup.id)) : null;
         const xy = at && put(popup.box, at);

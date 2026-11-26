@@ -73,7 +73,7 @@ fn run(name: &str, doc: Json, head: &str, driver: &str) -> Option<Vec<String>> {
     let load = || {
         let out = Command::new(&chrome)
             .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--enable-unsafe-swiftshader", "--blink-settings=preferredColorScheme=1", "--allow-file-access-from-files"])
-            .args(["--window-size=1000,900", "--force-prefers-reduced-motion", "--virtual-time-budget=60000", "--dump-dom"])
+            .args(["--window-size=1000,900", "--force-prefers-reduced-motion", "--virtual-time-budget=600000", "--dump-dom"])
             .arg(format!("file://{}", file.display()))
             .output()
             .unwrap();
@@ -104,8 +104,10 @@ const PRELUDE: &str = r##"
   const tag = (id, key) => $(id, `[data-twin-tag="${key}"]`);
   const tags = (id) => $$(id, "[data-twin-tag]").map((t) => t.dataset.twinTag + ":" + t.textContent);
   const popup = (id) => $(id, "[data-twin-popup]")?.textContent ?? "none";
+  // Chrome runs the page in virtual time, which races ahead while the GPU compiles shaders
+  // (three.js waits for them with timers): allow plenty of it.
   const ready = async (...ids) => {
-    for (let i = 0; i < 600 && !ids.every((id) => document.getElementById(id).matches("[data-ready], [data-error]")); i++) await wait(50);
+    for (let i = 0; i < 6000 && !ids.every((id) => document.getElementById(id).matches("[data-ready], [data-error]")); i++) await wait(50);
     await wait(150);
     const off = ids.map((id) => document.getElementById(id)).find((e) => e.hasAttribute("data-error"));
     if (off && /WebGL/.test(off.textContent)) throw Object.assign(new Error("no webgl"), { webgl: true });
@@ -439,4 +441,26 @@ fn coloured_by_value_and_shapes_are_instances() {
         lines,
         &["models true true #0000ff #ff0000", "changed true #ff0000", "shapes true #ff0000 true #000000", "alarm true 1", "no meshes of their own true"],
     );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn alarm_tags_that_overlap_are_counted() {
+    // Three in alarm side by side, seen from far off: their tags would pile up.
+    let row = |id: &str, x: f64| json!({ "id": id, "shape": "box", "position": [x, 0], "title": id, "temp": 99 });
+    let doc = json!({ "version": 1,
+        "state": { "picked": null, "rows": [row("a", 0.0), row("b", 1.5), row("c", 3.0), row("far", 40.0)] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260, "objects": "{{ rows }}", "bind": "picked",
+            "camera": { "position": [20, 120, 160], "target": [20, 0, 0] },
+            "readouts": [{ "field": "temp", "label": "Temp", "alarm": 90 }] } } });
+    let driver = r##"
+      await ready("w"); await wait(200);
+      const seen = () => $$("w", "[data-twin-tag]").filter((t) => t.style.visibility !== "hidden").map((t) => t.dataset.twinTag + (t.dataset.more ?? "")).join();
+      log("far off", seen());
+      // Up close, each has its own.
+      const tw = twin("w"); tw.camera.position.set(1.5, 2, 5); tw.controls.target.set(1.5, 0, 0); tw.controls.update(); await wait(200);
+      log("close", seen());
+    "##;
+    let Some(lines) = run("pile", doc, "", &guarded(driver)) else { return };
+    check(lines, &["far off a+2,far", "close a,b,c"]);
 }

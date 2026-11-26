@@ -446,6 +446,10 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         pairs(&[("display", "grid"), ("place-items", "center"), ("width", "16px"), ("height", "16px"), ("margin-inline-start", "-2px"), ("border-radius", "50%"), ("background", "var(--color-danger, #dc2626)"), ("color", "#fff"), ("font-size", "11px")]),
     )
     .nest("& [data-twin-tag][data-alarm] [data-dot]", pairs(&[("display", "none")]))
+    .nest(
+        "& [data-twin-tag][data-more]::after",
+        pairs(&[("content", "attr(data-more)"), ("padding", "0 5px"), ("border-radius", "999px"), ("background", "var(--color-danger, #dc2626)"), ("color", "#fff"), ("font-size", "11px"), ("font-weight", "600"), ("line-height", "16px")]),
+    )
     .nest("& [data-twin-tag][data-selected]", pairs(&[("border-color", "var(--color-primary, #18181b)"), ("box-shadow", "0 0 0 1px var(--color-primary, #18181b), 0 1px 3px rgb(0 0 0 / 0.15)")]))
     .nest("& [data-twin-tag]:focus-visible", pairs(&[("outline", RING), ("outline-offset", "2px")]))
     .nest(
