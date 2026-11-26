@@ -1415,6 +1415,7 @@ ui-repeater: Rows of fields to add, fill in, reorder and remove: line items, con
   children: yes
 ui-stepper: The steps of a process and the current one's panel, with Back, Next and Finish. Children are `ui-step`s.
   bind         statekey (required)  State key holding the current step's `value`
+  bindFurthest statekey  State key holding the `value` of the furthest step reached: steps up to it can be gone to again, those before it show as done
   orientation  one of: horizontal, vertical  Default `horizontal`; `vertical` opens each step's panel under it
   linear       bool  A later step can't be gone to until the ones before it are done, or `valid` (default true)
   clickable    bool  Steps are buttons that go to them (default true)

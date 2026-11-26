@@ -237,6 +237,40 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn stepper_keeps_the_furthest_step_reached() {
+    check(
+        "stepper-furthest",
+        r##"
+state: { step: one, far: null, name: "" }
+root:
+  type: ui-stepper
+  props: { bind: step, bindFurthest: far }
+  children:
+    - { type: ui-step, props: { value: one, label: One, valid: "{{ name != '' }}" }, children: [ { type: ui-input, props: { bind: name }, attrs: { id: name } } ] }
+    - { type: ui-step, props: { value: two, label: Two }, children: [ { type: ui-text, props: { text: two } } ] }
+    - { type: ui-step, props: { value: three, label: Three }, children: [ { type: ui-text, props: { text: three } } ] }
+    - { type: ui-step, props: { value: four, label: Four }, children: [ { type: ui-text, props: { text: four } } ] }
+"##,
+        r##"
+        const steps = () => $$("ol > li").map((l) => l.dataset.status[0] + (l.querySelector("button").disabled ? "x" : "")).join(" ");
+        const next = () => $("[data-step-panel]:not([hidden]) [data-step-buttons]").lastElementChild;
+        const head = (i) => $$("ol > li button")[i];
+        log(steps(), S().far); type($("#name"), "Ada"); next().click(); next().click(); log(steps(), S().step, S().far);
+        // Back to the start: what was reached stays open, and done.
+        head(0).click(); log(steps(), S().step, S().far);
+        head(2).click(); log(steps(), S().step, S().far);
+        $("[data-step-panel]:not([hidden]) [data-step-buttons]").firstElementChild.click(); log(S().step, S().far);
+        // An earlier step that's no longer valid still shuts the ones after it.
+        head(0).click(); type($("#name"), ""); log(steps());
+        // The page moving the step on its own moves the furthest step with it, as it's read.
+        type($("#name"), "Ada"); root.__irender.set("step", "four"); head(0).click(); log(steps(), S().far);
+"##,
+        &["c ux ux ux null", "d d c ux three three", "c d u ux one three", "d d c ux three three", "two three", "c ux ux ux", "c d d u four"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn form_sections_fold_and_open_for_a_wrong_field() {
     check(
         "form-sections-fold",

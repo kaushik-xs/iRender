@@ -61,6 +61,7 @@ state:
   fmErrors: {}
   fmDirty: false
   stStep: pick
+  stFar: null
   stDone: 2
   rpLines: [ { item: Workshop, qty: 2, price: 350 }, { item: Travel, qty: 1, price: 120 } ]
   imDraft: []
@@ -1446,7 +1447,7 @@ root:
                   children: *head
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
                 - type: ui-stepper
-                  props: { bind: stStep }
+                  props: { bind: stStep, bindFurthest: stFar }
                   children:
                     - { type: ui-step, props: { value: pick, label: Choose, description: What you need }, children: [ { type: ui-text, props: { text: Choose something. } } ] }
                     - { type: ui-step, props: { value: when, label: Time, optional: true }, children: [ { type: ui-text, props: { text: Say when. } } ] }

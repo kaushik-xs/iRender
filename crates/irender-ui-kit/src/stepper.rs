@@ -1,6 +1,8 @@
 //! `ui-stepper` + `ui-step`: where someone is in a process, and its panels one at a time.
 //! Everything follows the state key in expressions, so it needs no script: a step is done
 //! once a later one is current, and a step can be gone to when the ones before it allow.
+//! With `bindFurthest` it also keeps the furthest step reached, so going back doesn't
+//! mean pressing Next through the steps again.
 
 use crate::{BORDER, DESTRUCTIVE, MUTED, ON_PRIMARY, PRIMARY, PRIMARY_FILL, TEXT, bin, cond, expr_val, forms, id_with, instance_id, lit, num, state, synthetic, val_expr};
 use irender_core::{
@@ -16,6 +18,7 @@ pub struct Step;
 
 const PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the current step's `value`").required(),
+    PropDef::new("bindFurthest", PropKind::StateKey, "State key holding the `value` of the furthest step reached: steps up to it can be gone to again, those before it show as done"),
     PropDef::new("orientation", PropKind::Enum(&["horizontal", "vertical"]), "Default `horizontal`; `vertical` opens each step's panel under it"),
     PropDef::new("linear", PropKind::Bool, "A later step can't be gone to until the ones before it are done, or `valid` (default true)"),
     PropDef::new("clickable", PropKind::Bool, "Steps are buttons that go to them (default true)"),
@@ -135,6 +138,27 @@ fn and(a: Expr, b: Expr) -> Expr {
     bin(BinOp::And, a, b)
 }
 
+/// The furthest step reached: its state key, the value it holds (the current step's until
+/// it's set) and that value's place.
+struct Furthest {
+    key: String,
+    value: Expr,
+    at: Expr,
+}
+
+impl Furthest {
+    /// What going to step `j` writes to the furthest key: `j`'s value once it's further.
+    fn go(&self, steps: &[At], j: usize) -> Action {
+        let v = cond(bin(BinOp::Ge, self.at.clone(), num(j)), self.value.clone(), Expr::Lit(steps[j].value.clone()));
+        Action::SetState { key: self.key.clone(), value: expr_val(v) }
+    }
+}
+
+/// Going to step `j`: the furthest step first, which reads the current one when unset.
+fn go(key: &str, furthest: Option<&Furthest>, steps: &[At], j: usize) -> Vec<Action> {
+    furthest.map(|f| f.go(steps, j)).into_iter().chain([Action::SetState { key: key.into(), value: Val::Lit(steps[j].value.clone()) }]).collect()
+}
+
 struct At {
     value: Json,
     label: Val,
@@ -189,13 +213,25 @@ impl Component for Stepper {
             }
         }
         // The current step's place; the first when the state names none.
-        let at = steps.iter().enumerate().rev().fold(num(0), |rest, (i, s)| cond(bin(BinOp::Eq, state(&key), Expr::Lit(s.value.clone())), num(i), rest));
+        let place = |of: Expr| steps.iter().enumerate().rev().fold(num(0), |rest, (i, s)| cond(bin(BinOp::Eq, of.clone(), Expr::Lit(s.value.clone())), num(i), rest));
+        let at = place(state(&key));
+        let furthest = cx.prop_string(node, "bindFurthest").map(|f| {
+            let kept = cond(bin(BinOp::Eq, state(&f), Expr::Lit(Json::Null)), state(&key), state(&f));
+            // Never behind the current step, should the page move that on its own.
+            let (far, ahead) = (place(kept.clone()), bin(BinOp::Gt, place(kept.clone()), at.clone()));
+            Furthest { key: f, value: cond(ahead.clone(), kept, state(&key)), at: cond(ahead, far, at.clone()) }
+        });
         let complete = node.prop("complete").map(val_expr);
         let is = |i: usize| bin(BinOp::Eq, at.clone(), num(i));
+        // Passed: a later step is current, or was reached.
+        let past = |j: usize| match &furthest {
+            Some(f) => bin(BinOp::Gt, f.at.clone(), num(j)),
+            None => bin(BinOp::Gt, at.clone(), num(j)),
+        };
         // Reached: every step before it is done, or says it's valid.
         let reach = |i: usize| {
             steps[..i].iter().enumerate().fold(Expr::Lit(json!(true)), |all, (j, s)| {
-                let past = bin(BinOp::Gt, at.clone(), num(j));
+                let past = past(j);
                 and(all, s.valid.clone().unwrap_or(past))
             })
         };
@@ -203,6 +239,11 @@ impl Component for Stepper {
         let mut el = cx.element("div", node);
         el.base_style_ref(&ROOT).attr("data-orientation", if vertical { "vertical" } else { "horizontal" }).attr("id", id.clone());
         cx.open(&el, node)?;
+        // Done: before the current step, or reached after it and open to go to again.
+        let done = |i: usize| match (&furthest, linear) {
+            (Some(_), true) => bin(BinOp::Or, bin(BinOp::Gt, at.clone(), num(i)), and(past(i), reach(i))),
+            _ => past(i),
+        };
         let mut ol = cx.part("ol", node, "list");
         ol.attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Steps"))));
         cx.open(&ol, node)?;
@@ -210,7 +251,7 @@ impl Component for Stepper {
             let status = cond(
                 complete.clone().unwrap_or(Expr::Lit(json!(false))),
                 Expr::Lit(json!("done")),
-                cond(is(i), Expr::Lit(json!("current")), cond(bin(BinOp::Gt, at.clone(), num(i)), Expr::Lit(json!("done")), Expr::Lit(json!("upcoming")))),
+                cond(is(i), Expr::Lit(json!("current")), cond(done(i), Expr::Lit(json!("done")), Expr::Lit(json!("upcoming")))),
             );
             let mut li = cx.element("li", step);
             li.attr("data-status", expr_val(status.clone()));
@@ -232,7 +273,7 @@ impl Component for Stepper {
                 if let Some(b) = blocked {
                     attrs.push(("disabled", expr_val(b)));
                 }
-                let b = synthetic(step, "button", Vec::new(), attrs, vec![("click", vec![Action::SetState { key: key.clone(), value: Val::Lit(s.value.clone()) }])]);
+                let b = synthetic(step, "button", Vec::new(), attrs, vec![("click", go(&key, furthest.as_ref(), &steps, i))]);
                 let el = cx.element("button", &b);
                 cx.open(&el, &b)?;
             } else {
@@ -285,14 +326,14 @@ impl Component for Stepper {
             cx.close("span");
             cx.close(if clickable { "button" } else { "div" });
             if vertical {
-                self.panel(cx, node, step, i, steps.len(), &id, &key, &steps, &is, buttons)?;
+                self.panel(cx, node, step, i, steps.len(), &id, &key, furthest.as_ref(), &steps, &is, buttons)?;
             }
             cx.close("li");
         }
         cx.close("ol");
         if !vertical {
             for (i, step) in node.children.iter().enumerate() {
-                self.panel(cx, node, step, i, steps.len(), &id, &key, &steps, &is, buttons)?;
+                self.panel(cx, node, step, i, steps.len(), &id, &key, furthest.as_ref(), &steps, &is, buttons)?;
             }
         }
         cx.close("div");
@@ -303,7 +344,7 @@ impl Component for Stepper {
 impl Stepper {
     /// A step's panel, with its buttons: shown while the step is current.
     #[allow(clippy::too_many_arguments)]
-    fn panel(&self, cx: &mut RenderCx<'_>, node: &Node, step: &Node, i: usize, n: usize, id: &Val, key: &str, steps: &[At], is: &dyn Fn(usize) -> Expr, buttons: bool) -> Result<(), RenderError> {
+    fn panel(&self, cx: &mut RenderCx<'_>, node: &Node, step: &Node, i: usize, n: usize, id: &Val, key: &str, furthest: Option<&Furthest>, steps: &[At], is: &dyn Fn(usize) -> Expr, buttons: bool) -> Result<(), RenderError> {
         if step.children.is_empty() && !buttons {
             return Ok(());
         }
@@ -327,7 +368,7 @@ impl Stepper {
                     "ui-button",
                     vec![("label", text(cx, "backLabel", "Back")), ("variant", lit("outline"))],
                     Vec::new(),
-                    vec![("click", vec![Action::SetState { key: key.into(), value: Val::Lit(steps[i - 1].value.clone()) }])],
+                    vec![("click", go(key, furthest, steps, i - 1))],
                 );
                 cx.render(&back)?;
             } else {
@@ -340,7 +381,7 @@ impl Stepper {
             }
             let actions = if i + 1 < n {
                 props.push(("label", text(cx, "nextLabel", "Next")));
-                vec![Action::SetState { key: key.into(), value: Val::Lit(steps[i + 1].value.clone()) }]
+                go(key, furthest, steps, i + 1)
             } else {
                 props.push(("label", text(cx, "finishLabel", "Finish")));
                 node.on.get("finish").cloned().unwrap_or_default()

@@ -1,5 +1,6 @@
 # Block: a clinic's new-patient form as steps. `ui-stepper` shows where someone is and lets
-# them go on once a step is valid; every answer stays in state.
+# them go on once a step is valid; every answer stays in state, and the furthest step
+# reached (`bindFurthest`) stays open to go back to.
 # - Contact: a phone number with its country, an insurance number in its own shape.
 # - Visit: a day and a time from what's free, with how long it lasts.
 # - Health: a questionnaire one question at a time, and tags for allergies.
@@ -10,6 +11,7 @@ version: 1
 state:
   toast: null
   step: you
+  furthest: null
   sent: false
   name: ""
   phone: null
@@ -50,7 +52,7 @@ root:
         - type: ui-card
           children:
             - type: ui-stepper
-              props: { bind: step, complete: "{{ sent }}", finishLabel: Send }
+              props: { bind: step, bindFurthest: furthest, complete: "{{ sent }}", finishLabel: Send }
               on:
                 finish:
                   - { action: set_state, key: sent, value: true }
