@@ -887,13 +887,16 @@ root:
         const title = () => $("[data-app-title]").textContent, shown = () => $$("[data-app-screen]").filter((s) => !s.hidden).map((s) => s.getAttribute("data-app-screen")).join();
         const tabs = () => $$("[data-app-tab]").map((t) => t.textContent + (t.getAttribute("aria-current") ? "*" : "")).join("|");
         log(title(), shown(), tabs(), $("[data-app-back]").hidden);
-        $("[data-app-screen=home]").scrollTop = 120; await wait(300);
+        // The shell keeps a screen's place from its scroll event, which a busy machine may
+        // send late: wait for it rather than a fixed time.
+        const home = $("[data-app-screen=home]"), scrolled = new Promise((r) => home.addEventListener("scroll", r, { once: true }));
+        home.scrollTop = 120; await Promise.race([scrolled, wait(2000)]);
         root.__irender.set("n", 3); $$("[data-app-tab]")[1].click(); await wait(30);
         log(title(), shown(), tabs());
         root.__irender.set("at", "one"); await wait(30);
         log(title(), shown(), tabs(), $("[data-app-back]").hidden);
         $("[data-app-back]").click(); await wait(30); log(S().at);
-        $$("[data-app-tab]")[0].click(); await wait(300); log(S().at, $("[data-app-screen=home]").scrollTop);
+        $$("[data-app-tab]")[0].click(); await until(() => home.scrollTop === 120).catch(() => {}); log(S().at, home.scrollTop);
 "##,
         &["Home home ⌂Home*|≡0List true", "List list ⌂Home|≡3List*", "Number 3 one ⌂Home|≡3List* false", "list", "home 120"],
     );
