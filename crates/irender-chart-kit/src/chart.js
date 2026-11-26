@@ -948,7 +948,9 @@
       // Bars largest first, and a line of the running total as a percent of the whole on
       // a second axis. A threshold (80% by default) is a dashed line on that axis; the
       // bars after the one that takes the total past it are faded, leaving the vital few.
+      // `horizontal` lays the bars down the side, largest at the top, the percent along the top.
       const { field, name, ...extra } = ys[0] || {};
+      const across = !!p.horizontal;
       const vals = rows.map((r) => Number(at(r, field)));
       const total = vals.reduce((a, v) => a + v, 0);
       let run = 0;
@@ -956,30 +958,33 @@
       const limit = p.threshold === false || p.threshold === "false" ? null : isNum(p.threshold) ? Math.max(0, Math.min(100, Number(p.threshold))) : 80;
       const past = limit === null ? -1 : cum.findIndex((c) => c >= limit);
       const few = past < 0 ? rows.length : past + 1;
-      o.xAxis = { type: "category", data: rows.map((r) => at(r, x)), boundaryGap: true };
-      o.yAxis = [
+      const cat = { type: "category", data: rows.map((r) => at(r, x)), boundaryGap: true, inverse: across };
+      const vals2 = [
         { type: "value" },
         { type: "value", min: 0, max: 100, interval: 20, axisLabel: { formatter: "{value}%" }, splitLine: { show: false } },
       ];
-      o.grid = { left: 8, right: 16, top: 16, bottom: 8 };
+      o.xAxis = across ? vals2 : cat;
+      o.yAxis = across ? cat : vals2;
+      o.grid = { left: 8, right: across ? 24 : 16, top: 16, bottom: 8 };
+      const second = across ? { xAxisIndex: 1 } : { yAxisIndex: 1 };
       const percent = (v) => (isNum(v) ? `${v}%` : v);
       o.series = [
         merge({
-          id: "s0", type: "bar", name: name ?? String(field), barMaxWidth: 40, itemStyle: { borderRadius: [4, 4, 0, 0] },
+          id: "s0", type: "bar", name: name ?? String(field), barMaxWidth: 40, itemStyle: { borderRadius: across ? [0, 4, 4, 0] : [4, 4, 0, 0] },
           data: vals.map((v, i) => (i < few ? v : { value: v, itemStyle: { color: fade(t.palette[0], 0.4) } })),
-          label: p.labels ? { show: true, position: "top", color: t.muted } : undefined,
+          label: p.labels ? { show: true, position: across ? "right" : "top", color: t.muted } : undefined,
           labelLayout: p.labels ? { hideOverlap: true } : undefined,
         }, extra),
         {
-          id: "s1", type: "line", name: L("Cumulative %"), yAxisIndex: 1, data: cum, color: t.palette[1],
+          id: "s1", type: "line", name: L("Cumulative %"), ...second, data: cum, color: t.palette[1],
           symbolSize: 6, showSymbol: rows.length <= 24, tooltip: { valueFormatter: percent },
           // Above the points, giving way to the bars' labels where they'd overlap.
-          label: p.labels ? { show: true, position: "top", color: t.palette[1], formatter: (e) => percent(e.value) } : undefined,
+          label: p.labels ? { show: true, position: across ? "right" : "top", color: t.palette[1], formatter: (e) => percent(e.value) } : undefined,
           labelLayout: p.labels ? { hideOverlap: true } : undefined,
           z: 3,
           markLine: limit === null ? undefined : {
-            silent: true, symbol: "none", data: [{ yAxis: limit }],
-            lineStyle: { type: "dashed", color: t.muted }, label: { position: "insideEndTop", formatter: `${limit}%`, color: t.muted },
+            silent: true, symbol: "none", data: [across ? { xAxis: limit } : { yAxis: limit }],
+            lineStyle: { type: "dashed", color: t.muted }, label: { position: across ? "end" : "insideEndTop", formatter: `${limit}%`, color: t.muted },
           },
         },
       ];

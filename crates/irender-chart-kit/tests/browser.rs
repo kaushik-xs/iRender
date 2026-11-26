@@ -1106,9 +1106,10 @@ fn pareto_in_chrome() {
     let tickets: Vec<Json> = ["Login", "Billing", "Login", "Bug", "Login", "Billing", "Slow", "Export"].iter().map(|r| json!({ "reason": r })).collect();
     let doc = json!({ "version": 1, "state": { "defects": defects, "limit": 80 }, "root": { "type": "stack", "children": [
         { "type": "ui-chart", "attrs": { "id": "p" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "threshold": "{{ limit }}" } },
-        { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false } } ] } });
+        { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false } },
+        { "type": "ui-chart", "attrs": { "id": "h" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "horizontal": true, "labels": true } } ] } });
     let body = r##"
-    await ready(["p", "c"]);
+    await ready(["p", "c", "h"]);
     const faded = (id) => opt(id).series[0].data.map((v) => (v?.itemStyle ? "f" : "-")).join("");
     const show = (id) => [opt(id).xAxis[0].data.join(","), opt(id).series[0].data.map((v) => v?.value ?? v).join(","), opt(id).series[1].data.join(","), faded(id),
       opt(id).series[1].yAxisIndex, opt(id).yAxis[1].max, JSON.stringify(opt(id).series[1].markLine?.data?.[0]?.yAxis ?? null)].join(" | ");
@@ -1117,6 +1118,12 @@ fn pareto_in_chrome() {
     log("legend", opt("p").legend[0].data?.join(",") ?? opt("p").series.map((s) => s.name).join(","));
     root.__irender.set("limit", 60); await wait(100);
     log("60%", faded("p"), opt("p").series[1].markLine.data[0].yAxis);
+    // Across: categories down the side, largest at the top; the percent along the top.
+    const h = opt("h");
+    log("across", h.yAxis[0].type, h.yAxis[0].inverse, h.yAxis[0].data[0], h.xAxis.map((a) => a.max ?? "-").join(","), h.series[1].xAxisIndex, h.series[1].markLine.data[0].xAxis, h.series[0].label.position, faded("h"));
+    // Drawn: the largest at the top, its bar the longest.
+    const px = (c, v) => chart("h").convertToPixel({ yAxisIndex: 0, xAxisIndex: 0 }, [v, c]);
+    log("drawn", px("Scratches", 42)[1] < px("Gaps", 8)[1], px("Scratches", 42)[0] > px("Gaps", 8)[0]);
 "##;
     let Some(lines) = run("pareto", &engine, doc, &driver(body)) else { return };
     assert_eq!(
@@ -1128,6 +1135,8 @@ fn pareto_in_chrome() {
             "count Login,Billing,Other | 3,2,3 | 37.5,62.5,100 | --- | 1 | 100 | null",
             "legend n,Cumulative %",
             "60% --ffff 60",
+            "across category true Scratches -,100 1 80 right ----ff",
+            "drawn true true",
         ],
         "\n{}",
         lines.join("\n")

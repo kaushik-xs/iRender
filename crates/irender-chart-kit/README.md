@@ -163,12 +163,14 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 
 ## Pareto
 
-`type: pareto` shows which few causes make up most of a total: defects by cause, returns by reason, tickets by category. The bars are the `y` field, always largest first (`sort` doesn't apply), and a line on a second axis is the running total as a percent of the whole, worked out in the browser, so it follows `filter`, `aggregate` and state like any chart. With `limit`, the first N bars are kept and the rest add up into one **Other** bar, kept last. `threshold` (default 80) is a dashed line at that percent; the bars after the one that takes the running total past it are faded, leaving the vital few. `threshold: false` leaves the line out and every bar alike. Values that aren't numbers, or are below zero, are left out. With `labels`, bars show their values and the line its percents, the line's giving way where they would overlap.
+`type: pareto` shows which few causes make up most of a total: defects by cause, returns by reason, tickets by category. The bars are the `y` field, always largest first (`sort` doesn't apply), and a line on a second axis is the running total as a percent of the whole, worked out in the browser, so it follows `filter`, `aggregate` and state like any chart. With `limit`, the first N bars are kept and the rest add up into one **Other** bar, kept last. `threshold` (default 80) is a dashed line at that percent; the bars after the one that takes the running total past it are faded, leaving the vital few. `threshold: false` leaves the line out and every bar alike. Values that aren't numbers, or are below zero, are left out. With `labels`, bars show their values and the line its percents, the line's giving way where they would overlap. `horizontal: true` lays the bars down the side, largest at the top, with the percent along the top and the threshold upright, which suits long category names.
 
 ```yaml
 - { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: { field: count, name: Defects }, limit: 6 } }
 # One row per ticket, counted by reason; the threshold from a control.
 - { type: ui-chart, props: { type: pareto, data: "{{ tickets }}", x: reason, aggregate: count, threshold: "{{ cutoff }}" } }
+# Down the side, for long names.
+- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, horizontal: true } }
 ```
 
 ## Drill-downs

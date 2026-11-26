@@ -510,6 +510,10 @@ root:
                   props: { bind: paretoAt, variant: outline, size: sm, options: [{ value: "70", label: 70% }, { value: "80", label: 80% }, { value: "90", label: 90% }] }
                 - { type: ui-chart, props: { type: pareto, data: "{{ returns }}", x: reason, y: { field: returns, name: Returns }, limit: 6, threshold: "{{ paretoAt }}", title: Returns by reason } }
             - type: ui-card
+              props: { title: Pareto across, description: "`horizontal`: the reasons down the side, largest at the top, and the running share along the top. Long names read better this way." }
+              children:
+                - { type: ui-chart, props: { type: pareto, data: "{{ returns }}", x: reason, y: { field: returns, name: Returns }, limit: 6, horizontal: true, labels: true, height: 300 } }
+            - type: ui-card
               props: { title: Radar }
               children:
                 - { type: ui-chart, props: { type: radar, data: "{{ skills }}" } }
