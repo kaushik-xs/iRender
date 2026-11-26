@@ -16,12 +16,17 @@
     return null;
   };
   const focusable = "input:not([type=hidden]), select, textarea, button, [tabindex]:not([tabindex='-1']), [contenteditable=true]";
+  // Opens the folded sections (or any `<details>`) around `n` in the form, so it shows.
+  const unfold = (form, n) => {
+    for (let d = n.closest("details:not([open])"); d && form.contains(d); d = d.parentElement?.closest("details:not([open])")) d.open = true;
+  };
   // Goes to the field that holds `key`.
   function goTo(form, key) {
     for (const n of form.querySelectorAll("[data-i-bind], [data-i-x]")) {
       if ((n.getAttribute("data-i-bind") ?? n.__xc?.bind) !== key) continue;
       const t = n.matches(focusable) ? n : n.querySelector(focusable);
       if (!t) continue;
+      unfold(form, t);
       t.focus({ preventScroll: true });
       t.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
       return true;
@@ -205,6 +210,8 @@
     function submitted(wrong) {
       tried = true;
       draw();
+      // Wrong fields in folded sections show, with their messages.
+      for (const n of el.querySelectorAll("[data-i-bind], [data-i-x]")) if (wrong.includes(n.getAttribute("data-i-bind") ?? n.__xc?.bind)) unfold(el, n);
       const summary = [...el.querySelectorAll("[data-i-x=ui-error-summary]")].find(mine);
       if (summary) {
         summary.focus({ preventScroll: true });

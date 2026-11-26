@@ -237,6 +237,41 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn form_sections_fold_and_open_for_a_wrong_field() {
+    check(
+        "form-sections-fold",
+        r##"
+state: { email: "", phone: "", errors: {} }
+root:
+  type: ui-form
+  props: { columns: 2, bindErrors: errors, rules: { email: { label: Email, required: true } } }
+  children:
+    - { type: ui-error-summary }
+    - type: ui-form-section
+      props: { title: Contact, description: How to reach you, collapsible: true, open: false, layout: aside, columns: 2, span: full }
+      children:
+        - { type: ui-field, props: { label: Email, error: "{{ errors.email }}" }, children: [ { type: ui-input, props: { bind: email }, attrs: { id: email } } ] }
+        - { type: ui-field, props: { label: Phone }, children: [ { type: ui-input, props: { bind: phone }, attrs: { id: phone } } ] }
+    - { type: ui-button, props: { label: Go, type: submit }, attrs: { id: go } }
+"##,
+        r##"
+        const d = $("details[data-section-in]"), sum = $("summary[data-section-head]"), email = $("#email");
+        log(d.open, email.checkVisibility(), sum.querySelector("h3").textContent, getComputedStyle(d).display);
+        sum.click(); await wait(30); log(d.open, email.checkVisibility(), $("#phone").getBoundingClientRect().left > email.getBoundingClientRect().left);
+        // The heading sits beside the fields while there's room.
+        log(sum.getBoundingClientRect().right <= email.getBoundingClientRect().left);
+        sum.click(); await wait(30); log(d.open);
+        // A submit with a wrong field in it opens the section and goes there.
+        $("#go").click(); await wait(30); log(d.open, S().errors.email);
+        $("[role=alert] button").click(); await wait(30); log(d.open, document.activeElement === email);
+        sum.click(); await wait(30); $("[role=alert] button").click(); await wait(30); log(d.open, document.activeElement === email);
+"##,
+        &["false false Contact grid", "true true true", "true", "false", "true Required", "true true", "true true"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn form_asks_the_server_with_remote_rules() {
     check(
         "form-remote",

@@ -2,7 +2,8 @@
 //! fields with columns of its own, its title above them or beside them) and the `span` of
 //! what's in them. They nest, so a form of two columns can hold a section of three. The
 //! columns fall to two and then one as the space they're in narrows (container queries,
-//! so a form in a drawer stacks too).
+//! so a form in a drawer stacks too). A `collapsible` section folds under its heading
+//! (a native `<details>`); the form opens it to go to a field inside.
 
 use crate::{MUTED, TEXT, id_with, instance_id, lit};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, expr};
@@ -22,6 +23,8 @@ const PROPS: &[PropDef] = &[
     PropDef::new("layout", PropKind::Enum(&["stacked", "aside"]), "The heading above the fields (default), or `aside`: beside them (up to 240px wide) while there's room"),
     PropDef::new("span", PropKind::Any, "Columns it takes in the form or section it's in: a number or `full`"),
     PropDef::new("level", PropKind::Any, "Its heading's level, 2–6 (default 3)"),
+    PropDef::new("collapsible", PropKind::Bool, "Folds under its heading, which opens and closes it (needs a `title`); the form opens it to go to a field inside"),
+    PropDef::new("open", PropKind::Any, "With `collapsible`: starts open (default true)"),
 ];
 
 pub(crate) const COLUMNS_PROP: PropDef =
@@ -60,6 +63,20 @@ static SECTION: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& > [data-section-in] > [data-section-head]", pairs(&[("display", "grid"), ("gap", gap!(4))]))
         .nest("& > [data-section-in] > [data-section-head] > :first-child", pairs(&[("margin", "0"), ("font-size", fs!(16)), ("font-weight", "var(--font-weight-semibold, 600)"), ("line-height", "1.4")]))
         .nest("& > [data-section-in] > [data-section-head] > p", pairs(&[("margin", "0"), ("color", MUTED), ("font-size", fs!(14))]))
+        // Folding: the heading is the `<summary>`, with a chevron that turns as it opens.
+        .nest(
+            "& > details > summary",
+            pairs(&[("grid-template-columns", "minmax(0, 1fr) auto"), ("column-gap", gap!(12)), ("align-items", "center"), ("list-style", "none"), ("cursor", "pointer"), ("border-radius", "var(--radius-control, var(--radius-md))")]),
+        )
+        .nest("& > details > summary > *", pairs(&[("grid-column", "1")]))
+        .nest("& > details > summary::-webkit-details-marker", pairs(&[("display", "none")]))
+        .nest(
+            "& > details > summary::after",
+            pairs(&[("content", "'⌄'"), ("grid-column", "2"), ("grid-row", "1 / span 2"), ("color", MUTED), ("line-height", "1"), ("transition", "transform .2s")]),
+        )
+        .nest("& > details[open] > summary::after", pairs(&[("transform", "rotate(180deg)")]))
+        .nest("& > details > summary:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
+        .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& > details > summary::after", pairs(&[("transition", "none")])))
         .nest("@container (min-width: 640px)", pairs(&[]).nest("&[data-layout=aside] > [data-section-in]", pairs(&[("grid-template-columns", "minmax(0, 240px) minmax(0, 1fr)"), ("gap", gap!(16, 32))])))
 });
 
@@ -130,6 +147,10 @@ impl Component for FormSection {
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
         let id = instance_id(cx, node, "section");
         let (title, description) = (node.prop("title"), node.prop("description"));
+        let fold = cx.prop(node, "collapsible").is_some_and(|c| expr::truthy(&c));
+        if fold && title.is_none() {
+            return Err(RenderError::new(node, "a `collapsible` section needs a `title` to open and close it by"));
+        }
         let mut el = cx.element("div", node);
         el.base_style_ref(&SECTION).attr("role", "group").attr("data-form-section", true).attr("data-layout", cx.prop_string(node, "layout").unwrap_or_else(|| "stacked".into()));
         if title.is_some() {
@@ -140,11 +161,19 @@ impl Component for FormSection {
         }
         span(cx, node, &mut el)?;
         cx.open(&el, node)?;
-        let mut inner = Element::new("div");
+        let inner_tag = if fold { "details" } else { "div" };
+        let mut inner = Element::new(inner_tag);
         inner.attr("data-section-in", true);
+        if fold {
+            match node.prop("open") {
+                Some(o) => inner.attr("open", o.clone()),
+                None => inner.attr("open", true),
+            };
+        }
         cx.open(&inner, node)?;
         if title.is_some() || description.is_some() {
-            let mut head = Element::new("div");
+            let head_tag = if fold { "summary" } else { "div" };
+            let mut head = Element::new(head_tag);
             head.attr("data-section-head", true);
             cx.open(&head, node)?;
             if let Some(t) = title {
@@ -161,10 +190,10 @@ impl Component for FormSection {
                 cx.open(&p, node)?;
                 cx.close("p");
             }
-            cx.close("div");
+            cx.close(head_tag);
         }
         grid(cx, node, columns(cx, node).unwrap_or(1), |cx| cx.children(node))?;
-        cx.close("div");
+        cx.close(inner_tag);
         cx.close("div");
         Ok(())
     }
