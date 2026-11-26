@@ -9227,9 +9227,9 @@ fn iframe_in_chrome() {
       try {
         log("sizes", box(a), box(b));
         log("sandbox", a.sandbox.contains("allow-scripts"), a.sandbox.contains("allow-top-navigation"), a.loading, a.allow);
-        // A real page (a fragment change never reloads), then other state changing.
-        const page = URL.createObjectURL(new Blob(["<p>framed</p>"], { type: "text/html" }));
-        api.set("url", page); await new Promise((r) => a.addEventListener("load", r, { once: true }));
+        // A page without a fragment (changing only that never reloads), then other state
+        // changing. Setting the same `src` again would load it again each time.
+        api.set("url", "about:blank"); await wait(100);
         let loads = 0; a.addEventListener("load", () => loads++);
         for (let i = 1; i <= 5; i++) { api.set("other", i); await wait(50); }
         log("other state", loads, "loads");
