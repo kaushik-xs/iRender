@@ -1,0 +1,977 @@
+# Digital twins: big worlds. One example of irender-twin-kit; twin/index.yaml links them
+# all, and blocks twin-01 to twin-04 are whole pages.
+#
+#   cargo run -p irender-cli -- render examples/twin/big-world.yaml --ui-kit --twin-kit -o twin/big-world.html
+#
+# The models are in examples/twin/models, next to the page (see models/CREDITS.md). The
+# 900 objects below were written by a script: a grid of six models, 150 of each.
+version: 1
+state:
+  lod: auto
+  labels: none
+  picked: null
+  rows:
+    - { id: o1, model: pallet, position: [-37.7, -37.7], title: Pallet 1, temp: 56 }
+    - { id: o2, model: crate, position: [-35.1, -37.7], title: Crate 2, temp: 62 }
+    - { id: o3, model: drum, position: [-32.5, -37.7], title: Drum 3, temp: 68 }
+    - { id: o4, model: tank, position: [-29.9, -37.7], title: IBC tank 4, temp: 74 }
+    - { id: o5, model: conveyor, position: [-27.3, -37.7], title: Conveyor 5, temp: 80 }
+    - { id: o6, model: lift, position: [-24.7, -37.7], title: Pallet jack 6, temp: 55 }
+    - { id: o7, model: pallet, position: [-22.1, -37.7], title: Pallet 7, temp: 61 }
+    - { id: o8, model: crate, position: [-19.5, -37.7], title: Crate 8, temp: 67 }
+    - { id: o9, model: drum, position: [-16.9, -37.7], title: Drum 9, temp: 73 }
+    - { id: o10, model: tank, position: [-14.3, -37.7], title: IBC tank 10, temp: 79 }
+    - { id: o11, model: conveyor, position: [-11.7, -37.7], title: Conveyor 11, temp: 54 }
+    - { id: o12, model: lift, position: [-9.1, -37.7], title: Pallet jack 12, temp: 60 }
+    - { id: o13, model: pallet, position: [-6.5, -37.7], title: Pallet 13, temp: 66 }
+    - { id: o14, model: crate, position: [-3.9, -37.7], title: Crate 14, temp: 72 }
+    - { id: o15, model: drum, position: [-1.3, -37.7], title: Drum 15, temp: 78 }
+    - { id: o16, model: tank, position: [1.3, -37.7], title: IBC tank 16, temp: 53 }
+    - { id: o17, model: conveyor, position: [3.9, -37.7], title: Conveyor 17, temp: 59 }
+    - { id: o18, model: lift, position: [6.5, -37.7], title: Pallet jack 18, temp: 65 }
+    - { id: o19, model: pallet, position: [9.1, -37.7], title: Pallet 19, temp: 71 }
+    - { id: o20, model: crate, position: [11.7, -37.7], title: Crate 20, temp: 77 }
+    - { id: o21, model: drum, position: [14.3, -37.7], title: Drum 21, temp: 52 }
+    - { id: o22, model: tank, position: [16.9, -37.7], title: IBC tank 22, temp: 58 }
+    - { id: o23, model: conveyor, position: [19.5, -37.7], title: Conveyor 23, temp: 64 }
+    - { id: o24, model: lift, position: [22.1, -37.7], title: Pallet jack 24, temp: 70 }
+    - { id: o25, model: pallet, position: [24.7, -37.7], title: Pallet 25, temp: 76 }
+    - { id: o26, model: crate, position: [27.3, -37.7], title: Crate 26, temp: 51 }
+    - { id: o27, model: drum, position: [29.9, -37.7], title: Drum 27, temp: 57 }
+    - { id: o28, model: tank, position: [32.5, -37.7], title: IBC tank 28, temp: 63 }
+    - { id: o29, model: conveyor, position: [35.1, -37.7], title: Conveyor 29, temp: 69 }
+    - { id: o30, model: lift, position: [37.7, -37.7], title: Pallet jack 30, temp: 75 }
+    - { id: o31, model: crate, position: [-37.7, -35.1], title: Crate 31, temp: 50 }
+    - { id: o32, model: drum, position: [-35.1, -35.1], title: Drum 32, temp: 56 }
+    - { id: o33, model: tank, position: [-32.5, -35.1], title: IBC tank 33, temp: 62 }
+    - { id: o34, model: conveyor, position: [-29.9, -35.1], title: Conveyor 34, temp: 68 }
+    - { id: o35, model: lift, position: [-27.3, -35.1], title: Pallet jack 35, temp: 74 }
+    - { id: o36, model: pallet, position: [-24.7, -35.1], title: Pallet 36, temp: 80 }
+    - { id: o37, model: crate, position: [-22.1, -35.1], title: Crate 37, temp: 55 }
+    - { id: o38, model: drum, position: [-19.5, -35.1], title: Drum 38, temp: 61 }
+    - { id: o39, model: tank, position: [-16.9, -35.1], title: IBC tank 39, temp: 67 }
+    - { id: o40, model: conveyor, position: [-14.3, -35.1], title: Conveyor 40, temp: 73 }
+    - { id: o41, model: lift, position: [-11.7, -35.1], title: Pallet jack 41, temp: 79 }
+    - { id: o42, model: pallet, position: [-9.1, -35.1], title: Pallet 42, temp: 54 }
+    - { id: o43, model: crate, position: [-6.5, -35.1], title: Crate 43, temp: 60 }
+    - { id: o44, model: drum, position: [-3.9, -35.1], title: Drum 44, temp: 66 }
+    - { id: o45, model: tank, position: [-1.3, -35.1], title: IBC tank 45, temp: 72 }
+    - { id: o46, model: conveyor, position: [1.3, -35.1], title: Conveyor 46, temp: 78 }
+    - { id: o47, model: lift, position: [3.9, -35.1], title: Pallet jack 47, temp: 53 }
+    - { id: o48, model: pallet, position: [6.5, -35.1], title: Pallet 48, temp: 59 }
+    - { id: o49, model: crate, position: [9.1, -35.1], title: Crate 49, temp: 65 }
+    - { id: o50, model: drum, position: [11.7, -35.1], title: Drum 50, temp: 71 }
+    - { id: o51, model: tank, position: [14.3, -35.1], title: IBC tank 51, temp: 77 }
+    - { id: o52, model: conveyor, position: [16.9, -35.1], title: Conveyor 52, temp: 52 }
+    - { id: o53, model: lift, position: [19.5, -35.1], title: Pallet jack 53, temp: 58 }
+    - { id: o54, model: pallet, position: [22.1, -35.1], title: Pallet 54, temp: 64 }
+    - { id: o55, model: crate, position: [24.7, -35.1], title: Crate 55, temp: 70 }
+    - { id: o56, model: drum, position: [27.3, -35.1], title: Drum 56, temp: 76 }
+    - { id: o57, model: tank, position: [29.9, -35.1], title: IBC tank 57, temp: 51 }
+    - { id: o58, model: conveyor, position: [32.5, -35.1], title: Conveyor 58, temp: 57 }
+    - { id: o59, model: lift, position: [35.1, -35.1], title: Pallet jack 59, temp: 63 }
+    - { id: o60, model: pallet, position: [37.7, -35.1], title: Pallet 60, temp: 69 }
+    - { id: o61, model: drum, position: [-37.7, -32.5], title: Drum 61, temp: 75 }
+    - { id: o62, model: tank, position: [-35.1, -32.5], title: IBC tank 62, temp: 50 }
+    - { id: o63, model: conveyor, position: [-32.5, -32.5], title: Conveyor 63, temp: 56 }
+    - { id: o64, model: lift, position: [-29.9, -32.5], title: Pallet jack 64, temp: 62 }
+    - { id: o65, model: pallet, position: [-27.3, -32.5], title: Pallet 65, temp: 68 }
+    - { id: o66, model: crate, position: [-24.7, -32.5], title: Crate 66, temp: 74 }
+    - { id: o67, model: drum, position: [-22.1, -32.5], title: Drum 67, temp: 80 }
+    - { id: o68, model: tank, position: [-19.5, -32.5], title: IBC tank 68, temp: 55 }
+    - { id: o69, model: conveyor, position: [-16.9, -32.5], title: Conveyor 69, temp: 61 }
+    - { id: o70, model: lift, position: [-14.3, -32.5], title: Pallet jack 70, temp: 67 }
+    - { id: o71, model: pallet, position: [-11.7, -32.5], title: Pallet 71, temp: 73 }
+    - { id: o72, model: crate, position: [-9.1, -32.5], title: Crate 72, temp: 79 }
+    - { id: o73, model: drum, position: [-6.5, -32.5], title: Drum 73, temp: 54 }
+    - { id: o74, model: tank, position: [-3.9, -32.5], title: IBC tank 74, temp: 60 }
+    - { id: o75, model: conveyor, position: [-1.3, -32.5], title: Conveyor 75, temp: 66 }
+    - { id: o76, model: lift, position: [1.3, -32.5], title: Pallet jack 76, temp: 72 }
+    - { id: o77, model: pallet, position: [3.9, -32.5], title: Pallet 77, temp: 78 }
+    - { id: o78, model: crate, position: [6.5, -32.5], title: Crate 78, temp: 53 }
+    - { id: o79, model: drum, position: [9.1, -32.5], title: Drum 79, temp: 59 }
+    - { id: o80, model: tank, position: [11.7, -32.5], title: IBC tank 80, temp: 65 }
+    - { id: o81, model: conveyor, position: [14.3, -32.5], title: Conveyor 81, temp: 71 }
+    - { id: o82, model: lift, position: [16.9, -32.5], title: Pallet jack 82, temp: 77 }
+    - { id: o83, model: pallet, position: [19.5, -32.5], title: Pallet 83, temp: 52 }
+    - { id: o84, model: crate, position: [22.1, -32.5], title: Crate 84, temp: 58 }
+    - { id: o85, model: drum, position: [24.7, -32.5], title: Drum 85, temp: 64 }
+    - { id: o86, model: tank, position: [27.3, -32.5], title: IBC tank 86, temp: 70 }
+    - { id: o87, model: conveyor, position: [29.9, -32.5], title: Conveyor 87, temp: 76 }
+    - { id: o88, model: lift, position: [32.5, -32.5], title: Pallet jack 88, temp: 51 }
+    - { id: o89, model: pallet, position: [35.1, -32.5], title: Pallet 89, temp: 57 }
+    - { id: o90, model: crate, position: [37.7, -32.5], title: Crate 90, temp: 63 }
+    - { id: o91, model: tank, position: [-37.7, -29.9], title: IBC tank 91, temp: 69 }
+    - { id: o92, model: conveyor, position: [-35.1, -29.9], title: Conveyor 92, temp: 75 }
+    - { id: o93, model: lift, position: [-32.5, -29.9], title: Pallet jack 93, temp: 50 }
+    - { id: o94, model: pallet, position: [-29.9, -29.9], title: Pallet 94, temp: 56 }
+    - { id: o95, model: crate, position: [-27.3, -29.9], title: Crate 95, temp: 62 }
+    - { id: o96, model: drum, position: [-24.7, -29.9], title: Drum 96, temp: 68 }
+    - { id: o97, model: tank, position: [-22.1, -29.9], title: IBC tank 97, temp: 88 }
+    - { id: o98, model: conveyor, position: [-19.5, -29.9], title: Conveyor 98, temp: 80 }
+    - { id: o99, model: lift, position: [-16.9, -29.9], title: Pallet jack 99, temp: 55 }
+    - { id: o100, model: pallet, position: [-14.3, -29.9], title: Pallet 100, temp: 61 }
+    - { id: o101, model: crate, position: [-11.7, -29.9], title: Crate 101, temp: 67 }
+    - { id: o102, model: drum, position: [-9.1, -29.9], title: Drum 102, temp: 73 }
+    - { id: o103, model: tank, position: [-6.5, -29.9], title: IBC tank 103, temp: 79 }
+    - { id: o104, model: conveyor, position: [-3.9, -29.9], title: Conveyor 104, temp: 54 }
+    - { id: o105, model: lift, position: [-1.3, -29.9], title: Pallet jack 105, temp: 60 }
+    - { id: o106, model: pallet, position: [1.3, -29.9], title: Pallet 106, temp: 66 }
+    - { id: o107, model: crate, position: [3.9, -29.9], title: Crate 107, temp: 72 }
+    - { id: o108, model: drum, position: [6.5, -29.9], title: Drum 108, temp: 78 }
+    - { id: o109, model: tank, position: [9.1, -29.9], title: IBC tank 109, temp: 53 }
+    - { id: o110, model: conveyor, position: [11.7, -29.9], title: Conveyor 110, temp: 59 }
+    - { id: o111, model: lift, position: [14.3, -29.9], title: Pallet jack 111, temp: 65 }
+    - { id: o112, model: pallet, position: [16.9, -29.9], title: Pallet 112, temp: 71 }
+    - { id: o113, model: crate, position: [19.5, -29.9], title: Crate 113, temp: 77 }
+    - { id: o114, model: drum, position: [22.1, -29.9], title: Drum 114, temp: 52 }
+    - { id: o115, model: tank, position: [24.7, -29.9], title: IBC tank 115, temp: 58 }
+    - { id: o116, model: conveyor, position: [27.3, -29.9], title: Conveyor 116, temp: 64 }
+    - { id: o117, model: lift, position: [29.9, -29.9], title: Pallet jack 117, temp: 70 }
+    - { id: o118, model: pallet, position: [32.5, -29.9], title: Pallet 118, temp: 76 }
+    - { id: o119, model: crate, position: [35.1, -29.9], title: Crate 119, temp: 51 }
+    - { id: o120, model: drum, position: [37.7, -29.9], title: Drum 120, temp: 57 }
+    - { id: o121, model: conveyor, position: [-37.7, -27.3], title: Conveyor 121, temp: 63 }
+    - { id: o122, model: lift, position: [-35.1, -27.3], title: Pallet jack 122, temp: 69 }
+    - { id: o123, model: pallet, position: [-32.5, -27.3], title: Pallet 123, temp: 75 }
+    - { id: o124, model: crate, position: [-29.9, -27.3], title: Crate 124, temp: 50 }
+    - { id: o125, model: drum, position: [-27.3, -27.3], title: Drum 125, temp: 56 }
+    - { id: o126, model: tank, position: [-24.7, -27.3], title: IBC tank 126, temp: 62 }
+    - { id: o127, model: conveyor, position: [-22.1, -27.3], title: Conveyor 127, temp: 68 }
+    - { id: o128, model: lift, position: [-19.5, -27.3], title: Pallet jack 128, temp: 74 }
+    - { id: o129, model: pallet, position: [-16.9, -27.3], title: Pallet 129, temp: 80 }
+    - { id: o130, model: crate, position: [-14.3, -27.3], title: Crate 130, temp: 55 }
+    - { id: o131, model: drum, position: [-11.7, -27.3], title: Drum 131, temp: 61 }
+    - { id: o132, model: tank, position: [-9.1, -27.3], title: IBC tank 132, temp: 67 }
+    - { id: o133, model: conveyor, position: [-6.5, -27.3], title: Conveyor 133, temp: 73 }
+    - { id: o134, model: lift, position: [-3.9, -27.3], title: Pallet jack 134, temp: 79 }
+    - { id: o135, model: pallet, position: [-1.3, -27.3], title: Pallet 135, temp: 54 }
+    - { id: o136, model: crate, position: [1.3, -27.3], title: Crate 136, temp: 60 }
+    - { id: o137, model: drum, position: [3.9, -27.3], title: Drum 137, temp: 66 }
+    - { id: o138, model: tank, position: [6.5, -27.3], title: IBC tank 138, temp: 72 }
+    - { id: o139, model: conveyor, position: [9.1, -27.3], title: Conveyor 139, temp: 78 }
+    - { id: o140, model: lift, position: [11.7, -27.3], title: Pallet jack 140, temp: 53 }
+    - { id: o141, model: pallet, position: [14.3, -27.3], title: Pallet 141, temp: 59 }
+    - { id: o142, model: crate, position: [16.9, -27.3], title: Crate 142, temp: 65 }
+    - { id: o143, model: drum, position: [19.5, -27.3], title: Drum 143, temp: 71 }
+    - { id: o144, model: tank, position: [22.1, -27.3], title: IBC tank 144, temp: 77 }
+    - { id: o145, model: conveyor, position: [24.7, -27.3], title: Conveyor 145, temp: 52 }
+    - { id: o146, model: lift, position: [27.3, -27.3], title: Pallet jack 146, temp: 58 }
+    - { id: o147, model: pallet, position: [29.9, -27.3], title: Pallet 147, temp: 64 }
+    - { id: o148, model: crate, position: [32.5, -27.3], title: Crate 148, temp: 70 }
+    - { id: o149, model: drum, position: [35.1, -27.3], title: Drum 149, temp: 76 }
+    - { id: o150, model: tank, position: [37.7, -27.3], title: IBC tank 150, temp: 51 }
+    - { id: o151, model: lift, position: [-37.7, -24.7], title: Pallet jack 151, temp: 57 }
+    - { id: o152, model: pallet, position: [-35.1, -24.7], title: Pallet 152, temp: 63 }
+    - { id: o153, model: crate, position: [-32.5, -24.7], title: Crate 153, temp: 69 }
+    - { id: o154, model: drum, position: [-29.9, -24.7], title: Drum 154, temp: 75 }
+    - { id: o155, model: tank, position: [-27.3, -24.7], title: IBC tank 155, temp: 50 }
+    - { id: o156, model: conveyor, position: [-24.7, -24.7], title: Conveyor 156, temp: 56 }
+    - { id: o157, model: lift, position: [-22.1, -24.7], title: Pallet jack 157, temp: 62 }
+    - { id: o158, model: pallet, position: [-19.5, -24.7], title: Pallet 158, temp: 68 }
+    - { id: o159, model: crate, position: [-16.9, -24.7], title: Crate 159, temp: 74 }
+    - { id: o160, model: drum, position: [-14.3, -24.7], title: Drum 160, temp: 80 }
+    - { id: o161, model: tank, position: [-11.7, -24.7], title: IBC tank 161, temp: 55 }
+    - { id: o162, model: conveyor, position: [-9.1, -24.7], title: Conveyor 162, temp: 61 }
+    - { id: o163, model: lift, position: [-6.5, -24.7], title: Pallet jack 163, temp: 67 }
+    - { id: o164, model: pallet, position: [-3.9, -24.7], title: Pallet 164, temp: 73 }
+    - { id: o165, model: crate, position: [-1.3, -24.7], title: Crate 165, temp: 79 }
+    - { id: o166, model: drum, position: [1.3, -24.7], title: Drum 166, temp: 54 }
+    - { id: o167, model: tank, position: [3.9, -24.7], title: IBC tank 167, temp: 60 }
+    - { id: o168, model: conveyor, position: [6.5, -24.7], title: Conveyor 168, temp: 66 }
+    - { id: o169, model: lift, position: [9.1, -24.7], title: Pallet jack 169, temp: 72 }
+    - { id: o170, model: pallet, position: [11.7, -24.7], title: Pallet 170, temp: 78 }
+    - { id: o171, model: crate, position: [14.3, -24.7], title: Crate 171, temp: 53 }
+    - { id: o172, model: drum, position: [16.9, -24.7], title: Drum 172, temp: 59 }
+    - { id: o173, model: tank, position: [19.5, -24.7], title: IBC tank 173, temp: 65 }
+    - { id: o174, model: conveyor, position: [22.1, -24.7], title: Conveyor 174, temp: 71 }
+    - { id: o175, model: lift, position: [24.7, -24.7], title: Pallet jack 175, temp: 77 }
+    - { id: o176, model: pallet, position: [27.3, -24.7], title: Pallet 176, temp: 52 }
+    - { id: o177, model: crate, position: [29.9, -24.7], title: Crate 177, temp: 58 }
+    - { id: o178, model: drum, position: [32.5, -24.7], title: Drum 178, temp: 64 }
+    - { id: o179, model: tank, position: [35.1, -24.7], title: IBC tank 179, temp: 70 }
+    - { id: o180, model: conveyor, position: [37.7, -24.7], title: Conveyor 180, temp: 76 }
+    - { id: o181, model: pallet, position: [-37.7, -22.1], title: Pallet 181, temp: 51 }
+    - { id: o182, model: crate, position: [-35.1, -22.1], title: Crate 182, temp: 57 }
+    - { id: o183, model: drum, position: [-32.5, -22.1], title: Drum 183, temp: 63 }
+    - { id: o184, model: tank, position: [-29.9, -22.1], title: IBC tank 184, temp: 69 }
+    - { id: o185, model: conveyor, position: [-27.3, -22.1], title: Conveyor 185, temp: 75 }
+    - { id: o186, model: lift, position: [-24.7, -22.1], title: Pallet jack 186, temp: 50 }
+    - { id: o187, model: pallet, position: [-22.1, -22.1], title: Pallet 187, temp: 56 }
+    - { id: o188, model: crate, position: [-19.5, -22.1], title: Crate 188, temp: 62 }
+    - { id: o189, model: drum, position: [-16.9, -22.1], title: Drum 189, temp: 68 }
+    - { id: o190, model: tank, position: [-14.3, -22.1], title: IBC tank 190, temp: 74 }
+    - { id: o191, model: conveyor, position: [-11.7, -22.1], title: Conveyor 191, temp: 80 }
+    - { id: o192, model: lift, position: [-9.1, -22.1], title: Pallet jack 192, temp: 55 }
+    - { id: o193, model: pallet, position: [-6.5, -22.1], title: Pallet 193, temp: 61 }
+    - { id: o194, model: crate, position: [-3.9, -22.1], title: Crate 194, temp: 88 }
+    - { id: o195, model: drum, position: [-1.3, -22.1], title: Drum 195, temp: 73 }
+    - { id: o196, model: tank, position: [1.3, -22.1], title: IBC tank 196, temp: 79 }
+    - { id: o197, model: conveyor, position: [3.9, -22.1], title: Conveyor 197, temp: 54 }
+    - { id: o198, model: lift, position: [6.5, -22.1], title: Pallet jack 198, temp: 60 }
+    - { id: o199, model: pallet, position: [9.1, -22.1], title: Pallet 199, temp: 66 }
+    - { id: o200, model: crate, position: [11.7, -22.1], title: Crate 200, temp: 72 }
+    - { id: o201, model: drum, position: [14.3, -22.1], title: Drum 201, temp: 78 }
+    - { id: o202, model: tank, position: [16.9, -22.1], title: IBC tank 202, temp: 53 }
+    - { id: o203, model: conveyor, position: [19.5, -22.1], title: Conveyor 203, temp: 59 }
+    - { id: o204, model: lift, position: [22.1, -22.1], title: Pallet jack 204, temp: 65 }
+    - { id: o205, model: pallet, position: [24.7, -22.1], title: Pallet 205, temp: 71 }
+    - { id: o206, model: crate, position: [27.3, -22.1], title: Crate 206, temp: 77 }
+    - { id: o207, model: drum, position: [29.9, -22.1], title: Drum 207, temp: 52 }
+    - { id: o208, model: tank, position: [32.5, -22.1], title: IBC tank 208, temp: 58 }
+    - { id: o209, model: conveyor, position: [35.1, -22.1], title: Conveyor 209, temp: 64 }
+    - { id: o210, model: lift, position: [37.7, -22.1], title: Pallet jack 210, temp: 70 }
+    - { id: o211, model: crate, position: [-37.7, -19.5], title: Crate 211, temp: 76 }
+    - { id: o212, model: drum, position: [-35.1, -19.5], title: Drum 212, temp: 51 }
+    - { id: o213, model: tank, position: [-32.5, -19.5], title: IBC tank 213, temp: 57 }
+    - { id: o214, model: conveyor, position: [-29.9, -19.5], title: Conveyor 214, temp: 63 }
+    - { id: o215, model: lift, position: [-27.3, -19.5], title: Pallet jack 215, temp: 69 }
+    - { id: o216, model: pallet, position: [-24.7, -19.5], title: Pallet 216, temp: 75 }
+    - { id: o217, model: crate, position: [-22.1, -19.5], title: Crate 217, temp: 50 }
+    - { id: o218, model: drum, position: [-19.5, -19.5], title: Drum 218, temp: 56 }
+    - { id: o219, model: tank, position: [-16.9, -19.5], title: IBC tank 219, temp: 62 }
+    - { id: o220, model: conveyor, position: [-14.3, -19.5], title: Conveyor 220, temp: 68 }
+    - { id: o221, model: lift, position: [-11.7, -19.5], title: Pallet jack 221, temp: 74 }
+    - { id: o222, model: pallet, position: [-9.1, -19.5], title: Pallet 222, temp: 80 }
+    - { id: o223, model: crate, position: [-6.5, -19.5], title: Crate 223, temp: 55 }
+    - { id: o224, model: drum, position: [-3.9, -19.5], title: Drum 224, temp: 61 }
+    - { id: o225, model: tank, position: [-1.3, -19.5], title: IBC tank 225, temp: 67 }
+    - { id: o226, model: conveyor, position: [1.3, -19.5], title: Conveyor 226, temp: 73 }
+    - { id: o227, model: lift, position: [3.9, -19.5], title: Pallet jack 227, temp: 79 }
+    - { id: o228, model: pallet, position: [6.5, -19.5], title: Pallet 228, temp: 54 }
+    - { id: o229, model: crate, position: [9.1, -19.5], title: Crate 229, temp: 60 }
+    - { id: o230, model: drum, position: [11.7, -19.5], title: Drum 230, temp: 66 }
+    - { id: o231, model: tank, position: [14.3, -19.5], title: IBC tank 231, temp: 72 }
+    - { id: o232, model: conveyor, position: [16.9, -19.5], title: Conveyor 232, temp: 78 }
+    - { id: o233, model: lift, position: [19.5, -19.5], title: Pallet jack 233, temp: 53 }
+    - { id: o234, model: pallet, position: [22.1, -19.5], title: Pallet 234, temp: 59 }
+    - { id: o235, model: crate, position: [24.7, -19.5], title: Crate 235, temp: 65 }
+    - { id: o236, model: drum, position: [27.3, -19.5], title: Drum 236, temp: 71 }
+    - { id: o237, model: tank, position: [29.9, -19.5], title: IBC tank 237, temp: 77 }
+    - { id: o238, model: conveyor, position: [32.5, -19.5], title: Conveyor 238, temp: 52 }
+    - { id: o239, model: lift, position: [35.1, -19.5], title: Pallet jack 239, temp: 58 }
+    - { id: o240, model: pallet, position: [37.7, -19.5], title: Pallet 240, temp: 64 }
+    - { id: o241, model: drum, position: [-37.7, -16.9], title: Drum 241, temp: 70 }
+    - { id: o242, model: tank, position: [-35.1, -16.9], title: IBC tank 242, temp: 76 }
+    - { id: o243, model: conveyor, position: [-32.5, -16.9], title: Conveyor 243, temp: 51 }
+    - { id: o244, model: lift, position: [-29.9, -16.9], title: Pallet jack 244, temp: 57 }
+    - { id: o245, model: pallet, position: [-27.3, -16.9], title: Pallet 245, temp: 63 }
+    - { id: o246, model: crate, position: [-24.7, -16.9], title: Crate 246, temp: 69 }
+    - { id: o247, model: drum, position: [-22.1, -16.9], title: Drum 247, temp: 75 }
+    - { id: o248, model: tank, position: [-19.5, -16.9], title: IBC tank 248, temp: 50 }
+    - { id: o249, model: conveyor, position: [-16.9, -16.9], title: Conveyor 249, temp: 56 }
+    - { id: o250, model: lift, position: [-14.3, -16.9], title: Pallet jack 250, temp: 62 }
+    - { id: o251, model: pallet, position: [-11.7, -16.9], title: Pallet 251, temp: 68 }
+    - { id: o252, model: crate, position: [-9.1, -16.9], title: Crate 252, temp: 74 }
+    - { id: o253, model: drum, position: [-6.5, -16.9], title: Drum 253, temp: 80 }
+    - { id: o254, model: tank, position: [-3.9, -16.9], title: IBC tank 254, temp: 55 }
+    - { id: o255, model: conveyor, position: [-1.3, -16.9], title: Conveyor 255, temp: 61 }
+    - { id: o256, model: lift, position: [1.3, -16.9], title: Pallet jack 256, temp: 67 }
+    - { id: o257, model: pallet, position: [3.9, -16.9], title: Pallet 257, temp: 73 }
+    - { id: o258, model: crate, position: [6.5, -16.9], title: Crate 258, temp: 79 }
+    - { id: o259, model: drum, position: [9.1, -16.9], title: Drum 259, temp: 54 }
+    - { id: o260, model: tank, position: [11.7, -16.9], title: IBC tank 260, temp: 60 }
+    - { id: o261, model: conveyor, position: [14.3, -16.9], title: Conveyor 261, temp: 66 }
+    - { id: o262, model: lift, position: [16.9, -16.9], title: Pallet jack 262, temp: 72 }
+    - { id: o263, model: pallet, position: [19.5, -16.9], title: Pallet 263, temp: 78 }
+    - { id: o264, model: crate, position: [22.1, -16.9], title: Crate 264, temp: 53 }
+    - { id: o265, model: drum, position: [24.7, -16.9], title: Drum 265, temp: 59 }
+    - { id: o266, model: tank, position: [27.3, -16.9], title: IBC tank 266, temp: 65 }
+    - { id: o267, model: conveyor, position: [29.9, -16.9], title: Conveyor 267, temp: 71 }
+    - { id: o268, model: lift, position: [32.5, -16.9], title: Pallet jack 268, temp: 77 }
+    - { id: o269, model: pallet, position: [35.1, -16.9], title: Pallet 269, temp: 52 }
+    - { id: o270, model: crate, position: [37.7, -16.9], title: Crate 270, temp: 58 }
+    - { id: o271, model: tank, position: [-37.7, -14.3], title: IBC tank 271, temp: 64 }
+    - { id: o272, model: conveyor, position: [-35.1, -14.3], title: Conveyor 272, temp: 70 }
+    - { id: o273, model: lift, position: [-32.5, -14.3], title: Pallet jack 273, temp: 76 }
+    - { id: o274, model: pallet, position: [-29.9, -14.3], title: Pallet 274, temp: 51 }
+    - { id: o275, model: crate, position: [-27.3, -14.3], title: Crate 275, temp: 57 }
+    - { id: o276, model: drum, position: [-24.7, -14.3], title: Drum 276, temp: 63 }
+    - { id: o277, model: tank, position: [-22.1, -14.3], title: IBC tank 277, temp: 69 }
+    - { id: o278, model: conveyor, position: [-19.5, -14.3], title: Conveyor 278, temp: 75 }
+    - { id: o279, model: lift, position: [-16.9, -14.3], title: Pallet jack 279, temp: 50 }
+    - { id: o280, model: pallet, position: [-14.3, -14.3], title: Pallet 280, temp: 56 }
+    - { id: o281, model: crate, position: [-11.7, -14.3], title: Crate 281, temp: 62 }
+    - { id: o282, model: drum, position: [-9.1, -14.3], title: Drum 282, temp: 68 }
+    - { id: o283, model: tank, position: [-6.5, -14.3], title: IBC tank 283, temp: 74 }
+    - { id: o284, model: conveyor, position: [-3.9, -14.3], title: Conveyor 284, temp: 80 }
+    - { id: o285, model: lift, position: [-1.3, -14.3], title: Pallet jack 285, temp: 55 }
+    - { id: o286, model: pallet, position: [1.3, -14.3], title: Pallet 286, temp: 61 }
+    - { id: o287, model: crate, position: [3.9, -14.3], title: Crate 287, temp: 67 }
+    - { id: o288, model: drum, position: [6.5, -14.3], title: Drum 288, temp: 73 }
+    - { id: o289, model: tank, position: [9.1, -14.3], title: IBC tank 289, temp: 79 }
+    - { id: o290, model: conveyor, position: [11.7, -14.3], title: Conveyor 290, temp: 54 }
+    - { id: o291, model: lift, position: [14.3, -14.3], title: Pallet jack 291, temp: 88 }
+    - { id: o292, model: pallet, position: [16.9, -14.3], title: Pallet 292, temp: 66 }
+    - { id: o293, model: crate, position: [19.5, -14.3], title: Crate 293, temp: 72 }
+    - { id: o294, model: drum, position: [22.1, -14.3], title: Drum 294, temp: 78 }
+    - { id: o295, model: tank, position: [24.7, -14.3], title: IBC tank 295, temp: 53 }
+    - { id: o296, model: conveyor, position: [27.3, -14.3], title: Conveyor 296, temp: 59 }
+    - { id: o297, model: lift, position: [29.9, -14.3], title: Pallet jack 297, temp: 65 }
+    - { id: o298, model: pallet, position: [32.5, -14.3], title: Pallet 298, temp: 71 }
+    - { id: o299, model: crate, position: [35.1, -14.3], title: Crate 299, temp: 77 }
+    - { id: o300, model: drum, position: [37.7, -14.3], title: Drum 300, temp: 52 }
+    - { id: o301, model: conveyor, position: [-37.7, -11.7], title: Conveyor 301, temp: 58 }
+    - { id: o302, model: lift, position: [-35.1, -11.7], title: Pallet jack 302, temp: 64 }
+    - { id: o303, model: pallet, position: [-32.5, -11.7], title: Pallet 303, temp: 70 }
+    - { id: o304, model: crate, position: [-29.9, -11.7], title: Crate 304, temp: 76 }
+    - { id: o305, model: drum, position: [-27.3, -11.7], title: Drum 305, temp: 51 }
+    - { id: o306, model: tank, position: [-24.7, -11.7], title: IBC tank 306, temp: 57 }
+    - { id: o307, model: conveyor, position: [-22.1, -11.7], title: Conveyor 307, temp: 63 }
+    - { id: o308, model: lift, position: [-19.5, -11.7], title: Pallet jack 308, temp: 69 }
+    - { id: o309, model: pallet, position: [-16.9, -11.7], title: Pallet 309, temp: 75 }
+    - { id: o310, model: crate, position: [-14.3, -11.7], title: Crate 310, temp: 50 }
+    - { id: o311, model: drum, position: [-11.7, -11.7], title: Drum 311, temp: 56 }
+    - { id: o312, model: tank, position: [-9.1, -11.7], title: IBC tank 312, temp: 62 }
+    - { id: o313, model: conveyor, position: [-6.5, -11.7], title: Conveyor 313, temp: 68 }
+    - { id: o314, model: lift, position: [-3.9, -11.7], title: Pallet jack 314, temp: 74 }
+    - { id: o315, model: pallet, position: [-1.3, -11.7], title: Pallet 315, temp: 80 }
+    - { id: o316, model: crate, position: [1.3, -11.7], title: Crate 316, temp: 55 }
+    - { id: o317, model: drum, position: [3.9, -11.7], title: Drum 317, temp: 61 }
+    - { id: o318, model: tank, position: [6.5, -11.7], title: IBC tank 318, temp: 67 }
+    - { id: o319, model: conveyor, position: [9.1, -11.7], title: Conveyor 319, temp: 73 }
+    - { id: o320, model: lift, position: [11.7, -11.7], title: Pallet jack 320, temp: 79 }
+    - { id: o321, model: pallet, position: [14.3, -11.7], title: Pallet 321, temp: 54 }
+    - { id: o322, model: crate, position: [16.9, -11.7], title: Crate 322, temp: 60 }
+    - { id: o323, model: drum, position: [19.5, -11.7], title: Drum 323, temp: 66 }
+    - { id: o324, model: tank, position: [22.1, -11.7], title: IBC tank 324, temp: 72 }
+    - { id: o325, model: conveyor, position: [24.7, -11.7], title: Conveyor 325, temp: 78 }
+    - { id: o326, model: lift, position: [27.3, -11.7], title: Pallet jack 326, temp: 53 }
+    - { id: o327, model: pallet, position: [29.9, -11.7], title: Pallet 327, temp: 59 }
+    - { id: o328, model: crate, position: [32.5, -11.7], title: Crate 328, temp: 65 }
+    - { id: o329, model: drum, position: [35.1, -11.7], title: Drum 329, temp: 71 }
+    - { id: o330, model: tank, position: [37.7, -11.7], title: IBC tank 330, temp: 77 }
+    - { id: o331, model: lift, position: [-37.7, -9.1], title: Pallet jack 331, temp: 52 }
+    - { id: o332, model: pallet, position: [-35.1, -9.1], title: Pallet 332, temp: 58 }
+    - { id: o333, model: crate, position: [-32.5, -9.1], title: Crate 333, temp: 64 }
+    - { id: o334, model: drum, position: [-29.9, -9.1], title: Drum 334, temp: 70 }
+    - { id: o335, model: tank, position: [-27.3, -9.1], title: IBC tank 335, temp: 76 }
+    - { id: o336, model: conveyor, position: [-24.7, -9.1], title: Conveyor 336, temp: 51 }
+    - { id: o337, model: lift, position: [-22.1, -9.1], title: Pallet jack 337, temp: 57 }
+    - { id: o338, model: pallet, position: [-19.5, -9.1], title: Pallet 338, temp: 63 }
+    - { id: o339, model: crate, position: [-16.9, -9.1], title: Crate 339, temp: 69 }
+    - { id: o340, model: drum, position: [-14.3, -9.1], title: Drum 340, temp: 75 }
+    - { id: o341, model: tank, position: [-11.7, -9.1], title: IBC tank 341, temp: 50 }
+    - { id: o342, model: conveyor, position: [-9.1, -9.1], title: Conveyor 342, temp: 56 }
+    - { id: o343, model: lift, position: [-6.5, -9.1], title: Pallet jack 343, temp: 62 }
+    - { id: o344, model: pallet, position: [-3.9, -9.1], title: Pallet 344, temp: 68 }
+    - { id: o345, model: crate, position: [-1.3, -9.1], title: Crate 345, temp: 74 }
+    - { id: o346, model: drum, position: [1.3, -9.1], title: Drum 346, temp: 80 }
+    - { id: o347, model: tank, position: [3.9, -9.1], title: IBC tank 347, temp: 55 }
+    - { id: o348, model: conveyor, position: [6.5, -9.1], title: Conveyor 348, temp: 61 }
+    - { id: o349, model: lift, position: [9.1, -9.1], title: Pallet jack 349, temp: 67 }
+    - { id: o350, model: pallet, position: [11.7, -9.1], title: Pallet 350, temp: 73 }
+    - { id: o351, model: crate, position: [14.3, -9.1], title: Crate 351, temp: 79 }
+    - { id: o352, model: drum, position: [16.9, -9.1], title: Drum 352, temp: 54 }
+    - { id: o353, model: tank, position: [19.5, -9.1], title: IBC tank 353, temp: 60 }
+    - { id: o354, model: conveyor, position: [22.1, -9.1], title: Conveyor 354, temp: 66 }
+    - { id: o355, model: lift, position: [24.7, -9.1], title: Pallet jack 355, temp: 72 }
+    - { id: o356, model: pallet, position: [27.3, -9.1], title: Pallet 356, temp: 78 }
+    - { id: o357, model: crate, position: [29.9, -9.1], title: Crate 357, temp: 53 }
+    - { id: o358, model: drum, position: [32.5, -9.1], title: Drum 358, temp: 59 }
+    - { id: o359, model: tank, position: [35.1, -9.1], title: IBC tank 359, temp: 65 }
+    - { id: o360, model: conveyor, position: [37.7, -9.1], title: Conveyor 360, temp: 71 }
+    - { id: o361, model: pallet, position: [-37.7, -6.5], title: Pallet 361, temp: 77 }
+    - { id: o362, model: crate, position: [-35.1, -6.5], title: Crate 362, temp: 52 }
+    - { id: o363, model: drum, position: [-32.5, -6.5], title: Drum 363, temp: 58 }
+    - { id: o364, model: tank, position: [-29.9, -6.5], title: IBC tank 364, temp: 64 }
+    - { id: o365, model: conveyor, position: [-27.3, -6.5], title: Conveyor 365, temp: 70 }
+    - { id: o366, model: lift, position: [-24.7, -6.5], title: Pallet jack 366, temp: 76 }
+    - { id: o367, model: pallet, position: [-22.1, -6.5], title: Pallet 367, temp: 51 }
+    - { id: o368, model: crate, position: [-19.5, -6.5], title: Crate 368, temp: 57 }
+    - { id: o369, model: drum, position: [-16.9, -6.5], title: Drum 369, temp: 63 }
+    - { id: o370, model: tank, position: [-14.3, -6.5], title: IBC tank 370, temp: 69 }
+    - { id: o371, model: conveyor, position: [-11.7, -6.5], title: Conveyor 371, temp: 75 }
+    - { id: o372, model: lift, position: [-9.1, -6.5], title: Pallet jack 372, temp: 50 }
+    - { id: o373, model: pallet, position: [-6.5, -6.5], title: Pallet 373, temp: 56 }
+    - { id: o374, model: crate, position: [-3.9, -6.5], title: Crate 374, temp: 62 }
+    - { id: o375, model: drum, position: [-1.3, -6.5], title: Drum 375, temp: 68 }
+    - { id: o376, model: tank, position: [1.3, -6.5], title: IBC tank 376, temp: 74 }
+    - { id: o377, model: conveyor, position: [3.9, -6.5], title: Conveyor 377, temp: 80 }
+    - { id: o378, model: lift, position: [6.5, -6.5], title: Pallet jack 378, temp: 55 }
+    - { id: o379, model: pallet, position: [9.1, -6.5], title: Pallet 379, temp: 61 }
+    - { id: o380, model: crate, position: [11.7, -6.5], title: Crate 380, temp: 67 }
+    - { id: o381, model: drum, position: [14.3, -6.5], title: Drum 381, temp: 73 }
+    - { id: o382, model: tank, position: [16.9, -6.5], title: IBC tank 382, temp: 79 }
+    - { id: o383, model: conveyor, position: [19.5, -6.5], title: Conveyor 383, temp: 54 }
+    - { id: o384, model: lift, position: [22.1, -6.5], title: Pallet jack 384, temp: 60 }
+    - { id: o385, model: pallet, position: [24.7, -6.5], title: Pallet 385, temp: 66 }
+    - { id: o386, model: crate, position: [27.3, -6.5], title: Crate 386, temp: 72 }
+    - { id: o387, model: drum, position: [29.9, -6.5], title: Drum 387, temp: 78 }
+    - { id: o388, model: tank, position: [32.5, -6.5], title: IBC tank 388, temp: 88 }
+    - { id: o389, model: conveyor, position: [35.1, -6.5], title: Conveyor 389, temp: 59 }
+    - { id: o390, model: lift, position: [37.7, -6.5], title: Pallet jack 390, temp: 65 }
+    - { id: o391, model: crate, position: [-37.7, -3.9], title: Crate 391, temp: 71 }
+    - { id: o392, model: drum, position: [-35.1, -3.9], title: Drum 392, temp: 77 }
+    - { id: o393, model: tank, position: [-32.5, -3.9], title: IBC tank 393, temp: 52 }
+    - { id: o394, model: conveyor, position: [-29.9, -3.9], title: Conveyor 394, temp: 58 }
+    - { id: o395, model: lift, position: [-27.3, -3.9], title: Pallet jack 395, temp: 64 }
+    - { id: o396, model: pallet, position: [-24.7, -3.9], title: Pallet 396, temp: 70 }
+    - { id: o397, model: crate, position: [-22.1, -3.9], title: Crate 397, temp: 76 }
+    - { id: o398, model: drum, position: [-19.5, -3.9], title: Drum 398, temp: 51 }
+    - { id: o399, model: tank, position: [-16.9, -3.9], title: IBC tank 399, temp: 57 }
+    - { id: o400, model: conveyor, position: [-14.3, -3.9], title: Conveyor 400, temp: 63 }
+    - { id: o401, model: lift, position: [-11.7, -3.9], title: Pallet jack 401, temp: 69 }
+    - { id: o402, model: pallet, position: [-9.1, -3.9], title: Pallet 402, temp: 75 }
+    - { id: o403, model: crate, position: [-6.5, -3.9], title: Crate 403, temp: 50 }
+    - { id: o404, model: drum, position: [-3.9, -3.9], title: Drum 404, temp: 56 }
+    - { id: o405, model: tank, position: [-1.3, -3.9], title: IBC tank 405, temp: 62 }
+    - { id: o406, model: conveyor, position: [1.3, -3.9], title: Conveyor 406, temp: 68 }
+    - { id: o407, model: lift, position: [3.9, -3.9], title: Pallet jack 407, temp: 74 }
+    - { id: o408, model: pallet, position: [6.5, -3.9], title: Pallet 408, temp: 80 }
+    - { id: o409, model: crate, position: [9.1, -3.9], title: Crate 409, temp: 55 }
+    - { id: o410, model: drum, position: [11.7, -3.9], title: Drum 410, temp: 61 }
+    - { id: o411, model: tank, position: [14.3, -3.9], title: IBC tank 411, temp: 67 }
+    - { id: o412, model: conveyor, position: [16.9, -3.9], title: Conveyor 412, temp: 73 }
+    - { id: o413, model: lift, position: [19.5, -3.9], title: Pallet jack 413, temp: 79 }
+    - { id: o414, model: pallet, position: [22.1, -3.9], title: Pallet 414, temp: 54 }
+    - { id: o415, model: crate, position: [24.7, -3.9], title: Crate 415, temp: 60 }
+    - { id: o416, model: drum, position: [27.3, -3.9], title: Drum 416, temp: 66 }
+    - { id: o417, model: tank, position: [29.9, -3.9], title: IBC tank 417, temp: 72 }
+    - { id: o418, model: conveyor, position: [32.5, -3.9], title: Conveyor 418, temp: 78 }
+    - { id: o419, model: lift, position: [35.1, -3.9], title: Pallet jack 419, temp: 53 }
+    - { id: o420, model: pallet, position: [37.7, -3.9], title: Pallet 420, temp: 59 }
+    - { id: o421, model: drum, position: [-37.7, -1.3], title: Drum 421, temp: 65 }
+    - { id: o422, model: tank, position: [-35.1, -1.3], title: IBC tank 422, temp: 71 }
+    - { id: o423, model: conveyor, position: [-32.5, -1.3], title: Conveyor 423, temp: 77 }
+    - { id: o424, model: lift, position: [-29.9, -1.3], title: Pallet jack 424, temp: 52 }
+    - { id: o425, model: pallet, position: [-27.3, -1.3], title: Pallet 425, temp: 58 }
+    - { id: o426, model: crate, position: [-24.7, -1.3], title: Crate 426, temp: 64 }
+    - { id: o427, model: drum, position: [-22.1, -1.3], title: Drum 427, temp: 70 }
+    - { id: o428, model: tank, position: [-19.5, -1.3], title: IBC tank 428, temp: 76 }
+    - { id: o429, model: conveyor, position: [-16.9, -1.3], title: Conveyor 429, temp: 51 }
+    - { id: o430, model: lift, position: [-14.3, -1.3], title: Pallet jack 430, temp: 57 }
+    - { id: o431, model: pallet, position: [-11.7, -1.3], title: Pallet 431, temp: 63 }
+    - { id: o432, model: crate, position: [-9.1, -1.3], title: Crate 432, temp: 69 }
+    - { id: o433, model: drum, position: [-6.5, -1.3], title: Drum 433, temp: 75 }
+    - { id: o434, model: tank, position: [-3.9, -1.3], title: IBC tank 434, temp: 50 }
+    - { id: o435, model: conveyor, position: [-1.3, -1.3], title: Conveyor 435, temp: 56 }
+    - { id: o436, model: lift, position: [1.3, -1.3], title: Pallet jack 436, temp: 62 }
+    - { id: o437, model: pallet, position: [3.9, -1.3], title: Pallet 437, temp: 68 }
+    - { id: o438, model: crate, position: [6.5, -1.3], title: Crate 438, temp: 74 }
+    - { id: o439, model: drum, position: [9.1, -1.3], title: Drum 439, temp: 80 }
+    - { id: o440, model: tank, position: [11.7, -1.3], title: IBC tank 440, temp: 55 }
+    - { id: o441, model: conveyor, position: [14.3, -1.3], title: Conveyor 441, temp: 61 }
+    - { id: o442, model: lift, position: [16.9, -1.3], title: Pallet jack 442, temp: 67 }
+    - { id: o443, model: pallet, position: [19.5, -1.3], title: Pallet 443, temp: 73 }
+    - { id: o444, model: crate, position: [22.1, -1.3], title: Crate 444, temp: 79 }
+    - { id: o445, model: drum, position: [24.7, -1.3], title: Drum 445, temp: 54 }
+    - { id: o446, model: tank, position: [27.3, -1.3], title: IBC tank 446, temp: 60 }
+    - { id: o447, model: conveyor, position: [29.9, -1.3], title: Conveyor 447, temp: 66 }
+    - { id: o448, model: lift, position: [32.5, -1.3], title: Pallet jack 448, temp: 72 }
+    - { id: o449, model: pallet, position: [35.1, -1.3], title: Pallet 449, temp: 78 }
+    - { id: o450, model: crate, position: [37.7, -1.3], title: Crate 450, temp: 53 }
+    - { id: o451, model: tank, position: [-37.7, 1.3], title: IBC tank 451, temp: 59 }
+    - { id: o452, model: conveyor, position: [-35.1, 1.3], title: Conveyor 452, temp: 65 }
+    - { id: o453, model: lift, position: [-32.5, 1.3], title: Pallet jack 453, temp: 71 }
+    - { id: o454, model: pallet, position: [-29.9, 1.3], title: Pallet 454, temp: 77 }
+    - { id: o455, model: crate, position: [-27.3, 1.3], title: Crate 455, temp: 52 }
+    - { id: o456, model: drum, position: [-24.7, 1.3], title: Drum 456, temp: 58 }
+    - { id: o457, model: tank, position: [-22.1, 1.3], title: IBC tank 457, temp: 64 }
+    - { id: o458, model: conveyor, position: [-19.5, 1.3], title: Conveyor 458, temp: 70 }
+    - { id: o459, model: lift, position: [-16.9, 1.3], title: Pallet jack 459, temp: 76 }
+    - { id: o460, model: pallet, position: [-14.3, 1.3], title: Pallet 460, temp: 51 }
+    - { id: o461, model: crate, position: [-11.7, 1.3], title: Crate 461, temp: 57 }
+    - { id: o462, model: drum, position: [-9.1, 1.3], title: Drum 462, temp: 63 }
+    - { id: o463, model: tank, position: [-6.5, 1.3], title: IBC tank 463, temp: 69 }
+    - { id: o464, model: conveyor, position: [-3.9, 1.3], title: Conveyor 464, temp: 75 }
+    - { id: o465, model: lift, position: [-1.3, 1.3], title: Pallet jack 465, temp: 50 }
+    - { id: o466, model: pallet, position: [1.3, 1.3], title: Pallet 466, temp: 56 }
+    - { id: o467, model: crate, position: [3.9, 1.3], title: Crate 467, temp: 62 }
+    - { id: o468, model: drum, position: [6.5, 1.3], title: Drum 468, temp: 68 }
+    - { id: o469, model: tank, position: [9.1, 1.3], title: IBC tank 469, temp: 74 }
+    - { id: o470, model: conveyor, position: [11.7, 1.3], title: Conveyor 470, temp: 80 }
+    - { id: o471, model: lift, position: [14.3, 1.3], title: Pallet jack 471, temp: 55 }
+    - { id: o472, model: pallet, position: [16.9, 1.3], title: Pallet 472, temp: 61 }
+    - { id: o473, model: crate, position: [19.5, 1.3], title: Crate 473, temp: 67 }
+    - { id: o474, model: drum, position: [22.1, 1.3], title: Drum 474, temp: 73 }
+    - { id: o475, model: tank, position: [24.7, 1.3], title: IBC tank 475, temp: 79 }
+    - { id: o476, model: conveyor, position: [27.3, 1.3], title: Conveyor 476, temp: 54 }
+    - { id: o477, model: lift, position: [29.9, 1.3], title: Pallet jack 477, temp: 60 }
+    - { id: o478, model: pallet, position: [32.5, 1.3], title: Pallet 478, temp: 66 }
+    - { id: o479, model: crate, position: [35.1, 1.3], title: Crate 479, temp: 72 }
+    - { id: o480, model: drum, position: [37.7, 1.3], title: Drum 480, temp: 78 }
+    - { id: o481, model: conveyor, position: [-37.7, 3.9], title: Conveyor 481, temp: 53 }
+    - { id: o482, model: lift, position: [-35.1, 3.9], title: Pallet jack 482, temp: 59 }
+    - { id: o483, model: pallet, position: [-32.5, 3.9], title: Pallet 483, temp: 65 }
+    - { id: o484, model: crate, position: [-29.9, 3.9], title: Crate 484, temp: 71 }
+    - { id: o485, model: drum, position: [-27.3, 3.9], title: Drum 485, temp: 88 }
+    - { id: o486, model: tank, position: [-24.7, 3.9], title: IBC tank 486, temp: 52 }
+    - { id: o487, model: conveyor, position: [-22.1, 3.9], title: Conveyor 487, temp: 58 }
+    - { id: o488, model: lift, position: [-19.5, 3.9], title: Pallet jack 488, temp: 64 }
+    - { id: o489, model: pallet, position: [-16.9, 3.9], title: Pallet 489, temp: 70 }
+    - { id: o490, model: crate, position: [-14.3, 3.9], title: Crate 490, temp: 76 }
+    - { id: o491, model: drum, position: [-11.7, 3.9], title: Drum 491, temp: 51 }
+    - { id: o492, model: tank, position: [-9.1, 3.9], title: IBC tank 492, temp: 57 }
+    - { id: o493, model: conveyor, position: [-6.5, 3.9], title: Conveyor 493, temp: 63 }
+    - { id: o494, model: lift, position: [-3.9, 3.9], title: Pallet jack 494, temp: 69 }
+    - { id: o495, model: pallet, position: [-1.3, 3.9], title: Pallet 495, temp: 75 }
+    - { id: o496, model: crate, position: [1.3, 3.9], title: Crate 496, temp: 50 }
+    - { id: o497, model: drum, position: [3.9, 3.9], title: Drum 497, temp: 56 }
+    - { id: o498, model: tank, position: [6.5, 3.9], title: IBC tank 498, temp: 62 }
+    - { id: o499, model: conveyor, position: [9.1, 3.9], title: Conveyor 499, temp: 68 }
+    - { id: o500, model: lift, position: [11.7, 3.9], title: Pallet jack 500, temp: 74 }
+    - { id: o501, model: pallet, position: [14.3, 3.9], title: Pallet 501, temp: 80 }
+    - { id: o502, model: crate, position: [16.9, 3.9], title: Crate 502, temp: 55 }
+    - { id: o503, model: drum, position: [19.5, 3.9], title: Drum 503, temp: 61 }
+    - { id: o504, model: tank, position: [22.1, 3.9], title: IBC tank 504, temp: 67 }
+    - { id: o505, model: conveyor, position: [24.7, 3.9], title: Conveyor 505, temp: 73 }
+    - { id: o506, model: lift, position: [27.3, 3.9], title: Pallet jack 506, temp: 79 }
+    - { id: o507, model: pallet, position: [29.9, 3.9], title: Pallet 507, temp: 54 }
+    - { id: o508, model: crate, position: [32.5, 3.9], title: Crate 508, temp: 60 }
+    - { id: o509, model: drum, position: [35.1, 3.9], title: Drum 509, temp: 66 }
+    - { id: o510, model: tank, position: [37.7, 3.9], title: IBC tank 510, temp: 72 }
+    - { id: o511, model: lift, position: [-37.7, 6.5], title: Pallet jack 511, temp: 78 }
+    - { id: o512, model: pallet, position: [-35.1, 6.5], title: Pallet 512, temp: 53 }
+    - { id: o513, model: crate, position: [-32.5, 6.5], title: Crate 513, temp: 59 }
+    - { id: o514, model: drum, position: [-29.9, 6.5], title: Drum 514, temp: 65 }
+    - { id: o515, model: tank, position: [-27.3, 6.5], title: IBC tank 515, temp: 71 }
+    - { id: o516, model: conveyor, position: [-24.7, 6.5], title: Conveyor 516, temp: 77 }
+    - { id: o517, model: lift, position: [-22.1, 6.5], title: Pallet jack 517, temp: 52 }
+    - { id: o518, model: pallet, position: [-19.5, 6.5], title: Pallet 518, temp: 58 }
+    - { id: o519, model: crate, position: [-16.9, 6.5], title: Crate 519, temp: 64 }
+    - { id: o520, model: drum, position: [-14.3, 6.5], title: Drum 520, temp: 70 }
+    - { id: o521, model: tank, position: [-11.7, 6.5], title: IBC tank 521, temp: 76 }
+    - { id: o522, model: conveyor, position: [-9.1, 6.5], title: Conveyor 522, temp: 51 }
+    - { id: o523, model: lift, position: [-6.5, 6.5], title: Pallet jack 523, temp: 57 }
+    - { id: o524, model: pallet, position: [-3.9, 6.5], title: Pallet 524, temp: 63 }
+    - { id: o525, model: crate, position: [-1.3, 6.5], title: Crate 525, temp: 69 }
+    - { id: o526, model: drum, position: [1.3, 6.5], title: Drum 526, temp: 75 }
+    - { id: o527, model: tank, position: [3.9, 6.5], title: IBC tank 527, temp: 50 }
+    - { id: o528, model: conveyor, position: [6.5, 6.5], title: Conveyor 528, temp: 56 }
+    - { id: o529, model: lift, position: [9.1, 6.5], title: Pallet jack 529, temp: 62 }
+    - { id: o530, model: pallet, position: [11.7, 6.5], title: Pallet 530, temp: 68 }
+    - { id: o531, model: crate, position: [14.3, 6.5], title: Crate 531, temp: 74 }
+    - { id: o532, model: drum, position: [16.9, 6.5], title: Drum 532, temp: 80 }
+    - { id: o533, model: tank, position: [19.5, 6.5], title: IBC tank 533, temp: 55 }
+    - { id: o534, model: conveyor, position: [22.1, 6.5], title: Conveyor 534, temp: 61 }
+    - { id: o535, model: lift, position: [24.7, 6.5], title: Pallet jack 535, temp: 67 }
+    - { id: o536, model: pallet, position: [27.3, 6.5], title: Pallet 536, temp: 73 }
+    - { id: o537, model: crate, position: [29.9, 6.5], title: Crate 537, temp: 79 }
+    - { id: o538, model: drum, position: [32.5, 6.5], title: Drum 538, temp: 54 }
+    - { id: o539, model: tank, position: [35.1, 6.5], title: IBC tank 539, temp: 60 }
+    - { id: o540, model: conveyor, position: [37.7, 6.5], title: Conveyor 540, temp: 66 }
+    - { id: o541, model: pallet, position: [-37.7, 9.1], title: Pallet 541, temp: 72 }
+    - { id: o542, model: crate, position: [-35.1, 9.1], title: Crate 542, temp: 78 }
+    - { id: o543, model: drum, position: [-32.5, 9.1], title: Drum 543, temp: 53 }
+    - { id: o544, model: tank, position: [-29.9, 9.1], title: IBC tank 544, temp: 59 }
+    - { id: o545, model: conveyor, position: [-27.3, 9.1], title: Conveyor 545, temp: 65 }
+    - { id: o546, model: lift, position: [-24.7, 9.1], title: Pallet jack 546, temp: 71 }
+    - { id: o547, model: pallet, position: [-22.1, 9.1], title: Pallet 547, temp: 77 }
+    - { id: o548, model: crate, position: [-19.5, 9.1], title: Crate 548, temp: 52 }
+    - { id: o549, model: drum, position: [-16.9, 9.1], title: Drum 549, temp: 58 }
+    - { id: o550, model: tank, position: [-14.3, 9.1], title: IBC tank 550, temp: 64 }
+    - { id: o551, model: conveyor, position: [-11.7, 9.1], title: Conveyor 551, temp: 70 }
+    - { id: o552, model: lift, position: [-9.1, 9.1], title: Pallet jack 552, temp: 76 }
+    - { id: o553, model: pallet, position: [-6.5, 9.1], title: Pallet 553, temp: 51 }
+    - { id: o554, model: crate, position: [-3.9, 9.1], title: Crate 554, temp: 57 }
+    - { id: o555, model: drum, position: [-1.3, 9.1], title: Drum 555, temp: 63 }
+    - { id: o556, model: tank, position: [1.3, 9.1], title: IBC tank 556, temp: 69 }
+    - { id: o557, model: conveyor, position: [3.9, 9.1], title: Conveyor 557, temp: 75 }
+    - { id: o558, model: lift, position: [6.5, 9.1], title: Pallet jack 558, temp: 50 }
+    - { id: o559, model: pallet, position: [9.1, 9.1], title: Pallet 559, temp: 56 }
+    - { id: o560, model: crate, position: [11.7, 9.1], title: Crate 560, temp: 62 }
+    - { id: o561, model: drum, position: [14.3, 9.1], title: Drum 561, temp: 68 }
+    - { id: o562, model: tank, position: [16.9, 9.1], title: IBC tank 562, temp: 74 }
+    - { id: o563, model: conveyor, position: [19.5, 9.1], title: Conveyor 563, temp: 80 }
+    - { id: o564, model: lift, position: [22.1, 9.1], title: Pallet jack 564, temp: 55 }
+    - { id: o565, model: pallet, position: [24.7, 9.1], title: Pallet 565, temp: 61 }
+    - { id: o566, model: crate, position: [27.3, 9.1], title: Crate 566, temp: 67 }
+    - { id: o567, model: drum, position: [29.9, 9.1], title: Drum 567, temp: 73 }
+    - { id: o568, model: tank, position: [32.5, 9.1], title: IBC tank 568, temp: 79 }
+    - { id: o569, model: conveyor, position: [35.1, 9.1], title: Conveyor 569, temp: 54 }
+    - { id: o570, model: lift, position: [37.7, 9.1], title: Pallet jack 570, temp: 60 }
+    - { id: o571, model: crate, position: [-37.7, 11.7], title: Crate 571, temp: 66 }
+    - { id: o572, model: drum, position: [-35.1, 11.7], title: Drum 572, temp: 72 }
+    - { id: o573, model: tank, position: [-32.5, 11.7], title: IBC tank 573, temp: 78 }
+    - { id: o574, model: conveyor, position: [-29.9, 11.7], title: Conveyor 574, temp: 53 }
+    - { id: o575, model: lift, position: [-27.3, 11.7], title: Pallet jack 575, temp: 59 }
+    - { id: o576, model: pallet, position: [-24.7, 11.7], title: Pallet 576, temp: 65 }
+    - { id: o577, model: crate, position: [-22.1, 11.7], title: Crate 577, temp: 71 }
+    - { id: o578, model: drum, position: [-19.5, 11.7], title: Drum 578, temp: 77 }
+    - { id: o579, model: tank, position: [-16.9, 11.7], title: IBC tank 579, temp: 52 }
+    - { id: o580, model: conveyor, position: [-14.3, 11.7], title: Conveyor 580, temp: 58 }
+    - { id: o581, model: lift, position: [-11.7, 11.7], title: Pallet jack 581, temp: 64 }
+    - { id: o582, model: pallet, position: [-9.1, 11.7], title: Pallet 582, temp: 88 }
+    - { id: o583, model: crate, position: [-6.5, 11.7], title: Crate 583, temp: 76 }
+    - { id: o584, model: drum, position: [-3.9, 11.7], title: Drum 584, temp: 51 }
+    - { id: o585, model: tank, position: [-1.3, 11.7], title: IBC tank 585, temp: 57 }
+    - { id: o586, model: conveyor, position: [1.3, 11.7], title: Conveyor 586, temp: 63 }
+    - { id: o587, model: lift, position: [3.9, 11.7], title: Pallet jack 587, temp: 69 }
+    - { id: o588, model: pallet, position: [6.5, 11.7], title: Pallet 588, temp: 75 }
+    - { id: o589, model: crate, position: [9.1, 11.7], title: Crate 589, temp: 50 }
+    - { id: o590, model: drum, position: [11.7, 11.7], title: Drum 590, temp: 56 }
+    - { id: o591, model: tank, position: [14.3, 11.7], title: IBC tank 591, temp: 62 }
+    - { id: o592, model: conveyor, position: [16.9, 11.7], title: Conveyor 592, temp: 68 }
+    - { id: o593, model: lift, position: [19.5, 11.7], title: Pallet jack 593, temp: 74 }
+    - { id: o594, model: pallet, position: [22.1, 11.7], title: Pallet 594, temp: 80 }
+    - { id: o595, model: crate, position: [24.7, 11.7], title: Crate 595, temp: 55 }
+    - { id: o596, model: drum, position: [27.3, 11.7], title: Drum 596, temp: 61 }
+    - { id: o597, model: tank, position: [29.9, 11.7], title: IBC tank 597, temp: 67 }
+    - { id: o598, model: conveyor, position: [32.5, 11.7], title: Conveyor 598, temp: 73 }
+    - { id: o599, model: lift, position: [35.1, 11.7], title: Pallet jack 599, temp: 79 }
+    - { id: o600, model: pallet, position: [37.7, 11.7], title: Pallet 600, temp: 54 }
+    - { id: o601, model: drum, position: [-37.7, 14.3], title: Drum 601, temp: 60 }
+    - { id: o602, model: tank, position: [-35.1, 14.3], title: IBC tank 602, temp: 66 }
+    - { id: o603, model: conveyor, position: [-32.5, 14.3], title: Conveyor 603, temp: 72 }
+    - { id: o604, model: lift, position: [-29.9, 14.3], title: Pallet jack 604, temp: 78 }
+    - { id: o605, model: pallet, position: [-27.3, 14.3], title: Pallet 605, temp: 53 }
+    - { id: o606, model: crate, position: [-24.7, 14.3], title: Crate 606, temp: 59 }
+    - { id: o607, model: drum, position: [-22.1, 14.3], title: Drum 607, temp: 65 }
+    - { id: o608, model: tank, position: [-19.5, 14.3], title: IBC tank 608, temp: 71 }
+    - { id: o609, model: conveyor, position: [-16.9, 14.3], title: Conveyor 609, temp: 77 }
+    - { id: o610, model: lift, position: [-14.3, 14.3], title: Pallet jack 610, temp: 52 }
+    - { id: o611, model: pallet, position: [-11.7, 14.3], title: Pallet 611, temp: 58 }
+    - { id: o612, model: crate, position: [-9.1, 14.3], title: Crate 612, temp: 64 }
+    - { id: o613, model: drum, position: [-6.5, 14.3], title: Drum 613, temp: 70 }
+    - { id: o614, model: tank, position: [-3.9, 14.3], title: IBC tank 614, temp: 76 }
+    - { id: o615, model: conveyor, position: [-1.3, 14.3], title: Conveyor 615, temp: 51 }
+    - { id: o616, model: lift, position: [1.3, 14.3], title: Pallet jack 616, temp: 57 }
+    - { id: o617, model: pallet, position: [3.9, 14.3], title: Pallet 617, temp: 63 }
+    - { id: o618, model: crate, position: [6.5, 14.3], title: Crate 618, temp: 69 }
+    - { id: o619, model: drum, position: [9.1, 14.3], title: Drum 619, temp: 75 }
+    - { id: o620, model: tank, position: [11.7, 14.3], title: IBC tank 620, temp: 50 }
+    - { id: o621, model: conveyor, position: [14.3, 14.3], title: Conveyor 621, temp: 56 }
+    - { id: o622, model: lift, position: [16.9, 14.3], title: Pallet jack 622, temp: 62 }
+    - { id: o623, model: pallet, position: [19.5, 14.3], title: Pallet 623, temp: 68 }
+    - { id: o624, model: crate, position: [22.1, 14.3], title: Crate 624, temp: 74 }
+    - { id: o625, model: drum, position: [24.7, 14.3], title: Drum 625, temp: 80 }
+    - { id: o626, model: tank, position: [27.3, 14.3], title: IBC tank 626, temp: 55 }
+    - { id: o627, model: conveyor, position: [29.9, 14.3], title: Conveyor 627, temp: 61 }
+    - { id: o628, model: lift, position: [32.5, 14.3], title: Pallet jack 628, temp: 67 }
+    - { id: o629, model: pallet, position: [35.1, 14.3], title: Pallet 629, temp: 73 }
+    - { id: o630, model: crate, position: [37.7, 14.3], title: Crate 630, temp: 79 }
+    - { id: o631, model: tank, position: [-37.7, 16.9], title: IBC tank 631, temp: 54 }
+    - { id: o632, model: conveyor, position: [-35.1, 16.9], title: Conveyor 632, temp: 60 }
+    - { id: o633, model: lift, position: [-32.5, 16.9], title: Pallet jack 633, temp: 66 }
+    - { id: o634, model: pallet, position: [-29.9, 16.9], title: Pallet 634, temp: 72 }
+    - { id: o635, model: crate, position: [-27.3, 16.9], title: Crate 635, temp: 78 }
+    - { id: o636, model: drum, position: [-24.7, 16.9], title: Drum 636, temp: 53 }
+    - { id: o637, model: tank, position: [-22.1, 16.9], title: IBC tank 637, temp: 59 }
+    - { id: o638, model: conveyor, position: [-19.5, 16.9], title: Conveyor 638, temp: 65 }
+    - { id: o639, model: lift, position: [-16.9, 16.9], title: Pallet jack 639, temp: 71 }
+    - { id: o640, model: pallet, position: [-14.3, 16.9], title: Pallet 640, temp: 77 }
+    - { id: o641, model: crate, position: [-11.7, 16.9], title: Crate 641, temp: 52 }
+    - { id: o642, model: drum, position: [-9.1, 16.9], title: Drum 642, temp: 58 }
+    - { id: o643, model: tank, position: [-6.5, 16.9], title: IBC tank 643, temp: 64 }
+    - { id: o644, model: conveyor, position: [-3.9, 16.9], title: Conveyor 644, temp: 70 }
+    - { id: o645, model: lift, position: [-1.3, 16.9], title: Pallet jack 645, temp: 76 }
+    - { id: o646, model: pallet, position: [1.3, 16.9], title: Pallet 646, temp: 51 }
+    - { id: o647, model: crate, position: [3.9, 16.9], title: Crate 647, temp: 57 }
+    - { id: o648, model: drum, position: [6.5, 16.9], title: Drum 648, temp: 63 }
+    - { id: o649, model: tank, position: [9.1, 16.9], title: IBC tank 649, temp: 69 }
+    - { id: o650, model: conveyor, position: [11.7, 16.9], title: Conveyor 650, temp: 75 }
+    - { id: o651, model: lift, position: [14.3, 16.9], title: Pallet jack 651, temp: 50 }
+    - { id: o652, model: pallet, position: [16.9, 16.9], title: Pallet 652, temp: 56 }
+    - { id: o653, model: crate, position: [19.5, 16.9], title: Crate 653, temp: 62 }
+    - { id: o654, model: drum, position: [22.1, 16.9], title: Drum 654, temp: 68 }
+    - { id: o655, model: tank, position: [24.7, 16.9], title: IBC tank 655, temp: 74 }
+    - { id: o656, model: conveyor, position: [27.3, 16.9], title: Conveyor 656, temp: 80 }
+    - { id: o657, model: lift, position: [29.9, 16.9], title: Pallet jack 657, temp: 55 }
+    - { id: o658, model: pallet, position: [32.5, 16.9], title: Pallet 658, temp: 61 }
+    - { id: o659, model: crate, position: [35.1, 16.9], title: Crate 659, temp: 67 }
+    - { id: o660, model: drum, position: [37.7, 16.9], title: Drum 660, temp: 73 }
+    - { id: o661, model: conveyor, position: [-37.7, 19.5], title: Conveyor 661, temp: 79 }
+    - { id: o662, model: lift, position: [-35.1, 19.5], title: Pallet jack 662, temp: 54 }
+    - { id: o663, model: pallet, position: [-32.5, 19.5], title: Pallet 663, temp: 60 }
+    - { id: o664, model: crate, position: [-29.9, 19.5], title: Crate 664, temp: 66 }
+    - { id: o665, model: drum, position: [-27.3, 19.5], title: Drum 665, temp: 72 }
+    - { id: o666, model: tank, position: [-24.7, 19.5], title: IBC tank 666, temp: 78 }
+    - { id: o667, model: conveyor, position: [-22.1, 19.5], title: Conveyor 667, temp: 53 }
+    - { id: o668, model: lift, position: [-19.5, 19.5], title: Pallet jack 668, temp: 59 }
+    - { id: o669, model: pallet, position: [-16.9, 19.5], title: Pallet 669, temp: 65 }
+    - { id: o670, model: crate, position: [-14.3, 19.5], title: Crate 670, temp: 71 }
+    - { id: o671, model: drum, position: [-11.7, 19.5], title: Drum 671, temp: 77 }
+    - { id: o672, model: tank, position: [-9.1, 19.5], title: IBC tank 672, temp: 52 }
+    - { id: o673, model: conveyor, position: [-6.5, 19.5], title: Conveyor 673, temp: 58 }
+    - { id: o674, model: lift, position: [-3.9, 19.5], title: Pallet jack 674, temp: 64 }
+    - { id: o675, model: pallet, position: [-1.3, 19.5], title: Pallet 675, temp: 70 }
+    - { id: o676, model: crate, position: [1.3, 19.5], title: Crate 676, temp: 76 }
+    - { id: o677, model: drum, position: [3.9, 19.5], title: Drum 677, temp: 51 }
+    - { id: o678, model: tank, position: [6.5, 19.5], title: IBC tank 678, temp: 57 }
+    - { id: o679, model: conveyor, position: [9.1, 19.5], title: Conveyor 679, temp: 88 }
+    - { id: o680, model: lift, position: [11.7, 19.5], title: Pallet jack 680, temp: 69 }
+    - { id: o681, model: pallet, position: [14.3, 19.5], title: Pallet 681, temp: 75 }
+    - { id: o682, model: crate, position: [16.9, 19.5], title: Crate 682, temp: 50 }
+    - { id: o683, model: drum, position: [19.5, 19.5], title: Drum 683, temp: 56 }
+    - { id: o684, model: tank, position: [22.1, 19.5], title: IBC tank 684, temp: 62 }
+    - { id: o685, model: conveyor, position: [24.7, 19.5], title: Conveyor 685, temp: 68 }
+    - { id: o686, model: lift, position: [27.3, 19.5], title: Pallet jack 686, temp: 74 }
+    - { id: o687, model: pallet, position: [29.9, 19.5], title: Pallet 687, temp: 80 }
+    - { id: o688, model: crate, position: [32.5, 19.5], title: Crate 688, temp: 55 }
+    - { id: o689, model: drum, position: [35.1, 19.5], title: Drum 689, temp: 61 }
+    - { id: o690, model: tank, position: [37.7, 19.5], title: IBC tank 690, temp: 67 }
+    - { id: o691, model: lift, position: [-37.7, 22.1], title: Pallet jack 691, temp: 73 }
+    - { id: o692, model: pallet, position: [-35.1, 22.1], title: Pallet 692, temp: 79 }
+    - { id: o693, model: crate, position: [-32.5, 22.1], title: Crate 693, temp: 54 }
+    - { id: o694, model: drum, position: [-29.9, 22.1], title: Drum 694, temp: 60 }
+    - { id: o695, model: tank, position: [-27.3, 22.1], title: IBC tank 695, temp: 66 }
+    - { id: o696, model: conveyor, position: [-24.7, 22.1], title: Conveyor 696, temp: 72 }
+    - { id: o697, model: lift, position: [-22.1, 22.1], title: Pallet jack 697, temp: 78 }
+    - { id: o698, model: pallet, position: [-19.5, 22.1], title: Pallet 698, temp: 53 }
+    - { id: o699, model: crate, position: [-16.9, 22.1], title: Crate 699, temp: 59 }
+    - { id: o700, model: drum, position: [-14.3, 22.1], title: Drum 700, temp: 65 }
+    - { id: o701, model: tank, position: [-11.7, 22.1], title: IBC tank 701, temp: 71 }
+    - { id: o702, model: conveyor, position: [-9.1, 22.1], title: Conveyor 702, temp: 77 }
+    - { id: o703, model: lift, position: [-6.5, 22.1], title: Pallet jack 703, temp: 52 }
+    - { id: o704, model: pallet, position: [-3.9, 22.1], title: Pallet 704, temp: 58 }
+    - { id: o705, model: crate, position: [-1.3, 22.1], title: Crate 705, temp: 64 }
+    - { id: o706, model: drum, position: [1.3, 22.1], title: Drum 706, temp: 70 }
+    - { id: o707, model: tank, position: [3.9, 22.1], title: IBC tank 707, temp: 76 }
+    - { id: o708, model: conveyor, position: [6.5, 22.1], title: Conveyor 708, temp: 51 }
+    - { id: o709, model: lift, position: [9.1, 22.1], title: Pallet jack 709, temp: 57 }
+    - { id: o710, model: pallet, position: [11.7, 22.1], title: Pallet 710, temp: 63 }
+    - { id: o711, model: crate, position: [14.3, 22.1], title: Crate 711, temp: 69 }
+    - { id: o712, model: drum, position: [16.9, 22.1], title: Drum 712, temp: 75 }
+    - { id: o713, model: tank, position: [19.5, 22.1], title: IBC tank 713, temp: 50 }
+    - { id: o714, model: conveyor, position: [22.1, 22.1], title: Conveyor 714, temp: 56 }
+    - { id: o715, model: lift, position: [24.7, 22.1], title: Pallet jack 715, temp: 62 }
+    - { id: o716, model: pallet, position: [27.3, 22.1], title: Pallet 716, temp: 68 }
+    - { id: o717, model: crate, position: [29.9, 22.1], title: Crate 717, temp: 74 }
+    - { id: o718, model: drum, position: [32.5, 22.1], title: Drum 718, temp: 80 }
+    - { id: o719, model: tank, position: [35.1, 22.1], title: IBC tank 719, temp: 55 }
+    - { id: o720, model: conveyor, position: [37.7, 22.1], title: Conveyor 720, temp: 61 }
+    - { id: o721, model: pallet, position: [-37.7, 24.7], title: Pallet 721, temp: 67 }
+    - { id: o722, model: crate, position: [-35.1, 24.7], title: Crate 722, temp: 73 }
+    - { id: o723, model: drum, position: [-32.5, 24.7], title: Drum 723, temp: 79 }
+    - { id: o724, model: tank, position: [-29.9, 24.7], title: IBC tank 724, temp: 54 }
+    - { id: o725, model: conveyor, position: [-27.3, 24.7], title: Conveyor 725, temp: 60 }
+    - { id: o726, model: lift, position: [-24.7, 24.7], title: Pallet jack 726, temp: 66 }
+    - { id: o727, model: pallet, position: [-22.1, 24.7], title: Pallet 727, temp: 72 }
+    - { id: o728, model: crate, position: [-19.5, 24.7], title: Crate 728, temp: 78 }
+    - { id: o729, model: drum, position: [-16.9, 24.7], title: Drum 729, temp: 53 }
+    - { id: o730, model: tank, position: [-14.3, 24.7], title: IBC tank 730, temp: 59 }
+    - { id: o731, model: conveyor, position: [-11.7, 24.7], title: Conveyor 731, temp: 65 }
+    - { id: o732, model: lift, position: [-9.1, 24.7], title: Pallet jack 732, temp: 71 }
+    - { id: o733, model: pallet, position: [-6.5, 24.7], title: Pallet 733, temp: 77 }
+    - { id: o734, model: crate, position: [-3.9, 24.7], title: Crate 734, temp: 52 }
+    - { id: o735, model: drum, position: [-1.3, 24.7], title: Drum 735, temp: 58 }
+    - { id: o736, model: tank, position: [1.3, 24.7], title: IBC tank 736, temp: 64 }
+    - { id: o737, model: conveyor, position: [3.9, 24.7], title: Conveyor 737, temp: 70 }
+    - { id: o738, model: lift, position: [6.5, 24.7], title: Pallet jack 738, temp: 76 }
+    - { id: o739, model: pallet, position: [9.1, 24.7], title: Pallet 739, temp: 51 }
+    - { id: o740, model: crate, position: [11.7, 24.7], title: Crate 740, temp: 57 }
+    - { id: o741, model: drum, position: [14.3, 24.7], title: Drum 741, temp: 63 }
+    - { id: o742, model: tank, position: [16.9, 24.7], title: IBC tank 742, temp: 69 }
+    - { id: o743, model: conveyor, position: [19.5, 24.7], title: Conveyor 743, temp: 75 }
+    - { id: o744, model: lift, position: [22.1, 24.7], title: Pallet jack 744, temp: 50 }
+    - { id: o745, model: pallet, position: [24.7, 24.7], title: Pallet 745, temp: 56 }
+    - { id: o746, model: crate, position: [27.3, 24.7], title: Crate 746, temp: 62 }
+    - { id: o747, model: drum, position: [29.9, 24.7], title: Drum 747, temp: 68 }
+    - { id: o748, model: tank, position: [32.5, 24.7], title: IBC tank 748, temp: 74 }
+    - { id: o749, model: conveyor, position: [35.1, 24.7], title: Conveyor 749, temp: 80 }
+    - { id: o750, model: lift, position: [37.7, 24.7], title: Pallet jack 750, temp: 55 }
+    - { id: o751, model: crate, position: [-37.7, 27.3], title: Crate 751, temp: 61 }
+    - { id: o752, model: drum, position: [-35.1, 27.3], title: Drum 752, temp: 67 }
+    - { id: o753, model: tank, position: [-32.5, 27.3], title: IBC tank 753, temp: 73 }
+    - { id: o754, model: conveyor, position: [-29.9, 27.3], title: Conveyor 754, temp: 79 }
+    - { id: o755, model: lift, position: [-27.3, 27.3], title: Pallet jack 755, temp: 54 }
+    - { id: o756, model: pallet, position: [-24.7, 27.3], title: Pallet 756, temp: 60 }
+    - { id: o757, model: crate, position: [-22.1, 27.3], title: Crate 757, temp: 66 }
+    - { id: o758, model: drum, position: [-19.5, 27.3], title: Drum 758, temp: 72 }
+    - { id: o759, model: tank, position: [-16.9, 27.3], title: IBC tank 759, temp: 78 }
+    - { id: o760, model: conveyor, position: [-14.3, 27.3], title: Conveyor 760, temp: 53 }
+    - { id: o761, model: lift, position: [-11.7, 27.3], title: Pallet jack 761, temp: 59 }
+    - { id: o762, model: pallet, position: [-9.1, 27.3], title: Pallet 762, temp: 65 }
+    - { id: o763, model: crate, position: [-6.5, 27.3], title: Crate 763, temp: 71 }
+    - { id: o764, model: drum, position: [-3.9, 27.3], title: Drum 764, temp: 77 }
+    - { id: o765, model: tank, position: [-1.3, 27.3], title: IBC tank 765, temp: 52 }
+    - { id: o766, model: conveyor, position: [1.3, 27.3], title: Conveyor 766, temp: 58 }
+    - { id: o767, model: lift, position: [3.9, 27.3], title: Pallet jack 767, temp: 64 }
+    - { id: o768, model: pallet, position: [6.5, 27.3], title: Pallet 768, temp: 70 }
+    - { id: o769, model: crate, position: [9.1, 27.3], title: Crate 769, temp: 76 }
+    - { id: o770, model: drum, position: [11.7, 27.3], title: Drum 770, temp: 51 }
+    - { id: o771, model: tank, position: [14.3, 27.3], title: IBC tank 771, temp: 57 }
+    - { id: o772, model: conveyor, position: [16.9, 27.3], title: Conveyor 772, temp: 63 }
+    - { id: o773, model: lift, position: [19.5, 27.3], title: Pallet jack 773, temp: 69 }
+    - { id: o774, model: pallet, position: [22.1, 27.3], title: Pallet 774, temp: 75 }
+    - { id: o775, model: crate, position: [24.7, 27.3], title: Crate 775, temp: 50 }
+    - { id: o776, model: drum, position: [27.3, 27.3], title: Drum 776, temp: 88 }
+    - { id: o777, model: tank, position: [29.9, 27.3], title: IBC tank 777, temp: 62 }
+    - { id: o778, model: conveyor, position: [32.5, 27.3], title: Conveyor 778, temp: 68 }
+    - { id: o779, model: lift, position: [35.1, 27.3], title: Pallet jack 779, temp: 74 }
+    - { id: o780, model: pallet, position: [37.7, 27.3], title: Pallet 780, temp: 80 }
+    - { id: o781, model: drum, position: [-37.7, 29.9], title: Drum 781, temp: 55 }
+    - { id: o782, model: tank, position: [-35.1, 29.9], title: IBC tank 782, temp: 61 }
+    - { id: o783, model: conveyor, position: [-32.5, 29.9], title: Conveyor 783, temp: 67 }
+    - { id: o784, model: lift, position: [-29.9, 29.9], title: Pallet jack 784, temp: 73 }
+    - { id: o785, model: pallet, position: [-27.3, 29.9], title: Pallet 785, temp: 79 }
+    - { id: o786, model: crate, position: [-24.7, 29.9], title: Crate 786, temp: 54 }
+    - { id: o787, model: drum, position: [-22.1, 29.9], title: Drum 787, temp: 60 }
+    - { id: o788, model: tank, position: [-19.5, 29.9], title: IBC tank 788, temp: 66 }
+    - { id: o789, model: conveyor, position: [-16.9, 29.9], title: Conveyor 789, temp: 72 }
+    - { id: o790, model: lift, position: [-14.3, 29.9], title: Pallet jack 790, temp: 78 }
+    - { id: o791, model: pallet, position: [-11.7, 29.9], title: Pallet 791, temp: 53 }
+    - { id: o792, model: crate, position: [-9.1, 29.9], title: Crate 792, temp: 59 }
+    - { id: o793, model: drum, position: [-6.5, 29.9], title: Drum 793, temp: 65 }
+    - { id: o794, model: tank, position: [-3.9, 29.9], title: IBC tank 794, temp: 71 }
+    - { id: o795, model: conveyor, position: [-1.3, 29.9], title: Conveyor 795, temp: 77 }
+    - { id: o796, model: lift, position: [1.3, 29.9], title: Pallet jack 796, temp: 52 }
+    - { id: o797, model: pallet, position: [3.9, 29.9], title: Pallet 797, temp: 58 }
+    - { id: o798, model: crate, position: [6.5, 29.9], title: Crate 798, temp: 64 }
+    - { id: o799, model: drum, position: [9.1, 29.9], title: Drum 799, temp: 70 }
+    - { id: o800, model: tank, position: [11.7, 29.9], title: IBC tank 800, temp: 76 }
+    - { id: o801, model: conveyor, position: [14.3, 29.9], title: Conveyor 801, temp: 51 }
+    - { id: o802, model: lift, position: [16.9, 29.9], title: Pallet jack 802, temp: 57 }
+    - { id: o803, model: pallet, position: [19.5, 29.9], title: Pallet 803, temp: 63 }
+    - { id: o804, model: crate, position: [22.1, 29.9], title: Crate 804, temp: 69 }
+    - { id: o805, model: drum, position: [24.7, 29.9], title: Drum 805, temp: 75 }
+    - { id: o806, model: tank, position: [27.3, 29.9], title: IBC tank 806, temp: 50 }
+    - { id: o807, model: conveyor, position: [29.9, 29.9], title: Conveyor 807, temp: 56 }
+    - { id: o808, model: lift, position: [32.5, 29.9], title: Pallet jack 808, temp: 62 }
+    - { id: o809, model: pallet, position: [35.1, 29.9], title: Pallet 809, temp: 68 }
+    - { id: o810, model: crate, position: [37.7, 29.9], title: Crate 810, temp: 74 }
+    - { id: o811, model: tank, position: [-37.7, 32.5], title: IBC tank 811, temp: 80 }
+    - { id: o812, model: conveyor, position: [-35.1, 32.5], title: Conveyor 812, temp: 55 }
+    - { id: o813, model: lift, position: [-32.5, 32.5], title: Pallet jack 813, temp: 61 }
+    - { id: o814, model: pallet, position: [-29.9, 32.5], title: Pallet 814, temp: 67 }
+    - { id: o815, model: crate, position: [-27.3, 32.5], title: Crate 815, temp: 73 }
+    - { id: o816, model: drum, position: [-24.7, 32.5], title: Drum 816, temp: 79 }
+    - { id: o817, model: tank, position: [-22.1, 32.5], title: IBC tank 817, temp: 54 }
+    - { id: o818, model: conveyor, position: [-19.5, 32.5], title: Conveyor 818, temp: 60 }
+    - { id: o819, model: lift, position: [-16.9, 32.5], title: Pallet jack 819, temp: 66 }
+    - { id: o820, model: pallet, position: [-14.3, 32.5], title: Pallet 820, temp: 72 }
+    - { id: o821, model: crate, position: [-11.7, 32.5], title: Crate 821, temp: 78 }
+    - { id: o822, model: drum, position: [-9.1, 32.5], title: Drum 822, temp: 53 }
+    - { id: o823, model: tank, position: [-6.5, 32.5], title: IBC tank 823, temp: 59 }
+    - { id: o824, model: conveyor, position: [-3.9, 32.5], title: Conveyor 824, temp: 65 }
+    - { id: o825, model: lift, position: [-1.3, 32.5], title: Pallet jack 825, temp: 71 }
+    - { id: o826, model: pallet, position: [1.3, 32.5], title: Pallet 826, temp: 77 }
+    - { id: o827, model: crate, position: [3.9, 32.5], title: Crate 827, temp: 52 }
+    - { id: o828, model: drum, position: [6.5, 32.5], title: Drum 828, temp: 58 }
+    - { id: o829, model: tank, position: [9.1, 32.5], title: IBC tank 829, temp: 64 }
+    - { id: o830, model: conveyor, position: [11.7, 32.5], title: Conveyor 830, temp: 70 }
+    - { id: o831, model: lift, position: [14.3, 32.5], title: Pallet jack 831, temp: 76 }
+    - { id: o832, model: pallet, position: [16.9, 32.5], title: Pallet 832, temp: 51 }
+    - { id: o833, model: crate, position: [19.5, 32.5], title: Crate 833, temp: 57 }
+    - { id: o834, model: drum, position: [22.1, 32.5], title: Drum 834, temp: 63 }
+    - { id: o835, model: tank, position: [24.7, 32.5], title: IBC tank 835, temp: 69 }
+    - { id: o836, model: conveyor, position: [27.3, 32.5], title: Conveyor 836, temp: 75 }
+    - { id: o837, model: lift, position: [29.9, 32.5], title: Pallet jack 837, temp: 50 }
+    - { id: o838, model: pallet, position: [32.5, 32.5], title: Pallet 838, temp: 56 }
+    - { id: o839, model: crate, position: [35.1, 32.5], title: Crate 839, temp: 62 }
+    - { id: o840, model: drum, position: [37.7, 32.5], title: Drum 840, temp: 68 }
+    - { id: o841, model: conveyor, position: [-37.7, 35.1], title: Conveyor 841, temp: 74 }
+    - { id: o842, model: lift, position: [-35.1, 35.1], title: Pallet jack 842, temp: 80 }
+    - { id: o843, model: pallet, position: [-32.5, 35.1], title: Pallet 843, temp: 55 }
+    - { id: o844, model: crate, position: [-29.9, 35.1], title: Crate 844, temp: 61 }
+    - { id: o845, model: drum, position: [-27.3, 35.1], title: Drum 845, temp: 67 }
+    - { id: o846, model: tank, position: [-24.7, 35.1], title: IBC tank 846, temp: 73 }
+    - { id: o847, model: conveyor, position: [-22.1, 35.1], title: Conveyor 847, temp: 79 }
+    - { id: o848, model: lift, position: [-19.5, 35.1], title: Pallet jack 848, temp: 54 }
+    - { id: o849, model: pallet, position: [-16.9, 35.1], title: Pallet 849, temp: 60 }
+    - { id: o850, model: crate, position: [-14.3, 35.1], title: Crate 850, temp: 66 }
+    - { id: o851, model: drum, position: [-11.7, 35.1], title: Drum 851, temp: 72 }
+    - { id: o852, model: tank, position: [-9.1, 35.1], title: IBC tank 852, temp: 78 }
+    - { id: o853, model: conveyor, position: [-6.5, 35.1], title: Conveyor 853, temp: 53 }
+    - { id: o854, model: lift, position: [-3.9, 35.1], title: Pallet jack 854, temp: 59 }
+    - { id: o855, model: pallet, position: [-1.3, 35.1], title: Pallet 855, temp: 65 }
+    - { id: o856, model: crate, position: [1.3, 35.1], title: Crate 856, temp: 71 }
+    - { id: o857, model: drum, position: [3.9, 35.1], title: Drum 857, temp: 77 }
+    - { id: o858, model: tank, position: [6.5, 35.1], title: IBC tank 858, temp: 52 }
+    - { id: o859, model: conveyor, position: [9.1, 35.1], title: Conveyor 859, temp: 58 }
+    - { id: o860, model: lift, position: [11.7, 35.1], title: Pallet jack 860, temp: 64 }
+    - { id: o861, model: pallet, position: [14.3, 35.1], title: Pallet 861, temp: 70 }
+    - { id: o862, model: crate, position: [16.9, 35.1], title: Crate 862, temp: 76 }
+    - { id: o863, model: drum, position: [19.5, 35.1], title: Drum 863, temp: 51 }
+    - { id: o864, model: tank, position: [22.1, 35.1], title: IBC tank 864, temp: 57 }
+    - { id: o865, model: conveyor, position: [24.7, 35.1], title: Conveyor 865, temp: 63 }
+    - { id: o866, model: lift, position: [27.3, 35.1], title: Pallet jack 866, temp: 69 }
+    - { id: o867, model: pallet, position: [29.9, 35.1], title: Pallet 867, temp: 75 }
+    - { id: o868, model: crate, position: [32.5, 35.1], title: Crate 868, temp: 50 }
+    - { id: o869, model: drum, position: [35.1, 35.1], title: Drum 869, temp: 56 }
+    - { id: o870, model: tank, position: [37.7, 35.1], title: IBC tank 870, temp: 62 }
+    - { id: o871, model: lift, position: [-37.7, 37.7], title: Pallet jack 871, temp: 68 }
+    - { id: o872, model: pallet, position: [-35.1, 37.7], title: Pallet 872, temp: 74 }
+    - { id: o873, model: crate, position: [-32.5, 37.7], title: Crate 873, temp: 88 }
+    - { id: o874, model: drum, position: [-29.9, 37.7], title: Drum 874, temp: 55 }
+    - { id: o875, model: tank, position: [-27.3, 37.7], title: IBC tank 875, temp: 61 }
+    - { id: o876, model: conveyor, position: [-24.7, 37.7], title: Conveyor 876, temp: 67 }
+    - { id: o877, model: lift, position: [-22.1, 37.7], title: Pallet jack 877, temp: 73 }
+    - { id: o878, model: pallet, position: [-19.5, 37.7], title: Pallet 878, temp: 79 }
+    - { id: o879, model: crate, position: [-16.9, 37.7], title: Crate 879, temp: 54 }
+    - { id: o880, model: drum, position: [-14.3, 37.7], title: Drum 880, temp: 60 }
+    - { id: o881, model: tank, position: [-11.7, 37.7], title: IBC tank 881, temp: 66 }
+    - { id: o882, model: conveyor, position: [-9.1, 37.7], title: Conveyor 882, temp: 72 }
+    - { id: o883, model: lift, position: [-6.5, 37.7], title: Pallet jack 883, temp: 78 }
+    - { id: o884, model: pallet, position: [-3.9, 37.7], title: Pallet 884, temp: 53 }
+    - { id: o885, model: crate, position: [-1.3, 37.7], title: Crate 885, temp: 59 }
+    - { id: o886, model: drum, position: [1.3, 37.7], title: Drum 886, temp: 65 }
+    - { id: o887, model: tank, position: [3.9, 37.7], title: IBC tank 887, temp: 71 }
+    - { id: o888, model: conveyor, position: [6.5, 37.7], title: Conveyor 888, temp: 77 }
+    - { id: o889, model: lift, position: [9.1, 37.7], title: Pallet jack 889, temp: 52 }
+    - { id: o890, model: pallet, position: [11.7, 37.7], title: Pallet 890, temp: 58 }
+    - { id: o891, model: crate, position: [14.3, 37.7], title: Crate 891, temp: 64 }
+    - { id: o892, model: drum, position: [16.9, 37.7], title: Drum 892, temp: 70 }
+    - { id: o893, model: tank, position: [19.5, 37.7], title: IBC tank 893, temp: 76 }
+    - { id: o894, model: conveyor, position: [22.1, 37.7], title: Conveyor 894, temp: 51 }
+    - { id: o895, model: lift, position: [24.7, 37.7], title: Pallet jack 895, temp: 57 }
+    - { id: o896, model: pallet, position: [27.3, 37.7], title: Pallet 896, temp: 63 }
+    - { id: o897, model: crate, position: [29.9, 37.7], title: Crate 897, temp: 69 }
+    - { id: o898, model: drum, position: [32.5, 37.7], title: Drum 898, temp: 75 }
+    - { id: o899, model: tank, position: [35.1, 37.7], title: IBC tank 899, temp: 50 }
+    - { id: o900, model: conveyor, position: [37.7, 37.7], title: Conveyor 900, temp: 56 }
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1120px
+    margin: 0 auto
+    padding: 24px 24px 64px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: element
+      props: { tag: nav }
+      attrs: { aria-label: Twin examples }
+      style: { display: flex, flex-wrap: wrap, gap: 4, padding-bottom: 12, border-bottom: 1px solid $color.border }
+      children:
+        - { type: ui-button, props: { label: All twins, variant: ghost, size: sm, href: index.html } }
+        - { type: ui-button, props: { label: "A world from configuration", variant: ghost, size: sm, href: world.html } }
+        - { type: ui-button, props: { label: "Machine data and limits", variant: ghost, size: sm, href: machine-data.html } }
+        - { type: ui-button, props: { label: "Coloured by value", variant: ghost, size: sm, href: colour-by-value.html } }
+        - { type: ui-button, props: { label: "Paths and following", variant: ghost, size: sm, href: paths.html } }
+        - { type: ui-button, props: { label: "Popups of your own", variant: ghost, size: sm, href: popups.html } }
+        - { type: ui-button, props: { label: "Any model format", variant: ghost, size: sm, href: formats.html } }
+        - { type: ui-button, props: { label: "Live data", variant: ghost, size: sm, href: live-data.html } }
+        - { type: ui-button, props: { label: "Editing a layout", variant: ghost, size: sm, href: editing.html } }
+        - { type: ui-button, props: { label: "Big worlds", variant: secondary, size: sm, href: big-world.html }, attrs: { aria-current: page } }
+    - type: stack
+      props: { gap: 6 }
+      children:
+        - { type: ui-heading, props: { level: 1, text: "Big worlds" } }
+        - { type: ui-text, props: { variant: lead, text: "900 objects, each with a readout; past its limit one is in alarm. Objects of the same model are drawn together, only those in view are drawn, and far from the camera a model used by 100 objects or more is drawn simpler (lod), made in the browser with meshoptimizer's simplifier; a model's far can name a simpler model of its own. Tags that would cover one that matters more wait." } }
+    - type: ui-twin
+      attrs: { id: big }
+      props:
+        height: 640
+        title: 900 objects
+        objects: "{{ rows }}"
+        bind: picked
+        lod: "{{ lod }}"
+        labels: "{{ labels }}"
+        models:
+          pallet: models/pallet.glb
+          crate: models/crate_blue.glb
+          drum: models/drum_steel.glb
+          tank: models/ibc_tank.glb
+          conveyor: models/conveyor.glb
+          lift: models/pallet_jack.glb
+        readouts: [ { field: temp, label: Temperature, unit: °C, warn: 78, alarm: 85 } ]
+        camera: { position: [34, 40, 52], target: [0, 0, 2] }
+      children:
+        - type: ui-twin-panel
+          props: { position: top-left }
+          children:
+            - type: stack
+              props: { gap: 6 }
+              children:
+                - type: ui-toggle-group
+                  props: { bind: lod, variant: outline, size: sm, options: [{ value: auto, label: Simpler far away }, { value: none, label: Full detail }] }
+                  attrs: { aria-label: Far away }
+                  style: { background: $color.surface, border-radius: $radius.md }
+                - type: ui-toggle-group
+                  props: { bind: labels, variant: outline, size: sm, options: [{ value: auto, label: Tags }, { value: none, label: Alarms only }] }
+                  attrs: { aria-label: Tags }
+                  style: { background: $color.surface, border-radius: $radius.md }

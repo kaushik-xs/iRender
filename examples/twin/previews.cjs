@@ -10,7 +10,7 @@ const path = require("path");
 const { firefox } = require(path.join(__dirname, "../../tools/playwright/node_modules/playwright-core"));
 const base = process.argv[2] ?? "http://localhost:8000";
 const out = path.join(__dirname, "previews");
-const pages = ["world", "machine-data", "colour-by-value", "paths", "popups", "formats", "live-data", "editing"].map((p) => [p, `twin/${p}.html`, 1280, 800]);
+const pages = ["world", "machine-data", "colour-by-value", "paths", "popups", "formats", "live-data", "editing", "big-world"].map((p) => [p, `twin/${p}.html`, 1280, 800]);
 const blocks = ["twin-01", "twin-02", "twin-03", "twin-04"].map((b) => [b, `blocks/${b}.html`, 1440, 900]);
 
 (async () => {

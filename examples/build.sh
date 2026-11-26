@@ -57,7 +57,7 @@ for block in twin-01 twin-02 twin-03 twin-04; do
 done
 # One page per example, so a browser draws one 3D view at a time; the index only links them.
 $irender render examples/twin/index.yaml --ui-kit --twin-kit --title "Digital twins" -o "$out/twin/index.html"
-for page in world machine-data colour-by-value paths popups formats live-data editing; do
+for page in world machine-data colour-by-value paths popups formats live-data editing big-world; do
   $irender render "examples/twin/$page.yaml" --ui-kit --twin-kit --title "$page" -o "$out/twin/$page.html"
 done
 # The sites are on a map. --ui-kit --chart-kit --icon-kit --map-kit --title "map-01" -o "$out/blocks/map-01.html"

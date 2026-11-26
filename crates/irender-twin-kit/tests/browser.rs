@@ -150,7 +150,9 @@ fn objects_readouts_alarms_and_selection() {
                 { "field": "air", "label": "Air", "unit": "°C", "decimals": 1 } ] } } });
     let driver = r##"
       await ready("w");
-      log("objects", twin("w").items.size, "loaded", [...twin("w").items.values()].every((it) => it.body && it.size.x > 0));
+      // Loaded, not the wireframe box that stands in for a model that failed.
+      const stand = (it) => { let w = false; it.body.traverse((o) => (w ||= !!o.material?.wireframe)); return w; };
+      log("objects", twin("w").items.size, "loaded", [...twin("w").items.values()].every((it) => it.body && it.size.x > 0 && !stand(it)));
       log("tags", tags("w").join(" | "));
       log("tones", tag("w", "m1").dataset.tone, tag("w", "m2").dataset.tone, tag("w", "m3").dataset.tone, "alarm", tag("w", "m3").hasAttribute("data-alarm"));
       log("alarms", S().alarms, $("w", "[data-twin-live]").textContent);
@@ -316,4 +318,84 @@ fn readout_history_is_a_sparkline_in_the_popup() {
     "##;
     let Some(lines) = run("history", doc, "", &guarded(driver)) else { return };
     check(lines, &["one value 0 60°C,5", "two 2 Last 2: 60°C to 64°C", "kept 3 Last 3: 64°C to 70°C", "back 0"]);
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn big_worlds_stay_instanced_and_culled() {
+    // Pallets in a row: one fine, one warning, one in alarm, and one far off to the side.
+    let row = |id: &str, x: i32, temp: i32| json!({ "id": id, "model": "pallet", "position": [x, 0], "title": id, "temp": temp });
+    let doc = json!({ "version": 1,
+        "state": { "picked": null, "rows": [row("ok", -3, 50), row("warm", 0, 75), row("hot", 3, 90), row("far", 60, 50)] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260, "objects": "{{ rows }}", "bind": "picked",
+            "models": { "pallet": pallet() }, "camera": { "position": [0, 6, 9], "target": [0, 0, 0] },
+            "readouts": [{ "field": "temp", "label": "Temp", "warn": 70, "alarm": 85 }] } } });
+    let driver = r##"
+      await ready("w");
+      const tw = twin("w"), it = (id) => tw.items.get(id);
+      const meshes = (id) => { let n = 0; it(id).body.traverse((o) => (n += o.isMesh ? 1 : 0)); return n; };
+      // In alarm it's an instance of its own batch, glowing, not a copy of the model.
+      log("batched", !!it("ok").batch, it("ok").batch === it("warm").batch, !!it("hot").batch && it("hot").batch !== it("ok").batch, meshes("hot"));
+      log("glows", it("hot").batch.glowing.length > 0, it("hot").batch.glowing.every((m) => m.emissiveIntensity > 0), it("ok").batch.glowing.length);
+      // A warning's ring is an instance too; one in alarm pulses, a ring of its own.
+      log("rings", !!it("warm").ringIn, !it("warm").ring, !!it("hot").ring, !it("hot").ringIn);
+      // "Ready" comes as the last model opens, a frame before its instances are placed.
+      for (let i = 0; i < 40 && !it("ok").batch.drawn; i++) await wait(50);
+      // Out of view, not drawn.
+      log("drawn", it("ok").batch.drawn.map((x) => x.id).join());
+      // Back to normal: back among the others, as a copy never was.
+      set("rows", S().rows.map((r) => (r.id === "hot" ? { ...r, temp: 60 } : r))); await wait(150);
+      log("calm", it("hot").batch === it("ok").batch, !it("hot").ring, it("ok").batch.drawn.length);
+      // Picked where it's drawn: an instance is found among those in view.
+      const c = $("w", "canvas"), b = c.getBoundingClientRect(), p = tw.at("warm");
+      const at = { clientX: b.left + p.x, clientY: b.top + p.y, button: 0, pointerId: 1, bubbles: true };
+      c.dispatchEvent(new PointerEvent("pointerdown", at)); c.dispatchEvent(new PointerEvent("pointerup", at)); await wait(80);
+      log("picked", S().picked);
+      // Turned to the far one, it's drawn, and the others aren't.
+      tw.camera.position.set(60, 6, 9); tw.controls.target.set(60, 0, 0); tw.controls.update(); await wait(150);
+      log("turned", it("ok").batch.drawn.map((x) => x.id).join());
+    "##;
+    let Some(lines) = run("big", doc, "", &guarded(driver)) else { return };
+    check(
+        lines,
+        &["batched true true true 0", "glows true true 0", "rings true true true true", "drawn ok,warm", "calm true true 3", "picked warm", "turned far"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn models_are_simpler_far_away() {
+    // Pallets simplified in the browser, crates with a far model of their own (the beacon),
+    // and cans never simpler.
+    let row = |id: &str, model: &str, x: i32| json!({ "id": id, "model": model, "position": [x, 0], "title": id });
+    let doc = json!({ "version": 1,
+        "state": { "picked": null, "rows": [row("p1", "pallet", -2), row("p2", "pallet", 0), row("c1", "crate", 2), row("n1", "can", 4)] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260, "objects": "{{ rows }}", "bind": "picked",
+            "lod": { "distance": 6, "ratio": 0.3 }, "camera": { "position": [0, 8, 10], "target": [0, 0, 0] },
+            "models": { "pallet": pallet(), "crate": { "url": pallet(), "far": beacon() }, "can": { "url": pallet(), "scale": 0.5, "far": false } } } } });
+    let driver = r##"
+      await ready("w");
+      const tw = twin("w"), it = (id) => tw.items.get(id), tri = (g) => (g.index ? g.index.count : g.attributes.position.count) / 3;
+      const tris = (parts) => parts.reduce((s, p) => s + tri(p.geometry), 0);
+      for (let i = 0; i < 60 && !["p1", "c1"].every((id) => it(id).batch.drawnFar?.length); i++) await wait(100);
+      const p = it("p1").batch, c = it("c1").batch, n = it("n1").batch;
+      log("simplified", p.far, p.farAt, tris(p.farParts) < tris(p.parts), p.farParts.every((x, i) => x.material === p.parts[i]?.material));
+      log("own far model", c.far, c.farParts.length > 0 && c.farParts.every((x) => !c.parts.some((y) => y.geometry === x.geometry)));
+      log("never", n.far, n.farParts);
+      log("far", p.drawnFar.map((x) => x.id).join(), p.drawn.length, c.drawnFar.map((x) => x.id).join(), n.drawn.map((x) => x.id).join());
+      // A far instance is picked like a near one.
+      const cv = $("w", "canvas"), b = cv.getBoundingClientRect(), at = tw.at("p2");
+      const e = { clientX: b.left + at.x, clientY: b.top + at.y, button: 0, pointerId: 1, bubbles: true };
+      cv.dispatchEvent(new PointerEvent("pointerdown", e)); cv.dispatchEvent(new PointerEvent("pointerup", e)); await wait(80);
+      log("picked", S().picked);
+      // Up close, in full.
+      // Up close to p1, about 4 m off, with p2 behind it past 6 m.
+      tw.camera.position.set(-6, 1, 0); tw.controls.target.set(-2, 0, 0); tw.controls.update(); await wait(150);
+      log("close", p.drawn.map((x) => x.id).join(), p.drawnFar.map((x) => x.id).join());
+    "##;
+    let Some(lines) = run("lod", doc, "", &guarded(driver)) else { return };
+    check(
+        lines,
+        &["simplified ready 6 true true", "own far model ready true", "never null null", "far p1,p2 0 c1 n1", "picked p2", "close p1 p2"],
+    );
 }

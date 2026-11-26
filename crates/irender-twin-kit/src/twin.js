@@ -10,7 +10,9 @@
   const fin = (v) => Number.isFinite(num(v));
   const str = (v) => (v === null || v === undefined ? "" : String(v));
   const same = (a, b) => a === b || JSON.stringify(a) === JSON.stringify(b);
-  const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // One query, read each time: asked for each object each frame, a new one would cost.
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const calm = () => reduced.matches;
   const deg = (d) => (num(d) * Math.PI) / 180;
   const round = (n, p = 3) => Math.round(n * 10 ** p) / 10 ** p;
   const TONES = ["neutral", "info", "success", "warning", "danger", "primary"];
@@ -34,7 +36,14 @@
     usdc: ["loaders/USDLoader.js", "USDLoader"],
     usdz: ["loaders/USDLoader.js", "USDLoader"],
   };
-  const extOf = (u) => (str(u).split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "").toLowerCase();
+  // A model's format from its address: its extension, or a `data:` address's type
+  // (`model/gltf-binary`, `model/obj`, `model/vnd.usdz+zip`…).
+  const MIMES = { "gltf-binary": "glb", "gltf+json": "gltf", "usdz+zip": "usdz", "vnd.usdz+zip": "usdz", "vnd.collada+xml": "dae", "vrml": "wrl" };
+  const extOf = (u) => {
+    const d = /^\s*data:[a-z]+\/([^;,]+)/i.exec(str(u));
+    if (d) return MIMES[d[1].toLowerCase()] ?? d[1].toLowerCase().replace(/^(x-|vnd\.)/, "");
+    return (str(u).split(/[?#]/)[0].match(/\.([a-z0-9]+)$/i)?.[1] ?? "").toLowerCase();
+  };
 
   // ------------------------------------------------------------------ values
   // `[x, z]` (on the ground), `[x, y, z]` or `{ x, y, z }`, in metres; y is up.
@@ -145,7 +154,7 @@
       return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)]));
     };
     const WORLD = ["models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy"];
-    const LIVE = [...WORLD, "world", "src", "live", "follow", "filter", "toneBy", "alarmBy", "effectBy", "labels", "editable", "snap", "palette"];
+    const LIVE = [...WORLD, "world", "src", "live", "follow", "filter", "toneBy", "alarmBy", "effectBy", "labels", "editable", "snap", "palette", "lod"];
     const props = {}, fixed = cfg.props;
     let fetched = null; // the world from `src`
     const read = () => {
@@ -218,11 +227,18 @@
       return isObj(by) && [].concat(by.values ?? []).some((v) => str(v) === str(field(m, by.field)));
     };
     // Readouts: `{ field, label, unit, decimals, warn, alarm, below, tag, models }`.
+    // Formatters by decimals, made once: a live world formats thousands of values a second.
+    const formats = new Map();
+    const numbers = (d, fixed) => {
+      const k = `${d} ${fixed}`;
+      if (!formats.has(k)) formats.set(k, new Intl.NumberFormat(lang, { maximumFractionDigits: d, minimumFractionDigits: fixed ? d : 0 }));
+      return formats.get(k);
+    };
     const fmt = (v, o) => {
       if (typeof v === "boolean") return v ? L("On") : L("Off");
       if (!isNum(v)) return str(v);
       const d = fin(o.decimals) ? num(o.decimals) : Math.abs(Number(v)) >= 100 ? 0 : 1;
-      const n = new Intl.NumberFormat(lang, { maximumFractionDigits: d, minimumFractionDigits: fin(o.decimals) ? d : 0 }).format(Number(v));
+      const n = numbers(d, fin(o.decimals)).format(Number(v));
       return o.unit ? (/^[%°]/.test(o.unit) ? `${n}${o.unit}` : `${n} ${o.unit}`) : n;
     };
     const levelOf = (o, v) => {
@@ -474,28 +490,43 @@
     // ---------------------------------------------------------------- drawing things
     // A model whose objects look alike is drawn once per part for all of them (instancing):
     // a few draw calls however many there are. One that needs a look of its own (a glow, an
-    // alarm, a colour by value, see-through, its own animation) is a copy of its own while
-    // it does, so nothing looks different.
-    const ownLook = (r) => !!(r.alarm || r.heat || r.opacity < 1 || r.animation || (r.effect && r.effect !== "spin" && r.effect !== "bob" && r.effect !== "pulse"));
-    const bodyKey = (r) => JSON.stringify([r.model ? specOf(r.model) : null, r.shape, r.size, r.model ? null : r.color, r.model ? null : r.tone, r.model ? ownLook(r) : null]);
+    // colour by value, see-through, its own animation) is a copy of its own while it does,
+    // so nothing looks different. Those in alarm are instances of their own, glowing together.
+    const ownLook = (r) => !!(r.heat || r.opacity < 1 || r.animation || (r.effect && r.effect !== "spin" && r.effect !== "bob" && r.effect !== "pulse"));
+    const lookOf = (r) => (ownLook(r) ? "own" : r.alarm ? "alarm" : null);
+    const bodyKey = (r) => JSON.stringify([r.model ? specOf(r.model) : null, r.shape, r.size, r.model ? null : r.color, r.model ? null : r.tone, r.model ? lookOf(r) : null]);
     const batches = new Map(); // a model's key → its instanced parts and the objects drawn with them
-    function batchFor(key, t) {
+    // A model's meshes as a batch's parts, each where it is in the model.
+    const partsOf = (scene, lit) => {
+      const parts = [];
+      scene.updateMatrixWorld(true);
+      scene.traverse((o) => {
+        if (o.isMesh && !o.isSkinnedMesh) parts.push({ geometry: o.geometry, material: Array.isArray(o.material) ? o.material.map(lit) : lit(o.material), local: o.matrixWorld.clone(), im: null });
+      });
+      return parts;
+    };
+    function batchFor(key, t, alarm, spec) {
       let b = batches.get(key);
       if (b) return b;
-      const parts = [];
-      t.scene.updateMatrixWorld(true);
-      t.scene.traverse((o) => {
-        if (o.isMesh && !o.isSkinnedMesh) parts.push({ geometry: o.geometry, material: o.material, local: o.matrixWorld.clone(), im: null });
-      });
-      b = { parts, slots: [], cap: 0 };
+      const glowing = [];
+      // In alarm: the same parts in materials of their own, which glow.
+      const lit = (m) => {
+        if (!alarm) return m;
+        const c = m.clone();
+        if (c.emissive) glowing.push(c.emissive.set(colors.danger) && c);
+        return c;
+      };
+      b = { parts: partsOf(t.scene, lit), slots: [], cap: 0, glowing, t, spec, model: JSON.stringify(spec), lit, far: null, farParts: null, farAt: Infinity };
       batches.set(key, b);
       return b;
     }
     // Room for every object of a batch: each part is an InstancedMesh, made bigger by doubling.
+    // The far parts, once they're ready, get theirs then.
     function roomFor(b) {
-      if (b.slots.length <= b.cap) return;
-      b.cap = Math.max(8, b.cap * 2, b.slots.length);
-      for (const part of b.parts) {
+      const grow = b.slots.length > b.cap;
+      if (grow) b.cap = Math.max(8, b.cap * 2, b.slots.length);
+      for (const [list, far] of [[b.parts, false], [b.farParts ?? [], true]]) for (const part of list) {
+        if (part.im && !grow) continue;
         if (part.im) {
           world.remove(part.im);
           part.im.dispose();
@@ -507,22 +538,135 @@
         // worked out again for picking.
         im.frustumCulled = false;
         im.userData.batch = b;
+        im.userData.far = far;
         part.im = im;
         world.add(im);
       }
     }
+
+    // ---------------------------------------------------------------- far away
+    // A model far from the camera is drawn simpler: a model of its own (`far: url`), or
+    // made in the browser with meshoptimizer's simplifier (`far: { ratio }`, or `lod` for
+    // every model used by many objects). Only objects drawn together have it.
+    const LOD_MANY = 100;
+    function farOf(b) {
+      const f = b.spec.far, lod = props.lod ?? "auto";
+      if (f === false || lod === false || lod === "none") return null;
+      if (typeof f === "string") return { url: f };
+      if (isObj(f)) return f;
+      // Its objects in every batch of the model (in alarm or not).
+      let many = 0;
+      for (const o of batches.values()) if (o.model === b.model) many += o.slots.length;
+      return lod === true || isObj(lod) || many >= LOD_MANY ? {} : null;
+    }
+    let simplifier = null, geoUtils = null;
+    const simplified = new WeakMap();
+    async function farFor(b, f) {
+      b.far = "making";
+      try {
+        const lod = isObj(props.lod) ? props.lod : {}, size = b.t.size.length();
+        let parts;
+        if (f.url) parts = partsOf((await template({ ...b.spec, url: f.url, format: f.format, far: false })).scene, b.lit);
+        else {
+          const ratio = Math.min(0.9, Math.max(0.01, num(f.ratio ?? lod.ratio) || 0.15));
+          simplifier ||= lib(src.simplifier).then(async (m) => (await m.MeshoptSimplifier.ready, m.MeshoptSimplifier));
+          const S = await simplifier;
+          parts = [];
+          let start = performance.now();
+          for (const p of b.parts) {
+            const g = await simpler(p, ratio, size * 0.03, S);
+            if (g) parts.push({ ...p, geometry: g, im: null });
+            // A part at a time, so a big model doesn't hold the page.
+            if (performance.now() - start > 8) {
+              await new Promise((r) => nextFrame(r));
+              start = performance.now();
+            }
+          }
+        }
+        const d = num(f.distance ?? lod.distance);
+        b.farAt = d > 0 ? d : Math.max(15, size * 12);
+        b.farParts = parts;
+        b.far = "ready";
+        api.emit("lod", { model: b.spec.url, distance: b.farAt });
+        wake();
+      } catch (e) {
+        console.warn("ui-twin: no simpler model:", e.message);
+        b.far = "failed";
+      }
+    }
+    // A part with fewer triangles, null when it's too small to see from afar, or the part
+    // itself when it can't be made simpler (several materials, or few triangles already).
+    async function simpler(p, ratio, tiny, S) {
+      const g = p.geometry;
+      if (simplified.has(g)) return simplified.get(g);
+      g.boundingSphere || g.computeBoundingSphere();
+      let out = g;
+      const tris = (g.index ? g.index.count : g.attributes.position.count) / 3;
+      if (g.boundingSphere.radius * p.local.getMaxScaleOnAxis() < tiny) out = null;
+      else if (g.groups.length <= 1 && tris > 200 && g.attributes.position) {
+        let base = g;
+        if (!g.index) {
+          geoUtils ||= addon("utils/BufferGeometryUtils.js");
+          base = (await geoUtils).mergeVertices(g);
+        }
+        const pos = base.attributes.position, xyz = new Float32Array(pos.count * 3);
+        for (let i = 0; i < pos.count; i++) (xyz[i * 3] = pos.getX(i)), (xyz[i * 3 + 1] = pos.getY(i)), (xyz[i * 3 + 2] = pos.getZ(i));
+        const idx = Uint32Array.from(base.index.array), want = Math.max(3, Math.floor((idx.length * ratio) / 3) * 3);
+        const [kept] = S.simplify(idx, xyz, 3, want, 0.02, ["Prune"]);
+        if (!kept.length) out = null;
+        else if (kept.length < idx.length * 0.9) {
+          out = new T.BufferGeometry();
+          for (const [k, a] of Object.entries(base.attributes)) out.setAttribute(k, a);
+          out.setIndex(new T.BufferAttribute(kept, 1));
+          out.computeBoundingSphere();
+        }
+      }
+      simplified.set(g, out);
+      return out;
+    }
     const m4 = { a: null };
+    // Only the instances in view are drawn (`drawn`, packed first): a big world seen up close
+    // draws the few objects near the camera. Each is tested with room to spare, so the
+    // shadow of one just out of view still falls into it.
+    const frustum = { f: null, m: null, s: null };
+    function seer() {
+      const f = (frustum.f ||= new T.Frustum()), s = (frustum.s ||= new T.Sphere());
+      f.setFromProjectionMatrix((frustum.m ||= new T.Matrix4()).multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+      return (it) => {
+        if (!it.size) return true;
+        const k = it.rec.scale, h = it.size.y * k.y;
+        it.group.getWorldPosition(s.center).y += h / 2;
+        s.radius = Math.hypot(it.size.x * k.x, h, it.size.z * k.z) * 0.75 + 1;
+        // How far it is, for which of its batch's parts draw it.
+        it.away = s.center.distanceTo(camera.position);
+        return f.intersectsSphere(s);
+      };
+    }
+    const sameList = (a, b) => a && a.length === b.length && a.every((x, i) => x === b[i]);
     // Each instance where its object is: the object's place, its body's own turn (a spinning
-    // fan), then the part's place in the model.
-    function placeInstances() {
-      if (!batches.size) return;
-      world.updateMatrixWorld();
+    // fan), then the part's place in the model. `moved`: something but the camera has moved,
+    // so they're all placed again; otherwise only a batch whose objects in view changed is.
+    function placeInstances(moved) {
+      if (!batches.size && !ringBatches.size) return;
+      if (moved) world.updateMatrixWorld();
+      const seen = seer();
+      placeRings(seen, moved);
       const m = (m4.a ||= new T.Matrix4());
       for (const b of batches.values()) {
+        if (b.far === null) {
+          const f = farOf(b);
+          if (f) farFor(b, f);
+        }
         roomFor(b);
-        for (const part of b.parts) {
-          b.slots.forEach((it, i) => part.im.setMatrixAt(i, m.multiplyMatrices(it.body.matrixWorld, part.local)));
-          part.im.count = b.slots.length;
+        // `lod` may have been turned off since its far parts were made.
+        const all = b.slots.filter(seen), farAt = b.farParts && farOf(b) ? b.farAt : Infinity;
+        const drawn = all.filter((it) => it.away < farAt), far = all.filter((it) => it.away >= farAt);
+        if (!moved && sameList(b.drawn, drawn) && sameList(b.drawnFar, far)) continue;
+        b.drawn = drawn;
+        b.drawnFar = far;
+        for (const [list, parts] of [[drawn, b.parts], [far, b.farParts ?? []]]) for (const part of parts) {
+          list.forEach((it, i) => part.im.setMatrixAt(i, m.multiplyMatrices(it.body.matrixWorld, part.local)));
+          part.im.count = list.length;
           part.im.instanceMatrix.needsUpdate = true;
           part.im.boundingSphere = null;
         }
@@ -568,7 +712,7 @@
           const t = await template(spec);
           if (it.key !== key || !items.has(it.id)) return;
           made = !t.skinned && !ownLook(r)
-            ? { obj: new T.Group(), size: t.size.clone(), clips: [], batch: batchFor(JSON.stringify(spec), t) }
+            ? { obj: new T.Group(), size: t.size.clone(), clips: [], batch: batchFor(JSON.stringify(spec) + (r.alarm ? " alarm" : ""), t, r.alarm, spec) }
             : { obj: await copy(t), size: t.size.clone(), clips: t.clips };
         } catch (e) {
           console.warn("ui-twin:", e.message);
@@ -664,50 +808,102 @@
         if (r.heat && r.shape === "sensor" && m.color) m.color.set(r.heat);
       }
     }
-    // A ring on the ground in the object's tone.
-    function ringFor(it) {
-      const r = it.rec, want = r.tone && it.size;
-      if (!want) {
-        if (it.ring) {
-          it.group.remove(it.ring);
-          dispose(it.ring);
-          it.ring = null;
-        }
-        return;
+    // A ring on the ground in the object's tone. Those that stay still are instances, one
+    // draw call for each size of ring however many there are; one that pulses (an alarm,
+    // `effect: pulse`) is a ring of its own.
+    const ringBatches = new Map(); // a ring's size → { geometry, im, slots, cap }
+    function ringShape(w, d) {
+      const rounded = (hw, hd, rad) => {
+        const p = new T.Shape();
+        p.moveTo(-hw + rad, -hd);
+        p.lineTo(hw - rad, -hd);
+        p.quadraticCurveTo(hw, -hd, hw, -hd + rad);
+        p.lineTo(hw, hd - rad);
+        p.quadraticCurveTo(hw, hd, hw - rad, hd);
+        p.lineTo(-hw + rad, hd);
+        p.quadraticCurveTo(-hw, hd, -hw, hd - rad);
+        p.lineTo(-hw, -hd + rad);
+        p.quadraticCurveTo(-hw, -hd, -hw + rad, -hd);
+        return p;
+      };
+      const line = Math.min(0.08, Math.min(w, d) * 0.12), rad = Math.min(w, d) * 0.25;
+      const outer = rounded(w / 2, d / 2, rad);
+      outer.holes.push(rounded(w / 2 - line, d / 2 - line, Math.max(0.01, rad - line)));
+      return new T.ShapeGeometry(outer, 6);
+    }
+    const ringMaterial = () => new T.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide });
+    function unring(it) {
+      if (it.ring) {
+        it.group.remove(it.ring);
+        dispose(it.ring);
+        it.ring = null;
       }
+      if (it.ringIn) {
+        const i = it.ringIn.slots.indexOf(it);
+        if (i >= 0) it.ringIn.slots.splice(i, 1);
+        it.ringIn = null;
+        placed = false;
+      }
+    }
+    function ringFor(it) {
+      const r = it.rec;
+      if (!r.tone || !it.size) return unring(it);
       // Its footprint with a margin, as a rounded outline.
       const w = Math.max(0.5, it.size.x + 0.24), d = Math.max(0.5, it.size.z + 0.24), sig = `${w.toFixed(2)}x${d.toFixed(2)}`;
-      if (!it.ring || it.ring.userData.sig !== sig) {
-        if (it.ring) {
-          it.group.remove(it.ring);
-          dispose(it.ring);
+      // On the ground under it, however high it's raised.
+      const y = 0.012 - (it.group.parent === world ? r.pos.y : 0) / (r.scale.y || 1);
+      it.ringColor = colors[r.tone];
+      it.ringY = y;
+      if (r.effect !== "pulse" && !r.alarm) {
+        if (it.ring || it.ringIn?.sig !== sig) unring(it);
+        if (!it.ringIn) {
+          let b = ringBatches.get(sig);
+          if (!b) ringBatches.set(sig, (b = { sig, geometry: ringShape(w, d), im: null, slots: [], cap: 0 }));
+          b.slots.push((it.ringIn = b, it));
         }
-        const rounded = (hw, hd, rad) => {
-          const p = new T.Shape();
-          p.moveTo(-hw + rad, -hd);
-          p.lineTo(hw - rad, -hd);
-          p.quadraticCurveTo(hw, -hd, hw, -hd + rad);
-          p.lineTo(hw, hd - rad);
-          p.quadraticCurveTo(hw, hd, hw - rad, hd);
-          p.lineTo(-hw + rad, hd);
-          p.quadraticCurveTo(-hw, hd, -hw, hd - rad);
-          p.lineTo(-hw, -hd + rad);
-          p.quadraticCurveTo(-hw, -hd, -hw + rad, -hd);
-          return p;
-        };
-        const line = Math.min(0.08, Math.min(w, d) * 0.12), rad = Math.min(w, d) * 0.25;
-        const outer = rounded(w / 2, d / 2, rad);
-        outer.holes.push(rounded(w / 2 - line, d / 2 - line, Math.max(0.01, rad - line)));
-        it.ring = new T.Mesh(new T.ShapeGeometry(outer, 6), new T.MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide }));
+        placed = false;
+        return;
+      }
+      if (it.ringIn || it.ring?.userData.sig !== sig) unring(it);
+      if (!it.ring) {
+        it.ring = new T.Mesh(ringShape(w, d), ringMaterial());
         it.ring.rotation.x = -Math.PI / 2;
         it.ring.renderOrder = 2;
         it.ring.userData.sig = sig;
         it.ring.raycast = () => {};
         it.group.add(it.ring);
       }
-      it.ring.material.color.set(colors[r.tone]);
-      // On the ground under it, however high it's raised.
-      it.ring.position.y = 0.012 - (it.group.parent === world ? r.pos.y : 0) / (r.scale.y || 1);
+      it.ring.material.color.set(it.ringColor);
+      it.ring.position.y = y;
+    }
+    function placeRings(seen, moved) {
+      const m = new T.Matrix4(), local = new T.Matrix4(), turn = new T.Matrix4().makeRotationX(-Math.PI / 2), c = new T.Color();
+      for (const b of ringBatches.values()) {
+        const drawn = b.slots.filter(seen);
+        if (!moved && b.im && sameList(b.drawn, drawn)) continue;
+        b.drawn = drawn;
+        if (b.slots.length > b.cap || !b.im) {
+          b.cap = Math.max(8, b.cap * 2, b.slots.length);
+          if (b.im) {
+            world.remove(b.im);
+            b.im.material.dispose();
+            b.im.dispose();
+          }
+          b.im = new T.InstancedMesh(b.geometry, ringMaterial(), b.cap);
+          b.im.renderOrder = 2;
+          b.im.frustumCulled = false;
+          b.im.raycast = () => {};
+          world.add(b.im);
+        }
+        drawn.forEach((it, i) => {
+          local.makeTranslation(0, it.ringY, 0).multiply(turn);
+          b.im.setMatrixAt(i, m.multiplyMatrices(it.group.matrixWorld, local));
+          b.im.setColorAt(i, c.set(it.ringColor));
+        });
+        b.im.count = drawn.length;
+        b.im.instanceMatrix.needsUpdate = true;
+        if (b.im.instanceColor) b.im.instanceColor.needsUpdate = true;
+      }
     }
     function dispose(o, keepShared) {
       o.traverse?.((x) => {
@@ -938,6 +1134,7 @@
         it.group.parent?.remove(it.group);
         dispose(it.group, true);
         unbatch(it);
+        unring(it);
         it.tag?.remove();
         it.option?.remove();
         items.delete(id);
@@ -994,6 +1191,7 @@
       it.group.position.set(r.pos.x, r.pos.y, r.pos.z);
       it.group.rotation.set(r.rot.x, r.rot.y, r.rot.z);
       shadowsNow = true;
+      placed = false;
     }
     let ringing = null;
     function alarms() {
@@ -1027,7 +1225,7 @@
       t.toggleAttribute("data-alarm", r.alarm);
       t.toggleAttribute("data-effect", r.alarm && !calm());
       const name = str(r.label ?? r.title ?? r.id);
-      const sig = JSON.stringify([name, reads, r.alarm]);
+      const sig = JSON.stringify([name, reads.map((x) => [x.text, x.level]), r.alarm]);
       if (t.__sig === sig) return;
       t.__sig = sig;
       t.__size = null;
@@ -1213,15 +1411,32 @@
 
     // ---------------------------------------------------------------- each frame
     let raf = null, inView = false, dirty = true, last = 0;
+    // Whether the instances are where their objects are: anything but the camera moving
+    // may have moved one, and they're all placed again then. While the view only turns,
+    // only which of them are in view is looked at again (`looked`).
+    let placed = false, looked = false;
     const v3 = () => new T.Vector3();
-    const wake = () => {
-      dirty = true;
+    const look = () => {
+      dirty = looked = true;
       if (!raf && inView && renderer && !stopped) raf = nextFrame(frame);
+    };
+    const wake = () => {
+      placed = false;
+      look();
     };
     // Moves what moves; true while anything does.
     function step(now, dt) {
       const t = (now - t0) / 1000, still = calm();
       let moving = false;
+      // Instances in alarm glow together, as one in alarm of its own does (see paint).
+      for (const b of batches.values()) if (b.glowing.length && b.slots.length) {
+        const power = still ? 0.6 : 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(t * 6));
+        for (const m of b.glowing) {
+          m.emissive.set(colors.danger);
+          m.emissiveIntensity = power;
+        }
+        moving ||= !still;
+      }
       if (flight) {
         const f = Math.min(1, (now - flight.t) / flight.dur), e = 1 - (1 - f) ** 3;
         camera.position.lerpVectors(flight.from, flight.to, e);
@@ -1243,6 +1458,7 @@
           it.group.position.set(at.x, at.y + r.pos.y, at.z);
           if (r.row.face !== false) it.group.rotation.set(r.rot.x, at.yaw + r.rot.y, r.rot.z);
           else it.group.rotation.set(r.rot.x, r.rot.y, r.rot.z);
+          placed &&= speed === 0;
           moving ||= speed !== 0;
           casters ||= speed !== 0;
         } else if (it.move) {
@@ -1254,15 +1470,18 @@
           it.group.rotation.set(r.rot.x, it.move.yaw + dy * e, r.rot.z);
           if (f >= 1) it.move = null;
           moving = casters = true;
+          placed = false;
         }
         if (!it.body) continue;
         if (!still && r.effect === "spin") {
           it.body.rotation.y += dt * deg(fin(r.row.spin) ? num(r.row.spin) : 90);
           moving = casters = true;
+          placed = false;
         }
         if (!still && r.effect === "bob") {
           it.body.position.y = 0.06 * (1 + Math.sin(t * 3));
           moving = casters = true;
+          placed = false;
         }
         if (it.mixer) {
           it.mixer.update(still ? 0 : dt);
@@ -1321,46 +1540,73 @@
     function place2d() {
       if (!camera) return;
       const w = host.clientWidth, h = host.clientHeight, p = v3();
+      // Styles are written only when they change: with many tags, writing them all each
+      // frame costs more than drawing the view.
+      const show = (node, on) => {
+        if (node.__on !== on) node.style.visibility = (node.__on = on) ? "" : "hidden";
+      };
+      // Where it goes, written by `move` once every tag has been measured: a size read
+      // after a write would lay out the page again, once for each tag.
       const put = (node, at) => {
         p.copy(at).project(camera);
-        const off = p.z > 1 || p.z < -1 || Math.abs(p.x) > 1.2 || Math.abs(p.y) > 1.2;
-        node.style.visibility = off ? "hidden" : "";
-        if (!off) node.style.transform = `translate(${round(((p.x + 1) / 2) * w, 1)}px, ${round(((1 - p.y) / 2) * h, 1)}px)`;
-        return !off;
+        if (p.z > 1 || p.z < -1 || Math.abs(p.x) > 1.2 || Math.abs(p.y) > 1.2) return null;
+        return [round(((p.x + 1) / 2) * w, 1), round(((1 - p.y) / 2) * h, 1)];
       };
-      const top = (it) => it.group.getWorldPosition(v3()).add(new T.Vector3(0, (it.size?.y ?? 1) * it.rec.scale.y + 0.25, 0));
+      const move = (node, [x, y]) => {
+        if (node.__x !== x || node.__y !== y) node.style.transform = `translate(${(node.__x = x)}px, ${(node.__y = y)}px)`;
+      };
+      // Over its top: from its place as last drawn (the frame has just updated it).
+      const q = v3();
+      const top = (it) => {
+        q.setFromMatrixPosition(it.group.matrixWorld);
+        q.y += (it.size?.y ?? 1) * it.rec.scale.y + 0.25;
+        return q;
+      };
       // Tags that would cover one that matters more (selected, in alarm, warning) wait.
-      const shown = [];
-      const at = (node, x, y, rank, middle) => {
+      const shown = [], off = [];
+      const at = (node, xy, rank, middle) => {
         node.__size ||= [node.offsetWidth, node.offsetHeight];
-        const [w, h] = node.__size;
-        shown.push({ node, rank, l: x - w / 2, r: x + w / 2, t: middle ? y - h / 2 : y - h, b: middle ? y + h / 2 : y });
-      };
-      const xy = (node) => {
-        const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec(node.style.transform);
-        return m ? [Number(m[1]), Number(m[2])] : null;
+        const [w, h] = node.__size, [x, y] = xy;
+        shown.push({ node, xy, rank, l: x - w / 2, r: x + w / 2, t: middle ? y - h / 2 : y - h, b: middle ? y + h / 2 : y });
       };
       for (const it of items.values()) {
-        if (!it.tag || !put(it.tag, top(it))) continue;
-        const r = it.rec, [x, y] = xy(it.tag);
-        at(it.tag, x, y, it.id === selected ? 5 : r.alarm ? 4 : r.level === "warn" || r.tone === "warning" ? 3 : 2);
+        if (!it.tag) continue;
+        const xy = put(it.tag, top(it)), r = it.rec;
+        if (xy) at(it.tag, xy, it.id === selected ? 5 : r.alarm ? 4 : r.level === "warn" || r.tone === "warning" ? 3 : 2);
+        else off.push(it.tag);
       }
-      for (const z of zones) if (z.tag && put(z.tag, z.at)) {
-        const [x, y] = xy(z.tag);
-        at(z.tag, x, y, 1, true);
+      for (const z of zones) if (z.tag) {
+        const xy = put(z.tag, z.at);
+        if (xy) at(z.tag, xy, 1, true);
+        else off.push(z.tag);
       }
+      for (const node of off) show(node, false);
+      // A hidden tag stays where it was: only those shown are moved.
+      const keep = (s, on) => {
+        if (on) move(s.node, s.xy);
+        show(s.node, on);
+      };
       if (props.labels !== "all") {
         shown.sort((a, b) => b.rank - a.rank);
-        const kept = [];
+        // The tags kept so far, by the 64px cells they cover, so each is checked against its
+        // neighbours only.
+        const cells = new Map(), C = 64;
+        const each = (s, f) => {
+          for (let cx = Math.floor((s.l - 2) / C); cx <= Math.floor((s.r + 2) / C); cx++)
+            for (let cy = Math.floor((s.t - 2) / C); cy <= Math.floor((s.b + 2) / C); cy++) if (f(cx * 65536 + cy)) return true;
+          return false;
+        };
         for (const s of shown) {
-          const hit = kept.some((k) => s.l < k.r + 2 && s.r > k.l - 2 && s.t < k.b + 2 && s.b > k.t - 2);
-          s.node.style.visibility = hit && s.rank < 4 ? "hidden" : "";
-          if (!hit || s.rank >= 4) kept.push(s);
+          const hit = each(s, (c) => cells.get(c)?.some((k) => s.l < k.r + 2 && s.r > k.l - 2 && s.t < k.b + 2 && s.b > k.t - 2));
+          keep(s, !hit || s.rank >= 4);
+          if (!hit || s.rank >= 4) each(s, (c) => void (cells.get(c) ?? cells.set(c, []).get(c)).push(s));
         }
-      }
+      } else for (const s of shown) keep(s, true);
       if (popup) {
         const at = popup.zone ? popup.zone.at : items.has(popup.id) ? top(items.get(popup.id)) : null;
-        if (at) put(popup.box, at);
+        const xy = at && put(popup.box, at);
+        if (xy) move(popup.box, xy);
+        if (at) show(popup.box, !!xy);
         fitPopup();
       }
     }
@@ -1434,10 +1680,14 @@
         const t1 = performance.now();
         camera.updateMatrixWorld();
         motion(now);
-        placeInstances();
+        // Tags move only when the view or something in it has: not while alarms just glow.
+        const shift = !placed || looked || !!flight;
+        if (shift) placeInstances(!placed);
+        placed = true;
+        looked = false;
         shadows(now);
         renderer.render(scene, camera);
-        place2d();
+        if (shift) place2d();
         // How long a frame's work takes on the main thread, smoothed, for `info`.
         frameMs = frameMs ? frameMs * 0.9 + (performance.now() - t1) * 0.1 : performance.now() - t1;
         dirty = false;
@@ -1463,13 +1713,13 @@
     function pick(e) {
       caster ||= new T.Raycaster();
       caster.setFromCamera(pointerAt(e), camera);
-      const instanced = [...batches.values()].flatMap((b) => b.parts.map((p) => p.im).filter(Boolean));
+      const instanced = [...batches.values()].flatMap((b) => [...b.parts, ...(b.farParts ?? [])].map((p) => p.im).filter(Boolean));
       const targets = [...[...items.values()].filter((it) => it.rec.clickable && it.group.visible).map((it) => it.group), ...instanced, ...zones.filter((z) => z.clickable).map((z) => z.mesh)];
       for (const h of caster.intersectObjects(targets, true)) {
         // An instance stands for the object in that place of its batch.
         const b = h.object.userData.batch;
         if (b) {
-          const it = b.slots[h.instanceId];
+          const it = (h.object.userData.far ? b.drawnFar : b.drawn)?.[h.instanceId];
           if (it?.rec.clickable && items.get(it.id) === it) return { item: it };
           continue;
         }
@@ -1832,7 +2082,7 @@
         controls.screenSpacePanning = false;
         controls.enableZoom = cfg.gestures !== "none";
         controls.enabled = cfg.gestures !== "none";
-        controls.addEventListener("change", wake);
+        controls.addEventListener("change", look);
         controls.addEventListener("end", () => set("bindCamera", view()));
         themed();
         sel = ringOf(1);

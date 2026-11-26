@@ -58,7 +58,7 @@ Units are metres, with y up. A `position` is `[x, z]` on the ground or `[x, y, z
 
 ## Models
 
-Any model three.js can open works, picked by the file's extension or `format`:
+Any model three.js can open works, picked by the file's extension, a `data:` address's type (`data:model/gltf-binary;base64,…`) or `format`:
 
 | format | notes |
 |---|---|
@@ -76,6 +76,25 @@ Models come in many units and orientations. Each is put right once, when it's lo
 - `origin`: `base` (the default) stands it on the ground at its middle; `center` or `none` keep more of it as it was.
 
 A model is loaded once however many objects use it, and each object shares its meshes and materials until something (a colour by value, an alarm, `opacity`) needs its own. One that fails to load is drawn as a wireframe box, and the twin fires `failed` with the model's name.
+
+### Simpler far away
+
+Far from the camera, a model can be drawn with fewer triangles: from some metres off nobody sees a drum's rivets, and a hall of a thousand detailed machines is tens of millions of triangles otherwise.
+
+```yaml
+lod: auto            # the default: models used by 100 objects or more
+models:
+  drum: models/drum.glb                                   # made simpler in the browser
+  rack: { url: models/rack.glb, far: models/rack-low.glb } # a simpler model of your own
+  pump: { url: models/pump.glb, far: { ratio: 0.3, distance: 40 } }
+  sign: { url: models/sign.glb, far: false }              # never
+```
+
+- `lod`: `auto`, `true` (every model), `false` or `none`, or `{ ratio, distance }` for every model. A model's own `far` wins.
+- Made in the browser, a model keeps `ratio` of its triangles (default 0.15) with meshoptimizer's simplifier, loaded from jsDelivr only when it's needed; parts too small to see from afar (under 3% of the model's size) are left out. A part with several materials is kept as it is.
+- `distance`: metres from the camera; by default twelve times the model's size, and at least 15 m.
+- A far model of your own is put right as its model is (`units`, `up`, `scale`…), and should stand where it does.
+- Only objects drawn together have it; one in a look of its own (glowing by `effect`, coloured by value, see-through, animated) is drawn in full. The twin fires `lod` when a model's far version is ready.
 
 ### NVIDIA SimReady and other USD assets
 
@@ -179,11 +198,24 @@ Drag to turn the view, right-drag (or two fingers) to move it, and scroll or pin
 A twin draws a frame only when something changed: the camera, an object, the data. Three things keep those frames short:
 
 - **Shadows are drawn again only when something that casts one changes.** The sun's shadows don't depend on the camera, so turning or zooming the view costs no shadow pass. Objects that move on their own (on a path, spinning) redraw them at most every 50 ms; a change from the data, a drag or a model loading redraws them at once.
-- **Objects of the same model are drawn together** (instancing): a few draw calls per model however many objects use it. An object that needs a look of its own (in alarm, glowing, coloured by value, see-through, animated) is drawn as a copy of its own for as long as it does, so nothing looks different.
+- **Objects of the same model are drawn together** (instancing): a few draw calls per model however many objects use it. Those in alarm are instances too, of their own, glowing together; so are the rings on the ground under warnings (one draw call for each size of ring). An object that needs a look of its own (glowing or blinking by `effect`, coloured by value, see-through, animated) is drawn as a copy of its own for as long as it does, so nothing looks different.
+- **Only what's in view is drawn:** as the camera moves, the instances outside it are left out, so a big world seen up close draws the objects near the camera.
+- **Far away, models are simpler** (`lod`, see [Simpler far away](#simpler-far-away)).
+- **Tags are placed in one pass:** measured first, then moved, with only the styles that changed written, and moved only when the view or something in it has (not while alarms just glow). Tags that would overlap are found by where they are on screen, not against every other tag.
 - **While the camera moves, the view is drawn at a lower resolution** (`motionScale`, default 0.65 of the pixels each way, so about 40% of them), and sharp again 400 ms after it stops. Only the camera's moving counts: objects moving on their own keep a still view sharp. `motionScale: 1` turns it off.
 - **A model's GPU work is done before it's shown:** its shaders compile in the background (in parallel where the browser can) and its textures go up a few at a time, instead of all in the first frame that draws it.
 
 On a laptop (Apple M4 Pro, Chrome), turning the camera around block twin-01 (38 objects, about 1.2 million triangles) holds 60 frames a second with no frame over 20 ms; the page is blocked for about 130 ms while it loads, most of it three.js itself. `quality: low` turns shadows and smoothing off for slower devices.
+
+Bigger worlds (2026-11-26, the same laptop, a grid of six models of 5,000 to 60,000 triangles each with a readout and a tag on every object, a quarter of them warning or in alarm):
+
+| objects | ready | still | turning | close up | every value changing 4× a second |
+|---|---|---|---|---|---|
+| 300 | 0.7 s | 60 fps | 60 fps | 60 fps | 60 fps |
+| 1,000 | 1.0 s | 61 | 58–59 | 56–60 | 59 |
+| 3,000 | 1.1 s | 47–51 | 43 | 41–56 | 34–36 |
+
+With `lod` (the default), 1,000 of these objects are 6 to 8 million triangles instead of 39 million. Without it, 1,000 objects run at 45–53 fps still and 43 turning, and 3,000 at 19 and 14–16. At 3,000, the tags cost more than the models: `labels: none` (alarms only) turns at 48. Example: [twin/big-world](../../examples/twin/big-world.yaml).
 
 ## three.js
 
@@ -195,10 +227,11 @@ irender_twin_kit::register_with(&mut engine.registry, irender_twin_kit::TwinKit 
     addons: "/static/three/jsm/{name}".into(),   // must import three.js from the same address
     draco: "/static/three/draco/".into(),
     basis: "/static/three/basis/".into(),
+    simplifier: "/static/meshopt_simplifier.js".into(), // meshoptimizer's, for `lod`
 });
 ```
 
-The kit is written and tested against three.js 0.183.2 ([`THREE_VERSION`](src/lib.rs)).
+The kit is written and tested against three.js 0.183.2 ([`THREE_VERSION`](src/lib.rs)) and meshoptimizer 1.3.0 ([`MESHOPT_VERSION`](src/lib.rs)), whose simplifier is loaded only when a model is made simpler far away.
 
 ## Safety
 

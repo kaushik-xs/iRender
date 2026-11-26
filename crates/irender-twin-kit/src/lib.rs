@@ -35,6 +35,9 @@ const SCRIPT: &str = include_str!("twin.js");
 /// The three.js release the kit is written and tested against.
 pub const THREE_VERSION: &str = "0.183.2";
 
+/// The meshoptimizer release whose simplifier makes models simpler far away.
+pub const MESHOPT_VERSION: &str = "1.3.0";
+
 /// Where three.js comes from.
 #[derive(Debug, Clone)]
 pub struct TwinKit {
@@ -48,6 +51,8 @@ pub struct TwinKit {
     pub draco: String,
     /// The folder with the Basis transcoder, for KTX2 textures.
     pub basis: String,
+    /// meshoptimizer's simplifier as an ES module, for simpler models far away (`lod`).
+    pub simplifier: String,
 }
 
 impl Default for TwinKit {
@@ -58,6 +63,7 @@ impl Default for TwinKit {
             addons: format!("{base}/examples/jsm/{{name}}/+esm"),
             draco: format!("{base}/examples/jsm/libs/draco/gltf/"),
             basis: format!("{base}/examples/jsm/libs/basis/"),
+            simplifier: format!("https://cdn.jsdelivr.net/npm/meshoptimizer@{MESHOPT_VERSION}/meshopt_simplifier.js"),
         }
     }
 }
@@ -86,7 +92,8 @@ const PROPS: &[PropDef] = &[
         PropKind::Any,
         "The models by name: `{ forklift: models/forklift.glb, pump: { url, scale, units: m | cm | mm | in | ft, up: y | z, rotate, fit, origin: base | center | none, format, mtl, color } }`. \
          glTF / GLB (with Draco, meshopt and KTX2), OBJ (with `mtl`), FBX, STL, PLY, DAE, 3MF, 3DS, WRL and USD / USDZ. `fit`: the largest side in metres, or `[w, h, d]` to fit in. \
-         Each is made to stand on the ground at its middle unless `origin` says otherwise",
+         Each is made to stand on the ground at its middle unless `origin` says otherwise. \
+         `far`: how it's drawn far from the camera, a simpler model's url, `{ url, distance }`, `{ ratio, distance }` (made simpler in the browser, `ratio` of its triangles) or `false` (see `lod`)",
     ),
     PropDef::new(
         "objects",
@@ -129,6 +136,12 @@ const PROPS: &[PropDef] = &[
     PropDef::new("gestures", PropKind::Enum(&["orbit", "none"]), "`orbit` (default): drag to turn, right-drag or two fingers to move, wheel or pinch to zoom. `none`: the camera stays put"),
     PropDef::new("transition", PropKind::Number, "Milliseconds an object takes to move to a new place from the data (default 600; 0 jumps)"),
     PropDef::new("quality", PropKind::Enum(&["high", "low"]), "`low`: no shadows or smoothing, for big worlds or slow devices"),
+    PropDef::new(
+        "lod",
+        PropKind::Any,
+        "Models drawn simpler far from the camera: `auto` (default) for a model used by 100 objects or more, `true` for every model, `false` (or `none`) for none, or `{ ratio, distance }` (default 0.15 of the triangles, past twelve times the model's size and at least 15 m) for every model. \
+         Made in the browser with meshoptimizer's simplifier; a model's own `far` wins. Only for objects drawn together (not those in a look of their own)",
+    ),
     PropDef::new("motionScale", PropKind::Number, "While the camera moves, the view is drawn at this share of its resolution each way (default 0.65), and sharp again 400 ms after it stops; 1 keeps it sharp"),
     PropDef::new("height", PropKind::Any, "Number (px) or CSS length; default 480. The width is the container's"),
     PropDef::new("title", PropKind::Any, "Names the view for screen readers (default `3D view`)"),
@@ -137,7 +150,7 @@ const PROPS: &[PropDef] = &[
 /// Props the browser resolves against state; the rest are read once on the server.
 const LIVE: &[&str] = &[
     "models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy", "world", "src", "live", "follow", "filter", "toneBy", "alarmBy",
-    "effectBy", "labels", "editable", "snap", "palette",
+    "effectBy", "labels", "editable", "snap", "palette", "lod",
 ];
 const BINDINGS: &[&str] = &["bind", "bindObject", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive"];
 
@@ -184,6 +197,7 @@ impl Component for Twin {
         for m in models.filter_map(Json::as_object).flat_map(|m| m.values()) {
             urls.extend(m.as_str().or_else(|| m["url"].as_str()));
             urls.extend(m["mtl"].as_str());
+            urls.extend(m["far"].as_str().or_else(|| m["far"]["url"].as_str()));
         }
         urls.extend(props.get("src").and_then(Json::as_str));
         if let Some(l) = props.get("live") {
@@ -203,7 +217,7 @@ impl Component for Twin {
         let policy = cx.policy();
         let kit = &self.kit;
         let mut config = json!({
-            "source": { "three": kit.three, "addons": kit.addons, "draco": kit.draco, "basis": kit.basis },
+            "source": { "three": kit.three, "addons": kit.addons, "draco": kit.draco, "basis": kit.basis, "simplifier": kit.simplifier },
             "props": props,
             "reactive": reactive,
             "popup": cx.prop(node, "popup") != Some(Json::Bool(false)),
@@ -417,7 +431,8 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             ("box-shadow", "0 1px 3px rgb(0 0 0 / 0.15)"),
             ("cursor", "pointer"),
             ("pointer-events", "auto"),
-            ("backdrop-filter", "blur(4px)"),
+            // No `backdrop-filter`: each tag would be a blurred layer of its own, and some
+            // thousands of them stall the browser's compositor (the view stops drawing).
         ]),
     )
     .nest("& [data-twin-tag] > span", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis")]))

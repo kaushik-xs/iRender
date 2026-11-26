@@ -2306,6 +2306,7 @@ root: …
 "3D view unavailable": "3D view unavailable"
 "On": "On"
 "Off": "Off"
+"Last {n}: {low} to {high}": "Last {n}: {low} to {high}"
 "Loading models… {n} of {total}": "Loading models… {n} of {total}"
 "{n} new alarms": "{n} new alarms"
 "Alarm: {title}": "Alarm: {title}"

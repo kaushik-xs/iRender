@@ -53,6 +53,7 @@ root:
         - { type: ui-button, props: { label: "Any model format", variant: ghost, size: sm, href: formats.html } }
         - { type: ui-button, props: { label: "Live data", variant: ghost, size: sm, href: live-data.html } }
         - { type: ui-button, props: { label: "Editing a layout", variant: secondary, size: sm, href: editing.html }, attrs: { aria-current: page } }
+        - { type: ui-button, props: { label: "Big worlds", variant: ghost, size: sm, href: big-world.html } }
     - type: stack
       props: { gap: 6 }
       children:

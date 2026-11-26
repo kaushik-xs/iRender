@@ -119,8 +119,8 @@ fn models_are_checked() {
 #[test]
 fn three_from_elsewhere() {
     let mut engine = Engine::new();
-    let kit = TwinKit { three: "/static/three.module.js".into(), addons: "/static/jsm/{name}".into(), draco: "/static/draco/".into(), basis: "/static/basis/".into() };
+    let kit = TwinKit { three: "/static/three.module.js".into(), addons: "/static/jsm/{name}".into(), draco: "/static/draco/".into(), basis: "/static/basis/".into(), simplifier: "/static/meshopt_simplifier.js".into() };
     irender_twin_kit::register_with(&mut engine.registry, kit);
     let c = config(&render_on(&engine, twin(json!({})), json!({}), json!({})).unwrap());
-    assert_eq!(c["source"], json!({ "three": "/static/three.module.js", "addons": "/static/jsm/{name}", "draco": "/static/draco/", "basis": "/static/basis/" }));
+    assert_eq!(c["source"], json!({ "three": "/static/three.module.js", "addons": "/static/jsm/{name}", "draco": "/static/draco/", "basis": "/static/basis/", "simplifier": "/static/meshopt_simplifier.js" }));
 }
