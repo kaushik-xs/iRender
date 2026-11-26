@@ -2211,6 +2211,7 @@ root: …
 `chart.js`
 
 ```yaml
+"Other": "Other"
 "Task": "Task"
 "{n} working days": { one: "{n} working day", other: "{n} working days" }
 "{n} days": { one: "{n} day", other: "{n} days" }
@@ -2223,6 +2224,7 @@ root: …
 "On the critical path": "On the critical path"
 "Groups": "Groups"
 "Today": "Today"
+"Cumulative %": "Cumulative %"
 "All": "All"
 "This is a chart about “{title}”": "This is a chart about “{title}”"
 "This is a chart": "This is a chart"

@@ -2,7 +2,7 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-25._
+_Last updated: 2026-11-26._
 
 ## Suggested next
 
@@ -10,6 +10,8 @@ _Last updated: 2026-11-25._
 2. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
+
+- [ ] **Pareto charts** (`type: pareto`, `threshold`; 2026-11-26; chart gallery, block incident-01): vertical only (`horizontal` is ignored), one value field (no stacked bars by `series`), Other always last and not clickable through to what it holds, and the percent line can't be read against a target other than the threshold.
 
 - [ ] **`ui-iframe`** (2026-11-25; gallery, block docs-01): no size from the framed page's content (a page from another site can't say how tall it is, and nothing listens for one that does), no messages to or from it, and no loading or error state (a site that refuses to be framed shows the browser's own blank or error page). The untrusted policy refuses it outright; idea: allow it there with a sandbox it can't widen and only `https:` addresses.
 

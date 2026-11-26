@@ -294,6 +294,17 @@
       if (blank(y)) y = how === "count" ? "count" : ys;
     }
     const limit = isNum(p.limit) && Number(p.limit) > 0 ? Number(p.limit) : null;
+    if (p.type === "pareto") {
+      // Largest first, whatever `sort` says; past `limit`, the rest add up into one
+      // Other bar, kept last. Values that aren't numbers, or are below zero, are left out.
+      const f = blank(y) ? fieldsOf(rows).find((f) => f !== x && rows.some((r) => isNum(at(r, f)))) : ylist(y)[0].field;
+      rows = sortRows(rows.filter((r) => isNum(at(r, f)) && Number(at(r, f)) >= 0), { field: f, order: "desc" });
+      if (limit && rows.length > limit) {
+        const rest = rows.slice(limit);
+        rows = [...rows.slice(0, limit), { [x]: L("Other"), [f]: tidy(rest.reduce((a, r) => a + Number(at(r, f)), 0)) }];
+      }
+      return { ...out, rows, x, y: blank(y) ? f : y };
+    }
     if (!blank(p.series) && (!blank(p.sort) || limit)) {
       // Split into series, the rows are (category, series) pairs: sort and limit the
       // categories, each by its total over its series, and keep its rows together.
@@ -933,6 +944,48 @@
         tooltip(scatter ? "item" : "axis", scatter ? {} : { axisPointer: { type: bars ? "shadow" : "line" } });
         legend = o.series.length > 1;
       }
+    } else if (type === "pareto") {
+      // Bars largest first, and a line of the running total as a percent of the whole on
+      // a second axis. A threshold (80% by default) is a dashed line on that axis; the
+      // bars after the one that takes the total past it are faded, leaving the vital few.
+      const { field, name, ...extra } = ys[0] || {};
+      const vals = rows.map((r) => Number(at(r, field)));
+      const total = vals.reduce((a, v) => a + v, 0);
+      let run = 0;
+      const cum = vals.map((v) => ((run += v), total ? Math.round((run * 1000) / total) / 10 : 0));
+      const limit = p.threshold === false || p.threshold === "false" ? null : isNum(p.threshold) ? Math.max(0, Math.min(100, Number(p.threshold))) : 80;
+      const past = limit === null ? -1 : cum.findIndex((c) => c >= limit);
+      const few = past < 0 ? rows.length : past + 1;
+      o.xAxis = { type: "category", data: rows.map((r) => at(r, x)), boundaryGap: true };
+      o.yAxis = [
+        { type: "value" },
+        { type: "value", min: 0, max: 100, interval: 20, axisLabel: { formatter: "{value}%" }, splitLine: { show: false } },
+      ];
+      o.grid = { left: 8, right: 16, top: 16, bottom: 8 };
+      const percent = (v) => (isNum(v) ? `${v}%` : v);
+      o.series = [
+        merge({
+          id: "s0", type: "bar", name: name ?? String(field), barMaxWidth: 40, itemStyle: { borderRadius: [4, 4, 0, 0] },
+          data: vals.map((v, i) => (i < few ? v : { value: v, itemStyle: { color: fade(t.palette[0], 0.4) } })),
+          label: p.labels ? { show: true, position: "top", color: t.muted } : undefined,
+          labelLayout: p.labels ? { hideOverlap: true } : undefined,
+        }, extra),
+        {
+          id: "s1", type: "line", name: L("Cumulative %"), yAxisIndex: 1, data: cum, color: t.palette[1],
+          symbolSize: 6, showSymbol: rows.length <= 24, tooltip: { valueFormatter: percent },
+          // Above the points, giving way to the bars' labels where they'd overlap.
+          label: p.labels ? { show: true, position: "top", color: t.palette[1], formatter: (e) => percent(e.value) } : undefined,
+          labelLayout: p.labels ? { hideOverlap: true } : undefined,
+          z: 3,
+          markLine: limit === null ? undefined : {
+            silent: true, symbol: "none", data: [{ yAxis: limit }],
+            lineStyle: { type: "dashed", color: t.muted }, label: { position: "insideEndTop", formatter: `${limit}%`, color: t.muted },
+          },
+        },
+      ];
+      rowsBy.push(rows, rows);
+      tooltip("axis", { axisPointer: { type: "shadow" } });
+      legend = true;
     } else if (type === "pie" || type === "donut" || type === "funnel") {
       const data = rows.map((r) => ({ name: at(r, x), value: at(r, y0) }));
       const labels = p.labels !== false;

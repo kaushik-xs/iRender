@@ -2191,7 +2191,7 @@ ui-data-table-bulk: Actions shown while rows are selected, next to the count. Re
 ui-data-table-detail: A row's details, shown under it when its expander is opened; the row is in scope as `row`.
   children: yes
 ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) or a full ECharts `option`.
-  type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel, gantt  Series type the shorthand builds; leave it out to use `option` alone
+  type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel, gantt, pareto  Series type the shorthand builds; leave it out to use `option` alone
   data         any  Rows (objects or arrays), numbers, or a tree / node list, depending on `type`
   x            any  Field (or column) for categories, names or the x value; default the first
   y            any  Field(s) for values: a field, or a list of fields or `{ field, name, …series options }`; default every other numeric field
@@ -2202,7 +2202,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   aggregate    one of: sum, avg, min, max, count  Group rows by `x` (and `series`)
   series       any  Field whose values become separate series (long-format rows)
   sort         any  A field, `-field` for descending, or a list of them; with `series`, orders the categories by their totals
-  limit        any  Keep the first N rows after sorting; with `series`, the first N categories
+  limit        any  Keep the first N rows after sorting; with `series`, the first N categories; a pareto adds up the rest into one Other bar
   drill        any  Fields to drill through on click, e.g. `[region, country, city]`
   xType        one of: category, time, value, log  The x axis; default: time for dates on lines and points
   zoom         any  Zoom controls along the category or time axis: `inside`, `slider` or `both` (`true`)
@@ -2220,6 +2220,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   baselines    bool  Gantt: draw each task's `baselineStart` and `baselineEnd` (its planned dates) as a thin bar under it, with how late or early it is (default true)
   snap         any  Gantt: the step a task with times of day moves and stretches by, in minutes or as `"15m"`, `"1h"` or `"1d"` (default a day); tasks in whole days move by days
   cascade      any  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends; `"both"` also pulls them back to start when it ends
+  threshold    any  Pareto: a dashed line at this cumulative percent, the bars past it faded (default 80; `false` for none)
   stack        bool  Stack the series
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis

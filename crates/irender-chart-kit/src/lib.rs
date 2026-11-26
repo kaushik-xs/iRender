@@ -96,7 +96,7 @@ pub fn register_with(registry: &mut Registry, kit: ChartKit) {
 pub const TYPES: &[&str] = &[
     "line", "area", "bar", "scatter", "effectScatter", "pictorialBar", "candlestick", "boxplot", "pie", "donut",
     "funnel", "radar", "heatmap", "gauge", "tree", "treemap", "sunburst", "sankey", "graph", "chord", "themeRiver",
-    "parallel", "gantt",
+    "parallel", "gantt", "pareto",
 ];
 
 const CHART_PROPS: &[PropDef] = &[
@@ -119,7 +119,7 @@ const CHART_PROPS: &[PropDef] = &[
     PropDef::new("aggregate", PropKind::Enum(&["sum", "avg", "min", "max", "count"]), "Group rows by `x` (and `series`)"),
     PropDef::new("series", PropKind::Any, "Field whose values become separate series (long-format rows)"),
     PropDef::new("sort", PropKind::Any, "A field, `-field` for descending, or a list of them; with `series`, orders the categories by their totals"),
-    PropDef::new("limit", PropKind::Any, "Keep the first N rows after sorting; with `series`, the first N categories"),
+    PropDef::new("limit", PropKind::Any, "Keep the first N rows after sorting; with `series`, the first N categories; a pareto adds up the rest into one Other bar"),
     PropDef::new("drill", PropKind::Any, "Fields to drill through on click, e.g. `[region, country, city]`"),
     PropDef::new("xType", PropKind::Enum(&["category", "time", "value", "log"]), "The x axis; default: time for dates on lines and points"),
     PropDef::new("zoom", PropKind::Any, "Zoom controls along the category or time axis: `inside`, `slider` or `both` (`true`)"),
@@ -169,6 +169,11 @@ const CHART_PROPS: &[PropDef] = &[
         PropKind::Any,
         "Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends; `\"both\"` also pulls them back to start when it ends",
     ),
+    PropDef::new(
+        "threshold",
+        PropKind::Any,
+        "Pareto: a dashed line at this cumulative percent, the bars past it faded (default 80; `false` for none)",
+    ),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
     PropDef::new("horizontal", PropKind::Bool, "Bars along the x axis"),
@@ -208,6 +213,7 @@ const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "format", "currency", "decimals", "legend", "tooltip", "loading",
     "columns", "markers", "today", "editable", "cascade", "visibleRows", "workdays", "holidays", "critical", "baselines", "snap",
+    "threshold",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.

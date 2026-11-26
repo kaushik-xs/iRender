@@ -19,6 +19,7 @@ state:
   regionSales: []
   loadingRegion: false
   target: 72
+  paretoAt: "80"
   # Drill-downs and filters
   orders: []
   ordersLoading: true
@@ -502,6 +503,12 @@ root:
         - type: element
           style: { display: grid, gap: 16, grid-template-columns: "repeat(auto-fit, minmax(320px, 1fr))" }
           children:
+            - type: ui-card
+              props: { title: Pareto, description: "Largest first, the running share on the right. Past `limit` the rest add up into Other; the bars after the threshold fade, leaving the few that matter." }
+              children:
+                - type: ui-toggle-group
+                  props: { bind: paretoAt, variant: outline, size: sm, options: [{ value: "70", label: 70% }, { value: "80", label: 80% }, { value: "90", label: 90% }] }
+                - { type: ui-chart, props: { type: pareto, data: "{{ returns }}", x: reason, y: { field: returns, name: Returns }, limit: 6, threshold: "{{ paretoAt }}", title: Returns by reason } }
             - type: ui-card
               props: { title: Radar }
               children:

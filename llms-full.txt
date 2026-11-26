@@ -2356,7 +2356,7 @@ ui-data-table-bulk: Actions shown while rows are selected, next to the count. Re
 ui-data-table-detail: A row's details, shown under it when its expander is opened; the row is in scope as `row`.
   children: yes
 ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) or a full ECharts `option`.
-  type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel, gantt  Series type the shorthand builds; leave it out to use `option` alone
+  type         one of: line, area, bar, scatter, effectScatter, pictorialBar, candlestick, boxplot, pie, donut, funnel, radar, heatmap, gauge, tree, treemap, sunburst, sankey, graph, chord, themeRiver, parallel, gantt, pareto  Series type the shorthand builds; leave it out to use `option` alone
   data         any  Rows (objects or arrays), numbers, or a tree / node list, depending on `type`
   x            any  Field (or column) for categories, names or the x value; default the first
   y            any  Field(s) for values: a field, or a list of fields or `{ field, name, …series options }`; default every other numeric field
@@ -2367,7 +2367,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   aggregate    one of: sum, avg, min, max, count  Group rows by `x` (and `series`)
   series       any  Field whose values become separate series (long-format rows)
   sort         any  A field, `-field` for descending, or a list of them; with `series`, orders the categories by their totals
-  limit        any  Keep the first N rows after sorting; with `series`, the first N categories
+  limit        any  Keep the first N rows after sorting; with `series`, the first N categories; a pareto adds up the rest into one Other bar
   drill        any  Fields to drill through on click, e.g. `[region, country, city]`
   xType        one of: category, time, value, log  The x axis; default: time for dates on lines and points
   zoom         any  Zoom controls along the category or time axis: `inside`, `slider` or `both` (`true`)
@@ -2385,6 +2385,7 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   baselines    bool  Gantt: draw each task's `baselineStart` and `baselineEnd` (its planned dates) as a thin bar under it, with how late or early it is (default true)
   snap         any  Gantt: the step a task with times of day moves and stretches by, in minutes or as `"15m"`, `"1h"` or `"1d"` (default a day); tasks in whole days move by days
   cascade      any  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends; `"both"` also pulls them back to start when it ends
+  threshold    any  Pareto: a dashed line at this cumulative percent, the bars past it faded (default 80; `false` for none)
   stack        bool  Stack the series
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis
@@ -4360,6 +4361,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `legend`, `tooltip` | On or off. Default: a legend with two or more series, and a tooltip always. |
 | `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows (or `visibleRows` of them). The width is the container's. |
 | `columns`, `markers`, `today`, `visibleRows`, `workdays`, `holidays`, `critical`, `baselines`, `snap` | For a gantt; see [Gantt](#gantt). |
+| `threshold` | For a pareto: the cumulative percent marked with a dashed line (default 80; `false` for none); see [Pareto](#pareto). |
 | `loading` | Shows the loading mask, e.g. `{{ fetching }}`. |
 | `bind`, `bindRow`, `bindZoom`, `bindLegend`, `bindBrush`, `bindDrill` | State keys for what people do with the chart; see [Interactions as state](#interactions-as-state). |
 | `maps` | GeoJSON maps to register before drawing: `{ world: /geo/world.json }`. The URLs are checked against the policy. |
@@ -4387,6 +4389,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `themeRiver` | rows | date / one stream per field |
 | `parallel` | rows: one line each | / one axis per field; text fields become category axes |
 | `gantt` | rows: one task each | fixed fields; see [Gantt](#gantt) |
+| `pareto` | rows | category / one value field; see [Pareto](#pareto) |
 
 Everything else goes in `option`: maps and `lines`, `custom` series, calendars, the `matrix` coordinate system, polar charts, `dataset` with transforms, `dataZoom`, `visualMap`, `markLine`, `graphic`, and 3D with echarts-gl. The gallery shows a calendar, polar bars and a sorted dataset written that way.
 
@@ -4452,6 +4455,16 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
     sort: -amount
     limit: 5
     filter: { product: "{{ products }}", date: "{{ range }}", region: "{{ region }}", channel: { not: Store } }
+```
+
+## Pareto
+
+`type: pareto` shows which few causes make up most of a total: defects by cause, returns by reason, tickets by category. The bars are the `y` field, always largest first (`sort` doesn't apply), and a line on a second axis is the running total as a percent of the whole, worked out in the browser, so it follows `filter`, `aggregate` and state like any chart. With `limit`, the first N bars are kept and the rest add up into one **Other** bar, kept last. `threshold` (default 80) is a dashed line at that percent; the bars after the one that takes the running total past it are faded, leaving the vital few. `threshold: false` leaves the line out and every bar alike. Values that aren't numbers, or are below zero, are left out. With `labels`, bars show their values and the line its percents, the line's giving way where they would overlap.
+
+```yaml
+- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: { field: count, name: Defects }, limit: 6 } }
+# One row per ticket, counted by reason; the threshold from a control.
+- { type: ui-chart, props: { type: pareto, data: "{{ tickets }}", x: reason, aggregate: count, threshold: "{{ cutoff }}" } }
 ```
 
 ## Drill-downs

@@ -8,10 +8,22 @@
 #   status page preview and the update's prefix all read them.
 # - The runbook's progress ring is worked out from its checkboxes, in an expression.
 # - Posting an update adds the draft to the list of updates (`toggle` adds it).
+# - Why payments failed is a pareto: the reasons largest first, the running share of all
+#   failures as a line, and the ones past 80% faded.
 #
 #   cargo run -p irender-cli -- render examples/blocks/incident-01.yaml --ui-kit --chart-kit --flow-kit --icon-kit -o incident-01.html
 version: 1
 state:
+  # Failed payments since the alert, by the reason the provider gave.
+  failures:
+    - { reason: Provider timeout, payments: 1284 }
+    - { reason: Card declined, payments: 312 }
+    - { reason: 3-D Secure abandoned, payments: 205 }
+    - { reason: Gateway 502, payments: 611 }
+    - { reason: Insufficient funds, payments: 148 }
+    - { reason: Fraud check, payments: 64 }
+    - { reason: Expired card, payments: 41 }
+    - { reason: Currency not supported, payments: 9 }
   service: payments
   picked: null
   query: ""
@@ -444,6 +456,12 @@ root:
           children:
             - type: ui-chart
               props: { title: Error rate, type: bar, data: "{{ metrics }}", filter: { service: "{{ service }}" }, x: time, y: { field: errors, name: errors % }, height: 240, group: incident }
+
+    # ---- why payments failed: the few reasons behind most of them
+    - type: ui-card
+      props: { title: Why payments failed, description: "Since the alert at 10:14, by the reason the provider gave. Three reasons are four in five failures." }
+      children:
+        - { type: ui-chart, props: { title: Failed payments by reason, type: pareto, data: "{{ failures }}", x: reason, y: { field: payments, name: Failed payments }, limit: 5, height: 260 } }
 
     # ---- updates: inside, and what customers see
     - type: element

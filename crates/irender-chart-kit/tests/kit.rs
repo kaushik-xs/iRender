@@ -262,3 +262,11 @@ fn a_gantt_starts_as_tall_as_its_rows_and_grows_in_the_browser() {
     assert_eq!(tall(json!({ "type": "gantt", "data": rows, "visibleRows": 1 })), (Some("90px".into()), json!(true)));
     assert_eq!(tall(json!({ "type": "gantt", "data": rows, "visibleRows": 5 })), (Some("124px".into()), json!(true)));
 }
+
+#[test]
+fn a_pareto_threshold_reaches_the_browser() {
+    let c = config(json!({ "type": "ui-chart", "props": { "type": "pareto", "data": [], "threshold": "{{ t }}", "limit": 5 } }), json!({ "t": 70 }), json!({}));
+    assert_eq!(c["props"]["type"], "pareto");
+    assert!(c["props"]["threshold"]["$irender"].is_object(), "{c}");
+    assert_eq!(c["props"]["limit"], 5);
+}

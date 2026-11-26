@@ -152,6 +152,7 @@ fn charts_in_chrome() {
             "area" => "line",
             "donut" => "pie",
             "gantt" => "custom",
+            "pareto" => "bar",
             t => t,
         }
     }
@@ -1088,4 +1089,47 @@ fn series_sort_and_limit_by_category_in_chrome() {
 "##;
     let Some(lines) = run("series-sort", &engine, doc, &driver(body)) else { return };
     assert_eq!(lines, ["top West,South | web:6,4 shop:6,6", "az North,South,West | web:9,4,6 shop:0,6,6"], "\n{}", lines.join("\n"));
+}
+
+/// `pareto`: bars largest first and the running percent on a second axis; past `limit`
+/// the rest add up into Other, kept last; the bars after the threshold are faded; and
+/// the percent follows state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn pareto_in_chrome() {
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    irender_chart_kit::register_with(&mut engine.registry, kit());
+    let defects = json!([
+        { "cause": "Dents", "n": 12 }, { "cause": "Scratches", "n": 42 }, { "cause": "Gaps", "n": 8 },
+        { "cause": "Labels", "n": 18 }, { "cause": "Misaligned", "n": 30 }, { "cause": "Missing", "n": 10 }, { "cause": "Bad", "n": "x" } ]);
+    let tickets: Vec<Json> = ["Login", "Billing", "Login", "Bug", "Login", "Billing", "Slow", "Export"].iter().map(|r| json!({ "reason": r })).collect();
+    let doc = json!({ "version": 1, "state": { "defects": defects, "limit": 80 }, "root": { "type": "stack", "children": [
+        { "type": "ui-chart", "attrs": { "id": "p" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "threshold": "{{ limit }}" } },
+        { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false } } ] } });
+    let body = r##"
+    await ready(["p", "c"]);
+    const faded = (id) => opt(id).series[0].data.map((v) => (v?.itemStyle ? "f" : "-")).join("");
+    const show = (id) => [opt(id).xAxis[0].data.join(","), opt(id).series[0].data.map((v) => v?.value ?? v).join(","), opt(id).series[1].data.join(","), faded(id),
+      opt(id).series[1].yAxisIndex, opt(id).yAxis[1].max, JSON.stringify(opt(id).series[1].markLine?.data?.[0]?.yAxis ?? null)].join(" | ");
+    log("defects", show("p"));
+    log("count", show("c"));
+    log("legend", opt("p").legend[0].data?.join(",") ?? opt("p").series.map((s) => s.name).join(","));
+    root.__irender.set("limit", 60); await wait(100);
+    log("60%", faded("p"), opt("p").series[1].markLine.data[0].yAxis);
+"##;
+    let Some(lines) = run("pareto", &engine, doc, &driver(body)) else { return };
+    assert_eq!(
+        lines,
+        [
+            // 120 in all; 80% is passed at Labels (75%) → Dents (85%), so Missing and Gaps fade.
+            "defects Scratches,Misaligned,Labels,Dents,Missing,Gaps | 42,30,18,12,10,8 | 35,60,75,85,93.3,100 | ----ff | 1 | 100 | 80",
+            // Counted, the top two kept and the other three tickets in Other.
+            "count Login,Billing,Other | 3,2,3 | 37.5,62.5,100 | --- | 1 | 100 | null",
+            "legend n,Cumulative %",
+            "60% --ffff 60",
+        ],
+        "\n{}",
+        lines.join("\n")
+    );
 }

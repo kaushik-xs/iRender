@@ -67,6 +67,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `legend`, `tooltip` | On or off. Default: a legend with two or more series, and a tooltip always. |
 | `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows (or `visibleRows` of them). The width is the container's. |
 | `columns`, `markers`, `today`, `visibleRows`, `workdays`, `holidays`, `critical`, `baselines`, `snap` | For a gantt; see [Gantt](#gantt). |
+| `threshold` | For a pareto: the cumulative percent marked with a dashed line (default 80; `false` for none); see [Pareto](#pareto). |
 | `loading` | Shows the loading mask, e.g. `{{ fetching }}`. |
 | `bind`, `bindRow`, `bindZoom`, `bindLegend`, `bindBrush`, `bindDrill` | State keys for what people do with the chart; see [Interactions as state](#interactions-as-state). |
 | `maps` | GeoJSON maps to register before drawing: `{ world: /geo/world.json }`. The URLs are checked against the policy. |
@@ -94,6 +95,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `themeRiver` | rows | date / one stream per field |
 | `parallel` | rows: one line each | / one axis per field; text fields become category axes |
 | `gantt` | rows: one task each | fixed fields; see [Gantt](#gantt) |
+| `pareto` | rows | category / one value field; see [Pareto](#pareto) |
 
 Everything else goes in `option`: maps and `lines`, `custom` series, calendars, the `matrix` coordinate system, polar charts, `dataset` with transforms, `dataZoom`, `visualMap`, `markLine`, `graphic`, and 3D with echarts-gl. The gallery shows a calendar, polar bars and a sorted dataset written that way.
 
@@ -159,6 +161,16 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
     sort: -amount
     limit: 5
     filter: { product: "{{ products }}", date: "{{ range }}", region: "{{ region }}", channel: { not: Store } }
+```
+
+## Pareto
+
+`type: pareto` shows which few causes make up most of a total: defects by cause, returns by reason, tickets by category. The bars are the `y` field, always largest first (`sort` doesn't apply), and a line on a second axis is the running total as a percent of the whole, worked out in the browser, so it follows `filter`, `aggregate` and state like any chart. With `limit`, the first N bars are kept and the rest add up into one **Other** bar, kept last. `threshold` (default 80) is a dashed line at that percent; the bars after the one that takes the running total past it are faded, leaving the vital few. `threshold: false` leaves the line out and every bar alike. Values that aren't numbers, or are below zero, are left out. With `labels`, bars show their values and the line its percents, the line's giving way where they would overlap.
+
+```yaml
+- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: { field: count, name: Defects }, limit: 6 } }
+# One row per ticket, counted by reason; the threshold from a control.
+- { type: ui-chart, props: { type: pareto, data: "{{ tickets }}", x: reason, aggregate: count, threshold: "{{ cutoff }}" } }
 ```
 
 ## Drill-downs
