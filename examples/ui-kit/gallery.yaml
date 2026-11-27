@@ -2176,6 +2176,8 @@ root:
                       props: { items: "{{ dsPeople }}", as: p }
                       style: { display: contents }
                       children: [ { type: ui-badge, props: { text: "{{ p.name }}", variant: secondary } } ]
+                # Changes the server changed too, to settle; block clinic-01 makes some.
+                - { type: ui-data-conflicts, props: { emptyText: "No changes waiting to be settled. Block clinic-01 edits a patient's phone offline and shows a conflict here." } }
                 - { type: if, props: { when: "{{ api.data_sources.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.data_sources }}", as: c }

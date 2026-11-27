@@ -54,7 +54,10 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                 cancelled); `since=<cursor>` answers only that: { rows, deleted, cursor }.
   api/clinicians     JSON: clinicians by id, `?ids=c-1,c-2`, after 400 ms.
   api/patients/batch POST { ids }: patients by id after 700 ms, as { data: { <id>: patient } }.
-                Their details are personal: the page fetches them, nothing keeps them.
+  api/patients/<id>  PATCH { phone, allergies, version }: saved when `version` is the
+                patient's (it goes up by one), else 409 with the patient as it is now; an
+                empty phone is 422.
+  api/patients/<id>/touch  POST: someone else changes the patient's phone (block clinic-01).
   api/records   POST anything as JSON: answers { id, size }, the same for the same x-queued-id.
   api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
@@ -228,6 +231,7 @@ def make_patients(n=90):
             "born": f"{rng.randint(1945, 2022)}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}",
             "phone": f"+44 7{rng.randint(100, 999)} {rng.randint(100000, 999999)}",
             "allergies": rng.choice([[], [], ["Penicillin"], ["Latex"], ["Peanuts", "Shellfish"]]),
+            "version": 1,
         }
     return out
 
@@ -587,7 +591,35 @@ class Handler(SimpleHTTPRequestHandler):
             return self.record()
         if path.endswith("/api/patients/batch"):
             return self.patients()
+        if "/api/patients/" in path and path.endswith("/touch"):
+            patient = PATIENTS.get(path.split("/")[-2])
+            if not patient:
+                return self.send_error(404)
+            patient["phone"] = f"+44 7{random.randint(100, 999)} {random.randint(100000, 999999)}"
+            patient["version"] += 1
+            return self.send_json(patient)
         self.send_error(404)
+
+    def do_PATCH(self):
+        path = self.path.split("?", 1)[0]
+        if "/api/patients/" not in path:
+            return self.send_error(404)
+        patient = PATIENTS.get(path.rsplit("/", 1)[1])
+        if not patient:
+            return self.send_error(404)
+        try:
+            change = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+        except ValueError:
+            return self.send_error(400, "not JSON")
+        if "version" in change and change["version"] != patient["version"]:
+            return self.send_json(patient, 409)
+        if "phone" in change and not str(change["phone"] or "").strip():
+            return self.send_json({"error": "A phone number is needed"}, 422)
+        for field in ("phone", "allergies"):
+            if field in change:
+                patient[field] = change[field]
+        patient["version"] += 1
+        self.send_json(patient)
 
     def query(self):
         from urllib.parse import parse_qsl
@@ -707,9 +739,9 @@ class Handler(SimpleHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
-    def send_json(self, value):
+    def send_json(self, value, status=200):
         body = json.dumps(value).encode()
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))

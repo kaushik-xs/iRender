@@ -431,6 +431,8 @@ ui-data-source: Says how one kind of record is fetched by id (people, items, acc
   private      any  Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`
   retain       number  Days private fields may stay on the device without being fetched again (default 30)
   clear        any  When this becomes true, its records (of `scope`, or every one without) are let go from the device and the page, e.g. `{{ !user }}`
+  write        any  Changes made here, also offline: `{ url, create, method, version, conflict }`. A `submit` to `url` (`/api/people/{id}`: PATCH, PUT or POST changes, DELETE deletes) or `create` (POST) changes the record at once and is sent when there's a connection, with the version it was made on: `If-Match` with the record's ETag (`version: etag`, default), or a field (`version: version`) sent in the body too. A 409 or 412 is settled by `conflict`: `merge` (default: both sides' changes, asking only about a field both changed), `server-wins`, `client-wins` or `ask`
+  bindWrites   statekey  State key that gets this source's changes not yet saved: `[{ id, record, kind, status, error, changes, fields }]`, status waiting, sending, conflict or refused
   children: no
 ui-data-query: Fills a state key with rows from an API, or with records by id, joined to the records they name (`expand`), for a chart, a list or any component. The rows come first; joined fields follow as their records arrive. Draws nothing.
   into         statekey (required)  State key that gets the rows (or the record, for one id)
@@ -451,6 +453,13 @@ ui-data-query: Fills a state key with rows from an API, or with records by id, j
   sync         any  Asks only for what changed since the last answer: `true` or `{ param, cursor, deleted, tombstone, key, full }`. The answer's `cursor` (default `cursor`) is sent back as `?since=` (`param`); its rows replace those with the same `key` (default `id`) or are added, and rows whose `tombstone` field (default `deleted`) is true, or whose ids are in its `deleted` list, go. Everything is loaded again every `full` hours (default 24)
   every        number  Seconds between loads while the page is in sight (at least 5); it also loads when the connection comes back
   clear        any  When this becomes true, the answers kept for `scope` are let go and the rows emptied, and nothing loads while it stays true, e.g. `{{ !user }}`
+  children: no
+ui-data-conflicts: Changes made here that the server changed too, to settle field by field (yours or theirs), and changes it refused, to dismiss: for a `ui-data-source` with `write` and `conflict: ask` (or a field both changed with `merge`).
+  source       string  Only this `ui-data-source`'s (default every one's)
+  labels       any  Fields' names to show, e.g. `{ phone: Phone }` (default the field)
+  nameField    string  The record's field that names it, e.g. `name` (default its id)
+  title        any  Default `Changed by someone else`
+  emptyText    any  Shown when there's nothing to settle (default: it hides)
   children: no
 ui-app-shell: An app's frame: a bar with the screen's title and a Back button, the screen, and tabs at the foot (down the side with room for them), clear of a phone's notch. Children are `ui-app-screen`s and one `ui-app-actions`, at the end of the bar.
   bind         statekey (required)  State key for the screen shown, a `ui-app-screen`'s `value`

@@ -16,6 +16,11 @@
 # unlocks. Set a PIN under This device and they're kept; lock it and they leave the page
 # until it's unlocked; without a PIN they aren't kept at all. Sign out wipes what's kept.
 #
+# A patient's phone can be changed in their card, offline too: it changes at once and
+# waits to be sent (`write`), with the version it was made on. Press "Someone else edits
+# it" first and the server's copy changes meanwhile: a phone both changed is asked about
+# in the card (yours or theirs); a change to another field would be merged by itself.
+#
 # The day stays current: every 20 seconds, and when the connection comes back, the query
 # asks only for what changed since its last answer (`sync`, `?since=<cursor>`): statuses
 # move on and cancelled visits drop out, without loading the day again.
@@ -33,6 +38,8 @@ state:
   loading: null
   picked: null
   patient: null
+  phoneDraft: ""
+  patientWrites: []
 root:
   type: stack
   props: { gap: 20 }
@@ -54,6 +61,10 @@ root:
         private: [name, mrn, born, phone, allergies]
         retain: 7
         clear: "{{ signedOut }}"
+        # Edits, also offline: sent with the version they were made on. A phone someone
+        # else changed meanwhile is asked about (ui-data-conflicts in the card).
+        write: { url: "api/patients/{id}", version: version }
+        bindWrites: patientWrites
     - type: ui-data-source
       props: { name: clinicians, batch: { url: api/clinicians }, ttl: 3600, persist: device, scope: "{{ user }}", clear: "{{ signedOut }}" }
     - type: ui-data-query
@@ -174,6 +185,23 @@ root:
                           children:
                             - { type: ui-description-item, props: { label: Born, value: "{{ patient.born }}", format: date } }
                             - { type: ui-description-item, props: { label: Phone, value: "{{ patient.phone }}" } }
+                        # A change: shown at once, sent now or once there's a connection.
+                        - type: stack
+                          props: { direction: row, gap: 8 }
+                          children:
+                            - { type: ui-input, props: { bind: phoneDraft, placeholder: New phone number }, attrs: { aria-label: New phone number }, style: { flex: 1 } }
+                            - type: ui-button
+                              props: { label: Save, disabled: "{{ !phoneDraft }}" }
+                              on: { click: [ { action: submit, endpoint: "api/patients/{{ picked }}", method: PATCH, body: { phone: "{{ phoneDraft }}" } }, { action: set_state, key: phoneDraft, value: "" } ] }
+                        - type: stack
+                          props: { direction: row, gap: 8, align: center, wrap: true }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: "{{ patientWrites.length ? patientWrites.length + ' change(s) waiting to be saved' : 'Everything is saved' }}" }, style: { font-size: 13px } }
+                            # For the demo: the server's copy changes, as if someone else edited it.
+                            - type: ui-button
+                              props: { label: Someone else edits it, variant: ghost, size: sm }
+                              on: { click: { action: submit, endpoint: "api/patients/{{ picked }}/touch", method: POST } }
+                        - { type: ui-data-conflicts, props: { source: patients, nameField: name, labels: { phone: Phone } } }
                         - type: stack
                           props: { gap: 6 }
                           children:

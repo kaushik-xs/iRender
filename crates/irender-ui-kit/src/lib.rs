@@ -184,6 +184,7 @@ pub fn register(registry: &mut Registry) {
         .register(pwa::LocalStore)
         .register(data_source::DataSource)
         .register(data_source::DataQuery)
+        .register(data_source::DataConflicts)
         .register(pwa::AppShell)
         .register(pwa::AppScreen)
         .register(pwa::AppActions)

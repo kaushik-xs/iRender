@@ -110,6 +110,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-local-store", json!({ "keys": ["k"] })),
         ("ui-data-source", json!({ "name": "people", "one": "/api/people/{id}" })),
         ("ui-data-query", json!({ "url": "/api/rows", "into": "k" })),
+        ("ui-data-conflicts", json!({})),
         ("ui-app-shell", json!({ "bind": "k" })),
         ("ui-app-screen", json!({ "value": "a", "label": "A" })),
         ("ui-camera", json!({ "bind": "k" })),
@@ -232,7 +233,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 213);
+    assert_eq!(kit, 214);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -2300,6 +2301,11 @@ fn data_sources_queries_and_joined_tables() {
     assert!(render_with(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "persist": "device", "scope": "{{ k }}", "private": ["email"] } }), json!({ "k": "u1" }), json!({})).is_ok());
     assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "url": "/r", "sync": "since" } })).contains("`sync` is `true`"));
     assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "source": "people", "ids": "a", "sync": true } })).contains("rows from `url`"));
+    // Writes: where to, and how a conflict's settled.
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "write": { "method": "PATCH" } } })).contains("needs `url`"));
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "write": { "url": "/p" } } })).contains("`{id}`"));
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "write": { "url": "/p/{id}", "conflict": "mine" } } })).contains("merge, server-wins"));
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "write": { "url": "/p/{id}", "method": "DELETE" } } })).contains("PATCH, PUT or POST"));
     let cols = json!([{ "field": "id" }, { "field": "owner.name" }]);
     assert!(err(json!({ "type": "ui-data-table", "props": { "rows": "{{ k }}", "expand": { "owner": "people" },
         "columns": [{ "field": "owner.name", "edit": "text" }] } })).contains("editable"));

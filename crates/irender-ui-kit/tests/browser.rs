@@ -147,9 +147,13 @@ fn drive_url(url: &str) -> Option<String> {
         eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
         return None;
     };
-    let dir = std::env::temp_dir().join(format!("irender-ui-kit-profile-{}-{}", std::process::id(), url.len()));
+    // A profile of its own: two Chromes on one profile hand over to each other.
+    static RUNS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let run = RUNS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("irender-ui-kit-profile-{}-{run}", std::process::id()));
     let out = Command::new(&chrome)
-        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1000,900", "--dump-dom"])
+        // A real-time cap (Chrome stops loading then; dump-dom.js waits that long).
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1000,900", "--timeout=120000", "--dump-dom"])
         .arg(format!("--user-data-dir={}", dir.display()))
         .arg(url)
         .output()
@@ -9284,7 +9288,7 @@ fn iframe_in_chrome() {
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn data_sources_join_records_in_chrome() {
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::sync::{Arc, Mutex};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
@@ -9295,9 +9299,7 @@ fn data_sources_join_records_in_chrome() {
             let Ok(mut stream) = stream else { continue };
             let seen = seen.clone();
             std::thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let request = read_request(&mut stream);
                 let method = request.split_whitespace().next().unwrap_or("").to_string();
                 let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
                 let (path, query) = target.split_once('?').unwrap_or((&target, ""));
@@ -9358,10 +9360,10 @@ fn data_sources_join_records_in_chrome() {
                 "columns": [{ "field": "id" }, { "field": "person.name", "label": "Person" }] } } ] } });
     let driver = r##"<script>
     window.addEventListener("load", async () => {
-      const out = []; const log = (...a) => out.push(a.join(" "));
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
-      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
+      // Timers, not message ticks: WebKit runs ticks ahead of the timers the sources wait on.
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
       const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
       const t = document.getElementById("t");
       const rows = () => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
@@ -9399,7 +9401,7 @@ fn data_sources_join_records_in_chrome() {
         await until(() => !lt.querySelector("[data-dt-wait]") && lrows().startsWith("Person f4"));
         log("local 2", lrows());
       } catch (e) { log("EXCEPTION", e.stack); }
-      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+      pre.textContent = out.join("\n"); pre.id = "result";
     });
     </script>"##;
     let mut engine = Engine::new();
@@ -9454,7 +9456,7 @@ fn data_sources_join_records_in_chrome() {
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn data_sources_keep_records_on_the_device_in_chrome() {
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::{Arc, Mutex};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -9469,9 +9471,7 @@ fn data_sources_keep_records_on_the_device_in_chrome() {
             let Ok(mut stream) = stream else { continue };
             let (seen, html, off, fin) = (seen.clone(), html.clone(), off.clone(), fin.clone());
             std::thread::spawn(move || {
-                let mut buf = [0u8; 8192];
-                let n = stream.read(&mut buf).unwrap_or(0);
-                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let request = read_request(&mut stream);
                 let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
                 let (path, query) = target.split_once('?').unwrap_or((&target, ""));
                 let etag = request.lines().find_map(|l| l.to_ascii_lowercase().strip_prefix("if-none-match:").map(|v| v.trim().to_string()));
@@ -9529,10 +9529,10 @@ fn data_sources_keep_records_on_the_device_in_chrome() {
             { "type": "ui-data-query", "props": { "url": "/visits", "params": { "fail": "{{ fail }}" }, "into": "rows", "status": "rowsStatus", "refresh": "{{ again }}", "sync": true, "persist": "device", "scope": "{{ scope }}", "private": ["phone"] } } ] } });
     let driver = r##"<script>
     document.addEventListener("DOMContentLoaded", async () => {
-      const out = []; const pre = document.createElement("pre"); pre.id = "result"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
       const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
-      const until = async (f) => { for (let i = 0; i < 2e6 && !(await f()); i++) await (i % 50 ? tick() : wait(10)); };
+      // Timers, not message ticks: WebKit runs ticks ahead of the timers the sources wait on.
+      const until = async (f) => { for (let i = 0; i < 6000 && !(await f()); i++) await wait(10); };
       const $ = (s) => document.querySelector(s);
       const root = $("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
       const tap = async (d) => { for (const c of d) $(`[data-k="${c}"]`).click(); await wait(30); };
@@ -9579,6 +9579,7 @@ fn data_sources_keep_records_on_the_device_in_chrome() {
         log("lock off", Object.values(await kept()).filter((x) => x.enc).length, String(window.__irenderOffline.vault.key));
       } catch (e) { log("EXCEPTION", e.stack); }
       pre.textContent = out.join("\n");
+      pre.id = "result";
       fetch("/finish");
     });
     </script><img src="/hold" alt="" hidden>"##;
@@ -9709,4 +9710,208 @@ fn data_queries_sync_what_changed_in_chrome() {
     assert_eq!(a[..4], ["who=a", "who=a&since=c1", "who=a&since=c2", "who=a&since=c3"], "{log:?}");
     // `full: 0`: never a delta.
     assert!(log.iter().filter(|q| q.contains("who=b")).all(|q| !q.contains("since")), "{log:?}");
+}
+
+/// Changes made here (`write`): shown at once and queued (kept on the device) while
+/// there's no connection, two edits sent as one; a server that changed other fields
+/// meanwhile is merged with; `ask` waits for `ui-data-conflicts`; a refused change goes
+/// back; a record made here takes the server's id; a `submit` button goes the same way.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_sources_write_offline_and_settle_conflicts_in_chrome() {
+    use std::collections::HashMap;
+    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let page = Arc::new(Mutex::new(String::new()));
+    let down = Arc::new(AtomicBool::new(false));
+    let done = Arc::new(AtomicBool::new(false));
+    let mut start = HashMap::new();
+    start.insert("p1".to_string(), serde_json::json!({ "id": "p1", "name": "Ana", "phone": "111", "email": "ana@x", "version": 1 }));
+    start.insert("c1".to_string(), serde_json::json!({ "id": "c1", "title": "Draft", "version": 1 }));
+    let data = Arc::new(Mutex::new(start));
+    let (seen, html, off, fin, db) = (log.clone(), page.clone(), down.clone(), done.clone(), data.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, html, off, fin, db) = (seen.clone(), html.clone(), off.clone(), fin.clone(), db.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let method = request.split_whitespace().next().unwrap_or("").to_string();
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+                let body: serde_json::Value = request.split("\r\n\r\n").nth(1).and_then(|b| serde_json::from_str(b).ok()).unwrap_or(serde_json::Value::Null);
+                let ty = if path == "/" { "text/html" } else { "application/json" };
+                let api = path.starts_with("/people") || path.starts_with("/cards");
+                // Down: the connection drops, as with no network.
+                if api && off.load(Ordering::SeqCst) {
+                    seen.lock().unwrap().push(format!("dropped {method} {path}"));
+                    return;
+                }
+                if api {
+                    seen.lock().unwrap().push(format!("{method} {path} {}", if body.is_null() { String::new() } else { body.to_string() }));
+                }
+                let mut db = db.lock().unwrap();
+                let (status, out) = match (method.as_str(), path) {
+                    (_, "/") => ("200 OK", html.lock().unwrap().clone()),
+                    (_, "/hold") => {
+                        drop(db);
+                        for _ in 0..1200 {
+                            if fin.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                        ("404 Not Found", String::new())
+                    }
+                    (_, "/finish") => {
+                        fin.store(true, Ordering::SeqCst);
+                        ("200 OK", "{}".into())
+                    }
+                    (_, "/down") => {
+                        off.store(true, Ordering::SeqCst);
+                        ("200 OK", "{}".into())
+                    }
+                    (_, "/up") => {
+                        off.store(false, Ordering::SeqCst);
+                        ("200 OK", "{}".into())
+                    }
+                    // Someone else changes p1's email and c1's title.
+                    (_, "/touch") => {
+                        let p = db.get_mut("p1").unwrap();
+                        p["email"] = "ana@new".into();
+                        p["version"] = (p["version"].as_i64().unwrap() + 1).into();
+                        let c = db.get_mut("c1").unwrap();
+                        c["title"] = "Theirs".into();
+                        c["version"] = (c["version"].as_i64().unwrap() + 1).into();
+                        ("200 OK", "{}".into())
+                    }
+                    ("GET", "/people") | ("GET", "/cards") => {
+                        let ids = query.strip_prefix("ids=").unwrap_or("");
+                        let list: Vec<_> = ids.split(',').filter_map(|i| db.get(i).cloned()).collect();
+                        ("200 OK", serde_json::Value::Array(list).to_string())
+                    }
+                    ("POST", "/people") => {
+                        let mut rec = body.clone();
+                        rec["id"] = "p9".into();
+                        rec["version"] = 1.into();
+                        db.insert("p9".into(), rec.clone());
+                        ("201 Created", rec.to_string())
+                    }
+                    ("PATCH", p) => {
+                        let id = p.rsplit('/').next().unwrap().to_string();
+                        if body.get("bad").is_some() {
+                            ("422 Unprocessable Entity", serde_json::json!({ "error": "That isn't allowed" }).to_string())
+                        } else {
+                            let cur = db.get_mut(&id).unwrap();
+                            if body["version"] != cur["version"] {
+                                ("409 Conflict", cur.to_string())
+                            } else {
+                                for (k, v) in body.as_object().unwrap() {
+                                    if k != "version" {
+                                        cur[k.as_str()] = v.clone();
+                                    }
+                                }
+                                cur["version"] = (cur["version"].as_i64().unwrap() + 1).into();
+                                ("200 OK", cur.to_string())
+                            }
+                        }
+                    }
+                    _ => ("404 Not Found", "{}".into()),
+                };
+                let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: {ty}\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{out}", out.len());
+            });
+        }
+    });
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "p": null, "c": null, "pw": [], "cw": [], "phone": "333", "events": "" },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": "/people" }, "persist": "device", "scope": "u1", "bindWrites": "pw",
+                "write": { "url": "/people/{id}", "create": "/people", "version": "version" } },
+              "on": { "created": { "action": "set_state", "key": "events", "value": "{{ events + ' created' }}" }, "refused": { "action": "set_state", "key": "events", "value": "{{ events + ' refused' }}" } } },
+            { "type": "ui-data-source", "props": { "name": "cards", "batch": { "url": "/cards" }, "bindWrites": "cw",
+                "write": { "url": "/cards/{id}", "version": "version", "conflict": "ask" } } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": "p1", "into": "p" } },
+            { "type": "ui-data-query", "props": { "source": "cards", "ids": "c1", "into": "c" } },
+            { "type": "ui-button", "attrs": { "id": "save" }, "props": { "label": "Save" },
+              "on": { "click": { "action": "submit", "endpoint": "/people/p1", "method": "PATCH", "body": { "phone": "{{ phone }}" } } } },
+            { "type": "ui-data-conflicts", "attrs": { "id": "dc" }, "props": { "nameField": "title", "labels": { "title": "Title" } } } ] } });
+    let driver = r##"<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre);
+      const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 1500 && !(await f()); i++) await wait(20); };
+      const $ = (s) => document.querySelector(s);
+      const root = $("[data-i-root]"), S = () => root.__irender.state, D = window.__irenderData;
+      const patch = (url, body) => fetch(url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+      const kept = () => new Promise((ok) => { const r = indexedDB.open("irender-records"); r.onsuccess = () => { const tx = r.result.transaction("records"), st = tx.objectStore("records"), out = {}; const k = st.getAllKeys(), v = st.getAll(); tx.oncomplete = () => { k.result.forEach((key, i) => (out[key.split("\u0001")[0]] = (out[key.split("\u0001")[0]] ?? 0) + 1)); r.result.close(); ok(out); }; }; });
+      try {
+        await until(() => S().p && S().c);
+        // Offline: shown at once, queued, two edits as one, kept on the device.
+        await fetch("/down");
+        const a = await patch("/people/p1", { name: "Ana B" });
+        // Until the dropped connection has failed (Firefox takes a while): a change being
+        // sent can't take another.
+        await until(() => S().pw[0]?.status === "waiting");
+        await patch("/people/p1", { phone: "222" });
+        await until(() => S().p.phone === "222" && S().pw[0]?.changes.phone && S().pw[0]?.status === "waiting");
+        log("offline", a.queued, S().p.name, S().p.phone, S().pw.length, S().pw[0]?.status, JSON.stringify(S().pw[0]?.changes), (await kept()).w);
+        // Back, with someone else's change to another field: merged, saved.
+        await fetch("/touch"); await fetch("/up");
+        D.flush();
+        await until(async () => !S().pw.length && S().p.version === 3 && !(await kept()).w);
+        log("merged", S().p.name, S().p.phone, S().p.email, S().p.version, (await kept()).w ?? 0);
+        // `ask`: their title and ours, settled by choosing ours.
+        await patch("/cards/c1", { title: "Mine" });
+        await until(() => S().cw[0]?.status === "conflict");
+        log("ask", S().c.title, S().cw[0].fields.map((f) => `${f.field}:${f.mine}/${f.theirs}`).join(), $("#dc").hidden, $("#dc [data-dc-field] span").textContent);
+        $("#dc [data-keep]").click();
+        await until(() => !S().cw.length);
+        log("chose mine", S().c.title, S().c.version, $("#dc").hidden);
+        // Refused: back to what it was, shown until dismissed.
+        await patch("/people/p1", { name: "Nope", bad: true });
+        await until(() => S().pw[0]?.status === "refused");
+        log("refused", S().p.name, S().pw[0].error, S().events.trim(), !$("#dc").hidden);
+        $("#dc [data-dismiss]").click(); await until(() => !S().pw.length); log("dismissed", $("#dc").hidden);
+        // Made here: a temporary id, then the server's.
+        const made = await fetch("/people", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "New" }) }).then((r) => r.json());
+        await until(() => S().events.includes("created"));
+        log("created", made.id.startsWith("tmp-"), JSON.stringify(D.lookup("people", ["p9"])[0].value?.name));
+        // A submit button, through the same queue.
+        $("#save").click();
+        await until(() => S().p.phone === "333" && !S().pw.length);
+        log("submit", S().p.phone, S().p.version);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.id = "result";
+      fetch("/finish");
+    });
+    </script><img src="/hold" alt="" hidden>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    *page.lock().unwrap() = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive_url(&format!("http://127.0.0.1:{port}/")) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "offline true Ana B 222 1 waiting {\"name\":\"Ana B\",\"phone\":\"222\"} 1",
+            "merged Ana B 222 ana@new 3 0",
+            "ask Mine title:Mine/Theirs false Title",
+            "chose mine Mine 3 true",
+            "refused Ana B That isn't allowed refused true",
+            "dismissed true",
+            "created true \"New\"",
+            "submit 333 4",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    // Sent once with the old version (409), then on theirs.
+    assert!(log.iter().any(|q| q.starts_with("PATCH /people/p1") && q.contains("\"version\":1")), "{log:?}");
+    assert!(log.iter().any(|q| q.starts_with("PATCH /people/p1") && q.contains("\"version\":2") && q.contains("Ana B")), "{log:?}");
 }

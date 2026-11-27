@@ -6,9 +6,10 @@
 //! in memory for a while.
 
 use crate::widget;
-use irender_core::{ComponentInfo, Node, PropDef, PropKind};
+use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock};
 use irender_html::{Component, RenderCx, RenderError};
 use serde_json::{Map, Value as Json, json};
+use std::sync::LazyLock;
 
 const SCRIPT: &str = include_str!("data.js");
 
@@ -30,10 +31,10 @@ fn check_keeping(cx: &RenderCx<'_>, node: &Node) -> Result<(), RenderError> {
         Some("device") => {}
         Some(p) => return Err(RenderError::new(node, format!("`persist` is memory or device, got `{p}`"))),
     }
-    if let Some(p) = cx.prop(node, "private").filter(|p| !p.is_null()) {
-        if !p.as_array().is_some_and(|a| a.iter().all(Json::is_string)) {
-            return Err(RenderError::new(node, "`private` is a list of field names, e.g. `[email, phone]`"));
-        }
+    if let Some(p) = cx.prop(node, "private").filter(|p| !p.is_null())
+        && !p.as_array().is_some_and(|a| a.iter().all(Json::is_string))
+    {
+        return Err(RenderError::new(node, "`private` is a list of field names, e.g. `[email, phone]`"));
     }
     Ok(())
 }
@@ -107,6 +108,12 @@ const SOURCE_PROPS: &[PropDef] = &[
     KEEPING[2],
     KEEPING[3],
     PropDef::new("clear", PropKind::Any, "When this becomes true, its records (of `scope`, or every one without) are let go from the device and the page, e.g. `{{ !user }}`"),
+    PropDef::new(
+        "write",
+        PropKind::Any,
+        "Changes made here, also offline: `{ url, create, method, version, conflict }`. A `submit` to `url` (`/api/people/{id}`: PATCH, PUT or POST changes, DELETE deletes) or `create` (POST) changes the record at once and is sent when there's a connection, with the version it was made on: `If-Match` with the record's ETag (`version: etag`, default), or a field (`version: version`) sent in the body too. A 409 or 412 is settled by `conflict`: `merge` (default: both sides' changes, asking only about a field both changed), `server-wins`, `client-wins` or `ask`",
+    ),
+    PropDef::new("bindWrites", PropKind::StateKey, "State key that gets this source's changes not yet saved: `[{ id, record, kind, status, error, changes, fields }]`, status waiting, sending, conflict or refused"),
 ];
 
 impl Component for DataSource {
@@ -123,8 +130,29 @@ impl Component for DataSource {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let config = widget::config(cx, node, &["scope", "clear"], &["name", "key", "batch", "one", "pick", "ttl", "concurrency", "wait", "headers", "persist", "private", "retain"], &[])?;
+        let config = widget::config(cx, node, &["scope", "clear"], &["name", "key", "batch", "one", "pick", "ttl", "concurrency", "wait", "headers", "persist", "private", "retain", "write"], &["bindWrites"])?;
         check_keeping(cx, node)?;
+        if let Some(w) = config.get("write") {
+            let Json::Object(w) = w else { return Err(RenderError::new(node, "`write` is `{ url, create, method, version, conflict }`")) };
+            if !w.contains_key("url") && !w.contains_key("create") {
+                return Err(RenderError::new(node, "`write` needs `url` (with `{id}`) or `create`"));
+            }
+            if let Some(u) = w.get("url") {
+                check(cx, node, "write.url", u)?;
+                if !u.as_str().is_some_and(|u| u.contains("{id}")) {
+                    return Err(RenderError::new(node, "`write.url` needs `{id}` where the id goes, e.g. `/api/people/{id}`"));
+                }
+            }
+            if let Some(u) = w.get("create") {
+                check(cx, node, "write.create", u)?;
+            }
+            if let Some(c) = w.get("conflict").and_then(Json::as_str).filter(|c| !["merge", "server-wins", "client-wins", "ask"].contains(c)) {
+                return Err(RenderError::new(node, format!("`write.conflict` is merge, server-wins, client-wins or ask, got `{c}`")));
+            }
+            if let Some(m) = w.get("method").and_then(Json::as_str).filter(|m| !["PATCH", "PUT", "POST"].contains(&m.to_ascii_uppercase().as_str())) {
+                return Err(RenderError::new(node, format!("`write.method` is PATCH, PUT or POST, got `{m}`")));
+            }
+        }
         if !config.get("name").and_then(Json::as_str).is_some_and(|n| !n.is_empty()) {
             return Err(RenderError::new(node, "`ui-data-source` needs `name`"));
         }
@@ -232,5 +260,44 @@ impl Component for DataQuery {
         cx.open(&el, node)?;
         cx.close("div");
         Ok(())
+    }
+}
+
+// ---------------------------------------------------------------- conflicts
+
+pub struct DataConflicts;
+
+const CONFLICT_PROPS: &[PropDef] = &[
+    PropDef::new("source", PropKind::String, "Only this `ui-data-source`'s (default every one's)"),
+    PropDef::new("labels", PropKind::Any, "Fields' names to show, e.g. `{ phone: Phone }` (default the field)"),
+    PropDef::new("nameField", PropKind::String, "The record's field that names it, e.g. `name` (default its id)"),
+    PropDef::new("title", PropKind::Any, "Default `Changed by someone else`"),
+    PropDef::new("emptyText", PropKind::Any, "Shown when there's nothing to settle (default: it hides)"),
+];
+
+static CONFLICTS: LazyLock<StyleBlock> = LazyLock::new(|| {
+    widget::device(widget::column(gap!(10), "100%"))
+        .nest("& [data-dc-field]", widget::pairs(&[("display", "grid"), ("grid-template-columns", "minmax(80px, auto) 1fr 1fr"), ("gap", gap!(8)), ("align-items", "center"), ("padding", pad!(6, 0)), ("border-top", "1px solid var(--color-border)")]))
+        .nest("& [data-dc-field] label", widget::pairs(&[("display", "flex"), ("gap", gap!(6)), ("align-items", "center"), ("min-width", "0"), ("overflow-wrap", "anywhere"), ("cursor", "pointer")]))
+        .nest("& [data-dc-field] small", widget::pairs(&[("color", crate::MUTED), ("font-size", fs!(12))]))
+});
+
+impl Component for DataConflicts {
+    fn name(&self) -> &'static str {
+        "ui-data-conflicts"
+    }
+    fn info(&self) -> ComponentInfo {
+        ComponentInfo {
+            doc: "Changes made here that the server changed too, to settle field by field (yours or theirs), and changes it refused, to dismiss: for a `ui-data-source` with `write` and `conflict: ask` (or a field both changed with `merge`).",
+            props: CONFLICT_PROPS,
+            parts: &[],
+            children: false,
+            open_props: false,
+        }
+    }
+    fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
+        let config = widget::config(cx, node, &["title", "emptyText"], &["source", "labels", "nameField"], &[])?;
+        scripts(cx);
+        widget::drawn(cx, node, "div", &CONFLICTS, "ui-data-conflicts", config, vec![("hidden", irender_core::Val::Lit(json!(true)))])
     }
 }

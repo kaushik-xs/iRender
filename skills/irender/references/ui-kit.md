@@ -74,6 +74,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-file-browser` | `bind` (required), `bindFolder`, `bindSelection`, `bindOpen`, `url`, `uploadUrl`, `view` (grid, list), `editable` (default true), `rootLabel`, `height`, `locale`, `label`, `id` | Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu. See below. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
 | `ui-data-source` | `name` (required), `key`, `batch`, `one`, `pick`, `ttl`, `concurrency`, `wait`, `headers` | Says how one kind of record is fetched by id (many in one call, or one at a time), for `expand`. Draws nothing. See [Data sources](#data-sources). |
+| `ui-data-conflicts` | `source`, `labels`, `nameField`, `title`, `emptyText` | Changes made here that the server changed too, to settle field by field, and refused ones to dismiss. See [Data sources](#data-sources). |
 | `ui-data-query` | `into` (required), `url`, `params`, `pick`, `source`, `ids`, `expand`, `status`, `refresh`, `paused`, `headers` | Fills a state key with rows from an API, or records by id, joined to the records they name. Draws nothing. See [Data sources](#data-sources). |
 | `ui-virtual-list` | `items` (required), `itemKey`, `height` (default 400), `itemHeight` (default 40), `gap`, `bindRange`, `endThreshold` (default 10), `emptyText`, `label` | A long list that keeps only the items in view in the page; children are each item, with `item` and `index` in scope. See below. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
@@ -1185,6 +1186,19 @@ The fields named in `private` are kept only encrypted (AES-GCM), with a key a `u
 ```
 
 A 403, 404 or 410 means it's gone or no longer theirs: a query's rows are emptied and what it kept goes, and a source's record is dropped, on the device too. A 401 leaves everything as it is and fires `unauthorized` on the query, for the page to sign in again or `clear`.
+
+**Changes, also offline.** A source with `write` takes over a `submit` (or any fetch) to its records' address: PATCH or PUT to `write.url` (`/api/people/{id}`) changes a record, DELETE deletes it, and POST to `write.create` makes one (with a temporary id, `tmp-…`, until the server answers with its own; `created` fires with both). The record changes at once, in memory and on the device, joined rows show `$pending.<name>`, and the `submit` gets `202 { queued, id, record }` straight away. The change waits in a queue of its own (on the device, with the source's private fields sealed; without a key, in memory only) and is sent in order as soon as there's a connection, edits to one record still waiting going as one. It's sent with the version it was made on: `If-Match` with the record's ETag (`version: etag`, the default), or a field of the record (`version: version`), sent in the body too.
+
+A server that changed the record meanwhile answers 409 or 412, with the record as it is now (else it's fetched with `one`), and `write.conflict` settles it: `merge` (default) puts your changes on top of theirs and sends them again on their version, unless a field was changed on both sides, which waits for someone to choose; `server-wins` drops yours; `client-wins` sends yours again regardless; `ask` always waits. Three clashes in a row on one change wait too. `ui-data-conflicts` lists what's waiting, field by field (yours or theirs, with `labels` and `nameField` to name them), and changes the server refused (any other 4xx), which have been put back as they were, to dismiss. `bindWrites` has the source's changes not yet saved, and `saved`, `conflict`, `refused` and `created` fire on the source. 5xx, 408 and 429 are tried again later, longer each time.
+
+```yaml
+- type: ui-data-source
+  props: { name: patients, one: "/api/patients/{id}", persist: device, scope: "{{ user.id }}", write: { url: "/api/patients/{id}", version: version }, bindWrites: unsaved }
+- type: ui-button
+  props: { label: Save }
+  on: { click: { action: submit, endpoint: "/api/patients/{{ picked }}", method: PATCH, body: { phone: "{{ phone }}" } } }
+- { type: ui-data-conflicts, props: { source: patients, nameField: name, labels: { phone: Phone } } }
+```
 
 How far the encryption goes: a PIN of four to eight digits is quick to try every one of on a copied disk, PBKDF2 or not, so a PIN-wrapped key keeps people's details from someone who picks up the device or reads its backups, not from someone with time and the disk. A passkey's PRF is the stronger key. While the app's unlocked, the page itself (and any script on it) can read them, as with anything the page shows.
 

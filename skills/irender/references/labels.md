@@ -545,6 +545,19 @@ root: …
 "Move {name}": "Move {name}"
 ```
 
+`data.js`
+
+```yaml
+"{name} wasn't saved": "{name} wasn't saved"
+"Dismiss": "Dismiss"
+"Yours": "Yours"
+"Theirs": "Theirs"
+"Changed by someone else": "Changed by someone else"
+"They changed it while you did. Pick what to keep.": "They changed it while you did. Pick what to keep."
+"Save": "Save"
+"Keep theirs": "Keep theirs"
+```
+
 `data_table.js`
 
 ```yaml

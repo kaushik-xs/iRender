@@ -15,7 +15,8 @@ if (args.includes("--version")) {
 const flag = (name, fallback) => (args.find((a) => a.startsWith(`--${name}=`)) ?? `=${fallback}`).split("=")[1];
 const url = args.find((a) => !a.startsWith("--"));
 const [width, height] = flag("window-size", "1000,900").split(",").map(Number);
-const budget = Number(flag("virtual-time-budget", 10000));
+// Chrome's virtual time, or a page driven in real time, its `--timeout`.
+const budget = Number(flag("virtual-time-budget", flag("timeout", 10000)));
 const engine = process.env.BROWSER ?? "webkit";
 if (!["webkit", "firefox", "chromium"].includes(engine)) {
   console.error(`BROWSER must be webkit, firefox or chromium, not ${engine}`);
@@ -31,7 +32,8 @@ if (!["webkit", "firefox", "chromium"].includes(engine)) {
     reducedMotion: args.includes("--force-prefers-reduced-motion") ? "reduce" : "no-preference",
   });
   page.on("pageerror", (e) => console.error(`pageerror: ${e.message}`));
-  await page.goto(url);
+  // Not waiting for `load`: a page may hold it until its driver's done (see `drive_url`).
+  await page.goto(url, { waitUntil: "domcontentloaded" });
   // Chrome's virtual time skips waits; here they take real time, so allow the budget and some slack.
   // A driver that never writes #result still gets its DOM printed, and the test reports it.
   await page.waitForSelector("#result", { state: "attached", timeout: budget + 15000 }).catch(() => {});
