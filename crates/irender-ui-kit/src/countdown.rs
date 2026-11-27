@@ -21,6 +21,9 @@ const PROPS: &[PropDef] = &[
     PropDef::new("format", PropKind::Enum(&["units", "clock"]), "`units` (default: `2d 4h`, `13m 05s`) or `clock` (`2:04:13`, `3d 02:04:13`)"),
     PropDef::new("variant", PropKind::Enum(&["inline", "tiles"]), "`inline` (default: text with a dot in its tone) or `tiles` (days, hours, minutes and seconds in boxes)"),
     PropDef::new("paused", PropKind::Any, "While true (e.g. `{{ ticket.status == 'waiting' }}`), the time left stands still and it says Paused; on resuming the deadline moves out by the pause. A new `to` from the page replaces the moved one"),
+    PropDef::new("workdays", PropKind::Any, "Count working time only: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`"),
+    PropDef::new("hours", PropKind::Any, "Working hours each working day, e.g. `09:00-17:30` (local time); outside them it stands still. Alone, every day works"),
+    PropDef::new("holidays", PropKind::Any, "Dates that don't count either, e.g. `[\"2026-12-25\"]`"),
     PropDef::new("bindLeft", PropKind::StateKey, "State key that gets the seconds left (below zero once overdue), every second"),
     PropDef::new("bindStatus", PropKind::StateKey, "State key that gets `ok`, `warning`, `danger` or `over` as it changes"),
     PropDef::new("label", PropKind::Any, "What it counts down to, for screen readers, e.g. `First reply due`"),
@@ -37,7 +40,7 @@ static COUNTDOWN: LazyLock<StyleBlock> = LazyLock::new(|| {
             .nest("& [data-cd-dot]", pairs(&[("flex", "none"), ("width", "8px"), ("height", "8px"), ("border-radius", "50%"), ("background", "var(--tone)")]))
             .nest("&[data-status=over] [data-cd-dot], &[data-status=danger] [data-cd-dot]", pairs(&[("animation", "ui-cd-pulse 1.2s ease-in-out infinite")]))
             // Paused: still, and muted, whatever the time left.
-            .nest("&[data-paused] [data-cd-dot]", pairs(&[("animation", "none"), ("background", MUTED)]))
+            .nest("&:is([data-paused], [data-closed]) [data-cd-dot]", pairs(&[("animation", "none"), ("background", MUTED)]))
             .nest("&:not([data-status=ok]) [data-cd-text]", pairs(&[("color", "color-mix(in srgb, var(--tone) 85%, var(--color-text))"), ("font-weight", "var(--font-weight-medium, 500)")]))
             .nest(
                 "& [data-cd-bar]",
@@ -118,7 +121,7 @@ impl Component for Countdown {
     }
 
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["to", "from", "paused"], &["format", "variant"], &["bindLeft", "bindStatus"])?;
+        let mut config = widget::config(cx, node, &["to", "from", "paused"], &["format", "variant", "workdays", "holidays"], &["bindLeft", "bindStatus"])?;
         let mut limit = |name: &str| -> Result<Option<f64>, RenderError> {
             match cx.prop(node, name).filter(|v| !v.is_null()) {
                 Some(v) => {
@@ -134,6 +137,18 @@ impl Component for Countdown {
             && d > w
         {
             return Err(RenderError::new(node, "`danger` comes after `warn`: it must be the shorter time left"));
+        }
+        if let Some(h) = cx.prop(node, "hours").filter(|v| !v.is_null()) {
+            config.insert("hours".into(), json!(hours(node, &expr::stringify(&h))?));
+        }
+        if let Some(d) = config.get("workdays").filter(|d| !matches!(d, Json::Bool(_))) {
+            let ok = d.as_array().is_some_and(|l| !l.is_empty() && l.iter().all(|n| n.as_f64().is_some_and(|n| n.fract() == 0.0 && (0.0..=6.0).contains(&n))));
+            if !ok {
+                return Err(RenderError::new(node, "`workdays` must be `true` or weekdays from 0 (Sunday) to 6, e.g. `[1, 2, 3, 4, 5]`"));
+            }
+        }
+        if config.get("holidays").is_some_and(|h| !h.is_array()) {
+            return Err(RenderError::new(node, "`holidays` must be a list of dates, e.g. `[\"2026-12-25\"]`"));
         }
         config.insert("overdue".into(), json!(widget::flag(cx, node, "overdue", true)));
         config.insert("endText".into(), json!(cx.prop(node, "endText").filter(|v| !v.is_null()).map_or_else(|| cx.label("Time's up"), |v| expr::stringify(&v))));
@@ -199,5 +214,20 @@ impl Component for Countdown {
         cx.close("span");
         cx.close("div");
         Ok(())
+    }
+}
+
+/// `hours` as minutes into the day it starts and ends, `09:00-17:30` → `[540, 1050]`.
+fn hours(node: &Node, h: &str) -> Result<[u32; 2], RenderError> {
+    let bad = || RenderError::new(node, format!("`hours` must be a start and an end in a day, e.g. `09:00-17:30`, not `{h}`"));
+    let at = |t: &str| -> Option<u32> {
+        let (a, b) = t.trim().split_once(':')?;
+        let (a, b): (u32, u32) = (a.parse().ok()?, b.parse().ok()?);
+        (b < 60 && (a < 24 || (a == 24 && b == 0)) && b.to_string().len() <= 2).then_some(a * 60 + b)
+    };
+    let (a, b) = h.split_once(['-', '–']).ok_or_else(bad)?;
+    match (at(a), at(b)) {
+        (Some(a), Some(b)) if a < b => Ok([a, b]),
+        _ => Err(bad()),
     }
 }

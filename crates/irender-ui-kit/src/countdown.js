@@ -4,6 +4,7 @@
 // goes to `bindStatus` and is said once when it changes; the seconds left go to
 // `bindLeft`. At zero it fires `end`. Past it, it counts up as overdue, or shows `endText`.
 // While `paused`, the time left stands still; resumed, the deadline moves out by the pause.
+// With `workdays`, `hours` or `holidays` it counts working time only, still outside it.
 (window.__irenderBehaviors ||= {})["ui-countdown"] = (el, api) => {
   const cfg = api.config, K = window.__irenderKit, L = (t, v) => window.__irender.label(t, v);
   const text = el.querySelector("[data-cd-text]"), bar = el.querySelector("[data-cd-bar]");
@@ -51,6 +52,30 @@
     return out.join(" ");
   }
 
+  // Working time: the weekdays, the minutes of the day and the dates off; null when every
+  // second counts.
+  const ALL = [0, 1, 2, 3, 4, 5, 6];
+  const cal = cfg.workdays || cfg.hours || cfg.holidays?.length
+    ? { days: new Set(cfg.workdays === true ? [1, 2, 3, 4, 5] : Array.isArray(cfg.workdays) ? cfg.workdays : ALL), hours: cfg.hours ?? [0, 1440], off: new Set((cfg.holidays ?? []).map(String)) }
+    : null;
+  const ymd = (d) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+  // Working milliseconds from `a` to `b`, below zero when `b` is earlier; local days.
+  function worked(a, b) {
+    if (b < a) return -worked(b, a);
+    let sum = 0;
+    const d = new Date(a);
+    d.setHours(0, 0, 0, 0);
+    for (let n = 0; d.getTime() < b && n < 3700; n++) {
+      if (cal.days.has(d.getDay()) && !cal.off.has(ymd(d))) {
+        const start = new Date(d).setHours(0, cal.hours[0]), end = new Date(d).setHours(0, cal.hours[1]);
+        sum += Math.max(0, Math.min(end, b) - Math.max(start, a));
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return sum;
+  }
+  const span = (a, b) => (cal ? worked(a, b) : b - a);
+
   let status = null, lastLeft;
   // Pauses on this page: since when (while paused), and how long in all, which a new `to`
   // (the page's own, with the pause in it) clears.
@@ -69,9 +94,14 @@
       text.textContent = "";
       return;
     }
-    const left = Math.round((to - now) / 1000), s = Math.abs(left);
+    const left = Math.round(span(now, to) / 1000), s = Math.abs(left);
+    // Out of hours: standing still until work starts again.
+    const shut = !!cal && !paused && worked(now, now + 1) === 0;
+    el.toggleAttribute("data-closed", shut);
     // The deadline as it now falls, moved out by the pauses.
     const due = to + (real - now);
+    // Labels: "Out of hours"
+    const why = paused ? L("Paused") : shut ? L("Out of hours") : null;
     const next = left <= 0 ? "over" : cfg.danger !== undefined && left <= cfg.danger ? "danger" : cfg.warn !== undefined && left <= cfg.warn ? "warning" : "ok";
     el.setAttribute("data-status", next);
     el.setAttribute("data-tone", { ok: "neutral", warning: "warning", danger: "danger", over: "danger" }[next]);
@@ -80,17 +110,18 @@
     else if (cfg.overdue) text.textContent = L("{time} overdue", { time: shown });
     else text.textContent = cfg.endText;
     // Labels: "Paused"
-    if (paused) text.textContent = `${text.textContent} · ${L("Paused")}`;
+    if (why) text.textContent = `${text.textContent} · ${why}`;
     if (tiles) {
       const v = Math.max(0, left), n = { days: Math.floor(v / 86400), hours: Math.floor(v / 3600) % 24, minutes: Math.floor(v / 60) % 60, seconds: v % 60 };
       for (const t of tiles.querySelectorAll("[data-cd-tile]")) t.querySelector("b").textContent = p2(n[t.getAttribute("data-cd-tile")]);
       if (left <= 0) text.textContent = cfg.overdue ? L("{time} overdue", { time: shown }) : cfg.endText;
-      if (paused) text.textContent = left > 0 ? L("Paused") : `${text.textContent} · ${L("Paused")}`;
+      if (why) text.textContent = left > 0 ? why : `${text.textContent} · ${why}`;
     }
     text.setAttribute("datetime", new Date(due).toISOString());
     const said = left > 0 ? L("{time} left", { time: spoken(s) }) : cfg.overdue ? L("{time} overdue", { time: spoken(s) }) : cfg.endText;
-    el.setAttribute("aria-description", paused ? `${said}, ${L("paused")}` : said);
-    if (bar && from !== null && to > from) el.style.setProperty("--used", String(Math.min(100, Math.max(0, ((now - from) / (to - from)) * 100))));
+    // Labels: "out of hours"
+    el.setAttribute("aria-description", paused ? `${said}, ${L("paused")}` : shut ? `${said}, ${L("out of hours")}` : said);
+    if (bar && from !== null && to > from) el.style.setProperty("--used", String(Math.min(100, Math.max(0, (span(from, now) / (span(from, to) || 1)) * 100))));
     if (bar) requestAnimationFrame(() => el.setAttribute("data-cd-ready", ""));
     // Noted before it's written: writing it calls `update`, which draws again.
     if (left !== lastLeft) {

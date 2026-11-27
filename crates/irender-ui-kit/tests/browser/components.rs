@@ -272,6 +272,42 @@ root:
     );
 }
 
+/// `ui-countdown` in working time, on a clock that starts two seconds before 5pm on a
+/// Wednesday (local time).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn countdown_counts_working_hours() {
+    let Some(result) = run_with(
+        "countdown-hours",
+        r##"
+state: { left: null, wide: null }
+root:
+  type: stack
+  children:
+    - { type: ui-countdown, attrs: { id: c }, props: { to: "2026-12-03T09:30", from: "2026-12-02T15:00", workdays: true, hours: "09:00-17:00", bindLeft: left } }
+    - { type: ui-countdown, attrs: { id: w }, props: { to: "2026-12-07T10:00", workdays: true, hours: "09:00-17:00", holidays: ["2026-12-04"], bindLeft: wide } }
+"##,
+        r##"
+        const c = $("#c"), text = (n) => $("[data-cd-text]", n).textContent, used = () => Math.round(parseFloat(c.style.getPropertyValue("--used")));
+        // Two seconds today and half an hour tomorrow; the bar has two hours of 2h 30m used.
+        log(S().left, text(c), c.hasAttribute("data-closed"), used());
+        // Thursday's eight hours and Monday's one; Friday's a holiday, the weekend doesn't work.
+        log(S().wide, text($("#w")));
+        // At five it stands still until nine tomorrow.
+        await until(() => Date.now() >= Date.parse("2026-12-02T17:00:01")); await wait(1100);
+        log(S().left, text(c), c.hasAttribute("data-closed"), c.getAttribute("aria-description"));
+"##,
+        r#"<script>{ const start = Date.now(), at = Date.parse("2026-12-02T16:59:58"), now = Date.now.bind(Date); Date.now = () => at + (now() - start); }</script>"#,
+    ) else {
+        return;
+    };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["1802 30m 02s false 80", "32402 9h 0m", "1800 30m 00s · Out of hours true 30 minutes left, out of hours"],
+        "\n{result}"
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn stepper_keeps_the_furthest_step_reached() {

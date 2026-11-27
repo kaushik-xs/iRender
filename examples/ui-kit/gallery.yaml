@@ -2539,6 +2539,11 @@ root:
                         - { type: ui-label, props: { text: "Paused while waiting on the customer" } }
                         - { type: ui-countdown, props: { to: +2h, warn: 1h, paused: "{{ cdWaiting }}", label: Resolution due } }
                         - { type: ui-switch, props: { bind: cdWaiting, label: Waiting on customer } }
+                    - type: stack
+                      props: { gap: 6 }
+                      children:
+                        - { type: ui-label, props: { text: "In working hours only (Monday to Friday, 9 to 5)" } }
+                        - { type: ui-countdown, props: { to: +3d, warn: 4h, workdays: true, hours: "09:00-17:00", label: Resolution due } }
                 - { type: ui-countdown, props: { to: +12d 5h 42m, variant: tiles, label: Launch } }
                 - { type: if, props: { when: "{{ api.countdown.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list

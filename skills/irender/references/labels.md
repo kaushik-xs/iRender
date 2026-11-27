@@ -492,7 +492,9 @@ root: …
 "{n}h": "{n}h"
 "{n}m": "{n}m"
 "{n}s": "{n}s"
+"Out of hours": "Out of hours"
 "Paused": "Paused"
+"out of hours": "out of hours"
 "{n} days": { one: "{n} day", other: "{n} days" }
 "{n} hours": { one: "{n} hour", other: "{n} hours" }
 "{n} minutes": { one: "{n} minute", other: "{n} minutes" }
