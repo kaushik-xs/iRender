@@ -147,6 +147,10 @@ window.__irenderTableEdit = (t) => {
   handle.setAttribute("aria-hidden", "true");
   scroller.append(handle);
   let filling = null;
+  // The table, and the corner's cell: columns sharing out a full-width table change the cell.
+  const sized = typeof ResizeObserver === "function" ? new ResizeObserver(() => placeHandle()) : null;
+  sized?.observe(table);
+  let watched = null;
   function draw() {
     validate();
     const rows = t.data(), changed = changes(), ks = shownKeys();
@@ -181,13 +185,21 @@ window.__irenderTableEdit = (t) => {
       place(tip, td, td.offsetHeight);
     }
     if (open) placeEditor();
-    // On the last picked cell's corner, while the cells have the focus.
-    const end = r && cellAt(r.r1, r.ks[r.c1]);
+    placeHandle();
+  }
+  // The fill handle on the last picked cell's corner, while the cells have the focus. Placed
+  // again whenever the table's size changes (columns settling as fonts load, say).
+  function placeHandle() {
+    const r = range(), end = r && cellAt(r.r1, r.ks[r.c1]);
     handle.hidden = !end || !!open || (!filling && !el.contains(document.activeElement)) || ![...Array(r.c1 - r.c0 + 1)].some((_, x) => columns.has(r.ks[r.c0 + x]));
-    if (!handle.hidden) {
-      place(handle, end, end.offsetHeight);
-      handle.style.left = parseFloat(handle.style.left) + end.offsetWidth + "px";
+    if (handle.hidden) return;
+    if (sized && watched !== end) {
+      if (watched) sized.unobserve(watched);
+      sized.observe((watched = end));
     }
+    const a = place(handle, end, 0);
+    handle.style.left = parseFloat(handle.style.left) + a.width + "px";
+    handle.style.top = parseFloat(handle.style.top) + a.height + "px";
   }
   // Over a cell, in the scroll area's own coordinates, so it scrolls with the rows.
   function place(n, td, below = 0) {

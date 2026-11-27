@@ -767,6 +767,10 @@ root:
         log(h().hidden); cell(0, "size").click(); await wait(20);
         const c0 = cell(0, "size").getBoundingClientRect(), hb = h().getBoundingClientRect();
         log(h().hidden, Math.round(hb.left + 5 - c0.right), Math.round(hb.top + 5 - c0.bottom));
+        // The columns widen after it's placed (as when fonts load late): it follows the corner.
+        cell(0, "size").style.paddingInlineEnd = "120px"; await until(() => Math.abs(h().getBoundingClientRect().left + 5 - cell(0, "size").getBoundingClientRect().right) < 1).catch(() => {});
+        const c1 = cell(0, "size").getBoundingClientRect(), hb1 = h().getBoundingClientRect();
+        log(c1.right > c0.right, Math.round(hb1.left + 5 - c1.right), Math.round(hb1.top + 5 - c1.bottom)); cell(0, "size").style.paddingInlineEnd = ""; await wait(30);
         // Two picked, dragged down three rows: they repeat; then the whole lot is picked.
         key("ArrowDown", { shiftKey: true }); await wait(20);
         log(await drag(4), sizes(), $$("td[data-dt-in]").length);
@@ -775,7 +779,7 @@ root:
         cell(4, "size").click(); key("ArrowDown", { shiftKey: true }); await wait(20);
         log(await drag(2), sizes());
 "##,
-        &["true", "false 0 0", "3 S,M,S,M,S,- 5", "undo S,M,L,XL,XXL,-", "2 S,M,XXL,-,XXL,-"],
+        &["true", "false 0 0", "true 0 0", "3 S,M,S,M,S,- 5", "undo S,M,L,XL,XXL,-", "2 S,M,XXL,-,XXL,-"],
     );
 }
 
