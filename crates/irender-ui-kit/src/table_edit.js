@@ -148,7 +148,9 @@ window.__irenderTableEdit = (t) => {
   scroller.append(handle);
   let filling = null;
   // The table, and the corner's cell: columns sharing out a full-width table change the cell.
-  const sized = typeof ResizeObserver === "function" ? new ResizeObserver(() => placeHandle()) : null;
+  // Placed in the next frame, not in the observer's own turn, which placing would make loop.
+  let queued = 0;
+  const sized = typeof ResizeObserver === "function" ? new ResizeObserver(() => (queued ||= requestAnimationFrame(() => ((queued = 0), placeHandle())))) : null;
   sized?.observe(table);
   let watched = null;
   function draw() {

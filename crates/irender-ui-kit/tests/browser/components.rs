@@ -764,11 +764,13 @@ root:
           const marked = $$("td[data-dt-fill-to]").length; pointer("pointerup", x, to, h()); await wait(30); return marked;
         };
         // No handle until a cell has the focus; then it's on the cell's corner.
-        log(h().hidden); cell(0, "size").click(); await wait(20);
+        // It may settle a frame later, once the columns have.
+        const onCorner = () => Math.abs(h().getBoundingClientRect().left + 5 - cell(0, "size").getBoundingClientRect().right) < 1;
+        log(h().hidden); cell(0, "size").click(); await until(onCorner).catch(() => {});
         const c0 = cell(0, "size").getBoundingClientRect(), hb = h().getBoundingClientRect();
         log(h().hidden, Math.round(hb.left + 5 - c0.right), Math.round(hb.top + 5 - c0.bottom));
         // The columns widen after it's placed (as when fonts load late): it follows the corner.
-        cell(0, "size").style.paddingInlineEnd = "120px"; await until(() => Math.abs(h().getBoundingClientRect().left + 5 - cell(0, "size").getBoundingClientRect().right) < 1).catch(() => {});
+        cell(0, "size").style.paddingInlineEnd = "120px"; await until(onCorner).catch(() => {});
         const c1 = cell(0, "size").getBoundingClientRect(), hb1 = h().getBoundingClientRect();
         log(c1.right > c0.right, Math.round(hb1.left + 5 - c1.right), Math.round(hb1.top + 5 - c1.bottom)); cell(0, "size").style.paddingInlineEnd = ""; await wait(30);
         // Two picked, dragged down three rows: they repeat; then the whole lot is picked.
