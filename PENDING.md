@@ -195,7 +195,7 @@ _Last updated: 2026-11-26._
   - [x] Code blocks are highlighted, with a copy button, in messages and everywhere else `ui-markdown` shows Markdown, and in the editor's preview (2026-11-19). Not in the rich text editor itself, where the code stays plain while you edit it; and a streamed reply's fence is highlighted again on each chunk.
   - [x] Sources under a message and `[1]`s that show them (`ui-sources`, 2026-11-22). Not done yet: citations inside a message's Markdown, and footnotes.
   - [x] Unfinished Markdown in a streamed reply (2026-11-22): the message is `streaming` while it arrives, and formatting left open at its end (`**`, code spans, links, a table's first row) shows as it will once closed. Not done yet: a mark right after a letter or digit waits until it closes (so `2*3` isn't emphasis), and the server's render of a `streaming` message isn't finished.
-  - [ ] A streamed reply re-renders its whole Markdown on each chunk.
+  - [x] A streamed reply draws only its last, unfinished block for each chunk (2026-11-27), and the whole once it's done. A list or table still arriving is drawn again whole with each chunk.
   - [ ] A message's `html` (and `ui`) is kept in state and in an attribute, so long conversations with UI are heavy, and it goes back to the endpoint with `messages`.
 - [ ] **irender-wasm:**
   - [ ] Not built or run as WebAssembly yet: this machine's Rust (Homebrew) has no `wasm32-unknown-unknown` target. Its render function and exports are tested natively, and the page's loader against a hand-made module with the same exports; build it once rustup is installed, measure its size, and run the chat block with it.

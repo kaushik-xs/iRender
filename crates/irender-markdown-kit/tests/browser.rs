@@ -830,3 +830,40 @@ fn streaming_markdown_in_chrome() {
         "\n{result}"
     );
 }
+
+/// While streaming, the blocks already finished keep their nodes: a chunk draws only the
+/// block still arriving, and the whole text is drawn once more when it's done.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn streaming_markdown_keeps_finished_blocks_in_chrome() {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return;
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "text": "", "busy": true },
+        "root": { "type": "ui-markdown", "props": { "text": "{{ text }}", "streaming": "{{ busy }}" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = [];
+      const frame = () => new Promise((r) => setTimeout(r, 20));
+      try {
+        const root = document.querySelector("[data-i-root]"), el = document.querySelector("[data-markdown]");
+        const tags = () => [...el.children].map((n) => n.tagName.toLowerCase() + (n.hasAttribute("data-fence") ? "[fence]" : "")).join(",");
+        let text = "";
+        const add = async (t) => { text += t; root.__irender.set("text", text); await frame(); };
+        await add("# Plan\n\nFirst we **ag"); const h1 = el.querySelector("h1"); out.push(tags());
+        await add("ree** on it.\n\n```sh\nmake"); const p = el.querySelector("p");
+        await add(" test\n```\n\nThen sh"); const fence = el.querySelector("[data-fence]");
+        out.push(tags(), el.querySelector("h1") === h1, el.querySelector("p") === p);
+        // Each chunk inside the last block leaves the rest alone.
+        await add("ip it"); out.push(el.querySelector("h1") === h1, el.querySelector("[data-fence]") === fence, el.lastElementChild.textContent);
+        // Done: one whole drawing, as the server would make it.
+        root.__irender.set("busy", false); await frame(); out.push(tags(), el.querySelector("h1") === h1);
+      } catch (e) { out.push("EXCEPTION " + e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let result = run(&chrome, &page(doc, driver));
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["h1,p", "h1,p,div[fence],p", "true", "true", "true", "true", "Then ship it", "h1,p,div[fence],p", "false"], "\n{result}");
+}
