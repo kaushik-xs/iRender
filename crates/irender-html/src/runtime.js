@@ -79,6 +79,11 @@
       const rest = items.filter((x) => !eq(x, v));
       return rest.length === items.length ? [...items, v] : rest;
     },
+    // Halves away from zero, as Rust's `f64::round`.
+    round: ([x, d]) => {
+      const n = Number.isFinite(toNum(x)) ? toNum(x) : 0, k = Math.min(10, Math.max(0, Math.trunc(Number.isFinite(toNum(d)) ? toNum(d) : 0))), p = 10 ** k;
+      return fin((Math.round(Math.abs(n) * p) / p) * (Math.sign(n) || 1));
+    },
   };
 
   // Evaluates the compact expression JSON produced by `Expr::to_js` against `state`.

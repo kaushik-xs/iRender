@@ -19,7 +19,9 @@ const PROPS: &[PropDef] = &[
     PropDef::new("min", PropKind::Number, "The dial's start (default 0)"),
     PropDef::new("max", PropKind::Number, "The dial's end (default 100)"),
     PropDef::new("unit", PropKind::Any, "After the figure, smaller, e.g. `%` or `°C`"),
-    PropDef::new("text", PropKind::Any, "In the middle in place of the value, e.g. a rounded or formatted one; empty for none"),
+    PropDef::new("text", PropKind::Any, "In the middle in place of the value, e.g. a formatted one; empty for none"),
+    PropDef::new("decimals", PropKind::Number, "The figure rounded to this many decimals, 0–10 (also when it follows state)"),
+    PropDef::new("ticks", PropKind::Number, "Marks dividing the dial into this many equal parts, 2–20"),
     PropDef::new(
         "bands",
         PropKind::Any,
@@ -72,6 +74,7 @@ static GAUGE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&[data-shape=half] [data-target]", pairs(&[("transform", &format!("rotate(calc(-90deg + {T} * 1.8deg))"))]))
         .nest("& [data-needle]", pairs(&[("stroke", "var(--color-text)"), ("fill", "var(--color-text)")]))
         .nest("& [data-target]", pairs(&[("stroke", "var(--color-text)")]))
+        .nest("& [data-tick]", pairs(&[("stroke", "color-mix(in srgb, var(--color-text) 35%, transparent)")]))
         .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("& [data-arc], & [data-needle], & [data-target]", pairs(&[("transition", "none")])))
         .nest(
             "& [data-gauge-value]",
@@ -215,11 +218,24 @@ impl Component for Gauge {
         };
 
         let unit = node.prop("unit").cloned();
+        let decimals = match crate::widget::number(cx, node, "decimals") {
+            Some(d) if !(0.0..=10.0).contains(&d) || d.fract() != 0.0 => return Err(RenderError::new(node, "`decimals` is a whole number from 0 to 10")),
+            d => d,
+        };
+        let ticks = match crate::widget::number(cx, node, "ticks") {
+            Some(t) if !(2.0..=20.0).contains(&t) || t.fract() != 0.0 => return Err(RenderError::new(node, "`ticks` is a whole number of parts from 2 to 20")),
+            t => t.map(|t| t as u32),
+        };
         let text = match node.prop("text") {
             Some(t) => t.clone(),
-            None => match &value {
-                Val::Lit(j) => lit(irender_core::labels::number(cx.labels().lang.as_deref(), expr::to_num(j))),
-                v => v.clone(),
+            None => match (&value, decimals) {
+                (Val::Lit(j), d) => {
+                    let x = expr::to_num(j);
+                    let x = d.map_or(x, |d| expr::to_num(&Expr::Call(irender_core::expr::Func::Round, vec![num(x), num(d)]).eval(&|_| Json::Null)));
+                    lit(irender_core::labels::number(cx.labels().lang.as_deref(), x))
+                }
+                (v, Some(d)) => expr_val(Expr::Call(irender_core::expr::Func::Round, vec![val_expr(v), num(d)])),
+                (v, None) => v.clone(),
             },
         };
         let label = node.prop("label").or_else(|| node.prop("caption")).cloned();
@@ -281,6 +297,20 @@ impl Component for Gauge {
                 color = status::tone_color(&b.tone)
             ));
             from = to;
+        }
+        // Ticks: short marks just inside the dial, at each division.
+        if let Some(k) = ticks {
+            let (inner, outer) = (r - thick / 2.0 - 2.0, r - thick / 2.0 - 2.0 - (thick * 0.6).max(4.0));
+            for i in 0..=k {
+                let a = (a0 + (a1 - a0) * f64::from(i) / f64::from(k)).to_radians();
+                svg.push_str(&format!(
+                    r#"<line data-tick x1="{}" y1="{}" x2="{}" y2="{}" stroke-width="1.5" stroke-linecap="round"/>"#,
+                    n(c + inner * a.cos()),
+                    n(c + inner * a.sin()),
+                    n(c + outer * a.cos()),
+                    n(c + outer * a.sin())
+                ));
+            }
         }
         svg.push_str(&format!(r#"<path data-arc d="{arc}" stroke-width="{t}" pathLength="100"/>"#, t = n(thick)));
         // Turned by CSS about the centre; drawn pointing up.

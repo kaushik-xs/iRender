@@ -43,6 +43,8 @@ fn cases() -> Vec<(&'static str, Json, Json)> {
         "{{ includes(s, 'a') }}", "{{ includes(nil, 1) }}", "{{ includes(list, list.2) }}", "{{ toggle(list, list.2) }}",
         "{{ toggle(list, 1) }}", "{{ toggle(list, 'x') }}", "{{ toggle(nil, n) }}", "{{ toggle(s, 1) }}",
         "{{ toggle(toggle(list, 'two'), 'two') }}",
+        "{{ round(f) }}", "{{ round(2.5) }}", "{{ round(-2.5) }}", "{{ round(f, 1) }}", "{{ round(1234.5678, 2) }}", "{{ round(n / 7, 3) }}",
+        "{{ round(s) }}", "{{ round(nil, 2) }}", "{{ round(3.14159, 20) }}", "{{ round(3.7, -1) }}", "{{ round(num_str, 1) }}", "{{ round(0.1 + 0.2, 2) }}",
         // computed keys
         "{{ obj[key] }}", "{{ obj[key].b[i] }}", "{{ obj[key]['b'][0] }}", "{{ list[i] }}", "{{ list[i + 1].three }}",
         "{{ names[dim] }}", "{{ names[key].short }}", "{{ names[missing] }}", "{{ list[f] }}", "{{ list[neg] }}",

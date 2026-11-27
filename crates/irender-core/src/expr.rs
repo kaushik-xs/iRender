@@ -56,6 +56,10 @@ pub enum Func {
     /// `value` added at the end. Anything not a list counts as empty. For a set of
     /// choices kept in state: `set_state` with `"{{ toggle(tags, 'rust') }}"`.
     Toggle,
+    /// `round(x)` to a whole number, `round(x, digits)` to that many decimals (0 to 10),
+    /// halves away from zero: `round(2.5)` is 3, `round(-2.5)` is -3. Anything not a
+    /// number counts as 0.
+    Round,
 }
 
 /// The most items `range` returns.
@@ -67,6 +71,7 @@ impl Func {
             Func::Range => "range",
             Func::Includes => "includes",
             Func::Toggle => "toggle",
+            Func::Round => "round",
         }
     }
 
@@ -75,6 +80,7 @@ impl Func {
             "range" => Some(Func::Range),
             "includes" => Some(Func::Includes),
             "toggle" => Some(Func::Toggle),
+            "round" => Some(Func::Round),
             _ => None,
         }
     }
@@ -84,6 +90,7 @@ impl Func {
         match self {
             Func::Range => (1, 2),
             Func::Includes | Func::Toggle => (2, 2),
+            Func::Round => (1, 2),
         }
     }
 
@@ -118,6 +125,12 @@ impl Func {
                     list.push(v);
                 }
                 Json::Array(list)
+            }
+            Func::Round => {
+                let x = args.first().map(to_num).filter(|n| n.is_finite()).unwrap_or(0.0);
+                let d = args.get(1).map(to_num).filter(|n| n.is_finite()).unwrap_or(0.0).trunc().clamp(0.0, 10.0);
+                let p = 10f64.powi(d as i32);
+                num((x.abs() * p).round() / p * x.signum())
             }
         }
     }
@@ -989,7 +1002,7 @@ impl Parser {
 
     fn call(&mut self, name: &str, at: usize) -> Result<Expr, ParseError> {
         let f = Func::from_name(name)
-            .ok_or_else(|| ParseError::new(format!("unknown function `{name}`; the functions are `range`, `includes` and `toggle`"), at))?;
+            .ok_or_else(|| ParseError::new(format!("unknown function `{name}`; the functions are `range`, `includes`, `toggle` and `round`"), at))?;
         self.expect("(")?;
         let mut args = Vec::new();
         if !self.eat(")") {
@@ -1209,8 +1222,13 @@ mod tests {
         assert_eq!(eval("toggle(tags, 'b')", data.clone()), json!(["a", 2, "b"]));
         assert_eq!(eval("toggle(missing, 'b')", data.clone()), json!(["b"]));
         assert_eq!(eval("toggle(dup, 1)", data.clone()), json!([2]), "every copy goes");
+        assert_eq!(eval("round(2.5)", data.clone()), json!(3));
+        assert_eq!(eval("round(-2.5)", data.clone()), json!(-3));
+        assert_eq!(eval("round(1234.5678, 2)", data.clone()), json!(1234.57));
+        assert_eq!(eval("round(s, 1)", data.clone()), json!(0), "not a number counts as 0");
+        assert_eq!(eval("round(1.23456789012345, 20)", data.clone()), json!(1.2345678901), "at most 10 digits");
         assert!(Expr::parse("includes(tags)").is_err());
         let err = Expr::parse("contains(tags, 1)").unwrap_err().to_string();
-        assert!(err.contains("`range`, `includes` and `toggle`"), "{err}");
+        assert!(err.contains("`range`, `includes`, `toggle` and `round`"), "{err}");
     }
 }

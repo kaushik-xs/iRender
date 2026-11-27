@@ -344,6 +344,31 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn gauge_rounds_its_figure_and_has_ticks() {
+    check(
+        "gauge-ticks",
+        r##"
+state: { oee: 72.4567 }
+root:
+  type: stack
+  children:
+    - { type: ui-gauge, attrs: { id: g }, props: { value: "{{ oee }}", decimals: 1, unit: "%", ticks: 4 } }
+    - { type: ui-gauge, attrs: { id: f }, props: { value: 3.14159, decimals: 2, ticks: 10, shape: half } }
+"##,
+        r##"
+        const fig = (id) => $(`#${id} [data-gauge-value] > span`).textContent;
+        log(fig("g"), $$("#g [data-tick]").length, fig("f"), $$("#f [data-tick]").length);
+        root.__irender.set("oee", 88.06); await wait(30); log(fig("g"), $("#g").getAttribute("aria-valuenow"));
+        // The first and last ticks sit at the dial's ends.
+        const t = $$("#f [data-tick]"), a = t[0].getBoundingClientRect(), b = t.at(-1).getBoundingClientRect();
+        log(Math.abs(a.top - b.top) < 1, a.left < b.left);
+"##,
+        &["72.5 5 3.14 11", "88.1 88.06", "true true"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn event_calendar_marks_repeat_and_badges_click() {
     check(
         "calendar-marks",

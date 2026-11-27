@@ -1571,6 +1571,8 @@ fn gauge_structure_and_mistakes() {
     assert!(err(json!({ "value": 1, "size": 20 })).contains("48 to 640"));
     assert!(err(json!({ "value": 1, "bands": [{ "to": 50, "tone": "red" }] })).contains("no tone `red`"));
     assert!(err(json!({ "value": 1, "bands": [{ "tone": "danger" }, { "to": 90, "tone": "success" }] })).contains("only the last band"));
+    assert!(err(json!({ "value": 1, "decimals": 1.5 })).contains("`decimals` is a whole number"));
+    assert!(err(json!({ "value": 1, "ticks": 1 })).contains("`ticks` is a whole number of parts"));
     assert!(err(json!({ "value": 1, "bands": [{ "to": 60, "tone": "danger" }, { "to": 40, "tone": "success" }] })).contains("must be above 60"));
 }
 
@@ -1847,7 +1849,7 @@ fn status_badge_ring_rating_checklist_and_timeline() {
     // the button for the entries held back.
     let feed = plain(&render(json!({ "type": "ui-timeline", "props": { "group": "day", "relative": true, "since": "2026-11-20T00:00", "limit": 1 }, "children": [
         { "type": "ui-timeline-item", "props": { "who": "Asha Rao", "action": "paid", "when": "2026-11-21T10:00" } } ] })));
-    assert!(feed.contains(r#"data-i-x="ui-timeline""#) && feed.contains(r#"<li data-tl-item data-when="2026-11-21T10:00">"#), "{feed}");
+    assert!(feed.contains(r#"data-i-x="ui-timeline""#) && feed.contains(r#"<li data-tl-item data-when="2026-11-21T10:00" data-who="Asha Rao">"#), "{feed}");
     assert!(feed.contains(r#"<time datetime="2026-11-21T10:00">2026-11-21T10:00</time><span data-tl-new hidden></span>"#), "{feed}");
     assert!(feed.contains(r#"<li data-tl-show hidden><button type="button"></button></li></ol>"#), "{feed}");
     let bad = render_with(json!({ "type": "ui-timeline", "props": { "limit": 0 } }), json!({}), json!({})).unwrap_err().to_string();
