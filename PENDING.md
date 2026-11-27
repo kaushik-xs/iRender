@@ -19,7 +19,7 @@ _Last updated: 2026-11-26._
 
 - [ ] **`ui-mindmap`** (2026-11-24; gallery, block brainstorm-01): one long line per topic (long labels are cut short with … and shown whole on hover), no notes, links, icons or images on topics, no lines between topics in different branches, no reordering by dragging (a drop puts a topic last inside another; the keys don't reorder either), and the layout is balanced left and right only (no radial or top-down).
 
-- [ ] **`ui-whiteboard`** (2026-11-23; gallery, block retro-01): one person at a time (several people's edits from a server just replace the items: no merging and no live cursors), no connectors that stay joined to shapes, no images or frames, no grouping, layers or locking, no copy and paste between boards, pen strokes aren't resized, and the undo history is the page's only. Export is SVG; no PNG.
+- [ ] **`ui-whiteboard`** (2026-11-23; gallery, block retro-01): one person at a time (several people's edits from a server just replace the items: no merging and no live cursors), arrows stay joined to the shapes they're drawn between (2026-11-27; straight, middle to middle, and not joined again by dragging an end), no images or frames, no grouping, layers or locking, no copy and paste between boards, pen strokes aren't resized, and the undo history is the page's only. Export is SVG; no PNG.
 
 - [ ] **`ui-approval`** (2026-11-23; gallery, block expense-01): stages run one after another (none side by side). Handing a turn to someone, due dates and earlier rounds came on 2026-11-27 (block expense-01): nothing sends reminders, a handoff can't be taken back, and the people to hand to are the page's list, not searched. Who may decide is shown, not enforced: the server checks it.
 

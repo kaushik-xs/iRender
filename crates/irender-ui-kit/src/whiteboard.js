@@ -1,7 +1,8 @@
 // irender-ui-kit: the `ui-whiteboard` behaviour. The items are in state, in the board's own
 // units; this draws them as SVG in a view (`{ x, y, zoom }`) and handles the tools:
 // select (click, Shift-click, a box; drag to move; the corner to resize), hand (or Space,
-// the middle button, two fingers), pen, sticky note, rectangle, ellipse, arrow and text.
+// the middle button, two fingers), pen, sticky note, rectangle, ellipse, arrow (joined to the
+// shapes it is drawn between, `from` and `to`) and text.
 // Double-click a note or text to edit it. The keys: V H P N R O A T pick tools; ⌘/Ctrl+Z
 // undoes, with Shift redoes; Delete deletes; ⌘/Ctrl+D duplicates; arrows nudge (Shift ten);
 // Tab goes to the next item while one's selected; Escape lets go. The wheel scrolls, with
@@ -68,8 +69,38 @@
     const r = stage.getBoundingClientRect();
     return { sx: e.clientX - r.left, sy: e.clientY - r.top };
   };
+  // ---- connectors: an arrow drawn from one shape to another keeps `from` and `to`, their
+  // ids, and its ends are worked out from them each time, so they follow the shapes.
+  const JOINS = new Set(["rect", "ellipse", "note", "text"]);
+  // The shape at a point of the board, topmost first.
+  const shapeAt = (p, list = items()) => [...list].reverse().find((i) => JOINS.has(i.type) && p.x >= i.x && p.x <= i.x + i.w && p.y >= i.y && p.y <= i.y + i.h) ?? null;
+  // Where the line from a shape's middle towards `to` leaves its edge (an ellipse's own).
+  function edge(it, to) {
+    const cx = it.x + it.w / 2, cy = it.y + it.h / 2, dx = to[0] - cx, dy = to[1] - cy;
+    if (!dx && !dy) return [cx, cy];
+    if (it.type === "ellipse") {
+      const k = 1 / Math.sqrt((dx * dx) / ((it.w / 2) ** 2 || 1) + (dy * dy) / ((it.h / 2) ** 2 || 1));
+      return [cx + dx * k, cy + dy * k];
+    }
+    const k = Math.min(Math.abs(it.w / 2 / (dx || 1e-9)), Math.abs(it.h / 2 / (dy || 1e-9)));
+    return [cx + dx * k, cy + dy * k];
+  }
+  // An arrow's two ends on the board: joined ones from their shapes, else its own points.
+  function ends(it, list = items()) {
+    const own = it.points?.length >= 2 ? it.points : [[0, 0], [0, 0]];
+    let a = [own[0][0] + (it.x ?? 0), own[0][1] + (it.y ?? 0)], b = [own[1][0] + (it.x ?? 0), own[1][1] + (it.y ?? 0)];
+    const find = (id) => (id == null ? null : list.find((i) => String(i.id) === String(id) && JOINS.has(i.type)) ?? null);
+    const from = find(it.from), to = find(it.to), mid = (s) => [s.x + s.w / 2, s.y + s.h / 2];
+    if (from) a = edge(from, to ? mid(to) : b);
+    if (to) b = edge(to, from ? mid(from) : a);
+    return [a, b];
+  }
   // An item's box, in board units.
   function box(it) {
+    if (it.type === "arrow" && (it.from != null || it.to != null)) {
+      const [[x1, y1], [x2, y2]] = ends(it);
+      return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+    }
     if (it.type === "pen" || it.type === "arrow") {
       const pts = it.points ?? [];
       if (!pts.length) return { x: it.x ?? 0, y: it.y ?? 0, w: 0, h: 0 };
@@ -111,10 +142,11 @@
       // A wider, clear stroke to click on.
       g.append(s("path", { d: smooth(it.points ?? []), fill: "none", stroke: "transparent", "stroke-width": 14 }));
     } else if (it.type === "arrow") {
-      const [[x1, y1], [x2, y2]] = it.points?.length >= 2 ? it.points : [[0, 0], [0, 0]];
+      // On the board itself, so joined ends can come from their shapes.
+      const [[x1, y1], [x2, y2]] = ends(it);
       const a = Math.atan2(y2 - y1, x2 - x1), head = 14;
       const tip = (t) => `${x2 - head * Math.cos(a + t)} ${y2 - head * Math.sin(a + t)}`;
-      g.setAttribute("transform", `translate(${it.x ?? 0} ${it.y ?? 0})`);
+      if (it.from != null || it.to != null) g.setAttribute("data-joined", "");
       g.append(s("path", { d: `M${x1} ${y1}L${x2} ${y2}M${tip(0.45)}L${x2} ${y2}L${tip(-0.45)}`, fill: "none", stroke: c, "stroke-width": 3, "stroke-linecap": "round", "stroke-linejoin": "round" }));
       g.append(s("path", { d: `M${x1} ${y1}L${x2} ${y2}`, stroke: "transparent", "stroke-width": 14 }));
     } else if (it.type === "rect") {
@@ -316,7 +348,17 @@
       const dx = p.x - action.start.x, dy = p.y - action.start.y;
       if (!action.moved && Math.hypot(dx, dy) * view.zoom < 3) return;
       action.moved = true;
-      api.set(cfg.bind, action.before.map((i) => (selected.has(String(i.id)) ? { ...i, x: (i.x ?? 0) + dx, y: (i.y ?? 0) + dy } : i)));
+      // A joined arrow moved on its own comes loose, where it was; with its shapes it follows them.
+      api.set(cfg.bind, action.before.map((i) => {
+        if (!selected.has(String(i.id))) return i;
+        if (i.type === "arrow" && (i.from != null || i.to != null)) {
+          const keep = (id) => id != null && selected.has(String(id));
+          if (keep(i.from) || keep(i.to)) return i;
+          const [[x1, y1], [x2, y2]] = ends(i, action.before), { from, to, ...rest } = i;
+          return { ...rest, x: 0, y: 0, points: [[x1 + dx, y1 + dy], [x2 + dx, y2 + dy]] };
+        }
+        return { ...i, x: (i.x ?? 0) + dx, y: (i.y ?? 0) + dy };
+      }));
       return draw();
     }
     if (action.kind === "resize") {
@@ -354,8 +396,13 @@
     const dragged = Math.hypot(p1.x - p0.x, p1.y - p0.y) * view.zoom > 6;
     const id = preview ? "sketch" : newId();
     if (type === "arrow") {
-      if (!dragged) return preview ? null : { id, type, x: p0.x, y: p0.y, points: [[0, 0], [120, 0]], color };
-      return { id, type, x: p0.x, y: p0.y, points: [[0, 0], [p1.x - p0.x, p1.y - p0.y]], color };
+      if (!dragged) return preview ? null : { id, type, x: 0, y: 0, points: [[p0.x, p0.y], [p0.x + 120, p0.y]], color };
+      // Started or ended on a shape, that end is joined to it (not both to one).
+      const from = shapeAt(p0), to = shapeAt(p1);
+      const it = { id, type, x: 0, y: 0, points: [[p0.x, p0.y], [p1.x, p1.y]], color };
+      if (from) it.from = from.id;
+      if (to && String(to.id) !== String(from?.id)) it.to = to.id;
+      return it;
     }
     const size = { note: [180, 140], rect: [140, 90], ellipse: [120, 120], text: [220, 40] }[type];
     const x = dragged ? Math.min(p0.x, p1.x) : p0.x, y = dragged ? Math.min(p0.y, p1.y) : p0.y;
