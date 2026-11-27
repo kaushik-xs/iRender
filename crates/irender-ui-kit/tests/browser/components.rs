@@ -250,13 +250,17 @@ root:
 "##,
         r##"
         const c = $("#c"), text = () => $("[data-cd-text]", c).textContent, due = () => Date.parse($("[data-cd-text]", c).getAttribute("datetime"));
-        await wait(2000); const left0 = S().left, due0 = due(); log(left0 >= 57 && left0 <= 58, c.hasAttribute("data-paused"));
+        // Read once paused: pausing works the time out afresh, and in real time (not Chrome's
+        // virtual time) the last tick may have come late, so it can be lower than that tick's.
+        await wait(2000); const left1 = S().left, was = c.hasAttribute("data-paused"); root.__irender.set("hold", true);
+        const left0 = S().left, due0 = due(), t0 = Date.now(); log(left1 < 60 && left0 <= left1 && left0 > 30, was);
         // Paused: the time left stands still, and says so.
-        root.__irender.set("hold", true); await wait(5000);
+        await wait(5000);
         log(S().left === left0, text() === `${left0}s · Paused`, c.hasAttribute("data-paused"), c.getAttribute("aria-description").endsWith(", paused"));
-        // Resumed: it goes on from there, the deadline five seconds later.
-        root.__irender.set("hold", false); await wait(2000);
-        log(left0 - S().left, Math.round((due() - due0) / 1000), c.hasAttribute("data-paused"));
+        // Resumed: it goes on from there, the deadline moved out by the pause (five seconds,
+        // or more on a busy machine).
+        root.__irender.set("hold", false); const held = Date.now() - t0; await wait(2000);
+        log(S().left < left0, Math.abs(due() - due0 - held) < 50, c.hasAttribute("data-paused"));
         // A new deadline from the page has the pause in it already: nothing is added.
         root.__irender.set("due", new Date(Date.now() + 30200).toISOString()); await wait(50);
         log(S().left, S().st);
@@ -264,7 +268,7 @@ root:
         root.__irender.set("due", new Date(Date.now() + 1500).toISOString()); root.__irender.set("hold", true); await wait(3000);
         log(S().st, S().ended); root.__irender.set("hold", false); await wait(2000); log(S().st, S().ended);
 "##,
-        &["true false", "true true true true", "2 5 false", "30 ok", "warning 0", "over 1"],
+        &["true false", "true true true true", "true true false", "30 ok", "warning 0", "over 1"],
     );
 }
 
