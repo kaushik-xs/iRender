@@ -1407,6 +1407,7 @@ ui-form-section: A titled group of fields, with columns of its own. Sections go 
   level        any  Its heading's level, 2–6 (default 3)
   collapsible  bool  Folds under its heading, which opens and closes it (needs a `title`); the form opens it to go to a field inside
   open         any  With `collapsible`: starts open (default true)
+  bindOpen     statekey  With `collapsible`, a state key that's true while it's open, both ways (it starts as the key says)
   children: yes
 ui-repeater: Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`.
   bind         statekey (required)  State key holding the rows, a list of objects

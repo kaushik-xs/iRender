@@ -12,6 +12,15 @@ use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::Value as Json;
 use std::sync::LazyLock;
 
+/// `bindOpen`: a folded section's open state, kept in step with its state key both ways.
+const SECTION_SCRIPT: &str = r#"(window.__irenderBehaviors ||= {})["ui-form-section"] = (el, api) => {
+  const d = el.querySelector(":scope > details[data-section-in]"), key = api.config.bindOpen;
+  d.addEventListener("toggle", () => !!api.state[key] !== d.open && api.set(key, d.open));
+  const update = () => { if (d.open !== !!api.state[key]) d.open = !!api.state[key]; };
+  update();
+  return { update };
+};"#;
+
 /// The columns of the grid a field is in, so its `span` can't go past them.
 const COLUMNS: &str = "ui-form-columns";
 
@@ -26,6 +35,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("level", PropKind::Any, "Its heading's level, 2–6 (default 3)"),
     PropDef::new("collapsible", PropKind::Bool, "Folds under its heading, which opens and closes it (needs a `title`); the form opens it to go to a field inside"),
     PropDef::new("open", PropKind::Any, "With `collapsible`: starts open (default true)"),
+    PropDef::new("bindOpen", PropKind::StateKey, "With `collapsible`, a state key that's true while it's open, both ways (it starts as the key says)"),
 ];
 
 pub(crate) const COLUMNS_PROP: PropDef =
@@ -157,6 +167,10 @@ impl Component for FormSection {
         if fold && title.is_none() {
             return Err(RenderError::new(node, "a `collapsible` section needs a `title` to open and close it by"));
         }
+        let bind = cx.prop_string(node, "bindOpen");
+        if bind.is_some() && !fold {
+            return Err(RenderError::new(node, "`bindOpen` goes with `collapsible`"));
+        }
         let mut el = cx.element("div", node);
         el.base_style_ref(&SECTION).attr("role", "group").attr("data-form-section", true).attr("data-layout", cx.prop_string(node, "layout").unwrap_or_else(|| "stacked".into()));
         if title.is_some() {
@@ -166,14 +180,20 @@ impl Component for FormSection {
             el.attr("aria-describedby", id_with(&id, "-description"));
         }
         span(cx, node, &mut el)?;
+        if let Some(key) = &bind {
+            cx.global_js("ui-form-section", SECTION_SCRIPT);
+            el.behavior("ui-form-section", serde_json::json!({ "bindOpen": key }));
+        }
         cx.open(&el, node)?;
         let inner_tag = if fold { "details" } else { "div" };
         let mut inner = Element::new(inner_tag);
         inner.attr("data-section-in", true);
         if fold {
-            match node.prop("open") {
-                Some(o) => inner.attr("open", o.clone()),
-                None => inner.attr("open", true),
+            // Bound, the key says; else `open`, else open.
+            match (&bind, node.prop("open")) {
+                (Some(k), _) => inner.attr("open", irender_core::expr::truthy(&cx.lookup(std::slice::from_ref(k)))),
+                (None, Some(o)) => inner.attr("open", o.clone()),
+                (None, None) => inner.attr("open", true),
             };
         }
         cx.open(&inner, node)?;

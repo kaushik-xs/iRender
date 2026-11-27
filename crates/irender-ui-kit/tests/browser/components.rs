@@ -746,6 +746,36 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn form_section_open_state_is_in_state() {
+    check(
+        "form-section-bind",
+        r##"
+state: { more: false, code: "", errors: {} }
+root:
+  type: ui-form
+  props: { bindErrors: errors, rules: { code: { label: Code, required: true } } }
+  children:
+    - { type: ui-error-summary }
+    - type: ui-form-section
+      props: { title: More, collapsible: true, bindOpen: more }
+      children:
+        - { type: ui-field, props: { label: Code }, children: [ { type: ui-input, props: { bind: code } } ] }
+    - { type: ui-button, props: { label: Go, type: submit }, attrs: { id: go } }
+"##,
+        r##"
+        const d = $("details[data-section-in]"), sum = $("summary");
+        log(d.open, S().more);
+        sum.click(); await wait(30); log(d.open, S().more);
+        root.__irender.set("more", false); await wait(30); log(d.open);
+        // A stopped submit opens it for its wrong field: the key follows.
+        $("#go").click(); await wait(30); log(d.open, S().more);
+"##,
+        &["false false", "true true", "false", "true true"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn form_checks_the_rows_of_its_repeaters() {
     check(
         "form-rows",
