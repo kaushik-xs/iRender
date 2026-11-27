@@ -73,6 +73,8 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-tree` | see [Tree](#tree) | A hierarchy to browse, select, check, search, add to, delete from and rearrange. |
 | `ui-file-browser` | `bind` (required), `bindFolder`, `bindSelection`, `bindOpen`, `url`, `uploadUrl`, `view` (grid, list), `editable` (default true), `rootLabel`, `height`, `locale`, `label`, `id` | Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu. See below. |
 | `ui-data-table` | see [Data table](#data-table) | Sorting, column filters, search, paging, row selection with bulk actions, expandable rows, a View menu and summaries, over an array of rows. |
+| `ui-data-source` | `name` (required), `key`, `batch`, `one`, `pick`, `ttl`, `concurrency`, `wait`, `headers` | Says how one kind of record is fetched by id (many in one call, or one at a time), for `expand`. Draws nothing. See [Data sources](#data-sources). |
+| `ui-data-query` | `into` (required), `url`, `params`, `pick`, `source`, `ids`, `expand`, `status`, `refresh`, `paused`, `headers` | Fills a state key with rows from an API, or records by id, joined to the records they name. Draws nothing. See [Data sources](#data-sources). |
 | `ui-virtual-list` | `items` (required), `itemKey`, `height` (default 400), `itemHeight` (default 40), `gap`, `bindRange`, `endThreshold` (default 10), `emptyText`, `label` | A long list that keeps only the items in view in the page; children are each item, with `item` and `index` in scope. See below. |
 | `ui-scroll-area` | `height`, `maxHeight`, `label` | Scrolls its children with a thin scrollbar in the theme's colours. Focusable, so the keyboard scrolls it; `label` makes it a named region. |
 | `ui-heading` | `text`, `level` (1–4) | |
@@ -515,6 +517,7 @@ Text that isn't a value, or is outside `min`, `max` or the disabled days, stays 
 |---|---|
 | `rows` | Objects, from data or state. Rows from state are rebuilt when the array changes, and keep the table's sort, filters, page and selection. |
 | `url`, `params` | Rows from an API instead of `rows`; see [Paging and loading](#paging-and-loading). |
+| `expand` | Records from other APIs joined into the rows drawn, by the ids the rows hold; see [Records from other APIs](#records-from-other-apis). |
 | `paging` | `pages` (default), `more`, `scroll` or `none`; see [Paging and loading](#paging-and-loading). |
 | `virtual`, `rowHeight` | Draw only the rows in view; see [Paging and loading](#paging-and-loading). |
 | `childrenField`, `parentField`, `childrenUrl`, `expanded` | Rows inside rows; see [Nested rows](#nested-rows). |
@@ -603,6 +606,22 @@ A group's rows come a batch at a time, `pageSize` rows each (with `offset` and `
 **Resizing and moving columns.** With `resizable`, each header's right edge is a separator: drag it, or focus it and use Left and Right (16 px, Shift for 4); a double click puts the column back to its own width. A column's `resizable: false` opts out. With `reorderable`, drag a header onto another to move the column before or after it (a press that doesn't move still sorts), or press Alt with Left or Right on its header; pinned columns stay put. `bindColumns` keeps the layout as `{ order, widths, hidden }`, and setting it lays the columns out that way (hidden columns from the View menu are in it too). A move is announced, and fires `columns`.
 
 **Export.** `export: true` (or a file name) adds an Export button that downloads the rows that pass the filters and the search, all pages, as CSV: the shown columns that have a `field`, in their order, under their labels, with raw values (numbers unformatted, so a spreadsheet can add them up). The file starts with a byte-order mark so spreadsheet apps read it as UTF-8, and a text that starts like a formula (`=`, `+`, `-`, `@`) is kept as text. It fires `export` with `{ csv, rows, file }`. With a name ending in `.xlsx` it writes an Excel file instead, numbers in their column's format and dates as dates. A remote table exports the rows it has loaded.
+
+### Records from other APIs
+
+Rows often name other records by id only (an owner, an account, a patient), from APIs that can't be joined on the server. A `ui-data-source` says how one kind of record is fetched, and `expand` joins them into the rows: `{ owner: { source: people, from: ownerId } }` puts the `people` record whose id is in `ownerId` in `owner`, so a column can show `owner.name`. `owner: people` alone takes its ids from `ownerId`; `from` may hold a list of ids, for a list of records. The rows show at once, and only the rows drawn (the page, the batch, or the rows in view) have their ids asked for, together. Until a record arrives its row's `$loading.owner` is true: a plain column of a joined field (`owner.name`) shows a pulsing bar by itself, and a column template can show what it likes, `{ type: if, props: { when: "{{ row.$loading.owner }}" }, … }`. A record that couldn't be fetched sets `$failed.owner`; an id with no record leaves `owner` null. `bindRow` gets the clicked row joined.
+
+```yaml
+- { type: ui-data-source, props: { name: people, batch: { url: /api/people, max: 50 } } }   # GET /api/people?ids=u-1,u-2
+- { type: ui-data-source, props: { name: accounts, one: "/api/accounts/{id}" } }             # one at a time
+- type: ui-data-table
+  props:
+    url: /api/tickets
+    expand: { requester: { source: people, from: requesterId }, account: accounts }
+    columns: [ { field: id }, { field: requester.name, label: Requester }, { field: account.name, label: Account } ]
+```
+
+Joined fields are the page's, not the server's. A table from `url` sends their sort to its API like any other (give such columns `sortable: false`); in a table of rows the search, the select filters' choices, sorting, `bindView` and a context menu's row see the rows as they came, without them. An export has them for the records already fetched (the rows that have been drawn), and fetches no more. `expand` doesn't work with editable cells, or with grouping a table of rows, yet. The sources, and `ui-data-query` for joined rows in state, are described under [Data sources](#data-sources).
 
 ### Editable cells
 
@@ -1139,6 +1158,42 @@ A `remote` rule asks the server whether a value is accepted (is this name taken?
 ## Import
 
 `ui-import` takes rows from CSV, Excel (`.xlsx`) or cells pasted from a sheet, read in the browser. Its columns are matched to `fields` by `label`, `field` and `aliases` (people can change the match), the rows are put right in an editable data table, and those that pass are handed over: the `import` event, `bindImported`, and with `url`, a POST of `{ rows, offset, total }` per `batchSize`. The server may answer `{ errors: [{ row, field, message }] }` (`row` counted in the batch) to send rows back to the review. Dates, numbers and choices are read in the locale's way; `template` offers an empty file.
+
+## Data sources
+
+`ui-data-source` says how one kind of record is fetched by id, for `expand` on a data table or a `ui-data-query`. It draws nothing; its `name` is what they call it. Many ids in one call is `batch`: GET `<url>?ids=1,2,3` by default (`param` renames `ids`, `style: repeat` sends `ids=1&ids=2`, `params` adds fixed ones), or `method: POST`, which sends `{ ids: [...] }` with `body`'s fields, for an API that keeps ids out of addresses. At most `max` ids go in a call (default 50), and a GET's address stays under 2,000 characters. The answer is a list of records (each with its id in `key`, default `id`) or a map by id, at `pick` (default: the answer, or its `rows`, `data` or `items`). An API with no bulk call takes `one: "/api/people/{id}"` instead, one call per id, `concurrency` at a time (default 4); a 404 means there's no such record.
+
+Ids asked for while the page draws (by every table and query on it) go together, each id once: a source gathers them until the turn ends (`wait` milliseconds more, if asked). A record is kept in the page's memory for `ttl` seconds (default 300, at least 5), so another page of rows, another query or a card that names it again asks the server for nothing; past `ttl` it's still shown while it's fetched again. A call that fails is tried again after 15 seconds, with the next ask; a record that was there stays shown. With `one`, a record the API gave an `ETag` is asked for again with `If-None-Match`, and a 304 keeps it. Unless it's kept on the device (below), nothing is written there: an installed app's service worker leaves these calls alone (they carry `x-irender-data: 1`) and the browser's cache isn't used, so people's details aren't kept by either. `headers` go with every call.
+
+**Kept on the device.** `persist: device` keeps a source's records in IndexedDB too, and a query's last answer for each address, so they show at once next time and without a connection. `scope` is whose they are, say `{{ user.id }}`, and it's required: each scope's are kept apart, and when it changes the page lets the others go. What's kept shows first; past `ttl` it's fetched again behind it. A query whose call fails shows what it kept, with `status.state` `stale` (and `cached` true while kept rows are shown). Other open tabs are told when records are kept, and show them.
+
+The fields named in `private` are kept only encrypted (AES-GCM), with a key a `ui-app-lock` on the page unlocks: setting its PIN (or adding a passkey) makes the key, and the key is kept wrapped by one made from the PIN (PBKDF2) and, where the device's passkey has the PRF extension, by one from the passkey. Unlocking puts it in memory; locking takes it away, and with it the private fields from the page, until it's unlocked again, when they come back from the device. Without a lock, or locked, private fields aren't kept at all: what's kept has the rest, and the private fields come with the next fetch. Turning the lock off, or `reset`, lets what it sealed go. `retain` is how many days private fields may stay without being fetched again (default 30). `clear` (say `{{ !user }}`) wipes a source's records for its scope (or for every scope, when it has none) from the device and the page; a query's `clear` wipes the answers it kept for its scope.
+
+```yaml
+- type: ui-data-source
+  props: { name: patients, batch: { url: /api/patients/batch, method: POST }, persist: device, scope: "{{ user.id }}", private: [name, phone, born], retain: 7, clear: "{{ !user }}" }
+- { type: ui-app-lock, props: { methods: [pin, passkey] } }
+```
+
+How far the encryption goes: a PIN of four to eight digits is quick to try every one of on a copied disk, PBKDF2 or not, so a PIN-wrapped key keeps people's details from someone who picks up the device or reads its backups, not from someone with time and the disk. A passkey's PRF is the stronger key. While the app's unlocked, the page itself (and any script on it) can read them, as with anything the page shows.
+
+`ui-data-query` fills a state key (`into`) for anything else, a chart, a list or a card: rows from `url` (with `params`; a change loads again, typing after a pause), or the records of `source` for `ids` (one id gives the record, a list the records). `expand` joins records into its rows as the table's does, and they fill in as they arrive, each row with `$loading` meanwhile. `status` gets `{ state, pending, total, error, at }`: `state` is `idle`, `loading`, `joining` (rows here, joined records on their way; `pending` says how many rows wait), `ready` or `error`. `refresh` loads again when its value changes, say after a save; `paused` stops it. `loaded` and `failed` fire with each answer.
+
+```yaml
+- { type: ui-data-source, props: { name: patients, batch: { url: /api/patients/batch, method: POST, pick: data }, ttl: 120 } }
+- { type: ui-data-source, props: { name: clinicians, batch: { url: /api/clinicians } } }
+- type: ui-data-query
+  props:
+    url: /api/appointments
+    params: { day: "{{ day }}" }
+    into: appointments
+    status: loading
+    expand: { patient: { source: patients, from: patientId }, clinician: { source: clinicians, from: clinicianId } }
+- { type: ui-chart, props: { type: bar, data: "{{ appointments }}", x: clinician.name, aggregate: count } }
+- { type: ui-data-query, props: { source: patients, ids: "{{ picked }}", into: patient } }   # already fetched: no call
+```
+
+Blocks data-table-09 (a support queue: people many at a time, accounts one at a time) and clinic-01 (a chart, a schedule and a card over joined rows, patients by POST) use them with the example server.
 
 ## Pivot table
 

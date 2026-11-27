@@ -623,7 +623,7 @@ const SKELETON_PROPS: &[PropDef] = &[
 ];
 
 /// The skeleton's pulse, added to the page once by the first skeleton.
-const PULSE: &str = "@keyframes ui-pulse {\n  50% { opacity: 0.5; }\n}";
+pub(crate) const PULSE: &str = "@keyframes ui-pulse {\n  50% { opacity: 0.5; }\n}";
 
 static SKELETON: LazyLock<StyleBlock> = LazyLock::new(|| {
     StyleBlock::from_pairs(&[

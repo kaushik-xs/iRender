@@ -1,0 +1,131 @@
+# Block: a support queue whose rows come from one API and whose people and accounts come
+# from others. The tickets API (`api/tickets`) answers ids only: `requesterId`,
+# `assigneeId` and `accountId`. Two `ui-data-source`s say how to fetch those records:
+# - people: many at a time, `GET api/people?ids=u-11,u-12,…` (`batch`), slow on purpose;
+# - accounts: one at a time, `GET api/accounts/acc-01` (`one`), for an API with no bulk call.
+# The table's `expand` joins them into the rows. Only the rows on the page are asked for,
+# in one call per source, each id once, and the tickets show at once: the joined cells
+# pulse until their records arrive. The next page asks only for ids it hasn't seen; going
+# back asks for nothing, as records are kept in memory for a while (`ttl`). Clicking a row
+# shows its requester, joined, beside the table.
+#
+#   cargo run -p irender-cli -- render examples/blocks/data-table-09.yaml --ui-kit --icon-kit -o data-table-09.html
+#   python3 examples/serve.py   # then open /blocks/data-table-09.html
+version: 1
+state:
+  ticket: null
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1240px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    # Where the joined records come from. They draw nothing.
+    - type: ui-data-source
+      props: { name: people, batch: { url: api/people, max: 50 }, ttl: 600 }
+    - type: ui-data-source
+      props: { name: accounts, one: "api/accounts/{id}", ttl: 600 }
+
+    - type: stack
+      props: { gap: 4 }
+      children:
+        - { type: ui-heading, props: { level: 2, text: Support queue } }
+        - { type: ui-text, props: { variant: muted, text: "Tickets from one API; requesters, assignees and accounts joined from two others as each page draws." } }
+
+    - type: element
+      props: { tag: div }
+      style: { display: grid, grid-template-columns: "minmax(0, 1fr) 300px", gap: 20px, align-items: start, "@media (max-width: 900px)": { grid-template-columns: "minmax(0, 1fr)" } }
+      children:
+        - type: ui-data-table
+          props:
+            url: api/tickets
+            title: Tickets
+            rowKey: id
+            pageSize: 12
+            pageSizes: [12, 25, 50]
+            search: Search tickets…
+            sort: -opened
+            bindRow: ticket
+            locale: en-US
+            expand:
+              requester: { source: people, from: requesterId }
+              assignee: { source: people, from: assigneeId }
+              account: { source: accounts, from: accountId }
+          children:
+            - { type: ui-data-table-column, props: { field: id, label: Ticket, hideable: false } }
+            - { type: ui-data-table-column, props: { field: subject, label: Subject } }
+            # A template of its own: a skeleton while the requester is on its way.
+            - type: ui-data-table-column
+              props: { id: requester, label: Requester, sortable: false }
+              children:
+                - type: if
+                  props: { when: "{{ row.$loading.requester }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 4 }
+                      children:
+                        - { type: ui-skeleton, props: { width: 120, height: 12 } }
+                        - { type: ui-skeleton, props: { width: 160, height: 10 } }
+                - type: if
+                  props: { when: "{{ !row.$loading.requester }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 0 }
+                      children:
+                        - { type: ui-text, props: { text: "{{ row.requester.name }}" } }
+                        - { type: ui-text, props: { variant: muted, text: "{{ row.requester.email }}" }, style: { font-size: 12px } }
+            # Plain fields of joined records pulse by themselves.
+            - { type: ui-data-table-column, props: { field: assignee.name, label: Assignee, sortable: false } }
+            - { type: ui-data-table-column, props: { field: account.name, label: Account, sortable: false } }
+            - type: ui-data-table-column
+              props:
+                field: status
+                label: Status
+                filter: select
+                options: [Open, Pending, On hold, Solved]
+                cell: badge
+                tones: { Open: info, Pending: warning, On hold: outline, Solved: success }
+            - type: ui-data-table-column
+              props:
+                field: priority
+                label: Priority
+                filter: select
+                options: [Low, Normal, High, Urgent]
+                cell: badge
+                tones: { Low: outline, Normal: secondary, High: warning, Urgent: destructive }
+            - { type: ui-data-table-column, props: { field: opened, label: Opened, format: date } }
+
+        # The clicked row, joined: its requester's details came with the page.
+        - type: ui-card
+          props: { title: Requester, description: "{{ ticket ? ticket.id + ' · ' + ticket.subject : 'Click a ticket to see who asked.' }}" }
+          children:
+            - type: if
+              props: { when: "{{ ticket && ticket.requester }}" }
+              children:
+                - type: stack
+                  props: { gap: 14 }
+                  children:
+                    - type: stack
+                      props: { direction: row, gap: 10, align: center }
+                      children:
+                        - { type: ui-avatar, props: { fallback: "{{ ticket.requester.name }}", alt: "{{ ticket.requester.name }}", size: 40 } }
+                        - type: stack
+                          props: { gap: 0 }
+                          children:
+                            - { type: ui-text, props: { text: "{{ ticket.requester.name }}" }, style: { font-weight: 600 } }
+                            - { type: ui-text, props: { variant: muted, text: "{{ ticket.requester.title }} · {{ ticket.account.name }}" } }
+                    - type: ui-description-list
+                      children:
+                        - { type: ui-description-item, props: { label: Email, value: "{{ ticket.requester.email }}" } }
+                        - { type: ui-description-item, props: { label: Phone, value: "{{ ticket.requester.phone }}" } }
+                        - { type: ui-description-item, props: { label: Plan, value: "{{ ticket.account.plan }}" } }
+                        - { type: ui-description-item, props: { label: Assignee, value: "{{ ticket.assignee ? ticket.assignee.name : 'Unassigned' }}" } }
+            - type: if
+              props: { when: "{{ ticket && !ticket.requester }}" }
+              children:
+                - { type: ui-skeleton, props: { height: 120 } }

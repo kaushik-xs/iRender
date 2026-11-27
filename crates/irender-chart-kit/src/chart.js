@@ -187,7 +187,11 @@
   const tabular = (type) => !NESTED.has(type) && type !== "gauge";
 
   // ---------------------------------------------------------------- rows
-  const at = (r, f) => (r === null || r === undefined ? undefined : r[f]);
+  // A field, or a path into a row's objects (`owner.name`, say, as `expand` joins them).
+  const at = (r, f) =>
+    r === null || r === undefined ? undefined
+    : typeof r === "object" && typeof f === "string" && !(f in r) && f.includes(".") ? f.split(".").reduce((x, k) => (x !== null && typeof x === "object" ? x[k] : undefined), r)
+    : r[f];
   const blank = (v) => v === null || v === undefined || v === "";
   const isTime = (v) => looksLikeDate(v) || (typeof v === "number" && v > 1e11);
   // Loose equality for plain values: state from form controls is text, data may be numbers.

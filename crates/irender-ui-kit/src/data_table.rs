@@ -49,6 +49,11 @@ const PROPS: &[PropDef] = &[
     ),
     PropDef::new("params", PropKind::Any, "Extra query parameters for `url`; may use state, and a change reloads"),
     PropDef::new(
+        "expand",
+        PropKind::Any,
+        "Joins records from a `ui-data-source` into the rows drawn: `{ owner: { source: people, from: ownerId } }` puts the record whose id is in `ownerId` in `owner`, for columns like `owner.name`. Only the rows on the page are asked for, together; their cells pulse until it arrives",
+    ),
+    PropDef::new(
         "columns",
         PropKind::Any,
         "Columns as objects with the `ui-data-table-column` props, for tables with no cell templates",
@@ -451,6 +456,24 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-detail] > td", pairs(&[("padding", pad!(12, 16)), ("background", SUBTLE)]))
         .nest("& [data-dt-box]", pairs(&[("width", ctl!(36)), ("padding-inline-end", "0")]))
         .nest("& [data-dt-box] input", pairs(&[("display", "block")]))
+        // A joined field on its way: a pulsing bar where its text goes, in the cell (or the
+        // tree column's span), so the row keeps its height.
+        .nest("& [data-dt-wait]", pairs(&[("position", "relative"), ("color", "transparent")]))
+        .nest(
+            "& [data-dt-wait]::after",
+            pairs(&[
+                ("content", "''"),
+                ("position", "absolute"),
+                ("inset-block", "calc(50% - 0.5em)"),
+                ("inset-inline-start", pad!(8)),
+                ("width", "min(7em, calc(100% - 16px))"),
+                ("border-radius", "var(--radius-sm, 4px)"),
+                ("background", SUBTLE),
+                ("animation", "ui-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite"),
+            ])
+            .nest("@media (prefers-reduced-motion: reduce)", pairs(&[("animation", "none")])),
+        )
+        .nest("& span[data-dt-wait]::after", pairs(&[("inset-inline-start", "0"), ("width", "7em")]))
         .nest("& [data-dt-empty] td", pairs(&[("height", sp!(96)), ("text-align", "center"), ("color", MUTED), ("border-bottom", "0")]))
         // Sortable headers.
         .nest(
@@ -1144,6 +1167,10 @@ impl Component for DataTable {
         }
         // Editable cells: edits go to the state key the rows are read from.
         let editing = columns.iter().any(|c| c.edit.is_some());
+        let expand = crate::data_source::expand(cx, node)?;
+        if editing && expand.is_some() {
+            return Err(RenderError::new(node, "`expand` doesn't work with editable cells yet"));
+        }
         let deletable = flag(cx, "deletable", false);
         let add_row = cx.prop(node, "addRow").filter(expr::truthy);
         if !editing && (deletable || add_row.is_some()) {
@@ -1210,7 +1237,8 @@ impl Component for DataTable {
         // Virtual and remote tables have their rows supplied by the behaviour (the ones in
         // view, or the ones loaded) instead of arranging rows the server rendered.
         // Editable tables too, so that a row keeps its cells (and the cursor) as it changes.
-        let listed = virtual_ || url.is_some() || nested || editing;
+        // Joined rows are drawn as their records arrive.
+        let listed = virtual_ || url.is_some() || nested || editing || expand.is_some();
 
         // The order and page the server shows, for server rows; the browser takes over.
         let mut order: Vec<usize> = (0..rows.len()).collect();
@@ -1230,7 +1258,7 @@ impl Component for DataTable {
 
         let children_url = node.prop("childrenUrl").map(|u| dynamic(cx, node, "childrenUrl", u)).transpose()?;
         if grouped && listed && !(group_remote && !virtual_) {
-            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual` or nested rows, or with editable cells"));
+            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual`, nested rows, editable cells or `expand`"));
         }
         let resizable = flag(cx, "resizable", false);
         let reorderable = flag(cx, "reorderable", false);
@@ -1273,6 +1301,7 @@ impl Component for DataTable {
             "rows": dynamic(cx, node, "rows", rows_val)?,
             "url": url.map(|u| dynamic(cx, node, "url", u)).transpose()?,
             "params": node.prop("params").map(|p| dynamic(cx, node, "params", p)).transpose()?,
+            "expand": expand,
             "paging": paging,
             "virtual": virtual_,
             "listed": listed,
@@ -1327,6 +1356,10 @@ impl Component for DataTable {
         if editing {
             crate::cells(cx);
             cx.global_js("ui-table-edit", EDIT_SCRIPT);
+        }
+        if expand.is_some() {
+            crate::data_source::scripts(cx);
+            cx.global_css("ui-pulse", crate::display::PULSE);
         }
         cx.global_js("ui-data-table", SCRIPT);
 
@@ -2077,6 +2110,17 @@ fn cell(cx: &mut RenderCx<'_>, table: &Node, c: &Column) -> Result<(), RenderErr
     // The tree column indents its content behind the arrow that opens the row.
     let mut text = if c.tree { Element::new("span") } else { std::mem::replace(&mut td, Element::new("td")) };
     if let (true, Some(v)) = (plain, &value) {
+        // A field of a joined record pulses until the record arrives.
+        let joined = c.field.as_deref().and_then(|f| f.split_once('.')).map(|(head, _)| head).filter(|head| {
+            table.prop("expand").and_then(|e| match e {
+                Val::Lit(Json::Object(m)) => Some(m.contains_key(*head)),
+                _ => None,
+            }) == Some(true)
+        });
+        if let Some(head) = joined {
+            let waiting = row_path(&format!("$loading.{head}"));
+            text.attr("data-dt-wait", expr_val(cond(waiting, Expr::Lit(json!(true)), Expr::Lit(json!(false)))));
+        }
         if c.format.is_some() || c.edit.as_ref().is_some_and(|e| e["type"] == "select") {
             text.attr("data-dt-fmt", true);
         }

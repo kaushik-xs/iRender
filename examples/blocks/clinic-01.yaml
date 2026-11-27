@@ -1,0 +1,209 @@
+# Block: a clinic's day, where the appointments, the patients and the clinicians come from
+# three APIs that can't be joined on the server. `ui-data-query` loads the day's
+# appointments (`api/appointments`, ids only) into state and joins each to its patient
+# and clinician (`expand`), so a chart, a list and a card all read the same rows:
+# - clinicians: many at a time by GET (`api/clinicians?ids=c-1,c-2`);
+# - patients: many at a time by POST (`api/patients/batch`, `{ ids: [...] }`), as an API
+#   that keeps ids out of addresses does.
+# The appointments show at once; names fill in as their records arrive (`$loading` on
+# each row while they're on their way). Picking a patient looks them up by id with a
+# second query, which finds them already fetched and asks the server for nothing.
+#
+# Everything is kept on the device for the clinician signed in (`persist: device`,
+# `scope`), so the day opens at once next time and still shows without a connection
+# (the status says when it's from the device). Patients' details and the reasons for the
+# visits are personal (`private`): they're kept only encrypted, with a key the app lock
+# unlocks. Set a PIN under This device and they're kept; lock it and they leave the page
+# until it's unlocked; without a PIN they aren't kept at all. Sign out wipes what's kept.
+#
+#   cargo run -p irender-cli -- render examples/blocks/clinic-01.yaml --ui-kit --chart-kit --icon-kit -o clinic-01.html
+#   python3 examples/serve.py   # then open /blocks/clinic-01.html
+version: 1
+state:
+  user: dr-osei
+  signedOut: false
+  locked: false
+  day: "2026-11-27"
+  clinician: ""
+  appointments: []
+  loading: null
+  picked: null
+  patient: null
+root:
+  type: stack
+  props: { gap: 20 }
+  style:
+    max-width: 1180px
+    margin: 0 auto
+    padding: 32px 24px
+    font-family: $font.body
+    color: $color.text
+    background: $color.surface
+  children:
+    - type: ui-data-source
+      props:
+        name: patients
+        batch: { url: api/patients/batch, method: POST, pick: data, max: 40 }
+        ttl: 120
+        persist: device
+        scope: "{{ user }}"
+        private: [name, mrn, born, phone, allergies]
+        retain: 7
+        clear: "{{ signedOut }}"
+    - type: ui-data-source
+      props: { name: clinicians, batch: { url: api/clinicians }, ttl: 3600, persist: device, scope: "{{ user }}", clear: "{{ signedOut }}" }
+    - type: ui-data-query
+      props:
+        url: api/appointments
+        params: { day: "{{ day }}", clinician: "{{ clinician }}" }
+        into: appointments
+        status: loading
+        persist: device
+        scope: "{{ user }}"
+        private: [reason]
+        clear: "{{ signedOut }}"
+        expand:
+          patient: { source: patients, from: patientId }
+          clinician: { source: clinicians, from: clinicianId }
+    - type: ui-data-query
+      props: { source: patients, ids: "{{ picked }}", into: patient }
+
+    - type: stack
+      props: { direction: row, gap: 12, align: end, justify: space-between, wrap: true }
+      children:
+        - type: stack
+          props: { gap: 4 }
+          children:
+            - { type: ui-heading, props: { level: 2, text: Clinic day } }
+            - type: ui-text
+              props:
+                variant: muted
+                text: "{{ loading.state == 'loading' ? 'Loading the day…' : loading.state == 'joining' ? loading.total + ' appointments · fetching ' + loading.pending + ' patients and clinicians…' : loading.state == 'error' ? 'Couldn\\'t load the day.' : loading.state == 'stale' ? loading.total + ' appointments, kept on this device: offline' : loading.cached ? loading.total + ' appointments, from this device · updating…' : loading.total + ' appointments' }}"
+        - type: stack
+          props: { direction: row, gap: 8 }
+          children:
+            - type: ui-select
+              props: { bind: day, options: [ { value: "2026-11-26", label: "Thu 26 Nov" }, { value: "2026-11-27", label: "Fri 27 Nov" }, { value: "2026-11-30", label: "Mon 30 Nov" } ] }
+            - type: ui-select
+              props: { bind: clinician, options: [ { value: "", label: Every clinician }, { value: c-1, label: Dr. Osei }, { value: c-2, label: Dr. Weber }, { value: c-3, label: Dr. Raman }, { value: c-4, label: Dr. Ortega }, { value: c-5, label: Nurse Sato } ] }
+
+    - type: element
+      props: { tag: div }
+      style: { display: grid, grid-template-columns: "minmax(0, 1fr) 320px", gap: 20px, align-items: start, "@media (max-width: 900px)": { grid-template-columns: "minmax(0, 1fr)" } }
+      children:
+        - type: stack
+          props: { gap: 20 }
+          children:
+            # A chart over joined rows: grouped by the clinician's name, which the
+            # appointments API doesn't have.
+            - type: ui-card
+              props: { title: Appointments by clinician }
+              children:
+                - type: ui-chart
+                  props: { type: bar, data: "{{ appointments }}", x: clinician.name, series: status, aggregate: count, stack: true, horizontal: true, height: 240, loading: "{{ loading.state == 'loading' || loading.state == 'joining' }}" }
+
+            - type: ui-card
+              props: { title: Schedule }
+              children:
+                - type: element
+                  props: { tag: ul }
+                  style: { list-style: none, margin: 0, padding: 0, display: flex, flex-direction: column }
+                  children:
+                    - type: list
+                      props: { items: "{{ appointments }}", as: a, key: "{{ a.id }}" }
+                      style: { display: contents }
+                      children:
+                        - type: element
+                          props: { tag: li }
+                          style: { display: grid, grid-template-columns: "56px minmax(0, 1fr) auto", gap: 12px, align-items: center, padding: 10px 4px, border-top: 1px solid $color.border }
+                          children:
+                            - { type: ui-text, props: { text: "{{ a.at }}" }, style: { font-variant-numeric: tabular-nums, font-weight: 600 } }
+                            - type: element
+                              props: { tag: button }
+                              attrs: { type: button, aria-pressed: "{{ picked == a.patientId }}" }
+                              on: { click: { action: set_state, key: picked, value: "{{ a.patientId }}" } }
+                              style: { display: flex, flex-direction: column, gap: 4px, min-width: 0, padding: 0, border: 0, background: none, color: inherit, font: inherit, text-align: start, cursor: pointer }
+                              children:
+                                - type: if
+                                  props: { when: "{{ a.$loading.patient }}" }
+                                  children: [ { type: ui-skeleton, props: { width: 140, height: 14 } } ]
+                                - type: if
+                                  props: { when: "{{ !a.$loading.patient }}" }
+                                  children:
+                                    - { type: ui-text, props: { text: "{{ a.patient && a.patient.name ? a.patient.name : a.patient ? 'Details locked' : 'Unknown patient' }}" }, style: { font-weight: 500 } }
+                                - type: if
+                                  props: { when: "{{ a.$loading.clinician }}" }
+                                  children: [ { type: ui-skeleton, props: { width: 200, height: 11 } } ]
+                                - type: if
+                                  props: { when: "{{ !a.$loading.clinician }}" }
+                                  children:
+                                    - { type: ui-text, props: { variant: muted, text: "{{ a.reason ? a.reason + ' · ' : '' }}{{ a.clinician.name }}, room {{ a.clinician.room }}" }, style: { font-size: 13px } }
+                            - type: ui-status-badge
+                              props: { status: "{{ a.status }}", tones: { Booked: info, Checked in: warning, Seen: success, No-show: danger } }
+
+        - type: stack
+          props: { gap: 20 }
+          children:
+            # The patient picked, looked up by id: already fetched with the list.
+            - type: ui-card
+              props: { title: Patient, description: "{{ picked ? '' : 'Pick an appointment to see the patient.' }}" }
+              children:
+                - type: if
+                  props: { when: "{{ patient }}" }
+                  children:
+                    - type: stack
+                      props: { gap: 12 }
+                      children:
+                        - type: stack
+                          props: { direction: row, gap: 10, align: center }
+                          children:
+                            - { type: ui-avatar, props: { fallback: "{{ patient.name }}", alt: "{{ patient.name }}", size: 40 } }
+                            - type: stack
+                              props: { gap: 0 }
+                              children:
+                                - { type: ui-text, props: { text: "{{ patient.name }}" }, style: { font-weight: 600 } }
+                                - { type: ui-text, props: { variant: muted, text: "{{ patient.mrn }}" } }
+                        - type: ui-description-list
+                          children:
+                            - { type: ui-description-item, props: { label: Born, value: "{{ patient.born }}", format: date } }
+                            - { type: ui-description-item, props: { label: Phone, value: "{{ patient.phone }}" } }
+                        - type: stack
+                          props: { gap: 6 }
+                          children:
+                            - { type: ui-text, props: { variant: muted, text: Allergies }, style: { font-size: 13px } }
+                            - type: stack
+                              props: { direction: row, gap: 6, wrap: true }
+                              children:
+                                - type: list
+                                  props: { items: "{{ patient.allergies }}", as: allergy }
+                                  style: { display: contents }
+                                  children: [ { type: ui-badge, props: { text: "{{ allergy }}", variant: destructive } } ]
+                                - type: if
+                                  props: { when: "{{ !patient.allergies.length }}" }
+                                  children: [ { type: ui-text, props: { text: None recorded } } ]
+                - type: if
+                  props: { when: "{{ picked && !patient }}" }
+                  children: [ { type: ui-skeleton, props: { height: 120 } } ]
+
+            # This device: the lock whose key seals what's personal, and signing out.
+            - type: ui-card
+              props: { title: This device, description: "The day is kept here for {{ user ? user : 'no one' }}, to open at once and without a connection. Patients' details are kept only encrypted: set a PIN and they're kept, lock it and they leave the page." }
+              children:
+                - type: stack
+                  props: { gap: 12 }
+                  children:
+                    - { type: ui-offline-indicator, props: { showOnline: true } }
+                    - { type: ui-app-lock, props: { methods: [pin, passkey], name: clinic, after: 10, bindLocked: locked } }
+                    - type: if
+                      props: { when: "{{ !signedOut }}" }
+                      children:
+                        - type: ui-button
+                          props: { label: Sign out, variant: outline }
+                          on: { click: [ { action: set_state, key: signedOut, value: true }, { action: set_state, key: user, value: null } ] }
+                    - type: if
+                      props: { when: "{{ signedOut }}" }
+                      children:
+                        - { type: ui-text, props: { variant: muted, text: "Signed out: what was kept here is gone." } }
+                        - type: ui-button
+                          props: { label: Sign in again }
+                          on: { click: [ { action: set_state, key: signedOut, value: false }, { action: set_state, key: user, value: dr-osei } ] }

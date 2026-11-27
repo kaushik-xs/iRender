@@ -40,6 +40,19 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                          The pasteuriser dips under 72 °C and diverts now and then, which stops the
                          line; a cold store sensor warms up later in the same five minutes.
   api/twin/bottling/stream  the same, as server-sent events, once a second
+  api/tickets   JSON: 400 made-up support tickets (block data-table-09), with ui-data-table's
+                query as api/shipments (offset, limit, sort, q, filters, facets). Each names
+                its requester and assignee (`requesterId`, `assigneeId`: api/people) and
+                its account (`accountId`: api/accounts) by id only.
+  api/people    JSON: people by id, many at a time (`?ids=u-01,u-02`, a list) after 600 ms,
+                or one (`api/people/u-01`); an unknown id is left out, or 404.
+  api/accounts/<id>  JSON: one account, after 250 ms: for a source that fetches one at a time.
+                With an ETag: asked again with If-None-Match, it answers 304 when unchanged.
+  api/appointments   JSON: a clinic's day (block clinic-01), `?day=YYYY-MM-DD&clinician=<id>`:
+                { rows, total }, each naming its patient and clinician by id only.
+  api/clinicians     JSON: clinicians by id, `?ids=c-1,c-2`, after 400 ms.
+  api/patients/batch POST { ids }: patients by id after 700 ms, as { data: { <id>: patient } }.
+                Their details are personal: the page fetches them, nothing keeps them.
   api/records   POST anything as JSON: answers { id, size }, the same for the same x-queued-id.
   api/uploads/<id>/<name>  GET: an uploaded file back.
 UI is rendered by the CLI: set IRENDER to the binary (default target/debug/irender).
@@ -113,6 +126,132 @@ def make_shipments(n=5000):
 
 
 SHIPMENTS = make_shipments()
+
+
+def make_people(n=60):
+    rng = random.Random(7)
+    first = ["Ada", "Grace", "Alan", "Katherine", "Linus", "Margaret", "Dennis", "Barbara", "Ken", "Frances", "Tim", "Radia", "Guido", "Hedy", "John", "Sophie"]
+    last = ["Okafor", "Lindqvist", "Tanaka", "Moreau", "Silva", "Novak", "Haddad", "Iyer", "Kowalski", "Mensah", "Rossi", "Byrne", "Nakamura", "Duarte", "Fischer"]
+    teams = ["Support", "Billing", "Onboarding", "Engineering", "Success"]
+    out = {}
+    for i in range(1, n + 1):
+        name = f"{rng.choice(first)} {rng.choice(last)}"
+        pid = f"u-{i:02d}"
+        out[pid] = {
+            "id": pid, "name": name, "email": name.lower().replace(" ", ".") + "@example.com",
+            "title": rng.choice(["Agent", "Senior agent", "Lead", "Customer", "Admin", "Manager"]),
+            "team": rng.choice(teams), "phone": f"+1 555 {rng.randint(100, 999)} {rng.randint(1000, 9999)}",
+        }
+    return out
+
+
+PEOPLE = make_people()
+
+
+def make_accounts(n=20):
+    rng = random.Random(9)
+    names = ["Northwind", "Contoso", "Fabrikam", "Globex", "Initech", "Umbrella", "Soylent", "Hooli", "Vandelay", "Wonka", "Stark", "Wayne", "Acme", "Tyrell", "Cyberdyne", "Aperture", "Massive", "Oscorp", "Gringotts", "Monarch"]
+    return {f"acc-{i:02d}": {"id": f"acc-{i:02d}", "name": names[i - 1], "plan": rng.choice(["Free", "Team", "Business", "Enterprise"]), "region": rng.choice(REGIONS)} for i in range(1, n + 1)}
+
+
+ACCOUNTS = make_accounts()
+
+
+def make_tickets(n=400):
+    rng = random.Random(11)
+    subjects = ["Can't sign in", "Invoice shows the wrong amount", "Export times out", "Add a seat", "Webhook stopped firing", "Password reset email missing",
+                "Change the billing contact", "Slow dashboard", "Import fails on row 12", "Two-factor codes rejected", "Cancel the trial", "API rate limit"]
+    agents = [f"u-{i:02d}" for i in range(1, 11)]
+    out = []
+    for i in range(n):
+        status = rng.choices(["Open", "Pending", "On hold", "Solved"], [5, 3, 1, 4])[0]
+        out.append({
+            "id": f"T-{4100 + i}", "subject": rng.choice(subjects), "status": status,
+            "priority": rng.choices(["Low", "Normal", "High", "Urgent"], [3, 6, 3, 1])[0],
+            "opened": f"2026-{rng.randint(9, 11):02d}-{rng.randint(1, 28):02d}",
+            "requesterId": f"u-{rng.randint(11, 60):02d}", "assigneeId": None if status == "Open" and rng.random() < 0.2 else rng.choice(agents),
+            "accountId": f"acc-{rng.randint(1, 20):02d}",
+        })
+    return out
+
+
+TICKETS = make_tickets()
+
+
+def listing(rows, query, searched_fields):
+    """ui-data-table's query over `rows`: search, filters, facets, sort and a batch."""
+    q = (query.get("q") or "").strip().lower()
+    if q:
+        rows = [r for r in rows if all(any(w in str(r.get(f) or "").lower() for f in searched_fields) for w in q.split())]
+    searched = rows
+    filters = json.loads(query.get("filters") or "{}")
+    for field, cond in filters.items():
+        rows = [r for r in rows if matches(r.get(field), cond)]
+    extras = {}
+    if query.get("facets"):
+        extras["facets"] = {}
+        for f in query["facets"].split(","):
+            counts = {}
+            for r in searched:
+                if all(matches(r.get(k), c) for k, c in filters.items() if k != f):
+                    counts[r.get(f)] = counts.get(r.get(f), 0) + 1
+            extras["facets"][f] = [{"value": v, "count": n} for v, n in sorted(counts.items(), key=lambda x: str(x[0]))]
+    for key in reversed([k for k in (query.get("sort") or "").split(",") if k]):
+        field = key.lstrip("-")
+        rows = sorted(rows, key=lambda r: (r.get(field) is None, str(r.get(field))), reverse=key.startswith("-"))
+    offset = max(0, int(query.get("offset") or 0))
+    limit = min(500, max(1, int(query.get("limit") or 50)))
+    time.sleep(0.25)
+    return {"rows": rows[offset:offset + limit], "total": len(rows), **extras}
+
+
+CLINICIANS = {
+    "c-1": {"id": "c-1", "name": "Dr. Amara Osei", "specialty": "Family medicine", "room": "1"},
+    "c-2": {"id": "c-2", "name": "Dr. Lukas Weber", "specialty": "Paediatrics", "room": "2"},
+    "c-3": {"id": "c-3", "name": "Dr. Priya Raman", "specialty": "Dermatology", "room": "3"},
+    "c-4": {"id": "c-4", "name": "Dr. Tomás Ortega", "specialty": "Cardiology", "room": "4"},
+    "c-5": {"id": "c-5", "name": "Nurse Hana Sato", "specialty": "Vaccinations", "room": "5"},
+}
+
+
+def make_patients(n=90):
+    rng = random.Random(13)
+    first = ["Mia", "Noah", "Zara", "Omar", "Lena", "Kofi", "Ines", "Ravi", "Elsa", "Yusuf", "Chloe", "Mateo", "Aiko", "Sven", "Leila", "Dev"]
+    last = ["Brennan", "Achebe", "Castillo", "Dubois", "Eriksen", "Farouk", "Gallo", "Horvat", "Ito", "Jansen", "Kaur", "Larsen", "Mbeki"]
+    out = {}
+    for i in range(1, n + 1):
+        pid = f"pt-{i:03d}"
+        out[pid] = {
+            "id": pid, "name": f"{rng.choice(first)} {rng.choice(last)}", "mrn": f"MRN-{rng.randint(100000, 999999)}",
+            "born": f"{rng.randint(1945, 2022)}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}",
+            "phone": f"+44 7{rng.randint(100, 999)} {rng.randint(100000, 999999)}",
+            "allergies": rng.choice([[], [], ["Penicillin"], ["Latex"], ["Peanuts", "Shellfish"]]),
+        }
+    return out
+
+
+PATIENTS = make_patients()
+
+
+def appointments(query):
+    """The day's appointments: the same ones every time for a day."""
+    day = query.get("day") or "2026-11-27"
+    rng = random.Random(day)
+    reasons = ["Check-up", "Follow-up", "Rash", "Chest pain", "Flu shot", "Blood pressure", "Ear ache", "Results", "Mole check", "Travel vaccine"]
+    rows = []
+    for c in CLINICIANS:
+        for slot in sorted(rng.sample(range(16), rng.randint(3, 7))):
+            hour, minute = 8 + slot // 2, 30 * (slot % 2)
+            rows.append({
+                "id": f"{day}-{c}-{slot}", "time": f"{day}T{hour:02d}:{minute:02d}", "at": f"{hour:02d}:{minute:02d}", "clinicianId": c,
+                "patientId": rng.choice(list(PATIENTS)), "reason": rng.choice(reasons),
+                "status": rng.choices(["Booked", "Checked in", "Seen", "No-show"], [5, 2, 3, 1])[0],
+            })
+    rows.sort(key=lambda r: r["time"])
+    if query.get("clinician"):
+        rows = [r for r in rows if r["clinicianId"] == query["clinician"]]
+    time.sleep(0.3)
+    return {"rows": rows, "total": len(rows)}
 
 
 def budget_projects(parent):
@@ -371,6 +510,24 @@ class Handler(SimpleHTTPRequestHandler):
             if name in TAKEN:
                 return self.send_json({"valid": False, "message": f"@{name} is taken"})
             return self.send_json({"valid": True})
+        if path.endswith("/api/tickets"):
+            return self.send_json(listing(TICKETS, self.query(), ("id", "subject", "status", "priority")))
+        if path.endswith("/api/people"):
+            ids = [i for i in self.query().get("ids", "").split(",") if i]
+            time.sleep(0.6)
+            return self.send_json([PEOPLE[i] for i in ids if i in PEOPLE])
+        if "/api/people/" in path:
+            person = PEOPLE.get(path.rsplit("/", 1)[1])
+            return self.send_json(person) if person else self.send_error(404)
+        if "/api/accounts/" in path:
+            time.sleep(0.25)
+            account = ACCOUNTS.get(path.rsplit("/", 1)[1])
+            return self.send_tagged(account) if account else self.send_error(404)
+        if path.endswith("/api/appointments"):
+            return self.send_json(appointments(self.query()))
+        if path.endswith("/api/clinicians"):
+            time.sleep(0.4)
+            return self.send_json([CLINICIANS[i] for i in self.query().get("ids", "").split(",") if i in CLINICIANS])
         if path.endswith("/api/shipments"):
             from urllib.parse import parse_qsl
             query = dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
@@ -390,7 +547,22 @@ class Handler(SimpleHTTPRequestHandler):
             return self.upload(path)
         if path.endswith("/api/records"):
             return self.record()
+        if path.endswith("/api/patients/batch"):
+            return self.patients()
         self.send_error(404)
+
+    def query(self):
+        from urllib.parse import parse_qsl
+        return dict(parse_qsl(self.path.split("?", 1)[1] if "?" in self.path else ""))
+
+    def patients(self):
+        """Patients by id, from a POST of { ids }: as { data: { id: patient } }."""
+        try:
+            ids = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}").get("ids") or []
+        except (ValueError, AttributeError):
+            return self.send_error(400, "not JSON")
+        time.sleep(0.7)
+        self.send_json({"data": {i: PATIENTS[i] for i in ids if isinstance(i, str) and i in PATIENTS}})
 
     def record(self):
         """Takes anything as JSON and answers with an id; one sent again (the same
@@ -502,6 +674,24 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_tagged(self, value):
+        """JSON with an ETag, or 304 Not Modified when the page already has it."""
+        import hashlib
+        body = json.dumps(value).encode()
+        tag = '"' + hashlib.sha1(body).hexdigest()[:16] + '"'
+        if self.headers.get("If-None-Match") == tag:
+            self.send_response(304)
+            self.send_header("ETag", tag)
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("ETag", tag)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

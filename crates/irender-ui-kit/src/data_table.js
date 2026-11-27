@@ -117,6 +117,17 @@
   const mode = cfg.paging;
   let loaded = size;
   const remote = cfg.url != null;
+  // Rows joined to the records they name (`expand`, data.js): only the rows drawn are
+  // joined, so only their ids are asked for; they're drawn again as records arrive.
+  const D = cfg.expand ? window.__irenderData : null;
+  let joins = 0;
+  const joined = (r) => (D && isDataRow(r) ? D.join(r, cfg.expand) : r);
+  // Joined with the records already fetched, asking for none: for an export of every row.
+  const kept = (r) => (D && isDataRow(r) ? D.join(r, cfg.expand, false) : r);
+  if (D) {
+    const used = D.reads(cfg.expand);
+    D.on((names) => used.some((n) => names.has(n)) && el.isConnected && (joins++, apply()));
+  }
   const hidden = new Set(cols.filter((c) => c.hidden).map((c) => c.key));
   const expanded = new Set();
   const get = (name) => {
@@ -491,14 +502,14 @@
       const [s, e] = windowOf(shown.length);
       pad("top", s * est);
       pad("bottom", (shown.length - e) * est);
-      const sig = s + ":" + shown.slice(s, e).join(",");
+      const sig = s + ":" + shown.slice(s, e).join(",") + ":" + joins;
       if (sig !== listSig || data !== listData) {
         listSig = sig;
         listData = data;
         listStart = s;
         const n = applies;
         const held = body.contains(document.activeElement) ? document.activeElement : null;
-        api.list(body, shown.slice(s, e).map((i) => data[i]), s);
+        api.list(body, shown.slice(s, e).map((i) => joined(data[i])), s);
         // The focused row scrolled out of the window: the scroll area holds focus, so
         // keys still reach the table, until the row is drawn again.
         if (held && !held.isConnected && (focusKey != null || edit)) {
@@ -564,7 +575,7 @@
       }
       if (on) for (const x of tr.querySelectorAll(":scope > [data-dt-fmt], :scope > td > [data-dt-node] > [data-dt-fmt]")) {
         const c = byKey.get(x.closest("[data-dt-col]").getAttribute("data-dt-col"));
-        x.textContent = fmt(c, at(data[i], c.field));
+        x.textContent = fmt(c, at(joined(data[i]), c.field));
       }
       if (cfg.groupRemote) {
         drawGroupRow(tr, data[i]);
@@ -1416,12 +1427,12 @@
         const label = c.edit?.type === "select" ? fmt(c, v) : v;
         return c.format && c.format !== "date" && c.format !== "datetime" && isNum(v) ? Number(v) : label;
       };
-      const book = [shownCols.map((c) => c.label || c.field), ...seq.map((i) => shownCols.map((c) => value(c, at(data[i], c.field))))];
+      const book = [shownCols.map((c) => c.label || c.field), ...seq.map((i) => shownCols.map((c) => value(c, at(kept(data[i]), c.field))))];
       api.emit("export", { rows: seq.length, file: cfg.export });
       window.__irenderSheets.save(window.__irenderSheets.workbook(book, cfg.title || "Rows", formats), cfg.export);
       return sayCols(L(["Exported {n} row", "Exported {n} rows"], { n: seq.length }));
     }
-    const lines = [shownCols.map((c) => c.label || c.field), ...seq.map((i) => shownCols.map((c) => at(data[i], c.field)))];
+    const lines = [shownCols.map((c) => c.label || c.field), ...seq.map((i) => shownCols.map((c) => at(kept(data[i]), c.field)))];
     const csv = "﻿" + window.__irenderSheets.toCsv(lines) + "\r\n";
     api.emit("export", { csv, rows: seq.length, file: cfg.export });
     window.__irenderSheets.save(new Blob([csv], { type: "text/csv;charset=utf-8" }), cfg.export);
@@ -1717,7 +1728,7 @@
     // A group row opens and closes its group.
     if (isGroupRow(row)) return toggleNode(indexOf(tr));
     if (isMoreRow(row)) return loadGroupMore(row);
-    if (B.row) api.set(B.row, row);
+    if (B.row) api.set(B.row, joined(row));
     api.emit("rowclick", { row });
   }
   function toggleDetail(tr) {

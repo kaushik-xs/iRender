@@ -360,8 +360,10 @@
     return out;
   }
   const rand = (n) => crypto.getRandomValues(new Uint8Array(n));
-  const makeLocal = (label) => navigator.credentials.create({ publicKey: { challenge: rand(32), rp: { name: document.title || "App" }, user: { id: rand(16), name: label, displayName: label }, pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" }, timeout: 60000 } });
-  const useLocal = (ids) => navigator.credentials.get({ publicKey: { challenge: rand(32), allowCredentials: ids.map((id) => ({ type: "public-key", id: bytes(id), transports: ["internal"] })), userVerification: "required", timeout: 60000 } });
+  // With `salt`, the passkey's PRF is asked for a key (where the device has one).
+  const prf = (salt) => (salt ? { extensions: { prf: { eval: { first: salt } } } } : {});
+  const makeLocal = (label, salt) => navigator.credentials.create({ publicKey: { challenge: rand(32), rp: { name: document.title || "App" }, user: { id: rand(16), name: label, displayName: label }, pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }], authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required", residentKey: "preferred" }, timeout: 60000, ...prf(salt) } });
+  const useLocal = (ids, salt) => navigator.credentials.get({ publicKey: { challenge: rand(32), allowCredentials: ids.map((id) => ({ type: "public-key", id: bytes(id), transports: ["internal"] })), userVerification: "required", timeout: 60000, ...prf(salt) } });
   B["ui-passkey"] = (el, api) => {
     const cfg = api.config, register = cfg.mode === "register", name = make("span"), error = make("p", { "data-w-error": "", role: "alert" });
     const b = btn(cfg.variant === "primary" ? "primary" : "", { "data-passkey": "", click: () => go() }, icon("key", 16), name);
@@ -423,6 +425,32 @@
     const ready = () => !!set && (set.pin || set.passkey);
     const hash = async (text, salt) => b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: bytes(salt), iterations: 210000 }, await crypto.subtle.importKey("raw", new TextEncoder().encode(text), "PBKDF2", false, ["deriveBits"]), 256));
     const put = (v) => ((set = v), (saved = true), v ? O.db.put("kv", key, v) : O.db.del("kv", key)).catch(() => {});
+    // ---- the data key: random, it encrypts people's details kept on the device (the
+    // vault in offline.js). It's kept wrapped by a key from the PIN and, where the device's
+    // passkey can give one (its PRF), by one from the passkey; unwrapped only as it's
+    // unlocked, and only in memory. `raw` is here while it's unlocked, to wrap again.
+    let raw = null;
+    const aes = (k, use) => crypto.subtle.importKey("raw", k, "AES-GCM", false, use);
+    const fromPin = async (given, salt) => aes(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: bytes(salt), iterations: 210000 }, await crypto.subtle.importKey("raw", new TextEncoder().encode(given), "PBKDF2", false, ["deriveBits"]), 256), ["encrypt", "decrypt"]);
+    const wrap = async (k) => {
+      const iv = rand(12);
+      return { iv: b64(iv), data: b64(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k, raw)) };
+    };
+    const unwrap = async (k, w) => new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes(w.iv) }, k, bytes(w.data)));
+    async function opened(r, kid) {
+      raw = r;
+      O.vault.set(await aes(r, ["encrypt", "decrypt"]), kid);
+    }
+    // A new data key, when there's none to wrap again: what the old one sealed is let go.
+    async function keyFor() {
+      if (raw && set?.dk) return set.dk;
+      if (set?.dk) O.vault.forget();
+      const kid = b64(rand(8));
+      await opened(rand(32), kid);
+      return { kid };
+    }
+    const prfSalt = () => (set?.dk?.prfSalt ? bytes(set.dk.prfSalt) : null);
+    const prfOf = (c) => c?.getClientExtensionResults?.().prf?.results?.first;
     const tell = () => cfg.bindLocked && !!api.state[cfg.bindLocked] !== locked && api.set(cfg.bindLocked, locked);
     // ---- the cover
     const dots = make("div", { "data-lk-dots": "", role: "img" }), line = make("p", { "data-w-note": "", role: "alert" }), title = make("h2");
@@ -468,6 +496,8 @@
       locked = true;
       step = null;
       note = "";
+      raw = null;
+      O.vault.clear();
       tell();
       open();
       api.emit("lock", {});
@@ -511,13 +541,16 @@
       }
       if (step === "again") {
         if (given !== first) return (step = "new"), wrong(L("They weren't the same. Choose again."));
-        const salt = b64(rand(16));
-        await put({ ...(set ?? {}), pin: await hash(given, salt), salt, digits: N, tries: 0, until: 0 });
+        const salt = b64(rand(16)), dk = await keyFor(), dkSalt = b64(rand(16));
+        await put({ ...(set ?? {}), pin: await hash(given, salt), salt, digits: N, tries: 0, until: 0, dk: { ...dk, salt: dkSalt, pin: await wrap(await fromPin(given, dkSalt)) } });
         quit();
         K.say(el, L("The PIN is set"));
         return api.emit("set", { method: "pin" });
       }
-      if ((await hash(given, set.salt)) === set.pin) return unlock();
+      if ((await hash(given, set.salt)) === set.pin) {
+        if (set.dk?.pin) await opened(await unwrap(await fromPin(given, set.dk.salt), set.dk.pin), set.dk.kid).catch(() => {});
+        return unlock();
+      }
       const tries = (set.tries ?? 0) + 1;
       // Waits of half a minute, then one, two, four… after so many.
       await put({ ...set, tries, until: tries >= TRIES ? Date.now() + Math.min(3600, 30 * 2 ** (tries - TRIES)) * 1000 : 0 });
@@ -526,7 +559,9 @@
     }
     async function withKey(quiet) {
       try {
-        await useLocal([set.passkey]);
+        const salt = prfSalt(), c = await useLocal([set.passkey], salt);
+        const out = prfOf(c);
+        if (out && set.dk?.passkey) await opened(await unwrap(await aes(out, ["decrypt"]), set.dk.passkey), set.dk.kid).catch(() => {});
         if (locked) unlock();
       } catch (e) {
         if (!quiet) (note = e.name === "NotAllowedError" ? L("It was cancelled, or took too long. Try again.") : D.explain(e, "passkey") ?? ""), drawPad();
@@ -540,6 +575,8 @@
     }
     async function reset() {
       if (!set) return;
+      raw = null;
+      if (set.dk) O.vault.forget();
       await put(null);
       locked = false;
       if (cover.open) cover.close();
@@ -549,8 +586,19 @@
     async function addKey() {
       note = "";
       try {
-        const c = await makeLocal(document.title || "App");
-        await put({ ...(set ?? {}), passkey: b64(c.rawId) });
+        const salt = rand(32);
+        const c = await makeLocal(document.title || "App", salt);
+        let dk = set?.dk;
+        // Where the passkey can give a key, the data key is wrapped with it too; asked once
+        // more if making it didn't already give one.
+        if (c.getClientExtensionResults?.().prf?.enabled || prfOf(c)) {
+          const out = prfOf(c) ?? prfOf(await useLocal([b64(c.rawId)], salt).catch(() => null));
+          if (out) {
+            const base = await keyFor();
+            dk = { ...base, prfSalt: b64(salt), passkey: await wrap(await aes(out, ["encrypt"])) };
+          }
+        }
+        await put({ ...(set ?? {}), passkey: b64(c.rawId), ...(dk ? { dk } : {}) });
         api.emit("set", { method: "passkey" });
       } catch (e) {
         note = e.name === "NotAllowedError" ? L("It was cancelled, or took too long. Try again.") : D.explain(e, "passkey") ?? "";
@@ -569,7 +617,7 @@
           canPin ? btn(has ? "" : "primary", { "data-set": "pin", click: () => ((step = "new"), (note = ""), open()) }, set?.pin ? L("Change the PIN") : L("Set a PIN")) : null,
           canKey && !set?.passkey ? btn("", { "data-set": "passkey", click: addKey }, icon("key", 15), L("Use fingerprint or face")) : null,
           has ? btn("", { "data-lock": "", click: lock }, icon("lock", 15), L("Lock now")) : null,
-          has ? btn("ghost", { "data-off": "", click: async () => { await put(null); api.emit("off", {}); draw(); } }, L("Turn off")) : null),
+          has ? btn("ghost", { "data-off": "", click: async () => { raw = null; if (set?.dk) O.vault.forget(); await put(null); api.emit("off", {}); draw(); } }, L("Turn off")) : null),
         make("p", { "data-w-error": "", role: "alert" }, step ? "" : note || (!canPin && !canKey ? D.unsupported("passkey") : ""))));
     }
     for (const ev of ["pointerdown", "keydown", "wheel", "touchstart"]) addEventListener(ev, () => (last = Date.now()), { passive: true, capture: true });

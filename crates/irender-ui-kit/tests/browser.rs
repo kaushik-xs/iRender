@@ -138,6 +138,29 @@ fn gallery_overlays_and_controls_in_chrome() {
 }
 
 /// Opens `html` in headless Chrome and returns what the driver wrote to `#result`.
+/// As [`drive`], for a page served over HTTP (where IndexedDB keeps things), at `url`, in
+/// real time: virtual time runs ahead of IndexedDB and key derivation, which take real
+/// time, and can end the page early. The page holds its `load` (which `--dump-dom` waits
+/// for) until its driver's done, with an image its server answers only then.
+fn drive_url(url: &str) -> Option<String> {
+    let Some(chrome) = chrome() else {
+        eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
+        return None;
+    };
+    let dir = std::env::temp_dir().join(format!("irender-ui-kit-profile-{}-{}", std::process::id(), url.len()));
+    let out = Command::new(&chrome)
+        .args(["--headless=new", "--no-sandbox", "--disable-gpu", "--window-size=1000,900", "--dump-dom"])
+        .arg(format!("--user-data-dir={}", dir.display()))
+        .arg(url)
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    let dom = String::from_utf8_lossy(&out.stdout).into_owned();
+    const RESULT: &str = "<pre id=\"result\">";
+    let start = dom.find(RESULT).unwrap_or_else(|| panic!("driver did not run:\n{dom}")) + RESULT.len();
+    Some(dom[start..start + dom[start..].find("</pre>").unwrap()].replace("&quot;", "\"").replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"))
+}
+
 fn drive(name: &str, html: &str) -> Option<String> {
     let Some(chrome) = chrome() else {
         eprintln!("skipping: Chrome not found (set CHROME=/path/to/chrome)");
@@ -9252,4 +9275,336 @@ fn iframe_in_chrome() {
         ["sizes 800x400 800x450", "sandbox true false lazy fullscreen", "other state 0 loads", "src about:blank#two", "unsafe false"],
         "\n{result}"
     );
+}
+
+/// Records joined by id: a remote table asks for the people on its page in one call (each
+/// id once), its cells pulse until they arrive, and the next page asks only for new ids;
+/// accounts come one at a time; a query fills state with rows from an API, joined, and
+/// another with records by id, by POST.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_sources_join_records_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let seen = seen.clone();
+            std::thread::spawn(move || {
+                let mut buf = [0u8; 8192];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let method = request.split_whitespace().next().unwrap_or("").to_string();
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+                let arg = |k: &str| query.split('&').filter_map(|kv| kv.split_once('=')).find(|(a, _)| *a == k).map(|(_, v)| v.to_string());
+                let person = |id: &str| serde_json::json!({ "id": id, "name": format!("Person {id}") });
+                let body_json = request.split("\r\n\r\n").nth(1).and_then(|b| serde_json::from_str::<serde_json::Value>(b).ok());
+                if method != "OPTIONS" {
+                    seen.lock().unwrap().push(format!("{method} {}", target.trim_start_matches('/')));
+                }
+                let (status, body) = match (method.as_str(), path) {
+                    ("OPTIONS", _) => ("204 No Content", String::new()),
+                    (_, "/rows") => {
+                        let offset: usize = arg("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
+                        let limit: usize = arg("limit").and_then(|v| v.parse().ok()).unwrap_or(1000);
+                        // Owners repeat, and p9 isn't anyone.
+                        let rows: Vec<_> = (0..12usize).skip(offset).take(limit).map(|i| serde_json::json!({ "id": i, "ownerId": if i == 5 { "p9".to_string() } else { format!("p{}", i % 4 + (i / 6) * 4) }, "accountId": format!("a{}", i % 2) })).collect();
+                        ("200 OK", serde_json::json!({ "rows": rows, "total": 12 }).to_string())
+                    }
+                    (_, "/people") | (_, "/folks") => {
+                        std::thread::sleep(std::time::Duration::from_millis(300));
+                        let ids = arg("ids").unwrap_or_default();
+                        let list: Vec<_> = ids.split(',').filter(|i| *i != "p9").map(person).collect();
+                        ("200 OK", serde_json::Value::Array(list).to_string())
+                    }
+                    ("POST", "/people/batch") => {
+                        let ids = body_json.as_ref().and_then(|b| b["ids"].as_array().cloned()).unwrap_or_default();
+                        let map: serde_json::Map<_, _> = ids.iter().filter_map(|i| i.as_str()).map(|i| (i.to_string(), person(i))).collect();
+                        ("200 OK", serde_json::json!({ "data": map }).to_string())
+                    }
+                    (_, p) if p.starts_with("/accounts/") => ("200 OK", serde_json::json!({ "id": &p[10..], "title": format!("Account {}", &p[10..]) }).to_string()),
+                    _ => ("404 Not Found", "{}".to_string()),
+                };
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: GET, POST\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let doc = serde_json::json!({ "version": 1, "state": { "pick": ["p1", "p2"], "rows": null, "rowsStatus": null, "picked": null, "one": null,
+        "local": [{ "id": 1, "who": "f1" }, { "id": 2, "who": "f2" }, { "id": 3, "who": "f3" }, { "id": 4, "who": "f4" }, { "id": 5, "who": "f5" }, { "id": 6, "who": "f6" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": format!("{base}/people"), "max": 3 } } },
+            { "type": "ui-data-source", "props": { "name": "accounts", "one": format!("{base}/accounts/{{id}}") } },
+            { "type": "ui-data-source", "props": { "name": "staff", "batch": { "url": format!("{base}/people/batch"), "method": "POST", "pick": "data" } } },
+            { "type": "ui-data-table", "props": { "id": "t", "url": format!("{base}/rows"), "pageSize": 6, "pageSizes": [],
+                "expand": { "owner": { "source": "people", "from": "ownerId" }, "account": "accounts" },
+                "columns": [{ "field": "id" }, { "field": "owner.name", "label": "Owner" }, { "field": "account.title", "label": "Account" }] } },
+            { "type": "ui-data-query", "props": { "url": format!("{base}/rows"), "params": { "limit": 3 }, "into": "rows", "status": "rowsStatus",
+                "expand": { "owner": { "source": "people", "from": "ownerId" } } } },
+            { "type": "ui-data-query", "props": { "source": "staff", "ids": "{{ pick }}", "into": "picked" } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": "p0", "into": "one" } },
+            { "type": "ui-data-source", "props": { "name": "folks", "batch": { "url": format!("{base}/folks") } } },
+            { "type": "ui-data-table", "props": { "id": "local", "rows": "{{ local }}", "pageSize": 3, "pageSizes": [], "export": "local.csv",
+                "expand": { "person": { "source": "folks", "from": "who" } },
+                "columns": [{ "field": "id" }, { "field": "person.name", "label": "Person" }] } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const t = document.getElementById("t");
+      const rows = () => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
+      const cells = (n) => rows().map((r) => r.children[n].textContent.trim() || "_").join(",");
+      const waiting = () => t.querySelectorAll("[data-dt-wait]").length;
+      try {
+        await until(() => rows().length === 6);
+        log("rows first", rows().length, "pulsing", waiting() > 0);
+        await until(() => !waiting());
+        log("owners", cells(1));
+        log("accounts", cells(2));
+        t.querySelector("[data-dt-go=next]").click();
+        await until(() => rows()[0]?.children[0].textContent.trim() === "6");
+        await until(() => !waiting());
+        log("page 2", cells(1));
+        await until(() => S().rowsStatus?.state === "ready");
+        log("query", S().rows.map((r) => r.owner?.name).join(","), S().rowsStatus.total, S().rowsStatus.pending);
+        await until(() => S().picked?.length === 2);
+        log("posted", S().picked.map((p) => p.name).join(","));
+        root.__irender.set("pick", ["p2", "p3"]);
+        await until(() => S().picked?.[1]?.name === "Person p3");
+        log("posted again", S().picked.map((p) => p.name).join(","));
+        log("one", S().one?.name);
+
+        // A table of rows in state: only its page's ids, and an export with what's here.
+        const lt = document.getElementById("local");
+        const lrows = () => [...lt.querySelectorAll("[data-dt-body] > [data-dt-row]")].map((r) => r.children[1].textContent.trim() || "_").join(",");
+        await until(() => !lt.querySelector("[data-dt-wait]") && lrows().startsWith("Person"));
+        log("local", lrows());
+        let csv = null; lt.addEventListener("export", (e) => (csv = e.detail.csv));
+        lt.querySelector("[data-dt-export]").click();
+        await wait(50);
+        log("export", csv.trim().split(/\r?\n/).slice(1).map((l) => l.split(",")[1] || "_").join(","));
+        lt.querySelector("[data-dt-go=next]").click();
+        await until(() => !lt.querySelector("[data-dt-wait]") && lrows().startsWith("Person f4"));
+        log("local 2", lrows());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-sources", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "rows first 6 pulsing true",
+            // p9 isn't anyone: blank, not pulsing.
+            "owners Person p0,Person p1,Person p2,Person p3,Person p0,_",
+            "accounts Account a0,Account a1,Account a0,Account a1,Account a0,Account a1",
+            "page 2 Person p6,Person p7,Person p4,Person p5,Person p6,Person p7",
+            // The API's total, not the rows it sent.
+            "query Person p0,Person p1,Person p2 12 0",
+            "posted Person p1,Person p2",
+            "posted again Person p2,Person p3",
+            "one Person p0",
+            "local Person f1,Person f2,Person f3",
+            // Only what was fetched: the rows on page 2 haven't been asked for.
+            "export Person f1,Person f2,Person f3,_,_,_",
+            "local 2 Person f4,Person f5,Person f6",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    let people: Vec<_> = log.iter().filter(|q| q.starts_with("GET people")).cloned().collect();
+    // The first page's five owners in calls of three (and p0 for the query that asks by id
+    // with them); then only the second page's new ones. Never one id twice.
+    let mut asked: Vec<String> = people.iter().flat_map(|q| q.split_once("ids=").unwrap().1.split(',').map(String::from).collect::<Vec<_>>()).collect();
+    let n = asked.len();
+    asked.sort();
+    asked.dedup();
+    assert_eq!(n, asked.len(), "an id was asked for twice: {people:?}");
+    assert_eq!(asked, ["p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p9"], "{people:?}");
+    assert!(people.iter().all(|q| q.split(',').count() <= 3), "{people:?}");
+    assert_eq!(log.iter().filter(|q| q.starts_with("GET accounts/")).count(), 2, "{log:?}");
+    assert_eq!(log.iter().filter(|q| q.starts_with("POST people/batch")).count(), 2, "{log:?}");
+    let folks: Vec<_> = log.iter().filter(|q| q.starts_with("GET folks")).cloned().collect();
+    assert_eq!(folks, ["GET folks?ids=f1,f2,f3", "GET folks?ids=f4,f5,f6"], "{log:?}");
+}
+
+/// Records kept on the device (`persist: device`), from a page served over HTTP so that
+/// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
+/// PIN's set; locking takes them off the page and unlocking brings them back from the
+/// device with the server down; a query's last answer shows offline; `one` asks with its
+/// ETag; another scope keeps its own; signing out wipes; turning the lock off lets the
+/// sealed fields go.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_sources_keep_records_on_the_device_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let page = Arc::new(Mutex::new(String::new()));
+    let down = Arc::new(AtomicBool::new(false));
+    let done = Arc::new(AtomicBool::new(false));
+    let (seen, html, off, fin) = (log.clone(), page.clone(), down.clone(), done.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, html, off, fin) = (seen.clone(), html.clone(), off.clone(), fin.clone());
+            std::thread::spawn(move || {
+                let mut buf = [0u8; 8192];
+                let n = stream.read(&mut buf).unwrap_or(0);
+                let request = String::from_utf8_lossy(&buf[..n]).to_string();
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+                let etag = request.lines().find_map(|l| l.to_ascii_lowercase().strip_prefix("if-none-match:").map(|v| v.trim().to_string()));
+                let ty = if path == "/" { "text/html" } else { "application/json" };
+                let (status, body, tag) = if path == "/" {
+                    ("200 OK", html.lock().unwrap().clone(), "")
+                } else if path == "/hold" {
+                    // The page's load waits for this: answered once the driver's done (or
+                    // after two minutes).
+                    for _ in 0..1200 {
+                        if fin.load(Ordering::SeqCst) {
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    ("404 Not Found", String::new(), "")
+                } else if path == "/finish" {
+                    fin.store(true, Ordering::SeqCst);
+                    ("200 OK", "{}".into(), "")
+                } else if path == "/down" {
+                    off.store(true, Ordering::SeqCst);
+                    ("200 OK", "{}".into(), "")
+                } else if off.load(Ordering::SeqCst) {
+                    seen.lock().unwrap().push(format!("down {target}"));
+                    ("503 Service Unavailable", "{}".into(), "")
+                } else {
+                    seen.lock().unwrap().push(format!("{target}{}", etag.as_deref().map(|e| format!(" if {e}")).unwrap_or_default()));
+                    match path {
+                        "/people" => {
+                            let ids = query.strip_prefix("ids=").unwrap_or("");
+                            let list: Vec<_> = ids.split(',').map(|i| serde_json::json!({ "id": i, "name": format!("Person {i}"), "email": format!("{i}@example.com") })).collect();
+                            ("200 OK", serde_json::Value::Array(list).to_string(), "")
+                        }
+                        "/accounts/a1" if etag.as_deref() == Some("\"v1\"") => ("304 Not Modified", String::new(), "\"v1\""),
+                        "/accounts/a1" => ("200 OK", serde_json::json!({ "id": "a1", "title": "Account a1" }).to_string(), "\"v1\""),
+                        "/visits" if query.contains("fail=1") => ("500 Internal Server Error", "{}".into(), ""),
+                        "/visits" => ("200 OK", serde_json::json!({ "rows": [{ "id": 1, "who": "Ana", "phone": "555-0101" }, { "id": 2, "who": "Ben", "phone": "555-0102" }], "total": 2 }).to_string(), ""),
+                        _ => ("404 Not Found", "{}".into(), ""),
+                    }
+                };
+                let tag = if tag.is_empty() { String::new() } else { format!("ETag: {tag}\r\n") };
+                let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: {ty}\r\n{tag}Cache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "scope": "u1", "fail": null, "out": false, "rows": null, "rowsStatus": null, "picked": ["p1", "p2"], "people": null, "acct": null, "locked": false, "again": 0 },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-app-lock", "props": { "methods": ["pin"], "name": "t", "after": 0, "bindLocked": "locked" } },
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": "/people" }, "persist": "device", "scope": "{{ scope }}", "private": ["email"], "clear": "{{ out }}" } },
+            { "type": "ui-data-source", "props": { "name": "accounts", "one": "/accounts/{id}", "persist": "device", "scope": "{{ scope }}" } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": "{{ picked }}", "into": "people" } },
+            { "type": "ui-data-query", "props": { "source": "accounts", "ids": "a1", "into": "acct" } },
+            { "type": "ui-data-query", "props": { "url": "/visits", "params": { "fail": "{{ fail }}" }, "into": "rows", "status": "rowsStatus", "refresh": "{{ again }}", "persist": "device", "scope": "{{ scope }}", "private": ["phone"] } } ] } });
+    let driver = r##"<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "result"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !(await f()); i++) await (i % 50 ? tick() : wait(10)); };
+      const $ = (s) => document.querySelector(s);
+      const root = $("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
+      const tap = async (d) => { for (const c of d) $(`[data-k="${c}"]`).click(); await wait(30); };
+      const kept = () => new Promise((ok) => { const r = indexedDB.open("irender-records"); r.onsuccess = () => { const tx = r.result.transaction("records"), st = tx.objectStore("records"), out = {}; const k = st.getAllKeys(), v = st.getAll(); tx.oncomplete = () => { k.result.forEach((key, i) => (out[key.split("\u0001").join("/")] = v.result[i])); r.result.close(); ok(out); }; }; });
+      const names = () => (S().people ?? []).map((p) => `${p.name}<${p.email ?? "-"}>`).join(",");
+      try {
+        await until(() => S().people?.length === 2 && S().rowsStatus?.state === "ready" && S().acct);
+        let k = await kept();
+        log("no key", names(), k["r/u1/people/p1"].v.name, "email" in k["r/u1/people/p1"].v, String(k["r/u1/people/p1"].enc), "phone" in k["q/u1/" + Object.keys(k).find((x) => x.startsWith("q/")).slice(5)].v[0]);
+        // A PIN: the key's made and the vault opens; what's fetched next is sealed.
+        $("[data-set=pin]").click(); await wait(20); await tap("2580"); await tap("2580");
+        await until(() => window.__irenderOffline.vault.key && !$("dialog").open && $("[data-lock]"));
+        window.__irenderData.invalidate("people");
+        // The query's rows again, now with a key: their phones are sealed.
+        set("again", 1);
+        await until(async () => (await kept())["r/u1/people/p1"]?.enc && Object.entries(await kept()).some(([key, v]) => key.startsWith("q/") && v.enc));
+        k = await kept();
+        const p1 = k["r/u1/people/p1"];
+        log("sealed", "email" in p1.v, p1.enc.data.length > 0, new TextDecoder().decode(p1.enc.data).includes("example.com"));
+        // `one` asks with its ETag.
+        window.__irenderData.invalidate("accounts");
+        await wait(200);
+        // Locked: the email leaves the page.
+        $("[data-lock]").click(); await until(() => !S().people?.[0]?.email);
+        log("locked", S().locked, names());
+        // The server goes down; unlocking brings the email back from the device.
+        await fetch("/down");
+        await tap("2580");
+        await until(() => S().people?.[0]?.email);
+        log("unlocked", S().locked, names());
+        // The query: another address fails, the kept one shows its last answer.
+        set("fail", 1); await until(() => S().rowsStatus?.state === "stale"); set("fail", null);
+        await until(() => S().rowsStatus?.state === "stale" && S().rowsStatus.cached);
+        log("offline query", S().rows.map((r) => r.who + ":" + r.phone).join(","), S().rowsStatus.state, S().rowsStatus.cached);
+        // Someone else: nothing of theirs is kept; back again, what was kept shows.
+        set("scope", "u2"); await until(() => !S().people?.length); log("u2", names() || "none");
+        set("scope", "u1"); await until(() => S().people?.length === 2); log("u1 again", names());
+        // Signing out wipes the people kept for u1.
+        set("out", true); await until(async () => !Object.keys(await kept()).some((x) => x.startsWith("r/u1/people")));
+        log("signed out", Object.keys(await kept()).filter((x) => x.startsWith("r/u1/")).join(","));
+        // Turning the lock off lets what its key sealed go.
+        $("[data-off]").click();
+        await until(async () => !Object.values(await kept()).some((x) => x.enc));
+        log("lock off", Object.values(await kept()).filter((x) => x.enc).length, String(window.__irenderOffline.vault.key));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n");
+      fetch("/finish");
+    });
+    </script><img src="/hold" alt="" hidden>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    *page.lock().unwrap() = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive_url(&format!("http://127.0.0.1:{port}/")) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "no key Person p1<p1@example.com>,Person p2<p2@example.com> Person p1 false null false",
+            "sealed false true false",
+            "locked true Person p1<->,Person p2<->",
+            "unlocked false Person p1<p1@example.com>,Person p2<p2@example.com>",
+            "offline query Ana:555-0101,Ben:555-0102 stale true",
+            "u2 none",
+            "u1 again Person p1<p1@example.com>,Person p2<p2@example.com>",
+            "signed out r/u1/accounts/a1",
+            "lock off 0 null",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    assert!(log.iter().any(|q| q == "/accounts/a1 if \"v1\""), "{log:?}");
+    // Unlocked with the server down, the people came from the device: the only ones asked
+    // for while it was down were u2's, and u1's after signing out.
+    assert!(log.iter().filter(|q| q.starts_with("down /people")).count() <= 2, "{log:?}");
 }

@@ -65,7 +65,8 @@ async function shared(req) {
 self.addEventListener("fetch", (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method === "POST" && APP.share && url.href.split("?")[0] === at(APP.share)) return e.respondWith(shared(req));
-  if (req.method !== "GET" || req.headers.has("range")) return;
+  // Records from `ui-data-source` and `ui-data-query` (people's details, say) aren't kept.
+  if (req.method !== "GET" || req.headers.has("range") || req.headers.has("x-irender-data")) return;
   if (also.has(req.url)) return e.respondWith(find(req).then((r) => r ?? fetch(req)));
   if (url.origin !== location.origin || !url.href.startsWith(scope.href)) return;
   const path = url.pathname;

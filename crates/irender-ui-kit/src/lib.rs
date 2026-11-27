@@ -85,6 +85,7 @@ mod combobox;
 mod comments;
 mod command;
 mod dashboard_grid;
+mod data_source;
 mod data_table;
 mod devtools;
 mod disclosure;
@@ -181,6 +182,8 @@ pub fn register(registry: &mut Registry) {
         .register(pwa::OfflineIndicator)
         .register(pwa::OfflineQueue)
         .register(pwa::LocalStore)
+        .register(data_source::DataSource)
+        .register(data_source::DataQuery)
         .register(pwa::AppShell)
         .register(pwa::AppScreen)
         .register(pwa::AppActions)

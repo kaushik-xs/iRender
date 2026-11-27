@@ -108,6 +108,8 @@ fn every_component_is_prefixed_documented_and_renders() {
         ("ui-scheduler", json!({ "resources": [], "events": [] })),
         ("ui-qr-code", json!({ "value": "x" })),
         ("ui-local-store", json!({ "keys": ["k"] })),
+        ("ui-data-source", json!({ "name": "people", "one": "/api/people/{id}" })),
+        ("ui-data-query", json!({ "url": "/api/rows", "into": "k" })),
         ("ui-app-shell", json!({ "bind": "k" })),
         ("ui-app-screen", json!({ "value": "a", "label": "A" })),
         ("ui-camera", json!({ "bind": "k" })),
@@ -230,7 +232,7 @@ fn every_component_is_prefixed_documented_and_renders() {
         }
     }
     assert!(broken.is_empty(), "\n{}", broken.join("\n"));
-    assert_eq!(kit, 211);
+    assert_eq!(kit, 213);
     // The built-ins are untouched.
     for builtin in ["element", "text", "stack", "button", "input", "select", "textarea", "list", "if"] {
         assert!(engine.registry.get(builtin).is_some(), "{builtin}");
@@ -2094,7 +2096,7 @@ fn data_table_bands_resizers_export_and_group_by() {
     assert!(body.contains("data-dt-tree") && body.contains("&quot;groupRemote&quot;:true"), "{body}");
     remote["props"]["virtual"] = json!(true);
     let err = render_with(remote, json!({}), json!({})).unwrap_err().to_string();
-    assert!(err.contains("grouping rows doesn't work with `virtual` or nested rows"), "{err}");
+    assert!(err.contains("grouping rows doesn't work with `virtual`, nested rows"), "{err}");
 }
 
 #[test]
@@ -2278,4 +2280,32 @@ fn form_columns_and_sections_mix() {
     assert!(fold(json!({ "title": "More" })).contains("<div data-section-in><div data-section-head>"));
     let bad = render_with(json!({ "type": "ui-form-section", "props": { "collapsible": true }, "children": [] }), json!({}), json!({}));
     assert!(bad.unwrap_err().to_string().contains("needs a `title`"));
+}
+
+/// A data source says how its records are fetched; queries and tables name sources in
+/// `expand`, and a table's joined cells pulse until their record arrives.
+#[test]
+fn data_sources_queries_and_joined_tables() {
+    let err = |root: Json| render_with(root, json!({ "k": null }), json!({})).unwrap_err().to_string();
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people" } })).contains("needs `batch`"));
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/api/people" } })).contains("`{id}`"));
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "batch": { "url": "javascript:x" } } })).contains("http(s)"));
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "batch": { "url": "/p", "method": "PUT" } } })).contains("GET or POST"));
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k" } })).contains("needs `url`"));
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "source": "people" } })).contains("needs `ids`"));
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "url": "/r", "expand": { "owner": {} } } })).contains("needs `source`"));
+    // Kept on the device: for someone, and private fields named.
+    assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "persist": "device" } })).contains("needs `scope`"));
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "url": "/r", "persist": "device", "scope": "u", "private": "email" } })).contains("list of field names"));
+    assert!(render_with(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "persist": "device", "scope": "{{ k }}", "private": ["email"] } }), json!({ "k": "u1" }), json!({})).is_ok());
+    let cols = json!([{ "field": "id" }, { "field": "owner.name" }]);
+    assert!(err(json!({ "type": "ui-data-table", "props": { "rows": "{{ k }}", "expand": { "owner": "people" },
+        "columns": [{ "field": "owner.name", "edit": "text" }] } })).contains("editable"));
+
+    let page = render_with(json!({ "type": "ui-data-table", "props": { "url": "/api/rows", "expand": { "owner": "people" }, "columns": cols } }), json!({}), json!({})).unwrap();
+    let html = page.document("t");
+    // `owner` alone takes its ids from `ownerId`; only the joined column waits.
+    assert!(html.contains("expand&quot;:{&quot;owner&quot;:{&quot;source&quot;:&quot;people&quot;,&quot;from&quot;:&quot;ownerId&quot;}}"), "{html}");
+    assert_eq!(html.matches("&quot;data-dt-wait&quot;").count(), 1, "{html}");
+    assert!(html.contains("__irenderData"));
 }

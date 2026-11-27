@@ -416,6 +416,40 @@ ui-local-store: Keeps state keys on the device between visits. Draws nothing. No
   bindSaved    statekey  State key that gets the time they were last kept
   clear        any  When this becomes true, what's kept is let go
   children: no
+ui-data-source: Says how one kind of record is fetched by id (people, items, accounts), for `expand` on tables and queries. Ids asked for together are fetched together, each once, and kept in memory for `ttl`. Draws nothing.
+  name         string (required)  What queries and tables call it in `expand`, e.g. `people`
+  key          string  The field that holds a record's id (default `id`)
+  batch        any  Many ids in one call: `{ url, method, param, style, params, body, max, pick }`. GET (default) sends `<url>?ids=1,2,3` (`param` names it; `style: repeat` sends `ids=1&ids=2`); POST sends `{ ids: [...] }` with `body`'s fields. At most `max` ids a call (default 50). The answer is a list of records or a map by id, at `pick` (default the answer, or its `rows`, `data` or `items`)
+  one          string  One id a call, where there's no `batch`: GET `<url>` with `{id}` in it, e.g. `/api/people/{id}`; 404 means there's none
+  pick         string  With `one`: the record's path in the answer, e.g. `data`
+  ttl          number  Seconds a record is kept before it's fetched again (default 300); it's shown meanwhile
+  concurrency  number  Calls at a time (default 4)
+  wait         number  Milliseconds to gather ids before calling (default 0: what's asked for in the same turn)
+  headers      any  Request headers, e.g. `{ x-tenant: acme }`
+  persist      one of: memory, device  `memory` (default): for the page's life; `device`: kept on the device too (IndexedDB), shown first and when offline
+  scope        any  With `device`: whose records these are, e.g. `{{ user.id }}`; another one lets the others go from the page, and they're kept apart
+  private      any  Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`
+  retain       number  Days private fields may stay on the device without being fetched again (default 30)
+  clear        any  When this becomes true, its records (of `scope`, or every one without) are let go from the device and the page, e.g. `{{ !user }}`
+  children: no
+ui-data-query: Fills a state key with rows from an API, or with records by id, joined to the records they name (`expand`), for a chart, a list or any component. The rows come first; joined fields follow as their records arrive. Draws nothing.
+  into         statekey (required)  State key that gets the rows (or the record, for one id)
+  url          any  GET this for the rows; may use state, and a change loads again. The answer is a list, `{ rows, total }`, or one record
+  params       any  Query parameters for `url`; blank ones are left out, and a change loads again
+  pick         string  Path to the rows in the answer (default the answer, or its `rows`, `data` or `items`)
+  source       string  Instead of `url`: the records of this `ui-data-source` for `ids`
+  ids          any  With `source`: an id (into gets the record) or a list (the records); may use state
+  expand       any  Joins records into each row: `{ owner: { source: people, from: ownerId } }` puts the `people` record whose id is in `ownerId` in `owner` (`from` may hold a list of ids). While it's on its way the row's `$loading.owner` is true; `$failed.owner` when it couldn't be fetched
+  status       statekey  State key that gets `{ state, pending, total, error, at }`: state is idle, loading, joining (rows here, joined records on their way), ready or error
+  refresh      any  Loads again when this changes, e.g. `{{ saved }}`
+  paused       any  Nothing is loaded while true
+  headers      any  Request headers for `url`
+  persist      one of: memory, device  `memory` (default): for the page's life; `device`: kept on the device too (IndexedDB), shown first and when offline
+  scope        any  With `device`: whose records these are, e.g. `{{ user.id }}`; another one lets the others go from the page, and they're kept apart
+  private      any  Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`
+  retain       number  Days private fields may stay on the device without being fetched again (default 30)
+  clear        any  When this becomes true, the answers kept for `scope` are let go and the rows emptied, and nothing loads while it stays true, e.g. `{{ !user }}`
+  children: no
 ui-app-shell: An app's frame: a bar with the screen's title and a Back button, the screen, and tabs at the foot (down the side with room for them), clear of a phone's notch. Children are `ui-app-screen`s and one `ui-app-actions`, at the end of the bar.
   bind         statekey (required)  State key for the screen shown, a `ui-app-screen`'s `value`
   title        any  In the bar (default the screen's own)
@@ -2123,6 +2157,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   rows         any  The rows: an array of objects, from data or state (or use `url`)
   url          any  Load rows from an API in batches: GET `<url>?offset=&limit=&sort=&q=&filters=`, answering `{ rows, total }` or an array. A query's first batch also asks `facets=` (select filters' fields) and `summary=` (`field:sum`, …); answering `facets: { field: [{ value, count }] }` and `summary: { "field:sum": n }` makes the filters and footer cover every matching row
   params       any  Extra query parameters for `url`; may use state, and a change reloads
+  expand       any  Joins records from a `ui-data-source` into the rows drawn: `{ owner: { source: people, from: ownerId } }` puts the record whose id is in `ownerId` in `owner`, for columns like `owner.name`. Only the rows on the page are asked for, together; their cells pulse until it arrives
   columns      any  Columns as objects with the `ui-data-table-column` props, for tables with no cell templates
   rowKey       string  Field that identifies a row, for selection (default `id`; else its position)
   selectable   bool  A checkbox per row and a select-all box in the header

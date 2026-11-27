@@ -43,6 +43,9 @@ state:
   apDraft: ""
   apWaiting: 0
   apNet: online
+  dsPicked: [u-03, u-07]
+  dsPeople: []
+  dsStatus: null
   apInstall: null
   plSeats: []
   plTotal: 0
@@ -2127,6 +2130,55 @@ root:
                 - { type: if, props: { when: "{{ api.virtual_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.virtual_list }}", as: c }
+                  style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
+                  children: *api
+
+            # ---------------------------------------------------------------- data-sources
+            - type: element
+              props: { tag: section }
+              attrs: { id: data-sources, aria-labelledby: data-sources-title }
+              style: { display: flex, flex-direction: column, gap: 20, scroll-margin-top: "calc(var(--site-nav, 0px) + 16px)" }
+              children:
+                - type: list
+                  props: { items: "{{ doc.data_sources }}", as: s }
+                  style: { display: contents }
+                  children: *head
+                - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
+                - type: ui-text
+                  props: { variant: muted, text: "The tickets API sends ids only. People come many at a time (slowly, so you see them arrive) and accounts one at a time; each page asks only for ids it hasn't seen. Block data-table-09 is the whole queue, clinic-01 a chart and a list over joined rows." }
+                - { type: ui-data-source, props: { name: people, batch: { url: api/people, max: 50 }, ttl: 600 } }
+                - { type: ui-data-source, props: { name: accounts, one: "api/accounts/{id}", ttl: 600 } }
+                - type: ui-data-table
+                  props:
+                    url: api/tickets
+                    title: Tickets
+                    pageSize: 5
+                    pageSizes: []
+                    locale: en-US
+                    expand: { requester: { source: people, from: requesterId }, account: accounts }
+                    columns:
+                      - { field: id, label: Ticket }
+                      - { field: subject, label: Subject }
+                      - { field: requester.name, label: Requester, sortable: false }
+                      - { field: account.name, label: Account, sortable: false }
+                      - { field: status, label: Status }
+                # Records by id into state, for any component: already fetched ones come at once.
+                - type: ui-data-query
+                  props: { source: people, ids: "{{ dsPicked }}", into: dsPeople, status: dsStatus }
+                - type: stack
+                  props: { direction: row, gap: 8, align: center, wrap: true }
+                  children:
+                    - { type: ui-text, props: { variant: muted, text: "ui-data-query, by id:" } }
+                    - type: ui-toggle-group
+                      props: { bind: dsPicked, multiple: true, options: [ { value: u-03, label: u-03 }, { value: u-07, label: u-07 }, { value: u-21, label: u-21 }, { value: u-42, label: u-42 } ] }
+                    - { type: if, props: { when: "{{ dsStatus.pending }}" }, children: [ { type: ui-skeleton, props: { width: 160, height: 14 } } ] }
+                    - type: list
+                      props: { items: "{{ dsPeople }}", as: p }
+                      style: { display: contents }
+                      children: [ { type: ui-badge, props: { text: "{{ p.name }}", variant: secondary } } ]
+                - { type: if, props: { when: "{{ api.data_sources.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
+                - type: list
+                  props: { items: "{{ api.data_sources }}", as: c }
                   style: { display: flex, flex-direction: column, gap: 16, margin-top: 8 }
                   children: *api
 

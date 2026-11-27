@@ -2,14 +2,25 @@
 
 Work we deferred on purpose, and known limitations. Keep it current: tick or remove an item when it lands, and add new ones as they come up. Newest decisions go at the top of each section.
 
-_Last updated: 2026-11-26._
+_Last updated: 2026-11-27._
 
 ## Suggested next
 
-1. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23, history on readouts, big worlds, simpler models far away, colours by value as instances, alarm tags that don't pile up, several objects at once and measuring on 2026-11-26: next, trying it on phones and tablets (needs real devices), then walls and zones edited by hand (see Twin kit next phases).
-2. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
+1. Data sources (records joined by id from APIs that can't be joined on the server) landed on 2026-11-27, phases 1 and 2: in memory, and kept on the device per person with private fields encrypted under the app lock's key. Next, phase 3 (sync: `since`, deletions) and phase 4 (offline writes and conflicts); see Data sources next phases.
+2. The twin kit (`ui-twin`, 3D digital twins with machine and sensor data) landed on 2026-11-23, history on readouts, big worlds, simpler models far away, colours by value as instances, alarm tags that don't pile up, several objects at once and measuring on 2026-11-26: next, trying it on phones and tablets (needs real devices), then walls and zones edited by hand (see Twin kit next phases).
+3. Thirty-seven components for installable apps and devices, and seat-plan layouts with floors, landed on 2026-11-22 after forty-two others (below). The device ones need trying on real phones and devices. Next: their gaps and the older ones under it, most used first; then `cargo fmt` in CI (one reformatting commit).
 
 ## Gaps you'd hit in real use
+
+- [ ] **Data sources** (`ui-data-source`, `ui-data-query`, `expand` on `ui-data-table`; 2026-11-27; gallery, blocks data-table-09 and clinic-01): records fetched many ids a call (GET or POST) or one at a time, ids asked for together sent together and each once, kept in memory for `ttl`, the service worker leaving them alone. Not done yet:
+  - Joined fields are the page's: a remote table sends their sort to its API; in a table of rows, search, select filters' choices, sorting, `bindView` and the context menu's row don't see them. Export has them only for records already fetched. No `expand` inside a joined record (a person's team), with editable cells, or with grouping a table of rows (its rows are drawn by the server).
+  - Nothing invalidates records after a save other than `ttl` and a query's `refresh`: no `invalidates` on `submit`, and no tags from the server.
+  - No negative cache time of its own (an id with no record is asked for again after `ttl`), no retry button on a failed cell. `If-None-Match` only for `one` (a batch's answer has no ETag per record) and not for queries.
+  - Kept on the device (phase 2, 2026-11-27; block clinic-01): a query keeps one answer per address, forever until `clear` (no size limit, no eviction, nothing asks for `navigator.storage.persist()`). A PIN-wrapped key is only as strong as the PIN (4 to 8 digits: easy to try every one offline); the passkey's PRF isn't tried on real devices (headless Chrome has no PRF), and without it a passkey unlock opens no key. Each tab unlocks its own; another tab's lock doesn't open this one's key. The service worker can't read sealed fields, so a background sync can't either. No cache version: a changed API shape needs a new `scope` (say with a version in it).
+  - A source named in `expand` but never declared waits forever, silently.
+- [ ] **Data sources next phases** (planned with the user on 2026-11-27):
+  - Phase 3, sync: `since` cursors from the server (never the device's clock), deleted records as tombstones or checked against a list of ids, records removed when the server says they're no longer the user's.
+  - Phase 4, offline writes: changed fields queued with the version they were based on (`If-Match`), conflicts settled per source (`merge` by field, `server-wins`, `client-wins`, `ask` with a chooser), temporary ids for records made offline, pending marks on rows. Without versions from the server, last write wins.
 
 - [ ] **Pareto charts** (`type: pareto`, `threshold`; 2026-11-26; chart gallery, block incident-01): `horizontal` lays it down the side (2026-11-26; chart gallery's Pareto across). Not done: one value field (no stacked bars by `series`), Other always last (its row carries what it holds as `rows`, 2026-11-27), and the percent line can't be read against a target other than the threshold.
 
@@ -59,7 +70,7 @@ _Last updated: 2026-11-26._
   - [ ] **Nothing has been tried on real phones or devices.** Cameras, microphones, location, passkeys (a virtual one), shares, offline use and updates were driven in desktop browsers; sensors, push delivery, NFC, Bluetooth, serial and USB only against stand-ins.
   - [ ] **The service worker** keeps everything the first time; there's no progress for it. Libraries on jsDelivr are kept, map tiles and other sites' files aren't. An app is one folder: pages elsewhere on the site aren't in it.
   - [ ] **`ui-offline-queue`**: sends one at a time; nothing settles a clash with what changed on the server meanwhile, and what's queued isn't shown in lists as if it were saved. Not encrypted on the device. No background sync on iPhones or in Firefox.
-  - [ ] **Nothing pulls data down** for offline: `submit` with GET and data tables read through the service worker's kept copies. Idea: a sync of rows to the device, with what's changed since.
+  - [ ] **Nothing pulls data down** for offline: `submit` with GET and data tables read through the service worker's kept copies (records from `ui-data-source` aren't kept at all, 2026-11-27). The data sources' phases 2 and 3 are the plan.
   - [ ] **`ui-push-opt-in`**: the server sends the pushes; there's no example of one. The badge counts only what it's told.
   - [ ] **`ui-app-shell`**: one level of Back per screen; no sliding between screens, sheets or split view on tablets.
   - [ ] **`ui-app-lock`** covers the page; nothing behind it is encrypted. **`ui-passkey`**: no example server.

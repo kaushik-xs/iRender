@@ -51,7 +51,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 |---|---|
 | `type` | The series the shorthand builds (see below). Leave it out to use `option` alone. |
 | `data` | Rows: objects (`{ day: Mon, orders: 120 }`) or arrays (`[Mon, 120]`, with `x`/`y` as column numbers). Plain numbers are fine too; their position is the category. |
-| `x` | The category or name field. Default: the first field. |
+| `x` | The category or name field. Default: the first field. A field can be a path into a row's objects, `owner.name`, as `ui-data-query`'s `expand` joins them. |
 | `y` | Value field(s): `orders`, `[orders, returns]`, or `{ field, name, …series options }` per series. Default: every other numeric field. |
 | `value` | A third field: the heatmap's cell value or a scatter point's size. |
 | `links` | `{ source, target, value }` for `sankey`, `graph` and `chord`. Nodes are taken from `data`, or from the links. |

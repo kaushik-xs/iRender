@@ -1,28 +1,33 @@
 // irender-ui-kit: what's kept on the device (`self.__irenderOffline`), in a page and in the
-// service worker alike: a key and value store in IndexedDB, and the queue of requests
-// waiting to be sent. Without IndexedDB (a private window, say) it keeps to memory.
+// service worker alike: a key and value store in IndexedDB, the queue of requests waiting
+// to be sent, records kept by `ui-data-source`, and the vault: the key that encrypts
+// people's details, in memory while `ui-app-lock` is unlocked. Without IndexedDB (a
+// private window, say) it keeps to memory.
 (() => {
   if (self.__irenderOffline) return;
-  const STORES = ["kv", "queue", "shared"];
-  let opening = null;
-  const open = () => (opening ??= new Promise((ok) => {
+  // Each store's database: records (`ui-data-source`) have their own, so the first one
+  // stays as it was for pages that opened it before.
+  const HOMES = { irender: ["kv", "queue", "shared"], "irender-records": ["records"] };
+  const STORES = Object.values(HOMES).flat(), home = (store) => Object.keys(HOMES).find((d) => HOMES[d].includes(store));
+  const opening = {};
+  const open = (name) => (opening[name] ??= new Promise((ok) => {
     let req;
     try {
-      req = indexedDB.open("irender", 1);
+      req = indexedDB.open(name, 1);
     } catch {
       return ok(null);
     }
-    req.onupgradeneeded = () => STORES.forEach((s) => req.result.objectStoreNames.contains(s) || req.result.createObjectStore(s));
+    req.onupgradeneeded = () => HOMES[name].forEach((s) => req.result.objectStoreNames.contains(s) || req.result.createObjectStore(s));
     req.onsuccess = () => {
       // Another tab has a newer one: let it go on.
-      req.result.onversionchange = () => (req.result.close(), (opening = null));
+      req.result.onversionchange = () => (req.result.close(), (opening[name] = null));
       ok(req.result);
     };
     req.onerror = req.onblocked = () => ok(null);
   }));
   const memory = Object.fromEntries(STORES.map((s) => [s, new Map()]));
   async function run(store, mode, f) {
-    const db = await open();
+    const db = await open(home(store));
     if (!db) return f(null);
     return new Promise((ok, no) => {
       const tx = db.transaction(store, mode), req = f(tx.objectStore(store));
@@ -36,6 +41,35 @@
     del: (store, key) => run(store, "readwrite", (s) => (s ? s.delete(key) : memory[store].delete(key) && undefined)),
     clear: (store) => run(store, "readwrite", (s) => (s ? s.clear() : memory[store].clear())),
     all: (store) => run(store, "readonly", (s) => (s ? s.getAll() : [...memory[store].values()])),
+    // Several at once, in one transaction: values by key (undefined for none), writes
+    // (`[key, value]`, a null value deleting), and every [key, value] whose key starts with
+    // `prefix`.
+    async getMany(store, keys) {
+      const d = await open(home(store));
+      if (!d) return keys.map((k) => memory[store].get(k));
+      return new Promise((ok, no) => {
+        const tx = d.transaction(store, "readonly"), s = tx.objectStore(store), out = [];
+        keys.forEach((k, i) => (s.get(k).onsuccess = (e) => (out[i] = e.target.result)));
+        tx.oncomplete = () => ok(out);
+        tx.onerror = tx.onabort = () => no(tx.error ?? new Error("storage failed"));
+      });
+    },
+    putMany: (store, pairs) => run(store, "readwrite", (s) => {
+      for (const [k, v] of pairs) s ? (v == null ? s.delete(k) : s.put(v, k)) : v == null ? memory[store].delete(k) : memory[store].set(k, v);
+    }),
+    async entries(store, prefix = "") {
+      const d = await open(home(store)), keep = (k) => typeof k === "string" && k.startsWith(prefix);
+      if (!d) return [...memory[store]].filter(([k]) => keep(k));
+      const range = prefix ? IDBKeyRange.bound(prefix, prefix + "\uffff") : undefined;
+      return new Promise((ok, no) => {
+        const tx = d.transaction(store, "readonly"), s = tx.objectStore(store);
+        let keys, values;
+        s.getAllKeys(range).onsuccess = (e) => (keys = e.target.result);
+        s.getAll(range).onsuccess = (e) => (values = e.target.result);
+        tx.oncomplete = () => ok(keys.map((k, i) => [k, values[i]]));
+        tx.onerror = tx.onabort = () => no(tx.error ?? new Error("storage failed"));
+      });
+    },
   };
   const id = () => self.crypto?.randomUUID?.() ?? `q${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   // Other tabs, and the worker, hear of changes.
@@ -118,5 +152,45 @@
       return self.navigator?.locks ? navigator.locks.request("irender-queue", { ifAvailable: true }, (l) => (l ? go() : 0)) : go();
     },
   };
-  self.__irenderOffline = { db, queue, id, tell, on: (f) => (listeners.add(f), () => listeners.delete(f)) };
+  // ---- the vault: the key people's details are encrypted with on the device. It's only
+  // ever in memory, put there by `ui-app-lock` as it's unlocked and taken away as it locks;
+  // `kid` names the key, so what another one sealed is let go.
+  const vaultHeard = new Set();
+  const vault = {
+    key: null,
+    kid: null,
+    set(key, kid) {
+      vault.key = key;
+      vault.kid = kid;
+      vaultHeard.forEach((f) => f("open"));
+    },
+    clear() {
+      if (!vault.key) return;
+      vault.key = vault.kid = null;
+      vaultHeard.forEach((f) => f("closed"));
+    },
+    // The key's gone for good (the lock turned off, or reset): what it sealed can't be
+    // opened again, here or in other tabs.
+    forget() {
+      vault.clear();
+      tell({ type: "vault-gone" });
+    },
+    on: (f) => (vaultHeard.add(f), () => vaultHeard.delete(f)),
+    async seal(value) {
+      if (!vault.key) return null;
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vault.key, new TextEncoder().encode(JSON.stringify(value)));
+      return { kid: vault.kid, iv, data: new Uint8Array(data) };
+    },
+    // Null when it's locked, or the blob was sealed with another key.
+    async open(blob) {
+      if (!vault.key || !blob || blob.kid !== vault.kid) return null;
+      try {
+        return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: blob.iv }, vault.key, blob.data)));
+      } catch {
+        return null;
+      }
+    },
+  };
+  self.__irenderOffline = { db, queue, id, tell, vault, on: (f) => (listeners.add(f), () => listeners.delete(f)) };
 })();
