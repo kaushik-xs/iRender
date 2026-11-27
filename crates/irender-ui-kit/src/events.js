@@ -92,12 +92,15 @@
     for (const m of list) {
       const from = isObj(m) ? parse(m.date) : null;
       if (!from) continue;
-      const to = parse(m.end) ?? from;
-      for (let d = day(from), n = 0; d <= to && n < 400; d = addDays(d, 1), n++) {
+      const to = parse(m.end) ?? from, long = Math.round((day(to) - day(from)) / 864e5);
+      // One that repeats is each of its days (and runs) near what's shown.
+      const first = day(from), off = Math.round((day(cursor) - first) / 864e5);
+      const starts = m.repeat ? window.__irenderKit.repeats(m.repeat, first, off - 400, off + 400).map((n) => addDays(first, n)) : [first];
+      for (const s of starts) for (let d = s, n = 0; n <= long && n < 400; d = addDays(d, 1), n++) {
         const at = out.get(iso(d)) ?? { tone: null, labels: [], items: [] };
         if (m.tone) at.tone = m.tone;
         if (m.label != null && m.label !== "") at.labels.push(String(m.label));
-        for (const it of Array.isArray(m.items) ? m.items : m.items != null ? [m.items] : []) at.items.push(isObj(it) ? { text: String(it.text ?? it.label ?? ""), tone: it.tone ?? null } : { text: String(it), tone: null });
+        for (const it of Array.isArray(m.items) ? m.items : m.items != null ? [m.items] : []) at.items.push(isObj(it) ? { text: String(it.text ?? it.label ?? ""), tone: it.tone ?? null, id: it.id ?? null, item: it } : { text: String(it), tone: null, id: null });
         out.set(iso(d), at);
       }
     }
@@ -112,10 +115,17 @@
     head.append(date, make("span", { "data-ev-note": "", "aria-hidden": "true", title: m.labels.join(", ") }, m.labels.join(", ")));
     return [head];
   }
+  // A badge with an `id` is a button, for a pointer: the day's name already says it, and
+  // the keys move between days.
   function badges(m) {
     if (!m?.items.length) return [];
-    const box = make("div", { "data-ev-badges": "", "aria-hidden": "true" });
-    for (const it of m.items) box.append(make("span", { "data-ev-badge": "", "data-tone": it.tone, title: it.text }, it.text));
+    const live = m.items.some((it) => it.id != null);
+    const box = make("div", { "data-ev-badges": "", "aria-hidden": live ? null : "true" });
+    for (const it of m.items) {
+      box.append(it.id != null
+        ? make("button", { type: "button", tabindex: -1, "data-ev-badge": "", "data-ev-badge-id": String(it.id), "data-tone": it.tone, title: it.text }, it.text)
+        : make("span", { "data-ev-badge": "", "data-tone": it.tone, title: it.text, "aria-hidden": live ? "true" : null }, it.text));
+    }
     return [box];
   }
 
@@ -414,6 +424,15 @@
 
   el.addEventListener("click", (e) => {
     const t = e.target;
+    // A badge's own click, not its day's.
+    const badge = t.closest("[data-ev-badge-id]");
+    if (badge) {
+      const date = badge.closest("[data-ev-day]")?.getAttribute("data-ev-day") ?? badge.closest("[data-ev-group]")?.getAttribute("data-ev-group") ?? badge.closest("[data-ev-cell-date]")?.getAttribute("data-ev-cell-date") ?? null;
+      const it = marks().get(date)?.items.find((x) => String(x.id) === badge.getAttribute("data-ev-badge-id"));
+      const hit = { date, item: it?.item ?? { id: badge.getAttribute("data-ev-badge-id"), text: badge.textContent } };
+      if (cfg.bindBadge) api.set(cfg.bindBadge, hit);
+      return api.emit("badge", hit);
+    }
     if (t.closest("[data-ev-prev]")) return step(-1);
     if (t.closest("[data-ev-next]")) return step(1);
     if (t.closest("[data-ev-today]")) return go(today(), false);

@@ -29,7 +29,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "days",
         PropKind::Any,
-        "Marks on days, apart from events: `[{ date, end, tone, label, items }]` (or a map of date → `{ tone, label, items }`). `tone` shades the day, `label` is written beside its date, and `items` are small badges under it (text, or `{ text, tone }`); `end` makes it a run of days",
+        "Marks on days, apart from events: `[{ date, end, tone, label, items, repeat }]` (or a map of date → `{ tone, label, items }`). `tone` shades the day, `label` is written beside its date, and `items` are small badges under it (text, or `{ text, tone, id }`; one with an `id` is a button firing `badge`); `end` makes it a run of days, and `repeat` repeats it as an event's does (`week` with `on: [0]`, every Sunday)",
     ),
     PropDef::new("yearEvents", PropKind::Bool, "The year view tints days with events (default true); false tints only the `days` with a tone"),
     PropDef::new("categories", PropKind::Any, "Category → tone (`info`, `success`, `warning`, `danger`, `primary`, `neutral`), shown as a legend"),
@@ -41,6 +41,7 @@ const PROPS: &[PropDef] = &[
     ),
     PropDef::new("snap", PropKind::Number, "Minutes a move or a resize snaps to (default 15)"),
     PropDef::new("bindDay", PropKind::StateKey, "State key that gets the day picked (`2026-11-04`), e.g. to add an event on it"),
+    PropDef::new("bindBadge", PropKind::StateKey, "State key that gets a badge clicked (one of `days`' items with an `id`), `{ date, item }`, as `badge` fires"),
     PropDef::new("bindView", PropKind::StateKey, "State key that gets the view when it changes"),
     PropDef::new("hours", PropKind::Any, "The week view's hours, `[from, to]` (default `[7, 20]`)"),
     PropDef::new("weekStart", PropKind::Number, "0 for Sunday, 1 for Monday (default)"),
@@ -142,6 +143,8 @@ static CALENDAR: LazyLock<StyleBlock> = LazyLock::new(|| {
             ]),
         )
         .nest("& [data-ev-group] [data-ev-badges]", pairs(&[("padding", pad!(0, 12, 12))]))
+        .nest("& button[data-ev-badge]", pairs(&[("border", "0"), ("font-family", "inherit"), ("cursor", "pointer")]))
+        .nest("& button[data-ev-badge]:hover", pairs(&[("background", "color-mix(in srgb, var(--tone) 26%, var(--color-surface, #fff))")]))
         .nest("& [data-ev-chips]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "2px"), ("min-width", "0")]))
         .nest(
             "& [data-ev-more]",
@@ -322,6 +325,7 @@ impl Component for EventCalendar {
             "bindEvents": cx.prop_string(node, "bindEvents"),
             "snap": cx.prop(node, "snap").map(|v| expr::to_num(&v).clamp(1.0, 240.0) as i64),
             "bindDay": cx.prop_string(node, "bindDay"),
+            "bindBadge": cx.prop_string(node, "bindBadge"),
             "bindView": cx.prop_string(node, "bindView"),
             "hours": hours,
             "weekStart": week_start as i64,

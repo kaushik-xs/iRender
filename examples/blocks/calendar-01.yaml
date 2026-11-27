@@ -5,13 +5,15 @@
 # event to move it (in the week, to another time, or by its foot to make it longer), or
 # focus it and use Alt and the arrow keys: `bindEvents` writes the list back. `days`
 # shades the days that aren't fully staffed (red with no shift, amber with some) and lists
-# the shifts on under the date; the year view tints only those.
+# the shifts on under the date, as marks that repeat each week; the year view tints only
+# those. The Maint. badge is a button: it shows what's planned in the panel.
 #
 #   cargo run -p irender-cli -- render examples/blocks/calendar-01.yaml --ui-kit --icon-kit -o calendar-01.html
 version: 1
 state:
   event: null
   day: "2026-11-04"
+  badge: null
   events:
     - { id: 1, title: Production planning, start: "2026-11-02T10:00", end: "2026-11-02T11:30", category: Meetings, description: "Weekly plan for lines 1–4 with the shift leads." }
     - { id: 2, title: Line 3 maintenance, start: "2026-11-04", end: "2026-11-06", category: Maintenance, description: "Gearbox overhaul. Line 3 is down; orders move to line 2." }
@@ -30,19 +32,12 @@ state:
     - { id: 14, title: Production planning, start: "2026-11-30T10:00", end: "2026-11-30T11:30", category: Meetings }
   # Who's on, apart from the events: a shade and a label where the plant isn't fully staffed.
   coverage:
-    - { date: "2026-11-01", tone: danger, label: No shifts }
-    - { date: "2026-11-02", end: "2026-11-06", items: [A, B, C] }
-    - { date: "2026-11-07", tone: warning, label: Partial, items: [A] }
+    # Repeating marks: shifts A, B and C on weekdays, A alone on Saturdays, none on Sundays.
+    - { date: "2026-11-02", items: [A, B, C], repeat: { every: week, on: [1, 2, 3, 4, 5], except: ["2026-12-24", "2026-12-25"] } }
+    - { date: "2026-11-07", tone: warning, label: Partial, items: [A], repeat: { every: week, on: [6], except: ["2026-11-21", "2026-12-26"] } }
+    - { date: "2026-11-01", tone: danger, label: No shifts, repeat: { every: week, on: [0], except: ["2026-11-08"] } }
     - { date: "2026-11-08", tone: danger, label: Plant closed }
-    - { date: "2026-11-09", end: "2026-11-13", items: [A, B, C] }
-    - { date: "2026-11-14", tone: warning, label: Partial, items: [A] }
-    - { date: "2026-11-15", tone: danger, label: No shifts }
-    - { date: "2026-11-16", end: "2026-11-20", items: [A, B, C] }
-    - { date: "2026-11-21", tone: warning, label: Partial, items: [A, { text: Maint., tone: warning }] }
-    - { date: "2026-11-22", tone: danger, label: No shifts }
-    - { date: "2026-11-23", end: "2026-11-27", items: [A, B, C] }
-    - { date: "2026-11-28", tone: warning, label: Partial, items: [A] }
-    - { date: "2026-11-29", tone: danger, label: No shifts }
+    - { date: "2026-11-21", tone: warning, label: Partial, items: [A, { text: Maint., tone: warning, id: maint-21 }] }
     - { date: "2026-12-24", end: "2026-12-26", tone: danger, label: Year-end shutdown }
 root:
   type: element
@@ -80,6 +75,7 @@ root:
                 bindEvent: event
                 bindEvents: events
                 bindDay: day
+                bindBadge: badge
                 date: "2026-11-04"
                 hours: [6, 18]
                 label: Plant calendar
@@ -105,3 +101,7 @@ root:
                         - { type: ui-text, props: { text: "{{ event.description }}" }, style: { font-size: 14px } }
                 - { type: ui-separator }
                 - { type: ui-text, props: { variant: muted, text: "Picked day: {{ day }}. Add event would open a form for it." }, style: { font-size: 13px } }
+                - type: if
+                  props: { when: "{{ badge }}" }
+                  children:
+                    - { type: ui-text, props: { text: "{{ badge.item.text }} on {{ badge.date }}: the press line is down 06:00–10:00 for its belt change." }, style: { font-size: 13px } }

@@ -15,7 +15,7 @@ _Last updated: 2026-11-26._
 
 - [ ] **`ui-iframe`** (2026-11-25; gallery, block docs-01): no size from the framed page's content (a page from another site can't say how tall it is, and nothing listens for one that does), no messages to or from it, and no loading or error state (a site that refuses to be framed shows the browser's own blank or error page). The untrusted policy refuses it outright; idea: allow it there with a sandbox it can't widen and only `https:` addresses.
 
-- [ ] **Marked days on `ui-event-calendar`** (`days`, `yearEvents`; 2026-11-24; gallery, block calendar-01): a shade in a tone, a label and badges per day, apart from events. Marks don't repeat (a rota's every-Sunday closure is listed day by day, or worked out in state), badges aren't clickable (a click picks the day), and there's no slot for arbitrary content in a day: the label and badges are text.
+- [ ] **Marked days on `ui-event-calendar`** (`days`, `yearEvents`; 2026-11-24; gallery, block calendar-01): a shade in a tone, a label and badges per day, apart from events. Marks repeat (`repeat`, as events) and a badge with an `id` is a button with `bindBadge` (2026-11-27; calendar-01): badge buttons are for a pointer (the keys move between days, whose names say the badges), and there's no slot for arbitrary content in a day: the label and badges are text.
 
 - [ ] **`ui-mindmap`** (2026-11-24; gallery, block brainstorm-01): one long line per topic (long labels are cut short with … and shown whole on hover), no notes, links, icons or images on topics, no lines between topics in different branches, no reordering by dragging (a drop puts a topic last inside another; the keys don't reorder either), and the layout is balanced left and right only (no radial or top-down).
 

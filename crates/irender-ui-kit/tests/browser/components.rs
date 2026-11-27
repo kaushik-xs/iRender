@@ -342,6 +342,37 @@ root:
     );
 }
 
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn event_calendar_marks_repeat_and_badges_click() {
+    check(
+        "calendar-marks",
+        r##"
+state:
+  picked: null
+  hit: null
+  days:
+    - { date: "2026-11-01", label: Closed, tone: neutral, repeat: { every: week, on: [0] } }
+    - { date: "2026-11-09", end: "2026-11-10", repeat: { every: month, count: 2 }, items: [ { text: Audit, id: audit, tone: warning }, Stock ] }
+root:
+  type: ui-event-calendar
+  props: { events: [], days: "{{ days }}", date: "2026-11-15", bindDay: picked, bindBadge: hit }
+"##,
+        r##"
+        const cell = (d) => $(`[data-ev-day="${d}"]`);
+        // Every Sunday is closed; the audit runs two days, this month and next.
+        log(["2026-11-01", "2026-11-08", "2026-11-22", "2026-11-29"].map((d) => cell(d)?.querySelector("[data-ev-note]")?.textContent ?? "-").join(","));
+        log(["2026-11-09", "2026-11-10", "2026-11-11"].map((d) => cell(d)?.querySelectorAll("[data-ev-badge]").length ?? "-").join(","));
+        // The badge with an id is a button: its click is its own, not the day's.
+        const b = cell("2026-11-10").querySelector("button[data-ev-badge]"); b.click(); await wait(30);
+        log(S().hit.item.id, S().hit.date, S().picked, cell("2026-11-10").querySelector("span[data-ev-badge]").textContent);
+        $("[data-ev-next]").click(); await wait(30); log(cell("2026-12-09")?.querySelectorAll("[data-ev-badge]").length ?? "-", cell("2026-12-06")?.querySelector("[data-ev-note]")?.textContent ?? "-");
+        $("[data-ev-next]").click(); await wait(30); log(cell("2027-01-09")?.querySelectorAll("[data-ev-badge]").length ?? 0);
+"##,
+        &["Closed,Closed,Closed,Closed", "2,2,0", "audit 2026-11-10 null Stock", "2 Closed", "0"],
+    );
+}
+
 /// `ui-file-browser` with `url` and `uploadUrl`, against a fetch answered in the page.
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
