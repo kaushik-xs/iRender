@@ -344,6 +344,52 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn form_checks_the_rows_of_its_repeaters() {
+    check(
+        "form-rows",
+        r##"
+state: { who: "Ada", lines: [{ item: Desk, qty: 2 }], errors: {}, valid: false, dirty: false, sent: 0 }
+root:
+  type: ui-form
+  props: { bindErrors: errors, bindValid: valid, bindDirty: dirty, rules: { who: { label: Name, required: true } } }
+  on: { submit: { action: set_state, key: sent, value: "{{ sent + 1 }}" } }
+  children:
+    - { type: ui-error-summary }
+    - { type: ui-input, props: { bind: who } }
+    - type: ui-repeater
+      props: { bind: lines, itemLabel: Line, fields: [ { field: item, label: Item, required: true }, { field: qty, label: Qty, type: number, min: 1 } ] }
+    - { type: ui-button, props: { label: Send, type: submit }, attrs: { id: go } }
+    - { type: ui-save-bar }
+"##,
+        r##"
+        const f = (n, i) => $$(`[data-field=${n}]`)[i], msgs = () => $$("[data-rep-error]").map((m) => m.textContent).filter(Boolean).join("|");
+        log(S().valid, S().dirty);
+        // A new row is wrong: the form isn't valid, and its changes are unsaved changes.
+        $("[data-rep-add]").click(); await wait(30); log(S().valid, S().dirty, msgs() || "-");
+        // Sending stops: the summary lists the row's field, and the row shows its messages.
+        $("#go").click(); await wait(30); log(S().sent, $("[role=alert] li").textContent, msgs(), JSON.stringify(Object.keys(S().errors)));
+        $("[role=alert] button").click(); await wait(30); log(document.activeElement === f("item", 1));
+        type(f("item", 1), "Lamp"); type(f("qty", 1), "0"); await wait(30); log($("[role=alert] li").textContent, S().valid);
+        type(f("qty", 1), "3"); await wait(30); log(S().valid, $("[role=alert]").hidden);
+        // Discard puts the rows back, and their messages go.
+        $("[data-form-discard]").click(); await wait(30); log(S().lines.length, S().dirty, msgs() || "-");
+        $("#go").click(); await wait(30); log(S().sent);
+"##,
+        &[
+            "true false",
+            "false true -",
+            r#"0 Line 2, Item: Required Required ["lines.1.item"]"#,
+            "true",
+            "Line 2, Qty: At least 1 false",
+            "true true",
+            "1 false -",
+            "1",
+        ],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn form_sections_fold_and_open_for_a_wrong_field() {
     check(
         "form-sections-fold",

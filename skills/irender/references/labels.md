@@ -1779,6 +1779,7 @@ root: …
 "{name} added": "{name} added"
 "{name} removed": "{name} removed"
 "{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
+"{row} {n}, {field}": "{row} {n}, {field}"
 "{name} {n} of {total}": "{name} {n} of {total}"
 ```
 

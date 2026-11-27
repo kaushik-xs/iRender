@@ -116,6 +116,43 @@
     set(items.with(i, { ...items[i], [name]: v }), { edited: i, field: name });
   }
 
+  // ---- what's wrong, for the drawing and for a `ui-form` around it
+  const uniques = (items) => new Map(cfg.fields.filter((f) => f.unique).map((f) => [f.field, C.count(items.map((x) => x?.[f.field]))]));
+  function wrongNow() {
+    const items = list().map(computed), uses = uniques(items), out = [];
+    items.forEach((item, i) => {
+      for (const f of cfg.fields) {
+        if (f.type === "computed") continue;
+        const m = C.check(asCell(f), item?.[f.field], uses.get(f.field));
+        if (m) out.push({ index: i, field: f.field, message: m });
+      }
+    });
+    return out;
+  }
+  // Every message shows once the form it's in was submitted, until it's put back.
+  let shown = false;
+  el.__rows = {
+    bind: cfg.bind,
+    wrong: wrongNow,
+    label: (i, field) => L("{row} {n}, {field}", { row: cfg.itemLabel, n: i + 1, field: fields.get(field)?.label ?? field }),
+    show() {
+      shown = true;
+      draw();
+    },
+    reset() {
+      shown = false;
+      touched.clear();
+      draw();
+    },
+    focus(i, field) {
+      const c = rowsEls()[i]?.querySelector(`[data-field="${CSS.escape(field)}"]`);
+      if (!c || !mine(c)) return false;
+      c.focus({ preventScroll: true });
+      c.scrollIntoView({ block: "center", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      return true;
+    },
+  };
+
   // ---- drawing
   let ids = 0;
   const base = el.id || `rep-${(window.__irenderIds = (window.__irenderIds ?? 0) + 1)}`;
@@ -127,8 +164,8 @@
     }
     const now = items.map(computed);
     if (now.some((x, i) => x !== items[i])) return void api.set(cfg.bind, now);
-    const off = locked(), all = !!resolve(cfg.showErrors);
-    const uses = new Map(cfg.fields.filter((f) => f.unique).map((f) => [f.field, C.count(items.map((x) => x?.[f.field]))]));
+    const off = locked(), all = shown || !!resolve(cfg.showErrors);
+    const uses = uniques(items);
     const wrong = [];
     rowsEls().forEach((row, i) => {
       const item = items[i] ?? {};

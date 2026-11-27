@@ -2,8 +2,8 @@
 # - The lines are a `ui-repeater`: Enter goes to the next line (adding one after the last),
 #   rows move by their grip, and each line's amount is worked out from its quantity and
 #   price. `bindTotals` feeds the summary.
-# - `ui-form` checks the client and the dates and, with the repeater's `bindErrors`, keeps
-#   Send from going until the lines are right too.
+# - `ui-form` checks the client and the dates, and the lines too: a wrong line stops Send,
+#   is listed in the summary (which goes to its field) and shows its messages.
 # - The pay link is a `ui-qr-code`, the reference a `ui-barcode`, both drawn in the page, and
 #   the invoice is signed with `ui-signature`.
 #
@@ -12,7 +12,6 @@ version: 1
 state:
   toast: null
   errors: {}
-  lineErrors: []
   tried: false
   totals: { amount: 0 }
   number: INV-2048
@@ -87,8 +86,6 @@ root:
                   props:
                     bind: lines
                     bindTotals: totals
-                    bindErrors: lineErrors
-                    showErrors: "{{ tried }}"
                     min: 1
                     reorderable: true
                     duplicable: true
@@ -130,5 +127,5 @@ root:
                         - type: ui-separator
                         - { type: ui-stat, props: { variant: plain, label: Subtotal, value: "{{ totals.amount }}", format: currency, currency: INR } }
                         - { type: ui-stat, props: { variant: plain, label: To pay, value: "{{ totals.amount * (1 - discount / 100) * (1 + tax / 100) }}", format: currency, currency: INR, description: "Discount and tax included" } }
-                        - { type: ui-button, props: { label: Send invoice, type: submit, icon: share, disabled: "{{ tried && lineErrors.length > 0 }}" } }
+                        - { type: ui-button, props: { label: Send invoice, type: submit, icon: share } }
         - { type: ui-toaster, props: { bind: toast } }

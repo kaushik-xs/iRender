@@ -20,8 +20,22 @@
   const unfold = (form, n) => {
     for (let d = n.closest("details:not([open])"); d && form.contains(d); d = d.parentElement?.closest("details:not([open])")) d.open = true;
   };
+  // The `ui-repeater`s of the form, and the one a row key (`lines.2.qty`) is in.
+  const reps = (form) => [...form.querySelectorAll("[data-i-x=ui-repeater]")].filter((r) => r.closest("form") === form && r.__rows);
+  const rowOf = (form, key) => {
+    for (const r of reps(form)) {
+      const m = key.startsWith(r.__rows.bind + ".") && /^(\d+)\.(.+)$/.exec(key.slice(r.__rows.bind.length + 1));
+      if (m) return { el: r, rows: r.__rows, i: Number(m[1]), field: m[2] };
+    }
+    return null;
+  };
   // Goes to the field that holds `key`.
   function goTo(form, key) {
+    const row = rowOf(form, key);
+    if (row) {
+      unfold(form, row.el);
+      return row.rows.focus(row.i, row.field);
+    }
     for (const n of form.querySelectorAll("[data-i-bind], [data-i-x]")) {
       if ((n.getAttribute("data-i-bind") ?? n.__xc?.bind) !== key) continue;
       const t = n.matches(focusable) ? n : n.querySelector(focusable);
@@ -134,6 +148,8 @@
           else if (m) out[key] = m;
         }
       }
+      // The rows of its repeaters: `lines.2.qty`, said with the row and the field's label.
+      for (const r of reps(el)) for (const w of r.__rows.wrong()) out[`${r.__rows.bind}.${w.index}.${w.field}`] = `${r.__rows.label(w.index, w.field)}: ${w.message}`;
       // A key that's blank or wrong by the other rules isn't asked about.
       for (const [key, at] of asking) if (!checking.has(key) && !at.done) {
         clearTimeout(at.timer);
@@ -222,8 +238,12 @@
     function submitted(wrong) {
       tried = true;
       draw();
-      // Wrong fields in folded sections show, with their messages.
+      // Wrong fields in folded sections show, with their messages; so do rows'.
       for (const n of el.querySelectorAll("[data-i-bind], [data-i-x]")) if (wrong.includes(n.getAttribute("data-i-bind") ?? n.__xc?.bind)) unfold(el, n);
+      for (const r of reps(el)) {
+        r.__rows.show();
+        if (wrong.some((k) => rowOf(el, k)?.rows === r.__rows)) unfold(el, r);
+      }
       const summary = [...el.querySelectorAll("[data-i-x=ui-error-summary]")].find(mine);
       if (summary) {
         summary.focus({ preventScroll: true });
@@ -232,7 +252,8 @@
         // In the order they're in on the page.
         for (const n of el.querySelectorAll("[data-i-bind], [data-i-x]")) {
           const k = n.getAttribute("data-i-bind") ?? n.__xc?.bind;
-          if (wrong.includes(k) && goTo(el, k)) break;
+          const hit = n.__rows ? wrong.find((w) => rowOf(el, w)?.el === n) : wrong.includes(k) && k;
+          if (hit && goTo(el, hit)) break;
         }
       }
       api.emit("invalid", { errors: check() });
@@ -250,6 +271,7 @@
       tried = false;
       touched.clear();
       for (const [k, v] of Object.entries(back)) if (api.state[k] !== v) api.set(k, v);
+      for (const r of reps(el)) r.__rows.reset();
       api.emit("discard", {});
       draw();
     });

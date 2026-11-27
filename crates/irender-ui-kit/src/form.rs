@@ -160,14 +160,26 @@ impl Component for Form {
                 Some(_) => return Err(RenderError::new(node, format!("`remote` for `{key}` must be a url or `{{ url, param, wait, message }}`"))),
             }
         }
+        // The `ui-repeater`s in it: their rows are checked with the form's fields, and are
+        // its unsaved changes too.
+        let mut rows = Vec::new();
+        repeaters(cx, node, &mut rows);
         let keys = match cx.prop(node, "keys") {
-            None | Some(Json::Null) => rules.as_object().map(|m| m.keys().map(|k| json!(k)).collect()).unwrap_or_default(),
+            None | Some(Json::Null) => {
+                let mut k: Vec<Json> = rules.as_object().map(|m| m.keys().map(|k| json!(k)).collect()).unwrap_or_default();
+                for r in &rows {
+                    if !k.contains(&json!(r)) {
+                        k.push(json!(r));
+                    }
+                }
+                k
+            }
             Some(Json::Array(a)) => a,
             Some(_) => return Err(RenderError::new(node, "`keys` must be a list of state keys")),
         };
         let bind = |n: &str| cx.prop_string(node, n);
         let config = json!({
-            "rules": rules, "keys": keys,
+            "rules": rules, "keys": keys, "rows": rows,
             "errors": bind("bindErrors"), "valid": bind("bindValid"), "tried": bind("bindTried"), "dirty": bind("bindDirty"), "checking": bind("bindChecking"),
             "guard": cx.prop(node, "guard").is_some_and(|v| expr::truthy(&v)),
             "disabled": node.prop("disabled").map(|d| crate::data_table::dynamic(cx, node, "disabled", d)).transpose()?,
@@ -290,5 +302,20 @@ impl Component for SaveBar {
         button(cx, l, "default", "submit", "data-form-save")?;
         cx.close("div");
         Ok(())
+    }
+}
+
+/// The state keys of the `ui-repeater`s under `node`, but not under another `ui-form`.
+fn repeaters(cx: &RenderCx<'_>, node: &Node, out: &mut Vec<String>) {
+    for c in &node.children {
+        if c.kind == "ui-form" {
+            continue;
+        }
+        if c.kind == "ui-repeater"
+            && let Some(k) = cx.prop_string(c, "bind").filter(|k| !out.contains(k))
+        {
+            out.push(k);
+        }
+        repeaters(cx, c, out);
     }
 }
