@@ -342,6 +342,68 @@ root:
     );
 }
 
+/// `ui-file-browser` with `url` and `uploadUrl`, against a fetch answered in the page.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn file_browser_loads_folders_and_takes_dropped_files() {
+    let Some(result) = run_with(
+        "file-browser-server",
+        r##"
+state: { files: [], at: null }
+root: { type: ui-file-browser, props: { bind: files, bindFolder: at, url: /api/files, uploadUrl: /api/upload, view: list } }
+"##,
+        r##"
+        const names = () => $$("[data-fm-item]").map((i) => i.querySelector("[data-fm-name]").textContent + (i.dataset.fmUp ? "(" + i.dataset.fmUp + ")" : "")).join(",");
+        await until(() => $$("[data-fm-item]").length > 0); log(window.asked.join(" "), names());
+        // A folder is fetched the first time it's opened, not again.
+        root.__irender.set("at", "docs"); await until(() => names().includes("plan.pdf")); log(window.asked.join(" "), names());
+        root.__irender.set("at", null); await wait(30); root.__irender.set("at", "docs"); await wait(30); log(window.asked.length);
+        // One that fails says so, with Try again.
+        window.fail = true; root.__irender.set("at", "old"); await until(() => $("[data-fm-retry]")); log($("[role=alert]").textContent);
+        window.fail = false; $("[data-fm-retry]").click(); await until(() => names().includes("2019.zip")); log(names());
+        // Files from the desktop, dropped on a folder: up they go, and the answer takes their place.
+        root.__irender.set("at", null); await wait(30);
+        const dt = new DataTransfer(); dt.items.add(new File(["hello"], "notes.txt", { type: "text/plain" })); dt.items.add(new File(["x"], "bad.txt"));
+        const target = $('[data-fm-item="docs"]');
+        carry("dragover", target, "dataTransfer", dt); log(target.hasAttribute("data-drop"));
+        carry("drop", target, "dataTransfer", dt); await wait(0);
+        root.__irender.set("at", "docs"); await wait(0); log(names());
+        window.release(); await until(() => !names().includes("going")); log(names(), JSON.stringify(window.sent));
+"##,
+        r##"<script>
+        window.asked = []; window.sent = []; let held = [];
+        window.release = () => { held.forEach((f) => f()); held = []; };
+        window.fetch = (u, o = {}) => {
+          const url = new URL(u, location.href), ok = (v) => Promise.resolve({ ok: true, json: () => Promise.resolve(v) });
+          if (o.method === "POST") {
+            const name = o.body.get("file").name, folder = o.body.get("folder");
+            window.sent.push(name + "→" + folder);
+            return new Promise((r) => held.push(() => r(name === "bad.txt" ? { ok: false, status: 500 } : { ok: true, json: () => Promise.resolve({ id: "srv-" + name, name, size: 5 }) })));
+          }
+          const f = url.searchParams.get("folder"); window.asked.push(f ?? "top");
+          if (window.fail) return Promise.resolve({ ok: false, status: 503 });
+          return ok(f === null ? [{ id: "docs", name: "Docs", folder: true }, { id: "old", name: "Old", folder: true }, { id: "a", name: "a.png", size: 10 }] : f === "docs" ? [{ id: "p", name: "plan.pdf", size: 20 }] : [{ id: "z", name: "2019.zip" }]);
+        };
+        </script>"##,
+    ) else {
+        return;
+    };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "top Docs,Old,a.png",
+            "top docs plan.pdf",
+            "2",
+            "Couldn't load this folder Try again",
+            "2019.zip",
+            "true",
+            "bad.txt(going),notes.txt(going),plan.pdf",
+            r#"bad.txt(failed),notes.txt,plan.pdf ["notes.txt→docs","bad.txt→docs"]"#,
+        ],
+        "\n{result}"
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn timeline_filters_and_loads_more() {

@@ -819,6 +819,12 @@ root: …
 `file_browser.js`
 
 ```yaml
+"Loading…": "Loading…"
+"Couldn't load this folder": "Couldn't load this folder"
+"Try again": "Try again"
+"Uploading…": "Uploading…"
+"Upload failed": "Upload failed"
+"{n} items loaded": { one: "{n} item loaded", other: "{n} items loaded" }
 "{name}, {n} items": { one: "{name}, {n} item", other: "{name}, {n} items" }
 "Nothing here matches “{q}”": "Nothing here matches “{q}”"
 "This folder is empty": "This folder is empty"
@@ -853,6 +859,9 @@ root: …
 "{n} items moved to {folder}": "{n} items moved to {folder}"
 "Move to": "Move to"
 "{n} selected": "{n} selected"
+"Uploading {n} files": { one: "Uploading {n} file", other: "Uploading {n} files" }
+"{name} uploaded": "{name} uploaded"
+"{name} didn't upload": "{name} didn't upload"
 ```
 
 `file_browser.rs`

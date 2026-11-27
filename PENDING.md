@@ -23,7 +23,7 @@ _Last updated: 2026-11-26._
 
 - [ ] **`ui-approval`** (2026-11-23; gallery, block expense-01): stages run one after another (none side by side). Handing a turn to someone, due dates and earlier rounds came on 2026-11-27 (block expense-01): nothing sends reminders, a handoff can't be taken back, and the people to hand to are the page's list, not searched. Who may decide is shown, not enforced: the server checks it.
 
-- [ ] **`ui-file-browser`** (2026-11-23; gallery, block drive-01): the files are all in state (no folder loaded from a server as it's opened), no uploading into it by dropping files from the desktop (a `ui-file-upload` beside it does), no copy and paste, no previews beyond `thumb`, and no sharing or permissions. Selecting by dragging a box isn't there; ⌘/Shift and the keys are.
+- [ ] **`ui-file-browser`** (2026-11-23; gallery, block drive-01): folders load from `url` as they're first opened and desktop files dropped in go to `uploadUrl` (2026-11-27): a folder is fetched once (nothing refreshes it), uploads show no progress or retry (a `ui-file-upload` beside it has them), and nothing pages a big folder; no copy and paste, no previews beyond `thumb`, and no sharing or permissions. Selecting by dragging a box isn't there; ⌘/Shift and the keys are.
 
 - [ ] **`ui-virtual-list`** (2026-11-23; gallery, block inventory-01): one column only (no grid of cards), items placed by their average height (a list of very uneven items lands near, not on, a place when jumped to), no scrolling to an item from state, and no sticky group headers. Find in page (⌘F) only finds what's drawn.
 
