@@ -344,6 +344,52 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn data_table_cells_fill_by_their_corner() {
+    check(
+        "table-fill",
+        r##"
+state:
+  rows:
+    - { id: 1, size: S, qty: 1 }
+    - { id: 2, size: M, qty: 2 }
+    - { id: 3, size: L, qty: 3 }
+    - { id: 4, size: XL, qty: 4 }
+    - { id: 5, size: XXL, qty: 5 }
+    - { id: 6, size: "", qty: 6 }
+root:
+  type: ui-data-table
+  props: { rows: "{{ rows }}", columnsMenu: false }
+  children:
+    - { type: ui-data-table-column, props: { field: id } }
+    - { type: ui-data-table-column, props: { field: size, edit: text } }
+    - { type: ui-data-table-column, props: { field: qty, edit: number } }
+"##,
+        r##"
+        const cell = (r, c) => $$("[data-dt-body] > tr")[r].querySelector(`[data-dt-col=${c}]`), h = () => $("[data-dt-fill]");
+        const sizes = () => S().rows.map((r) => r.size || "-").join(",");
+        const drag = async (toRow) => {
+          const b = h().getBoundingClientRect(), x = b.left + 4, y = cell(toRow, "size").getBoundingClientRect(), to = y.top + y.height / 2;
+          pointer("pointerdown", x, b.top + 4, h()); pointer("pointermove", x, to, h()); await wait(20);
+          const marked = $$("td[data-dt-fill-to]").length; pointer("pointerup", x, to, h()); await wait(30); return marked;
+        };
+        // No handle until a cell has the focus; then it's on the cell's corner.
+        log(h().hidden); cell(0, "size").click(); await wait(20);
+        const c0 = cell(0, "size").getBoundingClientRect(), hb = h().getBoundingClientRect();
+        log(h().hidden, Math.round(hb.left + 5 - c0.right), Math.round(hb.top + 5 - c0.bottom));
+        // Two picked, dragged down three rows: they repeat; then the whole lot is picked.
+        key("ArrowDown", { shiftKey: true }); await wait(20);
+        log(await drag(4), sizes(), $$("td[data-dt-in]").length);
+        key("z", { ctrlKey: true }); log("undo", sizes());
+        // Up from the last of the picked rows.
+        cell(4, "size").click(); key("ArrowDown", { shiftKey: true }); await wait(20);
+        log(await drag(2), sizes());
+"##,
+        &["true", "false 0 0", "3 S,M,S,M,S,- 5", "undo S,M,L,XL,XXL,-", "2 S,M,XXL,-,XXL,-"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn repeater_rows_pick_from_a_combobox() {
     check(
         "repeater-combobox",

@@ -1,7 +1,7 @@
 // irender-ui-kit: `ui-data-table`'s editable cells, used by data_table.js when a column
 // has `edit`. Cells are moved through with the arrow keys and edited in place with Enter,
 // F2, a double click or by typing; ranges are picked with Shift, copied and pasted as a
-// spreadsheet does, filled down and cleared. Edits go to the state the rows come from
+// spreadsheet does, filled down (⌘D, or by dragging the picked cells' corner) and cleared. Edits go to the state the rows come from
 // (or, with `url`, to the rows loaded), each with a `celledit` event; undo takes them back.
 // The editor floats over its cell, since the runtime writes the cell's own text.
 window.__irenderTableEdit = (t) => {
@@ -141,6 +141,12 @@ window.__irenderTableEdit = (t) => {
   const tip = Object.assign(document.createElement("div"), { hidden: true });
   tip.setAttribute("data-dt-tip", "");
   scroller.append(tip);
+  // The fill handle: the picked cells' corner, dragged up or down to repeat them.
+  const handle = Object.assign(document.createElement("div"), { hidden: true });
+  handle.setAttribute("data-dt-fill", "");
+  handle.setAttribute("aria-hidden", "true");
+  scroller.append(handle);
+  let filling = null;
   function draw() {
     validate();
     const rows = t.data(), changed = changes(), ks = shownKeys();
@@ -154,6 +160,7 @@ window.__irenderTableEdit = (t) => {
         td.tabIndex = cur ? (here ? 0 : -1) : pos === 0 && ck === first ? 0 : -1;
         td.toggleAttribute("data-dt-cur", !!here);
         td.toggleAttribute("data-dt-in", !!multi && pos >= r.r0 && pos <= r.r1 && r.ks.indexOf(ck) >= r.c0 && r.ks.indexOf(ck) <= r.c1);
+        td.toggleAttribute("data-dt-fill-to", !!filling && pos >= filling.p0 && pos <= filling.p1 && r.ks.indexOf(ck) >= r.c0 && r.ks.indexOf(ck) <= r.c1);
         if (!c) {
           td.setAttribute("aria-readonly", "true");
           continue;
@@ -174,6 +181,13 @@ window.__irenderTableEdit = (t) => {
       place(tip, td, td.offsetHeight);
     }
     if (open) placeEditor();
+    // On the last picked cell's corner, while the cells have the focus.
+    const end = r && cellAt(r.r1, r.ks[r.c1]);
+    handle.hidden = !end || !!open || (!filling && !el.contains(document.activeElement)) || ![...Array(r.c1 - r.c0 + 1)].some((_, x) => columns.has(r.ks[r.c0 + x]));
+    if (!handle.hidden) {
+      place(handle, end, end.offsetHeight);
+      handle.style.left = parseFloat(handle.style.left) + end.offsetWidth + "px";
+    }
   }
   // Over a cell, in the scroll area's own coordinates, so it scrolls with the rows.
   function place(n, td, below = 0) {
@@ -385,6 +399,50 @@ window.__irenderTableEdit = (t) => {
     write(list);
     refocus();
   }
+
+  // ---- the fill handle
+  handle.addEventListener("pointerdown", (e) => {
+    const r = range();
+    if (!r || e.button !== 0) return;
+    e.preventDefault();
+    filling = { id: e.pointerId, r, p0: r.r0, p1: r.r1 };
+    try {
+      handle.setPointerCapture(e.pointerId);
+    } catch { /* a pointer that's already gone */ }
+  });
+  handle.addEventListener("pointermove", (e) => {
+    if (!filling || e.pointerId !== filling.id) return;
+    // The row under the pointer, by height: the handle has the pointer, not the cells.
+    const trs = t.shown().map((_, p) => trAt(p));
+    let p = trs.findIndex((tr) => tr && e.clientY < tr.getBoundingClientRect().bottom);
+    if (p < 0) p = trs.length - 1;
+    const { r } = filling;
+    [filling.p0, filling.p1] = p > r.r1 ? [r.r1 + 1, p] : p < r.r0 ? [p, r.r0 - 1] : [r.r0, r.r1];
+    draw();
+  });
+  const fillEnd = (e) => {
+    if (!filling || e.pointerId !== filling.id) return;
+    const { r, p0, p1 } = filling, h = r.r1 - r.r0 + 1, list = [];
+    filling = null;
+    if (p0 >= r.r0 && p1 <= r.r1) return draw();
+    // The picked rows repeat, in order, away from them: down from the first, up from the last.
+    for (let p = p0; p <= p1; p++) {
+      const from = t.shown()[p > r.r1 ? r.r0 + ((p - r.r1 - 1) % h) : r.r1 - ((r.r0 - 1 - p) % h)], i = t.shown()[p];
+      for (let x = r.c0; x <= r.c1; x++) {
+        const c = columns.get(r.ks[x]);
+        if (c && may(i)) list.push({ i, c, value: at(t.data()[from], c.field) ?? null });
+      }
+    }
+    write(list);
+    anchor = { k: shownKeys()[Math.min(p0, r.r0)], c: r.ks[r.c0] };
+    cur = { k: shownKeys()[Math.max(p1, r.r1)], c: r.ks[r.c1] };
+    refocus();
+    t.announce(L(["{n} row filled", "{n} rows filled"], { n: p1 - p0 + 1 }));
+  };
+  handle.addEventListener("pointerup", fillEnd);
+  handle.addEventListener("pointercancel", (e) => {
+    if (filling?.id === e.pointerId) (filling = null), draw();
+  });
 
   // ---- events
   body.addEventListener("pointerdown", (e) => {

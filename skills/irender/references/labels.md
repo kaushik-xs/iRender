@@ -2009,6 +2009,7 @@ root: …
 "Row added": "Row added"
 "{n} rows deleted": { one: "{n} row deleted", other: "{n} rows deleted" }
 "{n} cells pasted": { one: "{n} cell pasted", other: "{n} cells pasted" }
+"{n} rows filled": { one: "{n} row filled", other: "{n} rows filled" }
 ```
 
 `timeline.js`

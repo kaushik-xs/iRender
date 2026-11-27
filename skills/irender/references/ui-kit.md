@@ -616,6 +616,7 @@ A column with `edit` (`text`, `multiline`, `number`, `date`, `select` or `checkb
 ```
 
 - **Keys:** the arrow keys move between cells (with Shift they pick a range, with Ctrl or ⌘ they go to the end), Tab goes to the next editable one, Enter, F2, a double click or typing edits, Enter and Tab keep the edit and Escape leaves it. Delete clears, Space ticks a checkbox, Ctrl+D (⌘D) fills down, Ctrl+Z and Ctrl+Y undo and redo.
+- **The fill handle:** the square on the picked cells' corner, dragged down or up (mouse, pen or finger), repeats them over the rows it reaches, in order away from them, as one step to undo; the rows filled are then picked.
 - **Copy and paste** go to and from spreadsheets. Pasted text is read as the column's: `1,234`, `5%`, `(120)` and the locale's own numbers, dates as the locale writes them, a choice by its label. What can't be read is kept as it is and marked. Rows pasted past the end are added, with `addRow`.
 - **Checks:** `required`, `min`, `max`, `pattern` and `unique` on a column, with `message` in place of the kit's words, and `errors` from the page or server (`{ rowKey: { field: message } }`). Wrong cells are marked and say why, the Problems button shows only their rows, and `bindErrors` gets `[{ key, field, message }]`.
 - **Changes:** `bindChanges` gets `{ rowKey: { field: value } }` (null for a deleted row) and changed cells get a mark in their corner; set it to `{}` once they're saved. Events: `celledit` (`{ key, row, field, value, previous }`), `rowadd`, `rowdelete`, and `rowschange` for an undo or a large paste.

@@ -682,6 +682,13 @@ static EDITING: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-dt-problems]", pairs(&[("color", crate::DESTRUCTIVE), ("border-color", "color-mix(in srgb, var(--color-destructive, #dc2626) 45%, var(--color-border))")]))
         .nest("& [data-dt-problems][aria-pressed=true]", pairs(&[("background", crate::DESTRUCTIVE), ("color", crate::ON_DESTRUCTIVE)]))
         .nest("& [data-dt-tip][hidden]", pairs(&[("display", "none")]))
+        // The fill handle, a square on the picked cells' corner, and the cells it'll fill.
+        .nest(
+            "& [data-dt-fill]",
+            pairs(&[("position", "absolute"), ("z-index", "3"), ("width", "8px"), ("height", "8px"), ("margin", "-5px 0 0 -5px"), ("box-sizing", "border-box"), ("border", "1px solid var(--color-background, #fff)"), ("background", "var(--color-primary)"), ("cursor", "crosshair"), ("touch-action", "none")]),
+        )
+        .nest("& [data-dt-fill][hidden]", pairs(&[("display", "none")]))
+        .nest("& td[data-dt-fill-to]", pairs(&[("box-shadow", "inset 0 0 0 1px var(--color-primary)"), ("background", TINT)]))
         .nest(
             "& [data-dt-check]",
             pairs(&[
