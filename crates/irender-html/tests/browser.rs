@@ -364,6 +364,39 @@ fn form_controls_in_chrome() {
     assert_eq!(lines[5], "typed, cleared ; xs,s* ; 1*,2,3 ; 1 ; true ;  ; Delhi ; Pune,Mumbai,Delhi ; two⏎lines ; s|1|number|true||Delhi|two⏎lines", "{result}");
 }
 
+/// `multiple` on a select: the server marks every value in the list, picking writes the
+/// list (numbers kept numbers), and state picks them, also after options are rebuilt.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn multiple_select_in_chrome() {
+    let doc = r##"{ "version": 1,
+      "state": { "tags": ["b", "c"], "ids": [2], "opts": ["x", "y", "z"], "picked": ["z"] },
+      "root": { "type": "element", "children": [
+        { "type": "select", "props": { "bind": "tags", "multiple": true, "placeholder": "Never shown", "options": [{ "value": "a", "label": "A" }, "b", "c"] }, "attrs": { "id": "tags" } },
+        { "type": "select", "props": { "bind": "ids", "multiple": true, "options": [1, 2, 3] }, "attrs": { "id": "ids" } },
+        { "type": "select", "props": { "bind": "picked", "multiple": true, "options": "{{ opts }}" }, "attrs": { "id": "picked" } } ] } }"##;
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const out = [], root = document.querySelector("[data-i-root]"), S = () => root.__irender.state, $ = (s) => document.querySelector(s);
+      const on = (id) => [...$(id).options].map((o) => o.value + (o.selected ? "*" : "")).join(",");
+      out.push([on("#tags"), on("#ids"), $("#tags").multiple].join(" | "));
+      $("#tags").options[0].selected = true; $("#tags").options[2].selected = false; $("#tags").dispatchEvent(new Event("change"));
+      $("#ids").options[2].selected = true; $("#ids").dispatchEvent(new Event("change"));
+      out.push(JSON.stringify([S().tags, S().ids]));
+      root.__irender.set("tags", ["c"]); out.push(on("#tags"));
+      root.__irender.set("opts", ["w", "z"]); out.push(on("#picked"));
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let engine = Engine::new();
+    let ir = engine.load(doc, Format::Json).unwrap();
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    assert!(!page.body.contains("Never shown"), "{}", page.body);
+    let html = page.document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("multiple-select", &html) else { return };
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["a,b*,c* | 1,2*,3 | true", r#"[["a","b"],[2,3]]"#, "a,b,c*", "w,z*"], "\n{result}");
+}
+
 /// A behaviour registered by a component: started once per element, including
 /// on content an `if` inserts later, and told about every state change.
 #[test]

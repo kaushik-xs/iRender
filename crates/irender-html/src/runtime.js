@@ -186,7 +186,11 @@
         const evt = picks(el) ? "change" : "input";
         el.addEventListener(evt, () => {
           let v = el.type === "checkbox" ? el.checked : el.value;
-          if (el.type === "number" || el.type === "range") v = el.value === "" ? null : Number(el.value);
+          if (el.multiple) {
+            // A list, of numbers when the key held numbers.
+            const nums = Array.isArray(state[key]) && state[key].length > 0 && state[key].every((x) => typeof x === "number");
+            v = [...el.selectedOptions].map((o) => (nums && o.value.trim() !== "" && !Number.isNaN(Number(o.value)) ? Number(o.value) : o.value));
+          } else if (el.type === "number" || el.type === "range") v = el.value === "" ? null : Number(el.value);
           // A radio or select over numbers keeps a number-typed key a number.
           else if (picks(el) && el.type !== "checkbox" && typeof state[key] === "number" && v.trim() !== "" && !Number.isNaN(Number(v))) v = Number(v);
           set(key, v);
@@ -369,7 +373,10 @@
         const v = state[el.getAttribute("data-i-bind")];
         if (el.type === "checkbox") el.checked = truthy(v);
         else if (el.type === "radio") el.checked = el.value === str(v);
-        else el.value = str(v);
+        else if (el.multiple) {
+          const on = new Set((Array.isArray(v) ? v : v == null ? [] : [v]).map(str));
+          for (const o of el.options) o.selected = on.has(o.value);
+        } else el.value = str(v);
       }
       for (const el of all("[data-i-x]")) el.__x?.update?.(state);
       const due = pending;

@@ -159,7 +159,7 @@ irender app app.yaml --dir site
 { "type": "textarea", "props": { "bind": "notes", "rows": 4 } }
 ```
 
-- **`select`:** `options` is an array of plain values or `{ value, label, disabled }`. If it comes from server data, the options are fixed. If it reads `state`, the browser rebuilds them when the array changes and keeps the current choice. `placeholder` adds a first, empty option that shows while the key is empty.
+- **`select`:** `options` is an array of plain values or `{ value, label, disabled }`. If it comes from server data, the options are fixed. If it reads `state`, the browser rebuilds them when the array changes and keeps the current choice. `placeholder` adds a first, empty option that shows while the key is empty. `multiple: true` makes it a list box where several can be picked (Ctrl or ⌘ and a click, Shift for a run); the key holds a list, of numbers when it held numbers, and has no placeholder.
 - **Radios:** a bound radio needs a `value`. It is checked when the state equals that value, and choosing it writes the value. Radios bound to the same key share `name` automatically, so the browser keeps one checked.
 - **Checkboxes:** a bound checkbox stores `true` / `false`.
 - **Types:** the DOM holds option and radio values as text. If a key starts out as a number, choosing a radio or option keeps it a number, as a `number` input does. Otherwise it becomes a string.

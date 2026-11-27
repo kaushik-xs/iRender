@@ -318,8 +318,9 @@ const SELECT_PROPS: &[PropDef] = &[
         "Array of values or `{ value, label, disabled }`. Rebuilt in the browser when it uses state.",
     )
     .required(),
-    PropDef::new("bind", PropKind::StateKey, "State key kept in sync with the selected value"),
-    PropDef::new("placeholder", PropKind::Any, "Text of a first, empty option"),
+    PropDef::new("bind", PropKind::StateKey, "State key kept in sync with the selected value (a list of them with `multiple`)"),
+    PropDef::new("multiple", PropKind::Bool, "Several can be picked (a list box; Ctrl or ⌘ and a click, Shift for a run); the key holds a list"),
+    PropDef::new("placeholder", PropKind::Any, "Text of a first, empty option (not with `multiple`)"),
     PropDef::new("name", PropKind::String, "Form field name"),
     PropDef::new("value", PropKind::Any, "Initially selected value when not bound"),
     PropDef::new("disabled", PropKind::Any, "Boolean or expression"),
@@ -364,10 +365,20 @@ impl Select {
             Some(key) => cx.lookup(std::slice::from_ref(key)),
             None => cx.prop(node, "value").unwrap_or(Json::Null),
         };
-        let selected = expr::stringify(&selected);
+        let multiple = cx.prop(node, "multiple").is_some_and(|m| expr::truthy(&m));
+        // What's picked, as the options' text values: one, or a list with `multiple`.
+        let picked: Vec<String> = match (&selected, multiple) {
+            (Json::Array(a), true) => a.iter().map(expr::stringify).collect(),
+            (Json::Null, _) => Vec::new(),
+            (v, _) => vec![expr::stringify(v)],
+        };
+        let selected = picked.first().cloned().unwrap_or_default();
 
         let mut el = cx.element("select", node);
         el.base_style_ref(base);
+        if multiple {
+            el.attr("multiple", true);
+        }
         for name in ["name", "disabled"] {
             if let Some(v) = node.prop(name) {
                 el.attr(name, v.clone());
@@ -380,7 +391,7 @@ impl Select {
             el.bind(key);
         }
         cx.open(&el, node)?;
-        if let Some(text) = cx.prop_string(node, "placeholder") {
+        if let Some(text) = cx.prop_string(node, "placeholder").filter(|_| !multiple) {
             let mut opt = Element::new("option");
             opt.attr("value", "").attr("disabled", true).attr("selected", selected.is_empty());
             // The runtime keeps this option when it rebuilds the others.
@@ -392,7 +403,7 @@ impl Select {
             let (value, label, disabled) = option_parts(o);
             let value = expr::stringify(&value);
             let mut opt = Element::new("option");
-            opt.attr("selected", value == selected).attr("disabled", disabled);
+            opt.attr("selected", if multiple { picked.contains(&value) } else { value == selected }).attr("disabled", disabled);
             opt.attr("value", value).text(Val::Lit(label));
             cx.open(&opt, node)?;
             cx.close("option");

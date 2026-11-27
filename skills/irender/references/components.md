@@ -37,8 +37,9 @@ input: Form input.
   children: no
 select: Dropdown.
   options      any (required)  Array of values or `{ value, label, disabled }`. Rebuilt in the browser when it uses state.
-  bind         statekey  State key kept in sync with the selected value
-  placeholder  any  Text of a first, empty option
+  bind         statekey  State key kept in sync with the selected value (a list of them with `multiple`)
+  multiple     bool  Several can be picked (a list box; Ctrl or ⌘ and a click, Shift for a run); the key holds a list
+  placeholder  any  Text of a first, empty option (not with `multiple`)
   name         string  Form field name
   value        any  Initially selected value when not bound
   disabled     any  Boolean or expression
@@ -550,8 +551,9 @@ ui-textarea: A multi-line text field. Same props as `textarea`.
   children: no
 ui-select: A dropdown. Same props as `select`.
   options      any (required)  Array of values or `{ value, label, disabled }`. Rebuilt in the browser when it uses state.
-  bind         statekey  State key kept in sync with the selected value
-  placeholder  any  Text of a first, empty option
+  bind         statekey  State key kept in sync with the selected value (a list of them with `multiple`)
+  multiple     bool  Several can be picked (a list box; Ctrl or ⌘ and a click, Shift for a run); the key holds a list
+  placeholder  any  Text of a first, empty option (not with `multiple`)
   name         string  Form field name
   value        any  Initially selected value when not bound
   disabled     any  Boolean or expression
@@ -1895,6 +1897,8 @@ ui-combobox: A searchable select: one or many values, groups, async options, cre
   valueField   string  Field of an option object holding its value (default `value`)
   labelField   string  Field holding its label (default `label`)
   descriptionField string  Field holding its description (default `description`)
+  imageField   string  Field holding a picture shown before its label: an avatar, a flag, a logo (default `image`)
+  badgeField   string  Field holding short text shown after its label: a count, a status (default `badge`)
   multiple     bool  Choose several values, shown as removable chips
   searchable   bool  Type to filter (default true)
   clearable    bool  Show a button that clears the value

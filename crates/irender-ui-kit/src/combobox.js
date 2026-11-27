@@ -22,7 +22,11 @@
     // Server-normalized options carry `value`/`label`; others use the configured fields.
     const pick = (field, plain) => (o[field] !== undefined ? o[field] : o[plain]);
     const value = pick(F.value, "value") ?? null;
-    return { value, label: String(pick(F.label, "label") ?? value ?? ""), description: pick(F.description, "description") ?? null, disabled: !!o.disabled };
+    const text = (v) => (v === undefined || v === null || v === "" ? null : String(v));
+    return {
+      value, label: String(pick(F.label, "label") ?? value ?? ""), description: pick(F.description, "description") ?? null,
+      image: text(pick(F.image ?? "image", "image")), badge: text(pick(F.badge ?? "badge", "badge")), disabled: !!o.disabled,
+    };
   };
   const flat = (list) => list.flatMap((o) => (o.group != null ? o.options : [o]));
   const at = (v, path) => path.reduce((x, k) => (x != null && typeof x === "object" ? x[k] : undefined), v);
@@ -167,7 +171,14 @@
       row.setAttribute("aria-selected", String(!o.create && isSelected(o.value)));
       if (o.create) row.setAttribute("data-create", "");
       const label = document.createElement("span");
-      label.textContent = o.create ? T.create.replace("{input}", o.label) : o.label;
+      label.dataset.uiOptionLabel = "";
+      const words = document.createElement("span");
+      words.textContent = o.create ? T.create.replace("{input}", o.label) : o.label;
+      // A picture is decoration: the label names the option.
+      if (o.image) label.append(Object.assign(document.createElement("img"), { src: o.image, alt: "", loading: "lazy", decoding: "async" }));
+      label.append(words);
+      if (o.badge) label.append(Object.assign(document.createElement("span"), { textContent: o.badge }));
+      label.lastElementChild.toggleAttribute("data-ui-badge", !!o.badge);
       row.append(label);
       if (o.description) {
         const d = document.createElement("span");
@@ -273,6 +284,8 @@
         chip.dataset.uiChip = "";
         const text = document.createElement("span");
         text.textContent = labelOf(v);
+        const pic = known.get(keyOf(v))?.image;
+        if (pic) chip.append(Object.assign(document.createElement("img"), { src: pic, alt: "" }));
         chip.append(text);
         if (fixed(v)) chip.dataset.fixed = "";
         else {

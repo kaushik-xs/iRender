@@ -28,6 +28,8 @@ const PROPS: &[PropDef] = &[
     PropDef::new("valueField", PropKind::String, "Field of an option object holding its value (default `value`)"),
     PropDef::new("labelField", PropKind::String, "Field holding its label (default `label`)"),
     PropDef::new("descriptionField", PropKind::String, "Field holding its description (default `description`)"),
+    PropDef::new("imageField", PropKind::String, "Field holding a picture shown before its label: an avatar, a flag, a logo (default `image`)"),
+    PropDef::new("badgeField", PropKind::String, "Field holding short text shown after its label: a count, a status (default `badge`)"),
     PropDef::new("multiple", PropKind::Bool, "Choose several values, shown as removable chips"),
     PropDef::new("searchable", PropKind::Bool, "Type to filter (default true)"),
     PropDef::new("clearable", PropKind::Bool, "Show a button that clears the value"),
@@ -236,6 +238,15 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [role=option][data-create]", pairs(&[("color", PRIMARY), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [role=option][aria-disabled=true]", pairs(&[("opacity", "0.5"), ("cursor", "not-allowed")]))
+        // A picture before the label and a badge after it.
+        .nest("& [data-ui-option-label]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(8)), ("min-width", "0")]))
+        .nest("& [data-ui-option-label] > span:not([data-ui-badge])", pairs(&[("min-width", "0"), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest("& :is([data-ui-option-label], [data-ui-chip]) > img", pairs(&[("flex", "none"), ("width", "20px"), ("height", "20px"), ("border-radius", "50%"), ("object-fit", "cover")]))
+        .nest("& [data-ui-chip] > img", pairs(&[("width", "16px"), ("height", "16px"), ("margin-inline-end", "4px")]))
+        .nest(
+            "& [data-ui-badge]",
+            pairs(&[("margin-inline-start", "auto"), ("padding", pad!(0, 6)), ("border-radius", "999px"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("color", MUTED), ("font-size", fs!(11)), ("font-weight", "500"), ("line-height", "18px")]),
+        )
         .nest("& [data-ui-description]", pairs(&[("grid-column", "1"), ("font-size", fs!(12)), ("font-weight", "400"), ("color", MUTED)]))
         .nest(
             "& [data-ui-group-label]",
@@ -284,11 +295,13 @@ struct Fields {
     value: String,
     label: String,
     description: String,
+    image: String,
+    badge: String,
 }
 
 impl Default for Fields {
     fn default() -> Self {
-        Self { value: "value".into(), label: "label".into(), description: "description".into() }
+        Self { value: "value".into(), label: "label".into(), description: "description".into(), image: "image".into(), badge: "badge".into() }
     }
 }
 
@@ -305,8 +318,10 @@ fn normalize(o: &Json, f: &Fields) -> Json {
             let mut out = Map::new();
             out.insert("value".into(), value);
             out.insert("label".into(), Json::String(label));
-            if let Some(d) = m.get(&f.description).filter(|d| !d.is_null()) {
-                out.insert("description".into(), Json::String(expr::stringify(d)));
+            for (field, name) in [(&f.description, "description"), (&f.image, "image"), (&f.badge, "badge")] {
+                if let Some(d) = m.get(field).filter(|d| !d.is_null() && *d != "") {
+                    out.insert(name.into(), Json::String(expr::stringify(d)));
+                }
             }
             if m.get("disabled").is_some_and(expr::truthy) {
                 out.insert("disabled".into(), Json::Bool(true));
@@ -390,6 +405,8 @@ impl Component for Combobox {
             value: cx.prop_string(node, "valueField").unwrap_or_else(|| "value".into()),
             label: cx.prop_string(node, "labelField").unwrap_or_else(|| "label".into()),
             description: cx.prop_string(node, "descriptionField").unwrap_or_else(|| "description".into()),
+            image: cx.prop_string(node, "imageField").unwrap_or_else(|| "image".into()),
+            badge: cx.prop_string(node, "badgeField").unwrap_or_else(|| "badge".into()),
         };
         let options: Vec<Json> = options.iter().map(|o| normalize(o, &fields)).collect();
 
@@ -428,7 +445,7 @@ impl Component for Combobox {
             "options": options,
             "optionsPath": options_path,
             // Options from state or `searchUrl` are normalized in the browser with these.
-            "fields": { "value": fields.value, "label": fields.label, "description": fields.description },
+            "fields": { "value": fields.value, "label": fields.label, "description": fields.description, "image": fields.image, "badge": fields.badge },
             "searchUrl": search_url,
             "labels": node.prop("labels").map(|l| crate::data_table::dynamic(cx, node, "labels", l)).transpose()?,
             "lookup": cx.prop(node, "lookup").is_some_and(|v| expr::truthy(&v)),
@@ -622,7 +639,7 @@ mod tests {
             normalize(&json!({ "label": "Fruit", "options": ["apple"] }), &f),
             json!({ "group": "Fruit", "options": [{ "value": "apple", "label": "apple" }] })
         );
-        let custom = Fields { value: "href".into(), label: "title".into(), description: "summary".into() };
+        let custom = Fields { value: "href".into(), label: "title".into(), description: "summary".into(), ..Fields::default() };
         assert_eq!(
             normalize(&json!({ "href": "a.html", "title": "A", "summary": "About A" }), &custom),
             json!({ "value": "a.html", "label": "A", "description": "About A" })

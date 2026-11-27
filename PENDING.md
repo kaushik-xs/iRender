@@ -209,9 +209,9 @@ _Last updated: 2026-11-26._
   - [x] `body`, `headers` and Try again after a failure (2026-11-22).
   - [ ] Replies in a thread don't nest further, and a reply can't be sent into a thread from the input.
   - [ ] A streamed reply rebuilds its message on each chunk, so screen readers may announce it more than once.
-- [ ] **The built-in `select` has no `multiple`.** `ui-combobox` covers multi-select, and `ui-toggle-group` has `multiple`.
+- [x] **The built-in `select` takes `multiple`** (2026-11-27): a list box, the key a list. `ui-combobox` is still the friendlier multi-select.
 - [ ] **`ui-combobox`:**
-  - [ ] No custom option rendering (react-select's `formatOptionLabel` and friends); options take a `description` instead.
+  - [ ] No custom option rendering from the page's own components; options take a `description`, an `image` and a `badge` (2026-11-27; gallery's People).
   - [ ] No chip animations.
   - [ ] Values are plain values, not option objects. A pre-selected value that only `searchUrl` would return shows its raw value until it's searched for. `labels` and `lookup` give its name (2026-11-22).
 - [ ] **Theme options:**

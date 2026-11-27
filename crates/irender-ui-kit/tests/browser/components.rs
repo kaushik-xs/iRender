@@ -344,6 +344,31 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn combobox_options_show_pictures_and_badges() {
+    check(
+        "combobox-rich",
+        r##"
+state: { who: [], people: [ { id: ada, name: Ada Lovelace, photo: "data:image/gif;base64,R0lGODlhAQABAAAAACw=", role: Owner, n: 3 }, { id: bob, name: Bob Ray, role: null, n: 12 } ] }
+root:
+  type: ui-combobox
+  props: { bind: who, multiple: true, options: "{{ people }}", valueField: id, labelField: name, imageField: photo, badgeField: n, descriptionField: role, label: People }
+"##,
+        r##"
+        const input = $("input[role=combobox]"); input.focus(); input.click(); type(input, ""); await wait(30);
+        const rows = $$("[role=option]").map((r) => [r.querySelector("img") ? "img" : "-", r.querySelector("[data-ui-option-label] > span:not([data-ui-badge])").textContent, r.querySelector("[data-ui-badge]")?.textContent ?? "-", r.querySelector("[data-ui-description]")?.textContent ?? "-"].join(" "));
+        log(rows.join(" | "));
+        // The picture is decoration: the option is still named by its label.
+        log($("[role=option] img").alt === "", $$("[role=option]")[0].textContent.includes("Ada Lovelace"));
+        // A chosen one's chip shows its picture too.
+        $$("[role=option]")[0].dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); await wait(30);
+        log($$("[data-ui-chip]").map((c) => (c.querySelector("img") ? "img " : "") + c.textContent.replace(/[×✕]/g, "").trim()).join("|"));
+"##,
+        &["img Ada Lovelace 3 Owner | - Bob Ray 12 -", "true true", "img Ada Lovelace"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn date_picker_picks_a_week() {
     check(
         "week-picker",
