@@ -1104,9 +1104,9 @@ fn pareto_in_chrome() {
         { "cause": "Dents", "n": 12 }, { "cause": "Scratches", "n": 42 }, { "cause": "Gaps", "n": 8 },
         { "cause": "Labels", "n": 18 }, { "cause": "Misaligned", "n": 30 }, { "cause": "Missing", "n": 10 }, { "cause": "Bad", "n": "x" } ]);
     let tickets: Vec<Json> = ["Login", "Billing", "Login", "Bug", "Login", "Billing", "Slow", "Export"].iter().map(|r| json!({ "reason": r })).collect();
-    let doc = json!({ "version": 1, "state": { "defects": defects, "limit": 80 }, "root": { "type": "stack", "children": [
+    let doc = json!({ "version": 1, "state": { "defects": defects, "limit": 80, "row": null }, "root": { "type": "stack", "children": [
         { "type": "ui-chart", "attrs": { "id": "p" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "threshold": "{{ limit }}" } },
-        { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false } },
+        { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false, "bindRow": "row" } },
         { "type": "ui-chart", "attrs": { "id": "h" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "horizontal": true, "labels": true } } ] } });
     let body = r##"
     await ready(["p", "c", "h"]);
@@ -1124,6 +1124,11 @@ fn pareto_in_chrome() {
     // Drawn: the largest at the top, its bar the longest.
     const px = (c, v) => chart("h").convertToPixel({ yAxisIndex: 0, xAxisIndex: 0 }, [v, c]);
     log("drawn", px("Scratches", 42)[1] < px("Gaps", 8)[1], px("Scratches", 42)[0] > px("Gaps", 8)[0]);
+    // A real click on Other: its row holds the rows that went into it.
+    const [ox, oy] = chart("c").convertToPixel({ seriesIndex: 0 }, ["Other", 1]), canvas = el("c").querySelector("canvas"), cr = canvas.getBoundingClientRect();
+    for (const type of ["mousemove", "mousedown", "mouseup", "click"]) canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: cr.left + ox, clientY: cr.top + oy }));
+    await wait(50);
+    log("other", S().row?.reason, S().row?.count, (S().row?.rows ?? []).map((r) => r.reason + ":" + r.count).join(","));
 "##;
     let Some(lines) = run("pareto", &engine, doc, &driver(body)) else { return };
     assert_eq!(
@@ -1137,6 +1142,7 @@ fn pareto_in_chrome() {
             "60% --ffff 60",
             "across category true Scratches -,100 1 80 right ----ff",
             "drawn true true",
+            "other Other 3 Bug:1,Slow:1,Export:1",
         ],
         "\n{}",
         lines.join("\n")

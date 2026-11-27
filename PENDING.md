@@ -11,7 +11,7 @@ _Last updated: 2026-11-26._
 
 ## Gaps you'd hit in real use
 
-- [ ] **Pareto charts** (`type: pareto`, `threshold`; 2026-11-26; chart gallery, block incident-01): `horizontal` lays it down the side (2026-11-26; chart gallery's Pareto across). Not done: one value field (no stacked bars by `series`), Other always last and not clickable through to what it holds, and the percent line can't be read against a target other than the threshold.
+- [ ] **Pareto charts** (`type: pareto`, `threshold`; 2026-11-26; chart gallery, block incident-01): `horizontal` lays it down the side (2026-11-26; chart gallery's Pareto across). Not done: one value field (no stacked bars by `series`), Other always last (its row carries what it holds as `rows`, 2026-11-27), and the percent line can't be read against a target other than the threshold.
 
 - [ ] **`ui-iframe`** (2026-11-25; gallery, block docs-01): no size from the framed page's content (a page from another site can't say how tall it is, and nothing listens for one that does), no messages to or from it, and no loading or error state (a site that refuses to be framed shows the browser's own blank or error page). The untrusted policy refuses it outright; idea: allow it there with a sandbox it can't widen and only `https:` addresses.
 

@@ -301,7 +301,8 @@
       rows = sortRows(rows.filter((r) => isNum(at(r, f)) && Number(at(r, f)) >= 0), { field: f, order: "desc" });
       if (limit && rows.length > limit) {
         const rest = rows.slice(limit);
-        rows = [...rows.slice(0, limit), { [x]: L("Other"), [f]: tidy(rest.reduce((a, r) => a + Number(at(r, f)), 0)) }];
+        // Other holds what went into it, for `bindRow` and `change`.
+        rows = [...rows.slice(0, limit), { [x]: L("Other"), [f]: tidy(rest.reduce((a, r) => a + Number(at(r, f)), 0)), rows: rest }];
       }
       return { ...out, rows, x, y: blank(y) ? f : y };
     }
