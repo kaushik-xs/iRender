@@ -1175,6 +1175,17 @@ The fields named in `private` are kept only encrypted (AES-GCM), with a key a `u
 - { type: ui-app-lock, props: { methods: [pin, passkey] } }
 ```
 
+**Only what changed.** A query with `sync` asks only for what changed since its last answer, as long-lived lists on a device want. Each answer's `cursor` (or the field `sync.cursor` names) is the server's, never this device's clock, and it's sent back with the next load as `?since=<cursor>` (`sync.param`). That answer's rows are merged by `sync.key` (default `id`): a changed row takes its old one's place, a new one goes at the end, and one whose `sync.tombstone` field (default `deleted`) is true, or whose id is in the answer's `deleted` list, goes. An API that can't say what was deleted is covered by `sync.full`: every that many hours (default 24) everything is loaded again. Kept on the device, the cursor is kept with the rows, so the next visit asks only for what changed while it was away; rows kept without their private fields (no key then) are loaded again in full. `every` loads again every so many seconds while the page is in sight, and any query loads again when the connection comes back.
+
+```yaml
+- type: ui-data-query
+  props: { url: /api/visits, into: visits, persist: device, scope: "{{ user.id }}", sync: { full: 12 }, every: 60 }
+# GET /api/visits                → { rows: [...], cursor: "812" }
+# GET /api/visits?since=812      → { rows: [changed or new], deleted: [ids], cursor: "815" }
+```
+
+A 403, 404 or 410 means it's gone or no longer theirs: a query's rows are emptied and what it kept goes, and a source's record is dropped, on the device too. A 401 leaves everything as it is and fires `unauthorized` on the query, for the page to sign in again or `clear`.
+
 How far the encryption goes: a PIN of four to eight digits is quick to try every one of on a copied disk, PBKDF2 or not, so a PIN-wrapped key keeps people's details from someone who picks up the device or reads its backups, not from someone with time and the disk. A passkey's PRF is the stronger key. While the app's unlocked, the page itself (and any script on it) can read them, as with anything the page shows.
 
 `ui-data-query` fills a state key (`into`) for anything else, a chart, a list or a card: rows from `url` (with `params`; a change loads again, typing after a pause), or the records of `source` for `ids` (one id gives the record, a list the records). `expand` joins records into its rows as the table's does, and they fill in as they arrive, each row with `$loading` meanwhile. `status` gets `{ state, pending, total, error, at }`: `state` is `idle`, `loading`, `joining` (rows here, joined records on their way; `pending` says how many rows wait), `ready` or `error`. `refresh` loads again when its value changes, say after a save; `paused` stops it. `loaded` and `failed` fire with each answer.

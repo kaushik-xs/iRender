@@ -54,8 +54,9 @@
     const own = sameOrigin(url) ? { "x-irender-data": "1" } : {};
     const res = await fetch(url, { cache: "no-store", ...init, headers: { accept: "application/json", ...own, ...headers, ...init.headers } });
     if (res.status === 304) return { same: true, etag: res.headers.get("etag") };
-    if (res.status === 404) return { missing: true };
-    if (!res.ok) throw new Error(String(res.status));
+    // Gone, or no longer theirs: what was kept of it goes too.
+    if (res.status === 404 || res.status === 403 || res.status === 410) return { missing: true };
+    if (!res.ok) throw Object.assign(new Error(String(res.status)), { status: res.status });
     return { answer: await res.json(), etag: res.headers.get("etag") };
   }
 
@@ -74,14 +75,16 @@
     return [open, Object.keys(closed).length ? closed : null];
   }
   // What's kept, as a value to show: the private fields put back while the vault's open
-  // and they're younger than `retain`; `partial` when they couldn't be.
+  // and they're younger than `retain`; `partial` when they aren't there (sealed and
+  // locked, too old, or kept without a key), so it's fetched again rather than trusted.
   async function unkeep(cfg, k) {
     if (!k) return null;
     const young = Date.now() - k.at < retain(cfg);
     const priv = k.enc && young ? await O.vault.open(k.enc) : null;
     const back = (v, p) => (isObj(v) && isObj(p) ? { ...v, ...p } : v);
     const v = Array.isArray(k.v) ? k.v.map((r, i) => back(r, priv?.[i])) : back(k.v, priv);
-    return { v, at: k.at, etag: k.etag ?? null, partial: !!k.enc && !priv, total: k.total };
+    const some = Array.isArray(k.v) ? k.v.length > 0 : k.v != null;
+    return { v, at: k.at, etag: k.etag ?? null, partial: fields(cfg).length > 0 && some && !priv, total: k.total, one: k.one, cursor: k.cursor, fullAt: k.fullAt };
   }
   // A value to keep: its private fields sealed, or left out with no key.
   async function keep(cfg, v, extra) {
@@ -430,8 +433,14 @@
   // loaded (`stale`).
   B["ui-data-query"] = (el, api) => {
     const cfg = api.config, D = window.__irenderData;
-    let key = null, seq = 0, rows = null, one = false, total = null, error = null, loading = false, at = null, timer = 0, last, lastStatus;
+    let key = null, seq = 0, rows = null, one = false, total = null, error = null, loading = false, stamp = null, timer = 0, last, lastStatus;
     let cached = false, partial = false;
+    // `sync`: what the rows shown were synced to, `{ base, cursor, fullAt }`, so that the
+    // next load asks only for what changed since (the server's cursor, never this
+    // device's clock), and every `full` hours for everything.
+    const S = isObj(cfg.sync) ? cfg.sync : cfg.sync ? {} : null;
+    let mark = null;
+    const baseOf = (q) => JSON.stringify([q.url ?? "", q.params ?? null]);
     const scope = () => K.value(api, cfg.scope);
     const kept = () => !!O && cfg.persist === "device" && !blank(scope());
     const qslot = (q) => ["q", scope(), JSON.stringify([q.url ?? "", q.params ?? null])].join(SEP);
@@ -443,7 +452,8 @@
       rows = k.v;
       one = !!k.one;
       total = k.total ?? rows.length;
-      at = new Date(k.at).toISOString();
+      stamp = new Date(k.at).toISOString();
+      mark = S ? { base: baseOf(q), cursor: k.cursor ?? null, fullAt: k.fullAt ?? 0 } : null;
       cached = true;
       partial = k.partial;
       publish();
@@ -463,28 +473,68 @@
       loading = true;
       error = null;
       cached = false;
-      if (kept()) await fromDevice(q, id);
+      const base = baseOf(q);
+      // What's in memory for this address is as new as what's kept, or newer.
+      if (kept() && !(mark?.base === base && Array.isArray(rows) && !partial)) await fromDevice(q, id);
       if (id !== seq) return;
       publish();
+      // Only onto rows that are whole: a partial answer is loaded again in full.
+      const delta = !!S && !partial && mark?.base === base && !blank(mark.cursor) && Array.isArray(rows) && Date.now() - mark.fullAt < Number(S.full ?? 24) * 36e5;
+      const p = params(q.params);
+      if (delta) p.set(S.param ?? "since", String(mark.cursor));
       try {
-        const { answer, missing } = await getJson(join(String(q.url ?? ""), params(q.params)), {}, cfg.headers);
+        const { answer, missing } = await getJson(join(String(q.url ?? ""), p), {}, cfg.headers);
         if (id !== seq) return;
         const got = missing ? [] : records(answer, cfg.pick);
-        one = isObj(got);
-        rows = one ? [got] : Array.isArray(got) ? got : [];
-        total = Number.isFinite(answer?.total) ? answer.total : rows.length;
-        at = new Date().toISOString();
+        if (delta && !missing) {
+          rows = merge(rows, Array.isArray(got) ? got : [], at(answer, S.deleted ?? "deleted"));
+          total = rows.length;
+        } else {
+          one = isObj(got);
+          rows = one ? [got] : Array.isArray(got) ? got : [];
+          total = Number.isFinite(answer?.total) ? answer.total : rows.length;
+        }
+        const cursor = S && !missing ? at(answer, S.cursor ?? "cursor") ?? null : null;
+        mark = S ? { base, cursor, fullAt: delta && !missing ? mark.fullAt : Date.now() } : null;
+        stamp = new Date().toISOString();
         loading = cached = partial = false;
-        if (kept()) keep(cfg, rows, { total, one }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
-        api.emit("loaded", { rows, total });
+        if (kept()) keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0 }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
+        api.emit("loaded", { rows, total, delta });
       } catch (e) {
         if (id !== seq) return;
         loading = false;
         error = String(e?.message ?? e);
+        // Signed out on the server: the page decides what to do (`clear`, say).
+        if (e?.status === 401) api.emit("unauthorized", {});
         api.emit("failed", { error });
       }
       publish();
     }
+    // What changed since, into the rows: a changed row takes its old one's place, a new one
+    // goes at the end; one whose `tombstone` field is true, or whose id is in `deleted`, goes.
+    function merge(old, changed, deleted) {
+      const key = S.key ?? "id", tomb = S.tombstone ?? "deleted";
+      const out = new Map(old.map((r, i) => [blank(at(r, key)) ? `\u0000${i}` : idOf(at(r, key)), r]));
+      for (const r of changed) {
+        if (!isObj(r) || blank(at(r, key))) continue;
+        const k = idOf(at(r, key));
+        if (at(r, tomb) === true) out.delete(k);
+        else out.set(k, r);
+      }
+      if (Array.isArray(deleted)) for (const d of deleted) out.delete(idOf(isObj(d) ? at(d, key) : d));
+      return [...out.values()];
+    }
+    // Loaded again: every `every` seconds while the page is in sight, and when the
+    // connection comes back.
+    const again = () => {
+      if (!el.isConnected || !key || cfg.source || loading || K.value(api, cfg.paused) || K.value(api, cfg.clear)) return;
+      const q = JSON.parse(key);
+      if (!blank(q.url)) load(q);
+    };
+    if (Number(cfg.every) > 0) {
+      const tick = setInterval(() => (el.isConnected ? document.visibilityState === "visible" && again() : clearInterval(tick)), Math.max(5, Number(cfg.every)) * 1e3);
+    }
+    addEventListener("online", again);
     function publish() {
       let value, pending = 0;
       if (cfg.source) {
@@ -511,7 +561,7 @@
         api.set(cfg.into, value);
       }
       if (cfg.status) {
-        const st = { state: error ? (rows?.length ? "stale" : "error") : loading && !cached ? "loading" : pending ? "joining" : rows === null && !cfg.source ? "idle" : "ready", pending, total, error, at, cached };
+        const st = { state: error ? (rows?.length ? "stale" : "error") : loading && !cached ? "loading" : pending ? "joining" : rows === null && !cfg.source ? "idle" : "ready", pending, total, error, at: stamp, cached };
         const s = JSON.stringify(st);
         if (s !== lastStatus) {
           lastStatus = s;

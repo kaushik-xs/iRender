@@ -49,7 +49,9 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
   api/accounts/<id>  JSON: one account, after 250 ms: for a source that fetches one at a time.
                 With an ETag: asked again with If-None-Match, it answers 304 when unchanged.
   api/appointments   JSON: a clinic's day (block clinic-01), `?day=YYYY-MM-DD&clinician=<id>`:
-                { rows, total }, each naming its patient and clinician by id only.
+                { rows, total, cursor }, each naming its patient and clinician by id only.
+                Every 20 seconds something changes (a status moves on, or a visit is
+                cancelled); `since=<cursor>` answers only that: { rows, deleted, cursor }.
   api/clinicians     JSON: clinicians by id, `?ids=c-1,c-2`, after 400 ms.
   api/patients/batch POST { ids }: patients by id after 700 ms, as { data: { <id>: patient } }.
                 Their details are personal: the page fetches them, nothing keeps them.
@@ -233,8 +235,44 @@ def make_patients(n=90):
 PATIENTS = make_patients()
 
 
+STARTED = time.time()
+NEXT = {"Booked": "Checked in", "Checked in": "Seen"}
+
+
 def appointments(query):
-    """The day's appointments: the same ones every time for a day."""
+    """The day's appointments, with what's changed since the server started: every 20
+    seconds a visit's status moves on, or now and then it's cancelled. The cursor is the
+    number of changes; `since` answers the rows changed after it and the ids deleted."""
+    full = day_appointments(query)
+    rows = {r["id"]: dict(r) for r in full}
+    order = [r["id"] for r in full]
+    now = int((time.time() - STARTED) // 20)
+    since = query.get("since")
+    since = int(since) if since and since.isdigit() and int(since) <= now else None
+    changed, deleted = set(), set()
+    for k in range(1, now + 1):
+        rng = random.Random(f"{query.get('day')}-{query.get('clinician')}-{k}")
+        live = [i for i in order if i in rows]
+        if not live:
+            break
+        pick = rng.choice(live)
+        if rng.random() < 0.15:
+            del rows[pick]
+            if since is not None and k > since:
+                deleted.add(pick)
+                changed.discard(pick)
+        elif rows[pick]["status"] in NEXT:
+            rows[pick]["status"] = NEXT[rows[pick]["status"]]
+            if since is not None and k > since:
+                changed.add(pick)
+    if since is not None:
+        return {"rows": [rows[i] for i in order if i in changed], "deleted": sorted(deleted), "cursor": str(now)}
+    live = [rows[i] for i in order if i in rows]
+    return {"rows": live, "total": len(live), "cursor": str(now)}
+
+
+def day_appointments(query):
+    """The day's appointments as booked: the same ones every time for a day."""
     day = query.get("day") or "2026-11-27"
     rng = random.Random(day)
     reasons = ["Check-up", "Follow-up", "Rash", "Chest pain", "Flu shot", "Blood pressure", "Ear ache", "Results", "Mole check", "Travel vaccine"]
@@ -251,7 +289,7 @@ def appointments(query):
     if query.get("clinician"):
         rows = [r for r in rows if r["clinicianId"] == query["clinician"]]
     time.sleep(0.3)
-    return {"rows": rows, "total": len(rows)}
+    return rows
 
 
 def budget_projects(parent):

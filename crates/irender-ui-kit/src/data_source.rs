@@ -181,6 +181,12 @@ const QUERY_PROPS: &[PropDef] = &[
     KEEPING[1],
     KEEPING[2],
     KEEPING[3],
+    PropDef::new(
+        "sync",
+        PropKind::Any,
+        "Asks only for what changed since the last answer: `true` or `{ param, cursor, deleted, tombstone, key, full }`. The answer's `cursor` (default `cursor`) is sent back as `?since=` (`param`); its rows replace those with the same `key` (default `id`) or are added, and rows whose `tombstone` field (default `deleted`) is true, or whose ids are in its `deleted` list, go. Everything is loaded again every `full` hours (default 24)",
+    ),
+    PropDef::new("every", PropKind::Number, "Seconds between loads while the page is in sight (at least 5); it also loads when the connection comes back"),
     PropDef::new("clear", PropKind::Any, "When this becomes true, the answers kept for `scope` are let go and the rows emptied, and nothing loads while it stays true, e.g. `{{ !user }}`"),
 ];
 
@@ -198,8 +204,15 @@ impl Component for DataQuery {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["url", "params", "ids", "refresh", "paused", "scope", "clear"], &["pick", "source", "headers", "persist", "private", "retain"], &["into", "status"])?;
+        let mut config = widget::config(cx, node, &["url", "params", "ids", "refresh", "paused", "scope", "clear"], &["pick", "source", "headers", "persist", "private", "retain", "sync", "every"], &["into", "status"])?;
         check_keeping(cx, node)?;
+        match config.get("sync") {
+            None | Some(Json::Bool(_) | Json::Object(_)) => {}
+            Some(_) => return Err(RenderError::new(node, "`sync` is `true` or `{ param, cursor, deleted, tombstone, key, full }`")),
+        }
+        if config.contains_key("sync") && config.contains_key("source") {
+            return Err(RenderError::new(node, "`sync` is for rows from `url`; records from a `source` follow its `ttl`"));
+        }
         widget::need(cx, node, "into")?;
         match (node.prop("url").is_some(), config.contains_key("source")) {
             (false, false) => return Err(RenderError::new(node, "`ui-data-query` needs `url`, or `source` and `ids`")),

@@ -448,6 +448,8 @@ ui-data-query: Fills a state key with rows from an API, or with records by id, j
   scope        any  With `device`: whose records these are, e.g. `{{ user.id }}`; another one lets the others go from the page, and they're kept apart
   private      any  Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`
   retain       number  Days private fields may stay on the device without being fetched again (default 30)
+  sync         any  Asks only for what changed since the last answer: `true` or `{ param, cursor, deleted, tombstone, key, full }`. The answer's `cursor` (default `cursor`) is sent back as `?since=` (`param`); its rows replace those with the same `key` (default `id`) or are added, and rows whose `tombstone` field (default `deleted`) is true, or whose ids are in its `deleted` list, go. Everything is loaded again every `full` hours (default 24)
+  every        number  Seconds between loads while the page is in sight (at least 5); it also loads when the connection comes back
   clear        any  When this becomes true, the answers kept for `scope` are let go and the rows emptied, and nothing loads while it stays true, e.g. `{{ !user }}`
   children: no
 ui-app-shell: An app's frame: a bar with the screen's title and a Back button, the screen, and tabs at the foot (down the side with room for them), clear of a phone's notch. Children are `ui-app-screen`s and one `ui-app-actions`, at the end of the bar.

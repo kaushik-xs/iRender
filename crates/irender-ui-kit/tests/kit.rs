@@ -2298,6 +2298,8 @@ fn data_sources_queries_and_joined_tables() {
     assert!(err(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "persist": "device" } })).contains("needs `scope`"));
     assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "url": "/r", "persist": "device", "scope": "u", "private": "email" } })).contains("list of field names"));
     assert!(render_with(json!({ "type": "ui-data-source", "props": { "name": "people", "one": "/p/{id}", "persist": "device", "scope": "{{ k }}", "private": ["email"] } }), json!({ "k": "u1" }), json!({})).is_ok());
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "url": "/r", "sync": "since" } })).contains("`sync` is `true`"));
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "source": "people", "ids": "a", "sync": true } })).contains("rows from `url`"));
     let cols = json!([{ "field": "id" }, { "field": "owner.name" }]);
     assert!(err(json!({ "type": "ui-data-table", "props": { "rows": "{{ k }}", "expand": { "owner": "people" },
         "columns": [{ "field": "owner.name", "edit": "text" }] } })).contains("editable"));

@@ -9508,7 +9508,8 @@ fn data_sources_keep_records_on_the_device_in_chrome() {
                         "/accounts/a1" if etag.as_deref() == Some("\"v1\"") => ("304 Not Modified", String::new(), "\"v1\""),
                         "/accounts/a1" => ("200 OK", serde_json::json!({ "id": "a1", "title": "Account a1" }).to_string(), "\"v1\""),
                         "/visits" if query.contains("fail=1") => ("500 Internal Server Error", "{}".into(), ""),
-                        "/visits" => ("200 OK", serde_json::json!({ "rows": [{ "id": 1, "who": "Ana", "phone": "555-0101" }, { "id": 2, "who": "Ben", "phone": "555-0102" }], "total": 2 }).to_string(), ""),
+                        "/visits" if query.contains("since=v1") => ("200 OK", serde_json::json!({ "rows": [], "cursor": "v1" }).to_string(), ""),
+                        "/visits" => ("200 OK", serde_json::json!({ "rows": [{ "id": 1, "who": "Ana", "phone": "555-0101" }, { "id": 2, "who": "Ben", "phone": "555-0102" }], "total": 2, "cursor": "v1" }).to_string(), ""),
                         _ => ("404 Not Found", "{}".into(), ""),
                     }
                 };
@@ -9525,7 +9526,7 @@ fn data_sources_keep_records_on_the_device_in_chrome() {
             { "type": "ui-data-source", "props": { "name": "accounts", "one": "/accounts/{id}", "persist": "device", "scope": "{{ scope }}" } },
             { "type": "ui-data-query", "props": { "source": "people", "ids": "{{ picked }}", "into": "people" } },
             { "type": "ui-data-query", "props": { "source": "accounts", "ids": "a1", "into": "acct" } },
-            { "type": "ui-data-query", "props": { "url": "/visits", "params": { "fail": "{{ fail }}" }, "into": "rows", "status": "rowsStatus", "refresh": "{{ again }}", "persist": "device", "scope": "{{ scope }}", "private": ["phone"] } } ] } });
+            { "type": "ui-data-query", "props": { "url": "/visits", "params": { "fail": "{{ fail }}" }, "into": "rows", "status": "rowsStatus", "refresh": "{{ again }}", "sync": true, "persist": "device", "scope": "{{ scope }}", "private": ["phone"] } } ] } });
     let driver = r##"<script>
     document.addEventListener("DOMContentLoaded", async () => {
       const out = []; const pre = document.createElement("pre"); pre.id = "result"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
@@ -9604,7 +9605,108 @@ fn data_sources_keep_records_on_the_device_in_chrome() {
     );
     let log = log.lock().unwrap();
     assert!(log.iter().any(|q| q == "/accounts/a1 if \"v1\""), "{log:?}");
+    // The query's cursor: from memory after the PIN, and kept on the device for the load
+    // with the server down.
+    assert!(log.iter().any(|q| q == "/visits?since=v1"), "{log:?}");
+    assert!(log.iter().any(|q| q == "down /visits?since=v1"), "{log:?}");
     // Unlocked with the server down, the people came from the device: the only ones asked
     // for while it was down were u2's, and u1's after signing out.
     assert!(log.iter().filter(|q| q.starts_with("down /people")).count() <= 2, "{log:?}");
+}
+
+/// `sync`: after a full answer, a query asks only for what changed since the server's
+/// cursor and merges it (changed rows in place, new ones at the end, ids in `deleted` and
+/// rows marked deleted gone); `full: 0` always loads everything; a 403 empties it, and a
+/// 401 keeps the rows and fires `unauthorized`.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_queries_sync_what_changed_in_chrome() {
+    use std::io::{Read, Write};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let mode = Arc::new(Mutex::new(String::new()));
+    let (seen, how) = (log.clone(), mode.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let request = String::from_utf8_lossy(&buf[..n]).to_string();
+            let target = request.split_whitespace().nth(1).unwrap_or("").to_string();
+            let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+            let since = query.split('&').find_map(|kv| kv.strip_prefix("since=")).unwrap_or("");
+            let (status, body) = if path == "/forbid" || path == "/unauth" {
+                *how.lock().unwrap() = path.to_string();
+                ("200 OK", "{}".to_string())
+            } else {
+                seen.lock().unwrap().push(query.to_string());
+                match how.lock().unwrap().as_str() {
+                    "/forbid" => ("403 Forbidden", "{}".to_string()),
+                    "/unauth" => ("401 Unauthorized", "{}".to_string()),
+                    _ => ("200 OK", match since {
+                        "c1" => serde_json::json!({ "rows": [{ "id": 2, "n": "b2" }, { "id": 4, "n": "d" }], "deleted": [3], "cursor": "c2" }),
+                        "c2" => serde_json::json!({ "rows": [{ "id": 1, "deleted": true }], "cursor": "c3" }),
+                        "c3" => serde_json::json!({ "rows": [], "cursor": "c3" }),
+                        _ => serde_json::json!({ "rows": [{ "id": 1, "n": "a" }, { "id": 2, "n": "b" }, { "id": 3, "n": "c" }], "cursor": "c1", "total": 3 }),
+                    }.to_string()),
+                }
+            };
+            let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let doc = serde_json::json!({ "version": 1, "state": { "again": 0, "rows": null, "st": null, "all": null, "out": 0 },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-query", "props": { "url": format!("{base}/items"), "params": { "who": "a" }, "into": "rows", "status": "st", "refresh": "{{ again }}", "sync": true },
+              "on": { "unauthorized": { "action": "set_state", "key": "out", "value": "{{ out + 1 }}" } } },
+            { "type": "ui-data-query", "props": { "url": format!("{base}/items"), "params": { "who": "b" }, "into": "all", "refresh": "{{ again }}", "sync": { "full": 0 } } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = r; c.port2.postMessage(0); });
+      const until = async (f) => { for (let i = 0; i < 2e6 && !f(); i++) await (i % 50 ? tick() : wait(10)); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const rows = () => (S().rows ?? []).map((r) => r.id + r.n).join(",");
+      const again = async () => { const at = S().st?.at; root.__irender.set("again", S().again + 1); await wait(250); await until(() => S().st?.state !== "loading" && (S().st?.at !== at || S().st?.error)); };
+      try {
+        await until(() => S().st?.state === "ready" && S().all);
+        log("full", rows(), S().st.total);
+        await again(); log("delta", rows(), S().st.total);
+        await again(); log("tombstone", rows());
+        await again(); log("nothing new", rows());
+        await fetch("__BASE__/unauth");
+        await again(); log("401", rows(), S().st.state, S().st.error, S().out);
+        await fetch("__BASE__/forbid");
+        await again(); log("403", rows() || "none", S().st.state);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##.replace("__BASE__", &base);
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-sync", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "full 1a,2b,3c 3",
+            // 2 changed in place, 3 gone by `deleted`, 4 new at the end.
+            "delta 1a,2b2,4d 3",
+            "tombstone 2b2,4d",
+            "nothing new 2b2,4d",
+            "401 2b2,4d stale 401 1",
+            "403 none ready",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    let a: Vec<_> = log.iter().filter(|q| q.contains("who=a")).cloned().collect();
+    assert_eq!(a[..4], ["who=a", "who=a&since=c1", "who=a&since=c2", "who=a&since=c3"], "{log:?}");
+    // `full: 0`: never a delta.
+    assert!(log.iter().filter(|q| q.contains("who=b")).all(|q| !q.contains("since")), "{log:?}");
 }

@@ -16,6 +16,10 @@
 # unlocks. Set a PIN under This device and they're kept; lock it and they leave the page
 # until it's unlocked; without a PIN they aren't kept at all. Sign out wipes what's kept.
 #
+# The day stays current: every 20 seconds, and when the connection comes back, the query
+# asks only for what changed since its last answer (`sync`, `?since=<cursor>`): statuses
+# move on and cancelled visits drop out, without loading the day again.
+#
 #   cargo run -p irender-cli -- render examples/blocks/clinic-01.yaml --ui-kit --chart-kit --icon-kit -o clinic-01.html
 #   python3 examples/serve.py   # then open /blocks/clinic-01.html
 version: 1
@@ -62,6 +66,9 @@ root:
         scope: "{{ user }}"
         private: [reason]
         clear: "{{ signedOut }}"
+        # Every 20 seconds (and when the connection's back), only what changed since.
+        sync: { full: 12 }
+        every: 20
         expand:
           patient: { source: patients, from: patientId }
           clinician: { source: clinicians, from: clinicianId }
