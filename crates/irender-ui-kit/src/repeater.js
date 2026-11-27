@@ -10,7 +10,7 @@
   const body = $$("[data-rep-rows]")[0], live = $$("[data-rep-live]")[0];
   const fields = new Map(cfg.fields.map((f) => [f.field, f]));
   // What cells.js checks: an amount is a number, a computed field isn't checked.
-  const KIND = { currency: "number", number: "number", date: "date", select: "select", checkbox: "checkbox", multiline: "multiline" };
+  const KIND = { currency: "number", number: "number", date: "date", select: "select", combobox: "select", checkbox: "checkbox", multiline: "multiline" };
   const asCell = (f) => ({ ...f, type: KIND[f.type] ?? "text", pattern: f.pattern ?? (f.type === "email" ? "[^\\s@]+@[^\\s@]+\\.[^\\s@]+" : f.type === "url" ? "https?://\\S+" : undefined) });
   const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
   const list = () => (Array.isArray(api.state[cfg.bind]) ? api.state[cfg.bind] : []);
@@ -82,6 +82,8 @@
   function read(c, f) {
     if (c.type === "checkbox") return c.checked;
     if (f?.type === "select") return c.value === "" ? null : C.choices(f)[Number(c.value)]?.value ?? null;
+    // A label or a value typed; what's neither stays as typed, to be said not to be one.
+    if (f?.type === "combobox") return C.parse({ type: "select", options: f.options }, c.value);
     if (f?.type === "number" || f?.type === "currency") return C.parse({ type: "number" }, c.value, cfg.locale);
     return c.value === "" ? null : c.value;
   }
@@ -100,6 +102,9 @@
     else if (f?.type === "select") {
       const k = blank ? -1 : C.choices(f).findIndex((o) => o.value === v);
       c.value = k < 0 ? "" : String(k);
+    } else if (f?.type === "combobox") {
+      const text = blank ? "" : C.choices(f).find((o) => o.value === v)?.label ?? String(v);
+      if (c !== document.activeElement && c.value !== text) c.value = text;
     } else if (c !== document.activeElement) {
       // An amount shows its decimals until it's edited.
       const n = typeof v === "number" && f && (f.type === "currency" || f.decimals != null)
@@ -156,6 +161,15 @@
   // ---- drawing
   let ids = 0;
   const base = el.id || `rep-${(window.__irenderIds = (window.__irenderIds ?? 0) + 1)}`;
+  // A combobox field's options, once for all its rows.
+  const lists = new Map();
+  for (const f of cfg.fields) {
+    if (f.type !== "combobox") continue;
+    const d = Object.assign(document.createElement("datalist"), { id: `${base}-${f.field}-options` });
+    d.append(...C.choices(f).map((o) => Object.assign(document.createElement("option"), { value: o.label })));
+    el.append(d);
+    lists.set(f.field, d.id);
+  }
   function draw() {
     const items = list();
     // Too few, or a computed field that's out of date: put right first.
@@ -173,6 +187,7 @@
       for (const c of controls(row)) {
         const name = c.getAttribute("data-field"), f = fields.get(name);
         write(c, f, item[name]);
+        if (lists.has(name) && c.getAttribute("list") !== lists.get(name)) c.setAttribute("list", lists.get(name));
         if (c.tagName !== "OUTPUT") c.disabled = off;
         if (!f || f.type === "computed") continue;
         const cell = c.closest("[data-rep-cell]"), msg = cell.querySelector("[data-rep-error]"), label = cell.querySelector("label");

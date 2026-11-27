@@ -344,6 +344,33 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn repeater_rows_pick_from_a_combobox() {
+    check(
+        "repeater-combobox",
+        r##"
+state: { trips: [{ city: BER }, { city: null }], wrong: [] }
+root:
+  type: ui-repeater
+  props:
+    bind: trips
+    bindErrors: wrong
+    fields: [ { field: city, label: City, type: combobox, options: [ { value: BER, label: Berlin }, { value: LIS, label: Lisbon }, { value: OSL, label: Oslo } ] } ]
+"##,
+        r##"
+        const c = (i) => $$("[data-field=city]")[i], list = $(`#${c(0).getAttribute("list")}`);
+        log(c(0).value, c(1).value, c(0).getAttribute("list") === c(1).getAttribute("list"), [...list.options].map((o) => o.value).join());
+        // A label typed is its value; so is the value itself.
+        type(c(1), "lisbon"); log(JSON.stringify(S().trips.map((t) => t.city)));
+        type(c(1), "OSL"); c(1).blur(); await wait(30); log(S().trips[1].city, c(1).value);
+        // Anything else stays as typed, and is said not to be one of them once it's left.
+        type(c(0), "Paris"); c(0).blur(); await wait(30); log(S().trips[0].city, S().wrong.map((w) => w.message).join(), $$("[data-rep-error]")[0].textContent);
+"##,
+        &["Berlin  true Berlin,Lisbon,Oslo", r#"["BER","LIS"]"#, "OSL Oslo", "Paris Not one of the choices Not one of the choices"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn form_checks_the_rows_of_its_repeaters() {
     check(
         "form-rows",

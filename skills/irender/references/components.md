@@ -1398,7 +1398,7 @@ ui-form-section: A titled group of fields, with columns of its own. Sections go 
   children: yes
 ui-repeater: Rows of fields to add, fill in, reorder and remove: line items, contacts, rules. State gets a list of objects. Children are drawn after the fields, with the row as `item` and its place as `index`.
   bind         statekey (required)  State key holding the rows, a list of objects
-  fields       any (required)  The fields of a row: `[{ field, label, type, options, placeholder, width, required, min, max, pattern, unique, message, default, compute, format, currency, decimals, summary }]`. `type`: text, multiline, number, currency, date, time, email, tel, url, select, checkbox, or computed (`compute: qty * price`, over the row's fields and state)
+  fields       any (required)  The fields of a row: `[{ field, label, type, options, placeholder, width, required, min, max, pattern, unique, message, default, compute, format, currency, decimals, summary }]`. `type`: text, multiline, number, currency, date, time, email, tel, url, select, combobox (typed, picked from `options` as you type), checkbox, or computed (`compute: qty * price`, over the row's fields and state)
   layout       one of: table, stack  `table` (default): one line per row under a header (stacked on a narrow screen); `stack`: a card per row with labels
   newItem      any  What an added row starts with, after the fields' `default`s
   min          number  The fewest rows: they can't be removed below it, and it starts with that many

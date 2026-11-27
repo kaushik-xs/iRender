@@ -16,7 +16,7 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("repeater.js");
 const ITEM: &str = "item";
 const INDEX: &str = "index";
-const TYPES: &[&str] = &["text", "multiline", "number", "currency", "date", "time", "email", "tel", "url", "select", "checkbox", "computed"];
+const TYPES: &[&str] = &["text", "multiline", "number", "currency", "date", "time", "email", "tel", "url", "select", "combobox", "checkbox", "computed"];
 
 pub struct Repeater;
 
@@ -26,7 +26,7 @@ const PROPS: &[PropDef] = &[
         "fields",
         PropKind::Any,
         "The fields of a row: `[{ field, label, type, options, placeholder, width, required, min, max, pattern, unique, message, default, compute, format, currency, decimals, summary }]`. \
-         `type`: text, multiline, number, currency, date, time, email, tel, url, select, checkbox, or computed (`compute: qty * price`, over the row's fields and state)",
+         `type`: text, multiline, number, currency, date, time, email, tel, url, select, combobox (typed, picked from `options` as you type), checkbox, or computed (`compute: qty * price`, over the row's fields and state)",
     )
     .required(),
     PropDef::new("layout", PropKind::Enum(&["table", "stack"]), "`table` (default): one line per row under a header (stacked on a narrow screen); `stack`: a card per row with labels"),
@@ -428,6 +428,10 @@ fn field(cx: &mut RenderCx<'_>, node: &Node, f: &Json) -> Result<(), RenderError
         }
         "number" | "currency" => {
             el.attr("type", "text").attr("inputmode", "decimal").base_style_ref(forms::input_look());
+        }
+        // The options as the browser's own suggestions, shared by the rows (repeater.js).
+        "combobox" => {
+            el.attr("type", "text").attr("autocomplete", "off").base_style_ref(forms::input_look());
         }
         _ => {
             el.attr("type", ty.to_string()).base_style_ref(forms::input_look());

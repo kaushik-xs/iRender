@@ -1484,7 +1484,7 @@ root:
                     itemLabel: Line
                     addLabel: Add line
                     fields:
-                      - { field: item, label: Item, required: true }
+                      - { field: item, label: Item, required: true, type: combobox, placeholder: Type to pick, options: [Workshop, Travel, Design review, Hosting, Licence, Support hours, Training day, Hardware] }
                       - { field: qty, label: Qty, type: number, min: 1, default: 1 }
                       - { field: price, label: Price, type: currency, currency: EUR }
                       - { field: total, label: Total, compute: qty * price, format: currency, currency: EUR, summary: sum }
