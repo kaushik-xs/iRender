@@ -1,0 +1,83 @@
+# Block: an inset sidebar with secondary navigation, in the style of shadcn/ui's sidebar-08.
+# The page sits inset beside the sidebar (`variant: inset`); the main links are at the top,
+# Support and Feedback lower down on their own, and the account at the foot opens a menu.
+#
+#   cargo run -p irender-cli -- render examples/blocks/sidebar-08.yaml --ui-kit --icon-kit -o sidebar-08.html
+version: 1
+state:
+  sidebar: true
+root:
+  type: ui-sidebar-layout
+  props: { bind: sidebar, variant: inset }
+  children:
+    - type: ui-sidebar
+      children:
+        - type: ui-sidebar-header
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - { type: ui-sidebar-item, props: { label: Acme Inc, icon: grid, badge: Enterprise, href: "#" } }
+        - type: ui-sidebar-content
+          children:
+            - type: ui-sidebar-group
+              props: { label: Platform }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: Playground, icon: it:command-line, open: true }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: History, href: "#", active: true } }
+                    - { type: ui-sidebar-item, props: { label: Starred, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Settings, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Models, icon: it:microservices }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Genesis, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Explorer, href: "#" } }
+                - type: ui-sidebar-item
+                  props: { label: Documentation, icon: education:book-open }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Introduction, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Tutorials, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Settings, icon: settings, href: "#" } }
+            - type: ui-sidebar-group
+              props: { label: Projects }
+              children:
+                - { type: ui-sidebar-item, props: { label: Design Engineering, icon: marketing:target, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Sales & Marketing, icon: marketing:analytics, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Travel, icon: public-sector:public-transport, href: "#" } }
+            # Secondary navigation, pushed to the bottom of the content.
+            - type: ui-sidebar-group
+              style: { margin-top: auto }
+              children:
+                - { type: ui-sidebar-item, props: { label: Support, icon: help, href: "#" } }
+                - { type: ui-sidebar-item, props: { label: Feedback, icon: social:comment, href: "#" } }
+        - type: ui-sidebar-footer
+          children:
+            - type: ui-sidebar-group
+              style: { padding: 0 }
+              children:
+                - type: ui-sidebar-item
+                  props: { label: Ada Lovelace, icon: user, badge: ada@example.com }
+                  children:
+                    - { type: ui-sidebar-item, props: { label: Account, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Billing, href: "#" } }
+                    - { type: ui-sidebar-item, props: { label: Log out, href: "#" } }
+    - type: element
+      props: { tag: header }
+      style: { display: flex, align-items: center, gap: 8, height: 56, flex-shrink: 0, padding: 0 16px }
+      children:
+        - { type: ui-sidebar-trigger }
+        - { type: ui-separator, props: { orientation: vertical }, style: { height: 16, align-self: center, margin-right: 8 } }
+        - type: ui-breadcrumb
+          props: { items: [{ label: Playground, href: "#" }, { label: History }] }
+    - type: element
+      style: { display: flex, flex-direction: column, gap: 16, flex: 1, padding: 0 16px 16px }
+      children:
+        - type: element
+          style: { display: grid, grid-template-columns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16 }
+          children:
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+            - { type: element, style: { aspect-ratio: 16 / 9, border-radius: 12, background: $color.subtle } }
+        - { type: element, style: { flex: 1, min-height: 360, border-radius: 12, background: $color.subtle } }

@@ -1,0 +1,80 @@
+# Block: sign in with an email link, no password, in the style of shadcn/ui's login-05.
+# `ui-form` checks the address as it's left and on submit; once it's sent, the page says
+# where the link went and offers to send it again or use another address.
+#
+#   cargo run -p irender-cli -- render examples/blocks/login-05.yaml --ui-kit --icon-kit -o login-05.html
+version: 1
+state:
+  email: ""
+  errors: {}
+  sent: false
+root:
+  type: element
+  style:
+    display: flex
+    flex-direction: column
+    align-items: center
+    justify-content: center
+    min-height: 100svh
+    box-sizing: border-box
+    padding: 24px
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: stack
+      props: { gap: 24 }
+      style: { width: 100%, max-width: 360 }
+      children:
+        - type: stack
+          props: { gap: 8 }
+          style: { align-items: center, text-align: center }
+          children:
+            - type: element
+              style: { display: grid, place-items: center, width: 40, height: 40, border-radius: 10, background: $color.primary, color: $color.on-primary }
+              children: [ { type: ui-icon, props: { name: grid, size: 20 } } ]
+            - { type: ui-heading, props: { level: 2, text: Welcome to Acme Inc. }, style: { font-size: 20 } }
+            - type: element
+              props: { tag: p }
+              style: { margin: 0, font-size: 14, color: $color.muted }
+              children:
+                - { type: text, props: { value: "Don't have an account? " } }
+                - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit, text-underline-offset: 4px }, children: [ { type: text, props: { value: Sign up } } ] }
+        - type: if
+          props: { when: "{{ !sent }}" }
+          children:
+            - type: ui-form
+              props: { bindErrors: errors, rules: { email: { label: Email, required: true, type: email } } }
+              on: { submit: { action: set_state, key: sent, value: true } }
+              style: { display: flex, flex-direction: column, gap: 16 }
+              children:
+                - type: ui-field
+                  props: { label: Email, error: "{{ errors.email }}" }
+                  children:
+                    - { type: ui-input, props: { bind: email, type: email, placeholder: m@example.com }, attrs: { autocomplete: email } }
+                - { type: ui-button, props: { label: Email me a link, type: submit }, style: { width: 100% } }
+                - { type: ui-separator, props: { label: Or } }
+                - type: element
+                  style: { display: grid, grid-template-columns: "1fr 1fr", gap: 12 }
+                  children:
+                    - { type: ui-button, props: { label: Apple, icon: brands:apple, variant: outline } }
+                    - { type: ui-button, props: { label: Google, icon: brands:google, variant: outline } }
+        - type: if
+          props: { when: "{{ sent }}" }
+          children:
+            - type: ui-alert
+              props: { variant: success, title: Check your email, description: "We sent a sign-in link to {{ email }}. It works once, for 15 minutes." }
+            - type: element
+              style: { display: grid, grid-template-columns: "1fr 1fr", gap: 12 }
+              children:
+                - { type: ui-button, props: { label: Send it again, variant: outline } }
+                - { type: ui-button, props: { label: Use another email, variant: ghost }, on: { click: { action: set_state, key: sent, value: false } } }
+        - type: element
+          props: { tag: p }
+          style: { margin: 0, text-align: center, font-size: 12, color: $color.muted, text-wrap: balance }
+          children:
+            - { type: text, props: { value: "By going on, you agree to our " } }
+            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit, text-underline-offset: 4px }, children: [ { type: text, props: { value: Terms of Service } } ] }
+            - { type: text, props: { value: " and " } }
+            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit, text-underline-offset: 4px }, children: [ { type: text, props: { value: Privacy Policy } } ] }
+            - { type: text, props: { value: . } }

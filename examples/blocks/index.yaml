@@ -106,9 +106,12 @@ root:
           - { id: agent-01, category: chat, title: "A travel assistant at work: files, sources behind an answer, something to approve, questions to settle, and the run's steps", kits: [ui-kit, icon-kit], height: 1320 }
           - { id: sidebar-07, category: sidebar, title: A sidebar that collapses to icons, kits: [ui-kit, icon-kit], height: 640 }
           - { id: sidebar-03, category: sidebar, title: A sidebar with submenus, kits: [ui-kit, icon-kit], height: 640 }
+          - { id: sidebar-08, category: sidebar, title: An inset sidebar with secondary navigation, kits: [ui-kit, icon-kit], height: 640 }
           - { id: login-03, category: login, title: A login page with a muted background color, kits: [ui-kit, icon-kit], height: 720 }
           - { id: login-04, category: login, title: A login page with form and image, kits: [ui-kit], height: 720 }
+          - { id: login-05, category: login, title: "Sign in with an email link: no password, and a Check your email step", kits: [ui-kit, icon-kit], height: 720 }
           - { id: signup, category: signup, title: "A sign-up form that checks itself as you type, with a password checklist and strength bar", kits: [ui-kit, icon-kit], height: 860 }
+          - { id: signup-02, category: signup, title: "A sign-up page in two halves: the form, checked by ui-form, beside why to join", kits: [ui-kit, icon-kit], height: 860 }
           - { id: settings, category: settings, title: "Account settings: a section menu, a form per section and a danger zone", kits: [ui-kit, icon-kit], height: 900 }
           - { id: markdown, category: editor, title: "Writing a post: edited as readers see it, saved as Markdown, with a File / Edit / View menubar and a split Publish button", kits: [ui-kit, markdown-kit], height: 900 }
           - { id: theme, category: theme, title: "A theme customizer: palette, chart colours, radius, density, text size, font", kits: [ui-kit, chart-kit, icon-kit], height: 1300 }

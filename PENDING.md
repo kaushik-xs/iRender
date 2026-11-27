@@ -183,7 +183,7 @@ _Last updated: 2026-11-26._
   - [x] Seven more drawings (2026-11-20): `no-access`, `upload-failed`, `too-many-requests`, `no-people`, `deleted`, `empty-calendar`, `welcome` (gallery, block empty-states).
   - [x] `animate` (2026-11-20): parts of twelve drawings float, blink, turn, twinkle, drift or wobble, and stop for reduced motion (gallery's Animate switch, block error-404).
   - [ ] With the kit's default near-black primary, the drawings are black and amber; they look their best with a palette or custom colours picked.
-- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03 and -07, login-03 and -04, and one sign-up; and app pages beyond shadcn's: a report builder (report-01), an incident room (incident-01) and a sales pipeline (crm-01).
+- [ ] **More blocks:** shadcn has many more variants of each (sidebar-01 to -16, login-01 to -05, signup-01 to -05). We have dashboard-01 and -02, sidebar-03, -07 and -08, login-03 to -05, and two sign-ups (signup-02 on 2026-11-27); and app pages beyond shadcn's: a report builder (report-01), an incident room (incident-01) and a sales pipeline (crm-01).
 - [x] **shadcn/ui components still missing:** item, attachment, questionnaire and trace are in (2026-11-22).
 - [ ] **`ui-markdown-editor` rich text gaps** (rich text became the default on 2026-11-18):
   - [x] Table, Image and Rule on the toolbar (2026-11-21): a table to fill in with Tab between its cells, an image from a bar for its address and description, a rule; in the Markdown tab, their Markdown. Not done yet: no columns added or removed from the toolbar (a row is).

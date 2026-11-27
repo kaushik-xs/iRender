@@ -1,0 +1,135 @@
+# Block: a sign-up page in two halves, the form on one side and why to join on the other,
+# in the style of shadcn/ui's signup blocks. `ui-form` checks the fields as they're left
+# and on submit (the error summary goes to the first wrong one), `ui-password-checklist`
+# ticks the password's rules, and the terms must be ticked. The second half drops away on
+# a narrow screen.
+#
+#   cargo run -p irender-cli -- render examples/blocks/signup-02.yaml --ui-kit --icon-kit -o signup-02.html
+version: 1
+state:
+  name: ""
+  email: ""
+  password: ""
+  strong: false
+  terms: false
+  errors: {}
+  done: false
+root:
+  type: element
+  style:
+    display: grid
+    grid-template-columns: "1fr"
+    "@media (min-width: 900px)": { grid-template-columns: "1fr 1fr" }
+    min-height: 100svh
+    background: $color.surface
+    color: $color.text
+    font-family: $font.body
+  children:
+    - type: element
+      style: { display: flex, flex-direction: column, gap: 24, padding: 32, box-sizing: border-box }
+      children:
+        - type: stack
+          props: { direction: row, gap: 8, align: center }
+          children:
+            - type: element
+              style: { display: grid, place-items: center, width: 28, height: 28, border-radius: 7, background: $color.primary, color: $color.on-primary }
+              children: [ { type: ui-icon, props: { name: grid, size: 16 } } ]
+            - { type: ui-text, props: { text: Acme Inc. }, style: { font-weight: 600 } }
+        - type: element
+          style: { display: flex, flex: 1, align-items: center, justify-content: center }
+          children:
+            - type: stack
+              props: { gap: 20 }
+              style: { width: 100%, max-width: 380 }
+              children:
+                - type: stack
+                  props: { gap: 4 }
+                  children:
+                    - { type: ui-heading, props: { level: 2, text: Create your account }, style: { font-size: 24 } }
+                    - { type: ui-text, props: { variant: muted, text: Free for 14 days. No card needed. } }
+                - type: if
+                  props: { when: "{{ done }}" }
+                  children:
+                    - { type: ui-alert, props: { variant: success, title: "Welcome, {{ name }}", description: "Your account is ready. We sent a note to {{ email }}." } }
+                - type: if
+                  props: { when: "{{ !done }}" }
+                  children:
+                    - type: ui-form
+                      props:
+                        bindErrors: errors
+                        rules:
+                          name: { label: Name, required: true, minLength: 2 }
+                          email: { label: Email, required: true, type: email }
+                          password: { label: Password, required: true, minLength: 8 }
+                          terms: { label: Terms, required: true, message: Tick this to agree to the terms }
+                      on: { submit: { action: set_state, key: done, value: true } }
+                      style: { display: flex, flex-direction: column, gap: 16 }
+                      children:
+                        - { type: ui-error-summary }
+                        - type: ui-field
+                          props: { label: Full name, error: "{{ errors.name }}" }
+                          children: [ { type: ui-input, props: { bind: name, placeholder: Ada Lovelace }, attrs: { autocomplete: name } } ]
+                        - type: ui-field
+                          props: { label: Work email, error: "{{ errors.email }}" }
+                          children: [ { type: ui-input, props: { bind: email, type: email, placeholder: ada@example.com }, attrs: { autocomplete: email } } ]
+                        - type: ui-field
+                          props: { label: Password, error: "{{ errors.password }}" }
+                          children: [ { type: ui-input, props: { bind: password, type: password }, attrs: { autocomplete: new-password } } ]
+                        - { type: ui-password-checklist, props: { value: "{{ password }}", bindValid: strong }, style: { margin-top: -8 } }
+                        - type: ui-field
+                          props: { error: "{{ errors.terms }}" }
+                          children: [ { type: ui-checkbox, props: { bind: terms, label: I agree to the Terms of Service and Privacy Policy } } ]
+                        - { type: ui-button, props: { label: Create account, type: submit }, style: { width: 100% } }
+                        - type: element
+                          props: { tag: p }
+                          style: { margin: 0, text-align: center, font-size: 14 }
+                          children:
+                            - { type: text, props: { value: "Already have an account? " } }
+                            - { type: element, props: { tag: a }, attrs: { href: "#" }, style: { color: inherit, text-underline-offset: 4px }, children: [ { type: text, props: { value: Log in } } ] }
+    - type: element
+      style:
+        display: none
+        "@media (min-width: 900px)": { display: flex }
+        flex-direction: column
+        justify-content: flex-end
+        gap: 24
+        padding: 48
+        background: $color.subtle
+        border-left: 1px solid $color.border
+      children:
+        - type: stack
+          props: { gap: 16 }
+          children:
+            - type: stack
+              props: { direction: row, gap: 12, align: start }
+              children:
+                - { type: ui-icon, props: { name: check, size: 20 }, style: { color: $color.primary, flex: none } }
+                - { type: ui-text, props: { text: "Plans, projects and people in one place, so nothing lives in a stray spreadsheet." } }
+            - type: stack
+              props: { direction: row, gap: 12, align: start }
+              children:
+                - { type: ui-icon, props: { name: check, size: 20 }, style: { color: $color.primary, flex: none } }
+                - { type: ui-text, props: { text: "Bring your team: invite them now or later, and decide who sees what." } }
+            - type: stack
+              props: { direction: row, gap: 12, align: start }
+              children:
+                - { type: ui-icon, props: { name: check, size: 20 }, style: { color: $color.primary, flex: none } }
+                - { type: ui-text, props: { text: "Leave any time and take your data with you, as CSV or JSON." } }
+        - type: ui-separator
+        - type: element
+          props: { tag: figure }
+          style: { margin: 0, display: grid, gap: 12 }
+          children:
+            - type: element
+              props: { tag: blockquote }
+              style: { margin: 0, font-size: 18, line-height: 1.5 }
+              children: [ { type: text, props: { value: "“We moved three teams over in a week. The planning meeting got shorter, which nobody complained about.”" } } ]
+            - type: stack
+              props: { direction: row, gap: 12, align: center }
+              children:
+                - { type: ui-avatar, props: { fallback: MI, alt: Meera Iyer } }
+                - type: stack
+                  props: { gap: 0 }
+                  children:
+                    - { type: ui-text, props: { text: Meera Iyer }, style: { font-weight: 600, font-size: 14 } }
+                    - { type: ui-text, props: { variant: muted, text: Head of Operations }, style: { font-size: 13 } }
