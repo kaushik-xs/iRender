@@ -860,6 +860,10 @@ ui-timeline: Activity, newest first or as given: who did what and when, with fie
   relative     bool  Each `when` as how long ago (`5 min ago`, `3 h ago`), kept up to date, with the full date on hover
   since        any  Entries after this date and time (a last visit, say) are marked New; may use state
   limit        number  Show the first this many entries, then a button for the rest
+  filters      bool  Menus over the feed to show one person's entries, or one `kind` of entry, from those it has
+  bindFilter   statekey  With `filters`, a state key holding what's picked, `{ who, kind }` (null for all); setting it picks them
+  hasMore      any  There are older entries on the server: once all here are shown, a Load more button fires `more` (the page adds them to `items`); may use state
+  loading      any  While true, Load more says Loading… and waits; may use state
   children: yes
 ui-timeline-item: One entry of a `ui-timeline`. Children go under its line.
   who          any  Who did it, shown first in bold
@@ -870,6 +874,7 @@ ui-timeline-item: One entry of a `ui-timeline`. Children go under its line.
   changes      any  Fields changed: `[{ field, from, to }]`, shown as from → to
   comment      any  Text they wrote, quoted under the line
   tone         one of: neutral, info, success, warning, danger, primary  The dot's colour, for an event rather than a person (with no `who`)
+  kind         any  What sort of entry it is (`comment`, `status`, `file`), for the timeline's `filters`
   children: yes
 ui-lightbox: Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save.
   images       any (required)  `[{ src, thumb, alt, caption, download }]`, or addresses; may use state

@@ -29,7 +29,7 @@ _Last updated: 2026-11-26._
 
 - [ ] **`ui-presence`** (2026-11-23; gallery, block workspace-01): it shows who's in state; keeping that up to date (a WebSocket, polling, a presence service) is the page's job, and there's no example server. No live cursors or selections in a document, and no "follow" (jump to where someone is).
 
-- [ ] **`ui-timeline` as a feed** (`group`, `relative`, `since`, `limit`; 2026-11-23; gallery, block workspace-01): entries must come in time order; no filters by person or kind, no loading more from a server (the limit only holds back what's there), and the New marks don't move `since` on their own (the page sets it, say on leaving). Days are the browser's local days.
+- [ ] **`ui-timeline` as a feed** (`group`, `relative`, `since`, `limit`; 2026-11-23; gallery, block workspace-01): entries must come in time order; filters by person and kind, and Load more with `hasMore` (2026-11-27; workspace-01): one person and one kind at a time, the page fetches the older entries itself, and filtering is of what's loaded (not asked of the server); and the New marks don't move `since` on their own (the page sets it, say on leaving). Days are the browser's local days.
 
 - [ ] **`ui-compare-slider`** (2026-11-23; gallery, block job-report-01): two pictures only (no third, no video), no zooming into both together, and no fade between them as another way to compare. On a phone the picture is a range input, so a sideways swipe moves the divider rather than the page; tried in Chrome, not on real phones.
 

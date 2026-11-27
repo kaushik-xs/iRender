@@ -2016,6 +2016,7 @@ root: …
 
 ```yaml
 "Activity": "Activity"
+"Filter the activity": "Filter the activity"
 "to": "to"
 ```
 
@@ -2044,6 +2045,13 @@ root: …
 ```yaml
 "Today": "Today"
 "Yesterday": "Yesterday"
+"Everyone": "Everyone"
+"Every kind": "Every kind"
+"Who": "Who"
+"Kind": "Kind"
+"Nothing matches these filters": "Nothing matches these filters"
+"Load more": "Load more"
+"Loading…": "Loading…"
 "just now": "just now"
 "New": "New"
 "Show {n} more": { one: "Show {n} more", other: "Show {n} more" }

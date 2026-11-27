@@ -21,15 +21,15 @@ state:
     - { id: dl, name: Dev Lal, status: away }
   lastVisit: "2026-11-20T12:00"
   activity:
-    - { id: 1, who: Meera Iyer, action: moved IR-104 to In review, when: "2026-11-20T16:40" }
-    - { id: 2, action: "Build failed on main: browser tests (firefox)", tone: danger, when: "2026-11-20T15:05" }
-    - { id: 3, who: Ravi Kumar, action: assigned you IR-107, when: "2026-11-20T11:30" }
-    - { id: 4, who: Asha Rao, action: commented on IR-101, comment: "The tooltip keeps the light colours in dark mode.", when: "2026-11-19T17:20" }
-    - { id: 5, action: Release 0.5.7 shipped, tone: success, when: "2026-11-19T10:00" }
-    - { id: 6, who: Kaushik Sundar, action: changed IR-105, changes: [ { field: Status, from: To do, to: In progress } ], when: "2026-11-18T14:45" }
-    - { id: 7, who: Ravi Kumar, action: opened IR-107, when: "2026-11-18T09:15" }
-    - { id: 8, action: Sprint 24 started, tone: info, when: "2026-11-16T09:00" }
-    - { id: 9, who: Meera Iyer, action: closed IR-099, when: "2026-11-14T18:10" }
+    - { id: 1, kind: status, who: Meera Iyer, action: moved IR-104 to In review, when: "2026-11-20T16:40" }
+    - { id: 2, kind: build, action: "Build failed on main: browser tests (firefox)", tone: danger, when: "2026-11-20T15:05" }
+    - { id: 3, kind: assignment, who: Ravi Kumar, action: assigned you IR-107, when: "2026-11-20T11:30" }
+    - { id: 4, kind: comment, who: Asha Rao, action: commented on IR-101, comment: "The tooltip keeps the light colours in dark mode.", when: "2026-11-19T17:20" }
+    - { id: 5, kind: release, action: Release 0.5.7 shipped, tone: success, when: "2026-11-19T10:00" }
+    - { id: 6, kind: status, who: Kaushik Sundar, action: changed IR-105, changes: [ { field: Status, from: To do, to: In progress } ], when: "2026-11-18T14:45" }
+    - { id: 7, kind: issue, who: Ravi Kumar, action: opened IR-107, when: "2026-11-18T09:15" }
+    - { id: 8, kind: sprint, action: Sprint 24 started, tone: info, when: "2026-11-16T09:00" }
+    - { id: 9, kind: status, who: Meera Iyer, action: closed IR-099, when: "2026-11-14T18:10" }
   projectNode: null
   notes:
     - { id: 1, title: Meera moved IR-104 to In review, body: "Sign-out after the payment redirect", who: Meera Iyer, when: 5 min ago }
@@ -84,7 +84,7 @@ root:
     - type: ui-rail-panel
       props: { for: activity, title: Activity }
       children:
-        - { type: ui-timeline, props: { items: "{{ activity }}", group: day, relative: true, since: "{{ lastVisit }}", limit: 6, label: Team activity } }
+        - { type: ui-timeline, props: { items: "{{ activity }}", group: day, relative: true, since: "{{ lastVisit }}", limit: 6, filters: true, label: Team activity } }
     - type: ui-rail-panel
       props: { for: settings }
       children:

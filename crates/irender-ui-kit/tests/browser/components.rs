@@ -342,6 +342,59 @@ root:
     );
 }
 
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn timeline_filters_and_loads_more() {
+    check(
+        "timeline-filters",
+        r##"
+state:
+  f: null
+  busy: false
+  older: true
+  feed:
+    - { id: 1, who: Ada, kind: comment, action: commented, when: "2026-11-27T10:00" }
+    - { id: 2, who: Bob, kind: status, action: changed the status, when: "2026-11-27T09:00" }
+    - { id: 3, who: Ada, kind: status, action: changed the status, when: "2026-11-26T09:00" }
+    - { id: 4, who: Ada, kind: comment, action: commented, when: "2026-11-25T09:00" }
+root:
+  type: ui-timeline
+  props: { items: "{{ feed }}", filters: true, bindFilter: f, limit: 2, hasMore: "{{ older }}", loading: "{{ busy }}" }
+  on:
+    more:
+      - { action: set_state, key: busy, value: true }
+"##,
+        r##"
+        const ids = () => $$("[data-tl-item]").filter((li) => li.checkVisibility()).map((li) => li.getAttribute("data-who") + ":" + li.getAttribute("data-kind")).join(" ");
+        const btn = () => $("[data-tl-show] button"), shownBtn = () => ($("[data-tl-show]").hidden ? "-" : btn().textContent);
+        log($$("[data-tl-filters] select").map((s) => [...s.options].map((o) => o.textContent).join("/")).join(" | "));
+        log(ids(), shownBtn());
+        // Ada's entries only: the limit counts those.
+        const who = $("[data-tl-who]"); who.value = "Ada"; who.dispatchEvent(new Event("change")); await wait(30);
+        log(JSON.stringify(S().f), ids(), shownBtn());
+        // State picks the kind too.
+        root.__irender.set("f", { who: "Ada", kind: "status" }); await wait(30); log(ids(), $("[data-tl-kind]").value);
+        root.__irender.set("f", { who: "Bob", kind: "comment" }); await wait(30); log($("[data-tl-none]")?.textContent ?? "-");
+        root.__irender.set("f", null); await wait(30);
+        // Show the rest, then Load more fires `more` and waits while loading.
+        btn().click(); await wait(30); log(ids(), shownBtn());
+        btn().click(); await wait(30); log(S().busy, shownBtn(), btn().disabled);
+        root.__irender.set("feed", [...S().feed, { id: 5, who: "Cy", kind: "file", action: "added a file", when: "2026-11-24T09:00" }]); root.__irender.set("busy", false); root.__irender.set("older", false); await wait(30);
+        log(ids(), shownBtn(), document.activeElement.getAttribute("data-who"));
+"##,
+        &[
+            "Everyone/Ada/Bob | Every kind/comment/status",
+            "Ada:comment Bob:status Show 2 more",
+            r#"{"who":"Ada","kind":null} Ada:comment Ada:status Show 1 more"#,
+            "Ada:status status",
+            "Nothing matches these filters",
+            "Ada:comment Bob:status Ada:status Ada:comment Load more",
+            "true Loading… true",
+            "Ada:comment Bob:status Ada:status Ada:comment Cy:file - Cy",
+        ],
+    );
+}
+
 /// `ui-approval`: a stage's due date from a clock fixed at 3 December 2026, handing a turn
 /// to someone else, and the decisions kept as an earlier round when it's sent again.
 #[test]

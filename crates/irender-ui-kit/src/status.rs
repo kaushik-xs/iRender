@@ -329,6 +329,10 @@ const TIMELINE_PROPS: &[PropDef] = &[
     PropDef::new("relative", PropKind::Bool, "Each `when` as how long ago (`5 min ago`, `3 h ago`), kept up to date, with the full date on hover"),
     PropDef::new("since", PropKind::Any, "Entries after this date and time (a last visit, say) are marked New; may use state"),
     PropDef::new("limit", PropKind::Number, "Show the first this many entries, then a button for the rest"),
+    PropDef::new("filters", PropKind::Bool, "Menus over the feed to show one person's entries, or one `kind` of entry, from those it has"),
+    PropDef::new("bindFilter", PropKind::StateKey, "With `filters`, a state key holding what's picked, `{ who, kind }` (null for all); setting it picks them"),
+    PropDef::new("hasMore", PropKind::Any, "There are older entries on the server: once all here are shown, a Load more button fires `more` (the page adds them to `items`); may use state"),
+    PropDef::new("loading", PropKind::Any, "While true, Load more says Loading… and waits; may use state"),
 ];
 const ITEM_PROPS: &[PropDef] = &[
     PropDef::new("who", PropKind::Any, "Who did it, shown first in bold"),
@@ -339,9 +343,10 @@ const ITEM_PROPS: &[PropDef] = &[
     PropDef::new("changes", PropKind::Any, "Fields changed: `[{ field, from, to }]`, shown as from → to"),
     PropDef::new("comment", PropKind::Any, "Text they wrote, quoted under the line"),
     PropDef::new("tone", PropKind::Enum(TONES), "The dot's colour, for an event rather than a person (with no `who`)"),
+    PropDef::new("kind", PropKind::Any, "What sort of entry it is (`comment`, `status`, `file`), for the timeline's `filters`"),
 ];
 /// The fields a list item passes to `ui-timeline-item`.
-const FIELDS: &[&str] = &["who", "action", "when", "initials", "avatar", "changes", "comment", "tone"];
+const FIELDS: &[&str] = &["who", "action", "when", "initials", "avatar", "changes", "comment", "tone", "kind"];
 const ENTRY: &str = "ui_entry";
 const ENTRY_INDEX: &str = "ui_entry_index";
 const TIMELINE_SCRIPT: &str = include_str!("timeline.js");
@@ -351,7 +356,15 @@ const CHANGE_INDEX: &str = "ui_change_index";
 static TIMELINE: LazyLock<StyleBlock> = LazyLock::new(|| {
     pairs(&[("margin", "0"), ("padding", "0"), ("list-style", "none"), ("display", "flex"), ("flex-direction", "column"), ("color", TEXT), ("font-size", fs!(14))])
         .nest("& [data-entries]", pairs(&[("display", "contents")]))
-        .nest("& [data-tl-hidden]", pairs(&[("display", "none")]))
+        .nest("& [data-tl-hidden], & [data-tl-out]", pairs(&[("display", "none")]))
+        .nest("& > [data-tl-filters]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(8)), ("margin-bottom", gap!(12)), ("list-style", "none")]))
+        .nest("& > [data-tl-filters]::before, & > [data-tl-filters]::after", pairs(&[("display", "none")]))
+        .nest(
+            "& > [data-tl-filters] select",
+            pairs(&[("min-height", ctl!(32)), ("padding", pad!(0, 8)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", "var(--ui-bg, transparent)"), ("color", "inherit"), ("font", "inherit"), ("font-size", fs!(13))]),
+        )
+        .nest("& > [data-tl-filters] select:focus-visible", crate::forms::focus_ring())
+        .nest("& > [data-tl-none]", pairs(&[("color", MUTED), ("font-size", fs!(13)), ("list-style", "none")]))
         .nest("& [data-tl-show]", pairs(&[("padding-inline-start", "40px")]))
         .nest(
             "& [data-tl-show] button",
@@ -457,15 +470,25 @@ impl Component for Timeline {
         if limit.is_some_and(|n| n < 1.0 || n.fract() != 0.0) {
             return Err(RenderError::new(node, "`limit` is a whole number of entries, 1 or more"));
         }
-        let feed = ["group", "relative", "since", "limit"].iter().any(|p| node.prop(p).is_some());
+        let feed = ["group", "relative", "since", "limit", "filters", "hasMore"].iter().any(|p| node.prop(p).is_some());
+        let filters = crate::widget::flag(cx, node, "filters", false);
+        let more = node.prop("hasMore").is_some();
         if feed {
-            let mut config = crate::widget::config(cx, node, &["since"], &["group", "limit"], &[])?;
+            let mut config = crate::widget::config(cx, node, &["since", "hasMore", "loading"], &["group", "limit"], &["bindFilter"])?;
             config.insert("relative".into(), json!(crate::widget::flag(cx, node, "relative", false)));
+            config.insert("filters".into(), json!(filters));
             crate::widget::kit(cx);
             cx.global_js("ui-timeline", TIMELINE_SCRIPT);
             ol.behavior("ui-timeline", Json::Object(config));
         }
         cx.open(&ol, node)?;
+        if filters {
+            // Its menus, filled in by the behaviour from the entries there are.
+            let mut li = Element::new("li");
+            li.attr("data-tl-filters", true).attr("role", "group").attr("aria-label", cx.label("Filter the activity"));
+            cx.open(&li, node)?;
+            cx.close("li");
+        }
         cx.children(node)?;
         if node.prop("items").is_some() {
             let list = Element::new("div");
@@ -477,8 +500,9 @@ impl Component for Timeline {
             each_item(cx, node, list, items(cx, node, "items")?, ENTRY, ENTRY_INDEX, &key, |cx| cx.render(&entry))?;
             cx.close("div");
         }
-        if limit.is_some() {
-            // Filled in and shown by the behaviour while entries are held back.
+        if limit.is_some() || more {
+            // Filled in and shown by the behaviour while entries are held back, or there
+            // are more on the server.
             let mut li = Element::new("li");
             li.attr("data-tl-show", true).attr("hidden", true);
             cx.open(&li, node)?;
@@ -512,6 +536,13 @@ impl Component for TimelineItem {
         }
         if let Some(t) = node.prop("tone") {
             li.attr("data-tone", t.clone());
+        }
+        // Who and what sort, for the timeline's filters.
+        if let Some(w) = &who {
+            li.attr("data-who", w.clone());
+        }
+        if let Some(k) = node.prop("kind") {
+            li.attr("data-kind", k.clone());
         }
         cx.open(&li, node)?;
         // A day's heading, filled in and shown by a timeline with `group: day`.
