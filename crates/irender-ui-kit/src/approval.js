@@ -4,7 +4,9 @@
 // for them; the first stage not approved is the current one, and the ones after it wait.
 // It draws that, gives whoever's looking (`me`) the buttons on their turn, and writes each
 // decision back with its comment and time. The one who sent it (`owner`) can send it again
-// after changes or a rejection, which clears the decisions. Everything it writes is text.
+// after changes or a rejection, which keeps the decisions as an earlier round and clears
+// them. A stage can be `due` by a date; an approver can hand their turn to one of `people`.
+// Everything it writes is text.
 (window.__irenderBehaviors ||= {})["ui-approval"] = (el, api) => {
   const cfg = api.config, K = window.__irenderKit, L = (t, v) => window.__irender.label(t, v);
   const summary = el.querySelector("[data-ap-summary]"), view = el.querySelector("[data-ap-view]"), live = el.querySelector("[data-ap-live]");
@@ -67,6 +69,25 @@
   const DECIDED = { approved: "Approved", changes: "Changes requested", rejected: "Rejected" };
   const initials = (name) => String(name).split(/\s+/).slice(0, 2).map((w) => w[0] ?? "").join("").toUpperCase();
   const mine = (s) => (s.approvers ?? []).find((p) => same(p.id, K.value(api, cfg.me)));
+  // A date alone (`2026-12-01`) is that local day, not midnight in London.
+  const parseDay = (v) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v ?? ""));
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]).getTime() : v ? Date.parse(v) : NaN;
+  };
+  const day = (v) => {
+    const t = parseDay(v);
+    return Number.isFinite(t) ? new Intl.DateTimeFormat(loc, { dateStyle: "medium" }).format(t) : "";
+  };
+  // When a stage is due, said from today: overdue once the day has passed.
+  function dueText(s, live) {
+    const t = parseDay(s.due);
+    if (!Number.isFinite(t)) return null;
+    const days = Math.floor((t - new Date().setHours(0, 0, 0, 0)) / 864e5);
+    // Labels: "Due {date}", "Due today", "Overdue by {n} day"
+    if (!live) return { text: L("Due {date}", { date: day(s.due) }), late: false };
+    if (days < 0) return { text: L(["Overdue by {n} day", "Overdue by {n} days"], { n: -days }), late: true };
+    return { text: days === 0 ? L("Due today") : L("Due {date}", { date: day(s.due) }), late: false };
+  }
 
   // ---- drawing
   let last = null, draft = "", wrong = null;
@@ -101,17 +122,27 @@
         const pic = p.avatar ? h("img", { src: p.avatar, alt: "" }) : initials(p.name);
         return h("li", { "data-ap-person": p.id, "data-decision": d },
           h("span", { "data-ap-avatar": true, "aria-hidden": "true" }, pic),
-          h("span", { "data-ap-name": true }, p.name, p.decision && p.at ? h("small", {}, when(p.at)) : null),
+          h("span", { "data-ap-name": true }, p.name, p.decision && p.at ? h("small", {}, when(p.at)) : null,
+            // Labels: "for {name}"
+            p.for ? h("span", { "data-ap-for": true }, L("for {name}", { name: p.for.name ?? p.for.id ?? "" })) : null),
           h("span", { "data-ap-decision": true }, d === "none" ? (st === "waiting" ? L("Not yet") : L("Waiting")) : L(DECIDED[d])),
           p.comment ? h("blockquote", {}, p.comment) : null);
       }));
       // Labels: "Approved", "Rejected", "Changes requested", "Waiting", "Up next"
       const said = { approved: L("Approved"), rejected: L("Rejected"), changes: L("Changes requested"), current: L("Waiting"), waiting: L("Up next") }[st];
+      const due = st === "approved" ? null : dueText(s, st === "current" || st === "changes");
+      // Earlier rounds: who decided what, before it was sent again.
+      const rounds = Array.isArray(s.rounds) && s.rounds.length
+        ? h("details", { "data-ap-rounds": true },
+          h("summary", {}, L(["{n} earlier round", "{n} earlier rounds"], { n: s.rounds.length })),
+          h("ol", {}, ...s.rounds.map((r) => h("li", {}, (r.approvers ?? []).filter((p) => p.decision).map((p) => `${p.name}: ${L(DECIDED[p.decision] ?? p.decision)}${p.comment ? ` (“${p.comment}”)` : ""}${p.at ? `, ${when(p.at)}` : ""}`).join("; ") || L("No decisions")))))
+        : null;
       ol.append(h("li", { "data-ap-stage": s.id ?? i, "data-state": st, "aria-current": st === "current" ? "step" : null },
         h("span", { "data-ap-mark": true, "aria-hidden": "true" }, mark),
         h("div", { "data-ap-body": true },
-          h("div", { "data-ap-head": true }, h("h3", {}, s.title ?? L("Stage {n}", { n: i + 1 })), h("span", { "data-ap-rule": true }, [said, ruleText(s)].filter(Boolean).join(" · "))),
-          people)));
+          h("div", { "data-ap-head": true }, h("h3", {}, s.title ?? L("Stage {n}", { n: i + 1 })), h("span", { "data-ap-rule": true }, [said, ruleText(s)].filter(Boolean).join(" · ")),
+            due ? h("span", { "data-ap-due": true, "data-overdue": due.late || null }, due.text) : null),
+          people, rounds)));
     });
     const parts = [ol];
 
@@ -127,6 +158,15 @@
         h("label", { for: id }, L("Your decision, {name}", { name: me.name })), note,
         wrong ? h("span", { "data-ap-error": true, id: `${id}-error` }, wrong) : null,
         h("div", { "data-ap-buttons": true }, act("approved", L("Approve")), act("changes", L("Request changes")), act("rejected", L("Reject")))));
+      // Handing the turn to someone else, from `people` not already on this stage.
+      const others = (Array.isArray(K.value(api, cfg.people)) ? K.value(api, cfg.people) : []).filter((p) => isObj(p) && !(list[current].approvers ?? []).some((a) => same(a.id, p.id)));
+      if (others.length) {
+        const pid = `${cfg.id}-handoff`;
+        const pick = h("select", { id: pid }, h("option", { value: "" }, L("Pick someone")), ...others.map((p) => h("option", { value: String(p.id) }, p.name ?? String(p.id))));
+        // Labels: "Hand it to", "Hand over"
+        parts.push(h("div", { "data-ap-handoff": true }, h("label", { for: pid }, L("Hand it to")), pick,
+          h("div", { "data-ap-buttons": true }, h("button", { type: "button", "data-ap-act": "handoff", onclick: () => handoff(current, me, others.find((p) => String(p.id) === pick.value)) }, L("Hand over")))));
+      }
     }
     // After changes or a rejection, whoever sent it can send it again.
     if ((overall === "changes" || overall === "rejected") && !cfg.readOnly && same(K.value(api, cfg.owner), K.value(api, cfg.me))) {
@@ -165,8 +205,26 @@
     draw();
     say(L("{decision}: {stage}", { decision: L(DECIDED[decision]), stage: next[i].title ?? L("Stage {n}", { n: i + 1 }) }) + ". " + told());
   }
+  // The turn goes to `to`, who takes the approver's place and is shown deciding for them.
+  function handoff(i, from, to) {
+    if (!to) return say(L("Pick someone to hand it to"));
+    const taken = { id: to.id, name: to.name ?? String(to.id), ...(to.avatar ? { avatar: to.avatar } : {}), for: { id: from.id, name: from.name } };
+    const next = stages().map((s, k) => (k !== i ? s : { ...s, approvers: (s.approvers ?? []).map((p) => (same(p.id, from.id) ? taken : p)) }));
+    api.set(cfg.bind, next);
+    api.emit("handoff", { stage: next[i].id ?? i, from: from.id, to: to.id });
+    draw();
+    say(L("Handed to {name}", { name: taken.name }) + ". " + told());
+  }
   function resend() {
-    const next = stages().map((s) => ({ ...s, approvers: (s.approvers ?? []).map(({ decision, comment, at, ...p }) => p) }));
+    // The decisions so far become an earlier round of each stage that had any.
+    const next = stages().map((s) => {
+      const decided = (s.approvers ?? []).some((p) => p.decision);
+      return {
+        ...s,
+        ...(decided ? { rounds: [...(Array.isArray(s.rounds) ? s.rounds : []), { approvers: s.approvers.map(({ id, name, decision, comment, at }) => ({ id, name, decision, comment, at })) }] } : {}),
+        approvers: (s.approvers ?? []).map(({ decision, comment, at, ...p }) => p),
+      };
+    });
     api.set(cfg.bind, next);
     api.emit("resend", {});
     draw();

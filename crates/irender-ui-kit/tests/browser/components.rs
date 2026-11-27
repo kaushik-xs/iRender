@@ -342,6 +342,53 @@ root:
     );
 }
 
+/// `ui-approval`: a stage's due date from a clock fixed at 3 December 2026, handing a turn
+/// to someone else, and the decisions kept as an earlier round when it's sent again.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn approval_hands_off_and_keeps_rounds() {
+    let Some(result) = run_with(
+        "approval-rounds",
+        r##"
+state:
+  me: ravi
+  st: null
+  stages:
+    - { id: mgr, title: Manager, due: "2026-12-01", approvers: [ { id: ravi, name: Ravi Kumar } ] }
+    - { id: fin, title: Finance, due: "2026-12-10", approvers: [ { id: asha, name: Asha Rao } ] }
+root:
+  type: ui-approval
+  props: { bind: stages, me: "{{ me }}", owner: ravi, bindStatus: st, people: [ { id: ravi, name: Ravi Kumar }, { id: mei, name: Mei Lin } ] }
+"##,
+        r##"
+        const due = () => $$("[data-ap-due]").map((d) => d.textContent + (d.hasAttribute("data-overdue") ? "!" : "")).join(" | ");
+        log(due(), $$("[data-ap-handoff] option").map((o) => o.textContent).join(","));
+        // Ravi hands his turn to Mei, who then decides for him.
+        $("[data-ap-handoff] select").value = "mei"; $("[data-ap-act=handoff]").click(); await wait(30);
+        log(JSON.stringify(S().stages[0].approvers), $("[data-ap-for]").textContent);
+        root.__irender.set("me", "mei"); await wait(30);
+        $("[data-ap-decide] textarea").value = "Too much"; $("[data-ap-decide] textarea").dispatchEvent(new Event("input")); $("[data-ap-act=rejected]").click(); await wait(30);
+        log(S().st);
+        // Ravi sends it again: Mei's no is kept as an earlier round.
+        root.__irender.set("me", "ravi"); await wait(30); $("[data-ap-act=resend]").click(); await wait(30);
+        log(S().st, JSON.stringify(S().stages[0].rounds.map((r) => r.approvers.map((p) => p.decision + ":" + p.comment))), $("[data-ap-rounds] summary").textContent, $("[data-ap-rounds] li").textContent.split(",")[0]);
+"##,
+        r#"<script>{ const at = new Date(2026, 11, 3, 10).getTime(), start = Date.now(), real = Date; window.Date = class extends real { constructor(...a) { super(...(a.length ? a : [at + (real.now() - start)])); } static now() { return at + (real.now() - start); } }; }</script>"#,
+    ) else {
+        return;
+    };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "Overdue by 2 days! | Due Dec 10, 2026 Pick someone,Mei Lin",
+            r#"[{"id":"mei","name":"Mei Lin","for":{"id":"ravi","name":"Ravi Kumar"}}] for Ravi Kumar"#,
+            "rejected",
+            r#"pending [["rejected:Too much"]] 1 earlier round Mei Lin: Rejected (“Too much”)"#,
+        ],
+        "\n{result}"
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn combobox_options_show_pictures_and_badges() {

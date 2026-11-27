@@ -7,7 +7,8 @@
 # - Download all saves the receipts as one zip; Submit needs at least one receipt.
 # - Submitting sends it for approval (`ui-approval`): the line manager, then any one of
 #   finance. "Viewing as" switches who's looking, to decide on each one's turn; asking for
-#   changes or rejecting needs a reason, and then the claimant can send it again.
+#   changes or rejecting needs a reason, and then the claimant can send it again (each
+#   stage keeps the earlier round). Stages have due dates; an approver can hand it on.
 #
 #   cargo run -p irender-cli -- render examples/blocks/expense-01.yaml --ui-kit --icon-kit -o expense-01.html
 version: 1
@@ -17,8 +18,8 @@ state:
   claimStatus: pending
   viewer: ravi
   approval:
-    - { id: manager, title: Line manager, approvers: [ { id: ravi, name: Ravi Kumar } ] }
-    - { id: finance, title: Finance, rule: any, approvers: [ { id: asha, name: Asha Rao }, { id: mei, name: Mei Lin } ] }
+    - { id: manager, title: Line manager, due: "2026-12-04", approvers: [ { id: ravi, name: Ravi Kumar } ] }
+    - { id: finance, title: Finance, rule: any, due: "2026-12-11", approvers: [ { id: asha, name: Asha Rao }, { id: mei, name: Mei Lin } ] }
   purpose: Client visit, Mumbai
   advance: 10000
   receipts:
@@ -83,7 +84,7 @@ root:
                     - type: ui-select
                       props: { bind: viewer, options: [ { value: kaushik, label: Kaushik (sent it) }, { value: ravi, label: Ravi (line manager) }, { value: asha, label: Asha (finance) }, { value: mei, label: Mei (finance) } ] }
                 - type: ui-approval
-                  props: { bind: approval, me: "{{ viewer }}", owner: kaushik, bindStatus: claimStatus, label: Claim approval }
+                  props: { bind: approval, me: "{{ viewer }}", owner: kaushik, bindStatus: claimStatus, label: Claim approval, people: [ { id: priya, name: Priya Shah }, { id: tom, name: Tom Hale } ] }
                   on: { done: { action: set_state, key: toast, value: { title: "Claim {{ claimStatus }}" } } }
         - type: ui-card
           props: { title: Expenses }

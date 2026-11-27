@@ -20,12 +20,13 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "bind",
         PropKind::StateKey,
-        "State key holding the stages, in order: `{ id, title, rule, approvers: [{ id, name, avatar, decision, comment, at }] }`; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected",
+        "State key holding the stages, in order: `{ id, title, rule, due, approvers: [{ id, name, avatar, decision, comment, at, for }], rounds }`; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected, `due` a date it's due by, `for` the approver who handed it on, `rounds` earlier rounds' approvers (kept when it's sent again)",
     )
     .required(),
     PropDef::new("me", PropKind::Any, "The `id` of whoever's looking: on their turn, they get the buttons to decide"),
     PropDef::new("owner", PropKind::Any, "The `id` of whoever sent it: after changes or a rejection, they can send it again"),
     PropDef::new("bindStatus", PropKind::StateKey, "State key that gets `pending`, `changes`, `rejected` or `approved`, as it changes"),
+    PropDef::new("people", PropKind::Any, "Who an approver can hand their turn to: `[{ id, name, avatar }]`"),
     PropDef::new("readOnly", PropKind::Bool, "Only shows where it stands: no buttons"),
     PropDef::new("locale", PropKind::String, "How times are written (default: the document's `lang`)"),
     PropDef::new("label", PropKind::Any, "Names it for screen readers (default `Approval`)"),
@@ -83,6 +84,16 @@ static APPROVAL: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ap-head]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "baseline"), ("gap", gap!(4, 8))]))
         .nest("& [data-ap-head] h3", pairs(&[("margin", "0"), ("font-size", fs!(15)), ("font-weight", "var(--font-weight-semibold, 600)")]))
         .nest("& [data-ap-rule]", pairs(&[("color", MUTED), ("font-size", fs!(13))]))
+        // When it's due: overdue in the danger tone.
+        .nest("& [data-ap-due]", pairs(&[("color", MUTED), ("font-size", fs!(12))]))
+        .nest("& [data-ap-due][data-overdue]", pairs(&[("color", "var(--color-destructive, #dc2626)"), ("font-weight", "var(--font-weight-medium, 500)")]))
+        .nest("& [data-ap-for]", pairs(&[("display", "block"), ("color", MUTED), ("font-size", fs!(12))]))
+        // Earlier rounds, folded under the stage.
+        .nest("& [data-ap-rounds]", pairs(&[("margin-top", gap!(8)), ("font-size", fs!(13))]))
+        .nest("& [data-ap-rounds] > summary", pairs(&[("cursor", "pointer"), ("color", MUTED)]))
+        .nest("& [data-ap-rounds] ol", pairs(&[("margin", "6px 0 0"), ("padding-inline-start", "18px"), ("display", "grid"), ("gap", gap!(4))]))
+        .nest("& [data-ap-handoff]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(8))]))
+        .nest("& [data-ap-handoff] select", pairs(&[("min-height", ctl!(32)), ("padding", pad!(0, 8)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", "var(--ui-bg, transparent)"), ("color", "inherit"), ("font", "inherit")]))
         // ---- the approvers
         .nest("& [data-ap-people]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("margin", "0"), ("padding", "0"), ("list-style", "none")]))
         .nest("& [data-ap-person]", pairs(&[("display", "grid"), ("grid-template-columns", "24px minmax(0, 1fr) auto"), ("align-items", "center"), ("column-gap", gap!(8)), ("row-gap", gap!(4))]))
@@ -174,7 +185,7 @@ impl Component for Approval {
                 }
             }
         }
-        let mut config = widget::config(cx, node, &["me", "owner"], &[], &["bind", "bindStatus"])?;
+        let mut config = widget::config(cx, node, &["me", "owner", "people"], &[], &["bind", "bindStatus"])?;
         config.insert("readOnly".into(), json!(widget::flag(cx, node, "readOnly", false)));
         config.insert("locale".into(), json!(crate::locale(cx, node)));
         let id = instance_id(cx, node, "approval");

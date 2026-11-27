@@ -21,7 +21,7 @@ _Last updated: 2026-11-26._
 
 - [ ] **`ui-whiteboard`** (2026-11-23; gallery, block retro-01): one person at a time (several people's edits from a server just replace the items: no merging and no live cursors), no connectors that stay joined to shapes, no images or frames, no grouping, layers or locking, no copy and paste between boards, pen strokes aren't resized, and the undo history is the page's only. Export is SVG; no PNG.
 
-- [ ] **`ui-approval`** (2026-11-23; gallery, block expense-01): stages run one after another (none side by side), no delegating or reassigning an approver, no due dates or reminders per stage, and no history of earlier rounds once it's sent again (the decisions are cleared). Who may decide is shown, not enforced: the server checks it.
+- [ ] **`ui-approval`** (2026-11-23; gallery, block expense-01): stages run one after another (none side by side). Handing a turn to someone, due dates and earlier rounds came on 2026-11-27 (block expense-01): nothing sends reminders, a handoff can't be taken back, and the people to hand to are the page's list, not searched. Who may decide is shown, not enforced: the server checks it.
 
 - [ ] **`ui-file-browser`** (2026-11-23; gallery, block drive-01): the files are all in state (no folder loaded from a server as it's opened), no uploading into it by dropping files from the desktop (a `ui-file-upload` beside it does), no copy and paste, no previews beyond `thumb`, and no sharing or permissions. Selecting by dragging a box isn't there; ⌘/Shift and the keys are.
 
