@@ -32,6 +32,16 @@
   const CHOICES = new Set(["select", "radio", "checkboxes"]);
   const PLACEHOLDER = new Set(["text", "textarea", "email", "number", "select"]);
   const LIMITS = new Set(["number", "date"]);
+  const LENGTHS = new Set(["text", "textarea"]);
+  // A field shown only when an earlier one has an answer: `when: { field, value }`. A tick
+  // box's answer is `true`; several choices hold it when the value is one of theirs.
+  const holds = (f, list, a) => {
+    const w = f.when, of = w && list.find((x) => x.id === w.field);
+    if (!of) return true;
+    const v = a[of.id];
+    return of.type === "checkboxes" ? Array.isArray(v) && v.includes(w.value) : of.type === "checkbox" ? !!v === (w.value !== false) : v === w.value;
+  };
+  const shownOf = (list, a) => list.filter((f) => holds(f, list, a));
   // State keys the generated document keeps for itself.
   const RESERVED = new Set(["errors", "submitted"]);
 
@@ -74,7 +84,9 @@
   const at = (id) => fields().findIndex((f) => f.id === id);
   // The field `id` changed by `patch`; the inspector isn't drawn again (it has focus).
   function patch(id, p) {
-    const list = fields().map((f) => (f.id === id ? { ...f, ...p } : f));
+    // A new key is followed by the fields shown only when this one has an answer.
+    const renamed = p.id !== undefined && p.id !== id;
+    const list = fields().map((f) => (f.id === id ? { ...f, ...p } : renamed && f.when?.field === id ? { ...f, when: { ...f.when, field: p.id } } : f));
     for (const f of list) for (const k of Object.keys(f)) if (f[k] === undefined || f[k] === "") delete f[k];
     write(list, () => {
       drawCanvas();
@@ -102,7 +114,8 @@
   function remove(id) {
     const list = fields(), i = list.findIndex((f) => f.id === id);
     if (i < 0) return;
-    const next = list.filter((f) => f.id !== id), gone = list[i];
+    // Fields shown only when this one had an answer are shown always.
+    const next = list.filter((f) => f.id !== id).map((f) => (f.when?.field === id ? (({ when, ...rest }) => rest)(f) : f)), gone = list[i];
     selected = next[Math.min(i, next.length - 1)]?.id ?? null;
     write(next, redraw);
     say(L("{name} deleted", { name: gone.label }));
@@ -219,6 +232,40 @@
       lo.addEventListener("input", () => patch(selected, { min: read(lo) }));
       hi.addEventListener("input", () => patch(selected, { max: read(hi) }));
       items.push(h("div", { "data-fb-row": true }, field("min", f.type === "date" ? L("Earliest") : L("Lowest"), lo), field("max", f.type === "date" ? L("Latest") : L("Highest"), hi)));
+    }
+    if (LENGTHS.has(f.type)) {
+      const lo = h("input", { id: n("minl"), type: "number", min: "0", value: f.minLength ?? "" }), hi = h("input", { id: n("maxl"), type: "number", min: "1", value: f.maxLength ?? "" });
+      const read = (i) => (i.value === "" ? undefined : Math.max(0, Math.round(Number(i.value))));
+      lo.addEventListener("input", () => patch(selected, { minLength: read(lo) }));
+      hi.addEventListener("input", () => patch(selected, { maxLength: read(hi) }));
+      items.push(h("div", { "data-fb-row": true }, field("minl", L("Shortest"), lo), field("maxl", L("Longest"), hi)));
+    }
+    if (f.type === "text") {
+      const pat = text("pat", f.pattern, { spellcheck: "false", "aria-describedby": `${n("pat")}-help` });
+      pat.addEventListener("input", () => patch(selected, { pattern: pat.value || undefined }));
+      items.push(field("pat", L("Pattern"), pat, L("A regular expression the whole answer matches, e.g. [A-Z]{2}[0-9]{4}.")));
+      const pm = text("patmsg", f.patternMessage);
+      pm.addEventListener("input", () => patch(selected, { patternMessage: pm.value || undefined }));
+      items.push(field("patmsg", L("Message when it doesn't match"), pm));
+    }
+    // Shown only when an earlier field has an answer.
+    const before = fields().slice(0, fields().findIndex((x) => x.id === f.id)).filter((x) => x.type !== "section");
+    if (before.length) {
+      const pick = h("select", { id: n("when") }, h("option", { value: "" }, L("Always")), ...before.map((x) => h("option", { value: x.id, selected: f.when?.field === x.id }, x.label)));
+      const of = before.find((x) => x.id === f.when?.field);
+      pick.addEventListener("change", () => {
+        const x = before.find((x) => x.id === pick.value);
+        patch(selected, { when: x ? { field: x.id, value: x.type === "checkbox" ? true : CHOICES.has(x.type) ? (x.options ?? [])[0] ?? "" : "" } : undefined });
+        drawInspector();
+      });
+      items.push(field("when", L("Show only when"), pick));
+      if (of && of.type !== "checkbox") {
+        const is = CHOICES.has(of.type)
+          ? h("select", { id: n("is") }, ...(of.options ?? []).map((o) => h("option", { value: o, selected: f.when.value === o }, o)))
+          : text("is", f.when.value);
+        is.addEventListener(CHOICES.has(of.type) ? "change" : "input", () => patch(selected, { when: { field: of.id, value: is.value } }));
+        items.push(field("is", of.type === "checkboxes" ? L("Has picked") : L("Is"), is));
+      } else if (of) items.push(h("p", { "data-fb-help": true }, L("{label} is ticked.", { label: of.label })));
     }
     if (!section) {
       const req = h("input", { type: "checkbox", id: n("req"), checked: !!f.required });
@@ -358,7 +405,7 @@
   let answers = {}, tried = false, sent = null;
   function problems(list) {
     const out = {};
-    for (const f of list) {
+    for (const f of shownOf(list, answers)) {
       if (f.type === "section") continue;
       const v = answers[f.id];
       const empty = v === undefined || v === null || v === "" || (Array.isArray(v) && !v.length) || (f.type === "checkbox" && !v);
@@ -371,6 +418,13 @@
       if (f.type === "number" && (f.max !== undefined && Number(v) > f.max)) out[f.id] = L("{label} must be at most {n}.", { label: f.label, n: f.max });
       if (f.type === "date" && f.min && v < f.min) out[f.id] = L("Pick a date on or after {date}.", { date: f.min });
       if (f.type === "date" && f.max && v > f.max) out[f.id] = L("Pick a date on or before {date}.", { date: f.max });
+      if (LENGTHS.has(f.type) && f.minLength && String(v).length < f.minLength) out[f.id] = L("{label} needs at least {n} characters.", { label: f.label, n: f.minLength });
+      if (LENGTHS.has(f.type) && f.maxLength && String(v).length > f.maxLength) out[f.id] = L("{label} can have at most {n} characters.", { label: f.label, n: f.maxLength });
+      if (f.type === "text" && f.pattern) {
+        try {
+          if (!new RegExp(`^(?:${f.pattern})$`, "u").test(String(v))) out[f.id] = f.patternMessage || L("{label} isn't in the right format.", { label: f.label });
+        } catch { /* a pattern the browser can't read checks nothing */ }
+      }
     }
     return out;
   }
@@ -385,7 +439,7 @@
     const errors = tried ? problems(list) : {};
     const form = h("form", { "data-fb-preview": true, novalidate: true, "aria-label": L("Preview") });
     if (!list.length) form.append(h("p", { "data-fb-help": true }, L("The form has no fields yet: add some under Build.")));
-    for (const f of list) {
+    for (const f of shownOf(list, answers)) {
       if (f.type === "section") {
         form.append(h("div", {}, h("h3", { "data-fb-section-title": true }, f.label), f.description ? h("p", { "data-fb-help": true }, f.description) : null));
         continue;
@@ -396,7 +450,7 @@
       const common = { id, "aria-describedby": described, "aria-invalid": err ? "true" : null, "aria-required": f.required ? "true" : null };
       const set = (v) => {
         answers[f.id] = v;
-        if (tried) drawPreviewKeepingFocus();
+        if (tried || list.some((x) => x.when?.field === f.id)) drawPreviewKeepingFocus();
       };
       const title = [f.label, f.required ? h("span", { "data-fb-required": true, "aria-hidden": "true" }, " *") : null];
       let control;
@@ -441,7 +495,8 @@
         panel("preview").querySelector("[aria-invalid=true]")?.focus();
         return;
       }
-      sent = Object.fromEntries(fields().filter((f) => f.type !== "section").map((f) => [f.id, answers[f.id] ?? (f.type === "checkboxes" ? [] : f.type === "checkbox" ? false : null)]));
+      // What's hidden isn't sent.
+      sent = Object.fromEntries(shownOf(fields(), answers).filter((f) => f.type !== "section").map((f) => [f.id, answers[f.id] ?? (f.type === "checkboxes" ? [] : f.type === "checkbox" ? false : null)]));
       drawPreview();
       say(L("Thank you, your answers are in."));
     });
@@ -479,6 +534,14 @@
       if (f.type === "date") rule.type = "date";
       if (LIMITS.has(f.type) && f.min !== undefined) rule.min = f.min;
       if (LIMITS.has(f.type) && f.max !== undefined) rule.max = f.max;
+      if (LENGTHS.has(f.type) && f.minLength) rule.minLength = f.minLength;
+      if (LENGTHS.has(f.type) && f.maxLength) rule.maxLength = f.maxLength;
+      if (f.type === "text" && f.pattern) rule.pattern = f.pattern;
+      if (f.type === "text" && f.pattern && f.patternMessage) rule.message = f.patternMessage;
+      // Shown only when another field has an answer: in an `if`, required only while shown.
+      const of = f.when && list.find((x) => x.id === f.when.field);
+      const cond = !of ? null : of.type === "checkboxes" ? `includes(${of.id}, ${JSON.stringify(f.when.value)})` : of.type === "checkbox" ? (f.when.value === false ? `!${of.id}` : of.id) : `${of.id} == ${JSON.stringify(f.when.value)}`;
+      if (cond && rule.required) rule.required = `{{ ${cond} }}`;
       if (Object.keys(rule).length > 1) rules[id] = rule;
       const ph = f.placeholder ? { placeholder: f.placeholder } : {};
       const limits = { ...(f.min !== undefined ? { min: f.min } : {}), ...(f.max !== undefined ? { max: f.max } : {}) };
@@ -495,7 +558,8 @@
       }[f.type];
       if (!control) continue;
       const props = { ...(f.type === "checkbox" ? {} : { label: f.label }), ...(f.description ? { description: f.description } : {}), error: `{{ errors.${id} }}` };
-      into.push({ type: "ui-field", props, children: [control] });
+      const one = { type: "ui-field", props, children: [control] };
+      into.push(cond ? { type: "if", props: { when: `{{ ${cond} }}` }, children: [one] } : one);
     }
     const ids = list.filter((f) => f.type !== "section").map((f) => f.id);
     state.errors = {};

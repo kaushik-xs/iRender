@@ -344,6 +344,66 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn form_builder_shows_fields_when_and_checks_patterns() {
+    let doc = r##"
+state:
+  doc: null
+  fields:
+    - { id: contact, type: radio, label: Contact by, options: [Email, Phone], required: true }
+    - { id: email, type: email, label: Email, required: true, when: { field: contact, value: Email } }
+    - { id: code, type: text, label: Code, pattern: "[A-Z]{2}[0-9]{2}", patternMessage: Two letters then two digits, maxLength: 4 }
+root: { type: ui-form-builder, attrs: { id: fb }, props: { bind: fields, bindDocument: doc } }
+"##;
+    let Some(result) = run(
+        "builder-when",
+        doc,
+        r##"
+        $("[data-fb-tab=preview]").click(); await wait(30);
+        const shown = () => $$("[data-fb-preview] [data-fb-for]").map((f) => f.dataset.fbFor).join(), errs = () => $$("[data-fb-error]").map((e) => e.textContent).join("|");
+        const radio = (v) => $(`[data-fb-preview] input[value="${v}"]`), send = () => $("[data-fb-preview] [type=submit]").click();
+        log(shown());
+        radio("Email").click(); await wait(30); log(shown());
+        type($("[data-fb-preview] input[type=text]"), "ab12"); send(); await wait(30); log(errs());
+        radio("Phone").click(); await wait(30); type($("[data-fb-preview] input[type=text]"), "AB12"); send(); await wait(30);
+        log($("[data-fb-preview] pre").textContent.replace(/\s+/g, " "));
+        // The inspector: Email's condition, and renaming Contact's key carries it along.
+        $("[data-fb-tab=build]").click(); await wait(30);
+        $$("[data-fb-pick]")[1].click(); await wait(30); log($("[id$=-in-when]").value, $("[id$=-in-is]").value);
+        $$("[data-fb-pick]")[0].click(); await wait(30); const key = $("[id$=-in-key]"); key.value = "via"; key.dispatchEvent(new Event("change", { bubbles: true })); await wait(30);
+        log(JSON.stringify(S().fields[1].when));
+        log("DOC " + JSON.stringify(S().doc));
+"##,
+    ) else {
+        return;
+    };
+    let mut lines: Vec<&str> = result.lines().collect();
+    let exported = lines.pop().and_then(|l| l.strip_prefix("DOC ")).unwrap_or_else(|| panic!("no document:\n{result}")).to_string();
+    assert_eq!(
+        lines,
+        [
+            "contact,code",
+            "contact,email,code",
+            "Email is required.|Two letters then two digits",
+            r#"{ "contact": "Phone", "code": "AB12" }"#,
+            "contact Email",
+            r#"{"field":"via","value":"Email"}"#,
+        ],
+        "\n{result}"
+    );
+    // The document it gives out renders, the email field in an `if`, required while shown.
+    let json: serde_json::Value = serde_json::from_str(&exported).unwrap();
+    let text = json.to_string();
+    assert!(text.contains(r#""when":"{{ via == \"Email\" }}""#) && text.contains(r#""required":"{{ via == \"Email\" }}""#), "{text}");
+    assert!(text.contains(r#""pattern":"[A-Z]{2}[0-9]{2}""#) && text.contains(r#""maxLength":4"#), "{text}");
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let parsed = irender_core::parse(&text, Format::Json).unwrap_or_else(|d| panic!("{d}"));
+    let ir = engine.resolve(&parsed).unwrap_or_else(|d| panic!("{d}"));
+    engine.render(&ir, &serde_json::json!({})).unwrap();
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn data_table_cells_fill_by_their_corner() {
     check(
         "table-fill",

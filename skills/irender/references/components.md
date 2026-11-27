@@ -734,7 +734,7 @@ ui-sortable-list: A list in state put in order by dragging each item's grip, or 
   id           any  Element id (default: derived from the document)
   children: yes
 ui-form-builder: A form put together in the browser: field types added from a palette, put in order, set up in an inspector, tried in a preview, and given out as an iRender document of the kit's own form.
-  bind         statekey (required)  State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max }`
+  bind         statekey (required)  State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max, minLength, maxLength, pattern, patternMessage, when }`; `when: { field, value }` shows it only when that earlier field has that answer
   bindDocument statekey  State key that gets the form as an iRender document, kept up to date
   types        any  The field types offered, from `text`, `textarea`, `email`, `number`, `date`, `select`, `radio`, `checkboxes`, `checkbox`, `section` (default all)
   submitLabel  any  The generated form's submit button (default `Submit`)

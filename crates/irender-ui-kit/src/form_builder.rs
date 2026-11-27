@@ -24,7 +24,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "bind",
         PropKind::StateKey,
-        "State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max }`",
+        "State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max, minLength, maxLength, pattern, patternMessage, when }`; `when: { field, value }` shows it only when that earlier field has that answer",
     )
     .required(),
     PropDef::new("bindDocument", PropKind::StateKey, "State key that gets the form as an iRender document, kept up to date"),
