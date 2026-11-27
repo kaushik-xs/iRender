@@ -347,6 +347,8 @@ state:
     - { id: 8, action: Billing plan renewed, tone: info, when: "2026-10-30T08:00" }
   month: "2026-11"
   quarter: null
+  week: null
+  weekDates: null
   quarterDates: null
   fy: null
   shifts: []
@@ -1234,6 +1236,10 @@ root:
                       props: { label: Month, description: "month = {{ month }}" }
                       children:
                         - { type: ui-date-picker, props: { bind: month, picker: month } }
+                    - type: ui-field
+                      props: { label: Week, description: "week = {{ week }}, weekDates = {{ weekDates }}" }
+                      children:
+                        - { type: ui-date-picker, props: { bind: week, bindRange: weekDates, picker: week } }
                     - type: ui-field
                       props: { label: Quarter (financial year from April), description: "quarterDates = {{ quarterDates }}" }
                       children:

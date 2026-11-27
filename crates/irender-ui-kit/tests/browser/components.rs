@@ -344,6 +344,32 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn date_picker_picks_a_week() {
+    check(
+        "week-picker",
+        r##"
+state: { wk: "2026-W48", span: null, first: "2026-W01" }
+root:
+  type: stack
+  children:
+    - { type: ui-calendar, props: { bind: wk, picker: week, bindRange: span, weekStart: 1 } }
+    - { type: ui-date-picker, props: { bind: first, picker: week, locale: en-GB }, attrs: { id: dp } }
+"##,
+        r##"
+        const day = (k) => $(`[data-i-x=ui-calendar] [data-key="${k}"]`), marks = () => $$("[data-i-x=ui-calendar] [aria-pressed=true]").map((b) => b.dataset.key.slice(8)).join(",");
+        // Week 48 of 2026 runs from Monday 23 to Sunday 29 November.
+        log(marks(), day("2026-11-23").hasAttribute("data-range-start"), day("2026-11-29").hasAttribute("data-range-end"));
+        // A day picks its week, written as the ISO week, its days in `bindRange`.
+        day("2026-11-04").click(); await wait(30); log(S().wk, JSON.stringify(S().span), marks());
+        // The first week of a year can start in December: 31 Dec 2025 is in 2026-W01.
+        log($("#dp [data-cal-trigger]").textContent.trim());
+"##,
+        &["23,24,25,26,27,28,29 true true", r#"2026-W45 {"from":"2026-11-02","to":"2026-11-08"} 02,03,04,05,06,07,08"#, "Week 1, 2026 (29 Dec – 4 Jan)"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn form_builder_shows_fields_when_and_checks_patterns() {
     let doc = r##"
 state:

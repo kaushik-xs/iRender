@@ -116,6 +116,7 @@ root: …
 `calendar.js`
 
 ```yaml
+"Week {n}, {year}": "Week {n}, {year}"
 "Previous period": "Previous period"
 "Same period last year": "Same period last year"
 "Custom": "Custom"
@@ -186,6 +187,7 @@ root: …
 "Calendar": "Calendar"
 "Pick a range": "Pick a range"
 "Pick dates": "Pick dates"
+"Pick a week": "Pick a week"
 "Pick a month": "Pick a month"
 "Pick a quarter": "Pick a quarter"
 "Pick a year": "Pick a year"

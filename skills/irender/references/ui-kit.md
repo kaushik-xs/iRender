@@ -433,12 +433,13 @@ The area is a slider for the keyboard: ←/→ change the saturation and ↑/↓
 - { type: ui-date-picker, props: { bind: meeting, time: true, step: 15 } }            # 2026-03-10T14:30
 - { type: ui-date-picker, props: { bind: quarter, picker: quarter, fiscalStart: 4 } }  # 2026-Q1: April to June 2026
 - { type: ui-calendar, props: { bind: shifts, mode: multiple, disabledDays: [0, 6] } }
+- { type: ui-date-picker, props: { bind: sprint, picker: week, bindRange: sprintDays } }  # 2026-W48: 23 to 29 November
 ```
 
 | prop | |
 |---|---|
 | `bind`, `value` | The state key holding the value, or the starting value when not bound. A day is `2026-03-01` (with `time`, `2026-03-01T14:30`), a month `2026-03`, a quarter `2026-Q1`, a year `2026`; a range is `{ from, to }` (each with its time, with `time`) and `multiple` a list. Partial ranges keep `to: null` while the end is being picked. |
-| `picker` | `day` (default), `month`, `quarter` or `year`. |
+| `picker` | `day` (default), `week`, `month`, `quarter` or `year`. A week is picked from the days, a click taking its whole week, and is kept as the ISO week, `2026-W48` (Monday to Sunday, the first week of a year holding its first Thursday), with `bindRange` giving its days; it's one week at a time, not with `range`, `multiple` or `input`. |
 | `mode` | `single` (default), `range` or `multiple`. |
 | `time`, `step` | A time under the calendar, for days: one for a single day; with `mode: range` a start and an end time, so a range is `{ from: 2026-03-02T09:00, to: 2026-03-06T17:30 }` (00:00 and 23:59 until they're picked, the whole of each day). A typed range takes them too: `03/02/2026 9:00 – 03/06/2026 5:30 pm`. `step` is the minutes between times (default 1). Not with `multiple`. |
 | `min`, `max` | The earliest and latest dates: `2026-01-01`, or `today`, `today-30d`, `today+2w`, `today+1m`, `today+1y`. They may use state, and the arrows don't page past them. |

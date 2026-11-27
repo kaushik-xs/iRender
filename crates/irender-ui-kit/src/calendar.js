@@ -70,7 +70,8 @@
 
   function start(el, api, popover) {
     const cfg = api.config;
-    const kind = cfg.picker, mode = cfg.mode, fs = cfg.fiscalStart || 1;
+    // A week is picked from the days: the grid is a month's, and a pick is its whole week.
+    const week = cfg.picker === "week", kind = week ? "day" : cfg.picker, mode = cfg.mode, fs = cfg.fiscalStart || 1;
     const U = units(fs), u = U[kind];
     const loc = cfg.locale || undefined;
     const $ = (s) => el.querySelector(s);
@@ -94,10 +95,24 @@
         return d;
       }
       if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/))) return D(+m[1], +m[2], +m[3]);
+      if ((m = s.match(/^(\d{4})-W(\d{2})$/i))) return isoMonday(+m[1], +m[2]);
       if ((m = s.match(/^(\d{4})-(\d{2})$/))) return D(+m[1], +m[2], 1);
       if ((m = s.match(/^(\d{4})-Q([1-4])$/i))) return U.quarter.start(`${m[1]}-Q${m[2]}`);
       if ((m = s.match(/^(\d{4})$/))) return U.year.start(m[1]);
       return null;
+    }
+    // ISO weeks: Monday to Sunday, the first one holding the year's first Thursday.
+    function isoMonday(y, w) {
+      const jan4 = D(y, 1, 4);
+      return addDays(jan4, (w - 1) * 7 - ((jan4.getUTCDay() + 6) % 7));
+    }
+    const mondayOf = (k) => {
+      const d = u.start(k);
+      return addDays(d, -((d.getUTCDay() + 6) % 7));
+    };
+    function isoWeek(k) {
+      const thu = addDays(mondayOf(k), 3), y = thu.getUTCFullYear();
+      return `${y}-W${pad(Math.floor((thu - isoMonday(y, 1)) / (7 * DAY)) + 1)}`;
     }
     const keyOf = (v) => {
       const d = parseDate(v);
@@ -143,6 +158,7 @@
     const ends = (v) => (cfg.time ? { from: v.from && withTime(v.from, fromTime, "00:00"), to: v.to && withTime(v.to, toTime, "23:59") } : { from: v.from, to: v.to });
     // The dates a value covers, for `bindRange`.
     function rangeOf(v) {
+      if (week) return v ? { from: isoDay(mondayOf(v)), to: isoDay(addDays(mondayOf(v), 6)) } : null;
       if (mode === "range" && cfg.time) return v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null;
       if (mode === "range") return v.from ? { from: isoDay(u.start(v.from)), to: v.to ? isoDay(u.end(v.to)) : null } : null;
       if (mode === "multiple") return v.map((k) => ({ from: isoDay(u.start(k)), to: isoDay(u.end(k)) }));
@@ -151,7 +167,7 @@
       return { from: isoDay(u.start(v)), to: isoDay(u.end(v)) };
     }
     function write(v) {
-      const out = mode === "range" ? (v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null) : mode === "multiple" ? v : v && cfg.time ? `${v}T${time || "00:00"}` : v;
+      const out = week ? (v ? isoWeek(v) : null) : mode === "range" ? (v.from ? { ...ends(v), to: v.to ? ends(v).to : null } : null) : mode === "multiple" ? v : v && cfg.time ? `${v}T${time || "00:00"}` : v;
       // The previous period and last year's follow the range.
       const c = readCompare();
       if (c && c.type !== "custom") storeCompare({ type: c.type, ...derive(c.type, v) });
@@ -262,6 +278,11 @@
       }
       if (mode === "multiple") return v.length === 0 ? "" : v.length === 1 ? label(v[0]) : L("{n} selected", { n: v.length });
       if (!v) return "";
+      // Labels: "Week {n}, {year}"
+      if (week) {
+        const w = isoWeek(v), f = fmt("weekSpan", { month: "short", day: "numeric" });
+        return `${L("Week {n}, {year}", { n: +w.slice(6), year: w.slice(0, 4) })} (${f.format(mondayOf(v))} – ${f.format(addDays(mondayOf(v), 6))})`;
+      }
       return cfg.time && time ? `${label(v)}, ${timeText(time)}` : label(v);
     }
 
@@ -409,7 +430,8 @@
     function render(keepFocus) {
       const v = read(), lim = limits(), t = u.key(today());
       const focused = keepFocus ?? body.contains(document.activeElement);
-      const chosen = (k) => (mode === "range" ? k === v.from || k === v.to : mode === "multiple" ? v.includes(k) : k === v);
+      const sameWeek = (k) => week && !!v && isoWeek(k) === isoWeek(v);
+      const chosen = (k) => (week ? sameWeek(k) : mode === "range" ? k === v.from || k === v.to : mode === "multiple" ? v.includes(k) : k === v);
       // A range in progress shows up to the cell under the pointer.
       const span = (r, live) => (r?.from ? [r.from, r.to ?? (live ? hover : null) ?? r.from].sort((x, y) => u.start(x) - u.start(y)) : [null, null]);
       const [a, b] = mode === "range" ? span(v, !picking) : [null, null];
@@ -486,9 +508,9 @@
               "aria-current": k === t ? "date" : null,
               "data-today": k === t || null,
               "data-outside": outside || null,
-              "data-in-range": between(k) || null,
-              "data-range-start": a && k === a ? true : null,
-              "data-range-end": b && k === b ? true : null,
+              "data-in-range": between(k) || (sameWeek(k) && isoDay(mondayOf(k)) !== k && isoDay(addDays(mondayOf(k), 6)) !== k) || null,
+              "data-range-start": (a && k === a) || (sameWeek(k) && isoDay(mondayOf(k)) === k) || null,
+              "data-range-end": (b && k === b) || (sameWeek(k) && isoDay(addDays(mondayOf(k), 6)) === k) || null,
               "data-compare": compared(k) || null,
               "data-compare-start": ca && k === ca ? true : null,
               "data-compare-end": cb && k === cb ? true : null,
@@ -575,8 +597,8 @@
       focus = k;
       const v = read();
       if (mode === "single") {
-        write(k);
-        say(L("{date} selected", { date: label(k, true) }));
+        write(week ? isoDay(mondayOf(k)) : k);
+        say(week ? L("{date} selected", { date: display(k) }) : L("{date} selected", { date: label(k, true) }));
         if (popover && cfg.closeOnSelect) close();
       } else if (mode === "multiple") {
         write(v.includes(k) ? v.filter((x) => x !== k) : [...v, k].sort((x, y) => u.start(x) - u.start(y)));

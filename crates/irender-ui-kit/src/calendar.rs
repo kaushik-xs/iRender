@@ -15,16 +15,16 @@ use std::sync::LazyLock;
 
 const SCRIPT: &str = include_str!("calendar.js");
 
-pub(crate) const PICKERS: &[&str] = &["day", "month", "quarter", "year"];
+pub(crate) const PICKERS: &[&str] = &["day", "week", "month", "quarter", "year"];
 pub(crate) const MODES: &[&str] = &["single", "range", "multiple"];
 
 /// Props both components take.
 macro_rules! calendar_props {
     ($($extra:expr),* $(,)?) => {
         &[
-            PropDef::new("bind", PropKind::StateKey, "State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range` (with `time`, `{ from: 2026-03-02T09:00, to: 2026-03-06T17:00 }`), a list with `multiple`"),
+            PropDef::new("bind", PropKind::StateKey, "State key holding the value: `2026-03-01` (with `time`, `2026-03-01T14:30`; `2026-W09` (an ISO week), `2026-03`, `2026-Q1` or `2026` for the other pickers), `{ from, to }` with `mode: range` (with `time`, `{ from: 2026-03-02T09:00, to: 2026-03-06T17:00 }`), a list with `multiple`"),
             PropDef::new("value", PropKind::Any, "Starting value, when not bound"),
-            PropDef::new("picker", PropKind::Enum(PICKERS), "What is picked: `day` (default), `month`, `quarter` or `year`"),
+            PropDef::new("picker", PropKind::Enum(PICKERS), "What is picked: `day` (default), `week` (a whole week, Monday to Sunday, from the days), `month`, `quarter` or `year`"),
             PropDef::new("mode", PropKind::Enum(MODES), "`single` (default), `range` or `multiple`"),
             PropDef::new("time", PropKind::Bool, "A time as well as the day: one, or with `mode: range` a start and an end time (days only, not `multiple`)"),
             PropDef::new("step", PropKind::Number, "With `time`, minutes between times (default 1)"),
@@ -413,6 +413,9 @@ fn config(cx: &RenderCx<'_>, node: &Node, picker: bool) -> Result<Json, RenderEr
     if picker && flag("input").unwrap_or(false) && mode == "multiple" {
         return Err(RenderError::new(node, "`input` takes one value or a range, not `multiple`"));
     }
+    if kind == "week" && (mode != "single" || flag("input").unwrap_or(false)) {
+        return Err(RenderError::new(node, "`picker: week` picks one week: not with `mode: range`, `multiple` or `input`"));
+    }
     if time && (kind != "day" || mode == "multiple") {
         return Err(RenderError::new(node, "`time` goes with days (`picker: day`), one or a range, not `multiple`"));
     }
@@ -620,6 +623,7 @@ impl Component for DatePicker {
             None => match (config["mode"].as_str(), config["picker"].as_str()) {
                 (Some("range"), _) => cx.label("Pick a range"),
                 (Some("multiple"), _) => cx.label("Pick dates"),
+                (_, Some("week")) => cx.label("Pick a week"),
                 (_, Some("month")) => cx.label("Pick a month"),
                 (_, Some("quarter")) => cx.label("Pick a quarter"),
                 (_, Some("year")) => cx.label("Pick a year"),
