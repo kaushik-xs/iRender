@@ -72,11 +72,32 @@
     if (msg) say(msg);
     draw();
   }
+  // ---- the selected topic's note, edited under the map
+  const notes = h("div", { "data-mm-note": true, hidden: true });
+  const noteId = `${cfg.id}-note`;
+  // Labels: "Note"
+  const noteBox = h("textarea", { id: noteId, rows: "3" });
+  notes.append(h("label", { for: noteId }, L("Note")), noteBox);
+  if (!cfg.readOnly) stage.after(notes);
+  let noteFor = null;
+  function drawNote() {
+    const it = selected ? index(map()).get(selected) : null;
+    notes.hidden = !it;
+    if (!it) return;
+    if (noteFor !== selected || document.activeElement !== noteBox) noteBox.value = it.t.note ?? "";
+    noteFor = selected;
+  }
+  noteBox.addEventListener("change", () => {
+    const it = noteFor ? index(map()).get(noteFor) : null;
+    const v = noteBox.value.trim();
+    if (it && v !== (it.t.note ?? "")) commit(change(map(), noteFor, (t) => { const { note, ...rest } = t; return v ? { ...rest, note: v } : rest; }), v ? L("Note saved") : L("Note removed"));
+  });
   function select(id, quiet) {
     selected = id;
     if (cfg.bindSelected) api.set(cfg.bindSelected, id);
     paintSelection();
     drawBar();
+    drawNote();
     if (!quiet && id) {
       const it = index(map()).get(id);
       if (it) say(`${it.t.label}, ${L("level {n}", { n: it.depth + 1 })}${kids(it.t).length ? `, ${it.t.collapsed ? L("folded") : L("open")}` : ""}`);
@@ -87,10 +108,13 @@
   const ctx = document.createElement("canvas").getContext("2d");
   const font = (depth) => (depth === 0 ? "600 17px system-ui, sans-serif" : depth === 1 ? "600 14px system-ui, sans-serif" : "14px system-ui, sans-serif");
   const MAXW = 240, HGAP = 48, VGAP = 12;
+  // What a topic shows: its icon, its label, and a mark when it has a note.
+  const shownText = (t) => `${t.icon ? `${t.icon} ` : ""}${t.label ?? ""}`;
+  const NOTE = 16;
   function size(t, depth) {
     ctx.font = font(depth);
     const pad = depth === 0 ? 22 : 14, hh = depth === 0 ? 46 : depth === 1 ? 36 : 30;
-    const w = clamp(Math.ceil(ctx.measureText(String(t.label ?? "")).width) + 2 * pad, 56, MAXW);
+    const w = clamp(Math.ceil(ctx.measureText(shownText(t)).width) + 2 * pad + (t.note ? NOTE : 0), 56, MAXW);
     return { w, h: hh, pad };
   }
   function layout(root) {
@@ -197,21 +221,28 @@
       const g = s("g", {
         id: domId(id), "data-mm-topic": id, role: "treeitem", "aria-level": it.depth + 1, "aria-selected": selected === id ? "true" : "false",
         "aria-expanded": n ? (it.t.collapsed ? "false" : "true") : null, "aria-setsize": siblings.length, "aria-posinset": siblings.findIndex((x) => String(x.id) === id) + 1,
-        "aria-label": it.t.label,
+        "aria-label": shownText(it.t), "aria-description": it.t.note ? String(it.t.note) : null,
       });
       const fill = it.depth === 0 ? ink : it.depth === 1 ? `color-mix(in srgb, ${c} 16%, ${paper})` : paper;
       g.append(s("rect", { "data-mm-ring": true, x: b.x - 4, y: b.y - 4, width: b.w + 8, height: b.h + 8, rx: b.h / 2 + 4, fill: "none", stroke: "transparent", "stroke-width": 2.5 }));
       g.append(s("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: it.depth === 0 ? 12 : b.h / 2, fill, stroke: it.depth === 0 ? ink : c ?? ink, "stroke-width": it.depth === 0 ? 0 : it.depth === 1 ? 2 : 1.5 }));
       // The label, cut short with … when it's longer than a topic is wide.
       ctx.font = font(it.depth);
-      let text = String(it.t.label ?? "");
-      if (ctx.measureText(text).width > b.w - 2 * b.pad) {
-        while (text.length > 1 && ctx.measureText(`${text}…`).width > b.w - 2 * b.pad) text = text.slice(0, -1);
+      const room = b.w - 2 * b.pad - (it.t.note ? NOTE : 0);
+      let text = shownText(it.t);
+      if (ctx.measureText(text).width > room) {
+        while (text.length > 1 && ctx.measureText(`${text}…`).width > room) text = text.slice(0, -1);
         text = `${text}…`;
       }
-      const t = s("text", { x: b.x + b.w / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": it.depth === 0 ? 17 : 14, "font-weight": it.depth < 2 ? 600 : 400 });
+      const t = s("text", { x: b.x + (b.w - (it.t.note ? NOTE : 0)) / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": it.depth === 0 ? 17 : 14, "font-weight": it.depth < 2 ? 600 : 400 });
       t.textContent = text;
-      g.append(t, s("title", {}, document.createTextNode(String(it.t.label ?? ""))));
+      g.append(t, s("title", {}, document.createTextNode(shownText(it.t) + (it.t.note ? `\n\n${it.t.note}` : ""))));
+      // A topic with a note has a mark at its end.
+      if (it.t.note) {
+        const m = s("text", { "data-mm-has-note": true, x: b.x + b.w - b.pad / 2 - NOTE / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 12, opacity: 0.7 });
+        m.textContent = "≡";
+        g.append(m);
+      }
       // A folded topic says how many are inside.
       if (n && it.t.collapsed) {
         const cx = b.side < 0 ? b.x - 12 : b.x + b.w + 12, cy = b.y + b.h / 2;
@@ -232,6 +263,7 @@
     }
     paint();
     drawBar();
+    drawNote();
   }
   function paintSelection() {
     for (const g of world.querySelectorAll("[data-mm-topic]")) {

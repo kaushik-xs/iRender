@@ -848,7 +848,7 @@ ui-whiteboard: A board without edges: draw with a pen, add sticky notes, shapes,
   id           any  Element id (default: derived from the document)
   children: no
 ui-mindmap: A mind map: a central topic with coloured branches on both sides; add, write, fold, move and delete topics from the keyboard or the mouse, pan, zoom, undo and export.
-  bind         statekey (required)  State key holding the map: the central topic, `{ id, label, children, collapsed, color }`, children the same
+  bind         statekey (required)  State key holding the map: the central topic, `{ id, label, icon, note, children, collapsed, color }`, children the same; `icon` is a character or emoji before the label, `note` longer text for the topic (edited under the map)
   bindSelected statekey  State key that gets the `id` of the topic selected
   layout       one of: balanced, right  `balanced` (default: branches on both sides) or `right`
   colors       any  Colours for the first branches, in turn (default eight)

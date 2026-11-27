@@ -14,9 +14,12 @@ state:
     children:
       - id: goals
         label: Goals
+        icon: "🎯"
+        note: Agreed at the October planning day; revisit after the first month in stores.
         children: [ { id: g1, label: Ratings above 4.5 }, { id: g2, label: Sign-up in under a minute }, { id: g3, label: Half the support tickets } ]
       - id: users
         label: Who it's for
+        icon: "👥"
         children: [ { id: u1, label: New customers }, { id: u2, label: Shop staff on the floor } ]
       - id: work
         label: Work

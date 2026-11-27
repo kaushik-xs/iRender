@@ -1442,6 +1442,9 @@ root: …
 `mindmap.js`
 
 ```yaml
+"Note": "Note"
+"Note saved": "Note saved"
+"Note removed": "Note removed"
 "level {n}": "level {n}"
 "folded": "folded"
 "open": "open"

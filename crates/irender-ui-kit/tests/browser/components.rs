@@ -344,6 +344,34 @@ root:
 
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
+fn mindmap_topics_have_icons_and_notes() {
+    check(
+        "mindmap-notes",
+        r##"
+state:
+  sel: null
+  map: { id: root, label: Launch, children: [ { id: a, label: Pricing, icon: "💰", note: Check with finance first }, { id: b, label: Docs } ] }
+root: { type: ui-mindmap, attrs: { id: mm }, props: { bind: map, bindSelected: sel } }
+"##,
+        r##"
+        const topic = (id) => $(`[data-mm-topic="${id}"]`), note = $("[data-mm-note]"), box = note.querySelector("textarea");
+        log(topic("a").getAttribute("aria-label"), topic("a").getAttribute("aria-description"), !!topic("a").querySelector("[data-mm-has-note]"), !!topic("b").querySelector("[data-mm-has-note]"));
+        log(topic("a").querySelector("text").textContent, topic("a").querySelector("title").textContent.replace(/\n+/g, " / "));
+        // The selected topic's note is under the map to edit; the central one starts selected.
+        log(note.hidden, box.value === "");
+        const pick = async (id) => { for (const t of ["pointerdown", "pointerup"]) topic(id).dispatchEvent(new PointerEvent(t, { bubbles: true, button: 0, pointerId: 1 })); topic(id).dispatchEvent(new MouseEvent("click", { bubbles: true })); await wait(30); };
+        await pick("a"); log(S().sel, box.value);
+        // A note written for another topic is saved on it, and marks it.
+        await pick("b");
+        box.value = "Ask Mei"; box.dispatchEvent(new Event("change")); await wait(30);
+        log(S().map.children[1].note, !!topic("b").querySelector("[data-mm-has-note]"));
+"##,
+        &["💰 Pricing Check with finance first true false", "💰 Pricing 💰 Pricing / Check with finance first", "false true", "a Check with finance first", "Ask Mei true"],
+    );
+}
+
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
 fn whiteboard_arrows_stay_joined_to_shapes() {
     check(
         "whiteboard-joins",

@@ -14,7 +14,7 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("mindmap.js");
 
 const PROPS: &[PropDef] = &[
-    PropDef::new("bind", PropKind::StateKey, "State key holding the map: the central topic, `{ id, label, children, collapsed, color }`, children the same").required(),
+    PropDef::new("bind", PropKind::StateKey, "State key holding the map: the central topic, `{ id, label, icon, note, children, collapsed, color }`, children the same; `icon` is a character or emoji before the label, `note` longer text for the topic (edited under the map)").required(),
     PropDef::new("bindSelected", PropKind::StateKey, "State key that gets the `id` of the topic selected"),
     PropDef::new("layout", PropKind::Enum(&["balanced", "right"]), "`balanced` (default: branches on both sides) or `right`"),
     PropDef::new("colors", PropKind::Any, "Colours for the first branches, in turn (default eight)"),
@@ -43,6 +43,13 @@ static MAP: LazyLock<StyleBlock> = LazyLock::new(|| {
         ("color", TEXT),
         ("font-size", fs!(14)),
     ])
+    .nest("& [data-mm-note]", pairs(&[("display", "grid"), ("gap", gap!(4)), ("padding", pad!(8)), ("border-top", BORDER), ("font-size", fs!(13))]))
+    .nest("& [data-mm-note][hidden]", pairs(&[("display", "none")]))
+    .nest(
+        "& [data-mm-note] textarea",
+        pairs(&[("min-height", "56px"), ("padding", pad!(6, 8)), ("border", BORDER), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", "var(--ui-bg, transparent)"), ("color", "inherit"), ("font", "inherit"), ("resize", "vertical")]),
+    )
+    .nest("& [data-mm-note] textarea:focus-visible", crate::forms::focus_ring())
     .nest("& [data-mm-bar]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(4)), ("padding", pad!(6, 8)), ("border-bottom", BORDER)]))
     .nest("& [data-mm-sep]", pairs(&[("width", "1px"), ("align-self", "stretch"), ("margin", "0 4px"), ("background", "var(--color-border)")]))
     .nest(
