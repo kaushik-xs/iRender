@@ -18,7 +18,7 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("form_builder.js");
 
 /// The kinds of field the palette offers, in its order.
-pub(crate) const TYPES: &[&str] = &["text", "textarea", "email", "number", "date", "select", "radio", "checkboxes", "checkbox", "section"];
+pub(crate) const TYPES: &[&str] = &["text", "textarea", "email", "number", "date", "phone", "time", "rating", "file", "select", "radio", "checkboxes", "checkbox", "section"];
 
 const PROPS: &[PropDef] = &[
     PropDef::new(
@@ -28,7 +28,8 @@ const PROPS: &[PropDef] = &[
     )
     .required(),
     PropDef::new("bindDocument", PropKind::StateKey, "State key that gets the form as an iRender document, kept up to date"),
-    PropDef::new("types", PropKind::Any, "The field types offered, from `text`, `textarea`, `email`, `number`, `date`, `select`, `radio`, `checkboxes`, `checkbox`, `section` (default all)"),
+    PropDef::new("types", PropKind::Any, "The field types offered, from `text`, `textarea`, `email`, `number`, `date`, `phone`, `time`, `rating`, `file`, `select`, `radio`, `checkboxes`, `checkbox`, `section` (default all)"),
+    PropDef::new("uploadUrl", PropKind::String, "Where the generated form's file fields send their files (default `/upload`)"),
     PropDef::new("submitLabel", PropKind::Any, "The generated form's submit button (default `Submit`)"),
     PropDef::new("endpoint", PropKind::String, "Where the generated form posts its answers (as JSON); without it, the form thanks the person instead"),
     PropDef::new("label", PropKind::Any, "Names the builder for screen readers (default `Form builder`)"),
@@ -155,8 +156,25 @@ static BUILDER: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [data-fb-legend]", pairs(&[("padding", "0"), ("margin-bottom", gap!(4))]))
     .nest("& [data-fb-choices]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(6)), ("margin", "0"), ("padding", "0"), ("border", "0")]))
     .nest("& [data-fb-row]", pairs(&[("display", "grid"), ("grid-template-columns", "1fr 1fr"), ("gap", gap!(8))]))
+    // A condition: the field, is / is not, the value and a button that takes it out.
+    .nest("& [data-fb-cond]", pairs(&[("display", "grid"), ("grid-template-columns", "auto minmax(0, 1fr) auto"), ("gap", gap!(6)), ("align-items", "center"), ("padding", pad!(8, 0)), ("border-top", BORDER)]))
+    .nest("& [data-fb-cond] > :first-child", pairs(&[("grid-column", "1 / -1")]))
+    .nest("& [data-fb-head-row]", pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "space-between"), ("gap", gap!(8))]))
+    .nest("& [data-fb-history] [data-fb-button]", pairs(&[("padding", pad!(2, 8)), ("font-size", fs!(12))]))
+    // Stars in the preview: the ones up to the pick filled.
+    .nest("& [data-fb-stars]", pairs(&[("display", "flex"), ("flex-direction", "row"), ("gap", gap!(2)), ("align-items", "center")]))
+    .nest("& [data-fb-stars] legend", pairs(&[("width", "100%")]))
+    .nest("& [data-fb-stars] label", pairs(&[("position", "relative"), ("font-size", fs!(22)), ("line-height", "1"), ("color", "color-mix(in srgb, var(--color-text) 25%, transparent)"), ("cursor", "pointer")]))
+    .nest("& [data-fb-stars] label[data-on], & [data-fb-stars] label:has(input:checked)", pairs(&[("color", "#f59e0b")]))
+    .nest("& [data-fb-stars] input", pairs(&[("position", "absolute"), ("opacity", "0"), ("inset", "0"), ("margin", "0"), ("cursor", "pointer")]))
+    .nest("& [data-fb-stars] label:has(input:focus-visible)", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px"), ("border-radius", "4px")]))
     // ---- preview and document
-    .nest("& [data-fb-preview]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(16)), ("max-width", sp!(560)), ("padding", pad!(20)), ("border", BORDER), ("border-radius", "var(--radius-card, var(--radius-lg))")]))
+    // The preview: six columns, a field across all of them unless it's a half or a third.
+    .nest("& [data-fb-preview]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(6, minmax(0, 1fr))"), ("gap", gap!(16)), ("max-width", sp!(640)), ("padding", pad!(20)), ("border", BORDER), ("border-radius", "var(--radius-card, var(--radius-lg))")]))
+    .nest("& [data-fb-preview] > *", pairs(&[("grid-column", "1 / -1")]))
+    .nest("& [data-fb-preview] > [data-fb-width=half]", pairs(&[("grid-column", "span 3")]))
+    .nest("& [data-fb-preview] > [data-fb-width=third]", pairs(&[("grid-column", "span 2")]))
+    .nest("@container (max-width: 480px)", pairs(&[]).nest("& [data-fb-preview] > [data-fb-width]", pairs(&[("grid-column", "1 / -1")])))
     .nest("& [data-fb-section-title]", pairs(&[("margin", concat!(gap!(8), " 0 0")), ("font-size", fs!(16)), ("font-weight", "var(--font-weight-semibold, 600)")]))
     .nest("& [data-fb-actions]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(8))]))
     .nest(
@@ -253,6 +271,7 @@ impl Component for FormBuilder {
             "types": types,
             "submitLabel": cx.prop(node, "submitLabel").filter(|v| !v.is_null()).map(|v| expr::stringify(&v)).unwrap_or_else(|| cx.label("Submit")),
             "endpoint": cx.prop_string(node, "endpoint"),
+            "uploadUrl": cx.prop_string(node, "uploadUrl"),
             "id": expr::stringify(&cx.eval(&id)),
         });
         let mut root = cx.element("div", node);

@@ -23,24 +23,44 @@
     return e;
   };
 
-  // Labels: "Short text", "Long text", "Email", "Number", "Date", "Dropdown", "One choice", "Several choices", "Yes or no", "Section"
+  // Labels: "Short text", "Long text", "Email", "Number", "Date", "Dropdown", "One choice", "Several choices", "Yes or no", "Section", "Phone", "Time", "Rating", "File"
   const KINDS = {
     text: ["Short text", "Aa"], textarea: ["Long text", "¶"], email: ["Email", "@"], number: ["Number", "#"], date: ["Date", "31"],
+    phone: ["Phone", "☎"], time: ["Time", "◷"], rating: ["Rating", "★"], file: ["File", "⇪"],
     select: ["Dropdown", "▾"], radio: ["One choice", "◉"], checkboxes: ["Several choices", "☑"], checkbox: ["Yes or no", "✓"], section: ["Section", "§"],
   };
   const kindName = (t) => L(KINDS[t]?.[0] ?? t);
   const CHOICES = new Set(["select", "radio", "checkboxes"]);
-  const PLACEHOLDER = new Set(["text", "textarea", "email", "number", "select"]);
-  const LIMITS = new Set(["number", "date"]);
+  const PLACEHOLDER = new Set(["text", "textarea", "email", "number", "select", "phone"]);
+  const LIMITS = new Set(["number", "date", "time"]);
+  // Labels: "Full width", "Half", "A third"
+  const WIDTHS = [["full", "Full width"], ["half", "Half"], ["third", "A third"]];
   const LENGTHS = new Set(["text", "textarea"]);
-  // A field shown only when an earlier one has an answer: `when: { field, value }`. A tick
-  // box's answer is `true`; several choices hold it when the value is one of theirs.
-  const holds = (f, list, a) => {
-    const w = f.when, of = w && list.find((x) => x.id === w.field);
+  // A field shown only when earlier ones have answers: `when: { field, value, not }`, or
+  // several, `when: { match: all | any, conditions: [{ field, value, not }] }`. A tick box's
+  // answer is `true`; several choices hold it when the value is one of theirs.
+  const conditions = (w) => (!isObj(w) ? [] : Array.isArray(w.conditions) ? w.conditions.filter(isObj) : w.field !== undefined ? [w] : []);
+  const matchOf = (w) => (isObj(w) && w.match === "any" ? "any" : "all");
+  const holdsOne = (c, list, a) => {
+    const of = list.find((x) => x.id === c.field);
     if (!of) return true;
     const v = a[of.id];
-    return of.type === "checkboxes" ? Array.isArray(v) && v.includes(w.value) : of.type === "checkbox" ? !!v === (w.value !== false) : v === w.value;
+    const yes = of.type === "checkboxes" ? Array.isArray(v) && v.includes(c.value) : of.type === "checkbox" ? !!v === (c.value !== false) : v === c.value;
+    return c.not ? !yes : yes;
   };
+  const holds = (f, list, a) => {
+    const cs = conditions(f.when).filter((c) => list.some((x) => x.id === c.field));
+    if (!cs.length) return true;
+    return matchOf(f.when) === "any" ? cs.some((c) => holdsOne(c, list, a)) : cs.every((c) => holdsOne(c, list, a));
+  };
+  // The fields a field's conditions name.
+  const names = (f) => conditions(f.when).map((c) => c.field);
+  // `when` with a field renamed, or left out (null), in its conditions.
+  function rewhen(w, from, to) {
+    const cs = conditions(w).map((c) => (c.field === from ? (to === null ? null : { ...c, field: to }) : c)).filter(Boolean);
+    if (!cs.length) return undefined;
+    return cs.length === 1 && !cs[0].not && matchOf(w) === "all" ? { field: cs[0].field, value: cs[0].value } : { match: matchOf(w), conditions: cs };
+  }
   const shownOf = (list, a) => list.filter((f) => holds(f, list, a));
   // State keys the generated document keeps for itself.
   const RESERVED = new Set(["errors", "submitted"]);
@@ -74,7 +94,36 @@
     drawCanvas();
     drawInspector();
   };
-  function write(next, also) {
+  // Undo and redo: the fields as they were before each change (typing in one box is one
+  // change, while it goes on).
+  const undo = [], redo = [];
+  let typing = null, typingAt = 0;
+  function remember(key) {
+    const now = Date.now();
+    if (key && key === typing && now - typingAt < 1500) return (typingAt = now);
+    typing = key ?? null;
+    typingAt = now;
+    undo.push(written ?? "[]");
+    if (undo.length > 100) undo.shift();
+    redo.length = 0;
+  }
+  // Labels: "Undone", "Redone", "Nothing to undo"
+  function back(from, to, said) {
+    if (!from.length) return say(L("Nothing to undo"));
+    to.push(written ?? "[]");
+    const list = JSON.parse(from.pop());
+    typing = null;
+    if (selected !== null && !list.some((f) => f.id === selected)) selected = list[0]?.id ?? null;
+    written = JSON.stringify(list);
+    api.set(cfg.bind, list);
+    publish(list);
+    api.emit("change", { value: list });
+    if (tab === "build") redraw();
+    else show(tab);
+    say(L(said));
+  }
+  function write(next, also, key) {
+    if (JSON.stringify(next) !== written) remember(key);
     written = JSON.stringify(next);
     api.set(cfg.bind, next);
     publish(next);
@@ -86,12 +135,12 @@
   function patch(id, p) {
     // A new key is followed by the fields shown only when this one has an answer.
     const renamed = p.id !== undefined && p.id !== id;
-    const list = fields().map((f) => (f.id === id ? { ...f, ...p } : renamed && f.when?.field === id ? { ...f, when: { ...f.when, field: p.id } } : f));
+    const list = fields().map((f) => (f.id === id ? { ...f, ...p } : renamed && names(f).includes(id) ? { ...f, when: rewhen(f.when, id, p.id) } : f));
     for (const f of list) for (const k of Object.keys(f)) if (f[k] === undefined || f[k] === "") delete f[k];
     write(list, () => {
       drawCanvas();
       if (tab === "preview") drawPreview();
-    });
+    }, `${id}:${Object.keys(p).join(",")}`);
   }
   function add(type, index) {
     const list = fields().slice(), f = make(type, list);
@@ -115,7 +164,7 @@
     const list = fields(), i = list.findIndex((f) => f.id === id);
     if (i < 0) return;
     // Fields shown only when this one had an answer are shown always.
-    const next = list.filter((f) => f.id !== id).map((f) => (f.when?.field === id ? (({ when, ...rest }) => rest)(f) : f)), gone = list[i];
+    const next = list.filter((f) => f.id !== id).map((f) => (names(f).includes(id) ? (({ when, ...rest }) => (rewhen(when, id, null) ? { ...rest, when: rewhen(when, id, null) } : rest))(f) : f)), gone = list[i];
     selected = next[Math.min(i, next.length - 1)]?.id ?? null;
     write(next, redraw);
     say(L("{name} deleted", { name: gone.label }));
@@ -142,7 +191,11 @@
       palette.append(h("button", { type: "button", draggable: "true", "data-fb-type": t, title: L("Add {type}, or drag it onto the form", { type: kindName(t) }) }, h("span", { "data-fb-glyph": true, "aria-hidden": "true" }, KINDS[t][1]), kindName(t)));
     }
     wrap.append(h("div", {}, h("p", { "data-fb-heading": true }, L("Add a field")), palette));
-    wrap.append(h("div", {}, h("p", { "data-fb-heading": true, id: `${cfg.id}-fields-title` }, L("The form")), h("div", { "data-fb-canvas": true, role: "list", "aria-labelledby": `${cfg.id}-fields-title` })));
+    // Labels: "Undo", "Redo"
+    const tools = h("div", { "data-fb-actions": true, "data-fb-history": true },
+      h("button", { type: "button", "data-fb-button": true, "data-fb-undo": true, onclick: () => back(undo, redo, "Undone"), title: "⌘Z / Ctrl+Z" }, L("Undo")),
+      h("button", { type: "button", "data-fb-button": true, "data-fb-redo": true, onclick: () => back(redo, undo, "Redone"), title: "⇧⌘Z / Ctrl+Y" }, L("Redo")));
+    wrap.append(h("div", {}, h("div", { "data-fb-head-row": true }, h("p", { "data-fb-heading": true, id: `${cfg.id}-fields-title` }, L("The form")), tools), h("div", { "data-fb-canvas": true, role: "list", "aria-labelledby": `${cfg.id}-fields-title` })));
     wrap.append(h("div", {}, h("p", { "data-fb-heading": true }, L("Field settings")), h("div", { "data-fb-inspector": true })));
     wrap.append(h("span", { id: `${cfg.id}-move-help`, hidden: true }, L("The arrow keys move it; drag it with a mouse or a finger.")));
     panel("build").replaceChildren(wrap);
@@ -226,12 +279,12 @@
       items.push(field("opts", L("Choices"), opts, L("One on each line.")));
     }
     if (LIMITS.has(f.type)) {
-      const type = f.type === "date" ? "date" : "number";
+      const type = f.type === "date" || f.type === "time" ? f.type : "number";
       const lo = h("input", { id: n("min"), type, value: f.min ?? "" }), hi = h("input", { id: n("max"), type, value: f.max ?? "" });
       const read = (i) => (i.value === "" ? undefined : type === "number" ? Number(i.value) : i.value);
       lo.addEventListener("input", () => patch(selected, { min: read(lo) }));
       hi.addEventListener("input", () => patch(selected, { max: read(hi) }));
-      items.push(h("div", { "data-fb-row": true }, field("min", f.type === "date" ? L("Earliest") : L("Lowest"), lo), field("max", f.type === "date" ? L("Latest") : L("Highest"), hi)));
+      items.push(h("div", { "data-fb-row": true }, field("min", f.type === "number" ? L("Lowest") : L("Earliest"), lo), field("max", f.type === "number" ? L("Highest") : L("Latest"), hi)));
     }
     if (LENGTHS.has(f.type)) {
       const lo = h("input", { id: n("minl"), type: "number", min: "0", value: f.minLength ?? "" }), hi = h("input", { id: n("maxl"), type: "number", min: "1", value: f.maxLength ?? "" });
@@ -248,24 +301,63 @@
       pm.addEventListener("input", () => patch(selected, { patternMessage: pm.value || undefined }));
       items.push(field("patmsg", L("Message when it doesn't match"), pm));
     }
-    // Shown only when an earlier field has an answer.
+    if (f.type === "rating") {
+      const stars = h("input", { id: n("stars"), type: "number", min: "2", max: "10", value: f.max ?? 5 });
+      stars.addEventListener("input", () => patch(selected, { max: stars.value === "" ? undefined : Math.max(2, Math.min(10, Math.round(Number(stars.value)))) }));
+      items.push(field("stars", L("Stars"), stars));
+    }
+    if (f.type === "file") {
+      const acc = text("accept", f.accept, { spellcheck: "false", "aria-describedby": `${n("accept")}-help` });
+      acc.addEventListener("input", () => patch(selected, { accept: acc.value || undefined }));
+      items.push(field("accept", L("Kinds of file"), acc, L("e.g. image/*,.pdf (empty: any)")));
+      const many = h("input", { type: "checkbox", id: n("many"), checked: f.multiple !== false });
+      many.addEventListener("change", () => patch(selected, { multiple: many.checked ? undefined : false }));
+      items.push(h("label", { "data-fb-check": true }, many, L("More than one file")));
+    }
+    if (!section) {
+      const width = h("select", { id: n("width") }, ...WIDTHS.map(([v, t]) => h("option", { value: v, selected: (f.width ?? "full") === v }, L(t))));
+      width.addEventListener("change", () => patch(selected, { width: width.value === "full" ? undefined : width.value }));
+      items.push(field("width", L("Width"), width, L("Half and third widths sit side by side on a wide screen.")));
+    }
+    // Shown only when earlier fields have answers: one condition or several, all or any.
     const before = fields().slice(0, fields().findIndex((x) => x.id === f.id)).filter((x) => x.type !== "section");
     if (before.length) {
-      const pick = h("select", { id: n("when") }, h("option", { value: "" }, L("Always")), ...before.map((x) => h("option", { value: x.id, selected: f.when?.field === x.id }, x.label)));
-      const of = before.find((x) => x.id === f.when?.field);
-      pick.addEventListener("change", () => {
-        const x = before.find((x) => x.id === pick.value);
-        patch(selected, { when: x ? { field: x.id, value: x.type === "checkbox" ? true : CHOICES.has(x.type) ? (x.options ?? [])[0] ?? "" : "" } : undefined });
+      const cs = conditions(f.when).filter((c) => before.some((x) => x.id === c.field));
+      const save = (list, match = matchOf(f.when)) => {
+        patch(selected, { when: !list.length ? undefined : list.length === 1 && !list[0].not ? { field: list[0].field, value: list[0].value } : { match, conditions: list } });
         drawInspector();
+      };
+      const first = (x) => (x.type === "checkbox" ? true : CHOICES.has(x.type) ? (x.options ?? [])[0] ?? "" : "");
+      // Labels: "Show only when", "Always", "Add a condition", "is", "is not", "Remove this condition", "All of these", "Any of these"
+      const rows = cs.map((c, k) => {
+        const of = before.find((x) => x.id === c.field);
+        const pick = h("select", { id: n(`when${k}`), "aria-label": L("Field") }, ...before.map((x) => h("option", { value: x.id, selected: c.field === x.id }, x.label)));
+        pick.addEventListener("change", () => {
+          const x = before.find((y) => y.id === pick.value);
+          save(cs.map((d, j) => (j === k ? { field: x.id, value: first(x), ...(d.not ? { not: true } : {}) } : d)));
+        });
+        const op = h("select", { "aria-label": L("is") }, h("option", { value: "is", selected: !c.not }, L("is")), h("option", { value: "not", selected: !!c.not }, L("is not")));
+        op.addEventListener("change", () => save(cs.map((d, j) => (j === k ? { field: d.field, value: d.value, ...(op.value === "not" ? { not: true } : {}) } : d))));
+        let is;
+        if (of?.type === "checkbox") is = h("span", { "data-fb-help": true }, L("ticked"));
+        else if (of && CHOICES.has(of.type)) {
+          is = h("select", { id: n(`is${k}`), "aria-label": L("Value") }, ...(of.options ?? []).map((o) => h("option", { value: o, selected: c.value === o }, o)));
+          is.addEventListener("change", () => save(cs.map((d, j) => (j === k ? { ...d, value: is.value } : d))));
+        } else {
+          is = text(`is${k}`, c.value, { "aria-label": L("Value") });
+          is.addEventListener("change", () => save(cs.map((d, j) => (j === k ? { ...d, value: is.value } : d))));
+        }
+        const x = h("button", { type: "button", "data-fb-button": true, "aria-label": L("Remove this condition"), onclick: () => save(cs.filter((_, j) => j !== k)) }, "✕");
+        return h("div", { "data-fb-cond": true }, pick, op, is, x);
       });
-      items.push(field("when", L("Show only when"), pick));
-      if (of && of.type !== "checkbox") {
-        const is = CHOICES.has(of.type)
-          ? h("select", { id: n("is") }, ...(of.options ?? []).map((o) => h("option", { value: o, selected: f.when.value === o }, o)))
-          : text("is", f.when.value);
-        is.addEventListener(CHOICES.has(of.type) ? "change" : "input", () => patch(selected, { when: { field: of.id, value: is.value } }));
-        items.push(field("is", of.type === "checkboxes" ? L("Has picked") : L("Is"), is));
-      } else if (of) items.push(h("p", { "data-fb-help": true }, L("{label} is ticked.", { label: of.label })));
+      const add = h("button", { type: "button", "data-fb-button": true, "data-fb-add-cond": true, onclick: () => save([...cs, { field: before.at(-1).id, value: first(before.at(-1)) }]) }, L("Add a condition"));
+      const parts = [h("p", { "data-fb-heading": true }, cs.length ? L("Show only when") : L("Always"))];
+      if (cs.length > 1) {
+        const match = h("select", { id: n("match"), "aria-label": L("Show only when") }, h("option", { value: "all", selected: matchOf(f.when) === "all" }, L("All of these")), h("option", { value: "any", selected: matchOf(f.when) === "any" }, L("Any of these")));
+        match.addEventListener("change", () => save(cs, match.value));
+        parts.push(match);
+      }
+      items.push(h("div", { "data-fb-field": true, role: "group", "aria-label": L("Show only when") }, ...parts, ...rows, add));
     }
     if (!section) {
       const req = h("input", { type: "checkbox", id: n("req"), checked: !!f.required });
@@ -294,6 +386,12 @@
   });
   el.addEventListener("keydown", (e) => {
     const t = e.target;
+    // Undo and redo, where the keys aren't a text box's own.
+    if ((e.metaKey || e.ctrlKey) && !t.matches?.("input, textarea, select, [contenteditable]") && (e.key.toLowerCase() === "z" || e.key.toLowerCase() === "y")) {
+      e.preventDefault();
+      const again = e.key.toLowerCase() === "y" || e.shiftKey;
+      return again ? back(redo, undo, "Redone") : back(undo, redo, "Undone");
+    }
     // The tabs: arrows go along them, as tabs do.
     if (t.matches?.("[data-fb-tab]") && (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "Home" || e.key === "End")) {
       e.preventDefault();
@@ -418,6 +516,9 @@
       if (f.type === "number" && (f.max !== undefined && Number(v) > f.max)) out[f.id] = L("{label} must be at most {n}.", { label: f.label, n: f.max });
       if (f.type === "date" && f.min && v < f.min) out[f.id] = L("Pick a date on or after {date}.", { date: f.min });
       if (f.type === "date" && f.max && v > f.max) out[f.id] = L("Pick a date on or before {date}.", { date: f.max });
+      if (f.type === "time" && f.min && v < f.min) out[f.id] = L("Pick a time at or after {time}.", { time: f.min });
+      if (f.type === "time" && f.max && v > f.max) out[f.id] = L("Pick a time at or before {time}.", { time: f.max });
+      if (f.type === "phone" && !/^\+?[\d\s().-]{6,}$/.test(String(v))) out[f.id] = L("Enter a phone number, like +44 20 7946 0958.");
       if (LENGTHS.has(f.type) && f.minLength && String(v).length < f.minLength) out[f.id] = L("{label} needs at least {n} characters.", { label: f.label, n: f.minLength });
       if (LENGTHS.has(f.type) && f.maxLength && String(v).length > f.maxLength) out[f.id] = L("{label} can have at most {n} characters.", { label: f.label, n: f.maxLength });
       if (f.type === "text" && f.pattern) {
@@ -450,7 +551,7 @@
       const common = { id, "aria-describedby": described, "aria-invalid": err ? "true" : null, "aria-required": f.required ? "true" : null };
       const set = (v) => {
         answers[f.id] = v;
-        if (tried || list.some((x) => x.when?.field === f.id)) drawPreviewKeepingFocus();
+        if (tried || list.some((x) => names(x).includes(f.id))) drawPreviewKeepingFocus();
       };
       const title = [f.label, f.required ? h("span", { "data-fb-required": true, "aria-hidden": "true" }, " *") : null];
       let control;
@@ -470,19 +571,34 @@
             input.addEventListener("change", () => set(many ? (input.checked ? [...(answers[f.id] ?? []), o] : (answers[f.id] ?? []).filter((x) => x !== o)) : o));
             return h("label", { "data-fb-check": true, for: `${id}-${i}` }, input, o);
           }));
-        form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id }, group, help, err));
+        form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id, "data-fb-width": f.width ?? null }, group, help, err));
         continue;
       } else if (f.type === "checkbox") {
         const input = h("input", { ...common, type: "checkbox", checked: !!answers[f.id] });
         input.addEventListener("change", () => set(input.checked));
-        form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id }, h("label", { "data-fb-check": true, for: id }, input, ...title), help, err));
+        form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id, "data-fb-width": f.width ?? null }, h("label", { "data-fb-check": true, for: id }, input, ...title), help, err));
         continue;
+      } else if (f.type === "rating") {
+        // Stars as a row of radio buttons.
+        const max = f.max ?? 5, cur = answers[f.id] ?? 0;
+        const group = h("fieldset", { "data-fb-choices": true, "data-fb-stars": true, "aria-describedby": described, "aria-invalid": err ? "true" : null },
+          h("legend", { "data-fb-legend": true }, ...title),
+          ...Array.from({ length: max }, (_, i) => {
+            const input = h("input", { type: "radio", name: id, id: `${id}-${i}`, value: String(i + 1), checked: cur === i + 1, "aria-label": L(["{n} star", "{n} stars"], { n: i + 1 }) });
+            input.addEventListener("change", () => set(i + 1));
+            return h("label", { for: `${id}-${i}`, "data-on": i < cur || null }, input, h("span", { "aria-hidden": "true" }, "★"));
+          }));
+        form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id, "data-fb-width": f.width ?? null }, group, help, err));
+        continue;
+      } else if (f.type === "file") {
+        control = h("input", { ...common, type: "file", accept: f.accept ?? null, multiple: f.multiple !== false || null });
+        control.addEventListener("change", () => set([...control.files].map((x) => x.name)));
       } else {
-        const type = { email: "email", number: "number", date: "date" }[f.type] ?? "text";
+        const type = { email: "email", number: "number", date: "date", phone: "tel", time: "time" }[f.type] ?? "text";
         control = h("input", { ...common, type, placeholder: f.placeholder ?? null, min: f.min ?? null, max: f.max ?? null, value: answers[f.id] ?? "" });
         control.addEventListener("input", () => set(control.value === "" ? null : type === "number" ? Number(control.value) : control.value));
       }
-      form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id }, h("label", { for: id }, ...title), control, help, err));
+      form.append(h("div", { "data-fb-field": true, "data-fb-for": f.id, "data-fb-width": f.width ?? null }, h("label", { for: id }, ...title), control, help, err));
     }
     form.append(h("div", { "data-fb-actions": true }, h("button", { type: "submit", "data-fb-button": true, "data-primary": true }, cfg.submitLabel)));
     form.addEventListener("submit", (e) => {
@@ -527,7 +643,7 @@
         continue;
       }
       const id = f.id, bind = { bind: id };
-      state[id] = f.type === "checkboxes" ? [] : f.type === "checkbox" ? false : f.type === "text" || f.type === "textarea" || f.type === "email" ? "" : null;
+      state[id] = f.type === "checkboxes" || f.type === "file" ? [] : f.type === "checkbox" ? false : f.type === "text" || f.type === "textarea" || f.type === "email" ? "" : null;
       const rule = { label: f.label };
       if (f.required) rule.required = true;
       if (f.type === "email") rule.type = "email";
@@ -538,9 +654,15 @@
       if (LENGTHS.has(f.type) && f.maxLength) rule.maxLength = f.maxLength;
       if (f.type === "text" && f.pattern) rule.pattern = f.pattern;
       if (f.type === "text" && f.pattern && f.patternMessage) rule.message = f.patternMessage;
-      // Shown only when another field has an answer: in an `if`, required only while shown.
-      const of = f.when && list.find((x) => x.id === f.when.field);
-      const cond = !of ? null : of.type === "checkboxes" ? `includes(${of.id}, ${JSON.stringify(f.when.value)})` : of.type === "checkbox" ? (f.when.value === false ? `!${of.id}` : of.id) : `${of.id} == ${JSON.stringify(f.when.value)}`;
+      // Shown only when others have answers: in an `if`, required only while shown.
+      const one = (c) => {
+        const of = list.find((x) => x.id === c.field);
+        if (!of) return null;
+        const e = of.type === "checkboxes" ? `includes(${of.id}, ${JSON.stringify(c.value)})` : of.type === "checkbox" ? (c.value === false ? `!${of.id}` : of.id) : `${of.id} == ${JSON.stringify(c.value)}`;
+        return c.not ? `!(${e})` : e;
+      };
+      const parts = conditions(f.when).map(one).filter(Boolean);
+      const cond = !parts.length ? null : parts.length === 1 ? parts[0] : parts.map((x) => `(${x})`).join(matchOf(f.when) === "any" ? " || " : " && ");
       if (cond && rule.required) rule.required = `{{ ${cond} }}`;
       if (Object.keys(rule).length > 1) rules[id] = rule;
       const ph = f.placeholder ? { placeholder: f.placeholder } : {};
@@ -555,12 +677,23 @@
         radio: { type: "ui-radio-group", props: { ...bind, options: f.options ?? [] } },
         checkboxes: { type: "ui-toggle-group", props: { ...bind, multiple: true, variant: "outline", options: f.options ?? [] } },
         checkbox: { type: "ui-checkbox", props: { ...bind, label: f.label } },
+        phone: { type: "ui-phone-input", props: { ...bind, ...ph } },
+        time: { type: "ui-time-picker", props: { ...bind, ...limits } },
+        rating: { type: "ui-rating", props: { ...bind, ...(f.max ? { max: f.max } : {}) } },
+        file: { type: "ui-file-upload", props: { ...bind, url: cfg.uploadUrl ?? "/upload", ...(f.accept ? { accept: f.accept } : {}), ...(f.multiple === false ? { multiple: false } : {}) } },
       }[f.type];
       if (!control) continue;
       const props = { ...(f.type === "checkbox" ? {} : { label: f.label }), ...(f.description ? { description: f.description } : {}), error: `{{ errors.${id} }}` };
-      const one = { type: "ui-field", props, children: [control] };
-      into.push(cond ? { type: "if", props: { when: `{{ ${cond} }}` }, children: [one] } : one);
+      const node = { type: "ui-field", props, children: [control] };
+      const placed = cond ? { type: "if", props: { when: `{{ ${cond} }}` }, children: [node] } : node;
+      // Half and third widths: side by side in a row with the ones next to them.
+      if (f.width === "half" || f.width === "third") {
+        const last = into.at(-1);
+        if (last?.__row === f.width) last.children.push(placed);
+        else into.push({ type: "element", style: { display: "grid", "grid-template-columns": `repeat(auto-fit, minmax(${f.width === "half" ? 240 : 160}px, 1fr))`, gap: 16 }, children: [placed], __row: f.width });
+      } else into.push(placed);
     }
+    for (const n of [...top, ...top.flatMap((x) => x.children ?? [])]) delete n.__row;
     const ids = list.filter((f) => f.type !== "section").map((f) => f.id);
     state.errors = {};
     const button = { type: "ui-button", props: { label: cfg.submitLabel, type: "submit" } };
@@ -579,6 +712,97 @@
         { type: "if", props: { when: "{{ !submitted }}" }, children: [form] },
       ] },
     };
+  }
+  // The fields of a document `documentOf` made: its sections, fields, rules and the
+  // conditions of its `if`s, read back. Anything else is an error, said in words.
+  function fieldsFrom(doc) {
+    if (!isObj(doc) || !isObj(doc.root)) throw new Error(L("it has no `root`"));
+    const nodes = [], walk = (n, w) => {
+      if (!isObj(n)) return;
+      // The page's own: the thanks (left out) and the form while it's not sent (no condition).
+      if (n.type === "if" && /^\{\{\s*submitted\s*\}\}$/.test(n.props?.when ?? "")) return;
+      if (n.type === "if" && /^\{\{\s*!submitted\s*\}\}$/.test(n.props?.when ?? "")) return (n.children ?? []).forEach((c) => walk(c, w));
+      if (n.type === "if") return (n.children ?? []).forEach((c) => walk(c, n.props?.when));
+      if (n.type === "ui-form" || n.type === "stack" || n.type === "element") return (n.children ?? []).forEach((c) => walk(c, w));
+      if (n.type === "ui-form-section") return nodes.push({ section: n }), (n.children ?? []).forEach((c) => walk(c, w));
+      if (n.type === "ui-field") nodes.push({ field: n, when: w });
+    };
+    walk(doc.root);
+    const form = (function find(n) {
+      if (!isObj(n)) return null;
+      if (n.type === "ui-form") return n;
+      for (const c of n.children ?? []) {
+        const f = find(c);
+        if (f) return f;
+      }
+      return null;
+    })(doc.root);
+    const rules = form?.props?.rules ?? {};
+    const TYPE = { "ui-input": (c) => (c.props?.type === "email" ? "email" : "text"), "ui-textarea": () => "textarea", "ui-number-input": () => "number", "ui-date-picker": () => "date", "ui-select": () => "select", "ui-radio-group": () => "radio", "ui-toggle-group": () => "checkboxes", "ui-checkbox": () => "checkbox", "ui-phone-input": () => "phone", "ui-time-picker": () => "time", "ui-rating": () => "rating", "ui-file-upload": () => "file" };
+    // `a == "x"`, `includes(a, "x")`, `a`, `!a`, each maybe `!( … )`, joined by && or ||.
+    const cond = (text) => {
+      const m = /^\{\{\s*([\s\S]*?)\s*\}\}$/.exec(String(text ?? ""));
+      if (!m) return undefined;
+      const any = m[1].includes("||"), bits = m[1].split(any ? "||" : "&&").map((x) => x.trim().replace(/^\((.*)\)$/, "$1").trim());
+      const cs = bits.map((b) => {
+        let not = false;
+        let e = b;
+        const neg = /^!\((.*)\)$/.exec(e);
+        if (neg) (not = true), (e = neg[1].trim());
+        let r = /^includes\((\w+),\s*("(?:[^"\\]|\\.)*")\)$/.exec(e);
+        if (r) return { field: r[1], value: JSON.parse(r[2]), ...(not ? { not } : {}) };
+        r = /^(\w+)\s*==\s*(.+)$/.exec(e);
+        if (r) return { field: r[1], value: JSON.parse(r[2]), ...(not ? { not } : {}) };
+        r = /^(!?)(\w+)$/.exec(e);
+        if (r) return { field: r[2], value: r[1] !== "!", ...(not ? { not } : {}) };
+        throw new Error(L("a condition it can't read: {text}", { text: b }));
+      });
+      return cs.length === 1 && !cs[0].not ? { field: cs[0].field, value: cs[0].value } : { match: any ? "any" : "all", conditions: cs };
+    };
+    const out = [];
+    for (const x of nodes) {
+      if (x.section) {
+        const p = x.section.props ?? {};
+        out.push({ id: unique(slug(p.title ?? "section"), null, out), type: "section", label: p.title ?? "", ...(p.description ? { description: p.description } : {}) });
+        continue;
+      }
+      const c = (x.field.children ?? [])[0];
+      const kind = TYPE[c?.type]?.(c);
+      const id = c?.props?.bind;
+      if (!kind || !id) throw new Error(L("a field it doesn't know: {type}", { type: c?.type ?? "?" }));
+      const p = c.props ?? {}, r = rules[id] ?? {}, fp = x.field.props ?? {};
+      const f = { id, type: kind, label: kind === "checkbox" ? p.label ?? id : fp.label ?? r.label ?? id };
+      if (fp.description) f.description = fp.description;
+      if (p.placeholder) f.placeholder = p.placeholder;
+      if (Array.isArray(p.options)) f.options = p.options.map(String);
+      if (r.required) f.required = true;
+      for (const k of ["min", "max"]) if ((p[k] ?? r[k]) !== undefined && kind !== "rating") f[k] = p[k] ?? r[k];
+      if (kind === "rating" && p.max) f.max = p.max;
+      if (r.minLength) f.minLength = r.minLength;
+      if (r.maxLength) f.maxLength = r.maxLength;
+      if (r.pattern) f.pattern = r.pattern;
+      if (r.message) f.patternMessage = r.message;
+      if (kind === "file" && p.accept) f.accept = p.accept;
+      if (kind === "file" && p.multiple === false) f.multiple = false;
+      const w = cond(x.when);
+      if (w) f.when = w;
+      out.push(f);
+    }
+    // Widths: from the rows the fields sat in.
+    const widthOf = (n, w) => {
+      if (!isObj(n)) return;
+      if (n.type === "element" && /minmax\((\d+)px/.exec(n.style?.["grid-template-columns"] ?? "")) {
+        const px = Number(/minmax\((\d+)px/.exec(n.style["grid-template-columns"])[1]);
+        return (n.children ?? []).forEach((c) => widthOf(c, px <= 160 ? "third" : "half"));
+      }
+      if (n.type === "ui-field" && w) {
+        const f = out.find((x) => x.id === n.children?.[0]?.props?.bind);
+        if (f) f.width = w;
+      }
+      (n.children ?? []).forEach((c) => widthOf(c, w));
+    };
+    widthOf(doc.root);
+    return out;
   }
   // YAML for a document: block style, strings quoted where YAML would read them otherwise.
   function yaml(v) {
@@ -625,10 +849,33 @@
         say(L("Couldn't copy: select the text and copy it"));
       }
     } }, L("Copy"));
+    // Back the other way: a document this made (as JSON) into fields again.
+    // Labels: "Load a document", "Paste a form this builder made, as JSON, to go on with it.", "Load", "That isn't a form this builder made: {why}", "Loaded {n} fields"
+    const paste = h("textarea", { id: `${cfg.id}-load`, rows: "4", spellcheck: "false", "aria-describedby": `${cfg.id}-load-help` });
+    const loadErr = h("span", { "data-fb-error": true, id: `${cfg.id}-load-err`, hidden: true });
+    const load = h("button", { type: "button", "data-fb-button": true, "data-fb-load": true, onclick: () => {
+      try {
+        const got = fieldsFrom(JSON.parse(paste.value));
+        loadErr.hidden = true;
+        selected = got[0]?.id ?? null;
+        write(got, () => drawDocument());
+        say(L("Loaded {n} fields", { n: got.length }));
+      } catch (e) {
+        loadErr.hidden = false;
+        loadErr.textContent = L("That isn't a form this builder made: {why}", { why: e.message });
+        paste.setAttribute("aria-invalid", "true");
+        paste.setAttribute("aria-describedby", `${cfg.id}-load-help ${cfg.id}-load-err`);
+        paste.focus();
+      }
+    } }, L("Load"));
     panel("document").replaceChildren(
       h("div", { "data-fb-actions": true, style: null }, h("div", { "data-fb-actions": true, role: "group", "aria-label": L("Format") }, pick("yaml", "YAML"), pick("json", "JSON")), copy),
       h("p", { "data-fb-help": true }, L("A page of its own: render it with irender and the UI kit, or put its root in a page and its state beside the page's.")),
       h("pre", { tabindex: "0", "aria-label": L("The form as an iRender document") }, h("code", {}, text)),
+      h("details", { "data-fb-load-box": true }, h("summary", {}, L("Load a document")),
+        h("div", { "data-fb-field": true }, h("label", { for: `${cfg.id}-load` }, L("Load a document")), paste,
+          h("span", { "data-fb-help": true, id: `${cfg.id}-load-help` }, L("Paste a form this builder made, as JSON, to go on with it.")), loadErr),
+        h("div", { "data-fb-actions": true }, load)),
     );
   }
   function publish(list) {

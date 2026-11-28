@@ -822,7 +822,7 @@ root: { type: ui-form-builder, attrs: { id: fb }, props: { bind: fields, bindDoc
         log($("[data-fb-preview] pre").textContent.replace(/\s+/g, " "));
         // The inspector: Email's condition, and renaming Contact's key carries it along.
         $("[data-fb-tab=build]").click(); await wait(30);
-        $$("[data-fb-pick]")[1].click(); await wait(30); log($("[id$=-in-when]").value, $("[id$=-in-is]").value);
+        $$("[data-fb-pick]")[1].click(); await wait(30); log($("[id$=-in-when0]").value, $("[id$=-in-is0]").value);
         $$("[data-fb-pick]")[0].click(); await wait(30); const key = $("[id$=-in-key]"); key.value = "via"; key.dispatchEvent(new Event("change", { bubbles: true })); await wait(30);
         log(JSON.stringify(S().fields[1].when));
         log("DOC " + JSON.stringify(S().doc));
@@ -849,6 +849,95 @@ root: { type: ui-form-builder, attrs: { id: fb }, props: { bind: fields, bindDoc
     let text = json.to_string();
     assert!(text.contains(r#""when":"{{ via == \"Email\" }}""#) && text.contains(r#""required":"{{ via == \"Email\" }}""#), "{text}");
     assert!(text.contains(r#""pattern":"[A-Z]{2}[0-9]{2}""#) && text.contains(r#""maxLength":4"#), "{text}");
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let parsed = irender_core::parse(&text, Format::Json).unwrap_or_else(|d| panic!("{d}"));
+    let ir = engine.resolve(&parsed).unwrap_or_else(|d| panic!("{d}"));
+    engine.render(&ir, &serde_json::json!({})).unwrap();
+}
+
+/// `ui-form-builder`'s phone, time, rating and file fields, widths, conditions joined by
+/// any or all (and "is not"), undo and redo, and its document loaded back into fields.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn form_builder_combines_conditions_and_reads_its_document_back() {
+    let doc = r##"
+state:
+  doc: null
+  fields:
+    - { id: contact, type: radio, label: Contact by, options: [Email, Phone, Post] }
+    - { id: news, type: checkbox, label: Send news }
+    - { id: email, type: email, label: Email, required: true, when: { match: any, conditions: [ { field: contact, value: Email }, { field: news, value: true } ] } }
+    - { id: phone, type: phone, label: Phone, width: half, when: { conditions: [ { field: contact, value: Email, not: true }, { field: contact, value: Post, not: true } ] } }
+    - { id: best, type: time, label: Best time, width: half, min: "09:00", max: "17:00" }
+    - { id: stars, type: rating, label: How was it, max: 4 }
+    - { id: proof, type: file, label: Proof, accept: ".pdf", multiple: false }
+root: { type: ui-form-builder, attrs: { id: fb }, props: { bind: fields, bindDocument: doc, uploadUrl: /api/files } }
+"##;
+    let Some(result) = run(
+        "builder-more",
+        doc,
+        r##"
+        $("[data-fb-tab=preview]").click(); await wait(30);
+        const shown = () => $$("[data-fb-preview] [data-fb-for]").map((f) => f.dataset.fbFor + (f.dataset.fbWidth ? "/" + f.dataset.fbWidth : "")).join();
+        const radio = (v) => $(`[data-fb-preview] input[value="${v}"]`);
+        log(shown(), $$("[data-fb-stars] input").length, $("[data-fb-for=proof] input").type, $("[data-fb-for=proof] input").multiple, $("[data-fb-for=best] input").type);
+        radio("Phone").click(); await wait(30); log("phone", shown());
+        radio("Email").click(); await wait(30); log("email", shown());
+        radio("Post").click(); await wait(30); log("post", shown());
+        $("[data-fb-for=news] input").click(); await wait(30); log("news", shown());
+        // Undo and redo, from the build tab.
+        $("[data-fb-tab=build]").click(); await wait(30);
+        $$("[data-fb-pick]")[5].click(); await wait(30);
+        const label = $("[id$=-in-label]"); label.value = "Stars"; label.dispatchEvent(new Event("input", { bubbles: true })); await wait(30);
+        log("renamed", S().fields[5].label, S().fields[5].id);
+        $("[data-fb-undo]").click(); await wait(30); log("undone", S().fields[5].label, S().fields[5].id);
+        $("[data-fb-redo]").click(); await wait(30); log("redone", S().fields[5].label);
+        $("[data-fb-undo]").click(); await wait(30);
+        // The conditions in the inspector: two rows, joined by any.
+        $$("[data-fb-pick]")[2].click(); await wait(30);
+        log("conds", $$("[data-fb-cond]").length, $("[id$=-in-match]").value);
+        // The document, back into fields.
+        // Compared with their keys in order, and `match: all` (the default) said.
+        const norm = (list) => JSON.stringify(list.map((f) => Object.fromEntries(Object.entries({ ...f, ...(f.when?.conditions ? { when: { match: f.when.match ?? "all", conditions: f.when.conditions } } : {}) }).sort(([a], [b]) => (a < b ? -1 : 1)))));
+        const before = norm(S().fields);
+        $("[data-fb-tab=document]").click(); await wait(30);
+        const paste = $("[id$=-load]"); paste.value = JSON.stringify(S().doc); $("[data-fb-load]").click(); await wait(30);
+        log("loaded", norm(S().fields) === before ? "same" : norm(S().fields));
+        // Drawn again after loading: the box is a new one.
+        $("[id$=-load]").value = '{"version":1,"root":{"type":"ui-field","children":[{"type":"ui-map"}]}}'; $("[data-fb-load]").click(); await wait(30);
+        log("bad", $("[data-fb-load-box] [data-fb-error]").textContent);
+        log("DOC " + JSON.stringify(S().doc));
+"##,
+    ) else {
+        return;
+    };
+    let mut lines: Vec<&str> = result.lines().collect();
+    let exported = lines.pop().and_then(|l| l.strip_prefix("DOC ")).unwrap_or_else(|| panic!("no document:\n{result}")).to_string();
+    assert_eq!(
+        lines,
+        [
+            // Nothing picked: phone shows (it isn't Email, it isn't Post).
+            "contact,news,phone/half,best/half,stars,proof 4 file false time",
+            "phone contact,news,phone/half,best/half,stars,proof",
+            "email contact,news,email,best/half,stars,proof",
+            "post contact,news,best/half,stars,proof",
+            "news contact,news,email,best/half,stars,proof",
+            "renamed Stars stars",
+            "undone How was it stars",
+            "redone Stars",
+            "conds 2 any",
+            "loaded same",
+            "bad That isn't a form this builder made: a field it doesn't know: ui-map",
+        ],
+        "\n{result}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&exported).unwrap();
+    let text = json.to_string();
+    assert!(text.contains(r#""when":"{{ (contact == \"Email\") || (news) }}""#), "{text}");
+    assert!(text.contains(r#""when":"{{ (!(contact == \"Email\")) && (!(contact == \"Post\")) }}""#), "{text}");
+    assert!(text.contains(r#""type":"ui-rating","props":{"bind":"stars","max":4}"#) && text.contains(r#""url":"/api/files""#) && text.contains(r#""type":"ui-phone-input""#), "{text}");
+    assert!(text.contains(r#""grid-template-columns":"repeat(auto-fit, minmax(240px, 1fr))""#), "{text}");
     let mut engine = Engine::new();
     irender_ui_kit::register(&mut engine.registry);
     let parsed = irender_core::parse(&text, Format::Json).unwrap_or_else(|d| panic!("{d}"));

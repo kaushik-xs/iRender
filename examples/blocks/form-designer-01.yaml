@@ -14,14 +14,19 @@ state:
   formDoc: null
   fields:
     - { id: about_you, type: section, label: About you, description: We keep this for 30 days. }
-    - { id: full_name, type: text, label: Full name, required: true, placeholder: As on your ID }
-    - { id: company, type: text, label: Company }
+    - { id: full_name, type: text, label: Full name, required: true, placeholder: As on your ID, width: half }
+    - { id: company, type: text, label: Company, width: half }
+    - { id: phone, type: phone, label: Mobile, description: For a text when your host is on the way. }
     - { id: email, type: email, label: Email, required: true, description: We send your badge here. }
     - { id: your_visit, type: section, label: Your visit }
     - { id: host, type: select, label: Who are you here to see?, required: true, options: [Reception, Facilities, Finance, Sales], placeholder: Pick a team }
-    - { id: arriving, type: date, label: Arriving on, required: true, min: "2026-11-23" }
+    - { id: arriving, type: date, label: Arriving on, required: true, min: "2026-11-23", width: half }
+    - { id: at, type: time, label: At about, min: "08:00", max: "18:00", width: half }
     - { id: needs, type: checkboxes, label: Anything you need?, options: [Parking, Step-free access, A guest Wi-Fi code] }
     - { id: plate, type: text, label: Car registration, required: true, placeholder: AB12 CDE, maxLength: 8, when: { field: needs, value: Parking } }
+    # Shown for visitors to Finance or Facilities who aren't from a known company.
+    - { id: id_scan, type: file, label: A photo of your ID, accept: "image/*,.pdf", multiple: false, when: { match: any, conditions: [ { field: host, value: Finance }, { field: host, value: Facilities } ] } }
+    - { id: last_visit, type: rating, label: How was your last visit?, max: 5 }
     - { id: safety, type: checkbox, label: I've read the site's safety notes, required: true }
 root:
   type: stack
