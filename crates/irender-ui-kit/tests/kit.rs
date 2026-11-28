@@ -1576,6 +1576,17 @@ fn gauge_structure_and_mistakes() {
     assert!(err(json!({ "value": 1, "bands": [{ "tone": "danger" }, { "to": 90, "tone": "success" }] })).contains("only the last band"));
     assert!(err(json!({ "value": 1, "decimals": 1.5 })).contains("`decimals` is a whole number"));
     assert!(err(json!({ "value": 1, "ticks": 1 })).contains("`ticks` is a whole number of parts"));
+    // Tick numbers: inside the marks, the ends left to the scale unless it's off.
+    let ticked = |extra: Json| {
+        let mut props = json!({ "value": 40, "ticks": 4, "tickLabels": true });
+        props.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        plain(&render_with(json!({ "type": "ui-gauge", "props": props }), json!({}), json!({})).unwrap().body)
+    };
+    let body = ticked(json!({}));
+    assert_eq!(body.matches("data-gauge-tick").count(), 3, "{body}");
+    assert!(body.contains(">25</span>") && body.contains(">50</span>") && body.contains(">75</span>"), "{body}");
+    assert_eq!(ticked(json!({ "scale": false, "max": 1, "decimals": 2 })).matches("data-gauge-tick").count(), 5);
+    assert!(ticked(json!({ "scale": false, "max": 1, "decimals": 2 })).contains(">0.25</span>"));
     assert!(err(json!({ "value": 1, "bands": [{ "to": 60, "tone": "danger" }, { "to": 40, "tone": "success" }] })).contains("must be above 60"));
 }
 

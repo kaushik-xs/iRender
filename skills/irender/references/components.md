@@ -768,6 +768,7 @@ ui-gauge: A figure on a dial from `min` to `max`, with coloured bands, a target 
   text         any  In the middle in place of the value, e.g. a formatted one; empty for none
   decimals     number  The figure rounded to this many decimals, 0–10 (also when it follows state)
   ticks        number  Marks dividing the dial into this many equal parts, 2–20
+  tickLabels   bool  With `ticks`: each mark's value inside it (the ends' too when `scale` is off), rounded to `decimals`
   bands        any  Coloured stretches of the dial, in order: `{ to, tone, label }`, the last without `to` running to `max`. The value takes the tone of the band it's in
   tone         one of: neutral, info, success, warning, danger, primary  The value's colour (default: its band's, else `primary`)
   target       any  A mark across the dial at this value; may use state

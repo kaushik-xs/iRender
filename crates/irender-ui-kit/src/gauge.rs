@@ -22,6 +22,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("text", PropKind::Any, "In the middle in place of the value, e.g. a formatted one; empty for none"),
     PropDef::new("decimals", PropKind::Number, "The figure rounded to this many decimals, 0–10 (also when it follows state)"),
     PropDef::new("ticks", PropKind::Number, "Marks dividing the dial into this many equal parts, 2–20"),
+    PropDef::new("tickLabels", PropKind::Bool, "With `ticks`: each mark's value inside it (the ends' too when `scale` is off), rounded to `decimals`"),
     PropDef::new(
         "bands",
         PropKind::Any,
@@ -100,6 +101,7 @@ static GAUGE: LazyLock<StyleBlock> = LazyLock::new(|| {
             "& [data-gauge-end]",
             pairs(&[("position", "absolute"), ("transform", "translateX(-50%)"), ("color", MUTED), ("font-size", fs!(11)), ("font-variant-numeric", "tabular-nums"), ("line-height", "1")]),
         )
+        .nest("& [data-gauge-tick]", pairs(&[("position", "absolute"), ("transform", "translate(-50%, -50%)"), ("color", MUTED), ("font-variant-numeric", "tabular-nums"), ("line-height", "1"), ("white-space", "nowrap")]))
         .nest("& [data-gauge-caption]", pairs(&[("margin-top", gap!(4)), ("color", MUTED), ("font-size", fs!(13)), ("text-align", "center")])),
         "&",
     )
@@ -243,7 +245,10 @@ impl Component for Gauge {
         // ---- geometry: a circle of radius r about (c, c), the dial from a0 to a1 degrees
         // (clockwise from 3 o'clock), and the box down to the dial's lowest point.
         let c = size / 2.0;
-        let r = c - thick / 2.0 - 2.0;
+        // Tick numbers go round the outside: the dial is drawn smaller to leave them room.
+        let tick_labels = ticks.is_some() && cx.prop(node, "tickLabels").is_some_and(|v| expr::truthy(&v));
+        let small = (font * 0.5).clamp(9.0, 13.0);
+        let r = c - thick / 2.0 - 2.0 - if tick_labels { small * 1.4 } else { 0.0 };
         let (a0, a1, large) = if half { (180.0_f64, 360.0_f64, 0) } else { (150.0_f64, 390.0_f64, 1) };
         let at = |a: f64| (c + r * a.to_radians().cos(), c + r * a.to_radians().sin());
         let ((x0, y0), (x1, y1)) = (at(a0), at(a1));
@@ -352,6 +357,33 @@ impl Component for Gauge {
         }
         cx.close("span");
 
+        // Each tick's value, round the outside; the ends are the scale's when it's shown.
+        // Crowded, every other one (or fewer) is numbered.
+        if let Some(k) = ticks.filter(|_| tick_labels) {
+            let lang = cx.labels().lang.clone();
+            let radius = r + thick / 2.0 + small * 0.8;
+            let value_at = |i: u32| {
+                let v = min + (max - min) * f64::from(i) / f64::from(k);
+                decimals.map_or((v * 1e6).round() / 1e6, |d| (v * 10f64.powi(d as i32)).round() / 10f64.powi(d as i32))
+            };
+            let widest = (0..=k).map(|i| irender_core::labels::number(lang.as_deref(), value_at(i)).chars().count()).max().unwrap_or(1) as f64;
+            let room = radius * (a1 - a0).to_radians() / f64::from(k);
+            let step = ((widest * small * 0.62 + 6.0) / room).ceil().max(1.0) as u32;
+            for i in 0..=k {
+                if (scale && (i == 0 || i == k)) || i % step != 0 {
+                    continue;
+                }
+                let v = value_at(i);
+                let a = (a0 + (a1 - a0) * f64::from(i) / f64::from(k)).to_radians();
+                let mut e = Element::new("span");
+                e.attr("data-gauge-tick", true)
+                    .attr("aria-hidden", "true")
+                    .base_style(StyleBlock::new().set("left", format!("{}px", n(c + radius * a.cos()))).set("top", format!("{}px", n(c + radius * a.sin()))).set("font-size", format!("{}px", n(small))))
+                    .text(lit(irender_core::labels::number(lang.as_deref(), v)));
+                cx.open(&e, node)?;
+                cx.close("span");
+            }
+        }
         if scale {
             let lang = cx.labels().lang.clone();
             for (x, v) in [(x0, min), (x1, max)] {

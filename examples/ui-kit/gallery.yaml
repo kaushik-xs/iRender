@@ -2570,7 +2570,7 @@ root:
                         caption: Overall equipment effectiveness
                         bands: [{ to: 60, tone: danger, label: Poor }, { to: 85, tone: warning, label: Fair }, { tone: success, label: Good }]
                     - type: ui-gauge
-                      props: { value: "{{ gaugeOil }}", min: 20, max: 120, unit: °C, shape: half, needle: true, caption: Oil temperature, bands: [{ to: 80, tone: success }, { to: 100, tone: warning }, { tone: danger }] }
+                      props: { value: "{{ gaugeOil }}", min: 20, max: 120, unit: °C, shape: half, needle: true, ticks: 5, tickLabels: true, caption: Oil temperature, bands: [{ to: 80, tone: success }, { to: 100, tone: warning }, { tone: danger }] }
                     - { type: ui-gauge, props: { value: 38, unit: "%", size: 120, caption: Disk used } }
                     - { type: ui-gauge, props: { value: 4.2, max: 5, text: "4.2", unit: "/ 5", size: 120, tone: info, scale: false, caption: Customer rating } }
                 - type: element
