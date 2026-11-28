@@ -784,6 +784,7 @@ ui-sortable-list: A list in state put in order by dragging each item's grip, or 
   bind         statekey (required)  State key holding the list, in order: plain values or objects
   itemKey      string  With objects, the field that tells them apart (default `id`)
   labelField   string  With objects, the field shown and read out for each (default `label`)
+  group        string  Lists with the same group take items from each other: dragged across, or picked up and moved with ←/→ (`transfer` fires on both)
   numbered     bool  Each item's place before it: 1, 2, 3
   removable    bool  A button on each item that takes it out of the list
   emptyText    any  Shown while the list is empty (default `Nothing here yet`)

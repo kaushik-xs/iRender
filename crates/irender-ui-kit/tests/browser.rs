@@ -8661,6 +8661,59 @@ fn form_builder_every_type_in_chrome() {
     }
 }
 
+/// Two `ui-sortable-list`s in one `group`: an item dragged from one to the other, and one
+/// picked up and moved across with the arrow keys; `transfer` on both.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sortable_lists_share_items_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "todo": [{ "id": "a", "label": "Alpha" }, { "id": "b", "label": "Bravo" }], "done": [{ "id": "c", "label": "Charlie" }], "moves": 0 },
+        "root": { "type": "stack", "props": { "direction": "row", "gap": 24 }, "style": { "align-items": "flex-start" }, "children": [
+            { "type": "ui-sortable-list", "attrs": { "id": "l" }, "props": { "bind": "todo", "group": "board", "label": "To do" }, "style": { "width": 220 },
+              "on": { "transfer": { "action": "set_state", "key": "moves", "value": "{{ moves + 1 }}" } } },
+            { "type": "ui-sortable-list", "attrs": { "id": "r" }, "props": { "bind": "done", "group": "board", "label": "Done" }, "style": { "width": 220 } } ] } });
+    let driver = r##"<style>* { transition: none !important; }</style><script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const api = document.querySelector("[data-i-root]").__irender, S = () => api.state;
+      const l = document.getElementById("l"), r = document.getElementById("r");
+      const grip = (el, k) => el.querySelector(`[data-sl-item="${k}"] [data-sl-grip]`);
+      const key = (target, k) => target.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+      const lists = () => S().todo.map((x) => x.id).join("") + "/" + S().done.map((x) => x.id).join("");
+      try {
+        // Bravo dragged onto Done, above Charlie.
+        const g = grip(l, "b"), from = g.getBoundingClientRect(), c = r.querySelector('[data-sl-item="c"]').getBoundingClientRect();
+        const p = (type, x, y) => g.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 3, pointerType: "mouse", button: 0, isPrimary: true, clientX: x, clientY: y }));
+        p("pointerdown", from.left + 4, from.top + 4);
+        p("pointermove", from.left + 30, from.top + 10);
+        p("pointermove", c.left + 20, c.top + 3); await wait(5);
+        log("over", [...r.querySelectorAll("[data-sl-drop]")].map((li) => li.dataset.slItem + ":" + li.dataset.slDrop).join(","));
+        p("pointerup", c.left + 20, c.top + 3); await wait(20);
+        log("dragged", lists(), S().moves, r.querySelector("[data-sl-live]").textContent);
+        // Alpha, picked up, goes right with the arrow key and down to the end, still picked up there.
+        grip(l, "a").focus(); key(grip(l, "a"), " "); await wait(10);
+        key(document.activeElement, "ArrowRight"); await wait(20);
+        log("across", lists(), document.activeElement === grip(r, "a"), !!r.querySelector('[data-sl-item="a"][data-sl-picked]'));
+        key(document.activeElement, "End"); await wait(10); key(document.activeElement, " "); await wait(10);
+        log("down", lists(), S().moves);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("sortable-group", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["over c:before", "dragged a/bc 1 Bravo moved to Done, 1 of 2", "across /abc true true", "down /bca 2"],
+        "\n{result}"
+    );
+}
+
 /// `ui-sortable-list`: the keyboard (pick up, move, put down, put back; Alt and the arrows),
 /// dragging a grip with a pointer, removing, plain values, and each item's own content.
 #[test]
@@ -8705,7 +8758,8 @@ fn sortable_list_in_chrome() {
         p("pointermove", from.top + 20);
         const below = r("b").bottom - 2;
         p("pointermove", below); await wait(5);
-        log("dragging", !!t.querySelector("[data-sl-dragging]"), [...t.querySelectorAll("[data-sl-drop]")].map((li) => li.dataset.slItem + ":" + li.dataset.slDrop).join(","));
+        // The others make way: Delta slides down to leave Charlie's place after Bravo.
+        log("dragging", !!t.querySelector("[data-sl-dragging]"), [...t.querySelectorAll("[data-sl-item]:not([data-sl-dragging])")].filter((li) => li.style.transform).map((li) => li.dataset.slItem + ":" + (parseFloat(li.style.transform.slice(11)) > 0 ? "down" : "up")).join(","));
         p("pointerup", below); await wait(10);
         log("dropped", order(), !!t.querySelector("[data-sl-dragging], [data-sl-drop]"));
 
@@ -8739,7 +8793,7 @@ fn sortable_list_in_chrome() {
             "alt abdc true",
             "end bdca Alpha put down at 4 of 4 false",
             // Charlie's grip dragged just under Bravo: it lands before Delta.
-            "dragging true d:before",
+            "dragging true d:down",
             "dropped bcda false",
             // Focus goes to the item after the one removed.
             "removed cda Bravo removed c 1Charlie (c)✕ | 2Delta (d)✕ | 3Alpha (a)✕",

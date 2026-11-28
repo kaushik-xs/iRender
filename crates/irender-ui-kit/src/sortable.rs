@@ -23,6 +23,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the list, in order: plain values or objects").required(),
     PropDef::new("itemKey", PropKind::String, "With objects, the field that tells them apart (default `id`)"),
     PropDef::new("labelField", PropKind::String, "With objects, the field shown and read out for each (default `label`)"),
+    PropDef::new("group", PropKind::String, "Lists with the same group take items from each other: dragged across, or picked up and moved with ←/→ (`transfer` fires on both)"),
     PropDef::new("numbered", PropKind::Bool, "Each item's place before it: 1, 2, 3"),
     PropDef::new("removable", PropKind::Bool, "A button on each item that takes it out of the list"),
     PropDef::new("emptyText", PropKind::Any, "Shown while the list is empty (default `Nothing here yet`)"),
@@ -53,7 +54,10 @@ static LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
                 ("transition", "box-shadow .15s, opacity .15s"),
             ]),
         )
-        .nest("& [data-sl-item][data-sl-dragging]", pairs(&[("opacity", "0.45")]))
+        // The item dragged follows the pointer, over the others, which make way for it.
+        .nest("& [data-sl-item][data-sl-dragging]", pairs(&[("position", "relative"), ("z-index", "2"), ("opacity", "0.9"), ("box-shadow", "var(--elevation-overlay, 0 8px 24px rgb(0 0 0 / 0.18))"), ("cursor", "grabbing")]))
+        .nest("&[data-sl-active] [data-sl-item]:not([data-sl-dragging])", pairs(&[("transition", "transform .15s ease")]))
+        .nest("@media (prefers-reduced-motion: reduce)", pairs(&[]).nest("&[data-sl-active] [data-sl-item]:not([data-sl-dragging])", pairs(&[("transition", "none")])))
         .nest(
             "& [data-sl-item][data-sl-picked]",
             pairs(&[("border-color", "var(--color-primary)"), ("box-shadow", "0 0 0 1px var(--color-primary), var(--elevation-popover, 0 6px 18px rgb(0 0 0 / 0.12))")]),
@@ -167,13 +171,17 @@ impl Component for SortableList {
         }
         let flag = |name: &str| cx.prop(node, name).is_some_and(|v| expr::truthy(&v));
         let (numbered, removable) = (flag("numbered"), flag("removable"));
+        let group = cx.prop_string(node, "group").filter(|g| !g.is_empty());
         cx.global_js("ui-sortable-list", SCRIPT);
 
         let mut root = cx.element("div", node);
         root.base_style_ref(&LIST).behavior(
             "ui-sortable-list",
-            json!({ "bind": key, "itemKey": if objects { Json::String(item_key.clone()) } else { Json::Null }, "labelField": if objects { Json::String(label_field.clone()) } else { Json::Null } }),
+            json!({ "bind": key, "group": group, "itemKey": if objects { Json::String(item_key.clone()) } else { Json::Null }, "labelField": if objects { Json::String(label_field.clone()) } else { Json::Null } }),
         );
+        if let Some(g) = &group {
+            root.attr("data-sl-group", g.clone());
+        }
         if let Some(d) = node.prop("disabled") {
             root.attr("data-disabled", d.clone());
         }
@@ -181,7 +189,12 @@ impl Component for SortableList {
         // How to move an item, read with each grip.
         let help = instance_help_id(cx, node);
         let mut h = Element::new("span");
-        h.attr("id", help.clone()).attr("data-sl-help", true).text(lit(cx.label("Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.")));
+        let help_text = if group.is_some() {
+            cx.label("Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.")
+        } else {
+            cx.label("Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.")
+        };
+        h.attr("id", help.clone()).attr("data-sl-help", true).text(lit(help_text));
         cx.open(&h, node)?;
         cx.close("span");
 

@@ -289,6 +289,8 @@ state:
     - { id: p3, label: Move reports to the new database, owner: Mei, tone: info }
     - { id: p4, label: Tidy the design tokens, owner: Kaushik, tone: neutral }
   menuOrder: [Home, Orders, Customers, Reports, Settings]
+  slShown: [Name, Email, Plan]
+  slHidden: [Phone, Company, Created]
   builtFields:
     - { id: name, type: text, label: Your name, required: true }
     - { id: email, type: email, label: Email, required: true }
@@ -1557,6 +1559,15 @@ root:
                         - { type: ui-label, props: { text: "Menu order, plain text" } }
                         - { type: ui-sortable-list, props: { bind: menuOrder, label: Menu order } }
                         - { type: ui-text, props: { variant: muted, text: "menuOrder = {{ menuOrder }}" } }
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - { type: ui-label, props: { text: "Two lists in one group: drag across, or pick up with Space and use ← →" } }
+                        - type: element
+                          style: { display: grid, grid-template-columns: "1fr 1fr", gap: 12 }
+                          children:
+                            - { type: ui-sortable-list, props: { bind: slShown, group: columns, label: Shown columns, emptyText: None shown } }
+                            - { type: ui-sortable-list, props: { bind: slHidden, group: columns, label: Hidden columns, emptyText: None hidden } }
                 - { type: if, props: { when: "{{ api.sortable_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.sortable_list }}", as: c }

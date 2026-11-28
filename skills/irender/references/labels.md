@@ -2024,6 +2024,7 @@ root: …
 `sortable.js`
 
 ```yaml
+"{name} moved to {list}, {n} of {total}": "{name} moved to {list}, {n} of {total}"
 "{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
 "{name} put back at {n}": "{name} put back at {n}"
 "{name} put down at {n} of {total}": "{name} put down at {n} of {total}"
@@ -2034,6 +2035,7 @@ root: …
 `sortable.rs`
 
 ```yaml
+"Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
 "Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
 "List": "List"
 "Nothing here yet": "Nothing here yet"

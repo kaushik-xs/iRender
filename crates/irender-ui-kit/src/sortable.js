@@ -3,7 +3,9 @@
 // moves the items. Each item's grip drags it (mouse, touch or pen alike, through pointer
 // events: the grip doesn't scroll), and from the keyboard Space picks it up, the arrows
 // move it and Space puts it down (Escape puts it back), or Alt and the arrows move it
-// straight away.
+// straight away. Lists with the same `group` take items from each other: dragged across,
+// or, picked up, ←/→ to the list before or after. While an item's dragged the others make
+// way for it, and moved items glide to their places (not with reduced motion).
 (window.__irenderBehaviors ||= {})["ui-sortable-list"] = (el, api) => {
   const cfg = api.config;
   const L = (text, vars) => window.__irender.label(text, vars);
@@ -17,6 +19,59 @@
   const items = () => [...el.querySelectorAll(":scope [data-sl-items] > [data-sl-item]")];
   const itemOf = (k) => items().find((li) => li.getAttribute("data-sl-item") === k);
   const off = () => el.hasAttribute("data-disabled") && el.getAttribute("data-disabled") !== "false";
+  const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Where each item is, before a change, so they can glide from there after it.
+  function flip() {
+    if (still()) return () => {};
+    const was = new Map(items().map((li) => [li.getAttribute("data-sl-item"), li.getBoundingClientRect().top]));
+    return () => queueMicrotask(() => {
+      for (const li of items()) {
+        const before = was.get(li.getAttribute("data-sl-item"));
+        if (before === undefined) continue;
+        const dy = before - li.getBoundingClientRect().top;
+        if (!dy) continue;
+        // Drawn where it was, then (after a layout) let go to glide to where it is.
+        li.style.transition = "none";
+        li.style.transform = `translateY(${dy}px)`;
+        void li.offsetHeight;
+        li.style.transition = "transform .18s ease";
+        li.style.transform = "";
+        li.addEventListener("transitionend", () => (li.style.transition = ""), { once: true });
+      }
+    });
+  }
+  // This list's handle, for the others in its group; and theirs, in the page's order.
+  el.__sl = { cfg, api, el, list, keyOf, nameOf, take: (it, to) => take(it, to) };
+  const group = () => (cfg.group ? [...document.querySelectorAll("[data-sl-group]")].filter((x) => x.getAttribute("data-sl-group") === cfg.group && x.__sl) : [el]);
+  // An item from another list of the group, put in at place `to`.
+  function take(it, to) {
+    const all = list(), next = all.slice();
+    to = Math.max(0, Math.min(all.length, to));
+    next.splice(to, 0, it);
+    const glide = flip();
+    api.set(cfg.bind, next);
+    api.emit("change", { value: next, added: it, to });
+    glide();
+    return to;
+  }
+  // The item `k` across to `other` (another list's handle) at place `to`.
+  function across(k, other, to) {
+    const all = list(), from = all.findIndex((v) => keyOf(v) === k);
+    if (from < 0 || other.el === el) return false;
+    const it = all[from], next = all.filter((_, i) => i !== from);
+    const glide = flip();
+    api.set(cfg.bind, next);
+    api.emit("change", { value: next, removed: it, to: other.cfg.bind });
+    glide();
+    const at = other.take(it, to);
+    api.emit("transfer", { item: it, from: cfg.bind, to: other.cfg.bind, at });
+    other.api.emit("transfer", { item: it, from: cfg.bind, to: other.cfg.bind, at });
+    // Labels: "{name} moved to {list}, {n} of {total}"
+    const name = other.el.querySelector("[data-sl-items]")?.getAttribute("aria-label") ?? other.cfg.bind;
+    const say2 = other.el.querySelector("[data-sl-live]");
+    if (say2) say2.textContent = L("{name} moved to {list}, {n} of {total}", { name: nameOf(it), list: name, n: at + 1, total: other.list().length });
+    return true;
+  }
 
   // The list with the item `k` at place `to`; written, said, and its grip focused again.
   function move(k, to, quiet) {
@@ -27,8 +82,10 @@
     const [it] = next.splice(from, 1);
     next.splice(to, 0, it);
     moving = true;
+    const glide = flip();
     api.set(cfg.bind, next);
     api.emit("change", { value: next, moved: it, from, to });
+    glide();
     if (!quiet) say(L("{name} moved to {n} of {total}", { name: nameOf(it), n: to + 1, total: next.length }));
     refocus(k);
     return true;
@@ -78,6 +135,15 @@
     } else if (step && (picked === k || e.altKey)) {
       e.preventDefault();
       move(k, at + step);
+    } else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && picked === k && cfg.group) {
+      // To the list before or after in the group, at the same place (or its end); it's
+      // still picked up there.
+      e.preventDefault();
+      const lists = group(), i = lists.indexOf(el), other = lists[i + (e.key === "ArrowRight" ? 1 : -1)]?.__sl;
+      if (!other) return;
+      picked = null;
+      itemOf(k)?.removeAttribute("data-sl-picked");
+      if (across(k, other, at)) queueMicrotask(() => other.el.__slPick?.(k));
     } else if ((e.key === "Home" || e.key === "End") && picked === k) {
       e.preventDefault();
       move(k, e.key === "Home" ? 0 : list().length - 1);
@@ -88,6 +154,17 @@
       all[i + step]?.querySelector("[data-sl-grip]")?.focus();
     }
   });
+  // Picked up here after coming across from another list.
+  el.__slPick = (k) => {
+    const li = itemOf(k);
+    if (!li) return;
+    picked = k;
+    pickedFrom = list().findIndex((v) => keyOf(v) === k);
+    li.setAttribute("data-sl-picked", "");
+    moving = true;
+    li.querySelector("[data-sl-grip]")?.focus();
+    moving = false;
+  };
   // Leaving a picked item puts it down where it is.
   el.addEventListener("focusout", (e) => {
     if (picked !== null && !moving && !el.contains(e.relatedTarget)) drop(false);
@@ -96,11 +173,15 @@
   // ---- dragging a grip
   let drag = null;
   function clearMarks() {
-    for (const li of items()) li.removeAttribute("data-sl-drop");
+    for (const x of group()) for (const li of x.querySelectorAll(":scope [data-sl-items] > [data-sl-item]")) {
+      li.removeAttribute("data-sl-drop");
+      if (li.getAttribute("data-sl-item") !== drag?.key || x !== el) li.style.transform = "";
+    }
   }
-  // Where the pointer would put the dragged item: the place, and the item to mark.
-  function target(y) {
-    const others = items().filter((li) => li.getAttribute("data-sl-item") !== drag.key);
+  // Where the pointer would put the dragged item: the place, and the item to mark, in
+  // `into` (this list, or another of the group).
+  function target(y, into = el) {
+    const others = [...into.querySelectorAll(":scope [data-sl-items] > [data-sl-item]")].filter((li) => into !== el || li.getAttribute("data-sl-item") !== drag.key);
     let to = others.length;
     for (const [i, li] of others.entries()) {
       const r = li.getBoundingClientRect();
@@ -118,23 +199,49 @@
     e.preventDefault();
     grip.focus({ preventScroll: true });
     const li = grip.closest("[data-sl-item]");
-    drag = { key: li.getAttribute("data-sl-item"), id: e.pointerId, y: e.clientY, moved: false, to: null, grip };
+    drag = { key: li.getAttribute("data-sl-item"), id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, to: null, grip, into: null };
     try {
       grip.setPointerCapture(e.pointerId);
     } catch {}
   });
   el.addEventListener("pointermove", (e) => {
     if (!drag || e.pointerId !== drag.id) return;
-    if (!drag.moved && Math.abs(e.clientY - drag.y) < 4) return;
+    if (!drag.moved && Math.abs(e.clientY - drag.y) < 4 && Math.abs(e.clientX - (drag.x ?? e.clientX)) < 4) return;
+    const me = itemOf(drag.key);
     if (!drag.moved) {
       drag.moved = true;
       el.setAttribute("data-sl-active", "");
-      itemOf(drag.key)?.setAttribute("data-sl-dragging", "");
+      me?.setAttribute("data-sl-dragging", "");
+      drag.h = (me?.getBoundingClientRect().height ?? 0) + parseFloat(getComputedStyle(el.querySelector("[data-sl-items]")).rowGap || "0");
+      drag.from = items().indexOf(me);
+      // The others' middles as they'd be without it, from the list's top, by their layout
+      // (not where they're drawn as they slide): where it lands is worked out from these.
+      const ol = el.querySelector("[data-sl-items]");
+      drag.mids = items().filter((li) => li !== me).map((li, j) => li.offsetTop - ol.offsetTop - (j >= drag.from ? drag.h : 0) + li.offsetHeight / 2);
     }
     clearMarks();
-    const { to, mark } = target(e.clientY);
-    drag.to = to;
-    mark?.[0].setAttribute("data-sl-drop", mark[1]);
+    // Over another list of the group: it goes there, shown by a line.
+    const over = cfg.group ? group().find((x) => x !== el && (() => { const r = x.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; })()) : null;
+    drag.into = over?.__sl ?? null;
+    if (me) me.style.transform = `translate(${cfg.group ? e.clientX - drag.x : 0}px, ${e.clientY - drag.y}px)`;
+    if (over) {
+      const { to, mark } = target(e.clientY, over);
+      drag.to = to;
+      mark?.[0].setAttribute("data-sl-drop", mark[1]);
+    } else {
+      const y = e.clientY - el.querySelector("[data-sl-items]").getBoundingClientRect().top;
+      let to = drag.mids.findIndex((m) => y < m);
+      if (to < 0) to = drag.mids.length;
+      drag.to = to;
+      const others = items().filter((li) => li !== me);
+      if (!still()) {
+        // The others make way: those between where it was and where it'll go slide by its height.
+        others.forEach((li, j) => {
+          const shift = j >= drag.from && j < to ? -drag.h : j >= to && j < drag.from ? drag.h : 0;
+          li.style.transform = shift ? `translateY(${shift}px)` : "";
+        });
+      } else if (others.length) (to < others.length ? others[to] : others.at(-1)).setAttribute("data-sl-drop", to < others.length ? "before" : "after");
+    }
     // Near the window's edges, the page scrolls.
     const edge = 40;
     if (e.clientY < edge) scrollBy(0, -10);
@@ -146,8 +253,16 @@
     drag = null;
     clearMarks();
     el.removeAttribute("data-sl-active");
-    itemOf(d.key)?.removeAttribute("data-sl-dragging");
-    if (done && d.moved && d.to !== null) move(d.key, d.to);
+    const me = itemOf(d.key);
+    me?.removeAttribute("data-sl-dragging");
+    // Put back where it was drawn, all at once: the move glides from there.
+    for (const li of items()) (li.style.transition = "none"), (li.style.transform = "");
+    void el.offsetHeight;
+    for (const li of items()) li.style.transition = "";
+    if (done && d.moved && d.to !== null) {
+      if (d.into) across(d.key, d.into, d.to);
+      else move(d.key, d.to);
+    }
   }
   el.addEventListener("pointerup", (e) => end(e, true));
   el.addEventListener("pointercancel", (e) => end(e, false));
