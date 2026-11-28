@@ -1,8 +1,9 @@
 // irender-ui-kit: the `ui-mindmap` behaviour. The map is a tree in state, `{ id, label,
 // children, collapsed, color }`; this lays it out round the central topic (its first
 // branches shared between both sides by size, or all on the right), draws it as SVG and
-// writes every change back. The keys: arrows go to the parent (towards the middle), the
-// first child (away) and the siblings (up and down); Tab adds a child, Enter a sibling;
+// writes every change back (or round it, `layout: radial`, or from the top, `down`). The
+// keys: arrows go to the parent (towards the middle), the first child (away) and the
+// siblings (up and down); Tab adds a child, Enter a sibling;
 // F2, a double click or just typing writes in a topic; Space folds; Delete deletes;
 // ⌘/Ctrl+Z undoes, with Shift redoes. Drag a topic onto another to move it there; drag
 // the space to pan; ⌘/Ctrl and the wheel (or a pinch) zoom. Everything it writes is text.
@@ -32,6 +33,7 @@
   const ICONS = {
     child: "M5 12h6m0 0V6h8M11 12v6h8", sibling: "M6 6h12M6 12h12M6 18h7", trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
     fold: "M7 10l5 5 5-5", undo: "M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3", redo: "M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3",
+    link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
     minus: "M5 12h14", plus: "M12 5v14M5 12h14", fit: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5", download: "M12 4v11M7 10l5 5 5-5M5 20h14",
   };
   const icon = (name) => s("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, s("path", { d: ICONS[name] }));
@@ -63,6 +65,11 @@
   }
   const newId = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   let selected = null, past = [], future = [];
+  // Making a line between topics: from this one, to the next picked (`linking`); and the
+  // line clicked on (`pickedLink`, "from>to").
+  let linking = null, pickedLink = null;
+  const linksOf = (root) => (Array.isArray(root?.links) ? root.links.filter(isObj) : []);
+  const linkKey = (l) => `${l.from}>${l.to}`;
   function commit(next, msg) {
     past.push(map());
     if (past.length > 100) past.shift();
@@ -77,7 +84,8 @@
   const noteId = `${cfg.id}-note`;
   // Labels: "Note"
   const noteBox = h("textarea", { id: noteId, rows: "3" });
-  notes.append(h("label", { for: noteId }, L("Note")), noteBox);
+  const linkList = h("ul", { "data-mm-linklist": true, "aria-label": L("Lines") });
+  notes.append(h("label", { for: noteId }, L("Note")), noteBox, linkList);
   if (!cfg.readOnly) stage.after(notes);
   let noteFor = null;
   function drawNote() {
@@ -86,6 +94,65 @@
     if (!it) return;
     if (noteFor !== selected || document.activeElement !== noteBox) noteBox.value = it.t.note ?? "";
     noteFor = selected;
+    drawLinkList();
+  }
+  // The selected topic's lines to and from others: each with its label and a remove button.
+  // Labels: "Lines", "Line to {name}", "Line from {name}", "Label", "Remove line"
+  function drawLinkList() {
+    const root = map(), idx = index(root);
+    if (linkList.contains(document.activeElement) && document.activeElement.tagName === "INPUT") return;
+    const mine = linksOf(root).filter((l) => String(l.from) === selected || String(l.to) === selected);
+    linkList.hidden = !mine.length;
+    linkList.replaceChildren(...mine.map((l) => {
+      const out = String(l.from) === selected, other = idx.get(String(out ? l.to : l.from))?.t.label ?? String(out ? l.to : l.from);
+      const name = out ? L("Line to {name}", { name: other }) : L("Line from {name}", { name: other });
+      const input = h("input", { type: "text", value: l.label ?? "", placeholder: L("Label"), "aria-label": `${name}: ${L("Label")}`, "data-mm-link-label": linkKey(l) });
+      input.addEventListener("change", () => relabel(linkKey(l), input.value.trim()));
+      return h("li", { "data-mm-line": linkKey(l), "data-picked": pickedLink === linkKey(l) ? true : null },
+        h("span", {}, `${out ? "→" : "←"} ${other}`), input,
+        h("button", { type: "button", "aria-label": `${L("Remove line")}: ${name}`, title: L("Remove line"), onclick: () => unlink(linkKey(l)) }, icon("trash")));
+    }));
+  }
+  function startLink(id = selected) {
+    if (cfg.readOnly || !id) return;
+    linking = id;
+    const it = index(map()).get(id);
+    // Labels: "Line from {name}: pick the topic it goes to, then Enter; Escape stops"
+    say(L("Line from {name}: pick the topic it goes to, then Enter; Escape stops", { name: it?.t.label ?? id }));
+    paintSelection();
+    drawBar();
+  }
+  function stopLink(quiet) {
+    if (!linking) return;
+    linking = null;
+    if (!quiet) say(L("No line made"));
+    paintSelection();
+    drawBar();
+  }
+  // Labels: "Line from {from} to {to}", "Those are already joined"
+  function joinTo(to) {
+    const root = map(), idx = index(root), from = linking;
+    linking = null;
+    if (!from || !idx.has(to) || from === to) return stopLink();
+    if (linksOf(root).some((l) => (String(l.from) === from && String(l.to) === to) || (String(l.from) === to && String(l.to) === from))) {
+      say(L("Those are already joined"));
+      return draw();
+    }
+    pickedLink = `${from}>${to}`;
+    commit({ ...root, links: [...linksOf(root), { from, to }] }, L("Line from {from} to {to}", { from: idx.get(from).t.label, to: idx.get(to).t.label }));
+  }
+  // Labels: "Line removed", "Line labelled {label}", "Line label removed"
+  function unlink(key) {
+    const root = map();
+    if (cfg.readOnly || !linksOf(root).some((l) => linkKey(l) === key)) return;
+    if (pickedLink === key) pickedLink = null;
+    commit({ ...root, links: linksOf(root).filter((l) => linkKey(l) !== key) }, L("Line removed"));
+  }
+  function relabel(key, label) {
+    const root = map();
+    const links = linksOf(root).map((l) => (linkKey(l) !== key ? l : label ? { ...l, label } : (({ label: _, ...rest }) => rest)(l)));
+    if (JSON.stringify(links) === JSON.stringify(linksOf(root))) return;
+    commit({ ...root, links }, label ? L("Line labelled {label}", { label }) : L("Line label removed"));
   }
   noteBox.addEventListener("change", () => {
     const it = noteFor ? index(map()).get(noteFor) : null;
@@ -94,6 +161,7 @@
   });
   function select(id, quiet) {
     selected = id;
+    pickedLink = null;
     if (cfg.bindSelected) api.set(cfg.bindSelected, id);
     paintSelection();
     drawBar();
@@ -118,11 +186,20 @@
   // The marks at a topic's end: a note's and a link's.
   const marks = (t) => (t.note ? 1 : 0) + (linkOf(t) ? 1 : 0);
   const NOTE = 16;
+  // A picture over the label (`image`: an address, or `{ src, height }`): http(s), a path
+  // or a `data:image/…`, nothing else; 24 to 200 px tall (default 72).
+  const imageOf = (t) => {
+    const v = isObj(t?.image) ? t.image : { src: t?.image };
+    const src = typeof v.src === "string" ? v.src.trim() : "";
+    if (!src || !(/^(https?:\/\/|\/(?!\/)|\.{0,2}\/|data:image\/)/i.test(src) || !/^[a-z][a-z0-9+.-]*:/i.test(src))) return null;
+    return { src, h: clamp(Number(v.height) || 72, 24, 200) };
+  };
+  const IMG_GAP = 8;
   function size(t, depth) {
     ctx.font = font(depth);
-    const pad = depth === 0 ? 22 : 14, hh = depth === 0 ? 46 : depth === 1 ? 36 : 30;
-    const w = clamp(Math.ceil(ctx.measureText(shownText(t)).width) + 2 * pad + marks(t) * NOTE, 56, MAXW);
-    return { w, h: hh, pad };
+    const pad = depth === 0 ? 22 : 14, hh = depth === 0 ? 46 : depth === 1 ? 36 : 30, img = imageOf(t);
+    const w = clamp(Math.max(Math.ceil(ctx.measureText(shownText(t)).width) + 2 * pad + marks(t) * NOTE, img ? 120 : 0), 56, MAXW);
+    return { w, h: hh + (img ? img.h + IMG_GAP : 0), pad, img, line: hh };
   }
   // Top down (`layout: down`): each topic over its children, side by side under it.
   function layoutDown(root) {
@@ -151,8 +228,45 @@
     place(root, 0, -size(root, 0).h / 2);
     return boxes;
   }
+  // Round the middle (`layout: radial`): each topic at a share of the circle as big as
+  // the topics at the end of it, on a ring a level further out.
+  function layoutRadial(root) {
+    const boxes = new Map(), widest = [], count = new Map();
+    const walk = (t, depth) => {
+      const b = size(t, depth);
+      boxes.set(String(t.id), { ...b, depth, side: 3 });
+      widest[depth] = Math.max(widest[depth] ?? 0, b.w);
+      const cs = t.collapsed ? [] : kids(t);
+      const n = cs.length ? cs.reduce((sum, c) => sum + walk(c, depth + 1), 0) : 1;
+      count.set(String(t.id), n);
+      return n;
+    };
+    const leaves = walk(root, 0), tallest = Math.max(...[...boxes.values()].map((b) => b.h));
+    // Each ring far enough out for the widest on it and the one in, and the last for its leaves side by side.
+    const rings = [0];
+    for (let d = 1; d < widest.length; d++) rings[d] = rings[d - 1] + (widest[d - 1] + widest[d]) / 2 * 0.7 + 56;
+    const need = (leaves * (tallest + 14)) / (2 * Math.PI), out = rings.at(-1) || 1;
+    if (out < need) for (let d = 1; d < rings.length; d++) rings[d] *= need / out;
+    const place = (t, from, to) => {
+      const b = boxes.get(String(t.id)), a = (from + to) / 2, r = rings[b.depth];
+      b.x = r * Math.cos(a) - b.w / 2;
+      b.y = r * Math.sin(a) - b.h / 2;
+      b.angle = a;
+      const cs = t.collapsed ? [] : kids(t);
+      let at = from;
+      for (const c of cs) {
+        const share = ((to - from) * count.get(String(c.id))) / count.get(String(t.id));
+        place(c, at, at + share);
+        at += share;
+      }
+    };
+    // From the top, clockwise.
+    place(root, -Math.PI / 2, (3 * Math.PI) / 2);
+    return boxes;
+  }
   function layout(root) {
     if (cfg.layout === "down") return layoutDown(root);
+    if (cfg.layout === "radial") return layoutRadial(root);
     const boxes = new Map();
     const height = (t, depth) => {
       const b = size(t, depth);
@@ -246,7 +360,12 @@
       if (!it.parent || !boxes.has(it.parent)) continue;
       const p = boxes.get(it.parent), c = branchColor(id, idx) ?? ink;
       let d;
-      if (b.side === 2) {
+      if (b.side === 3) {
+        // Round the middle: from centre to centre (the topics cover the ends), bowed a little.
+        const x1 = p.x + p.w / 2, y1 = p.y + p.h / 2, x2 = b.x + b.w / 2, y2 = b.y + b.h / 2;
+        const ox = Math.cos(b.angle) * 24, oy = Math.sin(b.angle) * 24;
+        d = `M${x1} ${y1}Q${(x1 + x2) / 2 - ox} ${(y1 + y2) / 2 - oy} ${x2} ${y2}`;
+      } else if (b.side === 2) {
         // Down: from the parent's foot to the child's head.
         const x1 = p.x + p.w / 2, y1 = p.y + p.h, x2 = b.x + b.w / 2, y2 = b.y, my = (y1 + y2) / 2;
         d = `M${x1} ${y1}C${x1} ${my} ${x2} ${my} ${x2} ${y2}`;
@@ -272,7 +391,10 @@
         return [cx + dx * Math.min(1, k), cy + dy * Math.min(1, k)];
       };
       const [sx1, sy1] = edge(a, ax, ay), [ex1, ey1] = edge(z, zx, zy);
-      cross.append(s("path", { "data-mm-link": `${l.from}>${l.to}`, d: `M${sx1} ${sy1}Q${mx} ${my} ${ex1} ${ey1}`, fill: "none", stroke: l.color ?? ink, "stroke-width": 1.5, "stroke-dasharray": "6 5", opacity: 0.6, "marker-end": `url(#${cfg.id}-arrow)` }));
+      const key = `${l.from}>${l.to}`, on = pickedLink === key, dd = `M${sx1} ${sy1}Q${mx} ${my} ${ex1} ${ey1}`;
+      cross.append(s("path", { "data-mm-link": key, d: dd, fill: "none", stroke: on ? "var(--color-primary)" : l.color ?? ink, "stroke-width": on ? 2.5 : 1.5, "stroke-dasharray": "6 5", opacity: on ? 1 : 0.6, "marker-end": `url(#${cfg.id}-arrow)` }));
+      // A wider, unseen line over it to click.
+      if (!cfg.readOnly) cross.append(s("path", { "data-mm-link-hit": key, d: dd, fill: "none", stroke: "transparent", "stroke-width": 14, style: "cursor: pointer" }));
       if (l.label) {
         const t = s("text", { x: (ax + 2 * mx + zx) / 4, y: (ay + 2 * my + zy) / 4, "text-anchor": "middle", "font-size": 12, fill: ink, opacity: 0.8, stroke: paper, "stroke-width": 4, "paint-order": "stroke" });
         t.textContent = String(l.label);
@@ -294,7 +416,11 @@
       });
       const fill = it.depth === 0 ? ink : it.depth === 1 ? `color-mix(in srgb, ${c} 16%, ${paper})` : paper;
       g.append(s("rect", { "data-mm-ring": true, x: b.x - 4, y: b.y - 4, width: b.w + 8, height: b.h + 8, rx: b.h / 2 + 4, fill: "none", stroke: "transparent", "stroke-width": 2.5 }));
-      g.append(s("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: it.depth === 0 ? 12 : b.h / 2, fill, stroke: it.depth === 0 ? ink : c ?? ink, "stroke-width": it.depth === 0 ? 0 : it.depth === 1 ? 2 : 1.5 }));
+      g.append(s("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: it.depth === 0 || b.img ? 12 : b.h / 2, fill, stroke: it.depth === 0 ? ink : c ?? ink, "stroke-width": it.depth === 0 ? 0 : it.depth === 1 ? 2 : 1.5 }));
+      // A picture over the label, inside the topic's top.
+      if (b.img) g.append(s("image", { "data-mm-image": true, href: b.img.src, x: b.x + 6, y: b.y + 6, width: b.w - 12, height: b.img.h, preserveAspectRatio: "xMidYMid meet" }));
+      // The label's line: the topic's foot when it has a picture.
+      const ly = b.img ? b.y + b.h - b.line / 2 : b.y + b.h / 2;
       // The label, cut short with … when it's longer than a topic is wide.
       ctx.font = font(it.depth);
       const room = b.w - 2 * b.pad - marks(it.t) * NOTE;
@@ -303,26 +429,27 @@
         while (text.length > 1 && ctx.measureText(`${text}…`).width > room) text = text.slice(0, -1);
         text = `${text}…`;
       }
-      const t = s("text", { x: b.x + (b.w - marks(it.t) * NOTE) / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": it.depth === 0 ? 17 : 14, "font-weight": it.depth < 2 ? 600 : 400 });
+      const t = s("text", { x: b.x + (b.w - marks(it.t) * NOTE) / 2, y: ly, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": it.depth === 0 ? 17 : 14, "font-weight": it.depth < 2 ? 600 : 400 });
       t.textContent = text;
       g.append(t, s("title", {}, document.createTextNode(shownText(it.t) + (it.t.note ? `\n\n${it.t.note}` : "") + (linkOf(it.t) ? `\n\n${linkOf(it.t)}` : ""))));
       // A topic with a link has a mark at its end that opens it.
       if (linkOf(it.t)) {
         const lx = b.x + b.w - b.pad / 2 - NOTE / 2 - (it.t.note ? NOTE : 0);
-        const m = s("text", { "data-mm-href": id, x: lx, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 13, style: "cursor: pointer" });
+        const m = s("text", { "data-mm-href": id, x: lx, y: ly, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 13, style: "cursor: pointer" });
         m.textContent = "↗";
         g.append(m);
         g.setAttribute("aria-description", [it.t.note, L("Has a link: ⌘ or Ctrl and Enter opens it")].filter(Boolean).join(". "));
       }
       // A topic with a note has a mark at its end.
       if (it.t.note) {
-        const m = s("text", { "data-mm-has-note": true, x: b.x + b.w - b.pad / 2 - NOTE / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 12, opacity: 0.7 });
+        const m = s("text", { "data-mm-has-note": true, x: b.x + b.w - b.pad / 2 - NOTE / 2, y: ly, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 12, opacity: 0.7 });
         m.textContent = "≡";
         g.append(m);
       }
       // A folded topic says how many are inside.
       if (n && it.t.collapsed) {
-        const cx = b.side < 0 ? b.x - 12 : b.x + b.w + 12, cy = b.y + b.h / 2;
+        const left = b.side < 0 || (b.side === 3 && Math.cos(b.angle) < -0.01);
+        const cx = left ? b.x - 12 : b.x + b.w + 12, cy = b.y + b.h / 2;
         const badge = s("g", { "data-mm-fold": id, style: "cursor: pointer" }, s("circle", { cx, cy, r: 10, fill: paper, stroke: c ?? ink, "stroke-width": 1.5 }));
         const nt = s("text", { x: cx, y: cy, "text-anchor": "middle", "font-size": 11, fill: ink, "font-weight": 600 });
         nt.textContent = String(n);
@@ -346,9 +473,12 @@
   }
   function paintSelection() {
     for (const g of world.querySelectorAll("[data-mm-topic]")) {
-      const on = g.getAttribute("data-mm-topic") === selected;
+      const id = g.getAttribute("data-mm-topic"), on = id === selected, from = linking === id;
       g.setAttribute("aria-selected", on ? "true" : "false");
-      g.querySelector("[data-mm-ring]").setAttribute("stroke", on ? "var(--color-primary)" : "transparent");
+      const ring = g.querySelector("[data-mm-ring]");
+      ring.setAttribute("stroke", on || from ? "var(--color-primary)" : "transparent");
+      if (from) ring.setAttribute("stroke-dasharray", "3 3");
+      else if (!drag) ring.removeAttribute("stroke-dasharray");
     }
     if (selected) stage.setAttribute("aria-activedescendant", domId(selected));
   }
@@ -403,6 +533,10 @@
       parts.push(h("button", { type: "button", title: `${L("Add a topic inside")} (Tab)`, disabled: it ? null : true, onclick: () => addChild() }, icon("child"), L("Topic")));
       parts.push(btn("sibling", `${L("Add a topic beside")} (Enter)`, () => addSibling(), !it));
       parts.push(btn("trash", `${L("Delete")} (Delete)`, () => remove(), !it || it.depth === 0));
+      // Labels: "Draw a line to another topic"
+      const lb = btn("link", `${L("Draw a line to another topic")} (Alt+L)`, () => (linking ? stopLink() : startLink()), !it);
+      lb.setAttribute("aria-pressed", linking ? "true" : "false");
+      parts.push(lb);
     }
     parts.push(btn("fold", `${L("Fold or unfold")} (Space)`, () => fold(), !it || !kids(it.t).length));
     if (!ro) {
@@ -580,8 +714,15 @@
     const visibleKids = it.t.collapsed ? [] : kids(it.t).map((c) => String(c.id)).filter((c) => boxes.has(c));
     const siblings = it.parent ? kids(idx.get(it.parent).t).map((c) => String(c.id)) : [];
     const at = siblings.indexOf(selected);
-    const towards = (side) => (it.depth === 0 ? visibleKids.find((c) => boxes.get(c)?.side === side) : b.side === side ? visibleKids[0] : it.parent);
+    // Round the middle: → goes out (the first child), ← back in (the parent).
+    const towards = (side) => (cfg.layout === "radial" ? (side > 0 ? visibleKids[0] : it.parent) : it.depth === 0 ? visibleKids.find((c) => boxes.get(c)?.side === side) : b.side === side ? visibleKids[0] : it.parent);
     if (mod && e.key === "Enter") return e.preventDefault(), open();
+    // Drawing a line: Enter ends it at the topic picked, Escape stops.
+    if (linking && e.key === "Enter") return e.preventDefault(), joinTo(selected);
+    if (linking && e.key === "Escape") return e.preventDefault(), stopLink();
+    if (e.altKey && e.code === "KeyL" && !mod) return e.preventDefault(), linking ? stopLink() : startLink();
+    if (pickedLink && (e.key === "Delete" || e.key === "Backspace")) return e.preventDefault(), unlink(pickedLink);
+    if (pickedLink && e.key === "Escape") return e.preventDefault(), (pickedLink = null), draw();
     // Alt and the arrows along the siblings: the topic moves among them.
     const along = cfg.layout === "down" ? { ArrowLeft: -1, ArrowRight: 1 } : { ArrowUp: -1, ArrowDown: 1 };
     if (e.altKey && along[e.key]) return e.preventDefault(), reorder(selected, along[e.key]);
@@ -661,6 +802,20 @@
     if (link) return select(link.getAttribute("data-mm-href")), open(link.getAttribute("data-mm-href"));
     const id = e.target.closest?.("[data-mm-topic]")?.getAttribute("data-mm-topic");
     const { sx, sy } = local(e);
+    if (linking && id) return select(id, true), joinTo(id);
+    const line = e.target.closest?.("[data-mm-link-hit]")?.getAttribute("data-mm-link-hit");
+    if (line) {
+      // A line clicked: picked (Delete removes it), and its first topic selected, which lists it.
+      select(line.split(">")[0], true);
+      pickedLink = line;
+      // Labels: "Line picked: Delete removes it"
+      say(L("Line picked: Delete removes it"));
+      return draw();
+    }
+    if (pickedLink) {
+      pickedLink = null;
+      draw();
+    }
     if (id) {
       select(id);
       drag = { kind: "topic", id, sx, sy, moved: false, target: null };

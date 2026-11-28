@@ -53,7 +53,7 @@ root:
       props: { gap: 4 }
       children:
         - { type: ui-heading, props: { level: 2, text: "Kick-off: {{ plan.label }}" } }
-        - { type: ui-text, props: { variant: muted, text: "Tab adds a topic inside, Enter one beside it; type to write; drag a topic onto another to move it." } }
+        - { type: ui-text, props: { variant: muted, text: "Tab adds a topic inside, Enter one beside it; type to write; drag a topic onto another to move it. Alt+L draws a line to another topic (pick it, then Enter); click a line and Delete removes it." } }
     - type: element
       style: { display: grid, grid-template-columns: "minmax(0, 1fr)", gap: 16, "@md": { grid-template-columns: "minmax(0, 1fr) 260px" }, align-items: start }
       children:

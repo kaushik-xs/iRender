@@ -318,6 +318,15 @@ state:
     - { id: w4, type: text, x: 255, y: 60, w: 130, h: 30, text: A box, color: "#2563eb" }
   wbView: null
   mmPicked: null
+  mmRound:
+    id: r0
+    label: Launch
+    image: blocks/media/tram.svg
+    links: [ { from: r11, to: r31, label: feeds } ]
+    children:
+      - { id: r1, label: Product, children: [ { id: r11, label: Pricing }, { id: r12, label: Docs } ] }
+      - { id: r2, label: Team, children: [ { id: r21, label: Hiring } ] }
+      - { id: r3, label: Market, children: [ { id: r31, label: Launch post }, { id: r32, label: Partners } ] }
   mmMap:
     id: m0
     label: Holiday
@@ -2382,6 +2391,9 @@ root:
                   props: { variant: muted, text: "Pick a topic: the arrows move (towards the middle is its parent), Tab adds one inside, Enter one beside, typing writes over it, Space folds, Delete deletes, ⌘Z undoes. Drag a topic onto another to move it." }
                 - { type: ui-mindmap, props: { bind: mmMap, bindSelected: mmPicked, height: 420 } }
                 - { type: ui-text, props: { variant: muted, text: "mmPicked = {{ mmPicked }}" } }
+                - type: ui-text
+                  props: { variant: muted, text: "Round the middle (layout: radial), with a picture on the central topic. Pick a topic and press Alt+L (or the line button), then pick another and Enter, to draw a line between them; click a line and Delete removes it." }
+                - { type: ui-mindmap, props: { bind: mmRound, layout: radial, height: 460 } }
                 - { type: if, props: { when: "{{ api.mindmap.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.mindmap }}", as: c }

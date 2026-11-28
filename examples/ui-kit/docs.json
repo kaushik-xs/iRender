@@ -555,7 +555,7 @@
    "group": "Data display",
    "title": "Mind map",
    "nav": "Mind map",
-   "summary": "A central topic with branches on both sides, each first branch in its colour. Topics are added (Tab inside, Enter beside), written (type over one, F2 or a double click), folded, moved by dragging onto another and deleted, from the keyboard or the mouse; it pans, zooms, undoes and exports as SVG. The map is a tree in state, the shape ui-tree reads.",
+   "summary": "A central topic with branches on both sides, each first branch in its colour. Topics are added (Tab inside, Enter beside), written (type over one, F2 or a double click), folded, moved by dragging onto another and deleted, from the keyboard or the mouse; it pans, zooms, undoes and exports as SVG. The map is a tree in state, the shape ui-tree reads. layout: radial puts it round the middle; topics take pictures, and Alt+L draws a line between two topics.",
    "usage": "- { type: ui-mindmap, props: { bind: plan, bindSelected: picked, height: 560 } }\n# plan: { id: root, label: Launch, children: [{ id: g, label: Goals, children: [{ id: g1, label: 500 sign-ups }] }] }",
    "components": [
     "ui-mindmap"

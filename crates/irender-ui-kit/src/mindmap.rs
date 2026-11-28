@@ -14,9 +14,9 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("mindmap.js");
 
 const PROPS: &[PropDef] = &[
-    PropDef::new("bind", PropKind::StateKey, "State key holding the map: the central topic, `{ id, label, icon, note, href, children, collapsed, color, links }`, children the same; `icon` is a character or emoji before the label, `note` longer text for the topic (edited under the map), `href` a link it opens (⌘/Ctrl+Enter, or its ↗), and the central topic's `links` lines between any two topics, `[{ from, to, label, color }]`").required(),
+    PropDef::new("bind", PropKind::StateKey, "State key holding the map: the central topic, `{ id, label, icon, image, note, href, children, collapsed, color, links }`, children the same; `icon` is a character or emoji before the label, `image` a picture over it (an address, or `{ src, height }`, 24–200 px), `note` longer text for the topic (edited under the map), `href` a link it opens (⌘/Ctrl+Enter, or its ↗), and the central topic's `links` lines between any two topics, `[{ from, to, label, color }]` (drawn on the map with Alt+L or the toolbar's line button, picked by a click and removed with Delete, labelled under the map)").required(),
     PropDef::new("bindSelected", PropKind::StateKey, "State key that gets the `id` of the topic selected"),
-    PropDef::new("layout", PropKind::Enum(&["balanced", "right", "down"]), "`balanced` (default: branches on both sides), `right`, or `down` (a tree from the top)"),
+    PropDef::new("layout", PropKind::Enum(&["balanced", "right", "down", "radial"]), "`balanced` (default: branches on both sides), `right`, `down` (a tree from the top) or `radial` (round the central topic, each level a ring further out)"),
     PropDef::new("colors", PropKind::Any, "Colours for the first branches, in turn (default eight)"),
     PropDef::new("readOnly", PropKind::Bool, "Look, fold and move around only"),
     PropDef::new("height", PropKind::Any, "Its height: px or a CSS length (default 480)"),
@@ -45,6 +45,22 @@ static MAP: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("& [data-mm-note]", pairs(&[("display", "grid"), ("gap", gap!(4)), ("padding", pad!(8)), ("border-top", BORDER), ("font-size", fs!(13))]))
     .nest("& [data-mm-note][hidden]", pairs(&[("display", "none")]))
+    .nest("& [data-mm-linklist]", pairs(&[("display", "grid"), ("gap", gap!(4)), ("margin", "0"), ("padding", "0"), ("list-style", "none")]))
+    .nest("& [data-mm-linklist][hidden]", pairs(&[("display", "none")]))
+    .nest("& [data-mm-linklist] li", pairs(&[("display", "grid"), ("grid-template-columns", "minmax(0, 12em) 1fr auto"), ("align-items", "center"), ("gap", gap!(6)), ("padding", pad!(2, 4)), ("border-radius", "var(--radius-sm)")]))
+    .nest("& [data-mm-linklist] li[data-picked]", pairs(&[("background", "color-mix(in srgb, var(--color-primary) 12%, transparent)")]))
+    .nest("& [data-mm-linklist] li > span", pairs(&[("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+    .nest(
+        "& [data-mm-linklist] input",
+        pairs(&[("min-width", "0"), ("padding", pad!(2, 6)), ("border", BORDER), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", "inherit"), ("font", "inherit")]),
+    )
+    .nest("& [data-mm-linklist] input:focus-visible", crate::forms::focus_ring())
+    .nest(
+        "& [data-mm-linklist] button",
+        pairs(&[("display", "grid"), ("place-items", "center"), ("width", "26px"), ("height", "26px"), ("padding", "0"), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", "inherit"), ("cursor", "pointer")]),
+    )
+    .nest("& [data-mm-linklist] button svg", pairs(&[("width", "15px"), ("height", "15px")]))
+    .nest("& [data-mm-linklist] button:focus-visible", crate::forms::focus_ring())
     .nest(
         "& [data-mm-note] textarea",
         pairs(&[("min-height", "56px"), ("padding", pad!(6, 8)), ("border", BORDER), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", "var(--ui-bg, transparent)"), ("color", "inherit"), ("font", "inherit"), ("resize", "vertical")]),

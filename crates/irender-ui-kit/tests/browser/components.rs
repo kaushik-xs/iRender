@@ -458,6 +458,72 @@ root:
     );
 }
 
+/// `ui-mindmap`: a picture on a topic, the radial layout, and lines between topics drawn,
+/// picked, labelled and removed on the map.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn mindmap_pictures_radial_and_lines_by_hand() {
+    check(
+        "mindmap-radial",
+        r##"
+state:
+  map: { id: r, label: Plan, children: [ { id: a, label: Build, image: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'/%3E", children: [ { id: a1, label: Code }, { id: a2, label: Test } ] }, { id: b, label: Ship, image: { src: "javascript:alert(1)" } }, { id: c, label: Tell, image: { src: "/p.png", height: 400 } } ] }
+root: { type: ui-mindmap, attrs: { id: mm }, props: { bind: map, layout: radial, height: 600 } }
+"##,
+        r##"
+        const mm = $("#mm"), stage = mm.querySelector("[tabindex]");
+        const topic = (id) => mm.querySelector(`[data-mm-topic="${id}"]`), box = (id) => topic(id).querySelector("rect:not([data-mm-ring])").getBoundingClientRect();
+        const mid = (id) => { const b = box(id); return [b.left + b.width / 2, b.top + b.height / 2]; };
+        const press = async (n, x, y) => { for (const t of ["pointerdown", "pointerup"]) n.dispatchEvent(new PointerEvent(t, { bubbles: true, button: 0, pointerId: 1, clientX: x, clientY: y })); await wait(30); };
+        // Pictures: only an address that's allowed, kept to 200 px; the topic grows to hold it.
+        log(!!topic("a").querySelector("[data-mm-image]"), !!topic("b").querySelector("[data-mm-image]"), topic("c").querySelector("[data-mm-image]")?.getAttribute("height"), Math.round(box("a").height) > Math.round(box("b").height));
+        // Round the middle: the first branches as far from it, all round; a child further out than its parent.
+        const [rx, ry] = mid("r"), far = (id) => Math.round(Math.hypot(mid(id)[0] - rx, mid(id)[1] - ry));
+        log(far("a") === far("b") && far("b") === far("c"), far("a1") > far("a"), mid("b")[1] > ry, new Set(["a", "b", "c"].map((id) => Math.sign(Math.round(mid(id)[0] - rx)))).size > 1);
+        // A line by hand: Alt+L on Code, → … pick Ship, Enter.
+        await press(topic("a1"), ...mid("a1")); stage.focus();
+        stage.dispatchEvent(new KeyboardEvent("keydown", { key: "¬", code: "KeyL", altKey: true, bubbles: true, cancelable: true })); await wait(10);
+        log("pressed", mm.querySelector("[data-mm-bar] [aria-pressed]").getAttribute("aria-pressed"));
+        await press(topic("b"), ...mid("b"));
+        log("drawn", JSON.stringify(S().map.links), mm.querySelectorAll("[data-mm-link]").length, mm.querySelector("[data-mm-bar] [aria-pressed]").getAttribute("aria-pressed"));
+        // Joined already: not twice, either way round.
+        await press(topic("b"), ...mid("b")); stage.focus(); stage.dispatchEvent(new KeyboardEvent("keydown", { key: "¬", code: "KeyL", altKey: true, bubbles: true, cancelable: true }));
+        await press(topic("a1"), ...mid("a1"));
+        log("again", S().map.links.length);
+        // Its label under the map; then a click on it picks it, and Delete removes it.
+        await press(topic("a1"), ...mid("a1"));
+        const lab = mm.querySelector("[data-mm-link-label]"); lab.value = "ships"; lab.dispatchEvent(new Event("change", { bubbles: true })); await wait(30);
+        log("label", JSON.stringify(S().map.links), mm.querySelector("[data-mm-links] text")?.textContent, mm.querySelector("[data-mm-linklist] span").textContent);
+        const hit = mm.querySelector("[data-mm-link-hit]"), len = hit.getTotalLength(), pt = hit.getPointAtLength(len / 2), m = hit.getScreenCTM();
+        await press(hit, pt.x * m.a + pt.y * m.c + m.e, pt.x * m.b + pt.y * m.d + m.f);
+        log("picked", mm.querySelector('[data-mm-link][stroke="var(--color-primary)"]')?.getAttribute("data-mm-link"), mm.querySelector("[data-mm-linklist] li[data-picked]")?.dataset.mmLine);
+        stage.focus(); key("Delete"); await wait(30);
+        log("removed", JSON.stringify(S().map.links), !!topic("a1"));
+        // Escape stops a line half made.
+        stage.dispatchEvent(new KeyboardEvent("keydown", { key: "¬", code: "KeyL", altKey: true, bubbles: true, cancelable: true })); key("Escape"); await wait(10);
+        await press(topic("c"), ...mid("c"));
+        log("stopped", S().map.links.length);
+        // The keys round the middle: → out, ↓ along, ← back in.
+        await press(topic("r"), ...mid("r")); stage.focus(); key("ArrowRight"); key("ArrowDown"); await wait(10);
+        const now = () => mm.querySelector('[data-mm-topic][aria-selected="true"]').getAttribute("data-mm-topic");
+        const at1 = now(); key("ArrowLeft"); await wait(10);
+        log("keys", at1, now());
+"##,
+        &[
+            "true false 200 true",
+            "true true true true",
+            "pressed true",
+            "drawn [{\"from\":\"a1\",\"to\":\"b\"}] 1 false",
+            "again 1",
+            "label [{\"from\":\"a1\",\"to\":\"b\",\"label\":\"ships\"}] ships → Ship",
+            "picked a1>b a1>b",
+            "removed [] true",
+            "stopped 0",
+            "keys b r",
+        ],
+    );
+}
+
 /// `ui-whiteboard`: a frame carries what's inside it, groups move and select together,
 /// locked items stay, items go to the front and back, copy and paste between boards, a
 /// drawing resizes, pictures, and PNG export.
