@@ -38,7 +38,7 @@ _Last updated: 2026-11-28._
 
 - [ ] **`ui-virtual-list`** (2026-11-23; gallery, block inventory-01): a grid of cards (`columns`, `minItemWidth`), `scrollTo` from state landing on the item, and the group at the top (`groupBy`) came on 2026-11-28. The group is a line of text over the items (no headers between groups in the list, no template of its own), a grid's rows are as tall as their tallest card's average, and a jump past items never drawn can take a few steps to land. Find in page (⌘F) only finds what's drawn.
 
-- [ ] **`ui-presence`** (2026-11-23; gallery, block workspace-01): it shows who's in state; keeping that up to date (a WebSocket, polling, a presence service) is the page's job, and there's no example server. No live cursors or selections in a document, and no "follow" (jump to where someone is).
+- [ ] **`ui-presence`** (2026-11-23; gallery, block workspace-01): it shows who's in state; keeping that up to date (a WebSocket, polling, a presence service) is the page's job, and there's no example server. No live cursors or selections in a document. Following someone (`bindFollow`, 2026-11-28; gallery) says whom; going there is the page's.
 
 - [ ] **`ui-timeline` as a feed** (`group`, `relative`, `since`, `limit`; 2026-11-23; gallery, block workspace-01): entries must come in time order; filters by person and kind, and Load more with `hasMore` (2026-11-27; workspace-01): one person and one kind at a time, the page fetches the older entries itself, and filtering is of what's loaded (not asked of the server); and the New marks don't move `since` on their own (the page sets it, say on leaving). Days are the browser's local days.
 

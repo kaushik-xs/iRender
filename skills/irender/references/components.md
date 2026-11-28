@@ -855,6 +855,7 @@ ui-presence: Who's here now: stacked avatars with a status dot and a colour each
   size         number  Avatar size in px (default 28)
   me           any  The `id` of whoever's looking: `(you)` after their name
   announce     bool  Say who joins and leaves, for screen readers
+  bindFollow   statekey  State key that gets the `id` of the person followed: each person in the list has Go to (Following, pressed again, stops), and `follow` fires with them; going there is the page's (`where`, say)
   align        one of: start, end  The list's edge lined up with the avatars (default `end`)
   label        any  What it shows (default `People here`)
   id           any  Element id (default: derived from the document)

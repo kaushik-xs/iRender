@@ -38,6 +38,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("size", PropKind::Number, "Avatar size in px (default 28)"),
     PropDef::new("me", PropKind::Any, "The `id` of whoever's looking: `(you)` after their name"),
     PropDef::new("announce", PropKind::Bool, "Say who joins and leaves, for screen readers"),
+    PropDef::new("bindFollow", PropKind::StateKey, "State key that gets the `id` of the person followed: each person in the list has Go to (Following, pressed again, stops), and `follow` fires with them; going there is the page's (`where`, say)"),
     PropDef::new("align", PropKind::Enum(&["start", "end"]), "The list's edge lined up with the avatars (default `end`)"),
     PropDef::new("label", PropKind::Any, "What it shows (default `People here`)"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
@@ -153,6 +154,13 @@ static PRESENCE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-pr-name]", pairs(&[("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-pr-you]", pairs(&[("color", MUTED), ("font-weight", "400")]))
         .nest("& [data-pr-where]", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("overflow", "hidden"), ("text-overflow", "ellipsis"), ("white-space", "nowrap")]))
+        .nest(
+            "& [data-pr-follow]",
+            pairs(&[("margin-inline-start", "auto"), ("flex", "none"), ("padding", pad!(2, 8)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", "inherit"), ("font", "inherit"), ("font-size", fs!(12)), ("cursor", "pointer")]),
+        )
+        .nest("& [data-pr-follow]:hover", pairs(&[("background", "color-mix(in srgb, var(--color-text) 6%, transparent)")]))
+        .nest("& [data-pr-follow][aria-pressed=true]", pairs(&[("border-color", "var(--color-primary)"), ("background", "color-mix(in srgb, var(--color-primary) 12%, transparent)")]))
+        .nest("& [data-pr-follow]:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "1px")]))
         .nest("& [data-pr-where]:empty", pairs(&[("display", "none")]))
         .nest(
             "& [data-pr-live]",
@@ -223,7 +231,9 @@ impl Component for Presence {
         crate::anchors(cx);
         crate::flips(cx);
         let announce = widget::flag(cx, node, "announce", false);
-        if announce {
+        let follow = cx.prop_string(node, "bindFollow");
+        if announce || follow.is_some() {
+            widget::kit(cx);
             cx.global_js("ui-presence", SCRIPT);
         }
 
@@ -235,9 +245,10 @@ impl Component for Presence {
                     // Past `max`, the avatars give way to `+3`.
                     .nest(format!("& [data-pr-stack] [data-pr-av]:nth-of-type(n + {})", max + 1), pairs(&[("display", "none")])),
             )
-            .attr("data-pr", true);
-        if announce {
-            root.behavior("ui-presence", json!({}));
+            .attr("data-pr", true)
+            .attr("data-pr-announce", announce);
+        if announce || follow.is_some() {
+            root.behavior("ui-presence", json!({ "bindFollow": follow, "people": crate::data_table::dynamic(cx, node, "people", node.prop("people").expect("required"))? }));
         }
         cx.open(&root, node)?;
 
@@ -334,12 +345,24 @@ impl Component for Presence {
             cx.open(&w, node)?;
             cx.close("span");
             cx.close("div");
+            // Go to them, and keep going where they go: Following until pressed again.
+            if let Some(k) = &follow {
+                let on = bin(BinOp::And, bin(BinOp::Ne, of("id"), num(Json::Null)), bin(BinOp::Eq, Expr::Path(vec![k.clone()]), of("id")));
+                let mut b = Element::new("button");
+                b.attr("type", "button")
+                    .attr("data-pr-follow", expr_val(field_or(PERSON, "id", of("name"))))
+                    .attr("aria-pressed", expr_val(cond(on.clone(), num("true"), num("false"))))
+                    .attr("aria-label", expr_val(bin(BinOp::Add, bin(BinOp::Add, num(cx.label("Follow") + " "), of("name")), num(""))))
+                    .text(expr_val(cond(on, num(cx.label("Following")), num(cx.label("Go to")))));
+                cx.open(&b, node)?;
+                cx.close("button");
+            }
             cx.close("li");
             Ok(())
         })?;
         cx.close("ul");
         cx.close("div");
-        if announce {
+        if announce || follow.is_some() {
             let mut live = Element::new("span");
             live.attr("data-pr-live", true).attr("role", "status").attr("aria-live", "polite");
             cx.open(&live, node)?;

@@ -1703,6 +1703,8 @@ root: …
 `presence.js`
 
 ```yaml
+"Following {name}": "Following {name}"
+"Stopped following {name}": "Stopped following {name}"
 "{name} joined": "{name} joined"
 "{name} left": "{name} left"
 ```
@@ -1717,6 +1719,9 @@ root: …
 "Offline": "Offline"
 "People here": "People here"
 "(you)": "(you)"
+"Follow": "Follow"
+"Following": "Following"
+"Go to": "Go to"
 ```
 
 `pwa.js`

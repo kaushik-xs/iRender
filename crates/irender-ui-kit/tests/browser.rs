@@ -8198,6 +8198,45 @@ fn virtual_list_in_chrome() {
     );
 }
 
+/// `ui-presence` with `bindFollow`: Go to on each person follows them (their id to state,
+/// `follow` with them), pressed again stops; the button says which.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn presence_follows_someone_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "here": [ { "id": "a", "name": "Asha Rao", "where": "Budget" }, { "id": "r", "name": "Ravi Kumar", "where": "Plan" } ], "following": null, "went": "" },
+        "root": { "type": "ui-presence", "props": { "people": "{{ here }}", "bindFollow": "following" },
+          "on": { "follow": { "action": "set_state", "key": "went", "value": "{{ went + 'x' }}" } } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const btns = () => [...document.querySelectorAll("[data-pr-follow]")];
+      const show = () => btns().map((b) => b.textContent + ":" + b.getAttribute("aria-pressed")).join(",");
+      try {
+        log("start", show(), btns()[0].getAttribute("aria-label"));
+        btns()[1].click(); await wait(20);
+        log("follow", S().following, S().went, show(), document.querySelector("[data-pr-live]").textContent);
+        btns()[1].click(); await wait(20);
+        log("stop", JSON.stringify(S().following), S().went, show());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("presence-follow", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["start Go to:false,Go to:false Follow Asha Rao", "follow r x Go to:false,Following:true Following Ravi Kumar", "stop null x Go to:false,Go to:false"],
+        "\n{result}"
+    );
+}
+
 /// `ui-presence`: the stack (named with the count, past `max` behind `+N`), the list (each
 /// status in words, `(you)`, what they're on), colours by place or as given, and people
 /// joining and leaving from state, said with `announce`.
