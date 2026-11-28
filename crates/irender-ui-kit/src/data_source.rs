@@ -235,7 +235,7 @@ const QUERY_PROPS: &[PropDef] = &[
     PropDef::new(
         "sync",
         PropKind::Any,
-        "Asks only for what changed since the last answer: `true` or `{ param, cursor, deleted, tombstone, key, full }`. The answer's `cursor` (default `cursor`) is sent back as `?since=` (`param`); its rows replace those with the same `key` (default `id`) or are added, and rows whose `tombstone` field (default `deleted`) is true, or whose ids are in its `deleted` list, go. Everything is loaded again every `full` hours (default 24)",
+        "Asks only for what changed since the last answer: `true` or `{ param, cursor, deleted, tombstone, key, full, ids }`. The answer's `cursor` (default `cursor`) is sent back as `?since=` (`param`); its rows replace those with the same `key` (default `id`) or are added, and rows whose `tombstone` field (default `deleted`) is true, or whose ids are in its `deleted` list, go. Everything is loaded again every `full` hours (default 24). `ids` is an address (with the same `params`) answering the ids there are now, a list of ids or of records: rows not in it go at each delta, for an API without tombstones",
     ),
     PropDef::new("every", PropKind::Number, "Seconds between loads while the page is in sight (at least 5); it also loads when the connection comes back"),
     PropDef::new("clear", PropKind::Any, "When this becomes true, the answers kept for `scope` are let go and the rows emptied, and nothing loads while it stays true, e.g. `{{ !user }}`"),
@@ -260,6 +260,9 @@ impl Component for DataQuery {
         match config.get("sync") {
             None | Some(Json::Bool(_) | Json::Object(_)) => {}
             Some(_) => return Err(RenderError::new(node, "`sync` is `true` or `{ param, cursor, deleted, tombstone, key, full }`")),
+        }
+        if let Some(ids) = config.get("sync").and_then(|s| s.get("ids")) {
+            check(cx, node, "sync.ids", ids)?;
         }
         if config.contains_key("records") && config.contains_key("source") {
             return Err(RenderError::new(node, "`records` is for rows from `url`; a `source`'s records are its own already"));

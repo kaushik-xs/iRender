@@ -962,6 +962,17 @@
         const got = missing ? [] : records(answer, cfg.pick);
         if (delta && !missing) {
           rows = merge(rows, Array.isArray(got) ? got : [], at(answer, S.deleted ?? "deleted"));
+          // `ids`: an address answering the ids there are now (cheaper than the rows), so a
+          // row deleted without a tombstone goes before the next full load.
+          if (!blank(S.ids)) {
+            const { answer: live } = await getJson(join(String(S.ids), params(q.params)), {}, cfg.headers);
+            if (id !== seq) return;
+            const list = records(live, S.idsPick);
+            if (Array.isArray(list)) {
+              const key = S.key ?? "id", there = new Set(list.map((x) => idOf(isObj(x) ? at(x, key) : x)));
+              rows = rows.filter((r) => !isObj(r) || blank(at(r, key)) || there.has(idOf(at(r, key))));
+            }
+          }
           total = rows.length;
         } else {
           one = isObj(got);

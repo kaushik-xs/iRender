@@ -10243,6 +10243,67 @@ fn data_tables_edit_records_through_their_source_in_chrome() {
     );
 }
 
+/// `sync.ids`: at each delta the ids there are now are asked for too, and a row deleted
+/// without a tombstone goes.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_queries_drop_rows_gone_from_the_ids_in_chrome() {
+    use std::io::Write;
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let seen = seen.clone();
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let target = request.split_whitespace().nth(1).unwrap_or("").to_string();
+                seen.lock().unwrap().push(target.clone());
+                let body = if target.starts_with("/ids") {
+                    serde_json::json!([1, 3])
+                } else if target.contains("since=c1") {
+                    serde_json::json!({ "rows": [{ "id": 3, "n": "three!" }], "cursor": "c2" })
+                } else {
+                    serde_json::json!({ "rows": [{ "id": 1, "n": "one" }, { "id": 2, "n": "two" }, { "id": 3, "n": "three" }], "cursor": "c1" })
+                }
+                .to_string();
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let doc = serde_json::json!({ "version": 1, "state": { "rows": null, "again": 0 },
+        "root": { "type": "ui-data-query", "props": { "url": format!("{base}/rows"), "params": { "day": "mon" }, "into": "rows", "refresh": "{{ again }}", "sync": { "ids": format!("{base}/ids") } } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const rows = () => (S().rows ?? []).map((r) => r.n).join(",");
+      try {
+        await until(() => S().rows?.length === 3);
+        log("full", rows());
+        root.__irender.set("again", 1);
+        await until(() => S().rows?.length === 2);
+        log("delta", rows());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-ids", &html) else { return };
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["full one,two,three", "delta one,three!"], "\n{result}");
+    assert_eq!(*log.lock().unwrap(), ["/rows?day=mon", "/rows?day=mon&since=c1", "/ids?day=mon"]);
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the
