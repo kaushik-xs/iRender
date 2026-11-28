@@ -1486,9 +1486,9 @@ fn iframe_structure_and_mistakes() {
     .unwrap()
     .body);
     // Sandboxed and lazy by default, its `src` following state.
-    assert!(body.contains(r#"<iframe src="https://example.com/map" title="Map" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allow="fullscreen" data-i-b="#), "{body}");
-    assert!(body.contains(r#"loading="eager" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-forms" allow="fullscreen; camera"></iframe>"#), "{body}");
-    assert!(body.contains(r#"<iframe src="https://example.org" title="Embedded page" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>"#), "{body}");
+    assert!(body.contains(r#"<iframe src="https://example.com/map" title="Map" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allow="fullscreen" data-loading data-i-x="ui-iframe" data-i-xc="{}" data-i-b="#), "{body}");
+    assert!(body.contains(r#"loading="eager" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-forms" allow="fullscreen; camera" data-loading data-i-x="ui-iframe" data-i-xc="{}"></iframe>"#), "{body}");
+    assert!(body.contains(r#"<iframe src="https://example.org" title="Embedded page" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" data-loading data-i-x="ui-iframe" data-i-xc="{}"></iframe>"#), "{body}");
 
     let err = |props: Json| render_with(json!({ "type": "ui-iframe", "props": props }), json!({ "list": [] }), json!({})).unwrap_err().to_string();
     assert!(err(json!({ "src": "x", "sandbox": ["top-navigation"] })).contains("`sandbox` can't allow `top-navigation`"));

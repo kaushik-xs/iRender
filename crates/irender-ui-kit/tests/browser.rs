@@ -9281,6 +9281,88 @@ fn iframe_in_chrome() {
     );
 }
 
+/// `ui-iframe` tells when its page has loaded, or not in time; with `height: auto` it's
+/// as tall as its page says, and messages go both ways.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn iframe_status_height_and_messages_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let page = Arc::new(Mutex::new(String::new()));
+    let done = Arc::new(AtomicBool::new(false));
+    let (html, fin) = (page.clone(), done.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (html, fin) = (html.clone(), fin.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let path = request.split_whitespace().nth(1).unwrap_or("").to_string();
+                let body = match path.as_str() {
+                    "/" => html.lock().unwrap().clone(),
+                    "/child" => r#"<!doctype html><p>child</p><script>parent.postMessage({ height: 333 }, "*"); addEventListener("message", (e) => parent.postMessage({ echo: e.data }, "*"));</script>"#.to_string(),
+                    // Never answers in time.
+                    "/slow" | "/hold" => {
+                        for _ in 0..1200 {
+                            if fin.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                        String::new()
+                    }
+                    "/finish" => {
+                        fin.store(true, Ordering::SeqCst);
+                        String::new()
+                    }
+                    _ => String::new(),
+                };
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let doc = serde_json::json!({ "version": 1, "state": { "st": null, "slow": null, "msg": null, "hello": null },
+        "root": { "type": "element", "style": { "width": 600 }, "children": [
+            { "type": "ui-iframe", "attrs": { "id": "a" }, "props": { "src": "/child", "height": "auto", "sandbox": ["scripts"], "loading": "eager", "bindStatus": "st", "bindMessage": "msg", "send": "{{ hello }}" } },
+            { "type": "ui-iframe", "attrs": { "id": "b" }, "props": { "src": "/slow", "timeout": 1, "loading": "eager", "bindStatus": "slow" },
+              "on": { "failed": { "action": "set_state", "key": "hello", "value": "{{ hello }}" } } } ] } });
+    let driver = r##"<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 1000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const a = document.getElementById("a"), b = document.getElementById("b");
+      try {
+        log("start", S().st, a.getBoundingClientRect().height, a.hasAttribute("data-loading"));
+        await until(() => S().st === "ready" && a.getBoundingClientRect().height === 333);
+        log("ready", S().st, a.getBoundingClientRect().height, a.hasAttribute("data-loading"), JSON.stringify(S().msg));
+        root.__irender.set("hello", { hi: 1 });
+        await until(() => S().msg?.echo);
+        log("echo", JSON.stringify(S().msg));
+        await until(() => S().slow === "failed");
+        log("slow", S().slow, b.hasAttribute("data-failed"));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+      fetch("/finish");
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    *page.lock().unwrap() = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive_url(&format!("http://127.0.0.1:{port}/")) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["start loading 150 true", "ready ready 333 false {\"height\":333}", "echo {\"echo\":{\"hi\":1}}", "slow failed true"],
+        "\n{result}"
+    );
+}
+
 /// Records joined by id: a remote table asks for the people on its page in one call (each
 /// id once), its cells pulse until they arrive, and the next page asks only for new ids;
 /// accounts come one at a time; a query fills state with rows from an API, joined, and

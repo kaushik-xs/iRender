@@ -819,13 +819,18 @@ ui-countdown: The time left to a deadline, turning to warning and danger as thre
 ui-iframe: Another page shown inside this one: sandboxed, loaded as it nears the screen, at a height or a ratio.
   src          any (required)  The page's address; may use state
   title        any  Names the frame for screen readers (default `Embedded page`)
-  height       any  Number (px) or CSS length (default 400); ignored with `ratio`
+  height       any  Number (px) or CSS length (default 400), or `auto`: as tall as its page says, by a message `{ height }` from it (a page of this site is measured); ignored with `ratio`
+  minHeight    number  With `height: auto`: the height before its page says, and at least (default 150)
   ratio        any  Width / height instead of a height: `"16 / 9"`, `1.5`
   sandbox      any  What the page may do: a list from `scripts`, `same-origin`, `forms`, `popups`, `popups-to-escape-sandbox`, `modals`, `downloads`, `presentation`, `pointer-lock`, `orientation-lock`, `top-navigation-by-user-activation`, `storage-access-by-user-activation`; `[]` for nothing, `false` for no sandbox (default `[scripts, same-origin, forms, popups, popups-to-escape-sandbox]`)
   allow        any  Browser features it may use: a list like `[fullscreen, clipboard-write, camera]`, or the `allow` attribute's text (default `[fullscreen]`)
   loading      one of: lazy, eager  Default `lazy`: loaded as it nears the screen
   referrerPolicy any  Default `strict-origin-when-cross-origin`
   bordered     bool  A border and rounded corners (default true)
+  timeout      number  Seconds to wait for its page before it's `failed` (default 20; 0 waits for ever)
+  bindStatus   statekey  State key that gets `loading`, `ready` or `failed`; `load` and `failed` events fire too
+  bindMessage  statekey  State key that gets each message its page posts (a `message` event fires too)
+  send         any  Posted to its page, to its origin only, once it's loaded and each time this changes; may use state
   children: no
 ui-compare-slider: Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either.
   before       any (required)  The first picture's address

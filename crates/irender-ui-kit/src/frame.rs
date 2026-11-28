@@ -1,8 +1,9 @@
-//! `ui-iframe`: another page shown inside this one, sandboxed, lazy and sized. No
-//! script: `src` and `title` follow state through the runtime's attribute bindings,
-//! which drop an unsafe URL as they do for any `src`.
+//! `ui-iframe`: another page shown inside this one, sandboxed, lazy and sized. `src` and
+//! `title` follow state through the runtime's attribute bindings, which drop an unsafe URL
+//! as they do for any `src`; `frame.js` tells when it's loaded (or failed), sizes it to
+//! its page with `height: auto`, and passes messages both ways.
 
-use crate::{BG_UNDER, BORDER, choice, lit, server_array};
+use crate::{BG_UNDER, BORDER, choice, lit, server_array, widget};
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, StyleValue, Val, expr};
 use irender_html::{Component, RenderCx, RenderError};
 use serde_json::Value as Json;
@@ -33,13 +34,18 @@ const LOADING: &[&str] = &["lazy", "eager"];
 const PROPS: &[PropDef] = &[
     PropDef::new("src", PropKind::Any, "The page's address; may use state").required(),
     PropDef::new("title", PropKind::Any, "Names the frame for screen readers (default `Embedded page`)"),
-    PropDef::new("height", PropKind::Any, "Number (px) or CSS length (default 400); ignored with `ratio`"),
+    PropDef::new("height", PropKind::Any, "Number (px) or CSS length (default 400), or `auto`: as tall as its page says, by a message `{ height }` from it (a page of this site is measured); ignored with `ratio`"),
+    PropDef::new("minHeight", PropKind::Number, "With `height: auto`: the height before its page says, and at least (default 150)"),
     PropDef::new("ratio", PropKind::Any, "Width / height instead of a height: `\"16 / 9\"`, `1.5`"),
     PropDef::new("sandbox", PropKind::Any, "What the page may do: a list from `scripts`, `same-origin`, `forms`, `popups`, `popups-to-escape-sandbox`, `modals`, `downloads`, `presentation`, `pointer-lock`, `orientation-lock`, `top-navigation-by-user-activation`, `storage-access-by-user-activation`; `[]` for nothing, `false` for no sandbox (default `[scripts, same-origin, forms, popups, popups-to-escape-sandbox]`)"),
     PropDef::new("allow", PropKind::Any, "Browser features it may use: a list like `[fullscreen, clipboard-write, camera]`, or the `allow` attribute's text (default `[fullscreen]`)"),
     PropDef::new("loading", PropKind::Enum(LOADING), "Default `lazy`: loaded as it nears the screen"),
     PropDef::new("referrerPolicy", PropKind::Any, "Default `strict-origin-when-cross-origin`"),
     PropDef::new("bordered", PropKind::Bool, "A border and rounded corners (default true)"),
+    PropDef::new("timeout", PropKind::Number, "Seconds to wait for its page before it's `failed` (default 20; 0 waits for ever)"),
+    PropDef::new("bindStatus", PropKind::StateKey, "State key that gets `loading`, `ready` or `failed`; `load` and `failed` events fire too"),
+    PropDef::new("bindMessage", PropKind::StateKey, "State key that gets each message its page posts (a `message` event fires too)"),
+    PropDef::new("send", PropKind::Any, "Posted to its page, to its origin only, once it's loaded and each time this changes; may use state"),
 ];
 
 static FRAME: LazyLock<StyleBlock> = LazyLock::new(|| {
@@ -108,6 +114,11 @@ impl Component for Iframe {
         };
         let sandbox = sandbox(cx, node)?;
         let allow = allow(cx, node)?;
+        let auto = cx.prop_string(node, "height").as_deref() == Some("auto");
+        let mut config = widget::config(cx, node, &["send"], &["timeout", "minHeight"], &["bindStatus", "bindMessage"])?;
+        if auto {
+            config.insert("auto".into(), Json::Bool(true));
+        }
 
         let mut size = StyleBlock::new();
         match node.prop("ratio") {
@@ -116,6 +127,10 @@ impl Component for Iframe {
                 let ratio = expr::stringify(v);
                 irender_core::policy::css_value_is_contained(&ratio).map_err(|e| RenderError::new(node, e))?;
                 size.push("aspect-ratio", StyleValue::Static(ratio));
+            }
+            _ if auto => {
+                let min = widget::number(cx, node, "minHeight").unwrap_or(150.0).max(0.0);
+                size.push("height", StyleValue::Static(format!("{min}px")));
             }
             _ => {
                 let height = node.prop("height").cloned().unwrap_or_else(|| lit(400));
@@ -141,6 +156,9 @@ impl Component for Iframe {
         if !allow.is_empty() {
             el.attr("allow", allow);
         }
+        widget::kit(cx);
+        cx.global_js("ui-iframe", include_str!("frame.js"));
+        el.attr("data-loading", true).behavior("ui-iframe", Json::Object(config));
         cx.open(&el, node)?;
         cx.close("iframe");
         Ok(())
