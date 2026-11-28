@@ -229,6 +229,27 @@ static EDITOR: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-ce-main]", pairs(&[("position", "relative"), ("flex", "1 0 auto"), ("min-width", "0"), ("min-height", "calc(var(--ce-rows, 12) * 1.55em + 16px)"), ("font-size", fs!(13))]))
         .nest("&[data-wrap] [data-ce-main]", pairs(&[("flex", "1 1 0")]))
         .nest("& [data-ce-code]", layer().set("min-height", "100%").set("pointer-events", "none"))
+        // Find: the matches marked on a layer of their own, under the text, over the colours.
+        .nest("& [data-ce-marks]", layer().set("position", "absolute").set("inset", "0").set("color", "transparent").set("pointer-events", "none"))
+        .nest("&[data-wrap] [data-ce-marks]", pairs(&[("white-space", "pre-wrap"), ("overflow-wrap", "anywhere")]))
+        .nest("& [data-ce-marks] mark", pairs(&[("color", "transparent"), ("background", "color-mix(in srgb, var(--color-warning, #d97706) 30%, transparent)"), ("border-radius", "2px")]))
+        .nest("& [data-ce-marks] mark[data-on]", pairs(&[("background", "color-mix(in srgb, var(--color-warning, #d97706) 60%, transparent)"), ("outline", "1px solid var(--color-warning, #d97706)")]))
+        .nest(
+            "& [data-ce-findbar]",
+            pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(4)), ("padding", pad!(4, 8)), ("border-bottom", "var(--border-width, 1px) solid var(--color-border)"), ("background", SUBTLE)]),
+        )
+        .nest(
+            "& [data-ce-findbar] input",
+            pairs(&[("flex", "1 1 120px"), ("min-width", "0"), ("height", "26px"), ("padding", pad!(0, 6)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-sm)"), ("background", SURFACE), ("color", TEXT), ("font", "inherit")]),
+        )
+        .nest(
+            "& [data-ce-findbar] button",
+            pairs(&[("display", "inline-grid"), ("place-items", "center"), ("min-width", "26px"), ("height", "26px"), ("padding", pad!(0, 6)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "none"), ("color", MUTED), ("font", "inherit"), ("cursor", "pointer")]),
+        )
+        .nest("& [data-ce-findbar] button:hover, & [data-ce-findbar] button[aria-pressed=true]", pairs(&[("background", SURFACE), ("color", TEXT)]))
+        .nest("& [data-ce-count]", pairs(&[("color", MUTED), ("font-size", fs!(12)), ("font-variant-numeric", "tabular-nums"), ("white-space", "nowrap")]))
+        .nest("& [data-ce-replace]", pairs(&[("display", "none"), ("flex-basis", "100%"), ("gap", gap!(4))]))
+        .nest("& [data-ce-findbar][data-replacing] [data-ce-replace]", pairs(&[("display", "flex")]))
         .nest("& [data-ce-code] [data-ln]", pairs(&[("display", "block"), ("min-height", "1.55em")]))
         .nest("& [data-ce-code] [data-ln][data-cur]", pairs(&[("background", "color-mix(in srgb, var(--color-text) 4%, transparent)"), ("margin-inline", "-12px"), ("padding-inline", "12px")]))
         .nest("& [data-ce-code] [data-ln][data-sev=error]", pairs(&[("text-decoration", "underline wavy var(--color-destructive, #dc2626)"), ("text-decoration-skip-ink", "none")]))

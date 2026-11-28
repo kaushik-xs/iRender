@@ -407,7 +407,7 @@
    "id": "code-editor",
    "group": "Forms",
    "title": "Code editor",
-   "summary": "Code or a template typed over its highlighted copy: line numbers, indenting, closing brackets, comments with ⌘/, words offered as it's typed, and problems marked on their lines.",
+   "summary": "Code or a template typed over its highlighted copy: line numbers, indenting, closing brackets, comments with ⌘/, words offered as it's typed, and problems marked on their lines. ⌘/Ctrl+F finds and ⌘/Ctrl+H replaces.",
    "usage": "- type: ui-code-editor\n  props: { bind: query, language: sql, completions: [select, from], diagnostics: \"{{ problems }}\" }",
    "components": [
     "ui-code-editor"

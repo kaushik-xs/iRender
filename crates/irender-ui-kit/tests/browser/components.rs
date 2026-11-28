@@ -1295,6 +1295,55 @@ root:
     );
 }
 
+/// `ui-code-editor`: find (every match marked, the picked one selected, next and back,
+/// case), and replace one or all, as changes undo can take back.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn code_editor_finds_and_replaces() {
+    check(
+        "code-find",
+        r##"
+state: { src: "let total = 0;\nfor (const item of items) total += item.price;\nconsole.log(Total, total);\n" }
+root: { type: ui-code-editor, attrs: { id: ce }, props: { bind: src, language: js } }
+"##,
+        r##"
+        const area = $("#ce textarea"); area.focus(); area.setSelectionRange(0, 0);
+        key("f", { metaKey: true }); await wait(20);
+        const q = $("[data-ce-find]"); log(!!$("[data-ce-findbar]"), document.activeElement === q, getComputedStyle($("[data-ce-replace]")).display);
+        type(q, "total"); await wait(20);
+        const sel = () => area.value.slice(area.selectionStart, area.selectionEnd) + "@" + area.selectionStart;
+        log($("[data-ce-count]").textContent, $$("#ce [data-ce-marks] mark").length, sel());
+        q.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); await wait(10); log($("[data-ce-count]").textContent, sel());
+        q.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", shiftKey: true, bubbles: true })); await wait(10); log($("[data-ce-count]").textContent);
+        $("[data-ce-case]").click(); await wait(10); log($("[data-ce-count]").textContent, $("[data-ce-case]").getAttribute("aria-pressed"));
+        // Replacing: one, then all.
+        key("h", { ctrlKey: true }); await wait(20);
+        log(getComputedStyle($("[data-ce-replace]")).display);
+        const r = $("[data-ce-with]"); type(r, "sum");
+        $("[data-ce-one]").click(); await wait(20);
+        log(JSON.stringify(S().src), $("[data-ce-count]").textContent);
+        $("[data-ce-all]").click(); await wait(20);
+        log(JSON.stringify(S().src), $("[data-ce-count]").textContent);
+        // Nothing found says so; Escape closes and the marks go.
+        type(q, "nope"); await wait(10); log($("[data-ce-count]").textContent);
+        q.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await wait(10);
+        log(!!$("[data-ce-findbar]"), $$("#ce [data-ce-marks] mark").length, document.activeElement === area);
+"##,
+        &[
+            "true true none",
+            "1 of 4 4 total@4",
+            "2 of 4 total@41",
+            "1 of 4",
+            "1 of 3 true",
+            "flex",
+            r#""let sum = 0;\nfor (const item of items) total += item.price;\nconsole.log(Total, total);\n" 1 of 2"#,
+            r#""let sum = 0;\nfor (const item of items) sum += item.price;\nconsole.log(Total, sum);\n" Replaced 2"#,
+            "No matches",
+            "false 0 true",
+        ],
+    );
+}
+
 /// `ui-pivot`: a calculated value from the cell's sums, and a running total down the
 /// rows that starts again in each outer group.
 #[test]

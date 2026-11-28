@@ -444,8 +444,126 @@
       api.set(cfg.bind, area.value);
       paint();
       offer(false);
+      if (finder) seek(false);
       api.emit("change", { value: area.value });
     });
+
+    // ---- find and replace: ⌘/Ctrl+F finds, ⌘/Ctrl+H (or ⌘⌥F) replaces too. Every match
+    // is marked under the text, and the one picked is selected; Enter goes to the next,
+    // Shift+Enter the one before, Escape closes and leaves it selected.
+    // Labels: "Find", "Replace with", "Next match", "Previous match", "Match case", "Replace", "Replace all", "Close", "{n} of {total}", "No matches", "Replaced {n}"
+    let finder = null, hits = [], at = -1;
+    const marks = make("pre", { "data-ce-marks": "", "aria-hidden": "true" });
+    main.insertBefore(marks, area);
+    function openFind(replace) {
+      if (!finder) {
+        const q = make("input", { type: "search", "data-ce-find": "", "aria-label": L("Find"), placeholder: L("Find"), spellcheck: "false" });
+        const r = make("input", { type: "text", "data-ce-with": "", "aria-label": L("Replace with"), placeholder: L("Replace with"), spellcheck: "false" });
+        const count = make("span", { "data-ce-count": "", role: "status" });
+        const kase = button({ "data-ce-case": "", "aria-pressed": "false", "aria-label": L("Match case"), title: L("Match case") }, "Aa");
+        const bar = make("div", { "data-ce-findbar": "", role: "search" },
+          q, count, kase,
+          button({ "data-ce-prev": "", "aria-label": L("Previous match"), title: L("Previous match"), click: () => step(-1) }, icon("up", 14)),
+          button({ "data-ce-next": "", "aria-label": L("Next match"), title: L("Next match"), click: () => step(1) }, icon("down", 14)),
+          make("span", { "data-ce-replace": "" }, r, button({ "data-ce-one": "", click: () => replaceOne() }, L("Replace")), button({ "data-ce-all": "", click: () => replaceAll() }, L("Replace all"))),
+          button({ "data-ce-close": "", "aria-label": L("Close"), title: L("Close"), click: () => closeFind() }, icon("x", 14)));
+        kase.addEventListener("click", () => (kase.setAttribute("aria-pressed", String(kase.getAttribute("aria-pressed") !== "true")), seek(true)));
+        q.addEventListener("input", () => seek(true));
+        for (const input of [q, r]) input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") return e.preventDefault(), input === r && !e.shiftKey ? replaceOne() : step(e.shiftKey ? -1 : 1);
+          if (e.key === "Escape") return e.preventDefault(), closeFind();
+          if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "h")) e.preventDefault(), openFind(e.key === "h");
+        });
+        el.insertBefore(bar, el.firstChild);
+        finder = { bar, q, r, count, kase };
+      }
+      finder.bar.toggleAttribute("data-replacing", !!replace && !locked());
+      // What's selected (on one line) is what's looked for.
+      const sel = area.value.slice(area.selectionStart, area.selectionEnd);
+      if (sel && !sel.includes("\n")) finder.q.value = sel;
+      finder.q.focus();
+      finder.q.select();
+      seek(true);
+    }
+    function closeFind() {
+      if (!finder) return;
+      finder.bar.remove();
+      finder = null;
+      hits = [];
+      marks.replaceChildren();
+      area.focus();
+      if (at >= 0) cursor();
+    }
+    // Every match of what's looked for, and the one nearest the caret (or kept).
+    function seek(fromCaret) {
+      const want = finder.q.value, kase = finder.kase.getAttribute("aria-pressed") === "true", text = area.value;
+      hits = [];
+      if (want) {
+        const hay = kase ? text : text.toLowerCase(), needle = kase ? want : want.toLowerCase();
+        for (let i = hay.indexOf(needle); i >= 0 && hits.length < 10000; i = hay.indexOf(needle, i + Math.max(1, needle.length))) hits.push([i, i + want.length]);
+      }
+      if (fromCaret) at = hits.findIndex((h) => h[0] >= area.selectionStart);
+      if (at < 0 || at >= hits.length) at = hits.length ? 0 : -1;
+      drawMarks();
+      if (fromCaret && at >= 0) show(false);
+    }
+    function drawMarks() {
+      const text = area.value, kids = [];
+      let from = 0;
+      hits.forEach(([a, b], i) => {
+        kids.push(text.slice(from, a), make("mark", { "data-on": i === at || null }, text.slice(a, b)));
+        from = b;
+      });
+      kids.push(text.slice(from) || "\u200b");
+      marks.replaceChildren(...kids);
+      if (finder) finder.count.textContent = !finder.q.value ? "" : hits.length ? L("{n} of {total}", { n: String(at + 1), total: String(hits.length) }) : L("No matches");
+    }
+    // The match picked, selected in the text and scrolled to.
+    function show(focus) {
+      const h = hits[at];
+      if (!h) return;
+      area.setSelectionRange(h[0], h[1]);
+      if (focus) area.focus();
+      const line = area.value.slice(0, h[0]).split("\n").length;
+      pre.children[line - 1]?.scrollIntoView({ block: "nearest" });
+      drawMarks();
+      cursor();
+    }
+    function step(by) {
+      if (!hits.length) return;
+      at = (at + by + hits.length) % hits.length;
+      show(false);
+    }
+    function replaceOne() {
+      if (locked() || !finder || at < 0) return;
+      const [a, b] = hits[at], with_ = finder.r.value;
+      insert(with_, a, b);
+      seek(false);
+      // On to the next one after it.
+      at = hits.findIndex((h) => h[0] >= a + with_.length);
+      if (at < 0) at = hits.length ? 0 : -1;
+      if (at >= 0) show(false);
+      finder.r.focus();
+    }
+    function replaceAll() {
+      if (locked() || !finder || !hits.length) return;
+      const n = hits.length, with_ = finder.r.value, text = area.value;
+      let out = "", from = 0;
+      for (const [a, b] of hits) (out += text.slice(from, a) + with_), (from = b);
+      out += text.slice(from);
+      // As one change, which undo takes back at once.
+      insert(out, 0, text.length);
+      seek(false);
+      finder.count.textContent = L("Replaced {n}", { n: String(n) });
+      finder.r.focus();
+    }
+    el.addEventListener("keydown", (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod || e.target.closest?.("[data-ce-findbar]")) return;
+      if (e.key === "f" && !e.altKey) e.preventDefault(), openFind(false);
+      else if (e.key === "h" || (e.altKey && (e.key === "f" || e.code === "KeyF"))) e.preventDefault(), openFind(true);
+    });
+
     area.addEventListener("keydown", (e) => {
       if (e.isComposing) return;
       if (list) {
