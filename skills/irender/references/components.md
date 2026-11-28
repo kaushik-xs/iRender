@@ -811,7 +811,7 @@ ui-countdown: The time left to a deadline, turning to warning and danger as thre
   variant      one of: inline, tiles  `inline` (default: text with a dot in its tone) or `tiles` (days, hours, minutes and seconds in boxes)
   paused       any  While true (e.g. `{{ ticket.status == 'waiting' }}`), the time left stands still and it says Paused; on resuming the deadline moves out by the pause. A new `to` from the page replaces the moved one
   workdays     any  Count working time only: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`
-  hours        any  Working hours each working day, e.g. `09:00-17:30` (local time); outside them it stands still. Alone, every day works
+  hours        any  Working hours each working day, e.g. `09:00-17:30` (local time), or a shift past midnight, `22:00-06:00`; outside them it stands still. Alone, every day works. Or hours by weekday, `{ mon: 09:00-17:00, sat: 10:00-14:00 }` (also `0`–`6`, 0 Sunday): the days not named don't work
   holidays     any  Dates that don't count either, e.g. `["2026-12-25"]`
   bindLeft     statekey  State key that gets the seconds left (below zero once overdue), every second
   bindStatus   statekey  State key that gets `ok`, `warning`, `danger` or `over` as it changes

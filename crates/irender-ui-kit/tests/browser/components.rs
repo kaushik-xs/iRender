@@ -308,6 +308,33 @@ root:
     );
 }
 
+/// `ui-countdown` with hours by weekday, and a night shift running past midnight, on a
+/// clock at 23:00 on Friday 2026-12-04 (local time).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn countdown_counts_hours_by_weekday_and_night_shifts() {
+    let Some(result) = run_with(
+        "countdown-weekdays",
+        r##"
+state: { week: null, night: null }
+root:
+  type: stack
+  children:
+    - { type: ui-countdown, props: { to: "2026-12-07T11:00", hours: { sat: "10:00-14:00", mon: "09:00-17:00" }, bindLeft: week } }
+    - { type: ui-countdown, props: { to: "2026-12-05T05:00", hours: "22:00-06:00", bindLeft: night } }
+"##,
+        r##"
+        // Saturday's four hours and Monday's two; Friday night and Sunday don't work.
+        // The night shift: from 23:00 to 05:00 tomorrow, all of it working.
+        log(S().week / 3600, S().night / 3600);
+"##,
+        r#"<script>{ const start = Date.now(), at = Date.parse("2026-12-04T23:00:00"), now = Date.now.bind(Date); Date.now = () => at + (now() - start); }</script>"#,
+    ) else {
+        return;
+    };
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["6 6"], "\n{result}");
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn stepper_keeps_the_furthest_step_reached() {
