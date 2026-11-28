@@ -29,6 +29,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("placeholder", PropKind::Any, "Default `Write a comment…`"),
     PropDef::new("emptyText", PropKind::Any, "Default `No comments yet.`"),
     PropDef::new("maxLength", PropKind::Number, "The most characters in a comment"),
+    PropDef::new("markdown", PropKind::Bool, "Comments are read as a little Markdown: **bold**, *italic*, ~~struck~~, `code`, fenced code, [links](https://…), lists and > quotes (built as elements, never as HTML)"),
     PropDef::new("label", PropKind::Any, "Names it for screen readers (default `Comments`)"),
     PropDef::new("disabled", PropKind::Any, "Nothing can be added or changed"),
     PropDef::new("locale", PropKind::String, "How times are written (default: the document's `lang`, else the browser's)"),
@@ -74,6 +75,14 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& button:focus-visible", forms::focus_ring())
         .nest("& [data-c-text]", pairs(&[("margin", "0"), ("white-space", "pre-wrap"), ("overflow-wrap", "anywhere"), ("line-height", "1.5")]))
         .nest("& [data-c-text] a", pairs(&[("color", PRIMARY), ("text-underline-offset", "3px")]))
+        // Markdown: its blocks spaced as in a message, code in the mono face.
+        .nest("& [data-c-text][data-md]", pairs(&[("white-space", "normal"), ("display", "flex"), ("flex-direction", "column"), ("gap", gap!(6))]))
+        .nest("& [data-c-text][data-md] > :is(p, ul, ol, pre, blockquote)", pairs(&[("margin", "0")]))
+        .nest("& [data-c-text][data-md] :is(ul, ol)", pairs(&[("padding-inline-start", "1.4em")]))
+        .nest("& [data-c-text] code", pairs(&[("padding", "1px 4px"), ("border-radius", "var(--radius-sm)"), ("background", "color-mix(in srgb, var(--color-text) 8%, transparent)"), ("font-family", "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)"), ("font-size", "0.9em")]))
+        .nest("& [data-c-text] pre", pairs(&[("padding", pad!(8, 10)), ("border-radius", "var(--radius-md)"), ("background", "color-mix(in srgb, var(--color-text) 6%, transparent)"), ("overflow-x", "auto"), ("white-space", "pre")]))
+        .nest("& [data-c-text] pre code", pairs(&[("padding", "0"), ("background", "none")]))
+        .nest("& [data-c-text] blockquote", pairs(&[("padding-inline-start", "10px"), ("border-inline-start", "3px solid var(--color-border)"), ("color", "var(--color-muted)")]))
         .nest("& [data-mention]", pairs(&[("padding", "0 3px"), ("border-radius", "4px"), ("background", "color-mix(in srgb, var(--color-primary) 12%, transparent)"), ("font-weight", "var(--font-weight-medium, 500)")]))
         .nest("& [data-mention=me]", pairs(&[("background", "color-mix(in srgb, var(--color-warning, #d97706) 22%, transparent)")]))
         .nest("& [data-c-foot]", pairs(&[("position", "relative"), ("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "center"), ("gap", gap!(4)), ("margin-top", gap!(4))]))
@@ -113,7 +122,7 @@ impl Component for Comments {
             return Err(RenderError::new(node, "`ui-comments` needs `bind`"));
         }
         let mut config = widget::config(cx, node, &["user", "people", "placeholder", "emptyText", "disabled"], &["order", "maxLength", "reactions"], &["bind"])?;
-        for (name, default) in [("resolvable", false), ("replies", true), ("editable", true)] {
+        for (name, default) in [("resolvable", false), ("replies", true), ("editable", true), ("markdown", false)] {
             config.insert(name.into(), json!(flag(cx, node, name, default)));
         }
         config.insert("locale".into(), json!(crate::locale(cx, node)));

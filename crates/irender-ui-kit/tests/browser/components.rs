@@ -1295,6 +1295,40 @@ root:
     );
 }
 
+/// `ui-comments` with `markdown`: a comment's Markdown built as elements, mentions and
+/// bare addresses still marked inside it, and a link that isn't safe left as text.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn comments_read_markdown() {
+    check(
+        "comments-md",
+        r##"
+state:
+  thread:
+    - id: c1
+      who: Ada
+      when: "2026-11-20T10:00:00Z"
+      text: "**Ship it** on *Friday*, @Bob.\nSee [the plan](https://example.com/plan) and `make build`.\n\n- one\n- ~~two~~\n\n> quoted https://example.com\n\n```\nlet x = <b>1</b>;\n```\n[bad](javascript:alert(1)) snake_case_name"
+root: { type: ui-comments, props: { bind: thread, user: Ada, people: [Ada, Bob], markdown: true } }
+"##,
+        r##"
+        const t = $("[data-c-text]");
+        log([...t.children].map((n) => n.tagName).join(","));
+        log($("strong", t).textContent, $("em", t).textContent, $("[data-mention]", t)?.textContent, $("p a", t).getAttribute("href"), $("p a", t).target, $("p code", t).textContent);
+        log($$("li", t).map((l) => l.innerHTML).join(" | "));
+        log($("blockquote a", t)?.getAttribute("href"), JSON.stringify($("pre code", t).textContent), $$("b", t).length);
+        log(t.lastElementChild.textContent, $$("a", t).some((a) => a.getAttribute("href").startsWith("javascript")), $$("em", t).length);
+"##,
+        &[
+            "P,UL,BLOCKQUOTE,PRE,P",
+            "Ship it Friday @Bob https://example.com/plan _blank make build",
+            "one | <del>two</del>",
+            r#"https://example.com "let x = <b>1</b>;" 0"#,
+            "[bad](javascript:alert(1)) snake_case_name false 1",
+        ],
+    );
+}
+
 /// `ui-data-table` with editable cells, grouped: header rows with their counts and
 /// subtotals among the rows, which edit as ever; an edit that moves a row to another
 /// group moves it there, and a folded group's rows go.

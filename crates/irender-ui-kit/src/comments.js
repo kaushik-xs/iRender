@@ -1,7 +1,8 @@
 // irender-ui-kit: the `ui-comments` behaviour. The comments are a list in state; this
 // draws them, with a box to write in, and writes back what's added, edited, deleted,
 // resolved or reacted to, each with an event (`comment`, `edit`, `delete`, `resolve`,
-// `react`). The text is drawn as text: mentions marked, web addresses linked.
+// `react`). The text is drawn as text: mentions marked, web addresses linked; with
+// `markdown`, a little Markdown too (see `md`), built as elements, never as HTML.
 (window.__irenderBehaviors ||= {})["ui-comments"] = (el, api) => {
   const cfg = api.config, K = window.__irenderKit, M = window.__irenderMentions, L = (t, v) => window.__irender.label(t, v);
   const { make, button, icon } = K;
@@ -48,7 +49,65 @@
   }
 
   // ---- drawing
-  const body = (text) => M.split(text, people()).map((p, i) => (i % 2 ? make("span", { "data-mention": p.slice(1) === me() ? "me" : "" }, p) : K.linked(p)));
+  const plain = (text) => M.split(text, people()).map((p, i) => (i % 2 ? make("span", { "data-mention": p.slice(1) === me() ? "me" : "" }, p) : K.linked(p)));
+  // Markdown, the bits a comment needs: paragraphs, **bold**, *italic* (or _italic_),
+  // ~~struck~~, `code`, fenced code, [links](https://…) (http(s), mail or a path on the
+  // site), lists (- or 1.) and > quotes. Anything else is text; mentions and bare web
+  // addresses work inside it as without it.
+  const INLINE = [
+    [/`([^`\n]+)`/, (m) => make("code", null, m[1])],
+    [/\[([^\]\n]+)\]\(([^)\s]+)\)/, (m) => /^(https?:\/\/|mailto:|\/(?!\/)|#)/i.test(m[2]) ? make("a", { href: m[2], target: /^https?:/i.test(m[2]) ? "_blank" : null, rel: "noreferrer noopener" }, inline(m[1])) : m[0]],
+    [/\*\*(?=\S)([^*\n]+?)\*\*/, (m) => make("strong", null, inline(m[1]))],
+    [/~~(?=\S)([^~\n]+?)~~/, (m) => make("del", null, inline(m[1]))],
+    [/(^|[^\w*])\*(?=\S)([^*\n]+?)\*(?!\w)/, (m) => [m[1], make("em", null, inline(m[2]))]],
+    [/(^|[^\w])_(?=\S)([^_\n]+?)_(?!\w)/, (m) => [m[1], make("em", null, inline(m[2]))]],
+  ];
+  function inline(text) {
+    const out = [];
+    for (let rest = text; rest; ) {
+      let best = null;
+      for (const [re, f] of INLINE) {
+        const m = re.exec(rest);
+        if (m && (!best || m.index < best.m.index)) best = { m, f };
+      }
+      if (!best) {
+        out.push(...plain(rest));
+        break;
+      }
+      if (best.m.index) out.push(...plain(rest.slice(0, best.m.index)));
+      out.push(...[].concat(best.f(best.m)).map((x) => (typeof x === "string" ? plain(x) : x)).flat());
+      rest = rest.slice(best.m.index + best.m[0].length);
+    }
+    return out;
+  }
+  function md(text) {
+    const lines = String(text).replace(/\r\n?/g, "\n").split("\n"), out = [];
+    for (let i = 0; i < lines.length; ) {
+      const l = lines[i];
+      if (/^```/.test(l)) {
+        const code = [];
+        for (i++; i < lines.length && !/^```/.test(lines[i]); i++) code.push(lines[i]);
+        i++;
+        out.push(make("pre", null, make("code", null, code.join("\n"))));
+      } else if (/^\s*[-*+]\s+/.test(l) || /^\s*\d+[.)]\s+/.test(l)) {
+        const ordered = /^\s*\d/.test(l), items = [];
+        while (i < lines.length && (ordered ? /^\s*\d+[.)]\s+/ : /^\s*[-*+]\s+/).test(lines[i])) items.push(lines[i++].replace(/^\s*(?:[-*+]|\d+[.)])\s+/, ""));
+        out.push(make(ordered ? "ol" : "ul", null, items.map((x) => make("li", null, inline(x)))));
+      } else if (/^>\s?/.test(l)) {
+        const q = [];
+        while (i < lines.length && /^>\s?/.test(lines[i])) q.push(lines[i++].replace(/^>\s?/, ""));
+        out.push(make("blockquote", null, inline(q.join(" "))));
+      } else if (!l.trim()) i++;
+      else {
+        // A paragraph: the lines up to a blank one or another block, each on its own line.
+        const p = [];
+        while (i < lines.length && lines[i].trim() && !/^(```|>|\s*[-*+]\s+|\s*\d+[.)]\s+)/.test(lines[i])) p.push(lines[i++]);
+        out.push(make("p", null, p.flatMap((x, n) => (n ? [make("br"), ...inline(x)] : inline(x)))));
+      }
+    }
+    return out;
+  }
+  const body = (text) => (cfg.markdown ? md(text) : plain(text));
   function box(key, { value = "", label, submit, cancel, done, focus }) {
     const area = make("textarea", { rows: 2, "aria-label": label, placeholder: K.value(api, cfg.placeholder) ?? L("Write a comment…"), maxlength: cfg.maxLength, "data-key": key });
     area.value = drafts.get(key) ?? value;
@@ -101,7 +160,7 @@
     if (editing === c.id) {
       const stop = () => ((editing = null), drafts.delete("edit-" + c.id), draw(true));
       main.append(box("edit-" + c.id, { value: c.text ?? "", label: L("Edit comment"), submit: L("Save"), cancel: stop, focus: true, done: (text) => ((editing = null), drafts.delete("edit-" + c.id), set(change(c.id, (x) => ({ ...x, text, edited: true })), "edit", { id: c.id, text })) }));
-    } else main.append(make("p", { "data-c-text": "" }, body(c.text ?? "")));
+    } else main.append(make(cfg.markdown ? "div" : "p", { "data-c-text": "", "data-md": cfg.markdown || null }, body(c.text ?? "")));
     const foot = make("div", { "data-c-foot": "" });
     for (const [emoji, who] of Object.entries(c.reactions ?? {})) {
       if (!Array.isArray(who) || !who.length) continue;

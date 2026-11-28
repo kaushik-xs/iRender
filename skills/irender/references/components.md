@@ -1301,6 +1301,7 @@ ui-comments: Comments in threads: replies, mentions, reactions, resolving, editi
   placeholder  any  Default `Write a comment…`
   emptyText    any  Default `No comments yet.`
   maxLength    number  The most characters in a comment
+  markdown     bool  Comments are read as a little Markdown: **bold**, *italic*, ~~struck~~, `code`, fenced code, [links](https://…), lists and > quotes (built as elements, never as HTML)
   label        any  Names it for screen readers (default `Comments`)
   disabled     any  Nothing can be added or changed
   locale       string  How times are written (default: the document's `lang`, else the browser's)

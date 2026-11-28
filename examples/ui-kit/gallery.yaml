@@ -96,7 +96,7 @@ state:
   dlOwner: Ada Lovelace
   dlStage: won
   dlNote: ""
-  cmThread: [ { id: a, who: Ada Lovelace, when: "2026-11-20T09:30:00Z", text: "Can we ship this on Friday, @Grace Hopper?", reactions: { "👍": [Grace Hopper] }, replies: [ { id: b, who: Grace Hopper, when: "2026-11-20T10:00:00Z", text: Yes. } ] } ]
+  cmThread: [ { id: a, who: Ada Lovelace, when: "2026-11-20T09:30:00Z", text: "Can we ship this on **Friday**, @Grace Hopper?\n\n- the `release` branch is green\n- notes are in [the plan](https://example.com/plan)", reactions: { "👍": [Grace Hopper] }, replies: [ { id: b, who: Grace Hopper, when: "2026-11-20T10:00:00Z", text: "Yes. > on it" } ] } ]
   lbAt: null
   pvCell: null
   pvRows: [ { region: North, rep: Ann, date: "2026-01-04", amount: 120 }, { region: North, rep: Bo, date: "2026-02-14", amount: 80 }, { region: South, rep: Cy, date: "2026-01-20", amount: 300 }, { region: South, rep: Cy, date: "2026-04-01", amount: 50 } ]
@@ -2744,7 +2744,7 @@ root:
                   style: { display: contents }
                   children: *head
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
-                - { type: ui-comments, props: { bind: cmThread, user: Grace Hopper, people: [Ada Lovelace, Grace Hopper], resolvable: true } }
+                - { type: ui-comments, props: { bind: cmThread, user: Grace Hopper, people: [Ada Lovelace, Grace Hopper], resolvable: true, markdown: true } }
                 - { type: if, props: { when: "{{ api.comments.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.comments }}", as: c }

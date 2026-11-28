@@ -68,5 +68,5 @@ root:
                   children: [ { type: ui-signature, props: { bind: sign, height: 120 } } ]
                 - type: ui-card
                   props: { title: Questions }
-                  children: [ { type: ui-comments, props: { bind: thread, user: Ben, people: [Asha, Ben, Legal team], resolvable: true } } ]
+                  children: [ { type: ui-comments, props: { bind: thread, user: Ben, people: [Asha, Ben, Legal team], resolvable: true, markdown: true } } ]
         - { type: ui-toaster, props: { bind: toast } }
