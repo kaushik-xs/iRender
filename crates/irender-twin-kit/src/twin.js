@@ -187,7 +187,7 @@
     // Walls and zones being drawn by hand, and the one picked to take away (see "drawing
     // walls and zones").
     const sketch = { kind: null, pts: [], at: null, line: null, ends: null };
-    let wallPicked = null, zonePicked = null;
+    let wallPicked = null, zonePicked = null, cornersOf = null, cornerDots = null;
     const drawable = (kind) => !!props.editable && !!cfg[kind === "wall" ? "bindWalls" : "bindZones"];
     const sketching = () => sketch.kind !== null && drawable(sketch.kind);
     const snapPoint = (p) => (p ? new T.Vector3(snapTo(p.x), 0, snapTo(p.z)) : null);
@@ -1093,12 +1093,14 @@
     // ---------------------------------------------------------------- zones and walls
     const toneColor = (o, fallback) => (o.color && CSS.supports("color", o.color) ? ink(o.color).css : colors[TONES.includes(o.tone) ? o.tone : fallback]);
     function drawZones() {
+      if (cornersOf?.kind === "zone") cornersOf = null;
       zones.forEach((z) => {
         world.remove(z.mesh);
         dispose(z.mesh);
         z.tag?.remove();
       });
       zones = [];
+      queueMicrotask(() => renderer && drawCorners());
       for (const [i, z] of (Array.isArray(W("zones")) ? W("zones") : []).entries()) {
         if (!isObj(z) || z.show === false) continue;
         let pts = (Array.isArray(z.points) ? z.points : []).map(vec).filter(Boolean);
@@ -1126,11 +1128,12 @@
           tagLayer.append(tag);
         }
         mesh.userData.zoneRow = i;
-        if (i === zonePicked) mesh.material.opacity = Math.min(0.5, opacity * 2.4);
+        if (i === zonePicked) mesh.material.opacity = Math.min(0.5, opacity * 2.4), (cornersOf = { kind: "zone", row: i, pts });
         zones.push({ id, row: z, mesh, tag, title, at: new T.Vector3(mid.x, height + 0.05, mid.z), clickable: !!(cfg.bindZone || (cfg.popup && (z.title || z.description)) || drawable("zone")) });
       }
     }
     function drawWalls() {
+      if (cornersOf?.kind === "wall") cornersOf = null;
       walls.forEach((w) => {
         world.remove(w);
         dispose(w);
@@ -1155,10 +1158,25 @@
         }
         g.userData.wall = row;
         // Picked while editing: tinted.
-        if (row === wallPicked) mat.emissive = new T.Color(colors.primary), (mat.emissiveIntensity = 0.35);
+        if (row === wallPicked) mat.emissive = new T.Color(colors.primary), (mat.emissiveIntensity = 0.35), (cornersOf = { kind: "wall", row, pts: w.closed && pts.length > 2 ? pts.slice(0, -1) : pts });
         world.add(g);
         walls.push(g);
       }
+      drawCorners();
+    }
+    // The picked wall's or zone's corners (`cornersOf`), as dots over everything, to drag.
+    function drawCorners() {
+      if (!cornerDots && cornersOf) {
+        cornerDots = new T.Points(new T.BufferGeometry(), new T.PointsMaterial({ color: colors.primary, size: 11, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true }));
+        cornerDots.renderOrder = 11;
+        cornerDots.frustumCulled = false;
+        cornerDots.raycast = () => {};
+        scene.add(cornerDots);
+      }
+      if (!cornerDots) return;
+      const on = !!cornersOf && drawable(cornersOf.kind);
+      cornerDots.visible = on;
+      if (on) cornerDots.geometry.setFromPoints(cornersOf.pts.map((p) => new T.Vector3(p.x, 0.03 + (p.y || 0), p.z)));
     }
 
     // ---------------------------------------------------------------- the ground and light
@@ -1995,8 +2013,71 @@
       host.addEventListener("pointerup", end, true);
       host.addEventListener("pointercancel", end, true);
     }
+    // A picked wall's or zone's corner, dragged along the floor (snapped); the row's points
+    // are written as it goes, each in the form it had, and `reshape` fires once let go.
+    let corner = null;
+    function bindCorners() {
+      const near = (e) => {
+        if (!cornersOf || !drawable(cornersOf.kind) || !editable()) return -1;
+        const r = host.getBoundingClientRect();
+        let best = -1, gap = 12;
+        cornersOf.pts.forEach((p, k) => {
+          const q = new T.Vector3(p.x, p.y || 0, p.z).project(camera);
+          if (q.z > 1) return;
+          const d = Math.hypot(r.left + ((q.x + 1) / 2) * host.clientWidth - e.clientX, r.top + ((1 - q.y) / 2) * host.clientHeight - e.clientY);
+          if (d < gap) (gap = d), (best = k);
+        });
+        return best;
+      };
+      host.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || !renderer || e.target !== renderer.domElement || measuring() || sketching()) return;
+        const k = near(e);
+        if (k < 0) return;
+        e.stopPropagation();
+        const key = cfg[cornersOf.kind === "wall" ? "bindWalls" : "bindZones"];
+        corner = { k, id: e.pointerId, kind: cornersOf.kind, row: cornersOf.row, key, before: api.state[key], moved: false };
+        controls.enabled = false;
+        try {
+          host.setPointerCapture(e.pointerId);
+        } catch {
+          // A pointer the browser doesn't track (a synthetic one): moves still come here.
+        }
+      }, true);
+      host.addEventListener("pointermove", (e) => {
+        if (!corner || e.pointerId !== corner.id) return;
+        e.stopPropagation();
+        const g = snapPoint(groundPoint(e)), rows = corner.before;
+        if (!g || !Array.isArray(rows) || !isObj(rows[corner.row])) return;
+        const row = rows[corner.row];
+        // A zone given by its middle and size gets its four corners as points.
+        const pts = Array.isArray(row.points) && row.points.length ? row.points : cornersOf.pts.map((p) => [round(p.x, 3), round(p.z, 3)]);
+        const at = pts[corner.k], x = round(g.x, 3), z = round(g.z, 3);
+        const moved = Array.isArray(at) ? (at.length >= 3 ? [x, at[1], z] : [x, z]) : isObj(at) ? { ...at, x, z } : [x, z];
+        const { center, size, ...rest } = row;
+        const next = { ...(Array.isArray(row.points) && row.points.length ? row : rest), points: pts.map((p, j) => (j === corner.k ? moved : p)) };
+        corner.moved = true;
+        corner.next = next;
+        api.set(corner.key, rows.map((r, j) => (j === corner.row ? next : r)));
+      }, true);
+      const end = (e) => {
+        if (!corner || e.pointerId !== corner.id) return;
+        e.stopPropagation();
+        const c = corner;
+        corner = null;
+        controls.enabled = true;
+        down = null;
+        if (!c.moved) return;
+        if (e.type === "pointercancel") return api.set(c.key, c.before);
+        api.emit("reshape", { kind: c.kind, row: c.next, corner: c.k });
+        // Labels: "Corner {n} moved"
+        live.textContent = L("Corner {n} moved", { n: c.k + 1 });
+      };
+      host.addEventListener("pointerup", end, true);
+      host.addEventListener("pointercancel", end, true);
+    }
     function bindPointer() {
       bindBox();
+      bindCorners();
       const c = renderer.domElement;
       c.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
@@ -2175,8 +2256,9 @@
     // With `editable` and `bindWalls` (or `bindZones`): Draw a wall (W) or a zone (Z), its
     // corners clicked on the floor (snapped), finished with Enter, a double click, or (a
     // zone) a click on its first corner; Backspace takes the last corner back, Escape stops.
-    // A wall or zone clicked while editing is picked, and Delete takes it away. The rows are
-    // written to the state key, which `walls` and `zones` read.
+    // A wall or zone clicked while editing is picked: its corners drag (see `bindCorners`),
+    // and Delete takes it away. The rows are written to the state key, which `walls` and
+    // `zones` read.
     function sketchMode(kind) {
       sketch.kind = kind && drawable(kind) ? kind : null;
       sketch.pts = [];
@@ -2253,8 +2335,8 @@
       drawWalls();
       drawZones();
       look();
-      // Labels: "Wall picked: Delete takes it away", "Zone picked: Delete takes it away"
-      if (kind) say(kind === "wall" ? L("Wall picked: Delete takes it away") : L("Zone picked: Delete takes it away"), true);
+      // Labels: "Wall picked: drag a corner to move it, Delete takes it away", "Zone picked: drag a corner to move it, Delete takes it away"
+      if (kind) say(kind === "wall" ? L("Wall picked: drag a corner to move it, Delete takes it away") : L("Zone picked: drag a corner to move it, Delete takes it away"), true);
     }
     function shapeRemove() {
       const kind = wallPicked !== null ? "wall" : zonePicked !== null ? "zone" : null;
@@ -2265,6 +2347,8 @@
       api.set(key, rows.filter((_, i) => i !== at));
       api.emit("erase", { kind, row: rows[at] });
       wallPicked = zonePicked = null;
+      cornersOf = null;
+      drawCorners();
       // Labels: "Wall removed", "Zone removed"
       live.textContent = kind === "wall" ? L("Wall removed") : L("Zone removed");
       return true;

@@ -576,6 +576,16 @@ fn walls_and_zones_drawn_by_hand() {
       tw.controls.enabled = false;
       click(-4, -4); await wait(50);
       log("picked", $("w", "[data-twin-note]").textContent);
+      // Its corner dragged from (-2, -2) to (-1, 0), snapped; written as it goes, `reshape` once let go.
+      let reshaped = null;
+      document.getElementById("w").addEventListener("reshape", (e) => (reshaped = e.detail));
+      const at = (x, z) => { const p = new T.Vector3(x, 0, z).project(tw.camera); return { clientX: r.left + ((p.x + 1) / 2) * r.width, clientY: r.top + ((1 - p.y) / 2) * r.height, button: 0, pointerId: 4, bubbles: true }; };
+      cv.dispatchEvent(new PointerEvent("pointerdown", at(-2, -2))); cv.dispatchEvent(new PointerEvent("pointermove", at(-1.5, -1))); await wait(20);
+      cv.dispatchEvent(new PointerEvent("pointermove", at(-1.1, 0.2))); await wait(20);
+      log("dragging", JSON.stringify(S().zones[0].points), reshaped);
+      cv.dispatchEvent(new PointerEvent("pointerup", at(-1.1, 0.2))); await wait(50);
+      log("reshaped", reshaped?.kind, reshaped?.corner, $("w", "[data-twin-live]").textContent, tw.controls.enabled);
+      // Still picked: Delete takes it away.
       key(view, "Delete"); await wait(80);
       log("deleted", S().zones.map((z) => z.id).join(","));
       // Not editable: the buttons go.
@@ -591,7 +601,9 @@ fn walls_and_zones_drawn_by_hand() {
             r#"wall [{"id":"wall-1","points":[[0,0],[4,0],[4,3]]}] false"#,
             r#"zone {"id":"zone-2","points":[[6,0],[9,0],[9,3]],"label":"Zone 2"}"#,
             "short A wall needs two corners or more 1",
-            "picked Zone picked: Delete takes it away",
+            "picked Zone picked: drag a corner to move it, Delete takes it away",
+            "dragging [[-6,-6],[-2,-6],[-1,0],[-6,-2]] null",
+            "reshaped zone 2 Corner 3 moved true",
             "deleted zone-2",
             "off true true",
         ],

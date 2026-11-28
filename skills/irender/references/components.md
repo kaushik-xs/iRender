@@ -2537,8 +2537,8 @@ ui-twin: A digital twin: a 3D world drawn with three.js from models of most form
   bindObjects  statekey  State key the objects are in: a moved one's `position` and `rotation` are written back to its row
   bindLive     statekey  State key that gets the latest values from `live`, as `{ <id>: { field: value } }`, e.g. for a list or totals beside the twin
   bindMeasure  statekey  State key with the last measurement, `{ from, to, distance, across, up }` in metres (null when none)
-  bindWalls    statekey  While `editable`: the state key the walls are in (give `walls` the same, `{{ key }}`). Draw a wall among the controls (or W): click its corners on the floor, Enter or a double click to finish, Backspace takes the last corner back, Escape stops;          a wall clicked is picked, and Delete takes it away
-  bindZones    statekey  While `editable`: the state key the zones are in (as `bindWalls`). Draw a zone (or Z): three corners or more, then Enter, a double click or a click on the first; a zone picked goes with Delete
+  bindWalls    statekey  While `editable`: the state key the walls are in (give `walls` the same, `{{ key }}`). Draw a wall among the controls (or W): click its corners on the floor, Enter or a double click to finish, Backspace takes the last corner back, Escape stops; a wall clicked is picked: its corners drag along the floor (snapped; `reshape` fires once let go), and Delete takes it away
+  bindZones    statekey  While `editable`: the state key the zones are in (as `bindWalls`). Draw a zone (or Z): three corners or more, then Enter, a double click or a click on the first; a zone picked has its corners dragged and goes with Delete
   bindCamera   statekey  State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`
   popup        bool  Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)
   controls     bool  Zoom and fit buttons (default true)

@@ -2500,6 +2500,7 @@ root: …
 `twin.js`
 
 ```yaml
+"Corner {n} moved": "Corner {n} moved"
 "Click the wall's corners on the floor; Enter to finish": "Click the wall's corners on the floor; Enter to finish"
 "Click the zone's corners on the floor; Enter to finish": "Click the zone's corners on the floor; Enter to finish"
 "Corner {n}": "Corner {n}"
@@ -2508,8 +2509,8 @@ root: …
 "Zone {n}": "Zone {n}"
 "Wall added": "Wall added"
 "Zone added": "Zone added"
-"Wall picked: Delete takes it away": "Wall picked: Delete takes it away"
-"Zone picked: Delete takes it away": "Zone picked: Delete takes it away"
+"Wall picked: drag a corner to move it, Delete takes it away": "Wall picked: drag a corner to move it, Delete takes it away"
+"Zone picked: drag a corner to move it, Delete takes it away": "Zone picked: drag a corner to move it, Delete takes it away"
 "Wall removed": "Wall removed"
 "Zone removed": "Zone removed"
 "3D view unavailable": "3D view unavailable"

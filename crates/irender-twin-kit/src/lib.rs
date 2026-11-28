@@ -147,9 +147,9 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "bindWalls",
         PropKind::StateKey,
-        "While `editable`: the state key the walls are in (give `walls` the same, `{{ key }}`). Draw a wall among the controls (or W): click its corners on the floor, Enter or a double click to finish, Backspace takes the last corner back, Escape stops;          a wall clicked is picked, and Delete takes it away",
+        "While `editable`: the state key the walls are in (give `walls` the same, `{{ key }}`). Draw a wall among the controls (or W): click its corners on the floor, Enter or a double click to finish, Backspace takes the last corner back, Escape stops; a wall clicked is picked: its corners drag along the floor (snapped; `reshape` fires once let go), and Delete takes it away",
     ),
-    PropDef::new("bindZones", PropKind::StateKey, "While `editable`: the state key the zones are in (as `bindWalls`). Draw a zone (or Z): three corners or more, then Enter, a double click or a click on the first; a zone picked goes with Delete"),
+    PropDef::new("bindZones", PropKind::StateKey, "While `editable`: the state key the zones are in (as `bindWalls`). Draw a zone (or Z): three corners or more, then Enter, a double click or a click on the first; a zone picked has its corners dragged and goes with Delete"),
     PropDef::new("bindCamera", PropKind::StateKey, "State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`"),
     PropDef::new("popup", PropKind::Bool, "Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)"),
     PropDef::new("controls", PropKind::Bool, "Zoom and fit buttons (default true)"),
