@@ -100,6 +100,13 @@ const PRELUDE: &str = r##"
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
   const $ = (id, sel) => document.querySelector(`#${id} ${sel}`), $$ = (id, sel) => [...document.querySelectorAll(`#${id} ${sel}`)];
+  // Firefox won't capture (or let go of) a pointer it isn't tracking, as the drivers'
+  // synthetic ones aren't, and three's OrbitControls captures each one pressed: a real
+  // one always is.
+  for (const f of ["setPointerCapture", "releasePointerCapture"]) {
+    const was = Element.prototype[f];
+    Element.prototype[f] = function (id) { try { was.call(this, id); } catch (e) { if (e.name !== "NotFoundError") throw e; } };
+  }
   const twin = (id) => document.getElementById(id).__twin;
   const tag = (id, key) => $(id, `[data-twin-tag="${key}"]`);
   const tags = (id) => $$(id, "[data-twin-tag]").map((t) => t.dataset.twinTag + ":" + t.textContent);
@@ -449,10 +456,11 @@ fn coloured_by_value_and_shapes_are_instances() {
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn alarm_tags_that_overlap_are_counted() {
-    // Three in alarm side by side, seen from far off: their tags would pile up.
+    // Three in alarm side by side, seen from far off: their tags would pile up. The fourth
+    // is well clear of them, of a's tag with its count too.
     let row = |id: &str, x: f64| json!({ "id": id, "shape": "box", "position": [x, 0], "title": id, "temp": 99 });
     let doc = json!({ "version": 1,
-        "state": { "picked": null, "rows": [row("a", 0.0), row("b", 1.5), row("c", 3.0), row("far", 40.0)] },
+        "state": { "picked": null, "rows": [row("a", 0.0), row("b", 1.5), row("c", 3.0), row("far", 60.0)] },
         "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 260, "objects": "{{ rows }}", "bind": "picked",
             "camera": { "position": [20, 120, 160], "target": [20, 0, 0] },
             "readouts": [{ "field": "temp", "label": "Temp", "alarm": 90 }] } } });

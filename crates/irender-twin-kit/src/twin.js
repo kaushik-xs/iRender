@@ -1703,7 +1703,7 @@
       return moving;
     }
     // Tags, zone names and the popup over where their things are now.
-    function place2d() {
+    function place2d(again = 0) {
       if (!camera) return;
       const w = host.clientWidth, h = host.clientHeight, p = v3();
       // Styles are written only when they change: with many tags, writing them all each
@@ -1775,15 +1775,19 @@
           else if (s.rank === 4 && by.rank >= 4) by.more++;
         }
       } else for (const s of shown) keep(s, true);
+      let resized = false;
       for (const s of shown) {
         const more = s.more ? `+${s.more}` : null;
         if (s.node.__more === more) continue;
         if (more) s.node.setAttribute("data-more", more);
         else s.node.removeAttribute("data-more");
-        // Wider or narrower with its count: measured again next time.
+        // Wider or narrower with its count: measured again, and the tags placed again
+        // with it (a wider one may cover a neighbour now), a couple of times at most.
         s.node.__more = more;
         s.node.__size = null;
+        resized = true;
       }
+      if (resized && props.labels !== "all" && again < 2) return place2d(again + 1);
       const end = ruler.b ?? ruler.at;
       if (ruler.tag && ruler.a && end) {
         const xy = put(ruler.tag, q.lerpVectors(ruler.a, end, 0.5));
