@@ -46,6 +46,7 @@ Live endpoints, under any folder (the gallery asks for charts/api/live/...):
                 its account (`accountId`: api/accounts) by id only.
   api/people    JSON: people by id, many at a time (`?ids=u-01,u-02`, a list) after 600 ms,
                 or one (`api/people/u-01`); an unknown id is left out, or 404.
+  api/people/<id>/verify  POST: marks the person's email verified (block data-table-09).
   api/accounts/<id>  JSON: one account, after 250 ms: for a source that fetches one at a time.
                 With an ETag: asked again with If-None-Match, it answers 304 when unchanged.
   api/appointments   JSON: a clinic's day (block clinic-01), `?day=YYYY-MM-DD&clinician=<id>`:
@@ -591,6 +592,12 @@ class Handler(SimpleHTTPRequestHandler):
             return self.record()
         if path.endswith("/api/patients/batch"):
             return self.patients()
+        if "/api/people/" in path and path.endswith("/verify"):
+            person = PEOPLE.get(path.split("/")[-2])
+            if not person:
+                return self.send_error(404)
+            person["verified"] = True
+            return self.send_json({"ok": True})
         if "/api/patients/" in path and path.endswith("/touch"):
             patient = PATIENTS.get(path.split("/")[-2])
             if not patient:

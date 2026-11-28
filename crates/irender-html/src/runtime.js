@@ -424,6 +424,12 @@
             const type = res.headers.get("content-type") || "";
             const data = type.includes("json") ? await res.json() : await res.text();
             if (a.into) set(a.into, data);
+            // Saved: the records it changed are fetched again (`ui-data-source`s, in the UI kit).
+            if (a.inv && res.ok) {
+              for (const [name, ids] of Object.entries(values(a.inv))) {
+                window.__irenderData?.invalidate(name, ids === true || ids == null ? null : Array.isArray(ids) ? ids : [ids]);
+              }
+            }
             emit(el, "irender:submitted", { ok: res.ok, status: res.status, data });
           } catch (error) {
             emit(el, "irender:error", { error: String(error) });

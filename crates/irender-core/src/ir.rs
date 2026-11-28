@@ -49,7 +49,8 @@ pub struct PartStyle {
 pub enum Action {
     SetState { key: String, value: Val },
     Navigate { url: Val },
-    Submit { endpoint: Val, method: String, body: IndexMap<String, Val>, into: Option<String> },
+    /// `invalidates`: source → ids (an id or a list), or `true` for all its records.
+    Submit { endpoint: Val, method: String, body: IndexMap<String, Val>, into: Option<String>, invalidates: IndexMap<String, Val> },
     Call { name: String, args: IndexMap<String, Val> },
     Wait { ms: u64 },
 }

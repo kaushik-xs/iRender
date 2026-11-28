@@ -142,11 +142,32 @@
     touch(s.name);
   };
 
+  // A source named in `expand` (or a query's `source`) and declared nowhere: once the page
+  // has loaded, its ids fail (`$failed`, a query's `error`) rather than wait for it, and the
+  // console says which. Declared later after all (a part of the page shown later), they're
+  // fetched then.
+  const UNDECLARED = "no ui-data-source";
+  let loaded = false;
+  function undeclared(s) {
+    if (s.cfg || !s.wanted.size) return;
+    if (!s.warned) (s.warned = true), console.warn(`irender: nothing on the page declares the ui-data-source "${s.name}"; add one with \`name: ${s.name}\``);
+    const now = Date.now();
+    for (const id of s.wanted) put(s, id, { s: "error", at: now, error: UNDECLARED });
+    s.wanted.clear();
+  }
+  const settle = () => setTimeout(() => ((loaded = true), sources.forEach(undeclared)));
+  if (document.readyState === "complete") settle();
+  else addEventListener("load", settle, { once: true });
+
   // `scope` is whose records these are: another one (someone else signed in) lets the
   // records in memory go.
   function define(name, cfg, scope = null) {
     const s = source(name);
     const was = s.scope;
+    if (!s.cfg) {
+      for (const [id, r] of s.recs) if (r.error === UNDECLARED) s.recs.delete(id), s.wanted.add(id);
+      if (s.wanted.size) touch(name);
+    }
     s.cfg = cfg;
     s.scope = blank(scope) ? null : String(scope);
     if (was !== null && was !== s.scope && s.recs.size) {
@@ -171,7 +192,8 @@
   // Until the turn ends, so that every row drawn now asks in the same call. A source
   // declared later on the page takes the ids asked for before it.
   function schedule(s) {
-    if (!s.cfg || s.timer) return;
+    if (!s.cfg) return void (loaded && setTimeout(() => undeclared(s)));
+    if (s.timer) return;
     s.timer = setTimeout(() => flush(s), Math.max(0, Number(s.cfg.wait) || 0));
   }
 
@@ -404,10 +426,12 @@
       return { value: r && r.v !== undefined ? r.v : null, loading: !blank(id) && (!r || (r.s === "loading" && r.v === undefined)), failed: r?.s === "error" };
     });
   }
-  // Fetched again the next time they're asked for: every record of a source, or some.
+  // Fetched again the next time they're asked for (at once, where they're drawn): every
+  // record of a source, or some. One changed here and not yet saved keeps what it has: it's
+  // fetched again when it's saved.
   function invalidate(name, ids) {
-    const s = source(name);
-    for (const [id, r] of s.recs) if (!ids || ids.map(idOf).includes(id)) s.recs.set(id, { ...r, at: 0, again: false, n: r.n + 1 });
+    const s = source(name), only = ids && new Set(ids.filter((id) => !blank(id)).map(idOf));
+    for (const [id, r] of s.recs) if ((!only || only.has(id)) && !r.pending && r.s !== "loading") s.recs.set(id, { ...r, at: 0, again: false, n: r.n + 1 });
     touch(name);
   }
 

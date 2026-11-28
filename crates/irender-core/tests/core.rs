@@ -324,6 +324,25 @@ fn actions() {
 }
 
 #[test]
+fn submit_invalidates_sources_or_their_ids() {
+    let ir = check(doc(json!({ "type": "leaf", "on": { "click": [
+        { "action": "submit", "endpoint": "/a", "invalidates": ["people", "teams"] },
+        { "action": "submit", "endpoint": "/b", "invalidates": { "people": "{{ n }}", "teams": [1, 2] } },
+        { "action": "submit", "endpoint": "/c" }
+    ] } })))
+    .unwrap();
+    let inv = |i: usize| match &ir.root.on["click"][i] {
+        irender_core::Action::Submit { invalidates, .. } => invalidates.iter().map(|(k, v)| format!("{k}={}", matches!(v, Val::Tpl(_)))).collect::<Vec<_>>(),
+        _ => unreachable!(),
+    };
+    assert_eq!(inv(0), ["people=false", "teams=false"]);
+    assert_eq!(inv(1), ["people=true", "teams=false"]);
+    assert!(inv(2).is_empty());
+    let errs = errors(doc(json!({ "type": "leaf", "on": { "click": { "action": "submit", "endpoint": "/a", "invalidates": [" "] } } })));
+    assert_eq!(errs, ["root.on.click[0].invalidates: a source's `name` can't be blank"]);
+}
+
+#[test]
 fn untrusted_policy_blocks_scripts_urls_and_css() {
     let mut policy = Policy::untrusted();
     policy.allowed_css_properties = Some(["color".to_string()].into());

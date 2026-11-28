@@ -1164,6 +1164,17 @@ A `remote` rule asks the server whether a value is accepted (is this name taken?
 
 Ids asked for while the page draws (by every table and query on it) go together, each id once: a source gathers them until the turn ends (`wait` milliseconds more, if asked). A record is kept in the page's memory for `ttl` seconds (default 300, at least 5), so another page of rows, another query or a card that names it again asks the server for nothing; past `ttl` it's still shown while it's fetched again. A call that fails is tried again after 15 seconds, with the next ask; a record that was there stays shown. With `one`, a record the API gave an `ETag` is asked for again with `If-None-Match`, and a 304 keeps it. Unless it's kept on the device (below), nothing is written there: an installed app's service worker leaves these calls alone (they carry `x-irender-data: 1`) and the browser's cache isn't used, so people's details aren't kept by either. `headers` go with every call.
 
+A save that changes records on the server says which, with `invalidates` on its `submit`: once it succeeds (a 2xx), they're fetched again where they're drawn, and the others keep what they have. Give it ids by source, an id or a list (`invalidates: { people: "{{ person.id }}" }`), or source names alone for every record of each (`invalidates: [people, teams]`). A failed save fetches nothing again, and a record with changes of its own still waiting to be sent (`write`, below) keeps them.
+
+```yaml
+- type: ui-button
+  props: { label: Promote }
+  on:
+    click: { action: submit, endpoint: "/api/people/{{ person.id }}/promote", invalidates: { people: "{{ person.id }}" } }
+```
+
+A source named in `expand` or a query's `source` that nothing on the page declares doesn't leave its rows waiting: once the page has loaded, its fields are `$failed` (a query's `status` is `error`) and the console names it. One declared later after all, in a part of the page shown later, fetches them then.
+
 **Kept on the device.** `persist: device` keeps a source's records in IndexedDB too, and a query's last answer for each address, so they show at once next time and without a connection. `scope` is whose they are, say `{{ user.id }}`, and it's required: each scope's are kept apart, and when it changes the page lets the others go. What's kept shows first; past `ttl` it's fetched again behind it. A query whose call fails shows what it kept, with `status.state` `stale` (and `cached` true while kept rows are shown). Other open tabs are told when records are kept, and show them.
 
 The fields named in `private` are kept only encrypted (AES-GCM), with a key a `ui-app-lock` on the page unlocks: setting its PIN (or adding a passkey) makes the key, and the key is kept wrapped by one made from the PIN (PBKDF2) and, where the device's passkey has the PRF extension, by one from the passkey. Unlocking puts it in memory; locking takes it away, and with it the private fields from the page, until it's unlocked again, when they come back from the device. Without a lock, or locked, private fields aren't kept at all: what's kept has the rest, and the private fields come with the next fetch. Turning the lock off, or `reset`, lets what it sealed go. `retain` is how many days private fields may stay without being fetched again (default 30). `clear` (say `{{ !user }}`) wipes a source's records for its scope (or for every scope, when it has none) from the device and the page; a query's `clear` wipes the answers it kept for its scope.

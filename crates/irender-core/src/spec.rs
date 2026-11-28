@@ -96,6 +96,14 @@ impl<T> OneOrMany<T> {
     }
 }
 
+/// `submit`'s `invalidates`: whole sources, or some of their ids.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum Invalidates {
+    Sources(Vec<String>),
+    Ids(IndexMap<String, Json>),
+}
+
 /// A declarative action. Configs never contain code; `call` hands off to the host app.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
@@ -113,6 +121,11 @@ pub enum ActionSpec {
         body: IndexMap<String, Json>,
         #[serde(default)]
         into: Option<String>,
+        /// Records of `ui-data-source`s fetched again once it succeeds: source names
+        /// (`[people]`, every record), or ids by source (`{ people: "{{ person.id }}" }`,
+        /// an id or a list).
+        #[serde(default)]
+        invalidates: Option<Invalidates>,
     },
     /// Dispatch an `irender:call` DOM event with `{ name, args, state }` for the host app to handle.
     Call {

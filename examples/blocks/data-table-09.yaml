@@ -7,13 +7,16 @@
 # in one call per source, each id once, and the tickets show at once: the joined cells
 # pulse until their records arrive. The next page asks only for ids it hasn't seen; going
 # back asks for nothing, as records are kept in memory for a while (`ttl`). Clicking a row
-# shows its requester, joined, beside the table.
+# shows its requester, joined, beside the table; verifying their email saves it
+# (`api/people/<id>/verify`) and has that one person fetched again (`invalidates`), in
+# the card and in the table's rows.
 #
 #   cargo run -p irender-cli -- render examples/blocks/data-table-09.yaml --ui-kit --icon-kit -o data-table-09.html
 #   python3 examples/serve.py   # then open /blocks/data-table-09.html
 version: 1
 state:
   ticket: null
+  requester: null
 root:
   type: stack
   props: { gap: 20 }
@@ -30,6 +33,9 @@ root:
       props: { name: people, batch: { url: api/people, max: 50 }, ttl: 600 }
     - type: ui-data-source
       props: { name: accounts, one: "api/accounts/{id}", ttl: 600 }
+    # The clicked ticket's requester, kept up to date: fetched again once it's verified.
+    - type: ui-data-query
+      props: { source: people, ids: "{{ ticket ? ticket.requesterId : null }}", into: requester }
 
     - type: stack
       props: { gap: 4 }
@@ -125,6 +131,12 @@ root:
                         - { type: ui-description-item, props: { label: Phone, value: "{{ ticket.requester.phone }}" } }
                         - { type: ui-description-item, props: { label: Plan, value: "{{ ticket.account.plan }}" } }
                         - { type: ui-description-item, props: { label: Assignee, value: "{{ ticket.assignee ? ticket.assignee.name : 'Unassigned' }}" } }
+                        - { type: ui-description-item, props: { label: Email verified, value: "{{ requester && requester.verified ? 'Yes' : 'No' }}" } }
+                    # Saved, then only this person is fetched again.
+                    - type: ui-button
+                      props: { label: Verify email, variant: outline, disabled: "{{ !requester || requester.verified }}" }
+                      on:
+                        click: { action: submit, endpoint: "api/people/{{ ticket.requesterId }}/verify", method: POST, invalidates: { people: "{{ ticket.requesterId }}" } }
             - type: if
               props: { when: "{{ ticket && !ticket.requester }}" }
               children:

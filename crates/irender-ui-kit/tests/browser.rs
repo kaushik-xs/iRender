@@ -9447,6 +9447,137 @@ fn data_sources_join_records_in_chrome() {
     assert_eq!(folks, ["GET folks?ids=f1,f2,f3", "GET folks?ids=f4,f5,f6"], "{log:?}");
 }
 
+/// A source named in `expand` (or a query's `source`) that nothing declares fails once the
+/// page has loaded, rather than waiting, and is fetched when it's declared after all; a
+/// `submit` with `invalidates` has the records it names fetched again once it succeeds
+/// (its ids, or every record of a source), and one that fails doesn't.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_sources_undeclared_and_invalidated_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    // Each promotion makes everyone's records newer.
+    let version = Arc::new(AtomicUsize::new(1));
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, version) = (seen.clone(), version.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let method = request.split_whitespace().next().unwrap_or("").to_string();
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+                if method != "OPTIONS" {
+                    seen.lock().unwrap().push(format!("{method} {}", target.trim_start_matches('/')));
+                }
+                let (status, body) = match (method.as_str(), path) {
+                    ("OPTIONS", _) => ("204 No Content", String::new()),
+                    ("GET", "/people") | ("GET", "/late") => {
+                        let v = version.load(Ordering::SeqCst);
+                        let ids = query.strip_prefix("ids=").unwrap_or_default();
+                        let list: Vec<_> = ids.split(',').map(|id| serde_json::json!({ "id": id, "name": format!("{id} v{v}") })).collect();
+                        ("200 OK", serde_json::Value::Array(list).to_string())
+                    }
+                    ("POST", "/promote") => {
+                        version.fetch_add(1, Ordering::SeqCst);
+                        ("200 OK", "{}".to_string())
+                    }
+                    _ => ("500 Internal Server Error", "{}".to_string()),
+                };
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: content-type\r\nAccess-Control-Allow-Methods: GET, POST\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let button = |id: &str, endpoint: String, invalidates: serde_json::Value| {
+        serde_json::json!({ "type": "ui-button", "attrs": { "id": id }, "props": { "label": id },
+            "on": { "click": { "action": "submit", "endpoint": endpoint, "method": "POST", "body": {}, "invalidates": invalidates } } })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "who": "p1", "late": false, "ps": null, "ghost": null, "gs": null, "l": null, "ls": null,
+        "rows": [{ "id": 1, "ownerId": "p1" }, { "id": 2, "ownerId": "p2" }, { "id": 3, "ownerId": "g1" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": format!("{base}/people") } } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": ["p1", "p2"], "into": "ps" } },
+            { "type": "ui-data-query", "props": { "source": "ghosts", "ids": "g1", "into": "ghost", "status": "gs" } },
+            { "type": "ui-data-query", "props": { "source": "late", "ids": "l1", "into": "l", "status": "ls" } },
+            { "type": "ui-data-table", "props": { "id": "t", "rows": "{{ rows }}", "expand": { "ghost": { "source": "ghosts", "from": "ownerId" } },
+                "columns": [{ "field": "id" }, { "field": "ghost.name", "label": "Ghost" }] } },
+            { "type": "if", "props": { "when": "{{ late }}" }, "children": [
+                { "type": "ui-data-source", "props": { "name": "late", "batch": { "url": format!("{base}/late") } } } ] },
+            button("one", format!("{base}/promote"), serde_json::json!({ "people": "{{ who }}" })),
+            button("all", format!("{base}/promote"), serde_json::json!(["people"])),
+            button("bad", format!("{base}/broken"), serde_json::json!(["people"])) ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const warned = []; const warn = console.warn; console.warn = (...a) => (warned.push(a.join(" ")), warn(...a));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const names = () => (S().ps ?? []).map((p) => p.name).join(",");
+      try {
+        await until(() => S().gs?.state === "error" && S().ls?.state === "error");
+        log("undeclared", S().gs.state, JSON.stringify(S().ghost), S().ls.state);
+        await until(() => document.querySelector("#t [data-dt-body] > [data-dt-row]:nth-child(3) [data-dt-wait]") === null);
+        log("pulsing", document.querySelectorAll("#t [data-dt-wait]").length);
+        await until(() => warned.length >= 2);
+        log("warned", warned.filter((w) => w.includes('"ghosts"')).length, warned.filter((w) => w.includes('"late"')).length);
+        root.__irender.set("late", true);
+        await until(() => S().l?.name === "l1 v1");
+        log("late", S().l.name, S().ls.state);
+
+        await until(() => names() === "p1 v1,p2 v1");
+        log("first", names());
+        document.getElementById("one").click();
+        await until(() => names().startsWith("p1 v2"));
+        await wait(100);
+        log("one", names());
+        document.getElementById("all").click();
+        await until(() => names() === "p1 v3,p2 v3");
+        log("all", names());
+        document.getElementById("bad").click();
+        await wait(300);
+        log("bad", names());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-undeclared", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "undeclared error null error",
+            "pulsing 0",
+            "warned 1 1",
+            "late l1 v1 ready",
+            "first p1 v1,p2 v1",
+            // Only p1: p2 keeps what it had.
+            "one p1 v2,p2 v1",
+            "all p1 v3,p2 v3",
+            // Failed: nothing's fetched again.
+            "bad p1 v3,p2 v3",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    let people: Vec<_> = log.iter().filter(|q| q.starts_with("GET people")).cloned().collect();
+    assert_eq!(people, ["GET people?ids=p1,p2", "GET people?ids=p1", "GET people?ids=p1,p2"], "{log:?}");
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the

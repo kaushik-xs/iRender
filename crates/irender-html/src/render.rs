@@ -873,7 +873,7 @@ impl<'a> RenderCx<'a> {
                 out.push_str("{\"a\":\"nav\",\"u\":");
                 self.write_val_js(out, url);
             }
-            Action::Submit { endpoint, method, body, into } => {
+            Action::Submit { endpoint, method, body, into, invalidates } => {
                 out.push_str("{\"a\":\"submit\",\"e\":");
                 self.write_val_js(out, endpoint);
                 out.push_str(",\"m\":");
@@ -886,6 +886,10 @@ impl<'a> RenderCx<'a> {
                         let _ = write_json_str(out, k);
                     }
                     None => out.push_str("null"),
+                }
+                if !invalidates.is_empty() {
+                    out.push_str(",\"inv\":");
+                    map(out, invalidates);
                 }
             }
             Action::Call { name, args } => {

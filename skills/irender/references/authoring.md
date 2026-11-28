@@ -65,7 +65,7 @@ Any string may contain `{{ … }}`.
 |---|---|
 | `set_state` | `key`, `value` (usually an expression) |
 | `navigate` | `url` |
-| `submit` | `endpoint`, `method` (default POST), `body` (object; a query string for GET), `into` (state key for the JSON response) |
+| `submit` | `endpoint`, `method` (default POST), `body` (object; a query string for GET), `into` (state key for the JSON response), `invalidates` (records of `ui-data-source`s fetched again once it succeeds: `[people]`, or `{ people: "{{ person.id }}" }`) |
 | `call` | `name`, `args`: dispatches an `irender:call` DOM event for the host app |
 | `wait` | `ms` (at most 60000) |
 

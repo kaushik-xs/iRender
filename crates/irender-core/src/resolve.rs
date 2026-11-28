@@ -5,7 +5,7 @@ use crate::{
     Policy, PropDef, PropKind, Severity, StyleBlock, StyleValue, Template, Theme, Val,
     expr::{BinOp, Expr, Part, UnOp},
     params::{self, Params},
-    spec::{ActionSpec, NodeSpec, VERSION},
+    spec::{ActionSpec, Invalidates, NodeSpec, VERSION},
     style::{Decl, is_nested_key, is_unitless, number_to_css, to_kebab},
 };
 use indexmap::IndexMap;
@@ -599,7 +599,7 @@ impl Resolver<'_> {
             ActionSpec::Navigate { url } => {
                 Some(Action::Navigate { url: self.url(url, &format!("{path}.url"))? })
             }
-            ActionSpec::Submit { endpoint, method, body, into } => {
+            ActionSpec::Submit { endpoint, method, body, into, invalidates } => {
                 let method = method.to_ascii_uppercase();
                 if !matches!(method.as_str(), "GET" | "POST" | "PUT" | "PATCH" | "DELETE") {
                     self.diags.push(format!("{path}.method"), format!("unsupported method `{method}`"));
@@ -608,8 +608,16 @@ impl Resolver<'_> {
                     self.state_key(k, &format!("{path}.into"));
                 }
                 let body = self.val_map(body, &format!("{path}.body"));
+                let invalidates = match invalidates {
+                    None => IndexMap::new(),
+                    Some(Invalidates::Sources(names)) => names.iter().map(|n| (n.clone(), Val::Lit(Json::Bool(true)))).collect(),
+                    Some(Invalidates::Ids(ids)) => self.val_map(ids, &format!("{path}.invalidates")),
+                };
+                if invalidates.keys().any(|n| n.trim().is_empty()) {
+                    self.diags.push(format!("{path}.invalidates"), "a source's `name` can't be blank".to_string());
+                }
                 let endpoint = self.url(endpoint, &format!("{path}.endpoint"))?;
-                Some(Action::Submit { endpoint, method, body, into: into.clone() })
+                Some(Action::Submit { endpoint, method, body, into: into.clone(), invalidates })
             }
             ActionSpec::Call { name, args } => {
                 let args = self.val_map(args, &format!("{path}.args"));

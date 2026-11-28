@@ -72,7 +72,7 @@ Any string may contain `{{ … }}`.
 |---|---|
 | `set_state` | `key`, `value` (usually an expression) |
 | `navigate` | `url` |
-| `submit` | `endpoint`, `method` (default POST), `body` (object; a query string for GET), `into` (state key for the JSON response) |
+| `submit` | `endpoint`, `method` (default POST), `body` (object; a query string for GET), `into` (state key for the JSON response), `invalidates` (records of `ui-data-source`s fetched again once it succeeds: `[people]`, or `{ people: "{{ person.id }}" }`) |
 | `call` | `name`, `args`: dispatches an `irender:call` DOM event for the host app |
 | `wait` | `ms` (at most 60000) |
 
@@ -4288,6 +4288,17 @@ A `remote` rule asks the server whether a value is accepted (is this name taken?
 `ui-data-source` says how one kind of record is fetched by id, for `expand` on a data table or a `ui-data-query`. It draws nothing; its `name` is what they call it. Many ids in one call is `batch`: GET `<url>?ids=1,2,3` by default (`param` renames `ids`, `style: repeat` sends `ids=1&ids=2`, `params` adds fixed ones), or `method: POST`, which sends `{ ids: [...] }` with `body`'s fields, for an API that keeps ids out of addresses. At most `max` ids go in a call (default 50), and a GET's address stays under 2,000 characters. The answer is a list of records (each with its id in `key`, default `id`) or a map by id, at `pick` (default: the answer, or its `rows`, `data` or `items`). An API with no bulk call takes `one: "/api/people/{id}"` instead, one call per id, `concurrency` at a time (default 4); a 404 means there's no such record.
 
 Ids asked for while the page draws (by every table and query on it) go together, each id once: a source gathers them until the turn ends (`wait` milliseconds more, if asked). A record is kept in the page's memory for `ttl` seconds (default 300, at least 5), so another page of rows, another query or a card that names it again asks the server for nothing; past `ttl` it's still shown while it's fetched again. A call that fails is tried again after 15 seconds, with the next ask; a record that was there stays shown. With `one`, a record the API gave an `ETag` is asked for again with `If-None-Match`, and a 304 keeps it. Unless it's kept on the device (below), nothing is written there: an installed app's service worker leaves these calls alone (they carry `x-irender-data: 1`) and the browser's cache isn't used, so people's details aren't kept by either. `headers` go with every call.
+
+A save that changes records on the server says which, with `invalidates` on its `submit`: once it succeeds (a 2xx), they're fetched again where they're drawn, and the others keep what they have. Give it ids by source, an id or a list (`invalidates: { people: "{{ person.id }}" }`), or source names alone for every record of each (`invalidates: [people, teams]`). A failed save fetches nothing again, and a record with changes of its own still waiting to be sent (`write`, below) keeps them.
+
+```yaml
+- type: ui-button
+  props: { label: Promote }
+  on:
+    click: { action: submit, endpoint: "/api/people/{{ person.id }}/promote", invalidates: { people: "{{ person.id }}" } }
+```
+
+A source named in `expand` or a query's `source` that nothing on the page declares doesn't leave its rows waiting: once the page has loaded, its fields are `$failed` (a query's `status` is `error`) and the console names it. One declared later after all, in a part of the page shown later, fetches them then.
 
 **Kept on the device.** `persist: device` keeps a source's records in IndexedDB too, and a query's last answer for each address, so they show at once next time and without a connection. `scope` is whose they are, say `{{ user.id }}`, and it's required: each scope's are kept apart, and when it changes the page lets the others go. What's kept shows first; past `ttl` it's fetched again behind it. A query whose call fails shows what it kept, with `status.state` `stale` (and `cached` true while kept rows are shown). Other open tabs are told when records are kept, and show them.
 
