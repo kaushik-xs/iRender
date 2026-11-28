@@ -348,6 +348,13 @@
             if (b.p) el.style.removeProperty(b.p);
             el.style.setProperty(b.n, css === null || keyword ? "initial" : css);
             if (keyword && b.p) el.style.setProperty(b.p, css.trim());
+            // Under a condition, the keyword picks the rule compiled for it: a token in data-i-kw.
+            if (!b.p) {
+              const id = b.n.replace(/^--i-/, ""), kw = (el.getAttribute("data-i-kw") ?? "").split(" ").filter((t) => t && !t.startsWith(id + "="));
+              if (keyword) kw.push(`${id}=${css.trim().toLowerCase()}`);
+              if (kw.length) el.setAttribute("data-i-kw", kw.join(" "));
+              else el.removeAttribute("data-i-kw");
+            }
           } else if (b.k === "opts") {
             // A select's options, from state: rebuilt when the array changes.
             if (v === b.prev) continue;

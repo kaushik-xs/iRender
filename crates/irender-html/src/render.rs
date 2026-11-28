@@ -375,6 +375,9 @@ impl<'a> RenderCx<'a> {
         let mut bindings = String::new();
         let mut classes = String::new();
         let mut inline = String::new();
+        // `d<n>=<keyword>`: a CSS-wide keyword for a var under a condition, which picks the
+        // compiled rule that sets it.
+        let mut keywords = String::new();
         let sep = |s: &mut String, with: &str| {
             if !s.is_empty() {
                 s.push_str(with);
@@ -397,6 +400,8 @@ impl<'a> RenderCx<'a> {
                         }
                         None => {
                             let _ = write!(inline, "{}: initial", var.name);
+                            sep(&mut keywords, " ");
+                            let _ = write!(keywords, "{}={}", var.name.trim_start_matches("--i-"), css.trim().to_ascii_lowercase());
                         }
                     },
                     Some(css) => {
@@ -452,6 +457,11 @@ impl<'a> RenderCx<'a> {
             }
             self.out.push_str(" style=\"");
             escape::push_attr(&mut self.out, &inline);
+            self.out.push('"');
+        }
+        if !keywords.is_empty() {
+            self.out.push_str(" data-i-kw=\"");
+            escape::push_attr(&mut self.out, &keywords);
             self.out.push('"');
         }
         for (name, v) in attrs {

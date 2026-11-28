@@ -189,6 +189,10 @@ fn dynamic_styles_without_a_value_or_with_a_keyword_never_inherit_a_var() {
     // No value: `initial`, not left unset for an ancestor's `--i-d0` to fill. A keyword
     // goes on the property itself; under `:hover` it can't, so that var is emptied too.
     assert!(open.contains(r#"style="--i-d0: initial; --i-d1: initial; border-color: inherit; --i-d2: initial""#), "{open}");
+    // Under `:hover` the keyword is a token that picks the rule compiled for it.
+    assert!(open.contains(r#"data-i-kw="d2=inherit""#), "{open}");
+    let css = page.document("t");
+    assert!(css.contains(r#":hover[data-i-kw~="d2=inherit"]"#) || css.contains(r#"[data-i-kw~="d2=inherit"]:hover"#), "{css}");
 }
 
 #[test]

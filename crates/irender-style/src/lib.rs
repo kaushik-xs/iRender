@@ -40,7 +40,9 @@ pub struct DynVar {
     /// The property it sets, when that declaration is on the element itself (no nested
     /// selector, condition or at-rule). A CSS-wide keyword (`inherit`, `unset`, …)
     /// can't pass through a custom property, so renderers set this property to it
-    /// inline instead.
+    /// inline instead. Under a condition, the compiler adds a rule for each keyword,
+    /// picked by a `d<n>=<keyword>` token in the element's `data-i-kw` (see
+    /// [`CSS_WIDE_KEYWORDS`]), which renderers set.
     pub property: Option<String>,
 }
 
@@ -70,6 +72,9 @@ pub struct StyleCompiler<'t> {
 }
 
 const PLACEHOLDER: &str = ".__irender__";
+
+/// The values that apply to a custom property itself, so can't pass through one.
+pub const CSS_WIDE_KEYWORDS: [&str; 5] = ["inherit", "initial", "unset", "revert", "revert-layer"];
 
 impl<'t> StyleCompiler<'t> {
     pub fn new(theme: &'t Theme) -> Self {
@@ -122,13 +127,20 @@ impl<'t> StyleCompiler<'t> {
                 let _ = writeln!(css, "{w} {{");
             }
             let _ = writeln!(css, "{selector} {{");
+            // Dynamic values under a condition: a CSS-wide keyword can't reach the property
+            // through the var, so each gets a rule of its own, on the element's token.
+            let mut keyed = Vec::new();
             for d in &block.decls {
                 let value = match &d.value {
                     StyleValue::Static(v) => v.clone(),
                     StyleValue::Dynamic { tpl, px } => {
-                        let name = format!("--i-d{}", vars.len());
+                        let n = vars.len();
+                        let name = format!("--i-d{n}");
                         let value = format!("var({name})");
                         let own = selector == PLACEHOLDER && wrappers.is_empty();
+                        if !own {
+                            keyed.push((n, d.property.clone()));
+                        }
                         vars.push(DynVar { name, tpl: tpl.clone(), px: *px, property: own.then(|| d.property.clone()) });
                         value
                     }
@@ -136,6 +148,12 @@ impl<'t> StyleCompiler<'t> {
                 let _ = writeln!(css, "  {}: {};", d.property, value);
             }
             css.push_str("}\n");
+            for (n, property) in keyed {
+                for k in CSS_WIDE_KEYWORDS {
+                    let on = selector.replace(PLACEHOLDER, &format!("{PLACEHOLDER}[data-i-kw~=\"d{n}={k}\"]"));
+                    let _ = writeln!(css, "{on} {{\n  {property}: {k};\n}}");
+                }
+            }
             for _ in wrappers {
                 css.push_str("}\n");
             }

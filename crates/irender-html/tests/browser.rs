@@ -459,6 +459,49 @@ window.addEventListener("load", () => {
     assert_eq!(result.lines().collect::<Vec<_>>(), ["start 1 n=0", "clicks n=4 4", "inserted 1 n=4", "both n=5 n=5 starts 11"], "\n{result}");
 }
 
+/// A CSS-wide keyword in a dynamic style under a condition (`:hover`, a media query, a
+/// nested selector) reaches the property, from the server and as state changes.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn css_wide_keywords_reach_conditional_styles_in_chrome() {
+    let doc = r##"{ "version": 1, "state": { "c": "inherit" },
+      "root": { "type": "element", "style": { "color": "rgb(9, 9, 9)" },
+        "children": [ { "type": "element", "attrs": { "id": "box" }, "style": { "color": "rgb(1, 1, 1)",
+          "@media (min-width: 1px)": { "color": "{{ c }}" },
+          "& span": { "color": "{{ c }}" } },
+          "children": [ { "type": "element", "props": { "tag": "span" }, "attrs": { "id": "inner" }, "style": { } } ] } ] } }"##;
+    let driver = r##"<script>
+    window.addEventListener("load", () => {
+      const out = [];
+      const root = document.querySelector("[data-i-root]"), box = document.getElementById("box"), inner = document.getElementById("inner");
+      const step = (label) => out.push(label + " " + getComputedStyle(box).color + " " + getComputedStyle(inner).color + " " + (box.getAttribute("data-i-kw") ?? "-"));
+      step("inherit");
+      for (const c of ["rgb(4, 5, 6)", "initial", "inherit", null]) { root.__irender.set("c", c); step(String(c)); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n");
+      document.body.append(pre);
+    });
+    </script>"##;
+    let engine = Engine::new();
+    let ir = engine.load(doc, Format::Json).unwrap();
+    let page = engine.render(&ir, &serde_json::json!({})).unwrap();
+    let html = page.document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("css-keywords", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // `inherit` from the server: the box takes its parent's colour, and so does the span.
+            "inherit rgb(9, 9, 9) rgb(9, 9, 9) d0=inherit d1=inherit",
+            "rgb(4, 5, 6) rgb(4, 5, 6) rgb(4, 5, 6) -",
+            "initial rgb(0, 0, 0) rgb(0, 0, 0) d0=initial d1=initial",
+            "inherit rgb(9, 9, 9) rgb(9, 9, 9) d0=inherit d1=inherit",
+            // No value: as if the condition's declaration weren't there (the var's `initial`
+            // makes it invalid at computed time, so the colour is inherited).
+            "null rgb(9, 9, 9) rgb(9, 9, 9) -",
+        ],
+        "\n{result}"
+    );
+}
+
 /// A child's dynamic style with no value, or with a CSS-wide keyword, never picks up
 /// its parent's dynamic style: both use `--i-d0`, and the child's is always set.
 #[test]
