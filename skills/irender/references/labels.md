@@ -649,6 +649,7 @@ root: …
 "Page {page} of {pages}": "Page {page} of {pages}"
 "Filter by {name}": "Filter by {name}"
 "Clear filter": "Clear filter"
+"Couldn't load. Try again": "Couldn't load. Try again"
 "Yes": "Yes"
 "No": "No"
 ```

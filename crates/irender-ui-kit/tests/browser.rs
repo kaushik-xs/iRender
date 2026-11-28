@@ -9578,6 +9578,96 @@ fn data_sources_undeclared_and_invalidated_in_chrome() {
     assert_eq!(people, ["GET people?ids=p1,p2", "GET people?ids=p1", "GET people?ids=p1,p2"], "{log:?}");
 }
 
+/// A joined cell whose record couldn't be fetched has a button that asks for it again;
+/// an id with no record is asked for again after `missingTtl`, a record after `ttl`.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_sources_retry_failed_and_forget_missing_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    // The first call with p3 in it fails.
+    let failed = Arc::new(AtomicBool::new(false));
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, failed) = (seen.clone(), failed.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let ids = target.split_once("ids=").map(|(_, i)| i.to_string()).unwrap_or_default();
+                seen.lock().unwrap().push(ids.clone());
+                let (status, body) = if ids.split(',').any(|i| i == "p3") && !failed.swap(true, Ordering::SeqCst) {
+                    ("500 Internal Server Error", "{}".to_string())
+                } else {
+                    let list: Vec<_> = ids.split(',').filter(|i| *i != "p9").map(|id| serde_json::json!({ "id": id, "name": format!("Person {id}") })).collect();
+                    ("200 OK", serde_json::Value::Array(list).to_string())
+                };
+                let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let doc = serde_json::json!({ "version": 1, "state": { "ids": ["p1"], "got": null,
+        "rows": [{ "id": 1, "ownerId": "p1" }, { "id": 2, "ownerId": "p3" }, { "id": 3, "ownerId": "p9" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": format!("{base}/people") }, "ttl": 600, "missingTtl": 5 } },
+            { "type": "ui-data-table", "props": { "id": "t", "rows": "{{ rows }}", "expand": { "owner": { "source": "people", "from": "ownerId" } },
+                "columns": [{ "field": "id" }, { "field": "owner.name", "label": "Owner" }] } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": "{{ ids }}", "into": "got" } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]");
+      const t = document.getElementById("t");
+      const rows = () => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
+      const cells = () => rows().map((r) => r.children[1].textContent.trim() || "_").join(",");
+      const retries = () => rows().map((r) => (r.querySelector("[data-dt-retry]")?.hidden === false ? "retry" : "-")).join(",");
+      try {
+        await until(() => !t.querySelector("[data-dt-wait=true]") && retries().includes("retry"));
+        log("failed", cells(), retries());
+        const b = rows()[1].querySelector("[data-dt-retry]");
+        log("button", b.getAttribute("aria-label"), b.textContent.trim() === "");
+        b.click();
+        await until(() => cells().includes("Person p3"));
+        log("retried", cells(), retries());
+        // Past missingTtl, not ttl: asking again fetches p9 only.
+        await wait(5500);
+        root.__irender.set("ids", ["p1", "p3", "p9"]);
+        await wait(800);
+        log("again", JSON.stringify(root.__irender.state.got.map((p) => p.name)));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-retry", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            // p1 and p9 came in the call that failed too: p9 is no one, so no button.
+            "failed _,_,_ retry,retry,retry",
+            "button Couldn't load. Try again true",
+            "retried Person p1,Person p3,_ -,-,-",
+            "again [\"Person p1\",\"Person p3\"]",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    // The retry asks for every record that failed with it.
+    assert_eq!(*log, ["p1,p3,p9", "p1,p3,p9", "p9"], "{log:?}");
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the

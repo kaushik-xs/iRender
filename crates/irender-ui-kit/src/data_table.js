@@ -1747,6 +1747,10 @@
       // Its header row was redrawn: focus its new button.
       return groupRows.get(k)?.querySelector("[data-dt-fold]")?.focus();
     }
+    if (t.matches("[data-dt-retry]")) {
+      const e = cfg.expand?.[t.getAttribute("data-dt-retry")];
+      return e && D?.retry(e.source, null);
+    }
     if (t.matches("[data-dt-export]")) return exportCsv();
     if (t.matches("[data-dt-problems]")) {
       problemsOnly = !problemsOnly;

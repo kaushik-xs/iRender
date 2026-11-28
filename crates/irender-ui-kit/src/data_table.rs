@@ -474,6 +474,24 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
             .nest("@media (prefers-reduced-motion: reduce)", pairs(&[("animation", "none")])),
         )
         .nest("& span[data-dt-wait]::after", pairs(&[("inset-inline-start", "0"), ("width", "7em")]))
+        // A joined record that couldn't be fetched: a small button to try again, after its
+        // (blank) text.
+        .nest(
+            "& [data-dt-retry]",
+            pairs(&[
+                ("display", "inline-flex"),
+                ("vertical-align", "middle"),
+                ("padding", pad!(2)),
+                ("border", "0"),
+                ("border-radius", "var(--radius-sm, 4px)"),
+                ("background", "transparent"),
+                ("color", MUTED),
+                ("cursor", "pointer"),
+            ])
+            .nest("&:hover", pairs(&[("background", SUBTLE), ("color", "var(--color-text)")]))
+            .nest("&:focus-visible", pairs(&[("outline", "2px solid var(--color-ring)"), ("outline-offset", "1px")])),
+        )
+        .nest("& [data-dt-retry][hidden]", pairs(&[("display", "none")]))
         .nest("& [data-dt-empty] td", pairs(&[("height", sp!(96)), ("text-align", "center"), ("color", MUTED), ("border-bottom", "0")]))
         // Sortable headers.
         .nest(
@@ -752,6 +770,7 @@ static EDITING: LazyLock<StyleBlock> = LazyLock::new(|| {
 
 // Small inline icons, decorative: the buttons around them are labelled.
 const CHEVRON: &str = r#"<svg data-flip width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg>"#;
+const RETRY: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3"/></svg>"#;
 const SORT_ARROW: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>"#;
 const SORT_BOTH: &str = r#"<svg width="12" height="12" style="width:calc(12px * var(--size-icon, 1));height:calc(12px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6l3-3 3 3M5 10l3 3 3-3"/></svg>"#;
 const PLUS: &str = r#"<svg width="14" height="14" style="width:calc(14px * var(--size-icon, 1));height:calc(14px * var(--size-icon, 1))" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5.5v5M5.5 8h5"/></svg>"#;
@@ -2107,16 +2126,19 @@ fn cell(cx: &mut RenderCx<'_>, table: &Node, c: &Column) -> Result<(), RenderErr
     let value = c.field.as_deref().map(|f| expr_val(row_path(f)));
     let tick = c.template.is_none() && c.cell.is_none() && c.edit.as_ref().is_some_and(|e| e["type"] == "checkbox");
     let plain = !tick && matches!((&value, c.template, c.cell.as_deref()), (Some(_), None, None | Some("text")));
-    // The tree column indents its content behind the arrow that opens the row.
-    let mut text = if c.tree { Element::new("span") } else { std::mem::replace(&mut td, Element::new("td")) };
+    // A field of a joined record pulses until the record arrives, and offers to fetch it
+    // again if it couldn't be.
+    let joined = c.field.as_deref().and_then(|f| f.split_once('.')).map(|(head, _)| head).filter(|head| {
+        table.prop("expand").and_then(|e| match e {
+            Val::Lit(Json::Object(m)) => Some(m.contains_key(*head)),
+            _ => None,
+        }) == Some(true)
+    });
+    let retry = joined.filter(|_| plain && value.is_some() && !c.tree);
+    // The tree column indents its content behind the arrow that opens the row; a joined
+    // field's text sits beside its retry button.
+    let mut text = if c.tree || retry.is_some() { Element::new("span") } else { std::mem::replace(&mut td, Element::new("td")) };
     if let (true, Some(v)) = (plain, &value) {
-        // A field of a joined record pulses until the record arrives.
-        let joined = c.field.as_deref().and_then(|f| f.split_once('.')).map(|(head, _)| head).filter(|head| {
-            table.prop("expand").and_then(|e| match e {
-                Val::Lit(Json::Object(m)) => Some(m.contains_key(*head)),
-                _ => None,
-            }) == Some(true)
-        });
         if let Some(head) = joined {
             let waiting = row_path(&format!("$loading.{head}"));
             text.attr("data-dt-wait", expr_val(cond(waiting, Expr::Lit(json!(true)), Expr::Lit(json!(false)))));
@@ -2140,6 +2162,21 @@ fn cell(cx: &mut RenderCx<'_>, table: &Node, c: &Column) -> Result<(), RenderErr
             cx.open(&text, table)?;
             cx.close("span");
         }
+    } else if let Some(head) = retry {
+        cx.open(&td, table)?;
+        cx.open(&text, table)?;
+        cx.close("span");
+        let failed = row_path(&format!("$failed.{head}"));
+        let mut b = Element::new("button");
+        let label = cx.label("Couldn't load. Try again");
+        b.attr("type", "button")
+            .attr("data-dt-retry", head.to_string())
+            .attr("hidden", expr_val(cond(failed, Expr::Lit(json!(false)), Expr::Lit(json!(true)))))
+            .attr("aria-label", label.clone())
+            .attr("title", label);
+        cx.open(&b, table)?;
+        cx.markup(RETRY);
+        cx.close("button");
     } else {
         td = text;
         cx.open(&td, table)?;

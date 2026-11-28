@@ -100,6 +100,7 @@ const SOURCE_PROPS: &[PropDef] = &[
     PropDef::new("one", PropKind::String, "One id a call, where there's no `batch`: GET `<url>` with `{id}` in it, e.g. `/api/people/{id}`; 404 means there's none"),
     PropDef::new("pick", PropKind::String, "With `one`: the record's path in the answer, e.g. `data`"),
     PropDef::new("ttl", PropKind::Number, "Seconds a record is kept before it's fetched again (default 300); it's shown meanwhile"),
+    PropDef::new("missingTtl", PropKind::Number, "Seconds an id with no record is remembered as none before it's asked for again (default `ttl`)"),
     PropDef::new("concurrency", PropKind::Number, "Calls at a time (default 4)"),
     PropDef::new("wait", PropKind::Number, "Milliseconds to gather ids before calling (default 0: what's asked for in the same turn)"),
     PropDef::new("headers", PropKind::Any, "Request headers, e.g. `{ x-tenant: acme }`"),
@@ -130,7 +131,7 @@ impl Component for DataSource {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let config = widget::config(cx, node, &["scope", "clear"], &["name", "key", "batch", "one", "pick", "ttl", "concurrency", "wait", "headers", "persist", "private", "retain", "write"], &["bindWrites"])?;
+        let config = widget::config(cx, node, &["scope", "clear"], &["name", "key", "batch", "one", "pick", "ttl", "missingTtl", "concurrency", "wait", "headers", "persist", "private", "retain", "write"], &["bindWrites"])?;
         check_keeping(cx, node)?;
         if let Some(w) = config.get("write") {
             let Json::Object(w) = w else { return Err(RenderError::new(node, "`write` is `{ url, create, method, version, conflict }`")) };

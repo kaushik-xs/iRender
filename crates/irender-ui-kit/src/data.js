@@ -119,8 +119,10 @@
     if (r.s === "loading" || r.again) return true;
     // At least five seconds: what's drawn asks again each time it's drawn.
     const ttl = Math.max(5, Number(s.cfg?.ttl ?? 300)) * 1e3;
-    return Date.now() - r.at < (r.s === "error" ? Math.min(RETRY, ttl) : ttl);
+    return Date.now() - r.at < (r.s === "error" ? Math.min(RETRY, ttl) : r.s === "missing" ? missingTtl(s) : ttl);
   };
+  // How long an id with no record is taken at its word: `missingTtl`, else `ttl`.
+  const missingTtl = (s) => Math.max(5, Number(s.cfg?.missingTtl ?? s.cfg?.ttl ?? 300)) * 1e3;
 
   // Components hear which sources changed, once per turn.
   const listeners = new Set();
@@ -216,7 +218,7 @@
       const ttl = Number(s.cfg.ttl ?? 300) * 1e3;
       ids = ids.filter((id) => {
         const r = s.recs.get(id);
-        if (r && r.s !== "loading" && !r.partial && Date.now() - r.at < ttl) return (r.again = false), false;
+        if (r && r.s !== "loading" && !r.partial && Date.now() - r.at < (r.s === "missing" ? missingTtl(s) : ttl)) return (r.again = false), false;
         return true;
       });
       if (!ids.length) return;
@@ -425,6 +427,14 @@
       const r = blank(id) ? null : s.recs.get(idOf(id));
       return { value: r && r.v !== undefined ? r.v : null, loading: !blank(id) && (!r || (r.s === "loading" && r.v === undefined)), failed: r?.s === "error" };
     });
+  }
+  // Those that couldn't be fetched (all of them, or some), asked for again now: a cell's
+  // retry button. They failed together, as a rule, so one button asks for them all.
+  function retry(name, ids) {
+    const s = source(name), only = ids && new Set(ids.filter((id) => !blank(id)).map(idOf)), again = [];
+    for (const [id, r] of s.recs) if (r.s === "error" && (!only || only.has(id))) s.recs.delete(id), again.push(id);
+    touch(name);
+    want(name, again);
   }
   // Fetched again the next time they're asked for (at once, where they're drawn): every
   // record of a source, or some. One changed here and not yet saved keeps what it has: it's
@@ -755,6 +765,7 @@
     reads,
     lookup,
     invalidate,
+    retry,
     wipe,
     resolve,
     flush: flushWrites,

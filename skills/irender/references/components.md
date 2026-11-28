@@ -423,6 +423,7 @@ ui-data-source: Says how one kind of record is fetched by id (people, items, acc
   one          string  One id a call, where there's no `batch`: GET `<url>` with `{id}` in it, e.g. `/api/people/{id}`; 404 means there's none
   pick         string  With `one`: the record's path in the answer, e.g. `data`
   ttl          number  Seconds a record is kept before it's fetched again (default 300); it's shown meanwhile
+  missingTtl   number  Seconds an id with no record is remembered as none before it's asked for again (default `ttl`)
   concurrency  number  Calls at a time (default 4)
   wait         number  Milliseconds to gather ids before calling (default 0: what's asked for in the same turn)
   headers      any  Request headers, e.g. `{ x-tenant: acme }`
