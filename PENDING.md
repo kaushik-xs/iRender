@@ -100,7 +100,7 @@ _Last updated: 2026-11-28._
   - [ ] **`ui-qr-code`** takes a logo (a picture, an icon or letters); a logo from another site that doesn't share it is left out of a saved file.
   - [x] **`ui-code-scanner`** reads with the camera in Safari and Firefox too, with a decoder in WebAssembly (zxing-wasm, about 1 MB, loaded when it's first used), and from a picture (2026-11-22).
   - [ ] **`ui-code-editor`** (rules-01, ops-01): the highlighter's ten languages; no folding, find and replace, several carets or language server.
-  - [ ] **`ui-diff`** (record-01, review-01, ops-01): two versions only; no accepting or rejecting a change. **`ui-log`**: keeps the last 2,000 lines drawn.
+  - [ ] **`ui-diff`** (record-01, review-01, ops-01): two versions only; each change accepted or rejected with `review` (2026-11-29; gallery, review-01), its result the earlier version with the accepted changes: a change is a whole run of lines, not a word. **`ui-log`**: keeps the last 2,000 lines drawn.
   - [ ] **`ui-image-cropper`, `ui-signature`** (profile-01, invoice-01): straightening by a free angle isn't offered; a typed signature uses the device's own script font.
   - [ ] **`ui-trace`, `ui-tool-call`, `ui-questionnaire`, `ui-sources`, `ui-attachment`** (agent-01): a message has `sources` and `attachments`; the `[1]`s in a message's Markdown aren't links (only in `ui-sources`' own `text`).
 - [ ] **Gaps against client-ui-next** (`~/Documents/GitHub/client-ui-next/components`, compared 2026-11-17). Generic components it uses that no kit has yet, most used first:

@@ -1295,6 +1295,58 @@ root:
     );
 }
 
+/// `ui-diff` with `review`: each change accepted or rejected (or all at once), the
+/// decisions in state and the version they make; field by field too.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn diff_changes_are_accepted_or_rejected() {
+    check(
+        "diff-review",
+        r##"
+state:
+  a: "one\ntwo\nthree\nfour\nfive\n"
+  b: "one\nTWO\nthree\nfour\nfive\nsix\n"
+  dec: []
+  out: null
+  rec: null
+root:
+  type: stack
+  children:
+    - { type: ui-diff, attrs: { id: t }, props: { before: "{{ a }}", after: "{{ b }}", review: true, bindDecisions: dec, bindResult: out, view: unified } }
+    - { type: ui-diff, attrs: { id: f }, props: { mode: fields, review: true, bindResult: rec, before: { name: Ada, seats: 3, plan: Team }, after: { name: Ada Lovelace, seats: 5, plan: Team } } }
+"##,
+        r##"
+        const t = $("#t"), bars = () => $$("[data-d-hunk]", t).map((r) => r.firstChild.firstChild.textContent + ":" + (r.dataset.decision ?? "-")).join(" ");
+        log(bars(), $("[data-d-left]", t).textContent, JSON.stringify(S().out));
+        $$("[data-d-hunk] [data-d-decide=accepted]", t)[1].click(); await wait(30);
+        log(bars(), JSON.stringify(S().dec), JSON.stringify(S().out), $("[data-d-live]", t).textContent);
+        $$("[data-d-hunk] [data-d-decide=rejected]", t)[0].click(); await wait(30);
+        log(bars(), $("[data-d-left]", t).textContent, JSON.stringify(S().out));
+        // The same button again: undecided.
+        $$("[data-d-hunk] [data-d-decide=rejected]", t)[0].click(); await wait(30); log(JSON.stringify(S().dec));
+        $("[data-d-all=accepted]", t).click(); await wait(30);
+        log(JSON.stringify(S().dec), JSON.stringify(S().out), S().out === S().b);
+        // New versions start the review again.
+        root.__irender.set("b", "one\ntwo\n"); await wait(30); log(JSON.stringify(S().dec), $("[data-d-left]", t).textContent);
+        // Field by field.
+        const f = $("#f");
+        log($$("tbody tr", f).length, $$("[data-d-decide]", f).length, JSON.stringify(S().rec));
+        $$("[data-d-decide=accepted]", f)[1].click(); await wait(30);
+        log(JSON.stringify(S().rec), $("[data-d-left]", f).textContent);
+"##,
+        &[
+            r#"Change 1:- Change 2:- 2 to review "one\ntwo\nthree\nfour\nfive\n""#,
+            r#"Change 1:- Change 2:accepted [null,"accepted"] "one\ntwo\nthree\nfour\nfive\nsix\n" Change 2 accepted"#,
+            r#"Change 1:rejected Change 2:accepted All reviewed "one\ntwo\nthree\nfour\nfive\nsix\n""#,
+            r#"[null,"accepted"]"#,
+            r#"["accepted","accepted"] "one\nTWO\nthree\nfour\nfive\nsix\n" true"#,
+            "[] 1 to review",
+            r#"2 4 {"name":"Ada","seats":3,"plan":"Team"}"#,
+            r#"{"name":"Ada","seats":5,"plan":"Team"} 1 to review"#,
+        ],
+    );
+}
+
 /// `ui-query-builder`: a field compared with another (`fieldCompare`), and the query
 /// as parameterised SQL (`bindSql`) and as a link's query string (`bindUrl`).
 #[test]

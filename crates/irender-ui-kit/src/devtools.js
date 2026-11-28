@@ -70,12 +70,43 @@
     const cfg = api.config, ctx = cfg.context ?? 3;
     let was = null, open = new Set(), local = cfg.view ?? "split";
     const view = () => (cfg.bindView ? api.state[cfg.bindView] ?? local : local);
+    // With `review`: each change (a run of lines, or a field) accepted or rejected, in
+    // `bindDecisions` (`accepted`, `rejected` or null, a change each), and the version
+    // they make in `bindResult`: the earlier one, with the changes accepted so far.
+    let mine = [];
+    const decisions = () => (cfg.bindDecisions && Array.isArray(api.state[cfg.bindDecisions]) ? api.state[cfg.bindDecisions] : mine);
+    function decide(n, d, total) {
+      const next = Array.from({ length: total }, (_, i) => decisions()[i] ?? null);
+      if (n === "all") next.fill(d);
+      else next[n] = next[n] === d ? null : d;
+      mine = next;
+      if (cfg.bindDecisions) api.set(cfg.bindDecisions, next);
+      draw(true);
+      // Labels: "Change {n} accepted", "Change {n} rejected", "Change {n} undecided", "All changes accepted", "All changes rejected"
+      const say = n === "all" ? L(d === "accepted" ? "All changes accepted" : "All changes rejected") : L(next[n] === "accepted" ? "Change {n} accepted" : next[n] === "rejected" ? "Change {n} rejected" : "Change {n} undecided", { n: n + 1 });
+      const live = el.querySelector("[data-d-live]");
+      if (live) live.textContent = say;
+      api.emit("review", { change: n, decision: n === "all" ? d : next[n], decisions: next });
+    }
+    // Labels: "Accept", "Reject", "Accept all", "Reject all", "{n} to review", "Change {n}"
+    const verdict = (n, total) => make("span", { "data-d-verdict": "", role: "group", "aria-label": L("Change {n}", { n: n + 1 }) },
+      [["accepted", "Accept"], ["rejected", "Reject"]].map(([d, t]) => button({ "data-d-decide": d, "aria-pressed": String(decisions()[n] === d), click: () => decide(n, d, total) }, L(t))));
+    const tally = (total) => {
+      if (!cfg.review || !total) return [];
+      const left = Array.from({ length: total }, (_, i) => decisions()[i] ?? null).filter((d) => d === null).length;
+      return [make("span", { "data-d-left": "" }, left ? L("{n} to review", { n: left }) : L("All reviewed")), button({ "data-d-all": "accepted", click: () => decide("all", "accepted", total) }, L("Accept all")), button({ "data-d-all": "rejected", click: () => decide("all", "rejected", total) }, L("Reject all"))];
+    };
+    const put = (v) => cfg.bindResult && JSON.stringify(api.state[cfg.bindResult] ?? null) !== JSON.stringify(v) && api.set(cfg.bindResult, v);
     const narrow = matchMedia("(max-width: 640px)");
     function draw(force) {
       const before = K.value(api, cfg.before), after = K.value(api, cfg.after), v = narrow.matches ? "unified" : view();
       const sig = JSON.stringify([before, after, v, K.value(api, cfg.title), K.value(api, cfg.labels)]);
       if (!force && sig === was) return;
-      if (was && JSON.parse(was).slice(0, 2).join() !== [before, after].join()) open = new Set();
+      if (was && JSON.stringify(JSON.parse(was).slice(0, 2)) !== JSON.stringify([before, after])) {
+        open = new Set();
+        mine = [];
+        if (cfg.bindDecisions && decisions().length) api.set(cfg.bindDecisions, []);
+      }
       was = sig;
       const names = K.value(api, cfg.labels) ?? [];
       const title = K.value(api, cfg.title);
@@ -95,16 +126,32 @@
         else td.append(other === undefined || other === null ? lines[i] : marked(lines[i], other, tag));
         return td;
       };
-      // Rows: unchanged lines, and runs of removed then added ones beside one another.
-      const rows = [];
+      // Rows: unchanged lines, and runs of removed then added ones beside one another;
+      // each run is a change (`h`), and the merged version takes its lines from the side
+      // decided.
+      const rows = [], merged = [];
+      let h = 0;
       for (let i = 0; i < es.length; ) {
-        if (es[i][0] === " ") rows.push({ k: " ", a: es[i][1], b: es[i++][2] });
+        if (es[i][0] === " ") (merged.push(a[es[i][1]]), rows.push({ k: " ", a: es[i][1], b: es[i++][2] }));
         else {
           const d = [], p = [];
           while (i < es.length && es[i][0] !== " ") es[i][0] === "-" ? d.push(es[i++][1]) : p.push(es[i++][2]);
-          for (let n = 0; n < Math.max(d.length, p.length); n++) rows.push({ k: "±", a: d[n] ?? null, b: p[n] ?? null });
+          for (let n = 0; n < Math.max(d.length, p.length); n++) rows.push({ k: "±", a: d[n] ?? null, b: p[n] ?? null, h });
+          merged.push(...(decisions()[h] === "accepted" ? p.map((x) => b[x]) : d.map((x) => a[x])));
+          h++;
         }
       }
+      const hunks = h;
+      // It ends with a newline when the earlier version did.
+      if (cfg.review) put(merged.join("\n") + (merged.length && /\n$/.test(asText(before)) ? "\n" : ""));
+      // Before each change, with `review`: its buttons, and how it was decided.
+      let shownHunk = -1;
+      const hunkBar = (r) => {
+        if (!cfg.review || r.h === undefined || r.h === shownHunk) return;
+        shownHunk = r.h;
+        const d = decisions()[r.h] ?? null;
+        body.append(make("tr", { "data-d-hunk": "", "data-decision": d }, make("td", { colspan: v === "split" ? 4 : 3 }, make("span", null, L("Change {n}", { n: r.h + 1 })), verdict(r.h, hunks))));
+      };
       const near = rows.map((r) => r.k !== " ");
       const keep = rows.map((_, i) => { for (let j = Math.max(0, i - ctx); j <= Math.min(rows.length - 1, i + ctx); j++) if (near[j]) return true; return false; });
       const table = make("table", { "aria-label": L("Changes") }), body = make("tbody");
@@ -122,26 +169,28 @@
           }
         }
         const r = rows[i++];
+        hunkBar(r);
         const pair = r.a !== null && r.b !== null && r.k !== " ";
+        const decided = r.h === undefined ? null : decisions()[r.h] ?? null;
         if (v === "split") {
           const side = (lines, html, n, other, tag, k) => (n === null ? [make("td", { "data-no": "", "data-k": "none" }), make("td", { "data-line": "", "data-k": "none" })] : [Object.assign(no(n)), cell(lines, html, n, other, tag)].map((c) => (k && c.setAttribute("data-k", k), c)));
-          body.append(make("tr", null, side(a, ha, r.a, pair ? b[r.b] : null, "del", r.k === " " ? null : "del"), side(b, hb, r.b, pair ? a[r.a] : null, "ins", r.k === " " ? null : "add")));
+          body.append(make("tr", { "data-decision": decided }, side(a, ha, r.a, pair ? b[r.b] : null, "del", r.k === " " ? null : "del"), side(b, hb, r.b, pair ? a[r.a] : null, "ins", r.k === " " ? null : "add")));
         } else if (r.k === " ") {
           const c = cell(b, hb, r.b);
           c.prepend(sign(" "));
           body.append(make("tr", null, no(r.a), no(r.b), c));
         } else {
-          // Removed lines together, then added ones.
+          // Removed lines together, then added ones (a change's own, with `review`).
           const run = [r];
-          while (i < rows.length && rows[i].k !== " ") run.push(rows[i++]);
-          for (const x of run) if (x.a !== null) { const c = cell(a, ha, x.a, x.b !== null ? b[x.b] : null, "del"); c.prepend(sign("-")); body.append(make("tr", { "data-k": "del" }, no(x.a), no(null), c)); }
-          for (const x of run) if (x.b !== null) { const c = cell(b, hb, x.b, x.a !== null ? a[x.a] : null, "ins"); c.prepend(sign("+")); body.append(make("tr", { "data-k": "add" }, no(null), no(x.b), c)); }
+          while (i < rows.length && rows[i].k !== " " && (!cfg.review || rows[i].h === r.h)) run.push(rows[i++]);
+          for (const x of run) if (x.a !== null) { const c = cell(a, ha, x.a, x.b !== null ? b[x.b] : null, "del"); c.prepend(sign("-")); body.append(make("tr", { "data-k": "del", "data-decision": decided }, no(x.a), no(null), c)); }
+          for (const x of run) if (x.b !== null) { const c = cell(b, hb, x.b, x.a !== null ? a[x.a] : null, "ins"); c.prepend(sign("+")); body.append(make("tr", { "data-k": "add", "data-decision": decided }, no(null), no(x.b), c)); }
         }
       }
       table.append(body);
       const pick = (x, t) => button({ "aria-pressed": String(view() === x), click: () => ((local = x), cfg.bindView ? api.set(cfg.bindView, x) : draw(true)) }, t);
-      const bar = make("div", { "data-d-bar": "" }, title ? make("span", { "data-d-title": "" }, title) : null, names.length ? make("span", null, names.join(" → ")) : null, make("span", { "data-added": "" }, `+${adds}`), make("span", { "data-removed": "" }, `−${dels}`), make("span", { "data-push": "" }), narrow.matches ? null : [pick("split", L("Split")), pick("unified", L("Unified"))]);
-      el.replaceChildren(bar, adds || dels ? make("div", { "data-d-scroll": "", tabindex: 0, role: "region", "aria-label": L("Changes") }, table) : make("p", { "data-none": "" }, L("No changes")));
+      const bar = make("div", { "data-d-bar": "" }, title ? make("span", { "data-d-title": "" }, title) : null, names.length ? make("span", null, names.join(" → ")) : null, make("span", { "data-added": "" }, `+${adds}`), make("span", { "data-removed": "" }, `−${dels}`), make("span", { "data-push": "" }), tally(hunks), narrow.matches ? null : [pick("split", L("Split")), pick("unified", L("Unified"))]);
+      el.replaceChildren(bar, make("div", { "data-d-live": "", role: "status" }), adds || dels ? make("div", { "data-d-scroll": "", tabindex: 0, role: "region", "aria-label": L("Changes") }, table) : make("p", { "data-none": "" }, L("No changes")));
     }
     function fields(x, y, names, title) {
       const labels = K.value(api, cfg.fieldLabels) ?? {}, keys = [...new Set([...Object.keys(labels), ...Object.keys(x), ...Object.keys(y)])];
@@ -154,9 +203,28 @@
         return make("tr", null, make("th", { scope: "row" }, labels[k] ?? k), make("td", { "data-k": eq || !a ? null : "del" }, del), make("td", { "data-k": eq || !b ? null : "add" }, ins));
       });
       const n = keys.filter((k) => !same(k)).length;
+      // With `review`: a change a field, decided in its row; the result is the earlier
+      // record with the fields accepted from the later one.
+      const changed = keys.filter((k) => (k in x || k in y) && !same(k));
+      if (cfg.review) {
+        list.forEach((k, j) => {
+          const i = changed.indexOf(k);
+          if (i < 0) return rows[j].append(make("td"));
+          if (decisions()[i]) rows[j].setAttribute("data-decision", decisions()[i]);
+          rows[j].append(make("td", { "data-d-verdict-cell": "" }, verdict(i, changed.length)));
+        });
+        const out = { ...x };
+        changed.forEach((k, i) => {
+          if (decisions()[i] !== "accepted") return;
+          if (k in y) out[k] = y[k];
+          else delete out[k];
+        });
+        put(out);
+      }
       el.replaceChildren(
-        ...[title ? make("div", { "data-d-bar": "" }, make("span", { "data-d-title": "" }, title), make("span", { "data-push": "" }, L(["{n} change", "{n} changes"], { n }))) : null,
-          rows.length ? make("div", { "data-d-scroll": "", tabindex: 0, role: "region", "aria-label": L("Changes") }, make("table", { "data-fields": "" }, make("thead", null, make("tr", null, make("th", { scope: "col" }, L("Field")), make("th", { scope: "col" }, names[0] ?? L("Before")), make("th", { scope: "col" }, names[1] ?? L("After")))), make("tbody", null, rows))) : make("p", { "data-none": "" }, L("No changes"))].filter(Boolean));
+        ...[title || cfg.review ? make("div", { "data-d-bar": "" }, title ? make("span", { "data-d-title": "" }, title) : null, make("span", { "data-push": "" }, L(["{n} change", "{n} changes"], { n })), tally(changed.length)) : null,
+          make("div", { "data-d-live": "", role: "status" }),
+          rows.length ? make("div", { "data-d-scroll": "", tabindex: 0, role: "region", "aria-label": L("Changes") }, make("table", { "data-fields": "" }, make("thead", null, make("tr", null, make("th", { scope: "col" }, L("Field")), make("th", { scope: "col" }, names[0] ?? L("Before")), make("th", { scope: "col" }, names[1] ?? L("After")), cfg.review ? make("th", { scope: "col" }, L("Decision")) : null)), make("tbody", null, rows))) : make("p", { "data-none": "" }, L("No changes"))].filter(Boolean));
     }
     narrow.addEventListener("change", () => el.isConnected && draw(true));
     draw();

@@ -9,6 +9,7 @@
 version: 1
 state:
   toast: null
+  clause: null
   page: 1
   pages: 0
   sign: null
@@ -54,6 +55,9 @@ root:
                   props:
                     title: Clause 8, ending it
                     labels: [Version 2, Version 3]
+                    # Each change accepted or rejected; `clause` gets the wording they make.
+                    review: true
+                    bindResult: clause
                     before: "Either party may end this agreement by giving sixty (60) days' notice in writing.\nFees already paid are not returned.\nConfidential information is returned or destroyed."
                     after: "Either party may end this agreement by giving thirty (30) days' notice by email or in writing.\nFees already paid for work not yet done are returned.\nConfidential information is returned or destroyed."
             - type: stack

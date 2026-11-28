@@ -764,7 +764,7 @@
    "id": "diff",
    "group": "Data display",
    "title": "Diff",
-   "summary": "Two versions compared: text or code line by line, side by side or unified, with the words that changed; or two records field by field.",
+   "summary": "Two versions compared: text or code line by line, side by side or unified, with the words that changed; or two records field by field. review accepts or rejects each change, and bindResult gets the version they make.",
    "usage": "- { type: ui-diff, props: { before: \"{{ old }}\", after: \"{{ new }}\", language: yaml } }\n- { type: ui-diff, props: { mode: fields, before: \"{{ was }}\", after: \"{{ now }}\", fieldLabels: { name: Name } } }",
    "components": [
     "ui-diff"

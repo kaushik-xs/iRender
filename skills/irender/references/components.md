@@ -1166,6 +1166,9 @@ ui-diff: Two versions compared: text or code line by line, with the words that c
   fieldLabels  any  With `fields`: `{ field: label }`
   unchanged    bool  With `fields`: show fields that didn't change too
   wrap         bool  Wrap long lines (default true)
+  review       bool  Each change (a run of lines, or a field) has Accept and Reject, and the bar Accept all and Reject all; `review` fires with each decision
+  bindDecisions statekey  With `review`: state key holding the decisions, a change each, `accepted`, `rejected` or null, both ways
+  bindResult   statekey  With `review`: state key that gets the version the decisions make: the earlier one with the accepted changes (text, or a record)
   title        any  Shown in the bar, e.g. a file or record's name
   height       any  Most it grows to before it scrolls
   label        any  Names it for screen readers

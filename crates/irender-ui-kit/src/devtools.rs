@@ -69,6 +69,9 @@ const DIFF_PROPS: &[PropDef] = &[
     PropDef::new("fieldLabels", PropKind::Any, "With `fields`: `{ field: label }`"),
     PropDef::new("unchanged", PropKind::Bool, "With `fields`: show fields that didn't change too"),
     PropDef::new("wrap", PropKind::Bool, "Wrap long lines (default true)"),
+    PropDef::new("review", PropKind::Bool, "Each change (a run of lines, or a field) has Accept and Reject, and the bar Accept all and Reject all; `review` fires with each decision"),
+    PropDef::new("bindDecisions", PropKind::StateKey, "With `review`: state key holding the decisions, a change each, `accepted`, `rejected` or null, both ways"),
+    PropDef::new("bindResult", PropKind::StateKey, "With `review`: state key that gets the version the decisions make: the earlier one with the accepted changes (text, or a record)"),
     PropDef::new("title", PropKind::Any, "Shown in the bar, e.g. a file or record's name"),
     PropDef::new("height", PropKind::Any, "Most it grows to before it scrolls"),
     PropDef::new("label", PropKind::Any, "Names it for screen readers"),
@@ -100,6 +103,19 @@ static DIFF: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("& [data-fields] tbody tr:last-child > *", pairs(&[("border-bottom", "0")]))
         .nest("& [data-none]", pairs(&[("margin", "0"), ("padding", pad!(20)), ("color", MUTED), ("text-align", "center")]))
         .nest("& [data-sign]", pairs(&[("display", "inline-block"), ("width", "1.2em"), ("color", MUTED), ("user-select", "none")]))
+        // Reviewing: a bar before each change, its two buttons, and the side not taken faded.
+        .nest("& [data-d-hunk] td", pairs(&[("padding", pad!(4, 8)), ("background", SUBTLE), ("font-family", "var(--font-sans, inherit)"), ("font-size", fs!(12)), ("color", MUTED)]))
+        .nest("& [data-d-hunk] td > span:first-child", pairs(&[("margin-inline-end", gap!(8))]))
+        .nest("& [data-d-verdict]", pairs(&[("display", "inline-flex"), ("gap", gap!(4))]))
+        .nest(
+            "& [data-d-verdict] button",
+            pairs(&[("height", "24px"), ("padding", pad!(0, 8)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-sm)"), ("background", SURFACE), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("cursor", "pointer")]),
+        )
+        .nest("& [data-d-decide=accepted][aria-pressed=true]", pairs(&[("border-color", "transparent"), ("background", "color-mix(in srgb, var(--color-success, #16a34a) 22%, transparent)"), ("color", "var(--color-success, #16a34a)")]))
+        .nest("& [data-d-decide=rejected][aria-pressed=true]", pairs(&[("border-color", "transparent"), ("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 18%, transparent)"), ("color", "var(--color-destructive, #dc2626)")]))
+        .nest("& [data-decision=accepted] [data-k=del], & tr[data-decision=accepted][data-k=del], & [data-decision=rejected] [data-k=add], & tr[data-decision=rejected][data-k=add]", pairs(&[("opacity", "0.4")]))
+        .nest("& [data-d-left]", pairs(&[("color", TEXT)]))
+        .nest("& [data-d-live]", pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)")]))
 });
 
 impl Component for Diff {
@@ -110,7 +126,8 @@ impl Component for Diff {
         ComponentInfo { doc: "Two versions compared: text or code line by line, with the words that changed, or two records field by field.", props: DIFF_PROPS, parts: &[], children: false, open_props: false }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["before", "after", "labels", "fieldLabels", "title"], &["mode", "view", "language", "context"], &["bindView"])?;
+        let mut config = widget::config(cx, node, &["before", "after", "labels", "fieldLabels", "title"], &["mode", "view", "language", "context"], &["bindView", "bindDecisions", "bindResult"])?;
+        config.insert("review".into(), json!(flag(cx, node, "review", false)));
         config.insert("wrap".into(), json!(flag(cx, node, "wrap", true)));
         config.insert("unchanged".into(), json!(flag(cx, node, "unchanged", false)));
         mount(cx, node, &DIFF, "ui-diff", config, "Changes")

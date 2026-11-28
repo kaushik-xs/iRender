@@ -86,6 +86,8 @@ state:
   qbSql: null
   qbLink: null
   qbDates: { op: and, rules: [ { field: due, operator: after, valueField: sent }, { field: total, operator: gt, value: 100 } ] }
+  dfDecisions: []
+  dfResult: null
   sgPic: null
   crPic: null
   cdText: "https://example.com"
@@ -2956,6 +2958,10 @@ root:
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
                 - { type: ui-diff, props: { title: policy.txt, bindView: dfView, before: "Returns within 14 days.\nKeep the receipt.\nRefunds go to the card used.", after: "Returns within 30 days.\nKeep the receipt or the order number.\nRefunds go to the card used." } }
                 - { type: ui-diff, props: { mode: fields, title: Customer, fieldLabels: { name: Name, plan: Plan, seats: Seats }, before: { name: Ada Lovelace, plan: Basic, seats: 3 }, after: { name: Ada King, plan: Basic, seats: 5 } } }
+                - type: ui-text
+                  props: { variant: muted, text: "review: each change accepted or rejected (or all at once); dfResult is the earlier text with the accepted changes." }
+                - { type: ui-diff, props: { title: terms.md, review: true, bindDecisions: dfDecisions, bindResult: dfResult, view: unified, before: "Delivery in 5 days.\nFree over 50.\nReturns within 14 days.", after: "Delivery in 3 days.\nFree over 50.\nReturns within 30 days.\nGift wrap on request." } }
+                - { type: ui-code-block, props: { code: "{{ dfResult }}" } }
                 - { type: if, props: { when: "{{ api.diff.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.diff }}", as: c }
