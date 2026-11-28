@@ -423,15 +423,18 @@
       const ids = (many ? raw : [raw]).filter((x) => !blank(x) && typeof x !== "object");
       if (ask) want(e.source, ids);
       const s = source(e.source), recs = ids.map((id) => s.recs.get(idOf(id)));
-      sig += recs.map((r) => r?.n ?? "-").join(",") + ";";
-      parts.push({ name, many, recs });
+      // Records joined in turn (a person's team): their own `expand`, its fields in them.
+      const inner = isObj(e.expand) ? recs.map((r) => (r && isObj(r.v) ? joinRow(r.v, e.expand, ask) : null)) : null;
+      sig += recs.map((r) => r?.n ?? "-").join(",") + (inner ? ":" + inner.map(oid).join(",") : "") + ";";
+      parts.push({ name, many, recs, inner });
     }
     const m = memo.get(row);
     if (m && m.sig === sig) return m.out;
     const out = { ...row }, loading = {}, failed = {}, pending = {}, conflict = {};
     const value = (r) => (r && r.v !== undefined ? r.v : null);
-    for (const { name, many, recs } of parts) {
-      out[name] = many ? recs.map(value).filter((v) => v !== null) : value(recs[0]) ?? null;
+    for (const { name, many, recs, inner } of parts) {
+      const vals = recs.map((r, i) => inner?.[i] ?? value(r));
+      out[name] = many ? vals.filter((v) => v !== null) : vals[0] ?? null;
       if (recs.some((r) => !r || (r.s === "loading" && r.v === undefined))) loading[name] = true;
       if (recs.some((r) => r?.s === "error")) failed[name] = true;
       if (recs.some((r) => r?.pending)) pending[name] = true;
@@ -444,8 +447,12 @@
     memo.set(row, { sig, out });
     return out;
   }
-  // The sources an `expand` reads.
-  const reads = (expand) => (isObj(expand) ? Object.values(expand).map((e) => e.source) : []);
+  // A joined record's identity, for a row's signature: the same number while it's the same.
+  const oids = new WeakMap();
+  let nextOid = 0;
+  const oid = (v) => (isObj(v) ? (oids.get(v) ?? (oids.set(v, ++nextOid), nextOid)) : "-");
+  // The sources an `expand` reads, those it joins in turn included.
+  const reads = (expand) => (isObj(expand) ? Object.values(expand).flatMap((e) => [e.source, ...reads(e.expand)]) : []);
 
   // Records by id, as `joinRow` puts them: `{ value, loading, failed }`.
   function lookup(name, ids) {

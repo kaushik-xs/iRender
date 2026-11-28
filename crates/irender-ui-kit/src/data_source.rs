@@ -61,11 +61,20 @@ fn check(cx: &RenderCx<'_>, node: &Node, what: &str, url: &Json) -> Result<(), R
 
 /// `expand`, as `{ name: { source, from } }`: each entry an object, or the source's name
 /// alone (its ids then in `<name>Id`).
+/// An entry may have an `expand` of its own, joining records into the records it joins
+/// (a person's team), a few levels deep.
 pub(crate) fn expand(cx: &RenderCx<'_>, node: &Node) -> Result<Option<Json>, RenderError> {
     let Some(v) = cx.prop(node, "expand").filter(|v| !v.is_null()) else { return Ok(None) };
+    expand_map(node, &v, "expand", 0).map(Some)
+}
+
+fn expand_map(node: &Node, v: &Json, path: &str, depth: usize) -> Result<Json, RenderError> {
     let Json::Object(map) = v else {
-        return Err(RenderError::new(node, "`expand` is `{ field: { source, from } }`, e.g. `{ owner: { source: people, from: ownerId } }`"));
+        return Err(RenderError::new(node, format!("`{path}` is `{{ field: {{ source, from }} }}`, e.g. `{{ owner: {{ source: people, from: ownerId }} }}`")));
     };
+    if depth >= 3 {
+        return Err(RenderError::new(node, format!("`{path}`: records are joined at most three levels deep")));
+    }
     let mut out = Map::new();
     for (name, e) in map {
         let (source, from) = match &e {
@@ -77,14 +86,18 @@ pub(crate) fn expand(cx: &RenderCx<'_>, node: &Node) -> Result<Option<Json>, Ren
             _ => (String::new(), None),
         };
         if source.is_empty() {
-            return Err(RenderError::new(node, format!("`expand.{name}` needs `source`: the `name` of a `ui-data-source`")));
+            return Err(RenderError::new(node, format!("`{path}.{name}` needs `source`: the `name` of a `ui-data-source`")));
         }
         if name.contains('.') || name.starts_with('$') {
-            return Err(RenderError::new(node, format!("`expand.{name}`: the field it fills is one name, without `.` or a leading `$`")));
+            return Err(RenderError::new(node, format!("`{path}.{name}`: the field it fills is one name, without `.` or a leading `$`")));
         }
-        out.insert(name.clone(), json!({ "source": source, "from": from.unwrap_or_else(|| format!("{name}Id")) }));
+        let mut entry = json!({ "source": source, "from": from.unwrap_or_else(|| format!("{name}Id")) });
+        if let Some(inner) = e.get("expand").filter(|v| !v.is_null()) {
+            entry["expand"] = expand_map(node, inner, &format!("{path}.{name}.expand"), depth + 1)?;
+        }
+        out.insert(name.clone(), entry);
     }
-    Ok(Some(Json::Object(out)))
+    Ok(Json::Object(out))
 }
 
 // ---------------------------------------------------------------- source

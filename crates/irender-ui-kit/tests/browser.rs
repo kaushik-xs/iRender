@@ -9864,6 +9864,83 @@ fn data_kept_on_the_device_is_versioned_and_bounded_in_chrome() {
     assert_eq!(*log.lock().unwrap(), ["/people?ids=p1,p3"]);
 }
 
+/// `expand` inside a joined record: each person's team is joined into the person, in a
+/// table's rows and a query's, and each team is asked for once.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_sources_join_records_in_turn_in_chrome() {
+    use std::io::Write;
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let seen = seen.clone();
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",").trim_start_matches('/').to_string();
+                seen.lock().unwrap().push(target.clone());
+                let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+                let ids: Vec<&str> = query.strip_prefix("ids=").unwrap_or("").split(',').collect();
+                let list: Vec<_> = match path {
+                    "people" => ids.iter().map(|i| serde_json::json!({ "id": i, "name": format!("Person {i}"), "teamId": if *i == "p3" { "t2" } else { "t1" } })).collect(),
+                    _ => {
+                        std::thread::sleep(std::time::Duration::from_millis(400));
+                        ids.iter().map(|i| serde_json::json!({ "id": i, "name": format!("Team {i}") })).collect()
+                    }
+                };
+                let body = serde_json::Value::Array(list).to_string();
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let owner = serde_json::json!({ "owner": { "source": "people", "from": "ownerId", "expand": { "team": { "source": "teams", "from": "teamId" } } } });
+    let doc = serde_json::json!({ "version": 1, "state": { "q": null,
+        "rows": [{ "id": 1, "ownerId": "p1" }, { "id": 2, "ownerId": "p2" }, { "id": 3, "ownerId": "p3" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": format!("{base}/people") } } },
+            { "type": "ui-data-source", "props": { "name": "teams", "batch": { "url": format!("{base}/teams") } } },
+            { "type": "ui-data-table", "props": { "id": "t", "rows": "{{ rows }}", "expand": owner,
+                "columns": [{ "field": "id" }, { "field": "owner.name", "label": "Owner" }, { "field": "owner.team.name", "label": "Team" }] } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": ["p1", "p3"], "into": "q", "expand": { "team": { "source": "teams", "from": "teamId" } } } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const t = document.getElementById("t");
+      const rows = () => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]")];
+      const col = (n) => rows().map((r) => r.children[n].textContent.trim() || "_").join(",");
+      try {
+        await until(() => col(2).startsWith("Team"));
+        log("teams", col(1), col(2));
+        await until(() => S().q?.every((p) => p.team));
+        log("query", S().q.map((p) => p.name + "/" + p.team.name).join(","));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-in-turn", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["teams Person p1,Person p2,Person p3 Team t1,Team t1,Team t2", "query Person p1/Team t1,Person p3/Team t2"],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    let teams: Vec<_> = log.iter().filter(|q| q.starts_with("teams")).collect();
+    assert_eq!(teams, ["teams?ids=t1,t2"], "{log:?}");
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the

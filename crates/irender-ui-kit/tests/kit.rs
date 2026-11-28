@@ -2316,4 +2316,15 @@ fn data_sources_queries_and_joined_tables() {
     assert!(html.contains("expand&quot;:{&quot;owner&quot;:{&quot;source&quot;:&quot;people&quot;,&quot;from&quot;:&quot;ownerId&quot;}}"), "{html}");
     assert_eq!(html.matches("&quot;data-dt-wait&quot;").count(), 1, "{html}");
     assert!(html.contains("__irenderData"));
+    // A failed one has a button to try again, hidden until then.
+    assert_eq!(html.matches("data-dt-retry=\"owner\"").count(), 1, "{html}");
+
+    // Joined in turn: a team's field waits for the person and the team.
+    let deep = json!({ "owner": { "source": "people", "expand": { "team": { "source": "teams", "from": "teamId" } } } });
+    let page = render_with(json!({ "type": "ui-data-table", "props": { "url": "/api/rows", "expand": deep, "columns": [{ "field": "owner.team.name" }] } }), json!({}), json!({})).unwrap();
+    let html = page.document("t");
+    assert!(html.contains("&quot;expand&quot;:{&quot;team&quot;:{&quot;source&quot;:&quot;teams&quot;,&quot;from&quot;:&quot;teamId&quot;}}"), "{html}");
+    assert!(html.contains("{&quot;b&quot;:&quot;||&quot;,&quot;x&quot;:{&quot;p&quot;:[&quot;row&quot;,&quot;$loading&quot;,&quot;owner&quot;]},&quot;y&quot;:{&quot;p&quot;:[&quot;row&quot;,&quot;owner&quot;,&quot;$loading&quot;,&quot;team&quot;]}}"), "{html}");
+    let four = json!({ "a": { "source": "s", "expand": { "b": { "source": "s", "expand": { "c": { "source": "s", "expand": { "d": { "source": "s" } } } } } } } });
+    assert!(err(json!({ "type": "ui-data-query", "props": { "into": "k", "url": "/r", "expand": four } })).contains("three levels"));
 }

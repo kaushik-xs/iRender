@@ -2140,7 +2140,20 @@ fn cell(cx: &mut RenderCx<'_>, table: &Node, c: &Column) -> Result<(), RenderErr
     let mut text = if c.tree || retry.is_some() { Element::new("span") } else { std::mem::replace(&mut td, Element::new("td")) };
     if let (true, Some(v)) = (plain, &value) {
         if let Some(head) = joined {
-            let waiting = row_path(&format!("$loading.{head}"));
+            // Joined in turn (`owner.team.name`): until the team arrives too.
+            let mut waiting = row_path(&format!("$loading.{head}"));
+            if let (Some(f), Some(Val::Lit(Json::Object(m)))) = (c.field.as_deref(), table.prop("expand")) {
+                let parts: Vec<&str> = f.split('.').collect();
+                let mut level = m.get(head).and_then(|e| e.get("expand"));
+                for i in 1..parts.len().saturating_sub(1) {
+                    let Some(Json::Object(inner)) = level else { break };
+                    if !inner.contains_key(parts[i]) {
+                        break;
+                    }
+                    waiting = bin(BinOp::Or, waiting, row_path(&format!("{}.$loading.{}", parts[..i].join("."), parts[i])));
+                    level = inner.get(parts[i]).and_then(|e| e.get("expand"));
+                }
+            }
             text.attr("data-dt-wait", expr_val(cond(waiting, Expr::Lit(json!(true)), Expr::Lit(json!(false)))));
         }
         if c.format.is_some() || c.edit.as_ref().is_some_and(|e| e["type"] == "select") {
