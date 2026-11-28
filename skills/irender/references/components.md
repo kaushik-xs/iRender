@@ -893,7 +893,7 @@ ui-file-browser: Folders and files to browse one folder at a time, as a grid or 
   id           any  Element id (default: derived from the document)
   children: no
 ui-approval: A sign-off in stages, each approved when its rule is met: who decided what, when and why; Approve, Request changes and Reject on your turn.
-  bind         statekey (required)  State key holding the stages, in order: `{ id, title, rule, due, approvers: [{ id, name, avatar, decision, comment, at, for }], rounds }`; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected, `due` a date it's due by, `for` the approver who handed it on, `rounds` earlier rounds' approvers (kept when it's sent again)
+  bind         statekey (required)  State key holding the stages, in order: `{ id, title, rule, due, parallel, approvers: [{ id, name, avatar, decision, comment, at, for }], rounds }`; `parallel: true` runs a stage alongside the one before it; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected, `due` a date it's due by, `for` the approver who handed it on, `rounds` earlier rounds' approvers (kept when it's sent again)
   me           any  The `id` of whoever's looking: on their turn, they get the buttons to decide
   owner        any  The `id` of whoever sent it: after changes or a rejection, they can send it again
   bindStatus   statekey  State key that gets `pending`, `changes`, `rejected` or `approved`, as it changes

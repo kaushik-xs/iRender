@@ -405,7 +405,6 @@ impl Component for ColorPicker {
 /// The area, sliders, text field and swatches; the behaviour sets their values. Inline,
 /// the text field takes the picker's `id`, which a `ui-field`'s label points at.
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::too_many_arguments)]
 fn panel(cx: &mut RenderCx<'_>, node: &Node, id: Option<&irender_core::Val>, swatches: &[Json], custom: bool, alpha: bool, eyedropper: bool, clearable: bool, recent: bool, contrast: bool) -> Result<(), RenderError> {
     let mut p = Element::new("div");
     p.attr("data-color-panel", true);

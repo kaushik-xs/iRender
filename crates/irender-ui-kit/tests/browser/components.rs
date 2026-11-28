@@ -699,6 +699,52 @@ root:
     );
 }
 
+/// `ui-approval` with stages side by side: Legal and Security together after the manager,
+/// each decided on its own, the group done when both are; a turn handed on, taken back.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn approval_runs_stages_side_by_side() {
+    check(
+        "approval-parallel",
+        r##"
+state:
+  me: asha
+  st: null
+  stages:
+    - { id: mgr, title: Manager, approvers: [ { id: ravi, name: Ravi Kumar, decision: approved } ] }
+    - { id: legal, title: Legal, approvers: [ { id: asha, name: Asha Rao } ] }
+    - { id: sec, title: Security, parallel: true, approvers: [ { id: mei, name: Mei Lin } ] }
+    - { id: fin, title: Finance, approvers: [ { id: cy, name: Cy Park } ] }
+root:
+  type: ui-approval
+  props: { bind: stages, me: "{{ me }}", bindStatus: st, people: [ { id: bo, name: Bo Chen } ] }
+"##,
+        r##"
+        const states = () => $$("[data-ap-stage]").map((li) => li.dataset.apStage + ":" + li.dataset.state + (li.hasAttribute("data-parallel") ? "∥" : "")).join(" ");
+        const head = () => $("[data-ap-summary] b").textContent;
+        log(states(), "|", head(), "|", $("[data-ap-summary] small").textContent, "|", $("[data-ap-decide] label").textContent);
+        // Asha approves Legal: Security is still open, so Finance waits.
+        $("[data-ap-act=approved]").click(); await wait(30);
+        log(states(), "|", head());
+        // Mei hands Security to Bo, then takes it back.
+        root.__irender.set("me", "mei"); await wait(30);
+        $("[data-ap-handoff] select").value = "bo"; $("[data-ap-act=handoff]").click(); await wait(30);
+        log(S().stages[2].approvers[0].id, $("[data-ap-act=takeback]").textContent);
+        $("[data-ap-act=takeback]").click(); await wait(30);
+        log(JSON.stringify(S().stages[2].approvers), !!$("[data-ap-decide]"));
+        $("[data-ap-act=approved]").click(); await wait(30);
+        log(states(), "|", head(), S().st);
+"##,
+        &[
+            "mgr:approved legal:current sec:current∥ fin:waiting | Waiting for Legal and Security | 0 of 2 side by side signed off · stages 2–3 of 4 | Your decision on Legal, Asha Rao",
+            "mgr:approved legal:approved sec:current∥ fin:waiting | Waiting for Security",
+            "bo Take back your turn from Bo Chen",
+            r#"[{"id":"mei","name":"Mei Lin"}] true"#,
+            "mgr:approved legal:approved sec:approved∥ fin:current | Waiting for Finance pending",
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn combobox_options_show_pictures_and_badges() {

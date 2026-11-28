@@ -5,7 +5,9 @@
 // It draws that, gives whoever's looking (`me`) the buttons on their turn, and writes each
 // decision back with its comment and time. The one who sent it (`owner`) can send it again
 // after changes or a rejection, which keeps the decisions as an earlier round and clears
-// them. A stage can be `due` by a date; an approver can hand their turn to one of `people`.
+// them. A stage can be `due` by a date; an approver can hand their turn to one of `people`,
+// and take it back while it's undecided. A stage with `parallel: true` runs alongside the
+// one before it: the group is current together, and done when all of it is.
 // Everything it writes is text.
 (window.__irenderBehaviors ||= {})["ui-approval"] = (el, api) => {
   const cfg = api.config, K = window.__irenderKit, L = (t, v) => window.__irender.label(t, v);
@@ -45,20 +47,30 @@
     if (people.length - no < need(s)) return "rejected";
     return "pending";
   }
-  // Every stage's state, and the sign-off's: approved, rejected, changes or pending.
+  // Every stage's state, and the sign-off's: approved, rejected, changes or pending. Stages
+  // side by side (`parallel`) are a group: the first group not all approved is current,
+  // every one of its stages that isn't approved yet (`open`, the ones being decided), and
+  // a rejection or a request for changes in it is the sign-off's.
   function standing() {
     const list = stages();
+    const groups = [];
+    list.forEach((s, i) => (s.parallel && groups.length ? groups.at(-1).push(i) : groups.push([i])));
     let current = -1, overall = "approved";
-    const states = list.map((s, i) => {
-      if (current >= 0) return "waiting";
-      const st = stateOf(s);
-      if (st === "approved") return "approved";
-      current = i;
-      overall = st;
-      return st === "pending" ? "current" : st;
-    });
+    const states = new Array(list.length).fill("waiting"), open = [];
+    for (const g of groups) {
+      const st = g.map((i) => stateOf(list[i]));
+      if (st.every((x) => x === "approved")) {
+        g.forEach((i) => (states[i] = "approved"));
+        continue;
+      }
+      g.forEach((i, k) => (states[i] = st[k] === "pending" ? "current" : st[k]));
+      open.push(...g.filter((i, k) => st[k] === "pending"));
+      current = g.find((i, k) => st[k] !== "approved");
+      overall = st.includes("rejected") ? "rejected" : st.includes("changes") ? "changes" : "pending";
+      break;
+    }
     if (!list.length) overall = "pending";
-    return { list, states, current, overall };
+    return { list, states, current, overall, open, group: groups.find((g) => g.includes(current)) ?? [] };
   }
   // Labels: "All of {n} must approve", "Any one of {n} can approve", "{k} of {n} must approve"
   function ruleText(s) {
@@ -92,7 +104,7 @@
   // ---- drawing
   let last = null, draft = "", wrong = null;
   function draw() {
-    const { list, states, current, overall } = standing();
+    const { list, states, current, overall, open, group } = standing();
     const who = (d) => list.flatMap((s) => s.approvers ?? []).find((p) => p.decision === d);
     // What it comes to, in a sentence.
     let head, sub = "";
@@ -105,6 +117,12 @@
       const p = who("changes");
       head = L("{name} asked for changes", { name: p?.name ?? "" });
       sub = p?.comment ?? "";
+    } else if (current >= 0 && group.length > 1) {
+      // Side by side: the ones still waiting, by name.
+      const names = open.map((i) => list[i].title ?? L("Stage {n}", { n: i + 1 }));
+      head = L("Waiting for {stage}", { stage: new Intl.ListFormat(loc, { type: "conjunction" }).format(names) });
+      // Labels: "{done} of {n} side by side signed off · stages {from}–{to} of {total}"
+      sub = L("{done} of {n} side by side signed off · stages {from}–{to} of {total}", { done: group.length - open.length, n: group.length, from: group[0] + 1, to: group.at(-1) + 1, total: list.length });
     } else if (current >= 0) {
       const s = list[current], yes = (s.approvers ?? []).filter((p) => p.decision === "approved").length;
       head = L("Waiting for {stage}", { stage: s.title ?? L("Stage {n}", { n: current + 1 }) });
@@ -137,7 +155,8 @@
           h("summary", {}, L(["{n} earlier round", "{n} earlier rounds"], { n: s.rounds.length })),
           h("ol", {}, ...s.rounds.map((r) => h("li", {}, (r.approvers ?? []).filter((p) => p.decision).map((p) => `${p.name}: ${L(DECIDED[p.decision] ?? p.decision)}${p.comment ? ` (“${p.comment}”)` : ""}${p.at ? `, ${when(p.at)}` : ""}`).join("; ") || L("No decisions")))))
         : null;
-      ol.append(h("li", { "data-ap-stage": s.id ?? i, "data-state": st, "aria-current": st === "current" ? "step" : null },
+      // Labels: "Alongside the stage before"
+      ol.append(h("li", { "data-ap-stage": s.id ?? i, "data-state": st, "data-parallel": (s.parallel && i > 0) || null, "aria-current": st === "current" ? "step" : null, "aria-description": s.parallel && i > 0 ? L("Alongside the stage before") : null },
         h("span", { "data-ap-mark": true, "aria-hidden": "true" }, mark),
         h("div", { "data-ap-body": true },
           h("div", { "data-ap-head": true }, h("h3", {}, s.title ?? L("Stage {n}", { n: i + 1 })), h("span", { "data-ap-rule": true }, [said, ruleText(s)].filter(Boolean).join(" · ")),
@@ -146,26 +165,36 @@
     });
     const parts = [ol];
 
-    // On their turn: whoever's looking decides.
-    const me = current >= 0 && states[current] === "current" && !cfg.readOnly ? mine(list[current]) : null;
+    // On their turn: whoever's looking decides, in the first open stage they're on.
+    const at = cfg.readOnly ? -1 : open.find((i) => !mine(list[i])?.decision && mine(list[i])) ?? -1;
+    const me = at >= 0 ? mine(list[at]) : null;
+    const turn = at;
     if (me && !me.decision) {
       const id = `${cfg.id}-comment`;
       const note = h("textarea", { id, rows: "3", placeholder: L("Optional when approving"), "aria-invalid": wrong ? "true" : null, "aria-describedby": wrong ? `${id}-error` : null });
       note.value = draft;
       note.addEventListener("input", () => (draft = note.value));
-      const act = (d, text) => h("button", { type: "button", "data-ap-act": d, onclick: () => decide(current, me.id, d) }, text);
+      const act = (d, text) => h("button", { type: "button", "data-ap-act": d, onclick: () => decide(turn, me.id, d) }, text);
       parts.push(h("div", { "data-ap-decide": true, role: "group", "aria-label": L("Your decision") },
-        h("label", { for: id }, L("Your decision, {name}", { name: me.name })), note,
+        h("label", { for: id }, group.length > 1 ? L("Your decision on {stage}, {name}", { stage: list[turn].title ?? L("Stage {n}", { n: turn + 1 }), name: me.name }) : L("Your decision, {name}", { name: me.name })), note,
         wrong ? h("span", { "data-ap-error": true, id: `${id}-error` }, wrong) : null,
         h("div", { "data-ap-buttons": true }, act("approved", L("Approve")), act("changes", L("Request changes")), act("rejected", L("Reject")))));
       // Handing the turn to someone else, from `people` not already on this stage.
-      const others = (Array.isArray(K.value(api, cfg.people)) ? K.value(api, cfg.people) : []).filter((p) => isObj(p) && !(list[current].approvers ?? []).some((a) => same(a.id, p.id)));
+      const others = (Array.isArray(K.value(api, cfg.people)) ? K.value(api, cfg.people) : []).filter((p) => isObj(p) && !(list[turn].approvers ?? []).some((a) => same(a.id, p.id)));
       if (others.length) {
         const pid = `${cfg.id}-handoff`;
         const pick = h("select", { id: pid }, h("option", { value: "" }, L("Pick someone")), ...others.map((p) => h("option", { value: String(p.id) }, p.name ?? String(p.id))));
         // Labels: "Hand it to", "Hand over"
         parts.push(h("div", { "data-ap-handoff": true }, h("label", { for: pid }, L("Hand it to")), pick,
-          h("div", { "data-ap-buttons": true }, h("button", { type: "button", "data-ap-act": "handoff", onclick: () => handoff(current, me, others.find((p) => String(p.id) === pick.value)) }, L("Hand over")))));
+          h("div", { "data-ap-buttons": true }, h("button", { type: "button", "data-ap-act": "handoff", onclick: () => handoff(turn, me, others.find((p) => String(p.id) === pick.value)) }, L("Hand over")))));
+      }
+    }
+    // A turn handed on and not yet decided: whoever handed it can take it back.
+    if (!cfg.readOnly) {
+      for (const i of open) {
+        const p = (list[i].approvers ?? []).find((a) => !a.decision && a.for && same(a.for.id, K.value(api, cfg.me)));
+        // Labels: "Take back your turn from {name}"
+        if (p) parts.push(h("div", { "data-ap-buttons": true }, h("button", { type: "button", "data-ap-act": "takeback", onclick: () => takeBack(i, p) }, L("Take back your turn from {name}", { name: p.name }))));
       }
     }
     // After changes or a rejection, whoever sent it can send it again.
@@ -214,6 +243,16 @@
     api.emit("handoff", { stage: next[i].id ?? i, from: from.id, to: to.id });
     draw();
     say(L("Handed to {name}", { name: taken.name }) + ". " + told());
+  }
+  // The one who handed it on is the approver again.
+  function takeBack(i, p) {
+    const back = { id: p.for.id, name: p.for.name ?? String(p.for.id) };
+    const next = stages().map((s, k) => (k !== i ? s : { ...s, approvers: (s.approvers ?? []).map((a) => (a === p || (same(a.id, p.id) && a.for) ? back : a)) }));
+    api.set(cfg.bind, next);
+    api.emit("takeback", { stage: next[i].id ?? i, from: p.id, to: back.id });
+    draw();
+    // Labels: "Your turn again"
+    say(L("Your turn again") + ". " + told());
   }
   function resend() {
     // The decisions so far become an earlier round of each stage that had any.

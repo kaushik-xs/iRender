@@ -20,7 +20,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "bind",
         PropKind::StateKey,
-        "State key holding the stages, in order: `{ id, title, rule, due, approvers: [{ id, name, avatar, decision, comment, at, for }], rounds }`; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected, `due` a date it's due by, `for` the approver who handed it on, `rounds` earlier rounds' approvers (kept when it's sent again)",
+        "State key holding the stages, in order: `{ id, title, rule, due, parallel, approvers: [{ id, name, avatar, decision, comment, at, for }], rounds }`; `parallel: true` runs a stage alongside the one before it; `rule` is `all` (default), `any` or a number, `decision` approved, changes or rejected, `due` a date it's due by, `for` the approver who handed it on, `rounds` earlier rounds' approvers (kept when it's sent again)",
     )
     .required(),
     PropDef::new("me", PropKind::Any, "The `id` of whoever's looking: on their turn, they get the buttons to decide"),
@@ -80,6 +80,10 @@ static APPROVAL: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-ap-stage][data-state=approved] [data-ap-mark], & [data-ap-stage][data-state=rejected] [data-ap-mark]", pairs(&[("background", "var(--tone)"), ("color", "#fff")]))
         .nest("& [data-ap-stage][data-state=waiting]", pairs(&[("opacity", "0.6")]))
+        // Side by side with the stage before: a bar joins their marks, and the body sits in
+        // a band with it.
+        .nest("& [data-ap-stage][data-parallel] > [data-ap-body]", pairs(&[("border-inline-start", "3px solid color-mix(in srgb, var(--color-primary) 35%, transparent)"), ("padding-inline-start", pad!(10))]))
+        .nest("& [data-ap-stage]:has(+ [data-parallel]) > [data-ap-body]", pairs(&[("border-inline-start", "3px solid color-mix(in srgb, var(--color-primary) 35%, transparent)"), ("padding-inline-start", pad!(10))]))
         .nest("& [data-ap-body]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", gap!(8)), ("min-width", "0"), ("padding-top", pad!(3))]))
         .nest("& [data-ap-head]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("align-items", "baseline"), ("gap", gap!(4, 8))]))
         .nest("& [data-ap-head] h3", pairs(&[("margin", "0"), ("font-size", fs!(15)), ("font-weight", "var(--font-weight-semibold, 600)")]))

@@ -20,6 +20,8 @@ state:
   approval:
     - { id: manager, title: Line manager, due: "2026-12-04", approvers: [ { id: ravi, name: Ravi Kumar } ] }
     - { id: finance, title: Finance, rule: any, due: "2026-12-11", approvers: [ { id: asha, name: Asha Rao }, { id: mei, name: Mei Lin } ] }
+    # Alongside Finance, not after it: both must sign off before it's approved.
+    - { id: travel, title: Travel policy, parallel: true, due: "2026-12-11", approvers: [ { id: cy, name: Cy Park } ] }
   purpose: Client visit, Mumbai
   advance: 10000
   receipts:
