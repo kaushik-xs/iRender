@@ -811,7 +811,7 @@ ui-countdown: The time left to a deadline, turning to warning and danger as thre
   variant      one of: inline, tiles  `inline` (default: text with a dot in its tone) or `tiles` (days, hours, minutes and seconds in boxes)
   paused       any  While true (e.g. `{{ ticket.status == 'waiting' }}`), the time left stands still and it says Paused; on resuming the deadline moves out by the pause. A new `to` from the page replaces the moved one
   workdays     any  Count working time only: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`
-  hours        any  Working hours each working day, e.g. `09:00-17:30` (local time); outside them it stands still. Alone, every day works
+  hours        any  Working hours each working day, e.g. `09:00-17:30` (local time), or a shift past midnight, `22:00-06:00`; outside them it stands still. Alone, every day works. Or hours by weekday, `{ mon: 09:00-17:00, sat: 10:00-14:00 }` (also `0`–`6`, 0 Sunday): the days not named don't work
   holidays     any  Dates that don't count either, e.g. `["2026-12-25"]`
   bindLeft     statekey  State key that gets the seconds left (below zero once overdue), every second
   bindStatus   statekey  State key that gets `ok`, `warning`, `danger` or `over` as it changes
@@ -843,6 +843,7 @@ ui-compare-slider: Two pictures, before and after, one over the other, with a di
   position     number  Where the divider starts, 0–100 from the first side (default 50)
   bind         statekey  State key holding the divider's place, 0–100, both ways
   orientation  one of: horizontal, vertical  `horizontal` (default: the divider moves left and right) or `vertical` (up and down)
+  mode         one of: split, fade  `split` (default: a divider shows one side of each) or `fade`: the second picture fades in over the first as the slider moves
   hover        bool  The divider follows a mouse without pressing
   ratio        any  Width to height, e.g. `16/9` or `1`: both pictures fill it, cropped (default: the first picture's own)
   caption      any  Text under the pictures
@@ -854,6 +855,7 @@ ui-presence: Who's here now: stacked avatars with a status dot and a colour each
   size         number  Avatar size in px (default 28)
   me           any  The `id` of whoever's looking: `(you)` after their name
   announce     bool  Say who joins and leaves, for screen readers
+  bindFollow   statekey  State key that gets the `id` of the person followed: each person in the list has Go to (Following, pressed again, stops), and `follow` fires with them; going there is the page's (`where`, say)
   align        one of: start, end  The list's edge lined up with the avatars (default `end`)
   label        any  What it shows (default `People here`)
   id           any  Element id (default: derived from the document)
@@ -929,7 +931,8 @@ ui-timeline: Activity, newest first or as given: who did what and when, with fie
   since        any  Entries after this date and time (a last visit, say) are marked New; may use state
   limit        number  Show the first this many entries, then a button for the rest
   filters      bool  Menus over the feed to show one person's entries, or one `kind` of entry, from those it has
-  bindFilter   statekey  With `filters`, a state key holding what's picked, `{ who, kind }` (null for all); setting it picks them
+  bindFilter   statekey  With `filters`, a state key holding what's picked, `{ who, kind }`, each one value or a list (null for all); setting it picks them, and `filter` fires as they change
+  bindSeen     statekey  State key that gets when the feed was last seen, as the page is hidden or left: keep it (on the server) for next visit's `since`
   hasMore      any  There are older entries on the server: once all here are shown, a Load more button fires `more` (the page adds them to `items`); may use state
   loading      any  While true, Load more says Loading… and waits; may use state
   children: yes
@@ -2171,6 +2174,9 @@ ui-color-picker: A colour: picked on an area with hue and opacity sliders, typed
   format       one of: hex, rgb, hsl  How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`) or `hsl` (`hsl(224, 64%, 33%)`)
   alpha        bool  An opacity slider too
   swatches     any  Colours to pick with one click: CSS colours, or `{ value, label }`
+  recent       any  The colours picked last, to pick again with one click: `true` (8) or how many; kept in the browser
+  recentKey    string  Which recent colours: pickers with the same key share them (default: all pickers share one list)
+  contrastWith any  A background (or text) colour to check the contrast against, as WCAG reads it: the ratio and AA / AAA; may use state
   custom       bool  The area, sliders and text field (default true); false leaves just the swatches
   eyedropper   bool  A button to take a colour from the screen, where the browser has one (default true)
   inline       bool  The panel on the page, without the button and popover

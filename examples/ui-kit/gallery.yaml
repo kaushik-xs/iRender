@@ -9,6 +9,7 @@
 # HTTP next to examples/ui-kit/api (examples/build.sh does this).
 version: 1
 state:
+  presenceFollow: null
   fhText: "# A note"
   fhFile: null
   seValue: null
@@ -1331,9 +1332,9 @@ root:
                             placeholder: No colour
                             swatches: [{ value: "#ef4444", label: Red }, { value: "#f97316", label: Orange }, { value: "#eab308", label: Yellow }, { value: "#22c55e", label: Green }, { value: "#06b6d4", label: Cyan }, { value: "#3b82f6", label: Blue }, { value: "#8b5cf6", label: Violet }, { value: "#64748b", label: Slate }]
                     - type: ui-field
-                      props: { label: Tint, description: "Inline, written as rgb. tintColor = {{ tintColor }}" }
+                      props: { label: Tint, description: "Inline, written as rgb, with its contrast on white and the colours picked last. tintColor = {{ tintColor }}" }
                       children:
-                        - { type: ui-color-picker, props: { bind: tintColor, inline: true, format: rgb, alpha: true } }
+                        - { type: ui-color-picker, props: { bind: tintColor, inline: true, format: rgb, alpha: true, contrastWith: "#ffffff", recent: 6 } }
                     - type: stack
                       props: { gap: 8 }
                       children:
@@ -1914,7 +1915,8 @@ root:
                   props: { direction: row, gap: 32, align: center, wrap: true }
                   children:
                     - { type: ui-presence, props: { people: "{{ here }}", me: u2, announce: true, align: start } }
-                    - { type: ui-presence, props: { people: "{{ here }}", max: 2, size: 36, align: start, label: Viewing } }
+                    - { type: ui-presence, props: { people: "{{ here }}", max: 2, size: 36, align: start, label: Viewing, bindFollow: presenceFollow } }
+                    - { type: ui-text, props: { variant: muted, text: "{{ presenceFollow ? 'Following ' + presenceFollow : 'Open the list and press Go to: presenceFollow = ' + presenceFollow }}" } }
                 - type: stack
                   props: { direction: row, gap: 8, wrap: true }
                   children:
@@ -2737,6 +2739,8 @@ root:
                             - { type: ui-button, props: { label: After, variant: outline, size: sm }, on: { click: { action: set_state, key: compareAt, value: 0 } } }
                     - type: ui-compare-slider
                       props: { before: blocks/media/wall-before.svg, after: blocks/media/wall-after.svg, orientation: vertical, ratio: 4/3, hover: true, beforeLabel: Reported, afterLabel: Fixed, position: 35, caption: "Up and down, cropped to 4:3, following the mouse" }
+                    - type: ui-compare-slider
+                      props: { before: blocks/media/wall-before.svg, after: blocks/media/wall-after.svg, mode: fade, position: 30, caption: "mode: fade — drag across to fade the repair in" }
                 - { type: if, props: { when: "{{ api.compare_slider.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.compare_slider }}", as: c }

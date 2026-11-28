@@ -64,6 +64,77 @@
     const trigger = $("[data-color-trigger]"), pop = $("[data-color-pop]"), clearX = $("[data-color-x]");
     const live = $("[data-color-live]"), hidden = el.querySelector(":scope > input[type=hidden]");
     const swatches = [...el.querySelectorAll("[data-swatch]")];
+    const recentBox = $("[data-color-recent]"), contrastBox = $("[data-color-contrast]");
+    const K = window.__irenderKit;
+
+    // ---- the colours picked last (`recent`), kept in the browser per `recentKey`
+    const SLOT = `irender:colors:${cfg.recentKey ?? ""}`;
+    const loadRecent = () => {
+      try {
+        const v = JSON.parse(localStorage.getItem(SLOT) ?? "[]");
+        return Array.isArray(v) ? v.filter((x) => typeof x === "string" && parse(x)) : [];
+      } catch {
+        return [];
+      }
+    };
+    let recentTimer = 0;
+    function remember() {
+      clearTimeout(recentTimer);
+      if (!cfg.recent || !has) return;
+      const text = write(color), p = parse(text);
+      const sameAs = (x) => {
+        const q = parse(x);
+        return q && Math.round(q.r) === Math.round(p.r) && Math.round(q.g) === Math.round(p.g) && Math.round(q.b) === Math.round(p.b) && round(q.a, 2) === round(p.a, 2);
+      };
+      const list = [text, ...loadRecent().filter((x) => !sameAs(x))].slice(0, cfg.recent);
+      try {
+        localStorage.setItem(SLOT, JSON.stringify(list));
+      } catch { /* not kept: shown for now */ }
+      drawRecent(list);
+    }
+    // Labels: "Recent: {color}"
+    function drawRecent(list = loadRecent()) {
+      if (!recentBox) return;
+      recentBox.hidden = !list.length;
+      recentBox.replaceChildren(...list.map((v) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("data-recent", v);
+        b.setAttribute("aria-label", L("Recent: {color}", { color: v }));
+        b.title = v;
+        b.style.setProperty("--swatch", `linear-gradient(${v}, ${v})`);
+        return b;
+      }));
+    }
+    drawRecent();
+
+    // ---- contrast against `contrastWith`, as WCAG reads it (the colour over it when see-through)
+    const lum = ({ r, g, b }) => {
+      const ch = (v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * ch(r) + 0.7152 * ch(g) + 0.0722 * ch(b);
+    };
+    // Labels: "Contrast {ratio}:1", "AAA", "AA", "AA large", "Too low"
+    function drawContrast() {
+      if (!contrastBox) return;
+      const bg = parse(K?.value(api, cfg.contrastWith));
+      if (!has || !bg) return contrastBox.replaceChildren();
+      const fg = hsvToRgb(color), a = cfg.alpha ? color.a : 1;
+      const over = { r: fg.r * a + bg.r * (1 - a), g: fg.g * a + bg.g * (1 - a), b: fg.b * a + bg.b * (1 - a) };
+      const [l1, l2] = [lum(over), lum(bg)].sort((x, y) => y - x);
+      const ratio = (l1 + 0.05) / (l2 + 0.05), shown = Math.floor(ratio * 100) / 100;
+      const grade = ratio >= 7 ? "AAA" : ratio >= 4.5 ? "AA" : ratio >= 3 ? "AA large" : null;
+      const sample = document.createElement("span");
+      sample.setAttribute("data-sample", "");
+      sample.setAttribute("aria-hidden", "true");
+      sample.textContent = "Aa";
+      sample.style.background = `rgb(${bg.r} ${bg.g} ${bg.b})`;
+      sample.style.color = `rgb(${Math.round(over.r)} ${Math.round(over.g)} ${Math.round(over.b)})`;
+      const badge = document.createElement("span");
+      badge.setAttribute("data-grade", grade ?? "fail");
+      badge.textContent = grade ? L(grade) : L("Too low");
+      contrastBox.replaceChildren(sample, L("Contrast {ratio}:1", { ratio: shown.toFixed(2).replace(/\.?0+$/, "") }), badge);
+      contrastBox.setAttribute("data-ratio", String(shown));
+    }
 
     // ---- the colour as text, in the format asked for
     function write(c) {
@@ -107,6 +178,9 @@
       draw();
       api.emit("change", { value: out });
       if (say && live) live.textContent = say;
+      // Remembered once it settles: not every step of a drag.
+      clearTimeout(recentTimer);
+      if (cfg.recent) recentTimer = setTimeout(remember, 800);
     }
     function clear() {
       has = false;
@@ -150,6 +224,7 @@
         const same = has && p && Math.round(p.r) === Math.round(rgb.r) && Math.round(p.g) === Math.round(rgb.g) && Math.round(p.b) === Math.round(rgb.b) && (!cfg.alpha || round(p.a, 2) === round(color.a, 2));
         b.setAttribute("aria-pressed", same ? "true" : "false");
       }
+      drawContrast();
     }
     // The swatches' own colours, once.
     for (const b of swatches) {
@@ -251,8 +326,15 @@
 
     // ---- swatches, the clear buttons and the popover
     el.addEventListener("click", (e) => {
-      const b = e.target.closest?.("[data-swatch], [data-color-clear], [data-color-x]");
+      const b = e.target.closest?.("[data-swatch], [data-recent], [data-color-clear], [data-color-x]");
       if (!b || !el.contains(b)) return;
+      if (b.hasAttribute("data-recent")) {
+        const v = b.getAttribute("data-recent"), p = parse(v);
+        if (!p) return;
+        const hsv = rgbToHsv(p);
+        set({ h: hsv.h ?? color.h, s: hsv.s, v: hsv.v, a: cfg.alpha ? p.a : 1 }, L("{color} picked", { color: v }));
+        return;
+      }
       if (b.hasAttribute("data-swatch")) {
         const sw = cfg.swatches[+b.dataset.swatch], p = parse(sw.value);
         if (!p) return;
@@ -272,7 +354,7 @@
       trigger?.focus();
     }
     pop?.addEventListener("toggle", (e) => {
-      if (e.newState !== "open") return;
+      if (e.newState !== "open") return remember();
       read();
       draw();
       // Into the panel: the area, or the chosen swatch (else the first).

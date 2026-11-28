@@ -8198,6 +8198,45 @@ fn virtual_list_in_chrome() {
     );
 }
 
+/// `ui-presence` with `bindFollow`: Go to on each person follows them (their id to state,
+/// `follow` with them), pressed again stops; the button says which.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn presence_follows_someone_in_chrome() {
+    let doc = serde_json::json!({ "version": 1,
+        "state": { "here": [ { "id": "a", "name": "Asha Rao", "where": "Budget" }, { "id": "r", "name": "Ravi Kumar", "where": "Plan" } ], "following": null, "went": "" },
+        "root": { "type": "ui-presence", "props": { "people": "{{ here }}", "bindFollow": "following" },
+          "on": { "follow": { "action": "set_state", "key": "went", "value": "{{ went + 'x' }}" } } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const btns = () => [...document.querySelectorAll("[data-pr-follow]")];
+      const show = () => btns().map((b) => b.textContent + ":" + b.getAttribute("aria-pressed")).join(",");
+      try {
+        log("start", show(), btns()[0].getAttribute("aria-label"));
+        btns()[1].click(); await wait(20);
+        log("follow", S().following, S().went, show(), document.querySelector("[data-pr-live]").textContent);
+        btns()[1].click(); await wait(20);
+        log("stop", JSON.stringify(S().following), S().went, show());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("presence-follow", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["start Go to:false,Go to:false Follow Asha Rao", "follow r x Go to:false,Following:true Following Ravi Kumar", "stop null x Go to:false,Go to:false"],
+        "\n{result}"
+    );
+}
+
 /// `ui-presence`: the stack (named with the count, past `max` behind `+N`), the list (each
 /// status in words, `(you)`, what they're on), colours by place or as given, and people
 /// joining and leaving from state, said with `announce`.
@@ -8344,7 +8383,8 @@ fn compare_slider_in_chrome() {
             { "type": "ui-compare-slider", "attrs": { "id": "a" }, "props": { "bind": "at", "before": img, "after": img, "beforeAlt": "Before", "afterAlt": "After" } },
             { "type": "ui-compare-slider", "attrs": { "id": "v" }, "props": { "before": img, "after": img, "orientation": "vertical", "ratio": "2/1", "hover": true, "position": 20 } },
             { "type": "element", "attrs": { "dir": "rtl" }, "children": [
-                { "type": "ui-compare-slider", "attrs": { "id": "r" }, "props": { "before": img, "after": img, "position": 30, "beforeLabel": "" } } ] } ] } });
+                { "type": "ui-compare-slider", "attrs": { "id": "r" }, "props": { "before": img, "after": img, "position": 30, "beforeLabel": "" } } ] },
+            { "type": "ui-compare-slider", "attrs": { "id": "f" }, "props": { "before": img, "after": img, "mode": "fade", "position": 25 } } ] } });
     let driver = r##"<style>* { transition: none !important; }</style><script>
     window.addEventListener("load", async () => {
       const out = []; const log = (...a) => out.push(a.join(" "));
@@ -8370,6 +8410,11 @@ fn compare_slider_in_chrome() {
         log("hover", $("v", "input").value, clip("v"));
 
         log("rtl", clip("r"), line("r"), document.getElementById("r").querySelectorAll("[data-cmp-tag]").length);
+        // Fading: the second picture whole and a quarter opaque, the bar a quarter along.
+        const fa = $("f", "[data-cmp-after]"), bar = $("f", "[data-cmp-line]").getBoundingClientRect(), ff = $("f", "[data-cmp-frame]").getBoundingClientRect();
+        log("fade", getComputedStyle(fa).clipPath, getComputedStyle(fa).opacity, Math.round(bar.width / ff.width * 100), $("f", "input").getAttribute("aria-valuetext"), getComputedStyle($("f", "[data-cmp-handle]")).display);
+        $("f", "input").value = "80"; $("f", "input").dispatchEvent(new Event("input", { bubbles: true })); await wait(10);
+        log("faded", getComputedStyle(fa).opacity, getComputedStyle($("f", "[data-cmp-tag=before]")).opacity);
       } catch (e) { log("EXCEPTION", e.stack); }
       const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
     });
@@ -8392,6 +8437,8 @@ fn compare_slider_in_chrome() {
             "hover 75 inset(75% 0px 0px)",
             // Right to left: the first picture on the right; an empty label left out.
             "rtl inset(0px 30% 0px 0px) 70 1",
+            "fade none 0.25 25 After 25% faded in none",
+            "faded 0.8 0.2",
         ],
         "\n{result}"
     );
@@ -8752,6 +8799,58 @@ fn gauge_in_chrome() {
             // Past the end: the dial stops there, the figure doesn't.
             "past max 0 | true | success | 140 %, Good | 140% 120",
             "low 90 | true | danger | 10 %, Poor | 10% 0",
+        ],
+        "\n{result}"
+    );
+}
+
+/// `ui-color-picker`'s recent colours (kept in the browser, the newest first, each once)
+/// and its contrast with a background, from state.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn color_picker_recent_and_contrast_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "c": null, "bg": "#ffffff" },
+        "root": { "type": "ui-color-picker", "props": { "bind": "c", "inline": true, "recent": 3, "recentKey": "t", "contrastWith": "{{ bg }}" } } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const field = document.querySelector("[data-color-text]"), box = document.querySelector("[data-color-contrast]");
+      const type = async (v) => { field.value = v; field.dispatchEvent(new Event("change", { bubbles: true })); await wait(900); };
+      const recent = () => [...document.querySelectorAll("[data-recent]")].map((b) => b.dataset.recent).join(",");
+      try {
+        try { localStorage.removeItem("irender:colors:t"); } catch {}
+        log("none", document.querySelector("[data-color-recent]").hidden, box.textContent === "");
+        await type("#777777"); log("grey", box.textContent, box.dataset.ratio);
+        await type("#595959"); log("darker", box.textContent);
+        await type("#1e3a8a"); await type("#777777"); await type("#ff0000");
+        log("recent", recent());
+        document.querySelector('[data-recent="#1e3a8a"]').click(); await wait(10);
+        log("picked", S().c, box.textContent);
+        root.__irender.set("bg", "#1e3a8a"); await wait(20);
+        log("same as the background", box.textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("color-recent", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "none true true",
+            // Cut short, not rounded: a ratio just under 4.5 never shows as 4.5.
+            "grey AaContrast 4.47:1AA large 4.47",
+            "darker AaContrast 7:1AAA",
+            // Three at most, the newest first, #777777 once.
+            "recent #ff0000,#777777,#1e3a8a",
+            "picked #1e3a8a AaContrast 10.35:1AAA",
+            "same as the background AaContrast 1:1Too low",
         ],
         "\n{result}"
     );

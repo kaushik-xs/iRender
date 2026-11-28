@@ -22,6 +22,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("position", PropKind::Number, "Where the divider starts, 0–100 from the first side (default 50)"),
     PropDef::new("bind", PropKind::StateKey, "State key holding the divider's place, 0–100, both ways"),
     PropDef::new("orientation", PropKind::Enum(&["horizontal", "vertical"]), "`horizontal` (default: the divider moves left and right) or `vertical` (up and down)"),
+    PropDef::new("mode", PropKind::Enum(&["split", "fade"]), "`split` (default: a divider shows one side of each) or `fade`: the second picture fades in over the first as the slider moves"),
     PropDef::new("hover", PropKind::Bool, "The divider follows a mouse without pressing"),
     PropDef::new("ratio", PropKind::Any, "Width to height, e.g. `16/9` or `1`: both pictures fill it, cropped (default: the first picture's own)"),
     PropDef::new("caption", PropKind::Any, "Text under the pictures"),
@@ -99,6 +100,19 @@ static COMPARE: LazyLock<StyleBlock> = LazyLock::new(|| {
         .nest("&:dir(rtl):not([data-vertical]) [data-cmp-after]", pairs(&[("clip-path", &format!("inset(0 calc({POS} * 1%) 0 0)"))]))
         .nest("&:dir(rtl):not([data-vertical]) [data-cmp-line]", pairs(&[("left", &format!("calc(100% - {POS} * 1%)"))]))
         .nest("& figcaption", pairs(&[("color", "var(--color-muted)"), ("font-size", fs!(13))]))
+        // Fading: the second picture whole, as opaque as the slider is far along, and a bar
+        // along the foot for where it is.
+        .nest("&[data-fade] [data-cmp-after]", pairs(&[("clip-path", "none"), ("opacity", &format!("calc({POS} / 100)"))]))
+        .nest("&[data-fade]:dir(rtl) [data-cmp-after]", pairs(&[("clip-path", "none")]))
+        .nest(
+            "&[data-fade] [data-cmp-line]",
+            pairs(&[("top", "auto"), ("bottom", "0"), ("left", "0"), ("right", "auto"), ("height", "4px"), ("width", &format!("calc({POS} * 1%)")), ("transform", "none"), ("background", "var(--color-primary)"), ("box-shadow", "none")]),
+        )
+        .nest("&[data-fade]:dir(rtl) [data-cmp-line]", pairs(&[("left", "auto"), ("right", "0")]))
+        .nest("&[data-fade] [data-cmp-handle]", pairs(&[("display", "none")]))
+        .nest("&[data-fade] [data-cmp-tag]", pairs(&[("transition", "opacity .1s")]))
+        .nest("&[data-fade] [data-cmp-tag=before]", pairs(&[("opacity", &format!("calc(1 - {POS} / 100)"))]))
+        .nest("&[data-fade] [data-cmp-tag=after]", pairs(&[("opacity", &format!("calc({POS} / 100)"))]))
 });
 
 const ARROWS: &str = r#"<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5"/></svg>"#;
@@ -141,7 +155,8 @@ impl Component for CompareSlider {
                 Some(text.replace(' ', ""))
             }
         };
-        let vertical = cx.prop_string(node, "orientation").as_deref() == Some("vertical");
+        let fade = cx.prop_string(node, "mode").as_deref() == Some("fade");
+        let vertical = !fade && cx.prop_string(node, "orientation").as_deref() == Some("vertical");
         widget::kit(cx);
         cx.global_js("ui-compare-slider", SCRIPT);
         let before_label = node.prop("beforeLabel").cloned().unwrap_or_else(|| lit(cx.label("Before")));
@@ -158,6 +173,9 @@ impl Component for CompareSlider {
             .attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("Before and after"))));
         if vertical {
             root.attr("data-vertical", true);
+        }
+        if fade {
+            root.attr("data-fade", true);
         }
         cx.open(&root, node)?;
         let mut frame = Element::new("div");

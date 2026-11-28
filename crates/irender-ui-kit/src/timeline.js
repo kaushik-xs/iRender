@@ -2,8 +2,9 @@
 // From each entry's `when` (a date and time) it puts a heading over each day's first
 // entry (`group: day`), writes how long ago it was (`relative`, every minute), marks
 // entries after `since` as New, and holds back all but the first `limit` behind a
-// button. With `filters` it shows one person's entries or one kind's; with `hasMore`, a
-// Load more button once all are shown fires `more`. Entries from state are the runtime's:
+// button. With `filters` it shows one person's entries or one kind's (or several, set
+// from state), and says so (`filter`); with `hasMore`, a Load more button once all are
+// shown fires `more`; `bindSeen` gets when the feed was last seen, as the page is left. Entries from state are the runtime's:
 // this only fills in and shows what each already has, and does it again whenever they change.
 (window.__irenderBehaviors ||= {})["ui-timeline"] = (el, api) => {
   const cfg = api.config, K = window.__irenderKit, L = (t, v) => window.__irender.label(t, v);
@@ -40,12 +41,17 @@
   let open = false, picked = { who: null, kind: null };
   const bar = el.querySelector(":scope > [data-tl-filters]");
   // What's picked: from `bindFilter` when it's bound, else this feed's own.
+  // Each of `who` and `kind` is one value, a list of them (any of which), or null for all.
   const filter = () => {
     const f = cfg.bindFilter ? api.state[cfg.bindFilter] : picked;
-    return { who: f?.who ?? null, kind: f?.kind ?? null };
+    const one = (v) => (Array.isArray(v) ? (v.length ? v.map(String) : null) : v === null || v === undefined || v === "" ? null : String(v));
+    return { who: one(f?.who), kind: one(f?.kind) };
   };
+  const passes = (v, f) => f === null || (Array.isArray(f) ? f.includes(v) : v === f);
+  // A change of filter is told (`filter`), so a page can ask its server for what's picked.
   const setFilter = (f) => {
     picked = f;
+    api.emit("filter", { who: f.who, kind: f.kind });
     if (cfg.bindFilter) api.set(cfg.bindFilter, f.who === null && f.kind === null ? null : f);
     else draw();
   };
@@ -60,8 +66,11 @@
       const s = document.createElement("select");
       s.setAttribute("aria-label", L(name));
       s.setAttribute(`data-tl-${key}`, "");
-      s.append(new Option(L(all), ""), ...list.map((v) => new Option(v, v, false, v === cur)));
-      s.addEventListener("change", () => setFilter({ ...filter(), [key]: s.value || null }));
+      // Several picked (from state): the menu says how many, and picking one replaces them.
+      // Labels: "{n} picked"
+      const many = Array.isArray(cur) && cur.length > 1;
+      s.append(new Option(L(all), ""), ...(many ? [new Option(L("{n} picked", { n: cur.length }), "\u0000", false, true)] : []), ...list.map((v) => new Option(v, v, false, !many && (Array.isArray(cur) ? cur[0] === v : v === cur))));
+      s.addEventListener("change", () => s.value !== "\u0000" && setFilter({ ...filter(), [key]: s.value || null }));
       return s;
     };
     const kids = [];
@@ -78,7 +87,7 @@
     menus(all);
     // Left out by the filters: not shown, and not counted against `limit`.
     const entries = all.filter((li) => {
-      const out = (f.who !== null && li.getAttribute("data-who") !== f.who) || (f.kind !== null && li.getAttribute("data-kind") !== f.kind);
+      const out = !passes(li.getAttribute("data-who"), f.who) || !passes(li.getAttribute("data-kind"), f.kind);
       li.toggleAttribute("data-tl-out", out);
       return !out;
     });
@@ -139,7 +148,7 @@
     if (e.currentTarget.hasAttribute("data-tl-load")) {
       // The page adds them; focus goes to the first new one when they come.
       before = el.querySelectorAll("[data-tl-item]").length;
-      return api.emit("more", { count: before });
+      return api.emit("more", { count: before, filter: filter() });
     }
     const first = el.querySelector("[data-tl-item][data-tl-hidden]");
     open = true;
@@ -151,6 +160,17 @@
     }
   });
   draw();
+  // `bindSeen`: when this feed was last seen, written as the page is left or hidden (the
+  // time of its newest entry, or now), for the page to keep as next visit's `since`.
+  if (cfg.bindSeen) {
+    const seen = (e) => {
+      if (e.type === "visibilitychange" && document.visibilityState !== "hidden") return;
+      const newest = Math.max(...[...el.querySelectorAll("[data-tl-item]")].map((li) => at(li.getAttribute("data-when")) ?? -Infinity));
+      api.set(cfg.bindSeen, new Date(Number.isFinite(newest) ? Math.max(newest, Date.now()) : Date.now()).toISOString());
+    };
+    addEventListener("visibilitychange", seen);
+    addEventListener("pagehide", seen);
+  }
   // Times ago keep up, a minute at a time; a new day moves the headings.
   if (cfg.relative || cfg.group) {
     const t = setInterval(() => (el.isConnected ? draw() : clearInterval(t)), 60000);

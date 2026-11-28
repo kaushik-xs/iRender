@@ -1,7 +1,8 @@
 // irender-ui-kit: the `ui-compare-slider` behaviour. The divider is the range input over
 // the picture; this sets `--pos` as it moves (and from `bind`), says the split for screen
 // readers ("Before 40%, after 60%"), fades a side's label as the divider covers it, and
-// with `hover` lets a mouse move the divider without pressing.
+// with `hover` lets a mouse move the divider without pressing. With `mode: fade` the
+// second picture fades in over the first instead (CSS, from `--pos`).
 (window.__irenderBehaviors ||= {})["ui-compare-slider"] = (el, api) => {
   const cfg = api.config, L = (t, v) => window.__irender.label(t, v);
   const input = el.querySelector("[data-cmp-frame] input"), frame = el.querySelector("[data-cmp-frame]");
@@ -12,8 +13,10 @@
     if (!Number.isFinite(v)) return;
     el.style.setProperty("--pos", String(v));
     if (Number(input.value) !== v) input.value = String(v);
-    input.setAttribute("aria-valuetext", L("Before {a}%, after {b}%", { a: v, b: 100 - v }));
-    el.setAttribute("data-near", v < 12 ? "before" : v > 88 ? "after" : "");
+    // Labels: "After {b}% faded in"
+    const fade = el.hasAttribute("data-fade");
+    input.setAttribute("aria-valuetext", fade ? L("After {b}% faded in", { b: v }) : L("Before {a}%, after {b}%", { a: v, b: 100 - v }));
+    el.setAttribute("data-near", fade ? "" : v < 12 ? "before" : v > 88 ? "after" : "");
     if (write && cfg.bind && api.state[cfg.bind] !== v) api.set(cfg.bind, v);
     if (write) api.emit("change", { value: v });
   }

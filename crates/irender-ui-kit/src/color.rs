@@ -23,6 +23,9 @@ const PROPS: &[PropDef] = &[
     PropDef::new("format", PropKind::Enum(FORMATS), "How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`) or `hsl` (`hsl(224, 64%, 33%)`)"),
     PropDef::new("alpha", PropKind::Bool, "An opacity slider too"),
     PropDef::new("swatches", PropKind::Any, "Colours to pick with one click: CSS colours, or `{ value, label }`"),
+    PropDef::new("recent", PropKind::Any, "The colours picked last, to pick again with one click: `true` (8) or how many; kept in the browser"),
+    PropDef::new("recentKey", PropKind::String, "Which recent colours: pickers with the same key share them (default: all pickers share one list)"),
+    PropDef::new("contrastWith", PropKind::Any, "A background (or text) colour to check the contrast against, as WCAG reads it: the ratio and AA / AAA; may use state"),
     PropDef::new("custom", PropKind::Bool, "The area, sliders and text field (default true); false leaves just the swatches"),
     PropDef::new("eyedropper", PropKind::Bool, "A button to take a colour from the screen, where the browser has one (default true)"),
     PropDef::new("inline", PropKind::Bool, "The panel on the page, without the button and popover"),
@@ -151,6 +154,13 @@ fn panel_style() -> StyleBlock {
         )
         .nest("& [data-color-swatches] button:hover", pairs(&[("transform", "scale(1.1)")]))
         .nest("& [data-color-swatches] button:focus-visible", pairs(&[("outline", "2px solid var(--color-ring, var(--color-muted))"), ("outline-offset", "2px")]))
+        .nest("& [data-color-recent][hidden]", pairs(&[("display", "none")]))
+        .nest("& [data-color-contrast]", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("margin", "0"), ("font-size", fs!(12)), ("color", MUTED), ("font-variant-numeric", "tabular-nums")]))
+        .nest("& [data-color-contrast]:empty", pairs(&[("display", "none")]))
+        .nest("& [data-color-contrast] [data-sample]", pairs(&[("display", "inline-grid"), ("place-items", "center"), ("width", "22px"), ("height", "22px"), ("border-radius", "var(--radius-sm)"), ("border", "1px solid var(--color-border)"), ("font-weight", "700"), ("font-size", fs!(12))]))
+        .nest("& [data-color-contrast] [data-grade]", pairs(&[("margin-inline-start", "auto"), ("padding", pad!(1, 6)), ("border-radius", "999px"), ("font-weight", "600")]))
+        .nest("& [data-color-contrast] [data-grade=fail]", pairs(&[("color", "var(--color-destructive, #dc2626)"), ("background", "color-mix(in srgb, var(--color-destructive, #dc2626) 12%, transparent)")]))
+        .nest("& [data-color-contrast] [data-grade]:not([data-grade=fail])", pairs(&[("color", "var(--color-success, #15803d)"), ("background", "color-mix(in srgb, var(--color-success, #15803d) 12%, transparent)")]))
         .nest("& [data-color-swatches] button[aria-pressed=true]", pairs(&[("box-shadow", "0 0 0 2px var(--ui-bg, var(--color-surface)), 0 0 0 4px var(--color-text)")]))
         .nest(
             "& [data-color-live]",
@@ -294,7 +304,16 @@ impl Component for ColorPicker {
         };
         let (bind, name, placeholder, align) = (s("bind"), s("name"), s("placeholder"), s("align"));
         let (alpha, eyedropper, clearable) = (flag("alpha", false), flag("eyedropper", true), flag("clearable", false));
+        let recent = match cx.prop(node, "recent") {
+            None | Some(Json::Null) | Some(Json::Bool(false)) => 0,
+            Some(Json::Bool(true)) => 8,
+            Some(v) => (expr::to_num(&v).clamp(0.0, 24.0)) as usize,
+        };
+        let contrast = node.prop("contrastWith").map(|v| crate::data_table::dynamic(cx, node, "contrastWith", v)).transpose()?;
         let config = json!({
+            "recent": recent,
+            "recentKey": s("recentKey"),
+            "contrastWith": contrast,
             "bind": bind,
             "value": if bind.is_none() { value.clone() } else { Json::Null },
             "format": format,
@@ -304,6 +323,7 @@ impl Component for ColorPicker {
             "name": name,
             "popover": !inline,
         });
+        crate::widget::kit(cx);
         cx.global_js("ui-color-picker", SCRIPT);
         let id = instance_id(cx, node, "color-picker");
         let label = node.prop("label").cloned();
@@ -316,7 +336,7 @@ impl Component for ColorPicker {
         if inline {
             root.attr("role", "group").attr("aria-label", label.clone().unwrap_or_else(|| lit(cx.label("Colour"))));
             cx.open(&root, node)?;
-            panel(cx, node, Some(&id), &swatches, custom, alpha, eyedropper, clearable)?;
+            panel(cx, node, Some(&id), &swatches, custom, alpha, eyedropper, clearable, recent > 0, contrast.is_some())?;
         } else {
             crate::anchors(cx);
             crate::flips(cx);
@@ -365,7 +385,7 @@ impl Component for ColorPicker {
                 .attr("data-color-pop", true)
                 .attr("aria-label", label.unwrap_or_else(|| lit(cx.label("Choose a colour"))));
             cx.open(&popover, node)?;
-            panel(cx, node, None, &swatches, custom, alpha, eyedropper, false)?;
+            panel(cx, node, None, &swatches, custom, alpha, eyedropper, false, recent > 0, contrast.is_some())?;
             cx.close("div");
         }
         let mut live = Element::new("div");
@@ -385,7 +405,7 @@ impl Component for ColorPicker {
 /// The area, sliders, text field and swatches; the behaviour sets their values. Inline,
 /// the text field takes the picker's `id`, which a `ui-field`'s label points at.
 #[allow(clippy::too_many_arguments)]
-fn panel(cx: &mut RenderCx<'_>, node: &Node, id: Option<&irender_core::Val>, swatches: &[Json], custom: bool, alpha: bool, eyedropper: bool, clearable: bool) -> Result<(), RenderError> {
+fn panel(cx: &mut RenderCx<'_>, node: &Node, id: Option<&irender_core::Val>, swatches: &[Json], custom: bool, alpha: bool, eyedropper: bool, clearable: bool, recent: bool, contrast: bool) -> Result<(), RenderError> {
     let mut p = Element::new("div");
     p.attr("data-color-panel", true);
     cx.open(&p, node)?;
@@ -445,6 +465,19 @@ fn panel(cx: &mut RenderCx<'_>, node: &Node, id: Option<&irender_core::Val>, swa
             cx.close("button");
         }
         cx.close("div");
+    }
+    // The colours picked last, drawn by the behaviour; hidden until there are some.
+    if recent {
+        let mut list = Element::new("div");
+        list.attr("data-color-swatches", true).attr("data-color-recent", true).attr("role", "group").attr("aria-label", cx.label("Recent colours")).attr("hidden", true);
+        cx.open(&list, node)?;
+        cx.close("div");
+    }
+    if contrast {
+        let mut c = Element::new("p");
+        c.attr("data-color-contrast", true).attr("aria-live", "polite");
+        cx.open(&c, node)?;
+        cx.close("p");
     }
     if clearable {
         let mut c = Element::new("button");

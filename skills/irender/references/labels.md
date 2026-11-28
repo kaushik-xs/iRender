@@ -387,6 +387,12 @@ root: …
 `color.js`
 
 ```yaml
+"Recent: {color}": "Recent: {color}"
+"Contrast {ratio}:1": "Contrast {ratio}:1"
+"AAA": "AAA"
+"AA": "AA"
+"AA large": "AA large"
+"Too low": "Too low"
 "Cleared": "Cleared"
 "Saturation {s}%, brightness {v}%": "Saturation {s}%, brightness {v}%"
 "Enter a colour like #1e3a8a or rgb(30, 58, 138)": "Enter a colour like #1e3a8a or rgb(30, 58, 138)"
@@ -406,6 +412,7 @@ root: …
 "Colour value": "Colour value"
 "Pick a colour from the screen": "Pick a colour from the screen"
 "Swatches": "Swatches"
+"Recent colours": "Recent colours"
 ```
 
 `combobox.js`
@@ -487,6 +494,7 @@ root: …
 `compare.js`
 
 ```yaml
+"After {b}% faded in": "After {b}% faded in"
 "Before {a}%, after {b}%": "Before {a}%, after {b}%"
 ```
 
@@ -1695,6 +1703,8 @@ root: …
 `presence.js`
 
 ```yaml
+"Following {name}": "Following {name}"
+"Stopped following {name}": "Stopped following {name}"
 "{name} joined": "{name} joined"
 "{name} left": "{name} left"
 ```
@@ -1709,6 +1719,9 @@ root: …
 "Offline": "Offline"
 "People here": "People here"
 "(you)": "(you)"
+"Follow": "Follow"
+"Following": "Following"
+"Go to": "Go to"
 ```
 
 `pwa.js`
@@ -2079,6 +2092,7 @@ root: …
 "Every kind": "Every kind"
 "Who": "Who"
 "Kind": "Kind"
+"{n} picked": "{n} picked"
 "Nothing matches these filters": "Nothing matches these filters"
 "Load more": "Load more"
 "Loading…": "Loading…"
