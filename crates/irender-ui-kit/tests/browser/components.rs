@@ -652,6 +652,70 @@ root: { type: ui-whiteboard, attrs: { id: wb }, props: { bind: board, height: 40
     );
 }
 
+/// `ui-whiteboard`: an arrow's ends dragged onto another shape join it, pinned to the spot
+/// when let go at its edge, and dragged off let go; drawn to an edge, pinned from the start.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn whiteboard_arrow_ends_join_again_by_dragging() {
+    check(
+        "whiteboard-ends",
+        r##"
+state:
+  board:
+    - { id: a, type: rect, x: 0, y: 0, w: 100, h: 60, text: Start }
+    - { id: b, type: rect, x: 300, y: 0, w: 100, h: 60, text: End }
+    - { id: c, type: ellipse, x: 300, y: 200, w: 100, h: 60, text: Other }
+    - { id: x, type: arrow, x: 0, y: 0, points: [ [0, 0], [10, 0] ], from: a, to: b }
+root: { type: ui-whiteboard, attrs: { id: wb }, props: { bind: board, height: 400 } }
+"##,
+        r##"
+        const wb = $("#wb"), stage = wb.querySelector("[data-wb-stage]");
+        const r = () => stage.getBoundingClientRect(), pt = (x, y) => ({ clientX: r().left + x + 24, clientY: r().top + y + 24 });
+        const ev = (type, x, y, target) => (target ?? document.elementFromPoint(pt(x, y).clientX, pt(x, y).clientY) ?? stage).dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, button: 0, buttons: 1, isPrimary: true, ...pt(x, y) }));
+        const drag = async (x0, y0, x1, y1, first) => { ev("pointerdown", x0, y0, first); await wait(5); for (let k = 1; k <= 4; k++) { ev("pointermove", x0 + (x1 - x0) * k / 4, y0 + (y1 - y0) * k / 4, stage); await wait(2); } ev("pointerup", x1, y1, stage); await wait(10); };
+        const key = (k) => stage.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+        const line = () => wb.querySelector('[data-wb-item=x] path, [data-type=arrow]:last-of-type path').getAttribute("d").match(/^M(-?[\d.]+) (-?[\d.]+)L(-?[\d.]+) (-?[\d.]+)/).slice(1).map((n) => Math.round(Number(n))).join(",");
+        const arrow = () => S().board.find((i) => i.id === "x"), joins = (i = arrow()) => [i.from ?? "-", i.fromAt ?? "-", i.to ?? "-", i.toAt ?? "-"].join(" ");
+        // Picked, the arrow shows its two ends.
+        stage.focus(); ev("pointerdown", 200, 30); ev("pointerup", 200, 30, stage); await wait(10);
+        log($$("#wb [data-wb-end]").map((e) => e.dataset.wbEnd + ":" + Math.round(e.getAttribute("cx"))).join(","));
+        // Its end dragged into the ellipse: joined to it, not pinned (let go in the middle); its outline marked on the way.
+        const to = () => wb.querySelector("[data-wb-end=to]");
+        ev("pointerdown", 300, 30, to()); ev("pointermove", 330, 120, stage); ev("pointermove", 350, 230, stage); await wait(5);
+        log("over", !!wb.querySelector("[data-wb-target]"));
+        ev("pointerup", 350, 230, stage); await wait(10);
+        log(joins(), line(), $("[data-wb-live], [role=status]")?.textContent ?? "");
+        // Dragged again, let go on the ellipse's top: pinned there, and it stays there as the other end moves.
+        await drag(...to().getAttribute("cx") && [Number(to().getAttribute("cx")), Number(to().getAttribute("cy"))], 350, 202, to());
+        log(joins(), line());
+        // The start dragged onto the right edge of End: pinned to it, the other end keeping its pin.
+        const from = () => wb.querySelector("[data-wb-end=from]");
+        await drag(Number(from().getAttribute("cx")), Number(from().getAttribute("cy")), 398, 40, from());
+        log(joins(), line());
+        // Dragged off onto the empty board: let go there.
+        await drag(Number(from().getAttribute("cx")), Number(from().getAttribute("cy")), 150, 300, from());
+        log(joins(), line());
+        // Undone, it's joined again.
+        key("z"); stage.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })); await wait(10);
+        log("undone", arrow().from);
+        // A new arrow drawn to the left edge of End: pinned from the start.
+        key("a"); await drag(50, 100, 302, 30);
+        const fresh = S().board.at(-1);
+        log(fresh.from ?? "-", fresh.to, JSON.stringify(fresh.toAt), fresh.fromAt ?? "-");
+"##,
+        &[
+            "from:100,to:300",
+            "over true",
+            "a - c - 95,60,317,208 Arrow joined to Other",
+            "a - c 0.5,0 100,58,350,200",
+            "b 1,0.667 c 0.5,0 400,40,350,200",
+            "- - c 0.5,0 150,300,350,200",
+            "undone b",
+            "- b [0,0.5] -",
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn gauge_rounds_its_figure_and_has_ticks() {

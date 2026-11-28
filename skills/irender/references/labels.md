@@ -2295,6 +2295,8 @@ root: …
 "Ungroup": "Ungroup"
 "Add a picture": "Add a picture"
 "Export as PNG": "Export as PNG"
+"Arrow joined to {name}": "Arrow joined to {name}"
+"Arrow end let go": "Arrow end let go"
 "Locked: unlock it to delete it": "Locked: unlock it to delete it"
 "Brought to the front": "Brought to the front"
 "Sent to the back": "Sent to the back"

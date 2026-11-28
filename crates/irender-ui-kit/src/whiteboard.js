@@ -91,14 +91,35 @@
     const k = Math.min(Math.abs(it.w / 2 / (dx || 1e-9)), Math.abs(it.h / 2 / (dy || 1e-9)));
     return [cx + dx * k, cy + dy * k];
   }
-  // An arrow's two ends on the board: joined ones from their shapes, else its own points.
+  // A spot on a shape's edge an end is pinned to (`fromAt`, `toAt`: across and down it,
+  // 0–1), when it's let go within 10 px of the edge; let go further in, it isn't pinned
+  // and meets the edge on the way to the other end.
+  function anchor(it, p) {
+    if (!it || !it.w || !it.h) return null;
+    const round = (v) => Math.round(v * 1000) / 1000;
+    if (it.type === "ellipse") {
+      // On its own outline, towards the pointer from its middle.
+      if (Math.hypot(p.x - it.x - it.w / 2, p.y - it.y - it.h / 2) < 1) return null;
+      const [ex, ey] = edge(it, [p.x, p.y]);
+      return Math.hypot(p.x - ex, p.y - ey) * view.zoom > 10 ? null : [round((ex - it.x) / it.w), round((ey - it.y) / it.h)];
+    }
+    const d = [p.x - it.x, it.x + it.w - p.x, p.y - it.y, it.y + it.h - p.y], near = Math.min(...d);
+    if (near * view.zoom > 10) return null;
+    const f = [clamp((p.x - it.x) / it.w, 0, 1), clamp((p.y - it.y) / it.h, 0, 1)], side = d.indexOf(near);
+    f[side < 2 ? 0 : 1] = side % 2 ? 1 : 0;
+    return f.map(round);
+  }
+  // An arrow's two ends on the board: joined ones from their shapes (a pinned spot, or
+  // where the line between them leaves each), else its own points.
   function ends(it, list = items()) {
     const own = it.points?.length >= 2 ? it.points : [[0, 0], [0, 0]];
     let a = [own[0][0] + (it.x ?? 0), own[0][1] + (it.y ?? 0)], b = [own[1][0] + (it.x ?? 0), own[1][1] + (it.y ?? 0)];
     const find = (id) => (id == null ? null : list.find((i) => String(i.id) === String(id) && JOINS.has(i.type)) ?? null);
     const from = find(it.from), to = find(it.to), mid = (s) => [s.x + s.w / 2, s.y + s.h / 2];
-    if (from) a = edge(from, to ? mid(to) : b);
-    if (to) b = edge(to, from ? mid(from) : a);
+    const pin = (s, at) => (s && Array.isArray(at) && at.length === 2 ? [s.x + clamp(Number(at[0]) || 0, 0, 1) * s.w, s.y + clamp(Number(at[1]) || 0, 0, 1) * s.h] : null);
+    const pa = pin(from, it.fromAt), pb = pin(to, it.toAt);
+    if (from) a = pa ?? edge(from, pb ?? (to ? mid(to) : b));
+    if (to) b = pb ?? edge(to, pa ?? (from ? mid(from) : a));
     return [a, b];
   }
   // An item's box, in board units.
@@ -226,6 +247,8 @@
     drawBar();
     paint();
   }
+  // The shape an arrow's end is being dragged over.
+  let overEnd = null;
   // The selection: a dashed box round each item, and a corner to resize one.
   function drawSelection() {
     overlay.replaceChildren();
@@ -233,6 +256,11 @@
     for (const it of items().filter((i) => selected.has(String(i.id)))) {
       const b = box(it);
       overlay.append(s("rect", { x: b.x - 4 * k, y: b.y - 4 * k, width: b.w + 8 * k, height: b.h + 8 * k, fill: "none", stroke: "var(--color-primary)", "stroke-width": 1.5 * k, "stroke-dasharray": `${4 * k} ${3 * k}`, "pointer-events": "none" }));
+      // An arrow's ends: dragged onto a shape to join it, or off to come loose.
+      if (selected.size === 1 && !cfg.readOnly && !it.locked && it.type === "arrow") {
+        ends(it).forEach(([x, y], i) => overlay.append(s("circle", { "data-wb-end": i ? "to" : "from", cx: x, cy: y, r: 6 * k, fill: "var(--ui-bg, #fff)", stroke: "var(--color-primary)", "stroke-width": 1.5 * k, style: "cursor: crosshair" })));
+      }
+      if (overEnd) overlay.append(s("rect", { "data-wb-target": true, x: overEnd.x - 6 * k, y: overEnd.y - 6 * k, width: overEnd.w + 12 * k, height: overEnd.h + 12 * k, rx: 6 * k, fill: "none", stroke: "var(--color-primary)", "stroke-width": 2 * k, "pointer-events": "none" }));
       if (selected.size === 1 && !cfg.readOnly && !it.locked && ["note", "rect", "ellipse", "text", "image", "frame", "pen"].includes(it.type)) {
         overlay.append(s("rect", { "data-wb-handle": it.id, x: b.x + b.w - 2 * k, y: b.y + b.h - 2 * k, width: 10 * k, height: 10 * k, rx: 2 * k, fill: "var(--ui-bg, #fff)", stroke: "var(--color-primary)", "stroke-width": 1.5 * k, style: "cursor: nwse-resize" }));
       }
@@ -345,6 +373,11 @@
     }
     if (e.button !== 0) return;
     if (cfg.readOnly) return;
+    const endOf = e.target.closest?.("[data-wb-end]")?.getAttribute("data-wb-end");
+    if (endOf && selected.size === 1) {
+      action = { kind: "end", id: [...selected][0], which: endOf, before: items(), moved: false };
+      return;
+    }
     const handle = e.target.closest?.("[data-wb-handle]")?.getAttribute("data-wb-handle");
     if (handle) {
       const it = items().find((i) => String(i.id) === handle);
@@ -408,11 +441,31 @@
         if (i.type === "arrow" && (i.from != null || i.to != null)) {
           const keep = (id) => id != null && moving.has(String(id));
           if (keep(i.from) || keep(i.to)) return i;
-          const [[x1, y1], [x2, y2]] = ends(i, action.before), { from, to, ...rest } = i;
+          const [[x1, y1], [x2, y2]] = ends(i, action.before), { from, to, fromAt, toAt, ...rest } = i;
           return { ...rest, x: 0, y: 0, points: [[x1 + dx, y1 + dy], [x2 + dx, y2 + dy]] };
         }
         return { ...i, x: (i.x ?? 0) + dx, y: (i.y ?? 0) + dy };
       }));
+      return draw();
+    }
+    if (action.kind === "end") {
+      // The end follows the pointer; over a shape (not the one the other end is on), it joins it.
+      const it = action.before.find((i) => String(i.id) === action.id);
+      if (!it) return;
+      action.moved = true;
+      const other = action.which === "from" ? it.to : it.from;
+      const over = shapeAt(p, action.before);
+      const target = over && String(over.id) !== String(other) ? over : null;
+      const [a, b] = ends(it, action.before), { [action.which]: _, [`${action.which}At`]: __, ...rest } = it;
+      const here = [p.x, p.y], pts = action.which === "from" ? [here, b] : [a, here];
+      const next = { ...rest, x: 0, y: 0, points: pts.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]) };
+      if (target) {
+        next[action.which] = target.id;
+        const at = anchor(target, p);
+        if (at) next[`${action.which}At`] = at;
+      }
+      overEnd = target;
+      api.set(cfg.bind, action.before.map((i) => (String(i.id) === action.id ? next : i)));
       return draw();
     }
     if (action.kind === "resize") {
@@ -464,6 +517,10 @@
       const it = { id, type, x: 0, y: 0, points: [[p0.x, p0.y], [p1.x, p1.y]], color };
       if (from) it.from = from.id;
       if (to && String(to.id) !== String(from?.id)) it.to = to.id;
+      // Let go near an edge, an end is pinned there.
+      const fa = from && anchor(from, p0), ta = it.to != null && anchor(to, p1);
+      if (fa) it.fromAt = fa;
+      if (ta) it.toAt = ta;
       return it;
     }
     const size = { note: [180, 140], rect: [140, 90], ellipse: [120, 120], text: [220, 40], frame: [480, 320] }[type];
@@ -492,6 +549,17 @@
       future = [];
       api.emit("change", { value: items() });
       say(L(["{n} item moved", "{n} items moved"], { n: selected.size }));
+      drawBar();
+    } else if (a.kind === "end") {
+      overEnd = null;
+      if (!a.moved) return drawSelection();
+      past.push(a.before);
+      future = [];
+      api.emit("change", { value: items() });
+      const it = items().find((i) => String(i.id) === a.id), to = it?.[a.which] != null ? items().find((i) => String(i.id) === String(it[a.which])) : null;
+      // Labels: "Arrow joined to {name}", "Arrow end let go"
+      say(to ? L("Arrow joined to {name}", { name: to.text || L(KIND[to.type]) }) : L("Arrow end let go"));
+      drawSelection();
       drawBar();
     } else if (a.kind === "resize") {
       past.push(a.before);
@@ -640,8 +708,8 @@
     const ids = new Map(list.filter(isObj).map((i) => [String(i.id), newId()])), groups = new Map();
     const fresh = list.filter(isObj).map((i) => {
       const n = { ...structuredClone(i), id: ids.get(String(i.id)), x: (i.x ?? 0) + 24, y: (i.y ?? 0) + 24 };
-      if (n.from != null) ids.has(String(n.from)) ? (n.from = ids.get(String(n.from))) : delete n.from;
-      if (n.to != null) ids.has(String(n.to)) ? (n.to = ids.get(String(n.to))) : delete n.to;
+      if (n.from != null) ids.has(String(n.from)) ? (n.from = ids.get(String(n.from))) : (delete n.from, delete n.fromAt);
+      if (n.to != null) ids.has(String(n.to)) ? (n.to = ids.get(String(n.to))) : (delete n.to, delete n.toAt);
       if (n.group != null) n.group = groups.get(n.group) ?? (groups.set(n.group, newId()), groups.get(n.group));
       if (n.type === "image" && !safeSrc(n.src)) return null;
       return n;

@@ -544,7 +544,7 @@
    "group": "Data display",
    "title": "Whiteboard",
    "nav": "Whiteboard",
-   "summary": "A board without edges: draw with a pen, add sticky notes, rectangles, ellipses, arrows and text; select (a click, Shift, a box), move, resize, write in notes, undo and redo; pan and zoom with the hand, Space, two fingers, the wheel or a pinch; and export it as SVG. The items are a list in state, in the board's own units.",
+   "summary": "A board without edges: draw with a pen, add sticky notes, rectangles, ellipses, arrows and text; select (a click, Shift, a box), move, resize, write in notes, undo and redo; pan and zoom with the hand, Space, two fingers, the wheel or a pinch; and export it as SVG. The items are a list in state, in the board's own units. An arrow's ends drag onto another shape to join it, pinned where they're let go at its edge.",
    "usage": "- { type: ui-whiteboard, props: { bind: board, bindView: view, height: 600 } }\n# board: [{ id: n1, type: note, x: 20, y: 20, w: 170, h: 120, text: Ideas }, { id: a1, type: arrow, x: 200, y: 80, points: [[0, 0], [80, 0]] }]",
    "components": [
     "ui-whiteboard"
