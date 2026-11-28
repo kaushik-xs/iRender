@@ -301,6 +301,7 @@ state:
   compareAt: 50
   vlCount: 200
   vlRange: null
+  vlJump: null
   gFolder: null
   gOpened: null
   wbItems:
@@ -2127,6 +2128,20 @@ root:
                         - { type: text, props: { value: "Row {{ item + 1 }}" } }
                         - { type: ui-badge, props: { text: "{{ item % 3 == 0 ? 'Fizz' : 'Row' }}", variant: "{{ item % 3 == 0 ? 'default' : 'secondary' }}" } }
                 - { type: ui-text, props: { variant: muted, text: "{{ vlCount }} loaded; showing {{ vlRange ? (vlRange.from + 1) + '–' + (vlRange.to + 1) : '' }}" } }
+                - type: ui-text
+                  props: { variant: muted, text: "Cards in a grid, as many a row as fit at 140 px: 5,000 of them, a row at a time. scrollTo brings the card picked to the top." }
+                - type: stack
+                  props: { direction: row, gap: 8, align: center }
+                  children:
+                    - { type: ui-text, props: { text: "Go to card" } }
+                    - { type: ui-number-input, props: { bind: vlJump, min: 0, max: 4999, placeholder: "0–4999" }, style: { width: 140 } }
+                - type: ui-virtual-list
+                  props: { items: "{{ range(5000) }}", height: 320, itemHeight: 96, minItemWidth: 140, gap: 8, scrollTo: "{{ vlJump }}", label: Cards }
+                  children:
+                    - type: element
+                      style: { height: 88px, display: grid, place-items: center, border: 1px solid $color.border, border-radius: $radius.md, background: $color.subtle }
+                      children:
+                        - { type: text, props: { value: "Card {{ item }}" } }
                 - { type: if, props: { when: "{{ api.virtual_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.virtual_list }}", as: c }

@@ -868,6 +868,10 @@ ui-virtual-list: A long list that keeps only the items in view in the page, so t
   endThreshold number  How many items from the end `end` fires, to load more (default 10)
   emptyText    any  Shown while there are no items (default `Nothing to show`)
   label        any  Names the list for screen readers
+  columns      number  Items side by side, as cards in a grid: this many a row
+  minItemWidth number  Cards in a grid, as many a row as fit at this width in px (instead of `columns`)
+  scrollTo     any  Brings an item to the top when this changes: its key (`itemKey`) or its place, e.g. `{{ picked }}`
+  groupBy      string  A field whose value for the items at the top stays over them as they scroll, e.g. `letter` (items in its order)
   children: yes
 ui-file-browser: Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu.
   bind         statekey (required)  State key holding the files and folders, a flat list: `{ id, name, parent, folder, size, modified, thumb, url }`; `parent` is the folder's `id` (none: the top), `folder: true` for a folder

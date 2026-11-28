@@ -36,7 +36,7 @@ _Last updated: 2026-11-28._
 
 - [ ] **`ui-file-browser`** (2026-11-23; gallery, block drive-01): folders load from `url` as they're first opened and desktop files dropped in go to `uploadUrl` (2026-11-27): a folder is fetched once (nothing refreshes it), uploads show no progress or retry (a `ui-file-upload` beside it has them), and nothing pages a big folder; no copy and paste, no previews beyond `thumb`, and no sharing or permissions. Selecting by dragging a box isn't there; ⌘/Shift and the keys are.
 
-- [ ] **`ui-virtual-list`** (2026-11-23; gallery, block inventory-01): one column only (no grid of cards), items placed by their average height (a list of very uneven items lands near, not on, a place when jumped to), no scrolling to an item from state, and no sticky group headers. Find in page (⌘F) only finds what's drawn.
+- [ ] **`ui-virtual-list`** (2026-11-23; gallery, block inventory-01): a grid of cards (`columns`, `minItemWidth`), `scrollTo` from state landing on the item, and the group at the top (`groupBy`) came on 2026-11-28. The group is a line of text over the items (no headers between groups in the list, no template of its own), a grid's rows are as tall as their tallest card's average, and a jump past items never drawn can take a few steps to land. Find in page (⌘F) only finds what's drawn.
 
 - [ ] **`ui-presence`** (2026-11-23; gallery, block workspace-01): it shows who's in state; keeping that up to date (a WebSocket, polling, a presence service) is the page's job, and there's no example server. No live cursors or selections in a document, and no "follow" (jump to where someone is).
 

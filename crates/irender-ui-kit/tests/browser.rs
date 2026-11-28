@@ -8070,6 +8070,59 @@ fn file_browser_in_chrome() {
     );
 }
 
+/// `ui-virtual-list` as a grid of cards (a row of them at a time), `scrollTo` from state
+/// landing on an item of very uneven ones, and the group of the items at the top.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn virtual_list_grid_scroll_to_and_groups_in_chrome() {
+    let doc = serde_json::json!({ "version": 1, "state": { "cards": [], "uneven": [], "to": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-virtual-list", "attrs": { "id": "g" }, "props": { "items": "{{ cards }}", "height": 300, "itemHeight": 100, "columns": 4, "gap": 8 },
+              "children": [ { "type": "element", "style": { "height": "92px" }, "children": [ { "type": "text", "props": { "value": "{{ item.id }}" } } ] } ] },
+            { "type": "ui-virtual-list", "attrs": { "id": "u" }, "props": { "items": "{{ uneven }}", "height": 240, "itemHeight": 40, "scrollTo": "{{ to }}", "groupBy": "letter" },
+              "children": [ { "type": "element", "style": { "height": "{{ item.h }}px" }, "children": [ { "type": "text", "props": { "value": "{{ item.id }}" } } ] } ] } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const log = (...a) => out.push(a.join(" "));
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const frames = () => wait(80);
+      const api = document.querySelector("[data-i-root]").__irender;
+      const g = document.getElementById("g").closest("[data-vl]"), u = document.getElementById("u").closest("[data-vl]");
+      const drawn = (el) => [...el.querySelectorAll("[data-vl-item]")];
+      try {
+        api.set("cards", Array.from({ length: 10000 }, (_, i) => ({ id: `C${i}` }))); await frames();
+        const firstRow = drawn(g).slice(0, 4).map((d) => Math.round(d.getBoundingClientRect().top));
+        log("grid", drawn(g).length % 4 === 0, drawn(g).length < 100, new Set(firstRow).size, g.scrollHeight > 2500 * 90);
+        g.scrollTop = 1250 * 100; g.dispatchEvent(new Event("scroll")); await frames();
+        const places = drawn(g).map((d) => Number(d.getAttribute("aria-posinset")));
+        log("grid middle", places[0] % 4 === 1, places.includes(5001));
+
+        // Very uneven: a jump by the average lands near; it's then put right on it.
+        const letters = "ABCDEFGHIJ";
+        api.set("uneven", Array.from({ length: 2000 }, (_, i) => ({ id: `U${i}`, h: i % 10 === 0 ? 300 : 20, letter: letters[Math.floor(i / 200)] }))); await frames();
+        log("group", u.querySelector("[data-vl-sticky]").textContent);
+        api.set("to", "U1234"); await frames(); await frames();
+        const top = drawn(u).find((d) => d.getBoundingClientRect().bottom > u.getBoundingClientRect().top + u.querySelector("[data-vl-sticky]").offsetHeight + 1);
+        log("to", top?.textContent, u.querySelector("[data-vl-sticky]").textContent);
+        api.set("to", 5); await frames(); await frames();
+        log("to place", drawn(u).find((d) => d.getBoundingClientRect().bottom > u.getBoundingClientRect().top + u.querySelector("[data-vl-sticky]").offsetHeight + 1)?.textContent);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      const pre = document.createElement("pre"); pre.id = "result"; pre.textContent = out.join("\n"); document.body.append(pre);
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap_or_else(|d| panic!("{d}"));
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("virtual-grid", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["grid true true 1 true", "grid middle true true", "group A", "to U1234 G", "to place U5"],
+        "\n{result}"
+    );
+}
+
 /// `ui-virtual-list`: a hundred thousand items with only those in view in the page, their
 /// places for screen readers, the range in view, `end` near the end (once a length),
 /// items of different heights, and an empty list.

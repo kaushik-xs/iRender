@@ -32,6 +32,10 @@ const PROPS: &[PropDef] = &[
     PropDef::new("endThreshold", PropKind::Number, "How many items from the end `end` fires, to load more (default 10)"),
     PropDef::new("emptyText", PropKind::Any, "Shown while there are no items (default `Nothing to show`)"),
     PropDef::new("label", PropKind::Any, "Names the list for screen readers"),
+    PropDef::new("columns", PropKind::Number, "Items side by side, as cards in a grid: this many a row"),
+    PropDef::new("minItemWidth", PropKind::Number, "Cards in a grid, as many a row as fit at this width in px (instead of `columns`)"),
+    PropDef::new("scrollTo", PropKind::Any, "Brings an item to the top when this changes: its key (`itemKey`) or its place, e.g. `{{ picked }}`"),
+    PropDef::new("groupBy", PropKind::String, "A field whose value for the items at the top stays over them as they scroll, e.g. `letter` (items in its order)"),
 ];
 
 fn pairs(p: &[(&str, &str)]) -> StyleBlock {
@@ -50,6 +54,24 @@ static LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("&:focus-visible", forms::focus_ring())
     .nest("& [data-vl-items]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("gap", "var(--vl-gap, 0px)")]))
+    // Cards: a grid of as many columns as the behaviour works out.
+    .nest("&[data-vl-grid] [data-vl-items]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(var(--vl-cols, 1), minmax(0, 1fr))")]))
+    // The group of the items at the top, over them.
+    .nest(
+        "& [data-vl-sticky]",
+        pairs(&[
+            ("position", "sticky"),
+            ("top", "0"),
+            ("z-index", "1"),
+            ("padding", pad!(6, 12)),
+            ("background", "var(--color-surface)"),
+            ("border-bottom", "var(--border-width, 1px) solid var(--color-border)"),
+            ("color", MUTED),
+            ("font-size", fs!(12)),
+            ("font-weight", "600"),
+        ]),
+    )
+    .nest("& [data-vl-sticky][hidden]", pairs(&[("display", "none")]))
     .nest("& [data-vl-pad]", pairs(&[("flex", "none")]))
     .nest("& [data-vl-empty]", pairs(&[("margin", "0"), ("padding", pad!(24)), ("color", MUTED), ("text-align", "center")]))
     .nest("& [data-vl-items]:has(> [data-vl-item]) + [data-vl-empty], & [data-vl-empty][hidden]", pairs(&[("display", "none")]))
@@ -88,11 +110,13 @@ impl Component for VirtualList {
         }
         let gap = widget::number(cx, node, "gap").unwrap_or(0.0);
         let item_key = cx.prop_string(node, "itemKey").unwrap_or_else(|| "id".into());
-        let mut config = widget::config(cx, node, &["items"], &[], &["bindRange"])?;
+        let mut config = widget::config(cx, node, &["items", "scrollTo"], &["columns", "minItemWidth", "groupBy"], &["bindRange"])?;
         config.insert("itemKey".into(), json!(item_key));
         config.insert("itemHeight".into(), json!(item_height));
         config.insert("gap".into(), json!(gap));
         config.insert("endThreshold".into(), json!(widget::number(cx, node, "endThreshold").unwrap_or(10.0)));
+        let grid = config.contains_key("columns") || config.contains_key("minItemWidth");
+        let grouped = config.contains_key("groupBy");
         widget::kit(cx);
         cx.global_js("ui-virtual-list", SCRIPT);
 
@@ -103,10 +127,19 @@ impl Component for VirtualList {
             // The scrolling area takes focus, so the keys scroll it.
             .attr("tabindex", "0")
             .attr("data-vl", true);
+        if grid {
+            root.attr("data-vl-grid", true);
+        }
         if let Some(l) = node.prop("label") {
             root.attr("aria-label", l.clone()).attr("role", "region");
         }
         cx.open(&root, node)?;
+        if grouped {
+            let mut s = Element::new("div");
+            s.attr("data-vl-sticky", true).attr("aria-hidden", "true").attr("hidden", true);
+            cx.open(&s, node)?;
+            cx.close("div");
+        }
         let mut top = Element::new("div");
         top.attr("data-vl-pad", "top").attr("aria-hidden", "true");
         cx.open(&top, node)?;
