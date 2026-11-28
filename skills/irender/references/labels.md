@@ -2092,6 +2092,7 @@ root: …
 "Every kind": "Every kind"
 "Who": "Who"
 "Kind": "Kind"
+"{n} picked": "{n} picked"
 "Nothing matches these filters": "Nothing matches these filters"
 "Load more": "Load more"
 "Loading…": "Loading…"

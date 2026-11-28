@@ -330,7 +330,8 @@ const TIMELINE_PROPS: &[PropDef] = &[
     PropDef::new("since", PropKind::Any, "Entries after this date and time (a last visit, say) are marked New; may use state"),
     PropDef::new("limit", PropKind::Number, "Show the first this many entries, then a button for the rest"),
     PropDef::new("filters", PropKind::Bool, "Menus over the feed to show one person's entries, or one `kind` of entry, from those it has"),
-    PropDef::new("bindFilter", PropKind::StateKey, "With `filters`, a state key holding what's picked, `{ who, kind }` (null for all); setting it picks them"),
+    PropDef::new("bindFilter", PropKind::StateKey, "With `filters`, a state key holding what's picked, `{ who, kind }`, each one value or a list (null for all); setting it picks them, and `filter` fires as they change"),
+    PropDef::new("bindSeen", PropKind::StateKey, "State key that gets when the feed was last seen, as the page is hidden or left: keep it (on the server) for next visit's `since`"),
     PropDef::new("hasMore", PropKind::Any, "There are older entries on the server: once all here are shown, a Load more button fires `more` (the page adds them to `items`); may use state"),
     PropDef::new("loading", PropKind::Any, "While true, Load more says Loading… and waits; may use state"),
 ];
@@ -470,11 +471,11 @@ impl Component for Timeline {
         if limit.is_some_and(|n| n < 1.0 || n.fract() != 0.0) {
             return Err(RenderError::new(node, "`limit` is a whole number of entries, 1 or more"));
         }
-        let feed = ["group", "relative", "since", "limit", "filters", "hasMore"].iter().any(|p| node.prop(p).is_some());
+        let feed = ["group", "relative", "since", "limit", "filters", "hasMore", "bindSeen"].iter().any(|p| node.prop(p).is_some());
         let filters = crate::widget::flag(cx, node, "filters", false);
         let more = node.prop("hasMore").is_some();
         if feed {
-            let mut config = crate::widget::config(cx, node, &["since", "hasMore", "loading"], &["group", "limit"], &["bindFilter"])?;
+            let mut config = crate::widget::config(cx, node, &["since", "hasMore", "loading"], &["group", "limit"], &["bindFilter", "bindSeen"])?;
             config.insert("relative".into(), json!(crate::widget::flag(cx, node, "relative", false)));
             config.insert("filters".into(), json!(filters));
             crate::widget::kit(cx);

@@ -931,7 +931,8 @@ ui-timeline: Activity, newest first or as given: who did what and when, with fie
   since        any  Entries after this date and time (a last visit, say) are marked New; may use state
   limit        number  Show the first this many entries, then a button for the rest
   filters      bool  Menus over the feed to show one person's entries, or one `kind` of entry, from those it has
-  bindFilter   statekey  With `filters`, a state key holding what's picked, `{ who, kind }` (null for all); setting it picks them
+  bindFilter   statekey  With `filters`, a state key holding what's picked, `{ who, kind }`, each one value or a list (null for all); setting it picks them, and `filter` fires as they change
+  bindSeen     statekey  State key that gets when the feed was last seen, as the page is hidden or left: keep it (on the server) for next visit's `since`
   hasMore      any  There are older entries on the server: once all here are shown, a Load more button fires `more` (the page adds them to `items`); may use state
   loading      any  While true, Load more says Loading… and waits; may use state
   children: yes

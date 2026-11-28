@@ -596,6 +596,7 @@ fn timeline_filters_and_loads_more() {
         r##"
 state:
   f: null
+  seen: null
   busy: false
   older: true
   feed:
@@ -605,7 +606,7 @@ state:
     - { id: 4, who: Ada, kind: comment, action: commented, when: "2026-11-25T09:00" }
 root:
   type: ui-timeline
-  props: { items: "{{ feed }}", filters: true, bindFilter: f, limit: 2, hasMore: "{{ older }}", loading: "{{ busy }}" }
+  props: { items: "{{ feed }}", filters: true, bindFilter: f, limit: 2, hasMore: "{{ older }}", loading: "{{ busy }}", bindSeen: seen }
   on:
     more:
       - { action: set_state, key: busy, value: true }
@@ -621,12 +622,19 @@ root:
         // State picks the kind too.
         root.__irender.set("f", { who: "Ada", kind: "status" }); await wait(30); log(ids(), $("[data-tl-kind]").value);
         root.__irender.set("f", { who: "Bob", kind: "comment" }); await wait(30); log($("[data-tl-none]")?.textContent ?? "-");
+        // Several at once, from state: any of them; the menu says how many.
+        let told = []; root.addEventListener("filter", (e) => told.push(JSON.stringify(e.detail)));
+        root.__irender.set("f", { who: ["Ada", "Bob"], kind: "status" }); await wait(30); log(ids(), $("[data-tl-who]").selectedOptions[0].textContent);
+        who.value = "Bob"; $("[data-tl-who]").value = "Bob"; $("[data-tl-who]").dispatchEvent(new Event("change")); await wait(30); log(JSON.stringify(S().f), told.join(" "));
         root.__irender.set("f", null); await wait(30);
         // Show the rest, then Load more fires `more` and waits while loading.
         btn().click(); await wait(30); log(ids(), shownBtn());
-        btn().click(); await wait(30); log(S().busy, shownBtn(), btn().disabled);
+        let asked = null; root.addEventListener("more", (e) => (asked = e.detail.filter));
+        btn().click(); await wait(30); log(S().busy, shownBtn(), btn().disabled, JSON.stringify(asked));
         root.__irender.set("feed", [...S().feed, { id: 5, who: "Cy", kind: "file", action: "added a file", when: "2026-11-24T09:00" }]); root.__irender.set("busy", false); root.__irender.set("older", false); await wait(30);
         log(ids(), shownBtn(), document.activeElement.getAttribute("data-who"));
+        // Leaving the page: when it was last seen.
+        window.dispatchEvent(new Event("pagehide")); await wait(10); log(typeof S().seen, Date.parse(S().seen) > Date.parse("2026-11-27T10:00"));
 "##,
         &[
             "Everyone/Ada/Bob | Every kind/comment/status",
@@ -634,9 +642,12 @@ root:
             r#"{"who":"Ada","kind":null} Ada:comment Ada:status Show 1 more"#,
             "Ada:status status",
             "Nothing matches these filters",
+            "Bob:status Ada:status 2 picked",
+            r#"{"who":"Bob","kind":"status"} {"who":"Bob","kind":"status"}"#,
             "Ada:comment Bob:status Ada:status Ada:comment Load more",
-            "true Loading… true",
+            r#"true Loading… true {"who":null,"kind":null}"#,
             "Ada:comment Bob:status Ada:status Ada:comment Cy:file - Cy",
+            "string true",
         ],
     );
 }
