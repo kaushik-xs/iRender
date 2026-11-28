@@ -40,11 +40,13 @@ fn check_keeping(cx: &RenderCx<'_>, node: &Node) -> Result<(), RenderError> {
 }
 
 /// The props that say how records are kept, shared by sources and queries.
-const KEEPING: [PropDef; 4] = [
+const KEEPING: [PropDef; 6] = [
     PropDef::new("persist", PropKind::Enum(&["memory", "device"]), "`memory` (default): for the page's life; `device`: kept on the device too (IndexedDB), shown first and when offline"),
     PropDef::new("scope", PropKind::Any, "With `device`: whose records these are, e.g. `{{ user.id }}`; another one lets the others go from the page, and they're kept apart"),
     PropDef::new("private", PropKind::Any, "Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`"),
     PropDef::new("retain", PropKind::Number, "Days private fields may stay on the device without being fetched again (default 30)"),
+    PropDef::new("version", PropKind::Any, "With `device`: the shape of what's kept, e.g. `2`; what was kept under another one is let go (a changed API, say)"),
+    PropDef::new("maxAge", PropKind::Number, "With `device`: days what's kept may be shown before it's let go (default: no limit)"),
 ];
 
 /// A URL given in the document: a path or http(s), and allowed by the policy.
@@ -108,6 +110,9 @@ const SOURCE_PROPS: &[PropDef] = &[
     KEEPING[1],
     KEEPING[2],
     KEEPING[3],
+    KEEPING[4],
+    KEEPING[5],
+    PropDef::new("maxRecords", PropKind::Number, "With `device`: at most this many records kept on the device, those fetched longest ago let go first (default: no limit)"),
     PropDef::new("clear", PropKind::Any, "When this becomes true, its records (of `scope`, or every one without) are let go from the device and the page, e.g. `{{ !user }}`"),
     PropDef::new(
         "write",
@@ -131,7 +136,7 @@ impl Component for DataSource {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let config = widget::config(cx, node, &["scope", "clear"], &["name", "key", "batch", "one", "pick", "ttl", "missingTtl", "concurrency", "wait", "headers", "persist", "private", "retain", "write"], &["bindWrites"])?;
+        let config = widget::config(cx, node, &["scope", "clear"], &["name", "key", "batch", "one", "pick", "ttl", "missingTtl", "concurrency", "wait", "headers", "persist", "private", "retain", "version", "maxAge", "maxRecords", "write"], &["bindWrites"])?;
         check_keeping(cx, node)?;
         if let Some(w) = config.get("write") {
             let Json::Object(w) = w else { return Err(RenderError::new(node, "`write` is `{ url, create, method, version, conflict }`")) };
@@ -210,6 +215,9 @@ const QUERY_PROPS: &[PropDef] = &[
     KEEPING[1],
     KEEPING[2],
     KEEPING[3],
+    KEEPING[4],
+    KEEPING[5],
+    PropDef::new("keep", PropKind::Number, "With `device`: answers kept for this `url` (one per set of `params`), those loaded longest ago let go first (default 50)"),
     PropDef::new(
         "sync",
         PropKind::Any,
@@ -233,7 +241,7 @@ impl Component for DataQuery {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["url", "params", "ids", "refresh", "paused", "scope", "clear"], &["pick", "source", "headers", "persist", "private", "retain", "sync", "every"], &["into", "status"])?;
+        let mut config = widget::config(cx, node, &["url", "params", "ids", "refresh", "paused", "scope", "clear"], &["pick", "source", "headers", "persist", "private", "retain", "version", "maxAge", "keep", "sync", "every"], &["into", "status"])?;
         check_keeping(cx, node)?;
         match config.get("sync") {
             None | Some(Json::Bool(_) | Json::Object(_)) => {}

@@ -82,6 +82,10 @@
   // locked, too old, or kept without a key), so it's fetched again rather than trusted.
   async function unkeep(cfg, k) {
     if (!k) return null;
+    // Kept for another shape of the API (`version`), or longer ago than `maxAge` days:
+    // as if it weren't there.
+    if ((k.ver ?? null) !== (blank(cfg.version) ? null : String(cfg.version))) return null;
+    if (Number(cfg.maxAge) > 0 && Date.now() - k.at > Number(cfg.maxAge) * 864e5) return null;
     const young = Date.now() - k.at < retain(cfg);
     const priv = k.enc && young ? await O.vault.open(k.enc) : null;
     const back = (v, p) => (isObj(v) && isObj(p) ? { ...v, ...p } : v);
@@ -91,10 +95,32 @@
   }
   // A value to keep: its private fields sealed, or left out with no key.
   async function keep(cfg, v, extra) {
+    lasting();
     const many = Array.isArray(v), parts = (many ? v : [v]).map((r) => split(cfg, r));
     const priv = parts.some(([, p]) => p) ? (many ? parts.map(([, p]) => p) : parts[0][1]) : null;
     const enc = priv ? await O.vault.seal(priv) : null;
-    return { v: many ? parts.map(([o]) => o) : parts[0][0], enc, at: Date.now(), ...extra };
+    return { v: many ? parts.map(([o]) => o) : parts[0][0], enc, at: Date.now(), ver: blank(cfg.version) ? null : String(cfg.version), ...extra };
+  }
+  // What's kept is asked to stay (the browser may still clear it when space runs short),
+  // once a page.
+  let asked = false;
+  const lasting = () => asked || ((asked = true), self.navigator?.storage?.persist?.().catch(() => {}));
+  // At most `max` entries under `prefix` (those `mine` picks), the newest kept. One at a
+  // time per prefix: writes meanwhile have it run once more after, not once each.
+  const trimming = new Map();
+  async function trim(prefix, max, mine = () => true) {
+    if (!(max > 0)) return;
+    if (trimming.has(prefix)) return void trimming.set(prefix, true);
+    trimming.set(prefix, false);
+    try {
+      const all = (await O.db.entries("records", prefix).catch(() => [])).filter(([k, v]) => v && mine(k));
+      all.sort((a, b) => (b[1].at ?? 0) - (a[1].at ?? 0));
+      if (all.length > max) await O.db.putMany("records", all.slice(max).map(([k]) => [k, null])).catch(() => {});
+    } finally {
+      const again = trimming.get(prefix);
+      trimming.delete(prefix);
+      if (again) trim(prefix, max, mine);
+    }
   }
 
   // ---- sources: { name, cfg, recs: id → record, wanted, timer }
@@ -327,6 +353,8 @@
       const pairs = await Promise.all(list.map(async ([id, v, etag]) => [slot(s, id), v === null ? { v: null, enc: null, at: Date.now() } : await keep(s.cfg, v, etag ? { etag } : {})]));
       await O.db.putMany("records", pairs);
       O.tell({ type: "records", scope: s.scope, name: s.name, ids: list.map(([id]) => id), from: me });
+      // `maxRecords`: the ones fetched longest ago go first.
+      trim(["r", s.scope, s.name, ""].join(SEP), Number(s.cfg.maxRecords));
     } catch { /* not kept: fetched again next time */ }
   }
   // Another tab kept newer records: shown here too.
@@ -826,6 +854,22 @@
     const scope = () => K.value(api, cfg.scope);
     const kept = () => !!O && cfg.persist === "device" && !blank(scope());
     const qslot = (q) => ["q", scope(), JSON.stringify([q.url ?? "", q.params ?? null])].join(SEP);
+    // The answer kept for this address; at most `keep` addresses of this `url` (default
+    // 50: one per filter typed, say), the ones loaded longest ago going first.
+    function save(q) {
+      if (!kept()) return;
+      const sc = scope(), url = q.url ?? "";
+      keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0, etag: tag?.etag ?? null })
+        .then((v) => O.db.put("records", qslot(q), v))
+        .then(() => trim(["q", sc, ""].join(SEP), Number(cfg.keep ?? 50), (k) => {
+          try {
+            return JSON.parse(k.split(SEP)[2])[0] === url;
+          } catch {
+            return false;
+          }
+        }))
+        .catch(() => {});
+    }
     async function fromDevice(q, id) {
       const k = await unkeep(cfg, await O.db.get("records", qslot(q)).catch(() => null));
       if (!k || id !== seq || !Array.isArray(k.v)) return;
@@ -874,7 +918,7 @@
           stamp = new Date().toISOString();
           loading = cached = false;
           tag = { base, etag: newTag ?? etag };
-          if (kept()) keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0, etag: tag.etag }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
+          save(q);
           api.emit("loaded", { rows, total, delta: false, same: true });
           return publish();
         }
@@ -892,7 +936,7 @@
         mark = S ? { base, cursor, fullAt: delta && !missing ? mark.fullAt : Date.now() } : null;
         stamp = new Date().toISOString();
         loading = cached = partial = false;
-        if (kept()) keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0, etag: tag?.etag ?? null }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
+        save(q);
         api.emit("loaded", { rows, total, delta });
       } catch (e) {
         if (id !== seq) return;

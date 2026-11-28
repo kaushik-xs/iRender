@@ -9756,6 +9756,114 @@ fn data_queries_ask_with_their_etag_in_chrome() {
     assert_eq!(*log.lock().unwrap(), ["-", "\"v1\"", "\"v1\"", "\"v2\""]);
 }
 
+/// What's kept on the device is let go when it was kept for another `version` or longer
+/// ago than `maxAge`, a source keeps at most `maxRecords`, and a query at most `keep`
+/// answers for its `url`, the oldest going first.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_kept_on_the_device_is_versioned_and_bounded_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let page = Arc::new(Mutex::new(String::new()));
+    let done = Arc::new(AtomicBool::new(false));
+    let (seen, html, fin) = (log.clone(), page.clone(), done.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, html, fin) = (seen.clone(), html.clone(), fin.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let (path, query) = target.split_once('?').unwrap_or((&target, ""));
+                let (ty, body) = match path {
+                    "/" => ("text/html", html.lock().unwrap().clone()),
+                    // Holds the page's load until the driver's done: Chrome dumps it then.
+                    "/hold" => {
+                        for _ in 0..1200 {
+                            if fin.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                        ("image/gif", String::new())
+                    }
+                    "/finish" => {
+                        fin.store(true, Ordering::SeqCst);
+                        ("application/json", "{}".to_string())
+                    }
+                    "/people" => {
+                        seen.lock().unwrap().push(target.clone());
+                        let ids = query.strip_prefix("ids=").unwrap_or("");
+                        ("application/json", serde_json::Value::Array(ids.split(',').map(|i| serde_json::json!({ "id": i, "name": format!("Fetched {i}") })).collect()).to_string())
+                    }
+                    _ => ("application/json", "[]".to_string()),
+                };
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: {ty}\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let doc = serde_json::json!({ "version": 1, "state": { "ids": null, "people": null, "f": "a", "rows": null },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": "/people" }, "persist": "device", "scope": "u1", "version": 2, "maxAge": 30, "maxRecords": 2 } },
+            { "type": "ui-data-query", "props": { "source": "people", "ids": "{{ ids }}", "into": "people" } },
+            { "type": "ui-data-query", "props": { "url": "/rows", "params": { "f": "{{ f }}" }, "into": "rows", "persist": "device", "scope": "u1", "keep": 2 } } ] } });
+    let driver = r##"<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
+      const db = window.__irenderOffline.db, SEP = "\u0001", now = Date.now();
+      const slot = (id) => ["r", "u1", "people", id].join(SEP);
+      try {
+        // As an earlier visit would have left them: p1 for version 1, p2 for this one, p3
+        // for this one but 40 days ago.
+        await db.putMany("records", [
+          [slot("p1"), { v: { id: "p1", name: "Kept p1" }, enc: null, at: now - 1000, ver: "1" }],
+          [slot("p2"), { v: { id: "p2", name: "Kept p2" }, enc: null, at: now - 1000, ver: "2" }],
+          [slot("p3"), { v: { id: "p3", name: "Kept p3" }, enc: null, at: now - 40 * 864e5, ver: "2" }],
+        ]);
+        set("ids", ["p1", "p2", "p3"]);
+        await until(() => S().people?.length === 3 && S().people.every((p) => !p.name.startsWith("Kept") || p.id === "p2"));
+        log("people", S().people.map((p) => p.name).join(","));
+        await wait(300);
+        const kept = (await db.entries("records", ["r", "u1", "people", ""].join(SEP))).map(([k]) => k.split(SEP)[3]).sort();
+        log("kept", kept.join(","));
+        for (const f of ["b", "c"]) {
+          set("f", f);
+          await wait(500);
+        }
+        await wait(300);
+        const answers = (await db.entries("records", ["q", "u1", ""].join(SEP))).map(([k]) => JSON.parse(k.split(SEP)[2])[1].f).sort();
+        log("answers", answers.join(","));
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+      fetch("/finish");
+    });
+    </script><img src="/hold" alt="" hidden>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    *page.lock().unwrap() = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive_url(&format!("http://127.0.0.1:{port}/")) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "people Fetched p1,Kept p2,Fetched p3",
+            // Two at most: p2, kept longest ago, went.
+            "kept p1,p3",
+            "answers b,c",
+        ],
+        "\n{result}"
+    );
+    assert_eq!(*log.lock().unwrap(), ["/people?ids=p1,p3"]);
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the

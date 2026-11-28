@@ -431,6 +431,9 @@ ui-data-source: Says how one kind of record is fetched by id (people, items, acc
   scope        any  With `device`: whose records these are, e.g. `{{ user.id }}`; another one lets the others go from the page, and they're kept apart
   private      any  Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`
   retain       number  Days private fields may stay on the device without being fetched again (default 30)
+  version      any  With `device`: the shape of what's kept, e.g. `2`; what was kept under another one is let go (a changed API, say)
+  maxAge       number  With `device`: days what's kept may be shown before it's let go (default: no limit)
+  maxRecords   number  With `device`: at most this many records kept on the device, those fetched longest ago let go first (default: no limit)
   clear        any  When this becomes true, its records (of `scope`, or every one without) are let go from the device and the page, e.g. `{{ !user }}`
   write        any  Changes made here, also offline: `{ url, create, method, version, conflict }`. A `submit` to `url` (`/api/people/{id}`: PATCH, PUT or POST changes, DELETE deletes) or `create` (POST) changes the record at once and is sent when there's a connection, with the version it was made on: `If-Match` with the record's ETag (`version: etag`, default), or a field (`version: version`) sent in the body too. A 409 or 412 is settled by `conflict`: `merge` (default: both sides' changes, asking only about a field both changed), `server-wins`, `client-wins` or `ask`
   bindWrites   statekey  State key that gets this source's changes not yet saved: `[{ id, record, kind, status, error, changes, fields }]`, status waiting, sending, conflict or refused
@@ -451,6 +454,9 @@ ui-data-query: Fills a state key with rows from an API, or with records by id, j
   scope        any  With `device`: whose records these are, e.g. `{{ user.id }}`; another one lets the others go from the page, and they're kept apart
   private      any  Fields kept on the device only encrypted, with the key a `ui-app-lock` unlocks (none: they aren't kept), e.g. `[email, phone]`
   retain       number  Days private fields may stay on the device without being fetched again (default 30)
+  version      any  With `device`: the shape of what's kept, e.g. `2`; what was kept under another one is let go (a changed API, say)
+  maxAge       number  With `device`: days what's kept may be shown before it's let go (default: no limit)
+  keep         number  With `device`: answers kept for this `url` (one per set of `params`), those loaded longest ago let go first (default 50)
   sync         any  Asks only for what changed since the last answer: `true` or `{ param, cursor, deleted, tombstone, key, full }`. The answer's `cursor` (default `cursor`) is sent back as `?since=` (`param`); its rows replace those with the same `key` (default `id`) or are added, and rows whose `tombstone` field (default `deleted`) is true, or whose ids are in its `deleted` list, go. Everything is loaded again every `full` hours (default 24)
   every        number  Seconds between loads while the page is in sight (at least 5); it also loads when the connection comes back
   clear        any  When this becomes true, the answers kept for `scope` are let go and the rows emptied, and nothing loads while it stays true, e.g. `{{ !user }}`
