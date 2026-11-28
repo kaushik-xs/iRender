@@ -1251,7 +1251,7 @@ ui-pivot: A pivot table: rows summed up by fields down and across, with subtotal
   fields       any  The fields it can use: `[{ field, label, type, part }]` (default: those of the first row). `part` groups dates by `year`, `quarter`, `month`, `week` or `day`
   down         any  Fields down the side, outermost first
   across       any  Fields across the top
-  values       any  What's in the cells: `[{ field, agg, label, format, currency, decimals, show }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it
+  values       any  What's in the cells: `[{ field, agg, label, format, currency, decimals, show, calc }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it, or `running`, added to the ones above it in its group; `calc` (in place of `field`) works it out from the cell's sums, `{{ (sum.revenue - sum.cost) / sum.revenue }}`, `count` being its rows
   filter       any  Filters from outside, e.g. a `ui-filters`' `bind`: `{ field: condition }`
   bind         statekey  State key for the layout people pick, `{ down, across, values, sort, closed }`, to keep it
   editable     bool  A panel to move fields between down, across and values, and pick how they're summed

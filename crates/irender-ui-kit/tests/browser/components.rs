@@ -1295,6 +1295,41 @@ root:
     );
 }
 
+/// `ui-pivot`: a calculated value from the cell's sums, and a running total down the
+/// rows that starts again in each outer group.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn pivot_calculates_and_runs_totals() {
+    check(
+        "pivot-calc",
+        r##"
+state:
+  sales:
+    - { region: North, month: "2026-01", revenue: 100, cost: 60 }
+    - { region: North, month: "2026-02", revenue: 200, cost: 150 }
+    - { region: North, month: "2026-03", revenue: 50, cost: 10 }
+    - { region: South, month: "2026-01", revenue: 400, cost: 100 }
+    - { region: South, month: "2026-02", revenue: 100, cost: 100 }
+root:
+  type: ui-pivot
+  props:
+    rows: "{{ sales }}"
+    down: [region, month]
+    values:
+      - { field: revenue, label: Revenue }
+      - { field: revenue, label: So far, show: running }
+      - { label: Margin, calc: "{{ (sum.revenue - sum.cost) / sum.revenue }}", format: percent, decimals: 0 }
+      - { label: Per row, calc: "sum.revenue / count" }
+"##,
+        r##"
+        log($$("[data-i-x=ui-pivot] tr").map((r) => [...r.cells].map((c) => c.textContent).join("|")).join(" ; "));
+"##,
+        &[
+            "region / month|Revenue|So far|Margin|Per row ; North|350|350|37%|116.67 ; 2026-01|100|100|40%|100 ; 2026-02|200|300|25%|200 ; 2026-03|50|350|80%|50 ; South|500|850|60%|250 ; 2026-01|400|400|75%|400 ; 2026-02|100|500|0%|100 ; Total|850|850|51%|170",
+        ],
+    );
+}
+
 /// `ui-scheduler`: one day of a repeating booking moved on its own: left out of the
 /// series and kept as a booking of its own, which moves again like any other.
 #[test]

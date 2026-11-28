@@ -63,6 +63,15 @@
 
   // ---- sums
   function agg(rows, v) {
+    // A calculated value: its expression over the rows' sums by field, and how many.
+    if (v.calc !== undefined) {
+      const c = cfg.calcs?.[v.calc];
+      if (!c) return null;
+      const sums = {};
+      for (const r of rows) for (const [f, x] of Object.entries(r ?? {})) if (typeof x === "number" || (!blank(x) && !isNaN(x) && typeof x !== "boolean")) sums[f] = Math.round(((sums[f] ?? 0) + Number(x)) * 1e8) / 1e8;
+      const x = window.__irender.evaluate(c, { sum: sums, count: rows.length });
+      return typeof x === "number" && Number.isFinite(x) ? Math.round(x * 1e8) / 1e8 : x === "" || x === undefined ? null : x;
+    }
     if (v.agg === "count") return rows.length;
     const xs = rows.map((r) => at(r, v.field)).filter((x) => !blank(x));
     if (v.agg === "distinct") return new Set(xs.map((x) => JSON.stringify(x))).size;
@@ -90,7 +99,7 @@
       const by = new Map();
       for (const r of n.rows) {
         const g = groupOf(defs.get(f), at(r, f));
-        if (!by.has(g.k)) by.set(g.k, { key: g.k, text: g.t, rows: [], kids: [], depth: n.depth + 1, path: [...n.path, g.t], field: f });
+        if (!by.has(g.k)) by.set(g.k, { key: g.k, text: g.t, rows: [], kids: [], depth: n.depth + 1, path: [...n.path, g.t], field: f, parent: n });
         by.get(g.k).rows.push(r);
       }
       n.kids = [...by.values()].sort((a, b) => (a.key === "￿") - (b.key === "￿") || (typeof a.key === "number" && typeof b.key === "number" ? a.key - b.key : collate(String(a.key), String(b.key))));
@@ -132,7 +141,7 @@
     const rows = isObj(filter) ? all.filter((r) => passes(r, filter)) : all;
     const defs = fields(all), lay = layout();
     const vals = lay.values.length ? lay.values : [{ field: "", agg: "count", label: L("Count") }];
-    const label = (v) => v.label ?? (v.agg === "count" ? L("Count") : `${defs.get(v.field)?.label ?? v.field} (${L(v.agg)})`);
+    const label = (v) => v.label ?? (v.calc !== undefined ? String(v.calc) : v.agg === "count" ? L("Count") : `${defs.get(v.field)?.label ?? v.field} (${L(v.agg)})`);
     const side = tree(rows, lay.down, defs), top = tree(rows, lay.across, defs);
     const cols = lay.across.length ? leaves(top) : [];
     const totals = cfg.totals ?? "both";
@@ -149,12 +158,18 @@
     }
     const spots = [...cols.map((c) => ({ c, total: false })), ...(rowTotals ? [{ c: top, total: cols.length > 0 }] : [])];
     const value = (n, s, v) => {
+      // Running: this group and the ones above it among its parent's, together.
+      if (v.show === "running" && n.parent) {
+        const sibs = n.parent.kids, upTo = sibs.slice(0, sibs.indexOf(n) + 1).flatMap((k) => both(k, s.c));
+        return agg(upTo, v);
+      }
       const own = agg(both(n, s.c), v);
-      if (!v.show || v.show === "value" || typeof own !== "number") return own;
+      if (!v.show || v.show === "value" || v.show === "running" || typeof own !== "number") return own;
       const of = v.show === "row" ? agg(n.rows, v) : v.show === "column" ? agg(both(side, s.c), v) : agg(rows, v);
       return of ? own / of : null;
     };
-    const say = (x, v) => (x === null ? "" : typeof x !== "number" ? String(x) : v.show && v.show !== "value" ? K.format(x, { format: "percent", decimals: 1, locale: cfg.locale }) : K.format(x, { format: v.format, currency: v.currency, decimals: v.decimals ?? (Number.isInteger(x) ? undefined : 2), locale: cfg.locale }));
+    const share = (v) => v.show && v.show !== "value" && v.show !== "running";
+    const say = (x, v) => (x === null ? "" : typeof x !== "number" ? String(x) : share(v) ? K.format(x, { format: "percent", decimals: 1, locale: cfg.locale }) : K.format(x, { format: v.format, currency: v.currency, decimals: v.decimals ?? (Number.isInteger(x) ? undefined : 2), locale: cfg.locale }));
     return { rows, defs, lay, vals, label, side, top, cols, spots, value, say, totals };
   }
   const folded = (n) => cfg.subtotals !== false && n.kids.length > 0 && closed.has(id(n));
@@ -312,7 +327,7 @@
     // Every innermost group, whatever is folded, with its outer groups' names beside it.
     const rows = [head, ...(m.lay.down.length ? leaves(m.side).map((x) => line(x, Array.from({ length: n }, (_, i) => x.path[i] ?? ""))) : []), line(m.side, [L("Total"), ...Array(n - 1).fill("")])];
     const Z = window.__irenderSheets, file = cfg.export;
-    const formats = [...Array(n).fill(null), ...m.spots.flatMap(() => m.vals.map((v) => (v.show && v.show !== "value" ? "percent" : v.format === "currency" ? "#,##0.00" : v.format === "percent" ? "percent" : null)))];
+    const formats = [...Array(n).fill(null), ...m.spots.flatMap(() => m.vals.map((v) => (v.show && v.show !== "value" && v.show !== "running" ? "percent" : v.format === "currency" ? "#,##0.00" : v.format === "percent" ? "percent" : null)))];
     if (/\.xlsx$/.test(file)) Z.save(Z.workbook(rows, cfg.title ?? "Pivot", formats), file);
     else Z.save(new Blob(["﻿" + Z.toCsv(rows) + "\r\n"], { type: "text/csv;charset=utf-8" }), file);
     api.emit("export", { rows: rows.length - 1, file });

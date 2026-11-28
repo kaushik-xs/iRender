@@ -1416,7 +1416,7 @@ ui-pivot: A pivot table: rows summed up by fields down and across, with subtotal
   fields       any  The fields it can use: `[{ field, label, type, part }]` (default: those of the first row). `part` groups dates by `year`, `quarter`, `month`, `week` or `day`
   down         any  Fields down the side, outermost first
   across       any  Fields across the top
-  values       any  What's in the cells: `[{ field, agg, label, format, currency, decimals, show }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it
+  values       any  What's in the cells: `[{ field, agg, label, format, currency, decimals, show, calc }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it, or `running`, added to the ones above it in its group; `calc` (in place of `field`) works it out from the cell's sums, `{{ (sum.revenue - sum.cost) / sum.revenue }}`, `count` being its rows
   filter       any  Filters from outside, e.g. a `ui-filters`' `bind`: `{ field: condition }`
   bind         statekey  State key for the layout people pick, `{ down, across, values, sort, closed }`, to keep it
   editable     bool  A panel to move fields between down, across and values, and pick how they're summed
@@ -4436,7 +4436,7 @@ Blocks data-table-09 (a support queue: people many at a time, accounts one at a 
 
 ## Pivot table
 
-`ui-pivot` groups `rows` by the fields `down` and `across`, and sums `values` (`sum`, `avg`, `min`, `max`, `count`, `distinct`, `median`, `first`, `last`), as they are or as a share (`show: row`, `column` or `total`). A date field's `part` groups it by year, quarter, month, week or day. Outer groups fold, a heading sorts by its column, `heat` tints, `editable` lets people move fields about (kept in `bind`), `bindCell` gets a clicked cell with the rows behind it, and `export` writes Excel or CSV. It works on the rows given to it: sums over more than the browser holds belong on the server.
+`ui-pivot` groups `rows` by the fields `down` and `across`, and sums `values` (`sum`, `avg`, `min`, `max`, `count`, `distinct`, `median`, `first`, `last`), as they are or as a share (`show: row`, `column` or `total`), or as a running total (`show: running`: each row added to the ones above it in its group). A calculated value, `{ label: Margin, calc: "{{ (sum.revenue - sum.cost) / sum.revenue }}", format: percent }`, works its cell out from the cell's sums by field (`sum`) and its count of rows (`count`). A date field's `part` groups it by year, quarter, month, week or day. Outer groups fold, a heading sorts by its column, `heat` tints, `editable` lets people move fields about (kept in `bind`), `bindCell` gets a clicked cell with the rows behind it, and `export` writes Excel or CSV. It works on the rows given to it: sums over more than the browser holds belong on the server.
 
 ## Scheduler
 

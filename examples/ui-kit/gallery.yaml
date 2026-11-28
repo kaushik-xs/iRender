@@ -2872,6 +2872,9 @@ root:
                   children: *head
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
                 - { type: ui-pivot, props: { rows: "{{ pvRows }}", fields: [ { field: region, label: Region }, { field: rep, label: Person }, { field: date, label: Quarter, part: quarter }, { field: amount, label: Amount } ], down: [region, rep], across: [date], values: [ { field: amount, agg: sum, label: Amount, format: currency, currency: EUR, decimals: 0 } ], heat: true, editable: true, bindCell: pvCell } }
+                - type: ui-text
+                  props: { variant: muted, text: "A running total (show: running) and a calculated value (calc: the cell's sums by field, and its count of rows)." }
+                - { type: ui-pivot, props: { rows: "{{ pvRows }}", fields: [ { field: region, label: Region }, { field: rep, label: Person } ], down: [region, rep], values: [ { field: amount, label: Amount, decimals: 0 }, { field: amount, label: So far, show: running, decimals: 0 }, { label: Per sale, calc: "{{ sum.amount / count }}", decimals: 0 } ] } }
                 - { type: ui-text, props: { variant: muted, text: "{{ pvCell == null ? 'Click a cell for the rows behind it.' : pvCell.rows.length + ' rows behind that cell' }}" } }
                 - { type: if, props: { when: "{{ api.pivot.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list

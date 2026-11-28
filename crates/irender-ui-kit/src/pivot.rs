@@ -20,7 +20,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("fields", PropKind::Any, "The fields it can use: `[{ field, label, type, part }]` (default: those of the first row). `part` groups dates by `year`, `quarter`, `month`, `week` or `day`"),
     PropDef::new("down", PropKind::Any, "Fields down the side, outermost first"),
     PropDef::new("across", PropKind::Any, "Fields across the top"),
-    PropDef::new("values", PropKind::Any, "What's in the cells: `[{ field, agg, label, format, currency, decimals, show }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it"),
+    PropDef::new("values", PropKind::Any, "What's in the cells: `[{ field, agg, label, format, currency, decimals, show, calc }]`; `agg`: sum (default), avg, min, max, count, distinct, median, first or last; `show`: value (default), row, column or total, as a share of it, or `running`, added to the ones above it in its group; `calc` (in place of `field`) works it out from the cell's sums, `{{ (sum.revenue - sum.cost) / sum.revenue }}`, `count` being its rows"),
     PropDef::new("filter", PropKind::Any, "Filters from outside, e.g. a `ui-filters`' `bind`: `{ field: condition }`"),
     PropDef::new("bind", PropKind::StateKey, "State key for the layout people pick, `{ down, across, values, sort, closed }`, to keep it"),
     PropDef::new("editable", PropKind::Bool, "A panel to move fields between down, across and values, and pick how they're summed"),
@@ -107,6 +107,18 @@ impl Component for Pivot {
             _ => Some("pivot.xlsx".into()),
         };
         config.insert("export".into(), json!(export));
+        // Calculated values, compiled for the browser: by their text, so a layout kept in
+        // state finds them too. They see the cell's sums by field (`sum`) and its rows (`count`).
+        let mut calcs = serde_json::Map::new();
+        if let Some(Json::Array(vs)) = cx.prop(node, "values") {
+            for v in vs {
+                let Some(Json::String(text)) = v.get("calc") else { continue };
+                let src = if text.contains("{{") { text.clone() } else { format!("{{{{ {text} }}}}") };
+                let t = irender_core::Template::parse(&src).map_err(|e| RenderError::new(node, format!("`calc` `{text}`: {e}")))?;
+                calcs.insert(text.clone(), cx.item_val_js(&irender_core::Val::Tpl(t), "sum", "count"));
+            }
+        }
+        config.insert("calcs".into(), Json::Object(calcs));
         config.insert("title".into(), json!(cx.prop_string(node, "title")));
         config.insert("locale".into(), json!(crate::locale(cx, node)));
         widget::kit(cx);

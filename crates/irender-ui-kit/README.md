@@ -1260,7 +1260,7 @@ Blocks data-table-09 (a support queue: people many at a time, accounts one at a 
 
 ## Pivot table
 
-`ui-pivot` groups `rows` by the fields `down` and `across`, and sums `values` (`sum`, `avg`, `min`, `max`, `count`, `distinct`, `median`, `first`, `last`), as they are or as a share (`show: row`, `column` or `total`). A date field's `part` groups it by year, quarter, month, week or day. Outer groups fold, a heading sorts by its column, `heat` tints, `editable` lets people move fields about (kept in `bind`), `bindCell` gets a clicked cell with the rows behind it, and `export` writes Excel or CSV. It works on the rows given to it: sums over more than the browser holds belong on the server.
+`ui-pivot` groups `rows` by the fields `down` and `across`, and sums `values` (`sum`, `avg`, `min`, `max`, `count`, `distinct`, `median`, `first`, `last`), as they are or as a share (`show: row`, `column` or `total`), or as a running total (`show: running`: each row added to the ones above it in its group). A calculated value, `{ label: Margin, calc: "{{ (sum.revenue - sum.cost) / sum.revenue }}", format: percent }`, works its cell out from the cell's sums by field (`sum`) and its count of rows (`count`). A date field's `part` groups it by year, quarter, month, week or day. Outer groups fold, a heading sorts by its column, `heat` tints, `editable` lets people move fields about (kept in `bind`), `bindCell` gets a clicked cell with the rows behind it, and `export` writes Excel or CSV. It works on the rows given to it: sums over more than the browser holds belong on the server.
 
 ## Scheduler
 

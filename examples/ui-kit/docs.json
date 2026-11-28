@@ -723,7 +723,7 @@
    "id": "pivot",
    "group": "Data display",
    "title": "Pivot table",
-   "summary": "Rows summed up by fields down and across, with subtotals that fold, shares of a total, a heat tint, sorting by any column, an export, and the rows behind a cell.",
+   "summary": "Rows summed up by fields down and across, with subtotals that fold, shares of a total, a heat tint, sorting by any column, an export, and the rows behind a cell. show: running adds the rows up; calc works a value out from the cell's sums.",
    "usage": "- type: ui-pivot\n  props:\n    rows: \"{{ sales }}\"\n    down: [region, rep]\n    across: [date]\n    values: [ { field: amount, agg: sum, format: currency } ]\n    fields: [ { field: date, label: Quarter, part: quarter } ]\n    editable: true\n    bindCell: cell",
    "components": [
     "ui-pivot"
