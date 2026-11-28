@@ -646,7 +646,7 @@ A column with `edit` (`text`, `multiline`, `number`, `date`, `select` or `checkb
 - **Changes:** `bindChanges` gets `{ rowKey: { field: value } }` (null for a deleted row) and changed cells get a mark in their corner; set it to `{}` once they're saved. Events: `celledit` (`{ key, row, field, value, previous }`), `rowadd`, `rowdelete`, and `rowschange` for an undo or a large paste.
 - **Through a source:** when the rows are a `ui-data-source`'s records, `records: people` sends each edit through its `write` (see [Data sources](#data-sources)), queued and sent when there's a connection: a cell once it's right (a required one left blank isn't sent), an added row as a new record (and edits to it by the id it's given), and deleted rows. Undo changes the rows, not what was already sent.
 - `editable` says which rows may be edited, e.g. `{{ row.status != 'Closed' }}`. `addRow` is the button under the rows, `deletable` adds Delete to the bulk bar, and `export: prices.xlsx` writes Excel.
-- Editable tables can't have nested rows, or be grouped.
+- Editable tables can't have nested rows. Grouped (`groupBy`, or a `groupable` column from the View menu), their rows sit under the group's header row as in any table, with its count and subtotals following the edits; an edit that changes the grouped field moves the row to its new group. Not with `virtual` or rows from `url`.
 
 ### Saved views
 

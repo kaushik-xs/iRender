@@ -77,7 +77,7 @@ root:
               children:
                 - { type: ui-data-table-column, props: { field: sku, label: SKU, edit: text, required: true, unique: true, pattern: "[A-Z]{3}-[0-9]{3}", message: "Three letters, a dash, three digits", pin: left } }
                 - { type: ui-data-table-column, props: { field: name, label: Product, edit: text, required: true } }
-                - { type: ui-data-table-column, props: { field: category, label: Category, edit: select, options: [Tea, Coffee, Homeware], filter: select } }
+                - { type: ui-data-table-column, props: { field: category, label: Category, edit: select, options: [Tea, Coffee, Homeware], filter: select, groupable: true } }
                 - { type: ui-data-table-column, props: { field: price, label: Price, edit: number, required: true, min: 1, format: currency, currency: INR, decimals: 0 } }
                 - { type: ui-data-table-column, props: { field: cost, label: Cost, edit: number, min: 0, format: currency, currency: INR, decimals: 0 } }
                 - { type: ui-data-table-column, props: { field: stock, label: In stock, edit: number, min: 0, format: number, summary: sum } }

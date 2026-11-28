@@ -1295,6 +1295,54 @@ root:
     );
 }
 
+/// `ui-data-table` with editable cells, grouped: header rows with their counts and
+/// subtotals among the rows, which edit as ever; an edit that moves a row to another
+/// group moves it there, and a folded group's rows go.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn editable_rows_are_grouped() {
+    check(
+        "table-edit-groups",
+        r##"
+state:
+  rows:
+    - { id: 1, name: Ada, team: Ops, qty: 3 }
+    - { id: 2, name: Bob, team: Sales, qty: 5 }
+    - { id: 3, name: Cy, team: Ops, qty: 4 }
+root:
+  type: ui-data-table
+  props: { rows: "{{ rows }}", groupBy: team, columnsMenu: false }
+  children:
+    - { type: ui-data-table-column, props: { field: name, edit: text } }
+    - { type: ui-data-table-column, props: { field: team, edit: select, options: [Ops, Sales] } }
+    - { type: ui-data-table-column, props: { field: qty, edit: number, summary: sum } }
+"##,
+        r##"
+        const lines = () => $$("[data-dt-body] > tr:not([hidden])").map((t) => t.hasAttribute("data-dt-group") ? "[" + t.textContent + "]" : [...t.querySelectorAll("[data-dt-col]")].map((c) => c.textContent).join("|")).join(" ; ");
+        log(lines());
+        const cell = (name, c) => $$("[data-dt-body] > [data-dt-row]").find((t) => t.querySelector("[data-dt-col=name]").textContent === name).querySelector(`[data-dt-col=${c}]`);
+        // An edit: the subtotal follows.
+        cell("Cy", "qty").click(); key("Enter"); $("[data-dt-editor]").value = "10"; key("Enter"); await wait(30);
+        log(lines(), S().rows[2].qty);
+        // Bob moves to Ops: his group goes, and he's under Ops.
+        cell("Bob", "team").click(); key("Enter"); const sel = $("[data-dt-editor]"); [...sel.options].find((o) => o.textContent === "Ops").selected = true; sel.dispatchEvent(new Event("change", { bubbles: true })); key("Enter"); await wait(30);
+        log(lines());
+        // Folded, Ops' rows go; open again, they're back, still editable.
+        $("[data-dt-fold]").click(); await wait(30); log(lines());
+        $("[data-dt-fold]").click(); await wait(30);
+        cell("Ada", "name").click(); key("Enter"); $("[data-dt-editor]").value = "Ana"; key("Enter"); await wait(30);
+        log(lines());
+"##,
+        &[
+            "[team: Ops27] ; Ada|Ops|3 ; Cy|Ops|4 ; [team: Sales15] ; Bob|Sales|5",
+            "[team: Ops213] ; Ada|Ops|3 ; Cy|Ops|10 ; [team: Sales15] ; Bob|Sales|5 10",
+            "[team: Ops318] ; Ada|Ops|3 ; Bob|Ops|5 ; Cy|Ops|10",
+            "[team: Ops318]",
+            "[team: Ops318] ; Ana|Ops|3 ; Bob|Ops|5 ; Cy|Ops|10",
+        ],
+    );
+}
+
 /// `ui-code-editor`: find (every match marked, the picked one selected, next and back,
 /// case), and replace one or all, as changes undo can take back.
 #[test]

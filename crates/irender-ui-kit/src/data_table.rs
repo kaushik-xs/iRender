@@ -1278,8 +1278,11 @@ impl Component for DataTable {
         };
 
         let children_url = node.prop("childrenUrl").map(|u| dynamic(cx, node, "childrenUrl", u)).transpose()?;
-        if grouped && listed && !(group_remote && !virtual_) {
-            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual`, nested rows, editable cells or `expand`"));
+        // Editable rows (listed only for their editing) are grouped in the browser, their
+        // header rows put in among the runtime's.
+        let group_listed = grouped && editing && !virtual_ && url.is_none() && !nested && expand.is_none();
+        if grouped && listed && !(group_remote && !virtual_) && !group_listed {
+            return Err(RenderError::new(node, "grouping rows doesn't work with `virtual`, nested rows or `expand`"));
         }
         let resizable = flag(cx, "resizable", false);
         let reorderable = flag(cx, "reorderable", false);
@@ -1326,6 +1329,7 @@ impl Component for DataTable {
             "paging": paging,
             "virtual": virtual_,
             "listed": listed,
+            "groupListed": group_listed,
             "rowHeight": cx.prop(node, "rowHeight").map_or(41.0, |v| expr::to_num(&v)).max(8.0),
             "rowKey": row_key,
             "tree": nested.then(|| json!({

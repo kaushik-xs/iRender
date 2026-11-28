@@ -467,7 +467,7 @@
     }
     // Grouped: the rows under a header row per group, the folded groups' rows left out.
     const gf = groupField();
-    if (gf && !cfg.listed && !tree) {
+    if (gf && (!cfg.listed || cfg.groupListed) && !tree) {
       const byGroup = new Map();
       for (const i of filtered) {
         const v = val(data[i], gf), k = keyOf(blank(v) ? null : v);
@@ -516,6 +516,8 @@
         listStart = s;
         const n = applies;
         const held = body.contains(document.activeElement) ? document.activeElement : null;
+        // The group header rows aren't the runtime's: out of the way while it moves its rows.
+        if (cfg.groupListed) for (const tr of groupRows.values()) tr.remove();
         api.list(body, shown.slice(s, e).map((i) => joined(data[i])), s);
         // The focused row scrolled out of the window: the scroll area holds focus, so
         // keys still reach the table, until the row is drawn again.
@@ -524,6 +526,25 @@
           scroller.focus({ preventScroll: true });
         }
         if (applies !== n) return; // the redraw applied everything again
+      }
+      // Grouped editable rows: each header row before its group's first row on the page
+      // (a folded group's before the next row there is), drawn as the others are.
+      if (cfg.groupListed) {
+        const byIndex = new Map($$("[data-dt-body] > [data-dt-row]").map((tr) => [indexOf(tr), tr]));
+        const keep = new Set();
+        if (groupList) {
+          const lines = pageLines ?? [];
+          lines.forEach((e, n) => {
+            if (!e.g) return;
+            const tr = groupRow(e.g), next = lines.slice(n + 1).find((x) => x.i !== undefined && byIndex.has(x.i));
+            const before = next ? byIndex.get(next.i) : null;
+            if (tr.nextSibling !== before || tr.parentNode !== body) before ? body.insertBefore(tr, before) : body.append(tr);
+            tr.hidden = false;
+            drawGroup(tr, e.g);
+            keep.add(e.g.key);
+          });
+        }
+        for (const [k, tr] of groupRows) if (!keep.has(k)) tr.remove(), groupRows.delete(k);
       }
     } else {
       // Rows: in order, the shown ones first, every other one hidden; grouped, each
