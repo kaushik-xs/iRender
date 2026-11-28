@@ -62,7 +62,17 @@
       api.emit("change", { query: q });
       if (focus) el.querySelector(`[data-path="${focus}"]`)?.focus();
     }
+    // A rule may compare with another field of the row (`valueField`) rather than a value:
+    // for operators of one value, between fields of a kind (`fieldCompare`).
+    const comparable = (r) => {
+      const o = opOf(r), f = fields.get(r.field);
+      return !!cfg.fieldCompare && o[2] === 1 && !o[3] && f && f.type !== "multiselect" && f.type !== "boolean";
+    };
+    const kin = (a, b) => (a.type === b.type || ([a.type, b.type].every((t) => t === "number" || t === "currency")));
+    const others = (r) => [...fields.values()].filter((f) => f.field !== r.field && kin(f, fields.get(r.field)));
+    const byField = (r) => comparable(r) && !blank(r.valueField) && fields.has(r.valueField);
     const filled = (r) => {
+      if (byField(r)) return true;
       const o = opOf(r);
       return o[2] === 0 || (o[2] === "many" ? list(r.value).length > 0 : o[2] === 2 ? Array.isArray(r.value) && r.value.length === 2 && r.value.every((v) => !blank(v)) : !blank(r.value));
     };
@@ -71,7 +81,7 @@
     // Rules that aren't filled in yet don't narrow anything.
     function match(row, g) {
       const rs = g.rules.filter((r) => (isGroup(r) ? r.rules.length : fields.has(r.field) && filled(r)));
-      const one = (r) => (isGroup(r) ? match(row, r) : TEST[opOf(r)[0]](at(row, r.field), r.value, fields.get(r.field).type));
+      const one = (r) => (isGroup(r) ? match(row, r) : TEST[opOf(r)[0]](at(row, r.field), byField(r) ? at(row, r.valueField) : r.value, fields.get(r.field).type));
       const ok = !rs.length || (g.op === "or" ? rs.some(one) : rs.every(one));
       return g.not && rs.length ? !ok : ok;
     }
@@ -88,11 +98,98 @@
         const f = fields.get(r.field);
         if (!f) return "";
         const o = opOf(r), and = ` ${L("and")} `;
+        if (byField(r)) return `${f.label} ${L(o[1])} ${fields.get(r.valueField).label}`;
         const v = o[2] === 0 ? "" : o[2] === "many" ? list(r.value).map((x) => shown(f, x)).join(", ") || "…" : o[2] === 2 ? [0, 1].map((i) => shown(f, r.value?.[i])).join(and) : o[3] === "number" ? (blank(r.value) ? "…" : String(r.value)) : shown(f, r.value);
         return `${f.label} ${L(o[1])}${v ? ` ${v}` : ""}`;
       }).filter(Boolean);
       const text = parts.join(` ${g.op === "or" ? L("or") : L("and")} `);
       return g.not ? `${L("not")} (${text})` : !top && parts.length > 1 ? `(${text})` : text;
+    }
+
+    // ---- the query as SQL, `{ where, params }`: the values go in `params`, never into
+    // the text, behind `?` or (`sql: numbered`) `$1`, `$2`. A field's `column` names its
+    // column (default its `field`, quoted when it isn't a plain name). Text matches as
+    // the builder does, any case; "in the last n days" becomes two dates; several choices
+    // (`multiselect`) are Postgres arrays. Rules not filled in are left out, and with
+    // none, `where` is empty: everything matches.
+    function sql(g) {
+      const params = [];
+      const p = (v) => (params.push(v), cfg.sql === "numbered" ? `$${params.length}` : "?");
+      const col = (name) => {
+        const c = String(fields.get(name)?.column ?? name);
+        return /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(c) ? c : `"${c.replace(/"/g, '""')}"`;
+      };
+      const like = (v) => String(v ?? "").replace(/[\\%_]/g, (c) => `\\${c}`);
+      const ymd = (t) => new Date(t).toISOString().slice(0, 10);
+      const dayOf = (v) => day(v);
+      function one(r) {
+        const f = fields.get(r.field), o = opOf(r)[0], c = col(r.field), t = f.type, v = r.value;
+        if (byField(r)) {
+          const d = col(r.valueField), cmp = { is: "=", isNot: "<>", eq: "=", ne: "<>", gt: ">", gte: ">=", lt: "<", lte: "<=", on: "=", before: "<", after: ">" }[o];
+          if (cmp && t === "text" && (o === "is" || o === "isNot")) return `LOWER(${c}) ${cmp} LOWER(${d})`;
+          if (cmp) return `${c} ${cmp} ${d}`;
+          if (o === "contains" || o === "notContains") return `LOWER(${c}) ${o === "notContains" ? "NOT " : ""}LIKE '%' || LOWER(${d}) || '%'`;
+          if (o === "starts") return `LOWER(${c}) LIKE LOWER(${d}) || '%'`;
+          if (o === "ends") return `LOWER(${c}) LIKE '%' || LOWER(${d})`;
+        }
+        switch (o) {
+          case "contains": return `LOWER(${c}) LIKE LOWER(${p(`%${like(v)}%`)}) ESCAPE '\\'`;
+          case "notContains": return `LOWER(${c}) NOT LIKE LOWER(${p(`%${like(v)}%`)}) ESCAPE '\\'`;
+          case "starts": return `LOWER(${c}) LIKE LOWER(${p(`${like(v)}%`)}) ESCAPE '\\'`;
+          case "ends": return `LOWER(${c}) LIKE LOWER(${p(`%${like(v)}`)}) ESCAPE '\\'`;
+          case "is": return t === "text" ? `LOWER(${c}) = LOWER(${p(v)})` : `${c} = ${p(v)}`;
+          case "isNot": return t === "text" ? `LOWER(${c}) <> LOWER(${p(v)})` : `${c} <> ${p(v)}`;
+          case "eq": return `${c} = ${p(num(v))}`;
+          case "ne": return `${c} <> ${p(num(v))}`;
+          case "gt": return `${c} > ${p(num(v))}`;
+          case "gte": return `${c} >= ${p(num(v))}`;
+          case "lt": return `${c} < ${p(num(v))}`;
+          case "lte": return `${c} <= ${p(num(v))}`;
+          case "between": return t === "date" ? `${c} BETWEEN ${p(dayOf(v[0]))} AND ${p(dayOf(v[1]))}` : `${c} BETWEEN ${p(num(v[0]))} AND ${p(num(v[1]))}`;
+          case "on": return `${c} = ${p(dayOf(v))}`;
+          case "before": return `${c} < ${p(dayOf(v))}`;
+          case "after": return `${c} > ${p(dayOf(v))}`;
+          case "last": return `${c} > ${p(ymd(today() - num(v) * DAY))} AND ${c} <= ${p(ymd(today()))}`;
+          case "next": return `${c} >= ${p(ymd(today()))} AND ${c} < ${p(ymd(today() + num(v) * DAY))}`;
+          case "in": return `${c} IN (${list(v).map(p).join(", ")})`;
+          case "notIn": return `${c} NOT IN (${list(v).map(p).join(", ")})`;
+          case "has": return `${p(v)} = ANY(${c})`;
+          case "hasNot": return `NOT (${p(v)} = ANY(${c}))`;
+          case "hasAny": return `${c} && ARRAY[${list(v).map(p).join(", ")}]`;
+          case "hasAll": return `${c} @> ARRAY[${list(v).map(p).join(", ")}]`;
+          case "empty": return t === "text" ? `(${c} IS NULL OR ${c} = '')` : t === "multiselect" ? `(${c} IS NULL OR cardinality(${c}) = 0)` : `${c} IS NULL`;
+          case "notEmpty": return t === "text" ? `(${c} IS NOT NULL AND ${c} <> '')` : t === "multiselect" ? `cardinality(${c}) > 0` : `${c} IS NOT NULL`;
+          case "true": return `${c} = TRUE`;
+          case "false": return `(${c} = FALSE OR ${c} IS NULL)`;
+        }
+        return "";
+      }
+      function group(x, top) {
+        const parts = x.rules.filter((r) => (isGroup(r) ? r.rules.length : fields.has(r.field) && filled(r))).map((r) => (isGroup(r) ? group(r, false) : one(r))).filter(Boolean);
+        if (!parts.length) return "";
+        const text = parts.join(x.op === "or" ? " OR " : " AND ");
+        if (x.not) return `NOT (${text})`;
+        return !top && parts.length > 1 ? `(${text})` : text;
+      }
+      const where = group(g, true);
+      return { where, params };
+    }
+    // ---- the query in a link's query string: `status[is]=open&amount[gt]=100` for rules
+    // all joined by and (lists repeat their key, a range is `a,b`); anything else (or, a
+    // group, not, another field) is `q=` and the query as JSON.
+    function url(g) {
+      const rules = g.rules.filter((r) => (isGroup(r) ? r.rules.length : fields.has(r.field) && filled(r)));
+      const flat = !g.not && (g.op === "and" || rules.length < 2) && rules.every((r) => !isGroup(r) && !byField(r));
+      if (!flat) return rules.length ? `q=${encodeURIComponent(JSON.stringify(clean({ ...g, rules })))}` : "";
+      const out = new URLSearchParams();
+      for (const r of rules) {
+        const k = `${r.field}[${opOf(r)[0]}]`, o = opOf(r);
+        if (o[2] === 0) out.append(k, "");
+        else if (o[2] === "many") list(r.value).forEach((v) => out.append(k, String(v)));
+        else if (o[2] === 2) out.append(k, r.value.map(String).join(","));
+        else out.append(k, String(r.value));
+      }
+      return out.toString();
     }
 
     // ---- drawing
@@ -131,9 +228,22 @@
       os.addEventListener("change", () => set(path, (x) => {
         const was = opOf(x), o = ops(fields.get(x.field)).find((p) => p[0] === os.value);
         // A value of the same kind stays.
-        return [{ ...x, operator: os.value, value: was[2] === o[2] && was[3] === o[3] ? x.value : o[2] === "many" && was[2] === 1 && !blank(x.value) ? [x.value] : null }];
+        const next = { ...x, operator: os.value, value: was[2] === o[2] && was[3] === o[3] ? x.value : o[2] === "many" && was[2] === 1 && !blank(x.value) ? [x.value] : null };
+        if (!comparable(next)) delete next.valueField;
+        return [next];
       }, `${key}:o`));
-      return make("div", { "data-q-rule": "", role: "group", "aria-label": L("Condition {n}", { n: path.at(-1) + 1 }) }, fs, os, make("div", { "data-q-value": "" }, value(r, path)), off() ? null : button({ "data-q-tool": "", "data-path": `${key}:x`, "aria-label": L("Remove condition"), title: L("Remove"), click: () => set(path, () => null, `${path.slice(0, -1).join(".")}:add`) }, icon("x", 14)));
+      // Labels: "Compare with another field", "Compare with a value", "Other field"
+      let what = value(r, path);
+      const mode = comparable(r) && others(r).length && !off()
+        ? button({ "data-q-tool": "", "data-q-mode": "", "data-path": `${key}:m`, "aria-pressed": String(byField(r)), "aria-label": byField(r) ? L("Compare with a value") : L("Compare with another field"), title: byField(r) ? L("Compare with a value") : L("Compare with another field"),
+            click: () => set(path, (x) => { const { valueField, ...rest } = x; return [byField(x) ? { ...rest, value: null } : { ...rest, value: null, valueField: others(x)[0].field }]; }, `${key}:m`) }, icon("link", 14))
+        : null;
+      if (byField(r)) {
+        const other = make("select", { "data-path": `${key}:vf`, "aria-label": L("Other field"), disabled: off() }, others(r).map((f) => new Option(f.label, f.field, false, f.field === r.valueField)));
+        other.addEventListener("change", () => set(path, (x) => [{ ...x, valueField: other.value }], `${key}:vf`));
+        what = [other];
+      }
+      return make("div", { "data-q-rule": "", role: "group", "aria-label": L("Condition {n}", { n: path.at(-1) + 1 }) }, fs, os, make("div", { "data-q-value": "" }, what), mode, off() ? null : button({ "data-q-tool": "", "data-path": `${key}:x`, "aria-label": L("Remove condition"), title: L("Remove"), click: () => set(path, () => null, `${path.slice(0, -1).join(".")}:add`) }, icon("x", 14)));
     }
     function drawGroup(g, path) {
       const key = path.join("."), dis = off();
@@ -169,6 +279,8 @@
       if (p) p.textContent = text || L("No conditions: everything matches.");
       const put = (k, v) => k && JSON.stringify(api.state[k] ?? null) !== JSON.stringify(v) && api.set(k, v);
       put(cfg.bindText, text);
+      if (cfg.bindSql) put(cfg.bindSql, sql(q));
+      if (cfg.bindUrl) put(cfg.bindUrl, url(q));
       put(cfg.bindValid, complete(q));
       if (cfg.bindMatches) put(cfg.bindMatches, (K.value(api, cfg.rows) ?? []).filter((r) => match(r, q)));
     }

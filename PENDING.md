@@ -90,7 +90,7 @@ _Last updated: 2026-11-28._
   - [x] **`ui-stepper` furthest step** (2026-11-26): `bindFurthest` keeps the furthest step reached, so going back doesn't mean Next through each step again; steps before it show as done (gallery, intake-01). Not done: a step reached and left isn't told apart from one finished, and nothing checks a step's fields on the way past (a step without `valid` counts as done once passed).
   - [ ] **`ui-comments`, `ui-mention-input`** (record-01, review-01): plain text only, no Markdown or attachments; `people` are in the page, not searched from an API.
   - [ ] **`ui-phone-input`** (intake-01): groups and lengths of some 40 countries, general rules for the rest; numbers aren't checked against real ranges. **`ui-time-picker`**: no time zones.
-  - [ ] **`ui-query-builder`** (rules-01): fields compare with values, not with other fields; nothing turns the query into SQL or a URL.
+  - [ ] **`ui-query-builder`** (rules-01): a field against another (`fieldCompare`) and the query as SQL (`bindSql`, parameterised) or a link (`bindUrl`) came on 2026-11-29 (gallery, rules-01). The SQL's multiselect operators are Postgres arrays, and "in the last n days" is two dates worked out in the browser; the link is flat (`field[op]=value`) only for rules all joined by and.
   - [ ] **`ui-tree-select`**: as `ui-tree`, every node is drawn. **`ui-transfer-list`**: options come all at once.
   - [ ] **`ui-pivot`** (pivot-01): computed in the browser over the rows given; no calculated fields, running totals or groups by range.
   - [ ] **`ui-scheduler`** (schedule-01): bookings repeat, but one day of a repeating one isn't moved on its own; no dependencies or time zones; every row is drawn; making one by dragging is for a mouse.

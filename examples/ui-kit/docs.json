@@ -374,7 +374,7 @@
    "id": "query-builder",
    "group": "Forms",
    "title": "Query builder",
-   "summary": "Conditions put together with and / or, nested in groups and negated, for segments, alerts, routing and access. State gets the query, the query in words, and the rows that match.",
+   "summary": "Conditions put together with and / or, nested in groups and negated, for segments, alerts, routing and access. State gets the query, the query in words, and the rows that match. fieldCompare compares a field with another; bindSql and bindUrl give the query as parameterised SQL and a link.",
    "usage": "- type: ui-query-builder\n  props:\n    bind: query\n    rows: \"{{ orders }}\"\n    bindMatches: matching\n    showText: true\n    fields:\n      - { field: total, label: Total, type: currency, currency: EUR }\n      - { field: status, label: Status, type: select, options: [Paid, Due] }",
    "components": [
     "ui-query-builder"

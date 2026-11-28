@@ -967,10 +967,14 @@ ui-lightbox: Pictures that open over the page: step with the arrows or a swipe, 
   label        any  Names the pictures for screen readers (default `Images`)
   children: no
 ui-query-builder: Conditions put together with and / or, nested in groups: for segments, alerts, rules, access. State gets the query, its words, and the rows that match.
-  bind         statekey (required)  State key for the query: `{ op: and|or, not, rules: [{ field, operator, value } or another group] }`
-  fields       any (required)  What rules are about: `[{ field, label, type, options, operators, unit }]`; `type`: text, number, currency, date, select, multiselect or boolean
+  bind         statekey (required)  State key for the query: `{ op: and|or, not, rules: [{ field, operator, value, valueField } or another group] }`
+  fields       any (required)  What rules are about: `[{ field, label, type, options, operators, unit, column }]` (`column`: its name in `bindSql`); `type`: text, number, currency, date, select, multiselect or boolean
   maxDepth     number  How deep groups nest (default 3; 1 for none)
   negate       bool  Groups can be negated (`not`)
+  fieldCompare bool  A rule can compare a field with another field of its kind (`ends is after starts`), kept as its `valueField`
+  bindSql      statekey  State key that gets the query as SQL, `{ where, params }`: the values in `params` behind placeholders, never in the text; rules not filled in left out
+  sql          one of: question, numbered  `bindSql`'s placeholders: `?` (default) or `$1`, `$2`
+  bindUrl      statekey  State key that gets the query for a link: `status[is]=open&amount[gt]=100` while its rules are all joined by and, else `q=` and the query as JSON
   bindText     statekey  State key that gets the query in words
   bindValid    statekey  State key that gets true while every rule is filled in
   rows         any  Rows to try the query on; may use state

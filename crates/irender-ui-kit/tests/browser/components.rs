@@ -1295,6 +1295,73 @@ root:
     );
 }
 
+/// `ui-query-builder`: a field compared with another (`fieldCompare`), and the query
+/// as parameterised SQL (`bindSql`) and as a link's query string (`bindUrl`).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn query_builder_compares_fields_and_writes_sql_and_links() {
+    check(
+        "query-sql",
+        r##"
+state:
+  q: { op: and, rules: [ { field: status, operator: is, value: open }, { field: amount, operator: gt, value: 100 } ] }
+  sql: null
+  link: null
+  hits: []
+  rows:
+    - { status: open, amount: 150, paid: 200, start: "2026-01-01", end: "2026-02-01", tags: [a] }
+    - { status: open, amount: 300, paid: 100, start: "2026-03-01", end: "2026-02-01", tags: [b] }
+    - { status: done, amount: 500, paid: 500, start: "2026-01-01", end: "2026-01-05", tags: [] }
+root:
+  type: ui-query-builder
+  props:
+    bind: q
+    bindSql: sql
+    bindUrl: link
+    rows: "{{ rows }}"
+    bindMatches: hits
+    fieldCompare: true
+    showText: true
+    fields:
+      - { field: status, label: Status, type: select, options: [open, done] }
+      - { field: amount, label: Amount, type: number }
+      - { field: paid, label: Paid, type: number, column: "amount paid" }
+      - { field: start, label: Starts, type: date }
+      - { field: end, label: Ends, type: date }
+      - { field: name, label: Name }
+"##,
+        r##"
+        const sql = () => S().sql.where + " | " + JSON.stringify(S().sql.params);
+        log(sql()); log(S().link, S().hits.length);
+        // Amount compared with Paid instead of a value.
+        const mode = $$("[data-q-mode]")[0]; log("modes", $$("[data-q-mode]").length, mode.getAttribute("aria-pressed"));
+        mode.click(); await wait(30);
+        log(JSON.stringify(S().q.rules[1]), $("[data-q-text]").textContent);
+        log(sql()); log(S().link.startsWith("q="), S().hits.length);
+        // Back to a value.
+        $$("[data-q-mode]")[0].click(); await wait(30); log(JSON.stringify(S().q.rules[1]));
+        // Or, a group, a list, a range, text and dates.
+        root.__irender.set("q", { op: "or", rules: [ { field: "status", operator: "in", value: ["open", "done"] }, { op: "and", not: true, rules: [ { field: "amount", operator: "between", value: [10, 20] }, { field: "name", operator: "contains", value: "50%_off" } ] }, { field: "end", operator: "after", valueField: "start" } ] });
+        await wait(30); log(sql());
+        root.__irender.set("q", { op: "and", rules: [ { field: "status", operator: "in", value: ["open", "done"] }, { field: "amount", operator: "between", value: [10, 20] }, { field: "name", operator: "empty" } ] });
+        await wait(30); log(S().link);
+        root.__irender.set("q", { op: "and", rules: [ { field: "name", operator: "is", value: null } ] }); await wait(30); log(JSON.stringify(S().sql), S().link === "");
+"##,
+        &[
+            r#"status = ? AND amount > ? | ["open",100]"#,
+            "status%5Bis%5D=open&amount%5Bgt%5D=100 2",
+            "modes 1 false",
+            r#"{"field":"amount","operator":"gt","value":null,"valueField":"paid"} Status is open and Amount is more than Paid"#,
+            r#"status = ? AND amount > "amount paid" | ["open"]"#,
+            "true 1",
+            r#"{"field":"amount","operator":"gt","value":null}"#,
+            r#"status IN (?, ?) OR NOT (amount BETWEEN ? AND ? AND LOWER(name) LIKE LOWER(?) ESCAPE '\') OR end > start | ["open","done",10,20,"%50\\%\\_off%"]"#,
+            "status%5Bin%5D=open&status%5Bin%5D=done&amount%5Bbetween%5D=10%2C20&name%5Bempty%5D=",
+            r#"{"where":"","params":[]} true"#,
+        ],
+    );
+}
+
 /// `ui-sortable-list` with `childrenField`: items inside items, moved in and out and along
 /// by the keys and by dragging (as far in as the pointer is to the right), and removed
 /// with what's inside them.

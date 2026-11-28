@@ -9,6 +9,7 @@
 version: 1
 state:
   toast: null
+  sql: null
   words: ""
   ok: false
   hits: []
@@ -76,12 +77,16 @@ root:
                         bindMatches: hits
                         showText: true
                         negate: true
+                        # A field against another, and the query as SQL for the rules engine.
+                        fieldCompare: true
+                        bindSql: sql
                         fields:
                           - { field: amount, label: Amount, type: currency, currency: INR }
                           - { field: country, label: Country, type: select, options: [ { value: IN, label: India }, { value: AE, label: UAE }, { value: NG, label: Nigeria }, { value: RU, label: Russia } ] }
                           - { field: method, label: Method, type: select, options: [Card, Wire, Transfer] }
                           - { field: newPayee, label: New payee, type: boolean }
                           - { field: date, label: Paid on, type: date }
+                    - { type: ui-code-block, props: { language: sql, code: "WHERE {{ sql.where }}" } }
                 - type: ui-card
                   props: { title: Who's told, description: "In this order; Alt and the arrow keys move one." }
                   children:

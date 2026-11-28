@@ -33,10 +33,14 @@ pub struct QueryBuilder;
 
 const QUERY_TYPES: &[&str] = &["text", "number", "currency", "date", "select", "multiselect", "boolean"];
 const QUERY_PROPS: &[PropDef] = &[
-    PropDef::new("bind", PropKind::StateKey, "State key for the query: `{ op: and|or, not, rules: [{ field, operator, value } or another group] }`").required(),
-    PropDef::new("fields", PropKind::Any, "What rules are about: `[{ field, label, type, options, operators, unit }]`; `type`: text, number, currency, date, select, multiselect or boolean").required(),
+    PropDef::new("bind", PropKind::StateKey, "State key for the query: `{ op: and|or, not, rules: [{ field, operator, value, valueField } or another group] }`").required(),
+    PropDef::new("fields", PropKind::Any, "What rules are about: `[{ field, label, type, options, operators, unit, column }]` (`column`: its name in `bindSql`); `type`: text, number, currency, date, select, multiselect or boolean").required(),
     PropDef::new("maxDepth", PropKind::Number, "How deep groups nest (default 3; 1 for none)"),
     PropDef::new("negate", PropKind::Bool, "Groups can be negated (`not`)"),
+    PropDef::new("fieldCompare", PropKind::Bool, "A rule can compare a field with another field of its kind (`ends is after starts`), kept as its `valueField`"),
+    PropDef::new("bindSql", PropKind::StateKey, "State key that gets the query as SQL, `{ where, params }`: the values in `params` behind placeholders, never in the text; rules not filled in left out"),
+    PropDef::new("sql", PropKind::Enum(&["question", "numbered"]), "`bindSql`'s placeholders: `?` (default) or `$1`, `$2`"),
+    PropDef::new("bindUrl", PropKind::StateKey, "State key that gets the query for a link: `status[is]=open&amount[gt]=100` while its rules are all joined by and, else `q=` and the query as JSON"),
     PropDef::new("bindText", PropKind::StateKey, "State key that gets the query in words"),
     PropDef::new("bindValid", PropKind::StateKey, "State key that gets true while every rule is filled in"),
     PropDef::new("rows", PropKind::Any, "Rows to try the query on; may use state"),
@@ -99,7 +103,8 @@ impl Component for QueryBuilder {
         if fields.is_empty() {
             return Err(RenderError::new(node, "`ui-query-builder` needs `fields`"));
         }
-        let mut config = widget::config(cx, node, &["rows", "disabled"], &["fields"], &["bind", "bindText", "bindValid", "bindMatches"])?;
+        let mut config = widget::config(cx, node, &["rows", "disabled"], &["fields", "sql"], &["bind", "bindText", "bindValid", "bindMatches", "bindSql", "bindUrl"])?;
+        config.insert("fieldCompare".into(), json!(flag(cx, node, "fieldCompare", false)));
         config.insert("maxDepth".into(), json!(widget::number(cx, node, "maxDepth").unwrap_or(3.0).clamp(1.0, 8.0)));
         config.insert("negate".into(), json!(flag(cx, node, "negate", false)));
         config.insert("showText".into(), json!(flag(cx, node, "showText", false)));

@@ -83,6 +83,9 @@ state:
   qbQuery: { op: and, rules: [ { field: age, operator: gte, value: 18 }, { op: or, rules: [ { field: plan, operator: is, value: Pro }, { field: city, operator: contains, value: lon } ] } ] }
   qbHits: []
   qbRows: [ { name: Ada, age: 36, plan: Pro, city: Paris }, { name: Bo, age: 15, plan: Pro, city: London }, { name: Cy, age: 51, plan: Free, city: London } ]
+  qbSql: null
+  qbLink: null
+  qbDates: { op: and, rules: [ { field: due, operator: after, valueField: sent }, { field: total, operator: gt, value: 100 } ] }
   sgPic: null
   crPic: null
   cdText: "https://example.com"
@@ -1710,6 +1713,10 @@ root:
                 - { type: ui-heading, props: { level: 4, text: Examples }, style: { margin-top: 8 } }
                 - { type: ui-query-builder, props: { bind: qbQuery, rows: "{{ qbRows }}", bindMatches: qbHits, showText: true, negate: true, fields: [ { field: age, label: Age, type: number }, { field: plan, label: Plan, type: select, options: [Free, Pro] }, { field: city, label: City } ] } }
                 - { type: ui-text, props: { variant: muted, text: "{{ qbHits.length }} of {{ qbRows.length }} people match" } }
+                - type: ui-text
+                  props: { variant: muted, text: "A field against another (fieldCompare, the link button on a rule), and the query as SQL and a link: bindSql and bindUrl. The values go in params, never in the text." }
+                - { type: ui-query-builder, props: { bind: qbDates, fieldCompare: true, showText: true, bindSql: qbSql, bindUrl: qbLink, fields: [ { field: sent, label: Sent, type: date, column: sent_on }, { field: due, label: Due, type: date, column: due_on }, { field: total, label: Total, type: currency } ] } }
+                - { type: ui-code-block, props: { language: sql, code: "WHERE {{ qbSql.where }}\n-- params: {{ qbSql.params }}\n-- link: ?{{ qbLink }}" } }
                 - { type: if, props: { when: "{{ api.query_builder.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.query_builder }}", as: c }
