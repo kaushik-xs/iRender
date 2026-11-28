@@ -480,10 +480,14 @@ root:
         // The badge with an id is a button: its click is its own, not the day's.
         const b = cell("2026-11-10").querySelector("button[data-ev-badge]"); b.click(); await wait(30);
         log(S().hit.item.id, S().hit.date, S().picked, cell("2026-11-10").querySelector("span[data-ev-badge]").textContent);
+        // By the keys: the focused day's badge buttons join the tab order, the others' don't.
+        const tabs = () => ["2026-11-09", "2026-11-10"].map((d) => cell(d).querySelector("button[data-ev-badge]").tabIndex).join(",");
+        cell("2026-11-10").focus(); cell("2026-11-10").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })); await wait(30);
+        log("tabs", tabs(), document.activeElement.dataset.evDay);
         $("[data-ev-next]").click(); await wait(30); log(cell("2026-12-09")?.querySelectorAll("[data-ev-badge]").length ?? "-", cell("2026-12-06")?.querySelector("[data-ev-note]")?.textContent ?? "-");
         $("[data-ev-next]").click(); await wait(30); log(cell("2027-01-09")?.querySelectorAll("[data-ev-badge]").length ?? 0);
 "##,
-        &["Closed,Closed,Closed,Closed", "2,2,0", "audit 2026-11-10 null Stock", "2 Closed", "0"],
+        &["Closed,Closed,Closed,Closed", "2,2,0", "audit 2026-11-10 null Stock", "tabs 0,-1 2026-11-09", "2 Closed", "0"],
     );
 }
 

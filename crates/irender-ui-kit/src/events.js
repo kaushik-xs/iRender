@@ -115,8 +115,8 @@
     head.append(date, make("span", { "data-ev-note": "", "aria-hidden": "true", title: m.labels.join(", ") }, m.labels.join(", ")));
     return [head];
   }
-  // A badge with an `id` is a button, for a pointer: the day's name already says it, and
-  // the keys move between days.
+  // A badge with an `id` is a button. Like the day's events, the focused day's join the
+  // tab order after it (the day's name says them too); the arrow keys move between days.
   function badges(m) {
     if (!m?.items.length) return [];
     const live = m.items.some((it) => it.id != null);
@@ -341,6 +341,7 @@
       if (m?.labels.length) h.append(make("span", { "data-ev-note": "" }, m.labels.join(", ")));
       const side = make("div", {});
       side.append(h, ...badges(m));
+      for (const b of side.querySelectorAll("[data-ev-badge-id]")) b.tabIndex = 0;
       group.append(side);
       const ul = make("ul", {});
       for (const e of here) {
@@ -370,9 +371,9 @@
     body.setAttribute("data-view", view);
     const marked = marks();
     body.replaceChildren(view === "week" ? week(list, marked) : view === "day" ? week(list, marked, [cursor]) : view === "year" ? year(list, marked) : view === "list" ? agenda(list, marked) : month(list, marked));
-    // The focused day's events join the tab order after it.
+    // The focused day's badge buttons and events join the tab order after it.
     const at = iso(cursor);
-    for (const c of $$(`[data-ev-day="${at}"] :is([data-ev-event], [data-ev-more]), :is([data-ev-date-col="${at}"], [data-ev-cell-date="${at}"]) [data-ev-event]`)) c.tabIndex = 0;
+    for (const c of $$(`[data-ev-day="${at}"] :is([data-ev-event], [data-ev-more], [data-ev-badge-id]), :is([data-ev-date-col="${at}"], [data-ev-cell-date="${at}"]) :is([data-ev-event], [data-ev-badge-id])`)) c.tabIndex = 0;
     if (focus) $(`[data-ev-day="${iso(cursor)}"]`)?.focus();
     const legend = $("[data-ev-legend]");
     if (legend) {
