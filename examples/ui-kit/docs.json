@@ -647,7 +647,7 @@
    "group": "Data display",
    "title": "Gauge",
    "nav": "Gauge",
-   "summary": "A figure on a dial from min to max: coloured bands for good, warning and bad (the value takes its band's colour), a target mark and a needle, as an arc or a semicircle. Drawn on the server, it follows state without a script; for screen readers it's a meter read with its band's name.",
+   "summary": "A figure on a dial from min to max: coloured bands for good, warning and bad (the value takes its band's colour), a target mark and a needle, as an arc or a semicircle. Drawn on the server, it follows state without a script; for screen readers it's a meter read with its band's name. min, max and the bands may follow state too.",
    "usage": "- type: ui-gauge\n  props: { value: \"{{ oee }}\", unit: \"%\", target: 85, bands: [{ to: 60, tone: danger }, { to: 85, tone: warning }, { tone: success }] }\n- { type: ui-gauge, props: { value: \"{{ oil }}\", min: 20, max: 120, unit: °C, shape: half, needle: true } }",
    "components": [
     "ui-gauge"

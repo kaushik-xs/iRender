@@ -1573,6 +1573,12 @@ fn gauge_structure_and_mistakes() {
     assert!(!body.contains("data-needle"), "{body}");
     assert!(page.scripts.is_empty() || !page.scripts.iter().any(|s| s.contains("ui-gauge")));
 
+    // A range or bands from state: the script, given them as expressions, draws them again.
+    let live = render_with(json!({ "type": "ui-gauge", "props": { "value": "{{ v }}", "max": "{{ hi }}", "bands": "{{ bands }}" } }), json!({ "v": 5, "hi": 10, "bands": [{ "to": 4, "tone": "danger" }, { "tone": "success" }] }), json!({})).unwrap();
+    let lb = plain(&live.body);
+    assert!(live.scripts.iter().any(|s| s.contains("ui-gauge")) && lb.contains(r#"data-tone="success""#) && lb.contains(r#"stroke-dasharray="0 0 40 200""#), "{lb}");
+    assert!(lb.contains("&quot;live&quot;:true") && lb.contains("&quot;$irender&quot;"), "{lb}");
+
     // A fixed value: its tone and text are worked out once.
     let fixed = plain(&render_with(json!({ "type": "ui-gauge", "props": { "value": 30, "min": 20, "max": 120, "shape": "half", "needle": true, "bands": [{ "to": 80, "tone": "success" }, { "tone": "danger" }] } }), json!({}), json!({})).unwrap().body);
     assert!(fixed.contains(r#"data-shape="half" data-with-needle data-tone="success""#) && fixed.contains(r#"aria-valuetext="30""#) && fixed.contains("data-needle"), "{fixed}");

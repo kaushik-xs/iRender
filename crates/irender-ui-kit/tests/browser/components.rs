@@ -611,6 +611,51 @@ root:
     );
 }
 
+/// `min`, `max` and `bands` from state: the arc, the ends, the ticks' numbers, the bands
+/// and the value's tone and name follow them.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn gauge_range_and_bands_follow_state() {
+    check(
+        "gauge-live",
+        r##"
+state:
+  v: 50
+  lo: 0
+  hi: 100
+  bands: [ { to: 60, tone: success, label: OK }, { to: 80, tone: warning, label: High }, { tone: danger, label: Too high } ]
+root:
+  type: stack
+  children:
+    - { type: ui-gauge, attrs: { id: g }, props: { value: "{{ v }}", min: "{{ lo }}", max: "{{ hi }}", bands: "{{ bands }}", ticks: 4, tickLabels: true, unit: "°C" } }
+    - { type: ui-gauge, attrs: { id: h }, props: { value: 50, max: "{{ hi }}", bands: [ { to: 50, tone: success }, { tone: danger } ] } }
+"##,
+        r##"
+        const g = $("#g"), p = () => getComputedStyle(g).getPropertyValue("--p").trim();
+        const state = () => [p(), g.dataset.tone, g.getAttribute("aria-valuemin"), g.getAttribute("aria-valuemax"), g.getAttribute("aria-valuetext"), $$("#g [data-gauge-end]").map((e) => e.textContent).join("/"), $$("#g [data-gauge-tick]").map((e) => e.textContent).join("/"), $$("#g [data-band]").map((b) => b.getAttribute("stroke-dasharray")).join("|")];
+        log(...state());
+        root.__irender.set("hi", 200); await wait(30); log(...state());
+        root.__irender.set("bands", [{ to: 40, tone: "danger", label: "Low" }, { tone: "success" }]); await wait(30); log(...state());
+        root.__irender.set("v", 20); await wait(30); log(...state());
+        // A band past `max` is left out.
+        root.__irender.set("bands", [{ to: 500, tone: "info" }]); await wait(30); log($$("#g [data-band]").length, g.dataset.tone);
+        // Fixed bands on a range from state: placed on it as it changes.
+        const h = $("#h"), hb = () => $$("#h [data-band]").map((b) => b.getAttribute("stroke-dasharray")).join("|");
+        log(hb(), h.dataset.tone); root.__irender.set("hi", 400); await wait(30); log(hb(), h.dataset.tone);
+"##,
+        &[
+            "50 success 0 100 50 °C, OK 0/100 25/50/75 0 0 60 200|0 60 20 200|0 80 20 200",
+            "25 success 0 200 50 °C, OK 0/200 50/100/150 0 0 30 200|0 30 10 200|0 40 60 200",
+            "25 success 0 200 50 °C 0/200 50/100/150 0 0 20 200|0 20 80 200",
+            "10 danger 0 200 20 °C, Low 0/200 50/100/150 0 0 20 200|0 20 80 200",
+            "0 primary",
+            // The first band ends at 50: a quarter of 200, then an eighth of 400; the value 50 stays in it.
+            "0 0 25 200|0 25 75 200 success",
+            "0 0 12.5 200|0 12.5 87.5 200 success",
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn event_calendar_marks_repeat_and_badges_click() {

@@ -762,14 +762,14 @@ ui-progress-ring: A circular progress with the value in the middle.
   children: no
 ui-gauge: A figure on a dial from `min` to `max`, with coloured bands, a target and a needle; follows state without a script.
   value        any (required)  The figure. Follows state when it uses it, e.g. `{{ line.oee }}`
-  min          number  The dial's start (default 0)
-  max          number  The dial's end (default 100)
+  min          number  The dial's start (default 0); may use state
+  max          number  The dial's end (default 100); may use state
   unit         any  After the figure, smaller, e.g. `%` or `°C`
   text         any  In the middle in place of the value, e.g. a formatted one; empty for none
   decimals     number  The figure rounded to this many decimals, 0–10 (also when it follows state)
   ticks        number  Marks dividing the dial into this many equal parts, 2–20
   tickLabels   bool  With `ticks`: each mark's value inside it (the ends' too when `scale` is off), rounded to `decimals`
-  bands        any  Coloured stretches of the dial, in order: `{ to, tone, label }`, the last without `to` running to `max`. The value takes the tone of the band it's in
+  bands        any  Coloured stretches of the dial, in order: `{ to, tone, label }`, the last without `to` running to `max`. The value takes the tone of the band it's in. May come from state (`{{ line.bands }}`), drawn again as it changes
   tone         one of: neutral, info, success, warning, danger, primary  The value's colour (default: its band's, else `primary`)
   target       any  A mark across the dial at this value; may use state
   needle       bool  A needle pointing at the value, as well as the arc

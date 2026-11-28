@@ -3,9 +3,10 @@
 //! script: the value's arc, the needle and the target turn with CSS variables worked
 //! out in the browser from the same expressions the server used, and so does the tone
 //! of the band the value is in. The chart kit's `gauge` type is the full one; this is
-//! the light one, for a figure in a tile.
+//! the light one, for a figure in a tile. When `min`, `max` or `bands` follow state too,
+//! `gauge.js` numbers the dial again and draws its bands again as they change.
 
-use crate::{MUTED, TEXT, bin, cond, expr_val, lit, num, status, val_expr};
+use crate::{MUTED, TEXT, bin, cond, expr_val, lit, num, status, val_expr, widget};
 use irender_core::{
     ComponentInfo, Node, Part, PropDef, PropKind, StyleBlock, StyleValue, Template, Val,
     expr::{self, BinOp, Expr},
@@ -14,10 +15,12 @@ use irender_html::{Component, Element, RenderCx, RenderError};
 use serde_json::{Value as Json, json};
 use std::sync::LazyLock;
 
+const SCRIPT: &str = include_str!("gauge.js");
+
 const PROPS: &[PropDef] = &[
     PropDef::new("value", PropKind::Any, "The figure. Follows state when it uses it, e.g. `{{ line.oee }}`").required(),
-    PropDef::new("min", PropKind::Number, "The dial's start (default 0)"),
-    PropDef::new("max", PropKind::Number, "The dial's end (default 100)"),
+    PropDef::new("min", PropKind::Number, "The dial's start (default 0); may use state"),
+    PropDef::new("max", PropKind::Number, "The dial's end (default 100); may use state"),
     PropDef::new("unit", PropKind::Any, "After the figure, smaller, e.g. `%` or `°C`"),
     PropDef::new("text", PropKind::Any, "In the middle in place of the value, e.g. a formatted one; empty for none"),
     PropDef::new("decimals", PropKind::Number, "The figure rounded to this many decimals, 0–10 (also when it follows state)"),
@@ -26,7 +29,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "bands",
         PropKind::Any,
-        "Coloured stretches of the dial, in order: `{ to, tone, label }`, the last without `to` running to `max`. The value takes the tone of the band it's in",
+        "Coloured stretches of the dial, in order: `{ to, tone, label }`, the last without `to` running to `max`. The value takes the tone of the band it's in. May come from state (`{{ line.bands }}`), drawn again as it changes",
     ),
     PropDef::new("tone", PropKind::Enum(status::TONES), "The value's colour (default: its band's, else `primary`)"),
     PropDef::new("target", PropKind::Any, "A mark across the dial at this value; may use state"),
@@ -113,14 +116,20 @@ fn n(x: f64) -> String {
     if r == r.trunc() { format!("{}", r as i64) } else { format!("{r}") }
 }
 
-/// `(v - min) * 100 / (max - min)`: how far round the dial `v` is, as a percentage.
-fn percent(v: &Val, min: f64, max: f64) -> StyleValue {
-    match v {
-        Val::Tpl(_) => {
+/// `(v - min) * 100 / (max - min)`: how far round the dial `v` is, as a percentage. With
+/// `range` (`min` and `max` as they're written, when either follows state) it's worked out
+/// in the browser from those too.
+fn percent(v: &Val, min: f64, max: f64, range: Option<(&Val, &Val)>) -> StyleValue {
+    match (v, range) {
+        (_, Some((lo, hi))) => {
+            let e = bin(BinOp::Div, bin(BinOp::Mul, bin(BinOp::Sub, val_expr(v), val_expr(lo)), num(100)), bin(BinOp::Sub, val_expr(hi), val_expr(lo)));
+            StyleValue::Dynamic { tpl: Template { parts: vec![Part::Expr(e)] }, px: false }
+        }
+        (Val::Tpl(_), None) => {
             let e = bin(BinOp::Div, bin(BinOp::Mul, bin(BinOp::Sub, val_expr(v), num(min)), num(100)), num(max - min));
             StyleValue::Dynamic { tpl: Template { parts: vec![Part::Expr(e)] }, px: false }
         }
-        Val::Lit(j) => StyleValue::Static(n((expr::to_num(j) - min) * 100.0 / (max - min))),
+        (Val::Lit(j), None) => StyleValue::Static(n((expr::to_num(j) - min) * 100.0 / (max - min))),
     }
 }
 
@@ -194,6 +203,12 @@ impl Component for Gauge {
         let bands = bands(cx, node, min, max)?;
         let value = node.prop("value").cloned().unwrap_or_else(|| lit(min));
         let dynamic = cx.is_reactive(&value);
+        // `min`, `max` and `bands` from state: the server draws them as they are now, and
+        // the script again as they change.
+        let live = |name: &str| node.prop(name).is_some_and(|v| cx.is_reactive(v));
+        let (min_v, max_v) = (node.prop("min").cloned().unwrap_or_else(|| lit(min)), node.prop("max").cloned().unwrap_or_else(|| lit(max)));
+        let range = (live("min") || live("max")).then_some((&min_v, &max_v));
+        let live_bands = live("bands");
         // Room under the dial for `min` and `max`, and under a half's hub for the figure.
         let scale = cx.prop(node, "scale").is_none_or(|v| expr::truthy(&v));
         let needle = cx.prop(node, "needle").is_some_and(|v| expr::truthy(&v));
@@ -203,7 +218,7 @@ impl Component for Gauge {
 
         // The tone: given, or the band the value is in (worked out in the browser too).
         let in_band = |pick: &dyn Fn(&Band) -> Json, other: Json| -> Val {
-            if dynamic {
+            if dynamic && !live_bands {
                 let v = val_expr(&value);
                 expr_val(bands.iter().rev().skip(1).fold(Expr::Lit(bands.last().map_or(other.clone(), pick)), |rest, b| {
                     cond(bin(BinOp::Le, v.clone(), num(b.to)), Expr::Lit(pick(b)), rest)
@@ -213,6 +228,7 @@ impl Component for Gauge {
                 lit(bands.iter().find(|b| x <= b.to).or(bands.last()).map_or(other, pick))
             }
         };
+        let given_tone = cx.prop_string(node, "tone").is_some();
         let tone = match cx.prop_string(node, "tone") {
             Some(t) => lit(t),
             None if bands.is_empty() => lit("primary"),
@@ -256,9 +272,9 @@ impl Component for Gauge {
         let arc = format!("M{} {}A{} {} 0 {large} 1 {} {}", n(x0), n(y0), n(r), n(r), n(x1), n(y1));
 
         let mut style = StyleBlock::new();
-        style.push("--p", percent(&value, min, max));
+        style.push("--p", percent(&value, min, max, range));
         if let Some(t) = node.prop("target") {
-            style.push("--t", percent(t, min, max));
+            style.push("--t", percent(t, min, max, range));
         }
         let mut el = cx.element("div", node);
         el.base_style_ref(&GAUGE)
@@ -267,8 +283,8 @@ impl Component for Gauge {
             .attr("data-with-needle", needle)
             .attr("data-tone", tone)
             .attr("role", "meter")
-            .attr("aria-valuemin", lit(min))
-            .attr("aria-valuemax", lit(max))
+            .attr("aria-valuemin", if range.is_some() { min_v.clone() } else { lit(min) })
+            .attr("aria-valuemax", if range.is_some() { max_v.clone() } else { lit(max) })
             .attr("aria-valuenow", value.clone());
         // "72 %, Warning": the figure, its unit and its band's name.
         let mut said = vec![val_expr(&value)];
@@ -281,7 +297,31 @@ impl Component for Gauge {
             said.push(cond(val_expr(&name), bin(BinOp::Add, num(", "), val_expr(&name)), num("")));
         }
         let said = said.into_iter().reduce(|a, b| bin(BinOp::Add, a, b)).expect("one");
-        el.attr("aria-valuetext", if dynamic || unit.as_ref().is_some_and(|u| cx.is_reactive(u)) { expr_val(said) } else { lit(expr::stringify(&cx.eval(&expr_val(said)))) });
+        // With bands from state, the script says it (and gives the tone) as they change.
+        let reactive_text = !live_bands && (dynamic || unit.as_ref().is_some_and(|u| cx.is_reactive(u)));
+        el.attr("aria-valuetext", if reactive_text { expr_val(said) } else { lit(expr::stringify(&cx.eval(&expr_val(said)))) });
+        if range.is_some() || live_bands {
+            widget::kit(cx);
+            cx.global_js("ui-gauge", SCRIPT);
+            let colors: serde_json::Map<String, Json> = status::TONES.iter().map(|t| (t.to_string(), json!(status::tone_color(t)))).collect();
+            let config = |v: &Val| crate::data_table::dynamic(cx, node, "gauge", v);
+            el.behavior(
+                "ui-gauge",
+                json!({
+                    "min": config(&min_v)?,
+                    "max": config(&max_v)?,
+                    // Drawn again for a new range too, literal or not.
+                    "bands": match node.prop("bands") { Some(b) => config(b)?, None => Json::Null },
+                    "live": live_bands,
+                    "value": config(&value)?,
+                    "unit": match &unit { Some(u) => config(u)?, None => Json::Null },
+                    "tone": given_tone,
+                    "decimals": decimals,
+                    "lang": cx.labels().lang.clone(),
+                    "colors": colors,
+                }),
+            );
+        }
         if let Some(l) = &label {
             el.attr("aria-label", l.clone());
         }
@@ -378,6 +418,7 @@ impl Component for Gauge {
                 let mut e = Element::new("span");
                 e.attr("data-gauge-tick", true)
                     .attr("aria-hidden", "true")
+                    .attr("data-at", (f64::from(i) / f64::from(k)).to_string())
                     .base_style(StyleBlock::new().set("left", format!("{}px", n(c + radius * a.cos()))).set("top", format!("{}px", n(c + radius * a.sin()))).set("font-size", format!("{}px", n(small))))
                     .text(lit(irender_core::labels::number(lang.as_deref(), v)));
                 cx.open(&e, node)?;
@@ -389,6 +430,7 @@ impl Component for Gauge {
             for (x, v) in [(x0, min), (x1, max)] {
                 let mut e = Element::new("span");
                 e.attr("data-gauge-end", true)
+                    .attr("data-end-max", x == x1)
                     .attr("aria-hidden", "true")
                     .base_style(StyleBlock::new().set("left", format!("{}px", n(x))).set("top", format!("{}px", n(y0 + thick / 2.0 + 4.0))))
                     .text(lit(irender_core::labels::number(lang.as_deref(), v)));
