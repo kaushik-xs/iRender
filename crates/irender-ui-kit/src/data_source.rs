@@ -220,6 +220,7 @@ const QUERY_PROPS: &[PropDef] = &[
         PropKind::Any,
         "Joins records into each row: `{ owner: { source: people, from: ownerId } }` puts the `people` record whose id is in `ownerId` in `owner` (`from` may hold a list of ids). While it's on its way the row's `$loading.owner` is true; `$failed.owner` when it couldn't be fetched",
     ),
+    PropDef::new("records", PropKind::String, "With `url`: the rows are this `ui-data-source`'s records (by its `key`), so changes written to them here show in the rows at once: changed, gone when deleted, and new ones at the end, until the rows are loaded again"),
     PropDef::new("status", PropKind::StateKey, "State key that gets `{ state, pending, total, error, at }`: state is idle, loading, joining (rows here, joined records on their way), ready or error"),
     PropDef::new("refresh", PropKind::Any, "Loads again when this changes, e.g. `{{ saved }}`"),
     PropDef::new("paused", PropKind::Any, "Nothing is loaded while true"),
@@ -254,11 +255,14 @@ impl Component for DataQuery {
         }
     }
     fn render(&self, node: &Node, cx: &mut RenderCx<'_>) -> Result<(), RenderError> {
-        let mut config = widget::config(cx, node, &["url", "params", "ids", "refresh", "paused", "scope", "clear"], &["pick", "source", "headers", "persist", "private", "retain", "version", "maxAge", "keep", "sync", "every"], &["into", "status"])?;
+        let mut config = widget::config(cx, node, &["url", "params", "ids", "refresh", "paused", "scope", "clear"], &["pick", "source", "records", "headers", "persist", "private", "retain", "version", "maxAge", "keep", "sync", "every"], &["into", "status"])?;
         check_keeping(cx, node)?;
         match config.get("sync") {
             None | Some(Json::Bool(_) | Json::Object(_)) => {}
             Some(_) => return Err(RenderError::new(node, "`sync` is `true` or `{ param, cursor, deleted, tombstone, key, full }`")),
+        }
+        if config.contains_key("records") && config.contains_key("source") {
+            return Err(RenderError::new(node, "`records` is for rows from `url`; a `source`'s records are its own already"));
         }
         if config.contains_key("sync") && config.contains_key("source") {
             return Err(RenderError::new(node, "`sync` is for rows from `url`; records from a `source` follow its `ttl`"));

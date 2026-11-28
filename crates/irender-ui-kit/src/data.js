@@ -131,7 +131,7 @@
   let writes = [];
   const source = (name) => {
     let s = sources.get(name);
-    if (!s) sources.set(name, (s = { name, cfg: null, scope: null, recs: new Map(), wanted: new Set(), timer: 0 }));
+    if (!s) sources.set(name, (s = { name, cfg: null, scope: null, recs: new Map(), wanted: new Set(), timer: 0, wrote: new Map() }));
     return s;
   };
   // Kept on the device: asked for, with somewhere to keep it and someone it's kept for.
@@ -165,10 +165,14 @@
   // A record changed here and not yet saved is `pending`; one the server changed too,
   // waiting for someone to choose, `conflict`.
   const put = (s, id, rec) => {
-    const old = s.recs.get(id), mine = writes.filter((w) => w.source === s.name && w.rid === id && w.status !== "refused");
+    const old = s.recs.get(id), all = writes.filter((w) => w.source === s.name && w.rid === id), mine = all.filter((w) => w.status !== "refused");
     s.recs.set(id, { ...rec, pending: mine.length > 0, conflict: mine.some((w) => w.status === "conflict"), n: (old?.n ?? 0) + 1 });
+    if (all.length) wrote(s, id);
     touch(s.name);
   };
+  // Records changed by writes here (`made`: created here), and when: a query of a
+  // source's `records` shows them over the rows it loaded before.
+  const wrote = (s, id, made = false) => s.wrote.set(id, { at: Date.now(), made: made || !!s.wrote.get(id)?.made });
 
   // A source named in `expand` (or a query's `source`) and declared nowhere: once the page
   // has loaded, its ids fail (`$failed`, a query's `error`) rather than wait for it, and the
@@ -596,6 +600,7 @@
       saveWrite(w);
     }
     const v = kind === "delete" ? null : { ...(isObj(before) ? before : {}), ...changes, ...(kind === "create" ? { [key]: rid } : {}) };
+    if (kind === "create") wrote(s, rid, true);
     put(s, rid, { ...(rec ?? {}), s: v === null ? "missing" : "ready", v, at: rec?.at ?? Date.now(), again: false });
     writeKept(s, [[rid, v, rec?.etag]]);
     told();
@@ -647,10 +652,12 @@
       if (w.kind === "create" && isObj(answer) && !blank(at(answer, key))) {
         rid = idOf(at(answer, key));
         s.recs.delete(w.rid);
+        s.wrote.delete(w.rid);
         for (const x of writes) if (x.source === s.name && x.rid === w.rid) (x.rid = rid), saveWrite(x);
         if (O && device(s)) O.db.del("records", slot(s, w.rid)).catch(() => {});
         emitAll("created", { source: s.name, temp: w.rid, id: rid });
       }
+      wrote(s, rid, w.kind === "create");
       if (w.kind === "delete") put(s, rid, { s: "missing", v: null, at: Date.now() });
       else {
         const v = isObj(answer) && !blank(at(answer, key)) ? answer : s.recs.get(rid)?.v;
@@ -801,6 +808,12 @@
     lookup,
     invalidate,
     retry,
+    // Records written here since `since` (ms), or not yet sent: `[{ id, value, made }]`,
+    // value null when deleted.
+    written: (name, since) => {
+      const s = source(name);
+      return [...s.wrote].filter(([id, x]) => x.at > since || s.recs.get(id)?.pending).map(([id, x]) => ({ id, value: s.recs.get(id)?.v ?? null, made: x.made }));
+    },
     wipe,
     resolve,
     flush: flushWrites,
@@ -886,6 +899,7 @@
       one = !!k.one;
       total = k.total ?? rows.length;
       stamp = new Date(k.at).toISOString();
+      loadedAt = k.at;
       mark = S ? { base: baseOf(q), cursor: k.cursor ?? null, fullAt: k.fullAt ?? 0 } : null;
       tag = k.etag ? { base: baseOf(q), etag: k.etag } : null;
       cached = true;
@@ -897,13 +911,13 @@
       if (state === "closed") (rows = rows.map((r) => split(cfg, r)[0])), (partial = true), publish();
       else if (partial && key) fromDevice(JSON.parse(key), seq);
     });
-    const used = new Set([...reads(cfg.expand), ...(cfg.source ? [cfg.source] : [])]);
+    const used = new Set([...reads(cfg.expand), ...(cfg.source ? [cfg.source] : []), ...(cfg.records ? [cfg.records] : [])]);
     function ask() {
       if (cfg.source) return { ids: K.value(api, cfg.ids) ?? null, refresh: K.value(api, cfg.refresh) };
       return { url: K.value(api, cfg.url), params: K.value(api, cfg.params), refresh: K.value(api, cfg.refresh) };
     }
     async function load(q) {
-      const id = ++seq;
+      const id = ++seq, started = Date.now();
       loading = true;
       error = null;
       cached = false;
@@ -923,6 +937,7 @@
         if (same) {
           // Unchanged: the rows shown (kept or not) are the server's still.
           stamp = new Date().toISOString();
+          loadedAt = started;
           loading = cached = false;
           tag = { base, etag: newTag ?? etag };
           save(q);
@@ -942,6 +957,7 @@
         const cursor = S && !missing ? at(answer, S.cursor ?? "cursor") ?? null : null;
         mark = S ? { base, cursor, fullAt: delta && !missing ? mark.fullAt : Date.now() } : null;
         stamp = new Date().toISOString();
+        loadedAt = started;
         loading = cached = partial = false;
         save(q);
         api.emit("loaded", { rows, total, delta });
@@ -980,6 +996,27 @@
       const tick = setInterval(() => (el.isConnected ? document.visibilityState === "visible" && again() : clearInterval(tick)), Math.max(5, Number(cfg.every)) * 1e3);
     }
     addEventListener("online", again);
+    // `records`: the rows are that source's records, so what's written to them here since
+    // they loaded shows over them: changed, gone when deleted, and those made here after.
+    let loadedAt = 0, overMemo = null;
+    function over(list) {
+      if (!cfg.records || one) return list;
+      const changed = D.written(cfg.records, loadedAt);
+      if (!changed.length) return list;
+      const sig = changed.map((c) => c.id + ":" + oid(c.value)).join(",");
+      if (overMemo?.list === list && overMemo.sig === sig) return overMemo.out;
+      const key = sources.get(cfg.records)?.cfg?.key ?? "id", by = new Map(changed.map((c) => [c.id, c])), seen = new Set();
+      const out = [];
+      for (const r of list) {
+        const id = isObj(r) && !blank(at(r, key)) ? idOf(at(r, key)) : null, c = id !== null ? by.get(id) : null;
+        if (id !== null) seen.add(id);
+        if (!c) out.push(r);
+        else if (c.value !== null) out.push(isObj(c.value) ? { ...r, ...c.value } : r);
+      }
+      for (const c of changed) if (c.made && c.value !== null && !seen.has(c.id)) out.push(c.value);
+      overMemo = { list, sig, out };
+      return out;
+    }
     function publish() {
       let value, pending = 0;
       if (cfg.source) {
@@ -995,7 +1032,7 @@
         total = many ? value.length : value ? 1 : 0;
         loading = pending > 0 && !recs.some(Boolean);
       } else {
-        const out = (rows ?? []).map((r) => (cfg.expand ? joinRow(r, cfg.expand) : r));
+        const out = over(rows ?? []).map((r) => (cfg.expand ? joinRow(r, cfg.expand) : r));
         pending = out.filter((r) => r?.$loading).length;
         value = rows === null ? (one ? null : []) : one ? out[0] ?? null : out;
       }

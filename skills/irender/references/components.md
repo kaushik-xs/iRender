@@ -446,6 +446,7 @@ ui-data-query: Fills a state key with rows from an API, or with records by id, j
   source       string  Instead of `url`: the records of this `ui-data-source` for `ids`
   ids          any  With `source`: an id (into gets the record) or a list (the records); may use state
   expand       any  Joins records into each row: `{ owner: { source: people, from: ownerId } }` puts the `people` record whose id is in `ownerId` in `owner` (`from` may hold a list of ids). While it's on its way the row's `$loading.owner` is true; `$failed.owner` when it couldn't be fetched
+  records      string  With `url`: the rows are this `ui-data-source`'s records (by its `key`), so changes written to them here show in the rows at once: changed, gone when deleted, and new ones at the end, until the rows are loaded again
   status       statekey  State key that gets `{ state, pending, total, error, at }`: state is idle, loading, joining (rows here, joined records on their way), ready or error
   refresh      any  Loads again when this changes, e.g. `{{ saved }}`
   paused       any  Nothing is loaded while true

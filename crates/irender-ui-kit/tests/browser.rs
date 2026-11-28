@@ -9941,6 +9941,123 @@ fn data_sources_join_records_in_turn_in_chrome() {
     assert_eq!(teams, ["teams?ids=t1,t2"], "{log:?}");
 }
 
+/// A query whose rows are a source's `records` shows what's written to them at once: a
+/// change, a deletion and a record made here, before and after they're saved; loaded
+/// again, the rows are the server's.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_queries_show_writes_to_their_records_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let page = Arc::new(Mutex::new(String::new()));
+    let done = Arc::new(AtomicBool::new(false));
+    let (seen, html, fin) = (log.clone(), page.clone(), done.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, html, fin) = (seen.clone(), html.clone(), fin.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let method = request.split_whitespace().next().unwrap_or("").to_string();
+                let path = request.split_whitespace().nth(1).unwrap_or("").to_string();
+                let body = request.split("\r\n\r\n").nth(1).and_then(|b| serde_json::from_str::<serde_json::Value>(b).ok()).unwrap_or_default();
+                if path == "/" {
+                    let page = html.lock().unwrap().clone();
+                    let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{page}", page.len());
+                    return;
+                }
+                if path == "/hold" {
+                    for _ in 0..1200 {
+                        if fin.load(Ordering::SeqCst) {
+                            break;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                }
+                if path == "/finish" {
+                    fin.store(true, Ordering::SeqCst);
+                }
+                if !matches!(path.as_str(), "/hold" | "/finish") {
+                    seen.lock().unwrap().push(format!("{method} {path}"));
+                }
+                let (status, out) = match (method.as_str(), path.as_str()) {
+                    ("GET", "/list") => ("200 OK", serde_json::json!([{ "id": "p1", "name": "Ana", "team": "x" }, { "id": "p2", "name": "Ben", "team": "y" }]).to_string()),
+                    ("PATCH", "/people/p1") => ("200 OK", serde_json::json!({ "id": "p1", "name": body["name"], "team": "x" }).to_string()),
+                    ("DELETE", "/people/p2") => ("204 No Content", String::new()),
+                    ("POST", "/people") => ("201 Created", serde_json::json!({ "id": "p9", "name": body["name"], "team": "z" }).to_string()),
+                    _ => ("404 Not Found", "{}".to_string()),
+                };
+                let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, PATCH, DELETE\r\nAccess-Control-Allow-Headers: content-type, x-irender-data, x-queued-id, if-match\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{out}", out.len());
+            });
+        }
+    });
+    let base = "";
+    let click = |id: &str, endpoint: String, method: &str, body: serde_json::Value| {
+        serde_json::json!({ "type": "ui-button", "attrs": { "id": id }, "props": { "label": id }, "on": { "click": { "action": "submit", "endpoint": endpoint, "method": method, "body": body } } })
+    };
+    let doc = serde_json::json!({ "version": 1, "state": { "list": null, "again": 0 },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "one": format!("{base}/people/{{id}}"), "write": { "url": format!("{base}/people/{{id}}"), "create": format!("{base}/people") } } },
+            { "type": "ui-data-query", "props": { "url": format!("{base}/list"), "into": "list", "records": "people", "refresh": "{{ again }}" } },
+            click("rename", format!("{base}/people/p1"), "PATCH", serde_json::json!({ "name": "Ana B" })),
+            click("drop", format!("{base}/people/p2"), "DELETE", serde_json::json!({})),
+            click("add", format!("{base}/people"), "POST", serde_json::json!({ "name": "Cy" })) ] } });
+    let driver = r##"<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state;
+      const list = () => (S().list ?? []).map((r) => r.id + ":" + r.name + (r.team ? "/" + r.team : "")).join(",");
+      try {
+        await until(() => S().list?.length === 2);
+        log("loaded", list());
+        document.getElementById("rename").click();
+        await until(() => list().includes("Ana B"));
+        log("renamed", list());
+        document.getElementById("drop").click();
+        await until(() => !list().includes("p2"));
+        log("dropped", list());
+        document.getElementById("add").click();
+        await until(() => list().includes("p9"));
+        log("added", list());
+        await wait(200);
+        root.__irender.set("again", 1);
+        await until(() => list().includes("Ben"));
+        log("again", list());
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+      fetch("/finish");
+    });
+    </script><img src="/hold" alt="" hidden>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    *page.lock().unwrap() = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive_url(&format!("http://127.0.0.1:{port}/")) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "loaded p1:Ana/x,p2:Ben/y",
+            // The row keeps its own fields; the change goes over them.
+            "renamed p1:Ana B/x,p2:Ben/y",
+            "dropped p1:Ana B/x",
+            // Saved, it's known by the server's id.
+            "added p1:Ana B/x,p9:Cy/z",
+            // This test's server keeps nothing: loaded again, its rows are as they were.
+            "again p1:Ana/x,p2:Ben/y",
+        ],
+        "\n{result}"
+    );
+    let log = log.lock().unwrap();
+    assert_eq!(log.iter().filter(|l| !l.starts_with("GET")).collect::<Vec<_>>(), ["PATCH /people/p1", "DELETE /people/p2", "POST /people"], "{log:?}");
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the
