@@ -2389,6 +2389,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   deletable    bool  Editable: Delete in the bulk bar removes the selected rows (turns on `selectable`)
   errors       any  Editable: messages to mark cells with, e.g. from the server: `{ rowKey: { field: message } }`
   bindErrors   statekey  Editable: state key that gets the cells that are wrong, `[{ key, field, message }]`
+  records      string  Editable: the rows are this `ui-data-source`'s records, so edits, added rows and deletions are sent through its `write` (also offline), each row by the source's `key`
   bindChanges  statekey  Editable: state key that gets what changed, `{ rowKey: { field: value } }` (null for a deleted row); set it to `{}` once saved
   id           any  Element id (default: derived from the document)
   parts: toolbar, table, footer
@@ -3773,6 +3774,7 @@ A column with `edit` (`text`, `multiline`, `number`, `date`, `select` or `checkb
 - **Copy and paste** go to and from spreadsheets. Pasted text is read as the column's: `1,234`, `5%`, `(120)` and the locale's own numbers, dates as the locale writes them, a choice by its label. What can't be read is kept as it is and marked. Rows pasted past the end are added, with `addRow`.
 - **Checks:** `required`, `min`, `max`, `pattern` and `unique` on a column, with `message` in place of the kit's words, and `errors` from the page or server (`{ rowKey: { field: message } }`). Wrong cells are marked and say why, the Problems button shows only their rows, and `bindErrors` gets `[{ key, field, message }]`.
 - **Changes:** `bindChanges` gets `{ rowKey: { field: value } }` (null for a deleted row) and changed cells get a mark in their corner; set it to `{}` once they're saved. Events: `celledit` (`{ key, row, field, value, previous }`), `rowadd`, `rowdelete`, and `rowschange` for an undo or a large paste.
+- **Through a source:** when the rows are a `ui-data-source`'s records, `records: people` sends each edit through its `write` (see [Data sources](#data-sources)), queued and sent when there's a connection: a cell once it's right (a required one left blank isn't sent), an added row as a new record (and edits to it by the id it's given), and deleted rows. Undo changes the rows, not what was already sent.
 - `editable` says which rows may be edited, e.g. `{{ row.status != 'Closed' }}`. `addRow` is the button under the rows, `deletable` adds Delete to the bulk bar, and `export: prices.xlsx` writes Excel.
 - Editable tables can't have nested rows, or be grouped.
 

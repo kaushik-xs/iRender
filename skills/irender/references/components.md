@@ -2224,6 +2224,7 @@ ui-data-table: A data table: sorting, column filters, search, paging, row select
   deletable    bool  Editable: Delete in the bulk bar removes the selected rows (turns on `selectable`)
   errors       any  Editable: messages to mark cells with, e.g. from the server: `{ rowKey: { field: message } }`
   bindErrors   statekey  Editable: state key that gets the cells that are wrong, `[{ key, field, message }]`
+  records      string  Editable: the rows are this `ui-data-source`'s records, so edits, added rows and deletions are sent through its `write` (also offline), each row by the source's `key`
   bindChanges  statekey  Editable: state key that gets what changed, `{ rowKey: { field: value } }` (null for a deleted row); set it to `{}` once saved
   id           any  Element id (default: derived from the document)
   parts: toolbar, table, footer

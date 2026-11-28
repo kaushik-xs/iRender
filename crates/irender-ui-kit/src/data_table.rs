@@ -132,6 +132,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("deletable", PropKind::Bool, "Editable: Delete in the bulk bar removes the selected rows (turns on `selectable`)"),
     PropDef::new("errors", PropKind::Any, "Editable: messages to mark cells with, e.g. from the server: `{ rowKey: { field: message } }`"),
     PropDef::new("bindErrors", PropKind::StateKey, "Editable: state key that gets the cells that are wrong, `[{ key, field, message }]`"),
+    PropDef::new("records", PropKind::String, "Editable: the rows are this `ui-data-source`'s records, so edits, added rows and deletions are sent through its `write` (also offline), each row by the source's `key`"),
     PropDef::new("bindChanges", PropKind::StateKey, "Editable: state key that gets what changed, `{ rowKey: { field: value } }` (null for a deleted row); set it to `{}` once saved"),
     PropDef::new("id", PropKind::Any, "Element id (default: derived from the document)"),
 ];
@@ -1223,6 +1224,7 @@ impl Component for DataTable {
                 },
                 "addRow": add_row.is_some(),
                 "newRow": cx.prop(node, "newRow").filter(|v| v.is_object()),
+                "records": cx.prop_string(node, "records"),
             })),
         };
         let selectable = flag(cx, "selectable", false) || !parts.bulk.is_empty() || deletable;

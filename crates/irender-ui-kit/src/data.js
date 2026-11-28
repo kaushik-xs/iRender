@@ -131,7 +131,7 @@
   let writes = [];
   const source = (name) => {
     let s = sources.get(name);
-    if (!s) sources.set(name, (s = { name, cfg: null, scope: null, recs: new Map(), wanted: new Set(), timer: 0, wrote: new Map() }));
+    if (!s) sources.set(name, (s = { name, cfg: null, scope: null, recs: new Map(), wanted: new Set(), timer: 0, wrote: new Map(), alias: new Map() }));
     return s;
   };
   // Kept on the device: asked for, with somewhere to keep it and someone it's kept for.
@@ -581,11 +581,18 @@
     return null;
   }
 
+  // Writes from a component need a source that takes them.
+  const writable = (name) => {
+    if (writer(sources.get(name))) return true;
+    console.warn(`irender: the ui-data-source "${name}" has no \`write\`, so changes to its records aren't sent`);
+    return false;
+  };
   // A change made here: shown at once, and queued. Answers what `submit` gets back.
   async function change(s, kind, id, changes) {
     const key = s.cfg.key ?? "id";
     if (kind === "create") id = `tmp-${O?.id?.() ?? Math.random().toString(36).slice(2)}`;
-    const rid = idOf(id), rec = s.recs.get(rid);
+    // A record made here, named by the id it had before it was saved.
+    const rid = s.alias.get(idOf(id)) ?? idOf(id), rec = s.recs.get(rid);
     const before = rec?.v ?? null;
     const base = kind === "delete" ? before : Object.fromEntries(Object.keys(changes).map((f) => [f, isObj(before) ? before[f] ?? null : null]));
     // Edits to a record still waiting are sent as one.
@@ -653,6 +660,7 @@
         rid = idOf(at(answer, key));
         s.recs.delete(w.rid);
         s.wrote.delete(w.rid);
+        s.alias.set(w.rid, rid);
         for (const x of writes) if (x.source === s.name && x.rid === w.rid) (x.rid = rid), saveWrite(x);
         if (O && device(s)) O.db.del("records", slot(s, w.rid)).catch(() => {});
         emitAll("created", { source: s.name, temp: w.rid, id: rid });
@@ -810,6 +818,12 @@
     retry,
     // Records written here since `since` (ms), or not yet sent: `[{ id, value, made }]`,
     // value null when deleted.
+    // Changes from a component (an editable table's cells), as a `submit` to `write` would
+    // make them: queued, and sent when there's a connection.
+    save: (name, id, changes) => writable(name) && change(source(name), "update", id, changes),
+    create: (name, values) => (writable(name) ? change(source(name), "create", null, values) : Promise.resolve(null)),
+    remove: (name, id) => writable(name) && change(source(name), "delete", id, {}),
+    key: (name) => source(name).cfg?.key ?? "id",
     written: (name, since) => {
       const s = source(name);
       return [...s.wrote].filter(([id, x]) => x.at > since || s.recs.get(id)?.pending).map(([id, x]) => ({ id, value: s.recs.get(id)?.v ?? null, made: x.made }));

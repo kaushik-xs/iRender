@@ -51,6 +51,21 @@ window.__irenderTableEdit = (t) => {
     const [head, ...rest] = path;
     return { ...(row ?? {}), [head]: rest.length ? setIn(row?.[head], rest, v) : v };
   };
+  // `records`: the rows are a source's records, and what's changed in them is sent
+  // through its `write` (data.js), a field at a time, once it's right. A row added here
+  // is made there, and known by the id it's given.
+  const D = E.records ? window.__irenderData : null, made = new Map();
+  const idOf = (row, key) => made.get(keyOf(key)) ?? at(row, D.key(E.records)) ?? key;
+  function through(events) {
+    if (!D) return;
+    validate();
+    for (const e of events) {
+      const c = [...columns.values()].find((x) => x.field === e.field);
+      if (c && faults.has(keyOf(e.key) + "\u0000" + c.key)) continue;
+      const head = e.field.split(".")[0];
+      D.save(E.records, idOf(e.row, e.key), { [head]: e.row[head] ?? null });
+    }
+  }
   // Edits, `[{ i, c, value }]`, as one step to undo.
   function write(list) {
     const before = source(), rows = [...before], events = [], changed = { ...changes() };
@@ -66,6 +81,7 @@ window.__irenderTableEdit = (t) => {
     step(before);
     store(rows, changed);
     for (const e of events) api.emit("celledit", e);
+    through(events);
     return true;
   }
   // Remembers the rows as they were; rows changed by something else can't be undone to.
@@ -94,6 +110,10 @@ window.__irenderTableEdit = (t) => {
     step(before);
     store(rows, { ...changes(), [key]: { ...row } });
     api.emit("rowadd", { key, row });
+    if (D) {
+      const { [cfg.rowKey]: _, ...values } = row;
+      D.create(E.records, values).then((r) => r?.id && made.set(keyOf(key), r.id));
+    }
     const k = keyOf(key);
     t.reveal(rows.length - 1);
     const c = keys().find((c) => columns.has(c));
@@ -110,6 +130,7 @@ window.__irenderTableEdit = (t) => {
     const changed = { ...changes() };
     for (const k of ks) changed[k] = null; // gone
     store(rows, changed);
+    if (D) out.forEach((r) => D.remove(E.records, idOf(r, rowKey(r, before.indexOf(r)))));
     t.clearSelection();
     api.emit("rowdelete", { keys: ks, rows: out });
     t.announce(L(["{n} row deleted", "{n} rows deleted"], { n: out.length }));

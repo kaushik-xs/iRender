@@ -10138,6 +10138,111 @@ fn data_tables_sort_and_search_joined_fields_in_chrome() {
     );
 }
 
+/// An editable table of a source's `records` sends what's edited through the source's
+/// `write`: a cell once it's right, an added row (and edits to it, by the id it's given),
+/// and deleted rows.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_tables_edit_records_through_their_source_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let page = Arc::new(Mutex::new(String::new()));
+    let done = Arc::new(AtomicBool::new(false));
+    let (seen, html, fin) = (log.clone(), page.clone(), done.clone());
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, html, fin) = (seen.clone(), html.clone(), fin.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let method = request.split_whitespace().next().unwrap_or("").to_string();
+                let path = request.split_whitespace().nth(1).unwrap_or("").to_string();
+                let body = request.split("\r\n\r\n").nth(1).unwrap_or("").to_string();
+                let (ty, status, out) = match (method.as_str(), path.as_str()) {
+                    (_, "/") => ("text/html", "200 OK", html.lock().unwrap().clone()),
+                    (_, "/hold") => {
+                        for _ in 0..1200 {
+                            if fin.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                        ("image/gif", "200 OK", String::new())
+                    }
+                    (_, "/finish") => {
+                        fin.store(true, Ordering::SeqCst);
+                        ("application/json", "200 OK", "{}".into())
+                    }
+                    (_, "/favicon.ico") => ("text/plain", "404 Not Found", String::new()),
+                    (m, p) => {
+                        seen.lock().unwrap().push(format!("{m} {p} {body}").trim().to_string());
+                        match m {
+                            "POST" => ("application/json", "201 Created", serde_json::json!({ "id": "p9", "status": "open" }).to_string()),
+                            "DELETE" => ("application/json", "204 No Content", String::new()),
+                            _ => ("application/json", "200 OK", body.clone()),
+                        }
+                    }
+                };
+                let _ = write!(stream, "HTTP/1.1 {status}\r\nContent-Type: {ty}\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{out}", out.len());
+            });
+        }
+    });
+    let doc = serde_json::json!({ "version": 1, "state": { "rows": [{ "id": "p1", "name": "Ada" }, { "id": "p2", "name": "Bob" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "one": "/people/{id}", "write": { "url": "/people/{id}", "create": "/people" } } },
+            { "type": "ui-data-table", "props": { "id": "t", "rows": "{{ rows }}", "records": "people", "addRow": true, "deletable": true, "newRow": { "status": "open" }, "columnsMenu": false },
+              "children": [{ "type": "ui-data-table-column", "props": { "field": "name", "edit": "text", "required": true } }] } ] } });
+    let driver = r##"<script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const $ = (q) => document.querySelector(q), $$ = (q) => [...document.querySelectorAll(q)];
+      const key = (k, m = {}) => document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...m }));
+      const cell = (r) => $$("#t [data-dt-body] > tr")[r].querySelector("[data-dt-col=name]");
+      const edit = async (r, v) => { cell(r).click(); key("Enter"); $("[data-dt-editor]").value = v; key("Enter"); await wait(50); };
+      const D = window.__irenderData, waiting = () => D.writes().filter((w) => w.status !== "refused").length;
+      try {
+        await until(() => $$("#t [data-dt-body] > tr").length === 2);
+        await edit(0, "Zed");
+        await edit(1, "");
+        await until(() => !waiting());
+        $("[data-dt-add-row]").click();
+        await wait(30); key("Escape");
+        await until(() => !waiting());
+        await edit(2, "Cy");
+        await until(() => !waiting());
+        $$("#t [data-dt-select]")[0].click(); $("[data-dt-delete-rows]").click();
+        await until(() => !waiting());
+        log("done", $$("#t [data-dt-body] > tr").length);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+      fetch("/finish");
+    });
+    </script><img src="/hold" alt="" hidden>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    *page.lock().unwrap() = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive_url(&format!("http://127.0.0.1:{port}/")) else { return };
+    assert_eq!(result.lines().collect::<Vec<_>>(), ["done 2"], "\n{result}");
+    assert_eq!(
+        *log.lock().unwrap(),
+        [
+            r#"PATCH /people/p1 {"name":"Zed"}"#,
+            // Bob's blank name is required: not sent. The new row is made, then known as p9.
+            r#"POST /people {"status":"open"}"#,
+            r#"PATCH /people/p9 {"name":"Cy"}"#,
+            "DELETE /people/p1",
+        ]
+    );
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the
