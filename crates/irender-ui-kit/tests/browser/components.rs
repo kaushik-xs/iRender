@@ -1118,6 +1118,71 @@ root:
     );
 }
 
+/// `ui-sortable-list` with `childrenField`: items inside items, moved in and out and along
+/// by the keys and by dragging (as far in as the pointer is to the right), and removed
+/// with what's inside them.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn sortable_list_nests_items() {
+    check(
+        "sortable-nested",
+        r##"
+state:
+  plan:
+    - { id: a, label: Alpha, children: [ { id: a1, label: One }, { id: a2, label: Two } ] }
+    - { id: b, label: Bravo }
+    - { id: c, label: Charlie }
+root: { type: ui-sortable-list, attrs: { id: t }, props: { bind: plan, childrenField: children, maxDepth: 2, numbered: true, removable: true }, style: { width: 320px } }
+"##,
+        r##"
+        const shape = (l = S().plan) => l.map((v) => v.id + (v.children?.length ? "(" + shape(v.children) + ")" : "")).join(",");
+        const grip = (k) => $(`[data-sl-item="${k}"] > [data-sl-row] > [data-sl-grip]`);
+        const press = (k, key, o = {}) => grip(k).dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...o }));
+        log(shape(), $$("[data-sl-place]").map((p) => p.textContent).join(","), $(`[data-sl-item="a2"]`).dataset.slDepth);
+        // Bravo, picked up: → into Alpha (last), ↑ before Two, ← out after Alpha.
+        grip("b").focus(); press("b", " "); press("b", "ArrowRight"); await wait(20);
+        log("in", shape(), $("[data-sl-live]").textContent, document.activeElement === grip("b"), !!$('[data-sl-item="b"][data-sl-picked]'));
+        press("b", "ArrowUp"); await wait(20); log("up", shape());
+        // First in Alpha now, with nothing before it to go into.
+        press("b", "ArrowUp"); await wait(20); press("b", "ArrowRight"); await wait(20); log("too deep", shape());
+        press("b", "ArrowLeft"); await wait(20); log("out", shape(), $("[data-sl-live]").textContent);
+        press("b", "Escape"); await wait(20); log("put back", shape());
+        // Alt and the arrows, straight away: Charlie into Bravo.
+        grip("c").focus(); press("c", "ArrowRight", { altKey: true }); await wait(20); log("alt", shape());
+        // Dragged: One down below Charlie and to the left, out to the top level, last.
+        const g = grip("a1"), from = g.getBoundingClientRect(), to = $('[data-sl-item="c"] > [data-sl-row]').getBoundingClientRect();
+        const p = (type, x, y) => g.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 4, pointerType: "mouse", button: 0, clientX: x, clientY: y }));
+        p("pointerdown", from.left + 4, from.top + 4); p("pointermove", from.left + 10, from.top + 20);
+        p("pointermove", from.left - 60, to.bottom - 2); await wait(10);
+        log("line", $$("[data-sl-drop]").map((r) => r.parentElement.dataset.slItem + ":" + r.dataset.slDrop + ":" + r.style.getPropertyValue("--sl-indent")).join(","));
+        p("pointerup", from.left - 60, to.bottom - 2); await wait(20);
+        log("dragged out", shape());
+        // Dragged right over Alpha's last child: in, as far as the row above allows.
+        const g2 = grip("a1"), f2 = g2.getBoundingClientRect(), two = $('[data-sl-item="a2"] > [data-sl-row]').getBoundingClientRect();
+        const q = (type, x, y) => g2.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 5, pointerType: "mouse", button: 0, clientX: x, clientY: y }));
+        q("pointerdown", f2.left + 4, f2.top + 4); q("pointermove", f2.left + 10, f2.top - 10);
+        q("pointermove", f2.left + 30, two.bottom - 2); await wait(10); q("pointerup", f2.left + 30, two.bottom - 2); await wait(20);
+        log("dragged in", shape());
+        // Removing Alpha takes what's in it.
+        $('[data-sl-item="a"] > [data-sl-row] > [data-sl-remove]').click(); await wait(20);
+        log("removed", shape(), $("[data-sl-live]").textContent, document.activeElement.closest("[data-sl-item]")?.dataset.slItem);
+"##,
+        &[
+            "a(a1,a2),b,c 1,1.1,1.2,2,3 1",
+            "in a(a1,a2,b),c Bravo moved into Alpha, 3 of 3 true true",
+            "up a(a1,b,a2),c",
+            "too deep a(b,a1,a2),c",
+            "out a(a1,a2),b,c Bravo moved to the top level, 2 of 3",
+            "put back a(a1,a2),b,c",
+            "alt a(a1,a2),b(c)",
+            "line c:after:-24px",
+            "dragged out a(a2),b(c),a1",
+            "dragged in a(a2,a1),b(c)",
+            "removed b(c) Alpha and 2 inside it removed b",
+        ],
+    );
+}
+
 /// `ui-form-builder`: a group of conditions inside the conditions (`(a) && ((b) || (c))`),
 /// in the preview, in the inspector, written into the document and read back from it.
 #[test]

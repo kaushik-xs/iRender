@@ -2,7 +2,9 @@
 //! touch or pen) or from the keyboard, with items removed if asked. The items are the
 //! runtime's own keyed list, so `sortable.js` only writes the new order to state and the
 //! runtime moves the items; their content is the component's children, with the item and
-//! its place in scope, or the item's label.
+//! its place in scope, or the item's label. With `childrenField` it's a list of lists:
+//! items inside items, drawn by the script from state (labels only), the server drawing
+//! them as they start.
 
 use crate::{MUTED, SUBTLE, TEXT, each_item, expr_val, forms, lit, state};
 use irender_core::{
@@ -24,7 +26,13 @@ const PROPS: &[PropDef] = &[
     PropDef::new("itemKey", PropKind::String, "With objects, the field that tells them apart (default `id`)"),
     PropDef::new("labelField", PropKind::String, "With objects, the field shown and read out for each (default `label`)"),
     PropDef::new("group", PropKind::String, "Lists with the same group take items from each other: dragged across, or picked up and moved with ←/→ (`transfer` fires on both)"),
-    PropDef::new("numbered", PropKind::Bool, "Each item's place before it: 1, 2, 3"),
+    PropDef::new(
+        "childrenField",
+        PropKind::String,
+        "Items inside items: the field holding each one's list (e.g. `children`). Dragged in and out (to the right goes in) or, picked up, → into the item before and ← out; each shows its label",
+    ),
+    PropDef::new("maxDepth", PropKind::Number, "With `childrenField`: how many levels deep items may go, 1–8 (default 3)"),
+    PropDef::new("numbered", PropKind::Bool, "Each item's place before it: 1, 2, 3 (1.1, 1.2 inside)"),
     PropDef::new("removable", PropKind::Bool, "A button on each item that takes it out of the list"),
     PropDef::new("emptyText", PropKind::Any, "Shown while the list is empty (default `Nothing here yet`)"),
     PropDef::new("label", PropKind::Any, "Names the list for screen readers (default `List`)"),
@@ -118,6 +126,35 @@ static LIST: LazyLock<StyleBlock> = LazyLock::new(|| {
         // The list always holds the runtime's `<template>`: it's empty without an item.
         .nest("& [data-sl-items]:has(> li) + [data-sl-empty]", pairs(&[("display", "none")]))
         .nest("& [data-sl-help]", pairs(&[("display", "none")]))
+        // A list of lists: each item a row, and what's in it set in under it.
+        .nest("&[data-sl-nested] [data-sl-item]", pairs(&[("display", "block"), ("min-height", "0"), ("padding", "0"), ("border", "0"), ("background", "none")]))
+        .nest(
+            "&[data-sl-nested] [data-sl-row]",
+            pairs(&[
+                ("position", "relative"),
+                ("display", "flex"),
+                ("align-items", "center"),
+                ("gap", gap!(8)),
+                ("min-height", ctl!(40)),
+                ("padding", pad!(6, 8, 6, 4)),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
+                ("background", "var(--color-card, var(--color-surface))"),
+            ]),
+        )
+        .nest("&[data-sl-nested] [data-sl-inner]", pairs(&[("margin-top", gap!(6)), ("margin-inline-start", "24px")]))
+        .nest(
+            "&[data-sl-nested] [data-sl-item][data-sl-picked] > [data-sl-row]",
+            pairs(&[("border-color", "var(--color-primary)"), ("box-shadow", "0 0 0 1px var(--color-primary), var(--elevation-popover, 0 6px 18px rgb(0 0 0 / 0.12))")]),
+        )
+        .nest("&[data-sl-nested] [data-sl-item][data-sl-picked]", pairs(&[("box-shadow", "none")]))
+        .nest(
+            "&[data-sl-nested] [data-sl-row][data-sl-drop]::before",
+            pairs(&[("content", "''"), ("position", "absolute"), ("left", "var(--sl-indent, 0px)"), ("right", "0"), ("height", "2px"), ("border-radius", "1px"), ("background", "var(--color-primary)"), ("pointer-events", "none")]),
+        )
+        .nest("&[data-sl-nested] [data-sl-row][data-sl-drop=before]::before", pairs(&[("top", "-5px")]))
+        .nest("&[data-sl-nested] [data-sl-row][data-sl-drop=after]::before", pairs(&[("bottom", "-5px")]))
+        .nest("& [data-sl-grip-svg]", pairs(&[("display", "none")]))
         .nest(
             "& [data-sl-live]",
             pairs(&[("position", "absolute"), ("width", "1px"), ("height", "1px"), ("overflow", "hidden"), ("clip-path", "inset(50%)"), ("white-space", "nowrap")]),
@@ -173,6 +210,62 @@ impl Component for SortableList {
         let (numbered, removable) = (flag("numbered"), flag("removable"));
         let group = cx.prop_string(node, "group").filter(|g| !g.is_empty());
         cx.global_js("ui-sortable-list", SCRIPT);
+        if let Some(kids) = cx.prop_string(node, "childrenField").filter(|k| !k.is_empty()) {
+            if !objects {
+                return Err(RenderError::new(node, "`childrenField` needs the items to be objects"));
+            }
+            if group.is_some() {
+                return Err(RenderError::new(node, "a list with `childrenField` can't share a `group`: its ← and → move items in and out"));
+            }
+            if !node.children.is_empty() {
+                return Err(RenderError::new(node, "a list with `childrenField` shows each item's label (`labelField`): it takes no children"));
+            }
+            let depth = match crate::widget::number(cx, node, "maxDepth") {
+                None => 3,
+                Some(d) if (1.0..=8.0).contains(&d) && d.fract() == 0.0 => d as usize,
+                Some(_) => return Err(RenderError::new(node, "`maxDepth` is a whole number of levels from 1 to 8")),
+            };
+            let tree = Tree { kids: &kids, key: &item_key, label: &label_field, numbered, removable };
+            if let Some(found) = tree.check(&values, 1, depth) {
+                return Err(RenderError::new(node, found));
+            }
+            let mut root = cx.element("div", node);
+            root.base_style_ref(&LIST).attr("data-sl-nested", true).behavior(
+                "ui-sortable-list",
+                json!({ "bind": key, "childrenField": kids, "maxDepth": depth, "itemKey": item_key, "labelField": label_field, "numbered": numbered, "removable": removable }),
+            );
+            if let Some(d) = node.prop("disabled") {
+                root.attr("data-disabled", d.clone());
+            }
+            cx.open(&root, node)?;
+            let help = instance_help_id(cx, node);
+            let mut h = Element::new("span");
+            h.attr("id", help.clone()).attr("data-sl-help", true).text(lit(cx.label(
+                "Space picks it up; the up and down arrow keys move it, right puts it inside the item before, left takes it out; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.",
+            )));
+            cx.open(&h, node)?;
+            cx.close("span");
+            let mut svg = Element::new("template");
+            svg.attr("data-sl-grip-svg", true);
+            cx.open(&svg, node)?;
+            cx.markup(GRIP);
+            cx.close("template");
+            let mut list = Element::new("ol");
+            list.attr("data-sl-items", true).attr("aria-label", node.prop("label").cloned().unwrap_or_else(|| lit(cx.label("List"))));
+            cx.open(&list, node)?;
+            tree.draw(cx, node, &values, 0, "", &help)?;
+            cx.close("ol");
+            let mut empty = Element::new("p");
+            empty.attr("data-sl-empty", true).text(node.prop("emptyText").cloned().unwrap_or_else(|| lit(cx.label("Nothing here yet"))));
+            cx.open(&empty, node)?;
+            cx.close("p");
+            let mut live = Element::new("div");
+            live.attr("data-sl-live", true).attr("role", "status").attr("aria-live", "assertive");
+            cx.open(&live, node)?;
+            cx.close("div");
+            cx.close("div");
+            return Ok(());
+        }
 
         let mut root = cx.element("div", node);
         root.base_style_ref(&LIST).behavior(
@@ -263,4 +356,92 @@ impl Component for SortableList {
 /// An id for the list's instructions, unique on the page.
 fn instance_help_id(cx: &RenderCx<'_>, node: &Node) -> Val {
     crate::id_with(&crate::instance_id(cx, node, "sortable"), "-help")
+}
+
+/// A list of lists, as `childrenField` keeps it: checked, and drawn as it starts.
+struct Tree<'a> {
+    kids: &'a str,
+    key: &'a str,
+    label: &'a str,
+    numbered: bool,
+    removable: bool,
+}
+
+impl Tree<'_> {
+    fn inside<'v>(&self, v: &'v Json) -> &'v [Json] {
+        v.get(self.kids).and_then(Json::as_array).map_or(&[], Vec::as_slice)
+    }
+
+    /// What's wrong, if anything: an item that isn't an object, has no key, shares one, or
+    /// is deeper than `most`.
+    fn check(&self, list: &[Json], depth: usize, most: usize) -> Option<String> {
+        let mut seen = std::collections::HashSet::new();
+        self.check_in(list, depth, most, &mut seen)
+    }
+
+    fn check_in(&self, list: &[Json], depth: usize, most: usize, seen: &mut std::collections::HashSet<String>) -> Option<String> {
+        for v in list {
+            let Some(k) = v.as_object().and_then(|o| o.get(self.key)).filter(|k| !k.is_null()) else {
+                return Some(format!("every item, at any depth, is an object with a `{}`", self.key));
+            };
+            let k = expr::stringify(k);
+            if !seen.insert(k.clone()) {
+                return Some(format!("two items have the `{}` `{k}`: each needs its own, at any depth", self.key));
+            }
+            let inner = self.inside(v);
+            if !inner.is_empty() && depth >= most {
+                return Some(format!("`{k}` has items inside it deeper than `maxDepth` ({most})"));
+            }
+            if let Some(e) = self.check_in(inner, depth + 1, most, seen) {
+                return Some(e);
+            }
+        }
+        None
+    }
+
+    fn draw(&self, cx: &mut RenderCx<'_>, node: &Node, list: &[Json], depth: usize, place: &str, help: &Val) -> Result<(), RenderError> {
+        for (i, v) in list.iter().enumerate() {
+            let key = expr::stringify(&v[self.key]);
+            let name = v.get(self.label).filter(|x| !x.is_null()).map_or_else(|| key.clone(), expr::stringify);
+            let here = if place.is_empty() { (i + 1).to_string() } else { format!("{place}.{}", i + 1) };
+            let mut li = Element::new("li");
+            li.attr("data-sl-item", key.clone()).attr("data-sl-depth", depth.to_string());
+            cx.open(&li, node)?;
+            let mut row = Element::new("div");
+            row.attr("data-sl-row", true);
+            cx.open(&row, node)?;
+            let mut grip = Element::new("button");
+            grip.attr("type", "button").attr("data-sl-grip", true).attr("aria-label", cx.label_with("Move {name}", &[("name", &name)])).attr("aria-describedby", help.clone());
+            cx.open(&grip, node)?;
+            cx.markup(GRIP);
+            cx.close("button");
+            if self.numbered {
+                let mut p = Element::new("span");
+                p.attr("data-sl-place", true).attr("aria-hidden", "true").text(lit(here.clone()));
+                cx.open(&p, node)?;
+                cx.close("span");
+            }
+            let mut body = Element::new("div");
+            body.attr("data-sl-body", true).text(lit(name.clone()));
+            cx.open(&body, node)?;
+            cx.close("div");
+            if self.removable {
+                let mut x = Element::new("button");
+                x.attr("type", "button").attr("data-sl-remove", true).attr("aria-label", cx.label_with("Remove {name}", &[("name", &name)])).text(lit("✕"));
+                cx.open(&x, node)?;
+                cx.close("button");
+            }
+            cx.close("div");
+            let inner = self.inside(v);
+            if !inner.is_empty() {
+                let mut ol = Element::new("ol");
+                ol.attr("data-sl-items", true).attr("data-sl-inner", true).attr("aria-label", name.clone());
+                cx.open(&ol, node)?;
+                self.draw(cx, node, inner, depth + 1, &here, help)?;
+                cx.close("ol");
+            }
+            cx.close("li");
+        }
+        Ok(())
+    }
 }

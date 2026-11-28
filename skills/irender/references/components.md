@@ -785,7 +785,9 @@ ui-sortable-list: A list in state put in order by dragging each item's grip, or 
   itemKey      string  With objects, the field that tells them apart (default `id`)
   labelField   string  With objects, the field shown and read out for each (default `label`)
   group        string  Lists with the same group take items from each other: dragged across, or picked up and moved with ←/→ (`transfer` fires on both)
-  numbered     bool  Each item's place before it: 1, 2, 3
+  childrenField string  Items inside items: the field holding each one's list (e.g. `children`). Dragged in and out (to the right goes in) or, picked up, → into the item before and ← out; each shows its label
+  maxDepth     number  With `childrenField`: how many levels deep items may go, 1–8 (default 3)
+  numbered     bool  Each item's place before it: 1, 2, 3 (1.1, 1.2 inside)
   removable    bool  A button on each item that takes it out of the list
   emptyText    any  Shown while the list is empty (default `Nothing here yet`)
   label        any  Names the list for screen readers (default `List`)

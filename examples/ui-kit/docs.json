@@ -318,7 +318,7 @@
    "group": "Forms",
    "title": "Sortable list",
    "nav": "Sortable list",
-   "summary": "A list in state put in order: drag an item's grip with a mouse, a finger or a pen, or from the keyboard (Space picks it up, the arrows move it, Space puts it down, Escape puts it back). Items can be removed, numbered, and drawn with your own content; the new order goes straight back to state.",
+   "summary": "A list in state put in order: drag an item's grip with a mouse, a finger or a pen, or from the keyboard (Space picks it up, the arrows move it, Space puts it down, Escape puts it back). Items can be removed, numbered, and drawn with your own content; the new order goes straight back to state. With childrenField, items go inside items: drag right to put one inside, left to take it out, or → and ← once it's picked up.",
    "usage": "- type: ui-sortable-list\n  props: { bind: priorities, numbered: true, removable: true }\n  children:\n    - { type: text, props: { value: \"{{ item.label }}\" } }\n- { type: ui-sortable-list, props: { bind: menuOrder } }   # plain values",
    "components": [
     "ui-sortable-list"

@@ -1568,6 +1568,18 @@ fn sortable_list_structure_and_mistakes() {
     let err = |state: Json| render_with(json!({ "type": "ui-sortable-list", "props": { "bind": "k" } }), state, json!({})).unwrap_err().to_string();
     assert!(err(json!({ "k": [{ "id": 1 }, { "name": "x" }] })).contains("item 2 has no `id`"));
     assert!(err(json!({ "k": "abc" })).contains("must hold a list"));
+
+    // A list of lists: drawn as it starts, items inside their parent's own list.
+    let tree = json!({ "k": [{ "id": "a", "label": "Alpha", "children": [{ "id": "b", "label": "Bravo" }] }] });
+    let nested = plain(&render_with(json!({ "type": "ui-sortable-list", "props": { "bind": "k", "childrenField": "children", "numbered": true, "id": "t" } }), tree.clone(), json!({})).unwrap().body);
+    assert!(nested.contains("data-sl-nested") && nested.contains(r#"<li data-sl-item="b" data-sl-depth="1"><div data-sl-row><button type="button" data-sl-grip aria-label="Move Bravo" aria-describedby="t-help">"#), "{nested}");
+    assert!(nested.contains(r#"<ol data-sl-items data-sl-inner aria-label="Alpha">"#) && nested.contains(r#"<span data-sl-place aria-hidden="true">1.1</span>"#), "{nested}");
+    let nerr = |props: Json, state: Json| render_with(json!({ "type": "ui-sortable-list", "props": props }), state, json!({})).unwrap_err().to_string();
+    assert!(nerr(json!({ "bind": "k", "childrenField": "children", "maxDepth": 1 }), tree.clone()).contains("deeper than `maxDepth` (1)"));
+    assert!(nerr(json!({ "bind": "k", "childrenField": "children", "group": "g" }), tree.clone()).contains("can't share a `group`"));
+    assert!(nerr(json!({ "bind": "k", "childrenField": "children" }), json!({ "k": [{ "id": "a", "children": [{ "id": "a" }] }] })).contains("two items have the `id` `a`"));
+    assert!(nerr(json!({ "bind": "k", "childrenField": "children" }), json!({ "k": [{ "id": "a", "children": [{ "label": "x" }] }] })).contains("every item, at any depth"));
+    assert!(nerr(json!({ "bind": "k", "childrenField": "children", "maxDepth": 9 }), tree).contains("`maxDepth` is a whole number"));
 }
 
 #[test]

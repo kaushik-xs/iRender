@@ -286,6 +286,11 @@ state:
   gaugeLoad: 42
   gaugeShift: { max: 60, bands: [ { to: 40, tone: success, label: Normal }, { to: 52, tone: warning, label: Busy }, { tone: danger, label: Over } ] }
   oklchColor: "oklch(62.8% 0.21 264)"
+  outline:
+    - { id: o1, label: Introduction, children: [ { id: o11, label: Why this matters }, { id: o12, label: Who it's for } ] }
+    - { id: o2, label: Setting up, children: [ { id: o21, label: Install } ] }
+    - { id: o3, label: First steps }
+    - { id: o4, label: Going further }
   priorities:
     - { id: p1, label: Fix the checkout timeout, owner: Asha, tone: danger }
     - { id: p2, label: Ship the new onboarding, owner: Ravi, tone: primary }
@@ -1585,6 +1590,11 @@ root:
                           children:
                             - { type: ui-sortable-list, props: { bind: slShown, group: columns, label: Shown columns, emptyText: None shown } }
                             - { type: ui-sortable-list, props: { bind: slHidden, group: columns, label: Hidden columns, emptyText: None hidden } }
+                    - type: stack
+                      props: { gap: 8 }
+                      children:
+                        - { type: ui-label, props: { text: "An outline, items inside items: drag right to put one inside, left to take it out; picked up, → and ←" } }
+                        - { type: ui-sortable-list, props: { bind: outline, childrenField: children, numbered: true, label: Outline } }
                 - { type: if, props: { when: "{{ api.sortable_list.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.sortable_list }}", as: c }

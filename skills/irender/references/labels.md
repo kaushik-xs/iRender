@@ -2090,20 +2090,30 @@ root: …
 
 ```yaml
 "{name} moved to {list}, {n} of {total}": "{name} moved to {list}, {n} of {total}"
+"{name} moved into {parent}, {n} of {total}": "{name} moved into {parent}, {n} of {total}"
+"{name} moved to the top level, {n} of {total}": "{name} moved to the top level, {n} of {total}"
+"Move {name}": "Move {name}"
+"Remove {name}": "Remove {name}"
+"{name} picked up, at {n} of {total}": "{name} picked up, at {n} of {total}"
+"{name} put down": "{name} put down"
+"{name} put back": "{name} put back"
+"{name} removed": "{name} removed"
+"{name} and {n} inside it removed": "{name} and {n} inside it removed"
 "{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
 "{name} put back at {n}": "{name} put back at {n}"
 "{name} put down at {n} of {total}": "{name} put down at {n} of {total}"
-"{name} picked up, at {n} of {total}": "{name} picked up, at {n} of {total}"
-"{name} removed": "{name} removed"
 ```
 
 `sortable.rs`
 
 ```yaml
-"Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
-"Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
+"Space picks it up; the up and down arrow keys move it, right puts it inside the item before, left takes it out; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the up and down arrow keys move it, right puts it inside the item before, left takes it out; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
 "List": "List"
 "Nothing here yet": "Nothing here yet"
+"Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it, left and right to the other lists; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
+"Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away.": "Space picks it up; the arrow keys move it; Space puts it down, Escape puts it back. Alt and the arrow keys move it straight away."
+"Move {name}": "Move {name}"
+"Remove {name}": "Remove {name}"
 ```
 
 `stat.js`

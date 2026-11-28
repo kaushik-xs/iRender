@@ -8,6 +8,7 @@
 // way for it, and moved items glide to their places (not with reduced motion).
 (window.__irenderBehaviors ||= {})["ui-sortable-list"] = (el, api) => {
   const cfg = api.config;
+  if (cfg.childrenField) return nestedList(el, api);
   const L = (text, vars) => window.__irender.label(text, vars);
   const live = el.querySelector("[data-sl-live]");
   const say = (msg) => live && (live.textContent = msg);
@@ -289,3 +290,286 @@
     if (next.length) queueMicrotask(() => itemOf(neighbour)?.querySelector("[data-sl-grip]")?.focus());
   });
 };
+
+// A list of lists (`childrenField`): items inside items, drawn here from state as nested
+// lists of labels. Dragged, an item goes between the rows it's over, and as far in as the
+// pointer is to the right (a level every 24 px, no deeper than the row above allows);
+// picked up, ↑/↓ move it among its siblings, → into the one before it (last), ← out of its
+// parent (after it). Alt and the arrows do the same straight away.
+function nestedList(el, api) {
+  const cfg = api.config, kids = cfg.childrenField, deepest = cfg.maxDepth ?? 3;
+  const L = (text, vars) => window.__irender.label(text, vars);
+  const live = el.querySelector("[data-sl-live]"), root = el.querySelector("[data-sl-items]");
+  const say = (msg) => live && (live.textContent = msg);
+  const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+  const off = () => el.hasAttribute("data-disabled") && el.getAttribute("data-disabled") !== "false";
+  const tree = () => (Array.isArray(api.state[cfg.bind]) ? api.state[cfg.bind].filter(isObj) : []);
+  const keyOf = (v) => String(v?.[cfg.itemKey]);
+  const nameOf = (v) => String(v?.[cfg.labelField] ?? v?.name ?? v?.title ?? keyOf(v));
+  const inside = (v) => (Array.isArray(v?.[kids]) ? v[kids].filter(isObj) : []);
+  // Every item, in the order shown: its depth, its parent's key and its place there.
+  function flat(list = tree(), depth = 0, parent = null, out = []) {
+    list.forEach((v, i) => {
+      out.push({ v, key: keyOf(v), depth, parent, i, n: list.length });
+      flat(inside(v), depth + 1, keyOf(v), out);
+    });
+    return out;
+  }
+  // How many levels an item and what's in it take.
+  const height = (v) => 1 + Math.max(0, ...inside(v).map(height));
+  // The tree without `key`, and that item.
+  function without(list, key) {
+    let gone = null;
+    const walk = (l) => l.filter((v) => (keyOf(v) === key ? ((gone = v), false) : true)).map((v) => (inside(v).length ? { ...v, [kids]: walk(inside(v)) } : v));
+    return [walk(list), gone];
+  }
+  // The tree with `item` put in `parent` (null: the top) at place `at`.
+  function put(list, item, parent, at) {
+    if (parent === null) return [...list.slice(0, at), item, ...list.slice(at)];
+    return list.map((v) => (keyOf(v) === parent ? { ...v, [kids]: [...inside(v).slice(0, at), item, ...inside(v).slice(at)] } : inside(v).length ? { ...v, [kids]: put(inside(v), item, parent, at) } : v));
+  }
+  const find = (key) => flat().find((r) => r.key === key);
+  function write(next, key, msg) {
+    api.set(cfg.bind, next);
+    api.emit("change", { value: next, moved: find(key)?.v ?? null });
+    if (msg) say(msg);
+    draw();
+    queueMicrotask(() => {
+      const li = root.querySelector(`[data-sl-item="${CSS.escape(key)}"]`);
+      if (picked === key) li?.setAttribute("data-sl-picked", "");
+      li?.querySelector(":scope > [data-sl-row] > [data-sl-grip]")?.focus();
+    });
+  }
+  // Labels: "{name} moved into {parent}, {n} of {total}", "{name} moved to the top level, {n} of {total}"
+  function moveTo(key, parent, at) {
+    const [rest, item] = without(tree(), key);
+    if (!item) return;
+    const next = put(rest, item, parent, at), r = flat(next).find((x) => x.key === key);
+    const p = parent === null ? null : flat(next).find((x) => x.key === parent);
+    write(next, key, p ? L("{name} moved into {parent}, {n} of {total}", { name: nameOf(item), parent: nameOf(p.v), n: r.i + 1, total: r.n }) : L("{name} moved to the top level, {n} of {total}", { name: nameOf(item), n: r.i + 1, total: r.n }));
+  }
+  // One step from the keys: `up`/`down` among its siblings, `in` into the one before it, `out` after its parent.
+  function step(key, how) {
+    const r = find(key);
+    if (!r) return;
+    const siblings = r.parent === null ? tree() : inside(find(r.parent).v);
+    if (how === "up" && r.i > 0) return moveTo(key, r.parent, r.i - 1);
+    if (how === "down" && r.i < r.n - 1) return moveTo(key, r.parent, r.i + 1);
+    if (how === "in" && r.i > 0 && r.depth + height(r.v) < deepest) {
+      const into = siblings[r.i - 1];
+      return moveTo(key, keyOf(into), inside(into).length);
+    }
+    if (how === "out" && r.parent !== null) {
+      const p = find(r.parent);
+      // After its parent: in the parent's own list, one past it (the parent's place counts it still).
+      const [rest] = without(tree(), key), at = (p.parent === null ? rest : inside(flat(rest).find((x) => x.key === p.parent).v)).findIndex((v) => keyOf(v) === p.key);
+      return moveTo(key, p.parent, at + 1);
+    }
+  }
+
+  // ---- drawing, from state
+  const grip = document.createElement("template");
+  grip.innerHTML = el.querySelector("[data-sl-grip-svg]")?.innerHTML ?? "";
+  const help = el.querySelector("[data-sl-help]")?.id;
+  function item(v, depth, place) {
+    const li = document.createElement("li");
+    li.setAttribute("data-sl-item", keyOf(v));
+    li.setAttribute("data-sl-depth", String(depth));
+    const row = document.createElement("div");
+    row.setAttribute("data-sl-row", "");
+    const g = document.createElement("button");
+    g.type = "button";
+    g.setAttribute("data-sl-grip", "");
+    // Labels: "Move {name}"
+    g.setAttribute("aria-label", L("Move {name}", { name: nameOf(v) }));
+    if (help) g.setAttribute("aria-describedby", help);
+    g.disabled = off();
+    g.append(grip.content.cloneNode(true));
+    row.append(g);
+    if (cfg.numbered) {
+      const n = document.createElement("span");
+      n.setAttribute("data-sl-place", "");
+      n.setAttribute("aria-hidden", "true");
+      n.textContent = place;
+      row.append(n);
+    }
+    const body = document.createElement("div");
+    body.setAttribute("data-sl-body", "");
+    body.textContent = nameOf(v);
+    row.append(body);
+    if (cfg.removable) {
+      const x = document.createElement("button");
+      x.type = "button";
+      x.setAttribute("data-sl-remove", "");
+      // Labels: "Remove {name}"
+      x.setAttribute("aria-label", L("Remove {name}", { name: nameOf(v) }));
+      x.disabled = off();
+      x.textContent = "✕";
+      row.append(x);
+    }
+    li.append(row);
+    const cs = inside(v);
+    if (cs.length) {
+      const ol = document.createElement("ol");
+      ol.setAttribute("data-sl-items", "");
+      ol.setAttribute("data-sl-inner", "");
+      ol.setAttribute("aria-label", nameOf(v));
+      ol.append(...cs.map((c, i) => item(c, depth + 1, `${place}.${i + 1}`)));
+      li.append(ol);
+    }
+    return li;
+  }
+  // `redrawing`: the focused grip goes with the old rows, which isn't leaving the list.
+  let seen = null, redrawing = false;
+  function draw() {
+    seen = JSON.stringify(tree());
+    redrawing = true;
+    root.replaceChildren(...tree().map((v, i) => item(v, 0, String(i + 1))));
+    redrawing = false;
+  }
+
+  // ---- the keys
+  let picked = null, pickedAt = null;
+  el.addEventListener("keydown", (e) => {
+    const g = e.target.closest?.("[data-sl-grip]");
+    if (!g || off()) return;
+    const key = g.closest("[data-sl-item]").getAttribute("data-sl-item"), r = find(key);
+    const how = { ArrowUp: "up", ArrowDown: "down", ArrowRight: "in", ArrowLeft: "out" }[e.key];
+    // Labels: "{name} picked up, at {n} of {total}", "{name} put down", "{name} put back"
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      if (picked === key) {
+        picked = null;
+        g.closest("[data-sl-item]").removeAttribute("data-sl-picked");
+        return say(L("{name} put down", { name: nameOf(r.v) }));
+      }
+      picked = key;
+      pickedAt = { parent: r.parent, at: r.i };
+      g.closest("[data-sl-item]").setAttribute("data-sl-picked", "");
+      return say(L("{name} picked up, at {n} of {total}", { name: nameOf(r.v), n: r.i + 1, total: r.n }));
+    }
+    if (e.key === "Escape" && picked === key) {
+      e.preventDefault();
+      picked = null;
+      moveTo(key, pickedAt.parent, pickedAt.at);
+      return say(L("{name} put back", { name: nameOf(r.v) }));
+    }
+    if (how && (picked === key || e.altKey)) return e.preventDefault(), step(key, how);
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      // Between the grips, in the order shown.
+      e.preventDefault();
+      const all = [...root.querySelectorAll("[data-sl-grip]")], i = all.indexOf(g);
+      all[i + (e.key === "ArrowDown" ? 1 : -1)]?.focus();
+    }
+  });
+  el.addEventListener("focusout", (e) => {
+    if (picked !== null && !redrawing && !el.contains(e.relatedTarget)) {
+      root.querySelector("[data-sl-picked]")?.removeAttribute("data-sl-picked");
+      picked = null;
+    }
+  });
+
+  // ---- dragging: where it'd go, from the rows it's between and how far right the pointer is
+  const INDENT = 24;
+  let drag = null;
+  function project(e) {
+    const rows = flat().filter((r) => r.key !== drag.key && !drag.inner.has(r.key));
+    const rects = rows.map((r) => root.querySelector(`[data-sl-item="${CSS.escape(r.key)}"] > [data-sl-row]`).getBoundingClientRect());
+    let p = rects.findIndex((b) => e.clientY < b.top + b.height / 2);
+    if (p < 0) p = rows.length;
+    const prev = rows[p - 1], next = rows[p];
+    const most = Math.min(prev ? prev.depth + 1 : 0, deepest - drag.height), least = next ? next.depth : 0;
+    const depth = Math.max(least, Math.min(most, drag.depth + Math.round((e.clientX - drag.x) / INDENT)));
+    // Its parent and place: the nearest row above at this depth is the sibling it follows;
+    // one a level out is its parent, which it starts.
+    let parent = null, at = 0;
+    for (let j = p - 1; j >= 0; j--) {
+      if (rows[j].depth === depth) {
+        parent = rows[j].parent;
+        at = rows[j].i + 1;
+        break;
+      }
+      if (rows[j].depth === depth - 1) {
+        parent = rows[j].key;
+        at = 0;
+        break;
+      }
+    }
+    // Its place counts the item itself when it's in the same list, before it.
+    const me = find(drag.key);
+    if (me.parent === parent && me.i < at) at -= 1;
+    return { parent, at, depth, mark: prev ?? next, after: !!prev, p };
+  }
+  function unmark() {
+    for (const n of root.querySelectorAll("[data-sl-drop]")) n.removeAttribute("data-sl-drop"), n.style.removeProperty("--sl-indent");
+  }
+  el.addEventListener("pointerdown", (e) => {
+    const g = e.target.closest?.("[data-sl-grip]");
+    if (!g || off() || g.disabled || (e.pointerType === "mouse" && e.button !== 0)) return;
+    e.preventDefault();
+    g.focus({ preventScroll: true });
+    const key = g.closest("[data-sl-item]").getAttribute("data-sl-item"), r = find(key);
+    const inner = new Set(flat(inside(r.v)).map((x) => x.key));
+    drag = { key, id: e.pointerId, x: e.clientX, y: e.clientY, depth: r.depth, height: height(r.v), inner, moved: false, to: null };
+    try { g.setPointerCapture(e.pointerId); } catch { /* not a pointer it tracks */ }
+  });
+  el.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 4) return;
+    const li = root.querySelector(`[data-sl-item="${CSS.escape(drag.key)}"]`);
+    if (!drag.moved) {
+      drag.moved = true;
+      el.setAttribute("data-sl-active", "");
+      li?.setAttribute("data-sl-dragging", "");
+    }
+    if (li) li.style.transform = `translate(${e.clientX - drag.x}px, ${e.clientY - drag.y}px)`;
+    unmark();
+    drag.to = project(e);
+    // A line where it'd land, set in as far as its depth.
+    const m = drag.to.mark && root.querySelector(`[data-sl-item="${CSS.escape(drag.to.mark.key)}"] > [data-sl-row]`);
+    if (m) {
+      m.setAttribute("data-sl-drop", drag.to.after ? "after" : "before");
+      m.style.setProperty("--sl-indent", `${(drag.to.depth - (drag.to.mark.depth ?? 0)) * INDENT}px`);
+    }
+  });
+  function end(e, done) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag;
+    drag = null;
+    unmark();
+    el.removeAttribute("data-sl-active");
+    const li = root.querySelector(`[data-sl-item="${CSS.escape(d.key)}"]`);
+    li?.removeAttribute("data-sl-dragging");
+    if (li) li.style.transform = "";
+    if (done && d.moved && d.to) {
+      const r = find(d.key);
+      if (r.parent !== d.to.parent || r.i !== d.to.at) moveTo(d.key, d.to.parent, d.to.at);
+    }
+  }
+  el.addEventListener("pointerup", (e) => end(e, true));
+  el.addEventListener("pointercancel", (e) => end(e, false));
+
+  // ---- removing: an item and everything in it
+  // Labels: "{name} removed", "{name} and {n} inside it removed"
+  el.addEventListener("click", (e) => {
+    const x = e.target.closest?.("[data-sl-remove]");
+    if (!x || off()) return;
+    const key = x.closest("[data-sl-item]").getAttribute("data-sl-item"), r = find(key);
+    const order = flat().map((f) => f.key), i = order.indexOf(key);
+    const [next] = without(tree(), key), n = flat(inside(r.v)).length;
+    api.set(cfg.bind, next);
+    api.emit("change", { value: next, removed: r.v });
+    say(n ? L("{name} and {n} inside it removed", { name: nameOf(r.v), n }) : L("{name} removed", { name: nameOf(r.v) }));
+    draw();
+    const left = flat().map((f) => f.key), near = order.slice(i + 1 + n).find((k) => left.includes(k)) ?? order.slice(0, i).reverse().find((k) => left.includes(k));
+    if (near) root.querySelector(`[data-sl-item="${CSS.escape(near)}"] [data-sl-grip]`)?.focus();
+  });
+
+  draw();
+  return {
+    update() {
+      if (drag || JSON.stringify(tree()) === seen) return;
+      draw();
+    },
+  };
+}
