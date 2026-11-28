@@ -329,7 +329,7 @@
    "group": "Forms",
    "title": "Form builder",
    "nav": "Form builder",
-   "summary": "A form put together in the browser: field types from a palette (clicked or dragged), put in order by dragging or the keyboard, and set up in an inspector (label, key, help, choices, limits, required). Preview tries the form with its checks; Document gives it out as an iRender document of the kit's own form, ui-form with its rules, also kept in state.",
+   "summary": "A form put together in the browser: field types from a palette (clicked or dragged), put in order by dragging or the keyboard, and set up in an inspector (label, key, help, choices, limits, required). Preview tries the form with its checks; Document gives it out as an iRender document of the kit's own form, ui-form with its rules, also kept in state. Show only when takes groups of conditions inside it too, for (a) and (b or c).",
    "usage": "- type: ui-form-builder\n  props: { bind: fields, bindDocument: formDoc, submitLabel: Sign in }\n# fields: [{ id: name, type: text, label: Your name, required: true }, { id: team, type: select, label: Team, options: [A, B] }]",
    "components": [
     "ui-form-builder"

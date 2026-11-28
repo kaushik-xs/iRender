@@ -24,7 +24,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "bind",
         PropKind::StateKey,
-        "State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max, minLength, maxLength, pattern, patternMessage, when }`; `when: { field, value }` shows it only when that earlier field has that answer",
+        "State key holding the fields, in order: `{ id, type, label, description, placeholder, required, options, min, max, minLength, maxLength, pattern, patternMessage, when }`; `when: { field, value, not }` shows it only when that earlier field has that answer, and `when: { match: all | any, conditions: [...] }` when all or any of several do, a condition there being such a group itself (two deep in the builder)",
     )
     .required(),
     PropDef::new("bindDocument", PropKind::StateKey, "State key that gets the form as an iRender document, kept up to date"),
@@ -159,6 +159,10 @@ static BUILDER: LazyLock<StyleBlock> = LazyLock::new(|| {
     // A condition: the field, is / is not, the value and a button that takes it out.
     .nest("& [data-fb-cond]", pairs(&[("display", "grid"), ("grid-template-columns", "auto minmax(0, 1fr) auto"), ("gap", gap!(6)), ("align-items", "center"), ("padding", pad!(8, 0)), ("border-top", BORDER)]))
     .nest("& [data-fb-cond] > :first-child", pairs(&[("grid-column", "1 / -1")]))
+    // A group inside the conditions: indented, with a line down its side.
+    .nest("& [data-fb-group]", pairs(&[("display", "grid"), ("gap", gap!(4)), ("margin", "6px 0"), ("padding", "4px 0 4px 10px"), ("border-inline-start", "2px solid color-mix(in srgb, var(--color-primary) 40%, transparent)")]))
+    .nest("& [data-fb-group-head]", pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "space-between"), ("gap", gap!(6))]))
+    .nest("& [data-fb-cond-add]", pairs(&[("display", "flex"), ("flex-wrap", "wrap"), ("gap", gap!(6))]))
     .nest("& [data-fb-head-row]", pairs(&[("display", "flex"), ("align-items", "center"), ("justify-content", "space-between"), ("gap", gap!(8))]))
     .nest("& [data-fb-history] [data-fb-button]", pairs(&[("padding", pad!(2, 8)), ("font-size", fs!(12))]))
     // Stars in the preview: the ones up to the pick filled.

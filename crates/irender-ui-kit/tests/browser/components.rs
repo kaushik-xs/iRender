@@ -1118,6 +1118,78 @@ root:
     );
 }
 
+/// `ui-form-builder`: a group of conditions inside the conditions (`(a) && ((b) || (c))`),
+/// in the preview, in the inspector, written into the document and read back from it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn form_builder_nests_conditions() {
+    check(
+        "builder-nested",
+        r##"
+state:
+  doc: null
+  fields:
+    - { id: kind, type: radio, label: Kind, options: [Home, Work] }
+    - { id: urgent, type: checkbox, label: Urgent }
+    - { id: size, type: select, label: Size, options: [S, M, L] }
+    - { id: note, type: text, label: Note, required: true, when: { match: all, conditions: [ { field: kind, value: Work }, { match: any, conditions: [ { field: urgent, value: true }, { field: size, value: L } ] } ] } }
+    - { id: after, type: text, label: After }
+root: { type: ui-form-builder, attrs: { id: fb }, props: { bind: fields, bindDocument: doc } }
+"##,
+        r##"
+        $("[data-fb-tab=preview]").click(); await wait(30);
+        const shown = () => $$("[data-fb-preview] [data-fb-for]").map((f) => f.dataset.fbFor).join();
+        const radio = (v) => $(`[data-fb-preview] input[value="${v}"]`);
+        log(shown());
+        radio("Work").click(); await wait(30); log("work", shown());
+        $("[data-fb-for=urgent] input").click(); await wait(30); log("urgent", shown());
+        $("[data-fb-for=urgent] input").click(); await wait(30);
+        const size = $("[data-fb-for=size] select"); size.value = "L"; size.dispatchEvent(new Event("change", { bubbles: true })); await wait(30); log("large", shown());
+        radio("Home").click(); await wait(30); log("home", shown());
+        // The document: one `if` with the group in brackets of its own.
+        const cond = (function find(n) { if (n?.type === "if" && n.children?.[0]?.type === "ui-field") return n.props.when; for (const c of n?.children ?? []) { const w = find(c); if (w) return w; } })(S().doc.root);
+        log(cond, S().doc.root.children[1].children[0].props.rules.note.required);
+        // The inspector: the group in a box of its own, its rows and how they join.
+        $("[data-fb-tab=build]").click(); await wait(30);
+        $$("[data-fb-pick]")[3].click(); await wait(30);
+        log("inspector", $$("[data-fb-cond]").length, $$("[data-fb-group]").length, $$("[data-fb-group] [data-fb-cond]").length, $("[id$=-in-match]").value, $("[id$=-in-match1]").value);
+        // Joined by all inside: Work, and both Urgent and L.
+        const m1 = $("[id$=-in-match1]"); m1.value = "all"; m1.dispatchEvent(new Event("change", { bubbles: true })); await wait(30);
+        log(JSON.stringify(S().fields[3].when));
+        // A group added at the top, and one removed.
+        // (The last "Add a group" is the top one's: the inner group has its own.)
+        $$("[data-fb-add-group]").at(-1).click(); await wait(30);
+        log("groups", $$("[data-fb-group]").length, S().fields[3].when.conditions.length);
+        $$("[data-fb-ungroup]")[0].click(); await wait(30);
+        log("ungrouped", JSON.stringify(S().fields[3].when.conditions.map((c) => c.conditions ? c.match + c.conditions.length : c.field)));
+        // Read back from its document: the same tree.
+        const before = JSON.stringify(S().fields[3].when);
+        $("[data-fb-tab=document]").click(); await wait(30);
+        const paste = $("[id$=-load]"); paste.value = JSON.stringify(S().doc); $("[data-fb-load]").click(); await wait(30);
+        log("loaded", JSON.stringify(S().fields[3].when) === before ? "same" : JSON.stringify(S().fields[3].when));
+        // `!( … )` round a group: none of them.
+        const neg = JSON.parse(JSON.stringify(S().doc));
+        (function find(n) { if (n?.type === "if" && n.children?.[0]?.type === "ui-field") return (n.props.when = '{{ (kind == "Work") && !((urgent) || (size == "L")) }}'); (n?.children ?? []).forEach(find); })(neg.root);
+        $("[id$=-load]").value = JSON.stringify(neg); $("[data-fb-load]").click(); await wait(30);
+        log("none", JSON.stringify(S().fields[3].when));
+"##,
+        &[
+            "kind,urgent,size,after",
+            "work kind,urgent,size,after",
+            "urgent kind,urgent,size,note,after",
+            "large kind,urgent,size,note,after",
+            "home kind,urgent,size,after",
+            r#"{{ (kind == "Work") && ((urgent) || (size == "L")) }} {{ (kind == "Work") && ((urgent) || (size == "L")) }}"#,
+            "inspector 3 1 2 all any",
+            r#"{"match":"all","conditions":[{"field":"kind","value":"Work"},{"match":"all","conditions":[{"field":"urgent","value":true},{"field":"size","value":"L"}]}]}"#,
+            "groups 2 3",
+            r#"ungrouped ["kind","any2"]"#,
+            "loaded same",
+            r#"none {"match":"all","conditions":[{"field":"kind","value":"Work"},{"match":"any","conditions":[{"field":"urgent","value":true},{"field":"size","value":"L"}],"not":true}]}"#,
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn combobox_options_show_pictures_and_badges() {

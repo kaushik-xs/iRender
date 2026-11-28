@@ -37,11 +37,24 @@
   const WIDTHS = [["full", "Full width"], ["half", "Half"], ["third", "A third"]];
   const LENGTHS = new Set(["text", "textarea"]);
   // A field shown only when earlier ones have answers: `when: { field, value, not }`, or
-  // several, `when: { match: all | any, conditions: [{ field, value, not }] }`. A tick box's
-  // answer is `true`; several choices hold it when the value is one of theirs.
-  const conditions = (w) => (!isObj(w) ? [] : Array.isArray(w.conditions) ? w.conditions.filter(isObj) : w.field !== undefined ? [w] : []);
+  // several, `when: { match: all | any, conditions: [...] }`, where a condition may be such
+  // a group itself (`not` on a group turns it round). A tick box's answer is `true`;
+  // several choices hold it when the value is one of theirs.
+  const isGroup = (w) => isObj(w) && Array.isArray(w.conditions);
+  const conditions = (w) => (!isObj(w) ? [] : isGroup(w) ? w.conditions.filter(isObj) : w.field !== undefined ? [w] : []);
   const matchOf = (w) => (isObj(w) && w.match === "any" ? "any" : "all");
+  // A condition (or group) that names only fields in `list`; null when nothing's left of it.
+  function known(w, list) {
+    if (!isGroup(w)) return isObj(w) && list.some((x) => x.id === w.field) ? w : null;
+    const cs = w.conditions.filter(isObj).map((c) => known(c, list)).filter(Boolean);
+    return cs.length ? { ...w, conditions: cs } : null;
+  }
   const holdsOne = (c, list, a) => {
+    if (isGroup(c)) {
+      const cs = conditions(c);
+      const yes = matchOf(c) === "any" ? cs.some((x) => holdsOne(x, list, a)) : cs.every((x) => holdsOne(x, list, a));
+      return c.not ? !yes : yes;
+    }
     const of = list.find((x) => x.id === c.field);
     if (!of) return true;
     const v = a[of.id];
@@ -49,17 +62,27 @@
     return c.not ? !yes : yes;
   };
   const holds = (f, list, a) => {
-    const cs = conditions(f.when).filter((c) => list.some((x) => x.id === c.field));
-    if (!cs.length) return true;
-    return matchOf(f.when) === "any" ? cs.some((c) => holdsOne(c, list, a)) : cs.every((c) => holdsOne(c, list, a));
+    const w = known(isGroup(f.when) ? f.when : isObj(f.when) ? { conditions: [f.when] } : null, list);
+    return !w || holdsOne(w, list, a);
   };
-  // The fields a field's conditions name.
-  const names = (f) => conditions(f.when).map((c) => c.field);
+  // The fields a field's conditions name, at any depth.
+  const fieldsIn = (w) => conditions(w).flatMap((c) => (isGroup(c) ? fieldsIn(c) : [c.field]));
+  const names = (f) => fieldsIn(f.when);
+  // A group as it's kept: empty groups left out, a group of one condition its condition,
+  // and a single plain condition at the top as `{ field, value }`.
+  function tidyWhen(w, top = true) {
+    if (!isGroup(w)) return isObj(w) && w.field !== undefined ? w : undefined;
+    const cs = w.conditions.map((c) => tidyWhen(c, false)).filter(Boolean);
+    if (!cs.length) return undefined;
+    if (cs.length === 1 && !w.not && (!top || (!isGroup(cs[0]) && !cs[0].not && matchOf(w) === "all"))) {
+      return top && !isGroup(cs[0]) ? { field: cs[0].field, value: cs[0].value } : cs[0];
+    }
+    return { match: matchOf(w), conditions: cs, ...(w.not ? { not: true } : {}) };
+  }
   // `when` with a field renamed, or left out (null), in its conditions.
   function rewhen(w, from, to) {
-    const cs = conditions(w).map((c) => (c.field === from ? (to === null ? null : { ...c, field: to }) : c)).filter(Boolean);
-    if (!cs.length) return undefined;
-    return cs.length === 1 && !cs[0].not && matchOf(w) === "all" ? { field: cs[0].field, value: cs[0].value } : { match: matchOf(w), conditions: cs };
+    const walk = (c) => (isGroup(c) ? { ...c, conditions: c.conditions.filter(isObj).map(walk).filter(Boolean) } : c.field === from ? (to === null ? null : { ...c, field: to }) : c);
+    return tidyWhen(walk(isGroup(w) ? w : { conditions: conditions(w) }));
   }
   const shownOf = (list, a) => list.filter((f) => holds(f, list, a));
   // State keys the generated document keeps for itself.
@@ -322,42 +345,67 @@
     // Shown only when earlier fields have answers: one condition or several, all or any.
     const before = fields().slice(0, fields().findIndex((x) => x.id === f.id)).filter((x) => x.type !== "section");
     if (before.length) {
-      const cs = conditions(f.when).filter((c) => before.some((x) => x.id === c.field));
-      const save = (list, match = matchOf(f.when)) => {
-        patch(selected, { when: !list.length ? undefined : list.length === 1 && !list[0].not ? { field: list[0].field, value: list[0].value } : { match, conditions: list } });
+      // The conditions as a tree, changed in place and saved tidied.
+      const tree = known(isGroup(f.when) ? JSON.parse(JSON.stringify(f.when)) : isObj(f.when) ? { match: "all", conditions: [{ ...f.when }] } : null, before) ?? { match: "all", conditions: [] };
+      tree.match = matchOf(tree);
+      const save = () => {
+        patch(selected, { when: tidyWhen(tree) });
         drawInspector();
       };
       const first = (x) => (x.type === "checkbox" ? true : CHOICES.has(x.type) ? (x.options ?? [])[0] ?? "" : "");
+      const fresh = () => ({ field: before.at(-1).id, value: first(before.at(-1)) });
       // Labels: "Show only when", "Always", "Add a condition", "is", "is not", "Remove this condition", "All of these", "Any of these"
-      const rows = cs.map((c, k) => {
-        const of = before.find((x) => x.id === c.field);
-        const pick = h("select", { id: n(`when${k}`), "aria-label": L("Field") }, ...before.map((x) => h("option", { value: x.id, selected: c.field === x.id }, x.label)));
+      // Labels: "Add a group", "Remove this group", "A group of conditions"
+      // One condition's row; `at` names it for the ids (`0`, `1-0` inside a group, …).
+      const row = (g, k, at) => {
+        const c = g.conditions[k], of = before.find((x) => x.id === c.field);
+        const pick = h("select", { id: n(`when${at}`), "aria-label": L("Field") }, ...before.map((x) => h("option", { value: x.id, selected: c.field === x.id }, x.label)));
         pick.addEventListener("change", () => {
           const x = before.find((y) => y.id === pick.value);
-          save(cs.map((d, j) => (j === k ? { field: x.id, value: first(x), ...(d.not ? { not: true } : {}) } : d)));
+          g.conditions[k] = { field: x.id, value: first(x), ...(c.not ? { not: true } : {}) };
+          save();
         });
         const op = h("select", { "aria-label": L("is") }, h("option", { value: "is", selected: !c.not }, L("is")), h("option", { value: "not", selected: !!c.not }, L("is not")));
-        op.addEventListener("change", () => save(cs.map((d, j) => (j === k ? { field: d.field, value: d.value, ...(op.value === "not" ? { not: true } : {}) } : d))));
+        op.addEventListener("change", () => {
+          g.conditions[k] = { field: c.field, value: c.value, ...(op.value === "not" ? { not: true } : {}) };
+          save();
+        });
         let is;
         if (of?.type === "checkbox") is = h("span", { "data-fb-help": true }, L("ticked"));
         else if (of && CHOICES.has(of.type)) {
-          is = h("select", { id: n(`is${k}`), "aria-label": L("Value") }, ...(of.options ?? []).map((o) => h("option", { value: o, selected: c.value === o }, o)));
-          is.addEventListener("change", () => save(cs.map((d, j) => (j === k ? { ...d, value: is.value } : d))));
+          is = h("select", { id: n(`is${at}`), "aria-label": L("Value") }, ...(of.options ?? []).map((o) => h("option", { value: o, selected: c.value === o }, o)));
+          is.addEventListener("change", () => ((g.conditions[k] = { ...c, value: is.value }), save()));
         } else {
-          is = text(`is${k}`, c.value, { "aria-label": L("Value") });
-          is.addEventListener("change", () => save(cs.map((d, j) => (j === k ? { ...d, value: is.value } : d))));
+          is = text(`is${at}`, c.value, { "aria-label": L("Value") });
+          is.addEventListener("change", () => ((g.conditions[k] = { ...c, value: is.value }), save()));
         }
-        const x = h("button", { type: "button", "data-fb-button": true, "aria-label": L("Remove this condition"), onclick: () => save(cs.filter((_, j) => j !== k)) }, "✕");
+        const x = h("button", { type: "button", "data-fb-button": true, "aria-label": L("Remove this condition"), onclick: () => (g.conditions.splice(k, 1), save()) }, "✕");
         return h("div", { "data-fb-cond": true }, pick, op, is, x);
-      });
-      const add = h("button", { type: "button", "data-fb-button": true, "data-fb-add-cond": true, onclick: () => save([...cs, { field: before.at(-1).id, value: first(before.at(-1)) }]) }, L("Add a condition"));
-      const parts = [h("p", { "data-fb-heading": true }, cs.length ? L("Show only when") : L("Always"))];
-      if (cs.length > 1) {
-        const match = h("select", { id: n("match"), "aria-label": L("Show only when") }, h("option", { value: "all", selected: matchOf(f.when) === "all" }, L("All of these")), h("option", { value: "any", selected: matchOf(f.when) === "any" }, L("Any of these")));
-        match.addEventListener("change", () => save(cs, match.value));
-        parts.push(match);
-      }
-      items.push(h("div", { "data-fb-field": true, role: "group", "aria-label": L("Show only when") }, ...parts, ...rows, add));
+      };
+      // A group: how its conditions join (with two or more), its rows, and adding to it.
+      // Groups go two deep inside the top one.
+      const group = (g, depth, at) => {
+        const out = [];
+        if (g.conditions.length > 1) {
+          const match = h("select", { id: n(`match${at}`), "aria-label": depth ? L("A group of conditions") : L("Show only when") }, h("option", { value: "all", selected: matchOf(g) === "all" }, L("All of these")), h("option", { value: "any", selected: matchOf(g) === "any" }, L("Any of these")));
+          match.addEventListener("change", () => ((g.match = match.value), save()));
+          out.push(match);
+        }
+        g.conditions.forEach((c, k) => {
+          const here = at === "" ? String(k) : `${at}-${k}`;
+          if (!isGroup(c)) return out.push(row(g, k, here));
+          c.match = matchOf(c);
+          const x = h("button", { type: "button", "data-fb-button": true, "data-fb-ungroup": true, "aria-label": L("Remove this group"), onclick: () => (g.conditions.splice(k, 1), save()) }, "✕");
+          out.push(h("div", { "data-fb-group": true, role: "group", "aria-label": L("A group of conditions") }, h("div", { "data-fb-group-head": true }, h("span", { "data-fb-help": true }, c.not ? L("None of these") : L("A group of conditions")), x), ...group(c, depth + 1, here)));
+        });
+        const add = h("button", { type: "button", "data-fb-button": true, "data-fb-add-cond": true, onclick: () => (g.conditions.push(fresh()), save()) }, L("Add a condition"));
+        const buttons = [add];
+        if (depth < 2 && g.conditions.length) buttons.push(h("button", { type: "button", "data-fb-button": true, "data-fb-add-group": true, onclick: () => (g.conditions.push({ match: matchOf(g) === "all" ? "any" : "all", conditions: [fresh(), fresh()] }), save()) }, L("Add a group")));
+        out.push(h("div", { "data-fb-cond-add": true }, ...buttons));
+        return out;
+      };
+      const parts = [h("p", { "data-fb-heading": true }, tree.conditions.length ? L("Show only when") : L("Always"))];
+      items.push(h("div", { "data-fb-field": true, role: "group", "aria-label": L("Show only when") }, ...parts, ...group(tree, 0, "")));
     }
     if (!section) {
       const req = h("input", { type: "checkbox", id: n("req"), checked: !!f.required });
@@ -655,14 +703,20 @@
       if (f.type === "text" && f.pattern) rule.pattern = f.pattern;
       if (f.type === "text" && f.pattern && f.patternMessage) rule.message = f.patternMessage;
       // Shown only when others have answers: in an `if`, required only while shown.
+      // A group inside another is in brackets of its own: `(a) && ((b) || (c))`.
       const one = (c) => {
+        if (isGroup(c)) {
+          const parts = conditions(c).map(one).filter(Boolean);
+          if (!parts.length) return null;
+          const e = parts.length === 1 ? parts[0] : parts.map((x) => `(${x})`).join(matchOf(c) === "any" ? " || " : " && ");
+          return c.not ? `!(${e})` : e;
+        }
         const of = list.find((x) => x.id === c.field);
         if (!of) return null;
         const e = of.type === "checkboxes" ? `includes(${of.id}, ${JSON.stringify(c.value)})` : of.type === "checkbox" ? (c.value === false ? `!${of.id}` : of.id) : `${of.id} == ${JSON.stringify(c.value)}`;
         return c.not ? `!(${e})` : e;
       };
-      const parts = conditions(f.when).map(one).filter(Boolean);
-      const cond = !parts.length ? null : parts.length === 1 ? parts[0] : parts.map((x) => `(${x})`).join(matchOf(f.when) === "any" ? " || " : " && ");
+      const cond = isObj(f.when) ? one(isGroup(f.when) ? f.when : { conditions: [f.when] }) : null;
       if (cond && rule.required) rule.required = `{{ ${cond} }}`;
       if (Object.keys(rule).length > 1) rules[id] = rule;
       const ph = f.placeholder ? { placeholder: f.placeholder } : {};
@@ -739,25 +793,57 @@
     })(doc.root);
     const rules = form?.props?.rules ?? {};
     const TYPE = { "ui-input": (c) => (c.props?.type === "email" ? "email" : "text"), "ui-textarea": () => "textarea", "ui-number-input": () => "number", "ui-date-picker": () => "date", "ui-select": () => "select", "ui-radio-group": () => "radio", "ui-toggle-group": () => "checkboxes", "ui-checkbox": () => "checkbox", "ui-phone-input": () => "phone", "ui-time-picker": () => "time", "ui-rating": () => "rating", "ui-file-upload": () => "file" };
-    // `a == "x"`, `includes(a, "x")`, `a`, `!a`, each maybe `!( … )`, joined by && or ||.
+    // `a == "x"`, `includes(a, "x")`, `a`, `!a`, each maybe `!( … )`, joined by && or ||,
+    // in brackets for groups inside groups (&& before ||, as in the expressions).
     const cond = (text) => {
       const m = /^\{\{\s*([\s\S]*?)\s*\}\}$/.exec(String(text ?? ""));
       if (!m) return undefined;
-      const any = m[1].includes("||"), bits = m[1].split(any ? "||" : "&&").map((x) => x.trim().replace(/^\((.*)\)$/, "$1").trim());
-      const cs = bits.map((b) => {
-        let not = false;
-        let e = b;
-        const neg = /^!\((.*)\)$/.exec(e);
-        if (neg) (not = true), (e = neg[1].trim());
-        let r = /^includes\((\w+),\s*("(?:[^"\\]|\\.)*")\)$/.exec(e);
-        if (r) return { field: r[1], value: JSON.parse(r[2]), ...(not ? { not } : {}) };
-        r = /^(\w+)\s*==\s*(.+)$/.exec(e);
-        if (r) return { field: r[1], value: JSON.parse(r[2]), ...(not ? { not } : {}) };
-        r = /^(!?)(\w+)$/.exec(e);
-        if (r) return { field: r[2], value: r[1] !== "!", ...(not ? { not } : {}) };
-        throw new Error(L("a condition it can't read: {text}", { text: b }));
-      });
-      return cs.length === 1 && !cs[0].not ? { field: cs[0].field, value: cs[0].value } : { match: any ? "any" : "all", conditions: cs };
+      const src = m[1];
+      let i = 0;
+      const ws = () => { while (/\s/.test(src[i] ?? "")) i++; };
+      const fail = () => { throw new Error(L("a condition it can't read: {text}", { text: src.slice(i) || src })); };
+      const eat = (t) => (ws(), src.startsWith(t, i) ? ((i += t.length), true) : false);
+      const ident = () => { ws(); const r = /^\w+/.exec(src.slice(i)); if (!r) fail(); i += r[0].length; return r[0]; };
+      // A JSON value: a string (with its escapes), a number, true, false or null.
+      const literal = () => {
+        ws();
+        const r = /^("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)/.exec(src.slice(i));
+        if (!r) fail();
+        i += r[0].length;
+        return JSON.parse(r[0]);
+      };
+      const join = (kind, cs) => (cs.length === 1 ? cs[0] : { match: kind, conditions: cs });
+      const or = () => { const cs = [and()]; while (eat("||")) cs.push(and()); return join("any", cs); };
+      const and = () => { const cs = [unary()]; while (eat("&&")) cs.push(unary()); return join("all", cs); };
+      const unary = () => {
+        if (eat("!")) {
+          if (eat("(")) {
+            const c = or();
+            if (!eat(")")) fail();
+            return { ...c, not: !c.not };
+          }
+          return { field: ident(), value: false };
+        }
+        if (eat("(")) {
+          const c = or();
+          if (!eat(")")) fail();
+          return c;
+        }
+        if (eat("includes(")) {
+          const field = ident();
+          if (!eat(",")) fail();
+          const value = literal();
+          if (!eat(")")) fail();
+          return { field, value };
+        }
+        const field = ident();
+        return eat("==") ? { field, value: literal() } : { field, value: true };
+      };
+      const w = or();
+      ws();
+      if (i < src.length) fail();
+      if (!isGroup(w)) return w.not ? { match: "all", conditions: [w] } : { field: w.field, value: w.value };
+      return w.not ? { match: "all", conditions: [w] } : { match: matchOf(w), conditions: w.conditions };
     };
     const out = [];
     for (const x of nodes) {
