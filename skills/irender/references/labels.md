@@ -1992,6 +1992,7 @@ root: …
 `scheduler.js`
 
 ```yaml
+"{title}: {when}, this day only": "{title}: {when}, this day only"
 "That time is taken": "That time is taken"
 "Day": "Day"
 "Week": "Week"

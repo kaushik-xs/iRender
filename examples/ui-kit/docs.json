@@ -733,7 +733,7 @@
    "id": "scheduler",
    "group": "Data display",
    "title": "Scheduler",
-   "summary": "Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with working hours, capacity, and clashes marked or not let happen.",
+   "summary": "Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with working hours, capacity, and clashes marked or not let happen. One day of a repeating booking moves on its own.",
    "usage": "- type: ui-scheduler\n  props: { resources: \"{{ rooms }}\", events: \"{{ bookings }}\", bindEvents: bookings, bindEvent: picked, from: \"08:00\", to: \"18:00\", creatable: true }",
    "components": [
     "ui-scheduler"

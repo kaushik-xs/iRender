@@ -1295,6 +1295,45 @@ root:
     );
 }
 
+/// `ui-scheduler`: one day of a repeating booking moved on its own: left out of the
+/// series and kept as a booking of its own, which moves again like any other.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn scheduler_moves_one_day_of_a_series() {
+    check(
+        "scheduler-series",
+        r##"
+state:
+  rooms: [ { id: r1, title: Room 1 }, { id: r2, title: Room 2 } ]
+  book: [ { id: s, resource: r1, title: Stand-up, start: "2026-11-23T09:00", end: "2026-11-23T09:30", repeat: { every: day, count: 5 } } ]
+  day: 2026-11-25
+root: { type: ui-scheduler, props: { resources: "{{ rooms }}", events: "{{ book }}", bindEvents: book, bindDate: day, from: "08:00", to: "12:00", now: false, view: day, moveResources: true } }
+"##,
+        r##"
+        const ev = () => $$("[data-sc-event]");
+        log(ev().map((e) => e.getAttribute("data-sc-event")).join(), ev()[0].getAttribute("tabindex"));
+        // Alt and → moves this day's a step (15 minutes) later, this day only.
+        ev()[0].focus(); key("ArrowRight", { altKey: true }); await wait(30);
+        log(JSON.stringify(S().book[0].repeat), JSON.stringify(S().book[1]));
+        log(ev().map((e) => e.getAttribute("data-sc-event")).join(), $("[role=status]")?.textContent ?? "");
+        // The day after still comes from the series, where it was.
+        root.__irender.set("day", "2026-11-26"); await wait(30);
+        log(ev().map((e) => e.getAttribute("data-sc-event")).join());
+        // Back on the moved day: it moves as a booking of its own now (to Room 2).
+        root.__irender.set("day", "2026-11-25"); await wait(30);
+        $('[data-sc-event="s@2026-11-25"]').focus(); key("ArrowDown", { altKey: true }); await wait(30);
+        log(S().book.length, S().book[1].resource, S().book[1].start, JSON.stringify(S().book[0].repeat.except));
+"##,
+        &[
+            "s@2 0",
+            r#"{"every":"day","count":5,"except":["2026-11-25"]} {"id":"s@2026-11-25","resource":"r1","title":"Stand-up","start":"2026-11-25T09:15","end":"2026-11-25T09:45","series":"s","occurrence":"2026-11-25"}"#,
+            "s@2026-11-25 Stand-up: 9:15 AM – 9:45 AM, this day only",
+            "s@3",
+            r#"2 r2 2026-11-25T09:15 ["2026-11-25"]"#,
+        ],
+    );
+}
+
 /// `ui-diff` with `review`: each change accepted or rejected (or all at once), the
 /// decisions in state and the version they make; field by field too.
 #[test]

@@ -1267,7 +1267,7 @@ ui-pivot: A pivot table: rows summed up by fields down and across, with subtotal
   children: no
 ui-scheduler: Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked.
   resources    any (required)  The rows: `[{ id, title, subtitle, avatar, group, hours: [{ from, to }], capacity }]`; may use state
-  events       any (required)  The bookings: `[{ id, resource, title, start, end, color, status, locked, note }]`, times as `YYYY-MM-DDTHH:MM`; `repeat`, as `ui-event-calendar`'s, makes one come again (its days aren't moved one by one); may use state
+  events       any (required)  The bookings: `[{ id, resource, title, start, end, color, status, locked, note }]`, times as `YYYY-MM-DDTHH:MM`; `repeat`, as `ui-event-calendar`'s, makes one come again: a day of it moved (or stretched) on its own is left out of the series (`repeat.except`) and becomes a booking of its own, with `series` and `occurrence` (the day it was); may use state
   bindEvents   statekey  State key the bookings are in: moves, stretches and new ones are written back
   bindEvent    statekey  State key that gets the booking clicked (or opened with Enter)
   bindDate     statekey  State key for the first day shown, `YYYY-MM-DD` (default: today)

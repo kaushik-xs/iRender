@@ -1264,7 +1264,7 @@ Blocks data-table-09 (a support queue: people many at a time, accounts one at a 
 
 ## Scheduler
 
-`ui-scheduler` shows bookings against time, a row per resource, by day, week or month. With `bindEvents`, bookings are moved and stretched by dragging or with Alt and the arrow keys (and Shift for the end), and with `creatable`, dragging over a free stretch makes one. `hours` shades when a resource isn't free, `capacity` lets it take several, and `overlap` allows, marks (`bindClashes`) or prevents more than that. Times are local, as `YYYY-MM-DDTHH:MM`. Events: `move`, `resize`, `create`, `open`.
+`ui-scheduler` shows bookings against time, a row per resource, by day, week or month. With `bindEvents`, bookings are moved and stretched by dragging or with Alt and the arrow keys (and Shift for the end), and with `creatable`, dragging over a free stretch makes one. `hours` shades when a resource isn't free, `capacity` lets it take several, and `overlap` allows, marks (`bindClashes`) or prevents more than that. Times are local, as `YYYY-MM-DDTHH:MM`. Events: `move`, `resize`, `create`, `open`. A booking with `repeat` comes again (as `ui-event-calendar`'s); one day of it moved or stretched on its own is left out of the series (`repeat.except`) and becomes a booking of its own, with `series` (the series' id) and `occurrence` (the day it was), and moves like any other from then on.
 
 ## Plan
 

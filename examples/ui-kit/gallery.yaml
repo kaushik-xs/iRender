@@ -101,7 +101,7 @@ state:
   pvCell: null
   pvRows: [ { region: North, rep: Ann, date: "2026-01-04", amount: 120 }, { region: North, rep: Bo, date: "2026-02-14", amount: 80 }, { region: South, rep: Cy, date: "2026-01-20", amount: 300 }, { region: South, rep: Cy, date: "2026-04-01", amount: 50 } ]
   shRows: [ { id: a, title: Room A, hours: [ { from: "09:00", to: "17:00" } ] }, { id: b, title: Room B, capacity: 2 } ]
-  shEvents: [ { id: 1, resource: a, title: Planning, start: "2026-11-23T09:30", end: "2026-11-23T11:00" }, { id: 2, resource: a, title: Interview, start: "2026-11-23T10:30", end: "2026-11-23T11:30" }, { id: 3, resource: b, title: Training, start: "2026-11-23T13:00", end: "2026-11-23T15:00", color: "#16a34a" } ]
+  shEvents: [ { id: 0, resource: b, title: Stand-up, start: "2026-11-23T08:30", end: "2026-11-23T08:45", repeat: { every: day, count: 10 } }, { id: 1, resource: a, title: Planning, start: "2026-11-23T09:30", end: "2026-11-23T11:00" }, { id: 2, resource: a, title: Interview, start: "2026-11-23T10:30", end: "2026-11-23T11:30" }, { id: 3, resource: b, title: Training, start: "2026-11-23T13:00", end: "2026-11-23T15:00", color: "#16a34a" } ]
   shDay: "2026-11-23"
   plPick: null
   plItems: [ { id: 1, label: "1", x: 40, y: 40, width: 120, height: 90, status: Free }, { id: 2, label: "2", x: 200, y: 40, width: 120, height: 90, status: Taken }, { id: 3, label: "3", shape: circle, x: 380, y: 40, width: 90, status: Free }, { id: 4, label: Stage, shape: polygon, x: 60, y: 190, points: [ [0, 0], [360, 0], [300, 70], [60, 70] ], locked: true } ]

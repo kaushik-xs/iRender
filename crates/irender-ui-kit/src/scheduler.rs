@@ -17,7 +17,7 @@ pub struct Scheduler;
 
 const PROPS: &[PropDef] = &[
     PropDef::new("resources", PropKind::Any, "The rows: `[{ id, title, subtitle, avatar, group, hours: [{ from, to }], capacity }]`; may use state").required(),
-    PropDef::new("events", PropKind::Any, "The bookings: `[{ id, resource, title, start, end, color, status, locked, note }]`, times as `YYYY-MM-DDTHH:MM`; `repeat`, as `ui-event-calendar`'s, makes one come again (its days aren't moved one by one); may use state").required(),
+    PropDef::new("events", PropKind::Any, "The bookings: `[{ id, resource, title, start, end, color, status, locked, note }]`, times as `YYYY-MM-DDTHH:MM`; `repeat`, as `ui-event-calendar`'s, makes one come again: a day of it moved (or stretched) on its own is left out of the series (`repeat.except`) and becomes a booking of its own, with `series` and `occurrence` (the day it was); may use state").required(),
     PropDef::new("bindEvents", PropKind::StateKey, "State key the bookings are in: moves, stretches and new ones are written back"),
     PropDef::new("bindEvent", PropKind::StateKey, "State key that gets the booking clicked (or opened with Enter)"),
     PropDef::new("bindDate", PropKind::StateKey, "State key for the first day shown, `YYYY-MM-DD` (default: today)"),

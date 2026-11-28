@@ -74,7 +74,8 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(e.start ?? ""));
     if (!m) return [e];
     const first = new Date(+m[1], m[2] - 1, +m[3]), base = Math.floor(mins(e.start) / DAY), [from, to] = g0();
-    return K.repeats(e.repeat, first, Math.floor(from / DAY) - base - 1, Math.ceil(to / DAY) - base + 1).map((n) => ({ ...e, id: `${e.id}@${n}`, start: stamp(mins(e.start) + n * DAY), end: stamp(mins(e.end) + n * DAY), locked: true, series: e.id }));
+    // Each day it comes is its own, to move: the series keeps its id and its `repeat`.
+    return K.repeats(e.repeat, first, Math.floor(from / DAY) - base - 1, Math.ceil(to / DAY) - base + 1).map((n) => ({ ...e, id: `${e.id}@${n}`, start: stamp(mins(e.start) + n * DAY), end: stamp(mins(e.end) + n * DAY), series: e.id, occurrence: stamp(mins(e.start) + n * DAY).slice(0, 10), __of: e.id }));
   };
   // What's shown, for those that repeat.
   const g0 = () => (span0 ? [span0.start, span0.start + span0.len] : null);
@@ -114,8 +115,26 @@
       return false;
     }
     const res = resources().find((y) => String(y.id) === r);
+    const all = api.state[cfg.bindEvents] ?? [];
+    // (`__of`: a day the series makes, not one already on its own.)
+    if (x.e.__of !== undefined) {
+      // One day of a repeating booking, moved on its own: the series leaves that day out
+      // (`repeat.except`), and the day becomes a booking of its own (`series`, `occurrence`).
+      const sid = String(x.e.__of), day = x.e.occurrence;
+      const row = all.find((e) => String(e.id) === sid);
+      if (!row) return false;
+      const rep = isObj(row.repeat) ? row.repeat : { every: row.repeat };
+      const { repeat, ...rest } = row;
+      const one = { ...rest, id: `${sid}@${day}`, resource: res ? res.id : row.resource, start: stamp(s), end: stamp(t), series: row.id, occurrence: day };
+      api.set(cfg.bindEvents, [...all.map((e) => (String(e.id) === sid ? { ...e, repeat: { ...rep, except: [...new Set([...(Array.isArray(rep.except) ? rep.except : []), day])] } } : e)), one]);
+      const { __of, ...was } = x.e;
+      api.emit(event, { event: one, previous: was, series: row.id });
+      // Labels: "{title}: {when}, this day only"
+      K.say(el, L("{title}: {when}, this day only", { title: x.e.title ?? "", when: `${when(s, t)}${r !== x.r ? `, ${res?.title ?? r}` : ""}` }));
+      return true;
+    }
     const next = { ...x.e, resource: res ? res.id : x.e.resource, start: stamp(s), end: stamp(t) };
-    api.set(cfg.bindEvents, (api.state[cfg.bindEvents] ?? []).map((e) => (String(e.id) === id ? next : e)));
+    api.set(cfg.bindEvents, all.map((e) => (String(e.id) === id ? next : e)));
     api.emit(event, { event: next, previous: x.e });
     K.say(el, `${x.e.title ?? ""}: ${when(s, t)}${r !== x.r ? `, ${res?.title ?? r}` : ""}`);
     return true;
@@ -205,9 +224,10 @@
     const x = events().find((y) => y.id === id);
     if (!x) return;
     selected = id;
-    if (cfg.bindEvent) api.set(cfg.bindEvent, x.e);
+    const { __of, ...ev } = x.e;
+    if (cfg.bindEvent) api.set(cfg.bindEvent, ev);
     else draw(true);
-    api.emit("open", { event: x.e });
+    api.emit("open", { event: ev });
   }
 
   // ---- dragging: move, stretch, or make one on a free stretch
