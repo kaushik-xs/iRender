@@ -533,7 +533,7 @@
    "group": "Data display",
    "title": "File browser",
    "nav": "File browser",
-   "summary": "Folders and files to browse one folder at a time, as a grid or a list, with a breadcrumb back up: search, sort, select several, rename, new folders, delete with undo, and move by dragging onto a folder or the breadcrumb (by touch too) or from a Move to menu. The files are a flat list in state, each with its folder as parent.",
+   "summary": "Folders and files to browse one folder at a time, as a grid or a list, with a breadcrumb back up: search, sort, select several, rename, new folders, delete with undo, and move by dragging onto a folder or the breadcrumb (by touch too) or from a Move to menu. The files are a flat list in state, each with its folder as parent. A box dragged round items selects them, and loadOnScroll fetches the next page as the end nears.",
    "usage": "- { type: ui-file-browser, props: { bind: files, bindFolder: folder, bindOpen: opened, height: 460 } }\n# files: [{ id: f1, name: Contracts, folder: true }, { id: a1, name: NDA.pdf, parent: f1, size: 52000, modified: 2026-10-12T15:30 }]",
    "components": [
     "ui-file-browser"

@@ -218,6 +218,9 @@
     area.replaceChildren(...[head, box].filter(Boolean));
     if (hadFocus) box.focus({ preventScroll: true });
     if (renaming !== null) startRename(renaming);
+    nearMore?.disconnect();
+    const loadMore = box.querySelector("[data-fm-load-more]");
+    if (loadMore && nearMore) nearMore.observe(loadMore);
     drawFoot(items);
     seen = JSON.stringify([files(), folder()]);
   }
@@ -432,6 +435,8 @@
   area.addEventListener("click", (e) => {
     const item = e.target.closest?.("[data-fm-item]");
     if (e.target.matches?.("[data-fm-rename]")) return;
+    // The click that ends a box drawn round items isn't one on the space.
+    if (boxed) return void (boxed = false);
     if (!item) {
       if (e.target.closest("[data-fm-files]") && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
         selected = new Set();
@@ -446,6 +451,65 @@
     const item = e.target.closest?.("[data-fm-item]");
     if (item) open(item.getAttribute("data-fm-item"));
   });
+  // ---- a box dragged from the space round items selects them (⌘/Ctrl or Shift: as well)
+  let lasso = null, boxed = false;
+  area.addEventListener("pointerdown", (e) => {
+    // From the space round and between the items (the area's edge too), with a mouse.
+    if (e.button !== 0 || e.pointerType !== "mouse" || e.target.closest?.("[data-fm-item], [data-fm-head], button, input, select, a")) return;
+    // Not on the area's own scroll bars.
+    const edge = area.getBoundingClientRect();
+    if (e.clientX - edge.left >= area.clientLeft + area.clientWidth || e.clientY - edge.top >= area.clientTop + area.clientHeight) return;
+    const r = area.getBoundingClientRect();
+    const at = (ev) => ({ x: ev.clientX - r.left + area.scrollLeft, y: ev.clientY - r.top + area.scrollTop });
+    lasso = { id: e.pointerId, a: at(e), b: at(e), at, el: null, base: e.metaKey || e.ctrlKey || e.shiftKey ? new Set(selected) : new Set() };
+    try { area.setPointerCapture(e.pointerId); } catch { /* not a pointer it tracks */ }
+  });
+  area.addEventListener("pointermove", (e) => lasso && e.pointerId === lasso.id && sweep(e));
+  function sweep(e) {
+    lasso.b = lasso.at(e);
+    const x0 = Math.min(lasso.a.x, lasso.b.x), y0 = Math.min(lasso.a.y, lasso.b.y), x1 = Math.max(lasso.a.x, lasso.b.x), y1 = Math.max(lasso.a.y, lasso.b.y);
+    if (!lasso.el && x1 - x0 < 4 && y1 - y0 < 4) return;
+    if (!lasso.el) area.append((lasso.el = h("div", { "data-fm-lasso": true, "aria-hidden": "true" })));
+    Object.assign(lasso.el.style, { left: `${x0}px`, top: `${y0}px`, width: `${x1 - x0}px`, height: `${y1 - y0}px` });
+    // What it touches, marked as it goes (drawn once let go).
+    const r = area.getBoundingClientRect(), now = new Set(lasso.base);
+    for (const it of area.querySelectorAll("[data-fm-item]")) {
+      const b = it.getBoundingClientRect(), bx = b.left - r.left + area.scrollLeft, by = b.top - r.top + area.scrollTop;
+      if (bx < x1 && bx + b.width > x0 && by < y1 && by + b.height > y0) now.add(it.getAttribute("data-fm-item"));
+    }
+    for (const it of area.querySelectorAll("[data-fm-item]")) it.setAttribute("aria-selected", now.has(it.getAttribute("data-fm-item")) ? "true" : "false");
+    lasso.now = now;
+  }
+  const unlasso = (e) => {
+    if (!lasso || e.pointerId !== lasso.id) return;
+    if (lasso.el && e.type === "pointerup") sweep(e);
+    const l = lasso;
+    lasso = null;
+    if (!l.el) return;
+    l.el.remove();
+    boxed = true;
+    setTimeout(() => (boxed = false));
+    if (e.type === "pointercancel") return draw();
+    selected = l.now ?? l.base;
+    const items = shown().map((f) => String(f.id));
+    focus = items.find((id) => selected.has(id)) ?? focus;
+    anchor = focus;
+    publishSelection();
+    draw();
+    say(L("{n} selected", { n: selected.size }));
+  };
+  area.addEventListener("pointerup", unlasso);
+  area.addEventListener("pointercancel", unlasso);
+
+  // ---- with `loadOnScroll`, the next page is fetched as Load more nears the view
+  const nearMore = "IntersectionObserver" in window && cfg.loadOnScroll
+    ? new IntersectionObserver((seen) => {
+      if (!seen.some((x) => x.isIntersecting)) return;
+      const here = folder(), k = here ?? "";
+      if (more.has(k) && !loading.has(k)) fetchFolder(here, { after: more.get(k) });
+    }, { root: cfg.scrolls ? area : null, rootMargin: "160px" })
+    : null;
+
   // How many items a row of the grid holds.
   function perRow() {
     const items = [...area.querySelectorAll("[data-fm-item]")];

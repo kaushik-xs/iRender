@@ -928,6 +928,72 @@ root:
     );
 }
 
+/// `ui-file-browser`: a box dragged from the space selects what it touches (⌘ or Shift as
+/// well as what was), and with `loadOnScroll` the next page comes as the end nears the view.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn file_browser_selects_by_a_box_and_loads_on_scroll() {
+    let Some(result) = run_with(
+        "file-browser-box",
+        r##"
+state:
+  sel: []
+  files: [ { id: a, name: a.txt }, { id: b, name: b.txt }, { id: c, name: c.txt }, { id: d, name: d.txt }, { id: e, name: e.txt } ]
+  far: []
+root:
+  type: stack
+  children:
+    - { type: ui-file-browser, attrs: { id: fb }, props: { bind: files, bindSelection: sel, view: list, editable: false } }
+    - { type: ui-file-browser, attrs: { id: big }, props: { bind: far, url: /api/files, loadOnScroll: true, view: list, height: 160 } }
+"##,
+        r##"
+        const fb = $("#fb"), area = $("#fb [data-fm-area]"), row = (id) => $(`#fb [data-fm-item="${id}"]`).getBoundingClientRect();
+        const ev = (t, x, y, o = {}) => (t === "pointerdown" ? document.elementFromPoint(x, y) : area).dispatchEvent(new PointerEvent(t, { bubbles: true, cancelable: true, pointerId: 7, pointerType: "mouse", button: 0, clientX: x, clientY: y, ...o }));
+        const box = async (x0, y0, x1, y1, o) => { ev("pointerdown", x0, y0, o); ev("pointermove", (x0 + x1) / 2, (y0 + y1) / 2, o); await wait(5); log("while", !!$("#fb [data-fm-lasso]"), $$('#fb [aria-selected="true"]').map((i) => i.dataset.fmItem).join("")); ev("pointerup", x1, y1, o); area.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: x1, clientY: y1, ...o })); await wait(20); };
+        // From the area's edge by b's row (the space round the list) across and down to c's: b and c.
+        const left = area.getBoundingClientRect().left + 4;
+        await box(left, row("b").top + 2, left + 60, row("c").bottom - 2);
+        log(JSON.stringify(S().sel), !!$("#fb [data-fm-lasso]"), $("#fb [data-fm-live]").textContent);
+        // With ⌘: e as well.
+        await box(left, row("e").top + 2, left + 60, row("e").bottom - 2, { metaKey: true });
+        log(JSON.stringify(S().sel));
+        // A plain click on the space still clears it.
+        area.dispatchEvent(new MouseEvent("click", { bubbles: true })); $("#fb [data-fm-files]").dispatchEvent(new MouseEvent("click", { bubbles: true })); await wait(20);
+        log(JSON.stringify(S().sel));
+        // Scrolled to its end, the big folder fetches its next page by itself.
+        await until(() => $$("#big [data-fm-item]").length === 10); log("first", window.asked.join(" "));
+        const big = $("#big [data-fm-area]"); big.scrollTop = big.scrollHeight; big.dispatchEvent(new Event("scroll"));
+        await until(() => $$("#big [data-fm-item]").length === 20); log("next", window.asked.join(" "), !!$("#big [data-fm-load-more]"));
+"##,
+        r##"<script>
+        window.asked = [];
+        const real = window.fetch;
+        window.fetch = async (u) => {
+          const url = new URL(u, location.href);
+          if (!url.pathname.startsWith("/api/files")) return real(u);
+          window.asked.push(url.search || "-");
+          const after = Number(url.searchParams.get("after") ?? 0), items = Array.from({ length: 10 }, (_, i) => ({ id: "f" + (after + i), name: "file " + (after + i) }));
+          return new Response(JSON.stringify({ items, next: after ? null : 10 }), { headers: { "content-type": "application/json" } });
+        };
+        </script>"##,
+    ) else {
+        return;
+    };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        [
+            "while true b",
+            r#"["b","c"] false 2 selected"#,
+            "while true bce",
+            r#"["b","c","e"]"#,
+            "[]",
+            "first -",
+            "next - ?after=10 false",
+        ],
+        "\n{result}"
+    );
+}
+
 /// `ui-file-browser` with `url` and `uploadUrl`, against a fetch (and an XMLHttpRequest)
 /// answered in the page: folders loaded once, again with Refresh or `refresh`, a page at
 /// a time; files dropped from the desktop going up with how far they've got, and one that

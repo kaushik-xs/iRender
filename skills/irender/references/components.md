@@ -887,6 +887,7 @@ ui-file-browser: Folders and files to browse one folder at a time, as a grid or 
   bind         statekey (required)  State key holding the files and folders, a flat list: `{ id, name, parent, folder, size, modified, thumb, url }`; `parent` is the folder's `id` (none: the top), `folder: true` for a folder
   bindFolder   statekey  State key holding the open folder's `id` (null: the top), both ways
   url          string  Load a folder's contents when it's first opened, and again with Refresh: `GET <url>?folder=<id>` (no `folder` for the top) answering a list of items, or a page of them `{ items, next }` (`next` comes back as `&after=`, with Load more); they're added to `bind`
+  loadOnScroll bool  With `url` answering pages: the next page is fetched as the end of the files nears the view (Load more stays, for the keys)
   refresh      any  With `url`: the open folder is loaded again when this changes, e.g. `{{ saved }}`
   uploadUrl    string  Files dropped from the desktop go up here, one `POST` each (form data `file` and `folder`), into the folder they're dropped on, showing how far each has got; an answer of an item takes the file's place, and one that failed has Try again
   bindSelection statekey  State key that gets the `id`s selected

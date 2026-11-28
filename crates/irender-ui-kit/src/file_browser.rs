@@ -21,6 +21,7 @@ const PROPS: &[PropDef] = &[
     .required(),
     PropDef::new("bindFolder", PropKind::StateKey, "State key holding the open folder's `id` (null: the top), both ways"),
     PropDef::new("url", PropKind::String, "Load a folder's contents when it's first opened, and again with Refresh: `GET <url>?folder=<id>` (no `folder` for the top) answering a list of items, or a page of them `{ items, next }` (`next` comes back as `&after=`, with Load more); they're added to `bind`"),
+    PropDef::new("loadOnScroll", PropKind::Bool, "With `url` answering pages: the next page is fetched as the end of the files nears the view (Load more stays, for the keys)"),
     PropDef::new("refresh", PropKind::Any, "With `url`: the open folder is loaded again when this changes, e.g. `{{ saved }}`"),
     PropDef::new("uploadUrl", PropKind::String, "Files dropped from the desktop go up here, one `POST` each (form data `file` and `folder`), into the folder they're dropped on, showing how far each has got; an answer of an item takes the file's place, and one that failed has Try again"),
     PropDef::new("bindSelection", PropKind::StateKey, "State key that gets the `id`s selected"),
@@ -78,6 +79,11 @@ static BROWSER: LazyLock<StyleBlock> = LazyLock::new(|| {
     // ---- the files
     .nest("& [data-fm-area]", pairs(&[("position", "relative"), ("overflow", "auto"), ("padding", pad!(12)), ("min-height", sp!(160))]))
     .nest("& [data-fm-files]", pairs(&[("outline", "none")]))
+    // The box dragged round items to select them.
+    .nest(
+        "& [data-fm-lasso]",
+        pairs(&[("position", "absolute"), ("z-index", "2"), ("border", "1px solid var(--color-primary)"), ("background", "color-mix(in srgb, var(--color-primary) 12%, transparent)"), ("pointer-events", "none")]),
+    )
     .nest("& [data-fm-files][data-view=grid]", pairs(&[("display", "grid"), ("grid-template-columns", "repeat(auto-fill, minmax(112px, 1fr))"), ("gap", gap!(8))]))
     .nest("& [data-fm-files][data-view=list]", pairs(&[("display", "flex"), ("flex-direction", "column")]))
     .nest(
@@ -213,6 +219,9 @@ impl Component for FileBrowser {
         };
         let mut config = widget::config(cx, node, &["refresh"], &["view", "url", "uploadUrl"], &["bind", "bindFolder", "bindSelection", "bindOpen"])?;
         config.insert("editable".into(), json!(widget::flag(cx, node, "editable", true)));
+        config.insert("loadOnScroll".into(), json!(widget::flag(cx, node, "loadOnScroll", false)));
+        // Given a height, the files scroll in their area; else with the page.
+        config.insert("scrolls".into(), json!(node.prop("height").is_some()));
         config.insert("rootLabel".into(), json!(cx.prop(node, "rootLabel").filter(|v| !v.is_null()).map_or_else(|| cx.label("Files"), |v| expr::stringify(&v))));
         config.insert("locale".into(), json!(crate::locale(cx, node)));
         let id = instance_id(cx, node, "file-browser");
