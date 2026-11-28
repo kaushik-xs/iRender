@@ -1103,13 +1103,19 @@ fn pareto_in_chrome() {
     let defects = json!([
         { "cause": "Dents", "n": 12 }, { "cause": "Scratches", "n": 42 }, { "cause": "Gaps", "n": 8 },
         { "cause": "Labels", "n": 18 }, { "cause": "Misaligned", "n": 30 }, { "cause": "Missing", "n": 10 }, { "cause": "Bad", "n": "x" } ]);
+    // Stacked by shift: Scratches 30 (day 20, night 10), Dents 25 (5, 20), Gaps 6, Labels 4.
+    let by_shift = json!([
+        { "cause": "Scratches", "shift": "Day", "n": 20 }, { "cause": "Scratches", "shift": "Night", "n": 10 },
+        { "cause": "Dents", "shift": "Day", "n": 5 }, { "cause": "Dents", "shift": "Night", "n": 20 },
+        { "cause": "Gaps", "shift": "Night", "n": 6 }, { "cause": "Labels", "shift": "Day", "n": 4 } ]);
     let tickets: Vec<Json> = ["Login", "Billing", "Login", "Bug", "Login", "Billing", "Slow", "Export"].iter().map(|r| json!({ "reason": r })).collect();
     let doc = json!({ "version": 1, "state": { "defects": defects, "limit": 80, "row": null }, "root": { "type": "stack", "children": [
         { "type": "ui-chart", "attrs": { "id": "p" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "threshold": "{{ limit }}" } },
         { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false, "bindRow": "row" } },
-        { "type": "ui-chart", "attrs": { "id": "h" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "horizontal": true, "labels": true } } ] } });
+        { "type": "ui-chart", "attrs": { "id": "h" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "horizontal": true, "labels": true } },
+        { "type": "ui-chart", "attrs": { "id": "s" }, "props": { "type": "pareto", "data": by_shift, "x": "cause", "y": "n", "series": "shift", "limit": 2 } } ] } });
     let body = r##"
-    await ready(["p", "c", "h"]);
+    await ready(["p", "c", "h", "s"]);
     const faded = (id) => opt(id).series[0].data.map((v) => (v?.itemStyle ? "f" : "-")).join("");
     const show = (id) => [opt(id).xAxis[0].data.join(","), opt(id).series[0].data.map((v) => v?.value ?? v).join(","), opt(id).series[1].data.join(","), faded(id),
       opt(id).series[1].yAxisIndex, opt(id).yAxis[1].max, JSON.stringify(opt(id).series[1].markLine?.data?.[0]?.yAxis ?? null)].join(" | ");
@@ -1129,6 +1135,9 @@ fn pareto_in_chrome() {
     for (const type of ["mousemove", "mousedown", "mouseup", "click"]) canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: cr.left + ox, clientY: cr.top + oy }));
     await wait(50);
     log("other", S().row?.reason, S().row?.count, (S().row?.rows ?? []).map((r) => r.reason + ":" + r.count).join(","));
+    // Stacked: a bar a part (Night's total is the larger), the line on the whole bars.
+    const st = opt("s");
+    log("stacked", st.xAxis[0].data.join(","), st.series.map((x) => x.name + ":" + (x.stack ?? "-") + ":" + x.data.map((v) => v?.value ?? v).join("/")).join(" "));
 "##;
     let Some(lines) = run("pareto", &engine, doc, &driver(body)) else { return };
     assert_eq!(
@@ -1143,6 +1152,8 @@ fn pareto_in_chrome() {
             "across category true Scratches -,100 1 80 right ----ff",
             "drawn true true",
             "other Other 3 Bug:1,Slow:1,Export:1",
+            // 65 in all: Scratches 30, Dents 25, and Gaps and Labels in Other (10).
+            "stacked Scratches,Dents,Other Night:pareto:10/20/6 Day:pareto:20/5/4 Cumulative %:-:46.2/84.6/100",
         ],
         "\n{}",
         lines.join("\n")

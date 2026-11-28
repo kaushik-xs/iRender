@@ -4597,7 +4597,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `themeRiver` | rows | date / one stream per field |
 | `parallel` | rows: one line each | / one axis per field; text fields become category axes |
 | `gantt` | rows: one task each | fixed fields; see [Gantt](#gantt) |
-| `pareto` | rows | category / one value field; see [Pareto](#pareto) |
+| `pareto` | rows | category / one value field, `series` to stack it; see [Pareto](#pareto) |
 
 Everything else goes in `option`: maps and `lines`, `custom` series, calendars, the `matrix` coordinate system, polar charts, `dataset` with transforms, `dataZoom`, `visualMap`, `markLine`, `graphic`, and 3D with echarts-gl. The gallery shows a calendar, polar bars and a sorted dataset written that way.
 
@@ -4675,7 +4675,11 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 - { type: ui-chart, props: { type: pareto, data: "{{ tickets }}", x: reason, aggregate: count, threshold: "{{ cutoff }}" } }
 # Down the side, for long names.
 - { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, horizontal: true } }
+# Each bar split by shift: the parts stacked, the line on the whole bars.
+- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, series: shift } }
 ```
+
+With `series` the rows are (category, part) pairs, as for other charts split into series: each category's bar stacks its parts (the part with the largest total over all of them first, nearest the axis), the categories go by their whole bars, Other adds up each part of the rest, and the running percent is of the whole bars.
 
 ## Drill-downs
 

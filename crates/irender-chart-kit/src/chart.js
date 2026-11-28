@@ -301,7 +301,34 @@
     if (p.type === "pareto") {
       // Largest first, whatever `sort` says; past `limit`, the rest add up into one
       // Other bar, kept last. Values that aren't numbers, or are below zero, are left out.
-      const f = blank(y) ? fieldsOf(rows).find((f) => f !== x && rows.some((r) => isNum(at(r, f)))) : ylist(y)[0].field;
+      const f = blank(y) ? fieldsOf(rows).find((f) => f !== x && f !== p.series && rows.some((r) => isNum(at(r, f)))) : ylist(y)[0].field;
+      if (!blank(p.series)) {
+        // Stacked by `series`: a category's bar is its parts, in the order of their
+        // totals over all of them, and categories go by their own total.
+        const cats = new Map(), totals = new Map();
+        for (const r of rows) {
+          const v = at(r, f), sk = String(at(r, p.series) ?? "");
+          if (!isNum(v) || Number(v) < 0) continue;
+          const k = JSON.stringify(at(r, x) ?? null);
+          if (!cats.has(k)) cats.set(k, { [x]: at(r, x), [f]: 0, __by: {}, rows: [] });
+          const c = cats.get(k);
+          c[f] = tidy(c[f] + Number(v));
+          c.__by[sk] = tidy((c.__by[sk] ?? 0) + Number(v));
+          c.rows.push(r);
+          totals.set(sk, (totals.get(sk) ?? 0) + Number(v));
+        }
+        let list = sortRows([...cats.values()], { field: f, order: "desc" });
+        if (limit && list.length > limit) {
+          const rest = list.slice(limit), other = { [x]: L("Other"), [f]: 0, __by: {}, rows: rest.flatMap((c) => c.rows) };
+          for (const c of rest) {
+            other[f] = tidy(other[f] + c[f]);
+            for (const [sk, v] of Object.entries(c.__by)) other.__by[sk] = tidy((other.__by[sk] ?? 0) + v);
+          }
+          list = [...list.slice(0, limit), other];
+        }
+        const stack = [...totals].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+        return { ...out, rows: list, x, y: f, stack };
+      }
       rows = sortRows(rows.filter((r) => isNum(at(r, f)) && Number(at(r, f)) >= 0), { field: f, order: "desc" });
       if (limit && rows.length > limit) {
         const rest = rows.slice(limit);
@@ -973,18 +1000,33 @@
       o.grid = { left: 8, right: across ? 24 : 16, top: 16, bottom: 8 };
       const second = across ? { xAxisIndex: 1 } : { yAxisIndex: 1 };
       const percent = (v) => (isNum(v) ? `${v}%` : v);
+      // Stacked by `series` (`d.stack`, the parts biggest first): a bar a part, faded alike
+      // past the threshold; the line is the running total of the whole bars.
+      const parts = Array.isArray(d.stack) ? d.stack : null;
+      const lineColor = parts ? t.text : t.palette[1];
+      const bars = parts
+        ? parts.map((k, n) => {
+            const color = t.palette[n % t.palette.length], last = n === parts.length - 1;
+            return merge({
+              id: `s${n}`, type: "bar", name: k, stack: "pareto", barMaxWidth: 40, color,
+              itemStyle: { borderColor: t.surface, borderWidth: 1, ...(last ? { borderRadius: across ? [0, 4, 4, 0] : [4, 4, 0, 0] } : {}) },
+              data: rows.map((r, i) => (i < few ? r.__by[k] ?? 0 : { value: r.__by[k] ?? 0, itemStyle: { color: fade(color, 0.4) } })),
+              label: p.labels && last ? { show: true, position: across ? "right" : "top", color: t.muted, formatter: (e) => String(vals[e.dataIndex]) } : undefined,
+            }, extra);
+          })
+        : null;
       o.series = [
-        merge({
+        ...(bars ?? [merge({
           id: "s0", type: "bar", name: name ?? String(field), barMaxWidth: 40, itemStyle: { borderRadius: across ? [0, 4, 4, 0] : [4, 4, 0, 0] },
           data: vals.map((v, i) => (i < few ? v : { value: v, itemStyle: { color: fade(t.palette[0], 0.4) } })),
           label: p.labels ? { show: true, position: across ? "right" : "top", color: t.muted } : undefined,
           labelLayout: p.labels ? { hideOverlap: true } : undefined,
-        }, extra),
+        }, extra)]),
         {
-          id: "s1", type: "line", name: L("Cumulative %"), ...second, data: cum, color: t.palette[1],
+          id: bars ? `s${bars.length}` : "s1", type: "line", name: L("Cumulative %"), ...second, data: cum, color: lineColor,
           symbolSize: 6, showSymbol: rows.length <= 24, tooltip: { valueFormatter: percent },
           // Above the points, giving way to the bars' labels where they'd overlap.
-          label: p.labels ? { show: true, position: across ? "right" : "top", color: t.palette[1], formatter: (e) => percent(e.value) } : undefined,
+          label: p.labels ? { show: true, position: across ? "right" : "top", color: lineColor, formatter: (e) => percent(e.value) } : undefined,
           labelLayout: p.labels ? { hideOverlap: true } : undefined,
           z: 3,
           markLine: limit === null ? undefined : {
@@ -993,7 +1035,8 @@
           },
         },
       ];
-      rowsBy.push(rows, rows);
+      for (let n = 0; n < (bars?.length ?? 1); n++) rowsBy.push(rows);
+      rowsBy.push(rows);
       tooltip("axis", { axisPointer: { type: "shadow" } });
       legend = true;
     } else if (type === "pie" || type === "donut" || type === "funnel") {

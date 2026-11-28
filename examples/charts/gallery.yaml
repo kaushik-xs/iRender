@@ -514,6 +514,27 @@ root:
               children:
                 - { type: ui-chart, props: { type: pareto, data: "{{ returns }}", x: reason, y: { field: returns, name: Returns }, limit: 6, horizontal: true, labels: true, height: 300 } }
             - type: ui-card
+              props: { title: Pareto by channel, description: "`series`: each bar split into its parts, the line on the whole bars. Here returns by reason, online and in store." }
+              children:
+                - type: ui-chart
+                  props:
+                    type: pareto
+                    x: reason
+                    y: returns
+                    series: channel
+                    limit: 5
+                    data:
+                      - { reason: Wrong size, channel: Online, returns: 150 }
+                      - { reason: Wrong size, channel: In store, returns: 34 }
+                      - { reason: Damaged in transit, channel: Online, returns: 96 }
+                      - { reason: Not as pictured, channel: Online, returns: 71 }
+                      - { reason: Changed mind, channel: Online, returns: 30 }
+                      - { reason: Changed mind, channel: In store, returns: 28 }
+                      - { reason: Faulty, channel: Online, returns: 22 }
+                      - { reason: Faulty, channel: In store, returns: 19 }
+                      - { reason: Late, channel: Online, returns: 15 }
+                      - { reason: Gift, channel: In store, returns: 9 }
+            - type: ui-card
               props: { title: Radar }
               children:
                 - { type: ui-chart, props: { type: radar, data: "{{ skills }}" } }
