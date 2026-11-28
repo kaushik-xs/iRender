@@ -305,6 +305,7 @@ state:
   slaStatus: null
   cdWaiting: false
   compareAt: 50
+  compareZoom: 1
   vlCount: 200
   vlRange: null
   vlJump: null
@@ -2768,6 +2769,15 @@ root:
                       props: { before: blocks/media/wall-before.svg, after: blocks/media/wall-after.svg, orientation: vertical, ratio: 4/3, hover: true, beforeLabel: Reported, afterLabel: Fixed, position: 35, caption: "Up and down, cropped to 4:3, following the mouse" }
                     - type: ui-compare-slider
                       props: { before: blocks/media/wall-before.svg, after: blocks/media/wall-after.svg, mode: fade, position: 30, caption: "mode: fade — drag across to fade the repair in" }
+                    - type: ui-compare-slider
+                      props:
+                        zoom: true
+                        bindZoom: compareZoom
+                        caption: "Three pictures and zoom: ⌘ or Ctrl and the wheel, a pinch, a double click or + and −; drag to move about. compareZoom = {{ compareZoom }}"
+                        pictures:
+                          - { src: blocks/media/wall-before.svg, alt: A damp and cracked wall, label: Before }
+                          - { src: blocks/media/wall-during.svg, alt: The wall being plastered, a ladder against it, label: During }
+                          - { src: blocks/media/wall-after.svg, alt: The same wall repaired and painted, label: After }
                 - { type: if, props: { when: "{{ api.compare_slider.length > 0 }}" }, children: [ { type: ui-heading, props: { level: 4, text: API reference }, style: { margin-top: 8 } } ] }
                 - type: list
                   props: { items: "{{ api.compare_slider }}", as: c }

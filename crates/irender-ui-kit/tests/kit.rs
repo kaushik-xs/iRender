@@ -1442,6 +1442,21 @@ fn compare_slider_structure_and_mistakes() {
     let err = |props: Json| render_with(json!({ "type": "ui-compare-slider", "props": props }), json!({}), json!({})).unwrap_err().to_string();
     assert!(err(json!({ "before": "a", "after": "b", "position": 120 })).contains("from 0 to 100"));
     assert!(err(json!({ "before": "a", "after": "b", "ratio": "wide" })).contains("`ratio` is width to height"));
+
+    // Three pictures: a layer and a divider for each after the first, evenly apart.
+    let three = plain(&render_with(json!({ "type": "ui-compare-slider", "props": { "pictures": ["/a.jpg", { "src": "/b.jpg", "label": "June" }, "/c.jpg"], "zoom": true } }), json!({}), json!({})).unwrap().body);
+    assert!(three.contains("data-many") && three.contains("data-own-drag") && three.contains(r#"aria-label="Comparison""#), "{three}");
+    assert_eq!(three.matches("<input type=\"range\"").count(), 2, "{three}");
+    assert!(three.contains(r#"value="33" aria-label="Divider 1""#) && three.contains(r#"value="67" aria-label="Divider 2""#), "{three}");
+    assert!(three.contains(r#"<span data-cmp-tag="after" aria-hidden="true">June</span>"#) && three.contains("&quot;zoom&quot;:4.0"), "{three}");
+    assert!(err(json!({ "pictures": ["/a", "/b", "/c"], "position": [70, 30] })).contains("in order"));
+    assert!(err(json!({ "pictures": ["/a", "/b", "/c"], "position": 40 })).contains("a list of 2"));
+    assert!(err(json!({ "pictures": ["/a", "/b", "/c"], "mode": "fade" })).contains("`mode: fade` takes two pictures"));
+    assert!(err(json!({ "pictures": ["/a"] })).contains("two to four"));
+    assert!(err(json!({ "pictures": ["/a", "/b"], "before": "/x" })).contains("takes the place of `before` and `after`"));
+    assert!(err(json!({ "pictures": ["/a", { "alt": "x" }] })).contains("picture 2: needs `src`"));
+    assert!(err(json!({ "before": "a" })).contains("needs `before` and `after`, or `pictures`"));
+    assert!(err(json!({ "before": "a", "after": "b", "zoom": 20 })).contains("`zoom` is `true` or the most"));
 }
 
 #[test]

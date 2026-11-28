@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <!-- The same wall during the repair: cracks filled, patches of fresh plaster, the picture taken down, a ladder against it. -->
+  <rect width="800" height="500" fill="#d8d2c3"/>
+  <rect y="400" width="800" height="100" fill="#8a6f4e"/>
+  <rect y="392" width="800" height="10" fill="#efe9dc"/>
+  <rect y="402" width="800" height="98" fill="#e6e1d6" opacity="0.55"/>
+  <ellipse cx="560" cy="110" rx="170" ry="80" fill="#f1eee7"/>
+  <ellipse cx="160" cy="360" rx="120" ry="50" fill="#f1eee7"/>
+  <path d="M300 0 L318 70 L296 130 L330 210 L312 280" fill="none" stroke="#f7f5f0" stroke-width="12" stroke-linecap="round"/>
+  <path d="M640 260 L610 320 L650 370 L630 392" fill="none" stroke="#f7f5f0" stroke-width="10" stroke-linecap="round"/>
+  <rect x="80" y="170" width="150" height="110" fill="none" stroke="#bdb39c" stroke-width="2" stroke-dasharray="8 6"/>
+  <g stroke="#7a5c3a" stroke-width="10" stroke-linecap="round">
+    <path d="M470 392 L540 120 M560 392 L620 120"/>
+    <path d="M482 345 L571 345 M494 295 L584 295 M507 245 L596 245 M520 195 L609 195 M532 145 L620 145" stroke-width="7"/>
+  </g>
+  <rect x="660" y="352" width="70" height="40" rx="4" fill="#9fb1bd"/>
+  <rect x="668" y="344" width="54" height="10" rx="3" fill="#7d909c"/>
+</svg>

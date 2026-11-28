@@ -501,15 +501,22 @@ root: …
 ```yaml
 "After {b}% faded in": "After {b}% faded in"
 "Before {a}%, after {b}%": "Before {a}%, after {b}%"
+"{a}% to {b}%": "{a}% to {b}%"
+"Zoom in": "Zoom in"
+"Zoom out": "Zoom out"
+"Reset zoom": "Reset zoom"
+"Zoom": "Zoom"
 ```
 
 `compare.rs`
 
 ```yaml
+"Comparison": "Comparison"
+"Before and after": "Before and after"
+"Divider {n}": "Divider {n}"
+"Divider": "Divider"
 "Before": "Before"
 "After": "After"
-"Before and after": "Before and after"
-"Divider": "Divider"
 ```
 
 `countdown.js`

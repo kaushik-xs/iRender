@@ -611,6 +611,83 @@ root:
     );
 }
 
+/// `ui-compare-slider` with three pictures (two dividers, kept in order, dragged by the
+/// nearest) and `zoom` (every picture alike, the dividers staying put, the view moved by
+/// dragging away from them).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn compare_slider_three_pictures_and_zoom() {
+    check(
+        "compare-many",
+        r##"
+state: { at: null, z: 1 }
+root:
+  type: stack
+  style: { width: 400px }
+  children:
+    - type: ui-compare-slider
+      attrs: { id: m }
+      props:
+        bind: at
+        ratio: "2/1"
+        pictures:
+          - { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'/%3E", label: May }
+          - { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'/%3E", label: June }
+          - { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'/%3E", label: July }
+    - type: ui-compare-slider
+      attrs: { id: z }
+      props: { zoom: 3, bindZoom: z, ratio: "2/1", position: 50, before: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'/%3E", after: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'/%3E" }
+"##,
+        r##"
+        const m = $("#m"), f = $("#m [data-cmp-frame]"), r = f.getBoundingClientRect();
+        const clips = (id) => $$(`#${id} [data-cmp-after]`).map((l) => getComputedStyle(l).clipPath).join(" ");
+        const tags = $$("#m [data-cmp-tag]").map((t) => Math.round(t.getBoundingClientRect().left - r.left)).join(",");
+        log(clips("m"), tags, $$("#m input").map((i) => i.getAttribute("aria-label") + ":" + i.value).join(","), m.getAttribute("aria-label"));
+        // A press near the second divider moves it, and never past the first.
+        pointer("pointerdown", r.left + 260, r.top + 50, f); pointer("pointermove", r.left + 300, r.top + 50, f); pointer("pointerup", r.left + 300, r.top + 50, f); await wait(20);
+        log(JSON.stringify(S().at), clips("m"));
+        pointer("pointerdown", r.left + 290, r.top + 50, f); pointer("pointermove", r.left + 40, r.top + 50, f); pointer("pointerup", r.left + 40, r.top + 50, f); await wait(20);
+        log(JSON.stringify(S().at));
+        root.__irender.set("at", [10, 90]); await wait(20); log(clips("m"), $$("#m input").map((i) => i.value).join(","));
+
+        const z = $("#z"), zf = $("#z [data-cmp-frame]"), zr = zf.getBoundingClientRect(), img = () => $$("#z img").map((i) => getComputedStyle(i).transform).join(" ");
+        const bar = () => [$("#z output").textContent, ...$$("#z [data-cmp-zoom]").map((b) => b.dataset.cmpZoom + (b.disabled ? "-" : "+"))].join(" ");
+        log(bar(), zf.hasAttribute("data-zoomed"));
+        $("#z [data-cmp-zoom=in]").click(); await wait(20);
+        log(bar(), img(), clips("z"), S().z);
+        // Ctrl and the wheel at the top left corner: that point stays put.
+        zf.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, ctrlKey: true, deltaY: -1000, clientX: zr.left, clientY: zr.top })); await wait(20);
+        log(bar(), $("#z img").style.transform || getComputedStyle($("#z img")).transform);
+        // Dragging away from the divider moves the view, kept covering the frame.
+        pointer("pointerdown", zr.left + 300, zr.top + 100, zf); pointer("pointermove", zr.left + 200, zr.top + 60, zf); pointer("pointerup", zr.left + 200, zr.top + 60, zf); await wait(20);
+        log(getComputedStyle(zf).getPropertyValue("--zx"), getComputedStyle(zf).getPropertyValue("--zy"), $("#z input").value);
+        pointer("pointerdown", zr.left + 2000, zr.top + 100, zf); pointer("pointermove", zr.left + 4000, zr.top + 100, zf); pointer("pointerup", zr.left + 4000, zr.top + 100, zf); await wait(20);
+        log(getComputedStyle(zf).getPropertyValue("--zx"), $("#z input").value);
+        // Near the divider (it doesn't move with the zoom), a drag takes it.
+        pointer("pointerdown", zr.left + 202, zr.top + 100, zf); pointer("pointermove", zr.left + 100, zr.top + 100, zf); pointer("pointerup", zr.left + 100, zr.top + 100, zf); await wait(20);
+        log($("#z input").value, clips("z"));
+        $("#z input").focus(); key("-"); await wait(20); log(bar());
+        key("0"); await wait(20); log(bar(), zf.hasAttribute("data-zoomed"), S().z);
+        root.__irender.set("z", 2); await wait(20); log(bar(), getComputedStyle(zf).getPropertyValue("--zx"));
+"##,
+        &[
+            "inset(0px 0px 0px 33%) inset(0px 0px 0px 67%) 10,142,278 Divider 1:33,Divider 2:67 Comparison",
+            "[33,75] inset(0px 0px 0px 33%) inset(0px 0px 0px 75%)",
+            "[33,33]",
+            "inset(0px 0px 0px 10%) inset(0px 0px 0px 90%) 10,90",
+            "100% out- in+ reset- false",
+            "150% out+ in+ reset+ matrix(1.5, 0, 0, 1.5, -100, -50) matrix(1.5, 0, 0, 1.5, -100, -50) inset(0px 0px 0px 50%) 1.5",
+            "300% out+ in- reset+ matrix(3, 0, 0, 3, -200, -100)",
+            "-300 -140 50",
+            "0 50",
+            "25 inset(0px 0px 0px 25%)",
+            "200% out+ in+ reset+",
+            "100% out- in+ reset- false 1",
+            "200% out+ in+ reset+ -200",
+        ],
+    );
+}
+
 /// `format: oklch`: written as OKLCH, and typed OKLCH (any of its forms) read, a colour
 /// outside sRGB brought into it.
 #[test]

@@ -836,14 +836,17 @@ ui-iframe: Another page shown inside this one: sandboxed, loaded as it nears the
   send         any  Posted to its page, to its origin only, once it's loaded and each time this changes; may use state
   children: no
 ui-compare-slider: Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either.
-  before       any (required)  The first picture's address
-  after        any (required)  The second picture's address, the same size and framing
+  before       any  The first picture's address (or use `pictures`)
+  after        any  The second picture's address, the same size and framing
+  pictures     any  In place of `before` and `after`: two to four pictures, `{ src, alt, label }`, side by side with a divider between each two (e.g. before, during, after)
+  zoom         any  Magnify all the pictures together: `true` (up to 4×) or the most, 2–10. Ctrl or ⌘ and the wheel, a pinch, a double click, the + and − keys or the buttons; dragging moves the view, and a divider when it's near one
+  bindZoom     statekey  With `zoom`: state key holding how much it's magnified (1 is not at all), both ways
   beforeAlt    any  What the first picture shows, for screen readers
   afterAlt     any  What the second picture shows, for screen readers
   beforeLabel  any  On the first picture's side (default `Before`); empty for none
   afterLabel   any  On the second picture's side (default `After`); empty for none
-  position     number  Where the divider starts, 0–100 from the first side (default 50)
-  bind         statekey  State key holding the divider's place, 0–100, both ways
+  position     any  Where the divider starts, 0–100 from the first side (default 50); with `pictures`, a list, one a divider (default: evenly apart)
+  bind         statekey  State key holding the divider's place, 0–100, both ways; with three or four `pictures`, a list of them
   orientation  one of: horizontal, vertical  `horizontal` (default: the divider moves left and right) or `vertical` (up and down)
   mode         one of: split, fade  `split` (default: a divider shows one side of each) or `fade`: the second picture fades in over the first as the slider moves
   hover        bool  The divider follows a mouse without pressing

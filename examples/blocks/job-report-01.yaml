@@ -45,7 +45,8 @@ root:
                 after: media/wall-after.svg
                 beforeAlt: "The living room wall before: damp stains, two cracks and peeling paint, the picture hung crooked"
                 afterAlt: "The same wall after: filled, sealed and painted, the picture rehung, a plant by the skirting"
-                caption: "Living room, north wall. Photos from the same spot, 12 and 21 Nov."
+                caption: "Living room, north wall. Photos from the same spot, 12 and 21 Nov. ⌘ or Ctrl and the wheel (or a pinch) looks closer at both."
+                zoom: true
                 label: Living room wall, before and after
             - type: stack
               props: { direction: row, gap: 8 }

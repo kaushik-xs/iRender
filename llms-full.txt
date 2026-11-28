@@ -1001,14 +1001,17 @@ ui-iframe: Another page shown inside this one: sandboxed, loaded as it nears the
   send         any  Posted to its page, to its origin only, once it's loaded and each time this changes; may use state
   children: no
 ui-compare-slider: Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either.
-  before       any (required)  The first picture's address
-  after        any (required)  The second picture's address, the same size and framing
+  before       any  The first picture's address (or use `pictures`)
+  after        any  The second picture's address, the same size and framing
+  pictures     any  In place of `before` and `after`: two to four pictures, `{ src, alt, label }`, side by side with a divider between each two (e.g. before, during, after)
+  zoom         any  Magnify all the pictures together: `true` (up to 4×) or the most, 2–10. Ctrl or ⌘ and the wheel, a pinch, a double click, the + and − keys or the buttons; dragging moves the view, and a divider when it's near one
+  bindZoom     statekey  With `zoom`: state key holding how much it's magnified (1 is not at all), both ways
   beforeAlt    any  What the first picture shows, for screen readers
   afterAlt     any  What the second picture shows, for screen readers
   beforeLabel  any  On the first picture's side (default `Before`); empty for none
   afterLabel   any  On the second picture's side (default `After`); empty for none
-  position     number  Where the divider starts, 0–100 from the first side (default 50)
-  bind         statekey  State key holding the divider's place, 0–100, both ways
+  position     any  Where the divider starts, 0–100 from the first side (default 50); with `pictures`, a list, one a divider (default: evenly apart)
+  bind         statekey  State key holding the divider's place, 0–100, both ways; with three or four `pictures`, a list of them
   orientation  one of: horizontal, vertical  `horizontal` (default: the divider moves left and right) or `vertical` (up and down)
   mode         one of: split, fade  `split` (default: a divider shows one side of each) or `fade`: the second picture fades in over the first as the slider moves
   hover        bool  The divider follows a mouse without pressing
@@ -3317,7 +3320,7 @@ cargo run -p irender-cli -- components --ui-kit      # every component and its p
 | `ui-item-group` + `ui-item` | item-group: `label`, `variant` (divided, cards, plain); item: `title`, `description`, `icon`, `image`, `initials`, `meta`, `tone` (neutral, info, success, warning, danger, primary), `href`, `selected`, `disabled`, `size` (default, sm), `variant` (plain, outline, muted) | A list of `ui-item`s (a `list` works as its child). |
 | `ui-comments` | `bind` (required), `user`, `people`, `reactions`, `resolvable`, `replies`, `editable`, `order` (oldest, newest), `placeholder`, `emptyText`, `maxLength`, `label`, `disabled`, `locale` | Comments in threads: replies, mentions, reactions, resolving, editing one's own. Each change is written to `bind` and fires an event. |
 | `ui-lightbox` | `images` (required), `layout` (grid, row, masonry, stack), `minWidth`, `ratio`, `max`, `captions`, `download`, `bind`, `label` | Pictures that open over the page: step with the arrows or a swipe, zoom with the wheel, a pinch or a double click, and save. |
-| `ui-compare-slider` | `before`, `after` (required), `beforeAlt`, `afterAlt`, `beforeLabel`, `afterLabel`, `position`, `bind`, `mode` (split, fade), `orientation` (horizontal, vertical), `hover`, `ratio`, `caption`, `label` | Two pictures, before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either. See below. |
+| `ui-compare-slider` | `before`, `after` (or `pictures`, two to four), `beforeAlt`, `afterAlt`, `beforeLabel`, `afterLabel`, `position`, `bind`, `mode` (split, fade), `orientation` (horizontal, vertical), `hover`, `zoom`, `bindZoom`, `ratio`, `caption`, `label` | Two pictures (or up to four), before and after, one over the other, with a divider dragged across (or moved with the keys) to show more of either. See below. |
 | `ui-iframe` | `src` (required), `title`, `height` (default 400, or `auto`), `minHeight`, `ratio`, `sandbox`, `allow`, `loading` (lazy, eager), `referrerPolicy`, `bordered` (default true), `timeout`, `bindStatus`, `bindMessage`, `send` | Another page shown inside this one, sandboxed and loaded as it nears the screen; anywhere in the tree. See below. |
 | `ui-pivot` | `rows` (required), `fields`, `down`, `across`, `values`, `filter`, `bind`, `editable`, `totals` (both, rows, columns, none), `subtotals`, `heat`, `bindCell`, `export`, `height`, `title`, `emptyText`, `locale` | A pivot table: rows summed up by fields down and across, with subtotals that fold, shares, a heat tint, sorting, and the rows behind a cell. See [Pivot table](#pivot-table). |
 | `ui-scheduler` | `resources` (required), `events` (required), `bindEvents`, `bindEvent`, `bindDate`, `bindView`, `view` (day, week, month), `views`, `from`, `to`, `snap`, `overlap` (allow, mark, prevent), `creatable`, `newEvent`, `moveResources`, `bindClashes`, `rowLabel`, `rowHeight`, `height`, `now`, `label`, `locale` | Bookings against time, a row per person, room, vehicle or machine: moved, stretched and made by dragging or the keys, with clashes marked. See [Scheduler](#scheduler). |
@@ -3918,7 +3921,13 @@ Charts and the table work together in three ways, all in the [`data-table-02`](h
 
 **`ui-compare-slider`** puts two pictures of the same thing one over the other, `before` and `after`: a repair, an edit, a renovation, a season. A divider shows the first on one side and the second on the other; drag anywhere on the picture to move it (mouse, finger or pen), or focus it: the arrow keys move it a step, Page Up and Down ten, Home and End to either side. It's a range input underneath, so screen readers hear "Before 40%, after 60%"; give each picture a `beforeAlt` and `afterAlt`. `beforeLabel` and `afterLabel` (default `Before` and `After`, empty for none) sit on their sides and fade as the divider covers them. `position` (0–100, default 50) is where it starts, or `bind` keeps it in state both ways, so buttons can jump to either side. `orientation: vertical` runs it up and down, `hover` lets a mouse move it without pressing, and `ratio` (`16/9`, `1`) crops both pictures to that shape; without it the first picture sets the size and the second covers it, so they should match. Right to left, the first picture is on the right. `mode: fade` compares them another way: the second picture fades in over the whole of the first as the slider goes across (the keys and dragging work the same, and a bar along the foot shows how far), which suits small changes a divider would cut through.
 
+`pictures` takes the place of `before` and `after` for three or four, `[{ src, alt, label }]` (or just addresses), side by side with a divider between each two: a picture shows from its divider to the next. `position` (and `bind`) is then a list, one place a divider, evenly apart by default; the dividers stay in order, a press moves the nearest one, and each is a range input of its own for the keys ("Divider 1", "Divider 2"). `zoom: true` (or the most, 2–10; true is 4) magnifies every picture alike with ⌘/Ctrl and the wheel, a pinch, a double click, + and − (0 goes back) or its buttons, the dividers staying where they are on the frame; zoomed, a drag away from a divider moves the view, kept covering the frame. `bindZoom` keeps how much, both ways.
+
 ```yaml
+- type: ui-compare-slider
+  props:
+    zoom: true
+    pictures: [ { src: /photos/may.jpg, label: May }, { src: /photos/june.jpg, label: June }, { src: /photos/july.jpg, label: July } ]
 - type: ui-compare-slider
   props: { before: /photos/wall-12-nov.jpg, after: /photos/wall-21-nov.jpg, beforeAlt: The damp wall, afterAlt: The wall repaired, bind: split, caption: Living room, north wall }
 - { type: ui-compare-slider, props: { before: a.jpg, after: b.jpg, orientation: vertical, ratio: 4/3, hover: true } }

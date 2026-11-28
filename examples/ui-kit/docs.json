@@ -702,7 +702,7 @@
    "group": "Data display",
    "title": "Compare slider",
    "nav": "Compare slider",
-   "summary": "Two pictures of the same thing, before and after, one over the other, with a divider dragged across to show more of either: repairs, edits, renovations, seasons. Mouse, touch, pen and the keyboard all move it; it can run up and down, follow the mouse, crop both to a ratio, and keep its place in state.",
+   "summary": "Two pictures of the same thing, before and after, one over the other, with a divider dragged across to show more of either: repairs, edits, renovations, seasons. Mouse, touch, pen and the keyboard all move it; it can run up and down, follow the mouse, crop both to a ratio, and keep its place in state. pictures takes up to four, a divider between each two, and zoom magnifies them all together.",
    "usage": "- type: ui-compare-slider\n  props: { before: /photos/wall-before.jpg, after: /photos/wall-after.jpg, beforeAlt: The damp wall, afterAlt: The wall repaired, bind: split }\n- { type: ui-compare-slider, props: { before: a.jpg, after: b.jpg, orientation: vertical, ratio: 4/3, hover: true } }",
    "components": [
     "ui-compare-slider"
