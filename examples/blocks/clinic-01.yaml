@@ -60,6 +60,11 @@ root:
         scope: "{{ user }}"
         private: [name, mrn, born, phone, allergies]
         retain: 7
+        # What's kept is let go after a week, and when the API's shape changes (a new
+        # version), and at most 500 patients are kept.
+        version: 1
+        maxAge: 7
+        maxRecords: 500
         clear: "{{ signedOut }}"
         # Edits, also offline: sent with the version they were made on. A phone someone
         # else changed meanwhile is asked about (ui-data-conflicts in the card).
@@ -76,6 +81,9 @@ root:
         persist: device
         scope: "{{ user }}"
         private: [reason]
+        version: 1
+        # At most ten days and clinicians kept.
+        keep: 10
         clear: "{{ signedOut }}"
         # Every 20 seconds (and when the connection's back), only what changed since.
         sync: { full: 12 }

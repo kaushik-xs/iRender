@@ -30,7 +30,7 @@ root:
   children:
     # Where the joined records come from. They draw nothing.
     - type: ui-data-source
-      props: { name: people, batch: { url: api/people, max: 50 }, ttl: 600 }
+      props: { name: people, batch: { url: api/people, max: 50 }, ttl: 600, missingTtl: 60 }
     - type: ui-data-source
       props: { name: accounts, one: "api/accounts/{id}", ttl: 600 }
     # The clicked ticket's requester, kept up to date: fetched again once it's verified.
