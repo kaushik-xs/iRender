@@ -241,25 +241,29 @@
     return out;
   }
   async function fetchMany(s, ids) {
-    const b = s.cfg.batch;
+    const b = s.cfg.batch, scope = s.scope;
     try {
       const post = String(b.method ?? "GET").toUpperCase() === "POST";
       const init = post ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...(isObj(b.body) ? b.body : {}), [param(b)]: ids }) } : {};
       const { answer, missing } = await getJson(post ? join(String(b.url), params(b.params)) : batchUrl(b, ids), init, s.cfg.headers);
+      // Someone else by now: the answer was for whoever asked, and isn't shown or kept.
+      if (s.scope !== scope) return;
       const got = missing ? new Map() : byId(s, records(answer, b.pick));
       const now = Date.now();
       for (const id of ids) put(s, id, got.has(id) ? { s: "ready", v: got.get(id), at: now } : { s: "missing", v: null, at: now });
       writeKept(s, ids.map((id) => [id, got.get(id) ?? null]));
     } catch (e) {
-      failed(s, ids, e);
+      if (s.scope === scope) failed(s, ids, e);
     }
   }
   async function fetchOne(s, id) {
+    const scope = s.scope;
     try {
       const url = String(s.cfg.one).replaceAll("{id}", encodeURIComponent(id));
       // What's here is asked about by its ETag: 304, it's still right.
       const had = s.recs.get(id), etag = had?.v != null && !had.partial ? had.etag : null;
       const { answer, missing, same, etag: tag } = await getJson(url, etag ? { headers: { "if-none-match": etag } } : {}, s.cfg.headers);
+      if (s.scope !== scope) return;
       if (same) {
         put(s, id, { ...had, at: Date.now(), again: false });
         return writeKept(s, [[id, had.v, tag ?? etag]]);
@@ -268,7 +272,7 @@
       put(s, id, isObj(v) ? { s: "ready", v, at: Date.now(), etag: tag } : { s: "missing", v: null, at: Date.now() });
       writeKept(s, [[id, isObj(v) ? v : null, tag]]);
     } catch (e) {
-      failed(s, [id], e);
+      if (s.scope === scope) failed(s, [id], e);
     }
   }
   // A record that was kept stays shown; it's fetched again with the next ask after a while.
