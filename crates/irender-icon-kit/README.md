@@ -131,4 +131,10 @@ pack.same_when_filled("divider")?;                               // or: the outl
 
 CLI: `--icons assets/icons` (a pack named after the directory) or `--icons brand=assets/icons`, repeatable; it implies `--icon-kit`.
 
+## Finding icons
+
+`irender icons --search "bin"` lists the icons it finds, best first, with their tags: each word must start a word of an icon's name, one of its tags, or its pack's id or title (`core:delete  (bin, trash, remove, discard)`). `--json` gives `{ "found": [{ "pack", "name", "tags" }] }`, and the plain `irender icons --json` gives each pack's `tags` and every icon in one list, `icons: [{ id, pack, name, tags }]`, as the icon gallery's search box uses. From Rust, `IconKit::search("bin")`.
+
+Tags come from a pack's `_tags.txt`, a line an icon, `delete: bin trash remove` (`#` for comments), read by `Pack::from_dir` too; or `pack.add_tags("delete", ["bin"])` and `pack.read_tags(text)`. The `core`, `arrows` and `status` packs have them; the industry packs are found by their names and pack.
+
 Any SVG works, at any `viewBox`. On load it's reduced to its shapes (`path`, `circle`, `ellipse`, `rect`, `line`, `polyline`, `polygon`, `g`), their geometry and drawing attributes, and the root's `viewBox` and drawing defaults (`fill`, `stroke`, `stroke-width`, …). Scripts, styles, links, text, `<use>`, images, gradients, event attributes and `url(…)` references are dropped, so a pack file can't put anything else into a page. For icons that follow the text colour, draw them with `currentColor` (or no colour at all for fills).

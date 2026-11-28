@@ -364,7 +364,7 @@ Shipped so far, each in an outline and a filled style: `core`, `arrows`, `status
   - [ ] Marks are single-colour only. Idea: a `brand` colour per mark (Simple Icons has the hex) for `style: { color }`, and multi-colour marks like Google's "G".
   - [ ] Pinned to Simple Icons 15.0.0; the marks change when brands rebrand, so refresh them now and then.
 - [ ] **`ui-icon`'s `name` can't use state.** Icons are inlined on the server, so a name from `state` (or from a list item the browser rebuilds) is a render error; `if` / `else` covers fixed choices. Idea: a `names` prop listing the possible icons, all rendered with only the current one shown.
-- [ ] **No tags or search.** Packs have names only. Idea: a tags line per icon (in `_pack.txt` or a sidecar) for the gallery and `irender icons --search`.
+- [x] **Tags and search** (2026-11-29): `_tags.txt` per pack, `irender icons --search`, `IconKit::search`, and a search box in the icon gallery (a combobox with `keywords`). Only `core`, `arrows` and `status` have tags yet; the industry packs are found by their names and pack.
 - [ ] **Aliases:** no `previous` → `chevron-left`-style aliases between packs.
 - [ ] **Icons worth a second pass:** they pass lint and read, but the metaphor is weak, they're crowded at 16 px, or the filled style lost too much. (o) = outline, (f) = filled.
   - logistics: `freight-train`, `fleet`, `cold-chain`, `seal`, `dimensions`, `eta` (f)

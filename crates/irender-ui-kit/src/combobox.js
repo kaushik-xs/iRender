@@ -26,6 +26,8 @@
     return {
       value, label: String(pick(F.label, "label") ?? value ?? ""), description: pick(F.description, "description") ?? null,
       image: text(pick(F.image ?? "image", "image")), badge: text(pick(F.badge ?? "badge", "badge")), disabled: !!o.disabled,
+      // Words it's found by, not shown.
+      keywords: ((k) => (Array.isArray(k) ? k.join(" ") : text(k)))(pick(F.keywords ?? "keywords", "keywords")),
     };
   };
   const flat = (list) => list.flatMap((o) => (o.group != null ? o.options : [o]));
@@ -131,7 +133,7 @@
     const list = fromRemote ? remote : base();
     remember(list);
     // Loaded results are filtered too, as react-select does.
-    const keep = (o) => (!cfg.hideSelected || !isSelected(o.value)) && (!q || fold(o.label).includes(q) || fold(o.value).includes(q));
+    const keep = (o) => (!cfg.hideSelected || !isSelected(o.value)) && (!q || fold(o.label).includes(q) || fold(o.value).includes(q) || (o.keywords && fold(o.keywords).includes(q)));
     const out = [];
     for (const o of list) {
       if (o.group != null) {

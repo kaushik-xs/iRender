@@ -33,7 +33,7 @@ use indexmap::IndexMap;
 use irender_core::{ComponentInfo, Node, PropDef, PropKind, StyleBlock, Val};
 use irender_html::{Component, RenderCx, RenderError, Registry};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fmt, fs,
     path::Path,
     sync::{Arc, LazyLock},
@@ -46,6 +46,7 @@ struct BuiltinPack {
     icons: &'static [(&'static str, &'static str)],
     filled: &'static [(&'static str, &'static str)],
     same: &'static [&'static str],
+    tags: &'static str,
 }
 
 static BUILTIN: &[BuiltinPack] = include!(concat!(env!("OUT_DIR"), "/packs.rs"));
@@ -65,6 +66,7 @@ static BUILTIN_PACKS: LazyLock<Vec<Arc<Pack>>> = LazyLock::new(|| {
             for name in b.same {
                 pack.same_when_filled(name).unwrap_or_else(|e| panic!("built-in pack {}: {e}", b.id));
             }
+            pack.read_tags(b.tags).unwrap_or_else(|e| panic!("built-in pack {} (_tags.txt): {e}", b.id));
             Arc::new(pack)
         })
         .collect()
@@ -111,6 +113,8 @@ pub struct Pack {
     filled: IndexMap<String, Icon>,
     /// Icons with nothing to fill (an arrow, a check): the outline serves both styles.
     same: HashSet<String>,
+    /// Words an icon is found by, besides its name (`delete`: bin, trash, remove).
+    tags: HashMap<String, Vec<String>>,
 }
 
 impl Pack {
@@ -125,6 +129,7 @@ impl Pack {
             icons: IndexMap::new(),
             filled: IndexMap::new(),
             same: HashSet::new(),
+            tags: HashMap::new(),
         })
     }
 
@@ -149,7 +154,46 @@ impl Pack {
                 }
             }
         }
+        if let Ok(tags) = fs::read_to_string(dir.join("_tags.txt")) {
+            pack.read_tags(&tags).map_err(|e| IconError(format!("{}: {e}", dir.join("_tags.txt").display())))?;
+        }
         Ok(pack)
+    }
+
+    /// Words icons are found by, a line each: `delete: bin trash remove` (`#` starts a
+    /// comment). Every name must be an icon of the pack.
+    pub fn read_tags(&mut self, text: &str) -> Result<&mut Self, IconError> {
+        for (n, line) in text.lines().enumerate() {
+            let line = line.split('#').next().unwrap_or("").trim();
+            if line.is_empty() {
+                continue;
+            }
+            let Some((name, words)) = line.split_once(':') else {
+                return Err(IconError(format!("line {}: write `name: word word`", n + 1)));
+            };
+            self.add_tags(name.trim(), words.split_whitespace())?;
+        }
+        Ok(self)
+    }
+
+    /// Adds words `name` is found by.
+    pub fn add_tags<'a>(&mut self, name: &str, words: impl IntoIterator<Item = &'a str>) -> Result<&mut Self, IconError> {
+        if !self.icons.contains_key(name) {
+            return Err(IconError(format!("no icon `{name}` in pack `{}` to tag", self.id)));
+        }
+        let list = self.tags.entry(name.into()).or_default();
+        for w in words {
+            let w = w.to_lowercase();
+            if !list.contains(&w) {
+                list.push(w);
+            }
+        }
+        Ok(self)
+    }
+
+    /// The words `name` is found by, besides its name.
+    pub fn tags(&self, name: &str) -> &[String] {
+        self.tags.get(name).map_or(&[], Vec::as_slice)
     }
 
     /// Adds (or replaces) an icon from SVG source. Only shapes and drawing
@@ -257,6 +301,16 @@ fn check_name(what: &str, name: &str) -> Result<(), IconError> {
     if valid { Ok(()) } else { Err(IconError(format!("{what} `{name}` must be lowercase letters and digits joined by `-`"))) }
 }
 
+/// An icon [`IconKit::search`] found: its pack, name and tags, and how well it matched.
+#[derive(Debug, Clone)]
+pub struct Found<'a> {
+    pub pack: &'a Pack,
+    pub name: &'a str,
+    pub tags: &'a [String],
+    pub score: u32,
+    rank: usize,
+}
+
 /// The packs `ui-icon` draws from.
 #[derive(Debug, Clone)]
 pub struct IconKit {
@@ -314,6 +368,44 @@ impl IconKit {
 
     pub fn pack(&self, id: &str) -> Option<&Pack> {
         self.packs().find(|p| p.id == id)
+    }
+
+    /// The icons `query` finds, best first: each word of it must start a word of the
+    /// icon's name, one of its tags, or its pack's id or title. A whole word matched
+    /// counts more than its start, a name more than a tag, a tag more than the pack; ties
+    /// go by the packs' order, then the names'.
+    pub fn search(&self, query: &str) -> Vec<Found<'_>> {
+        let words: Vec<String> = query.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty()).map(str::to_lowercase).collect();
+        if words.is_empty() {
+            return Vec::new();
+        }
+        // How well `w` matches one of `list`: a whole word, or its start, by `weight`.
+        let hit = |list: &[&str], w: &str, weight: u32| list.iter().filter_map(|x| if *x == w { Some(weight + 10) } else if x.starts_with(w) { Some(weight) } else { None }).max();
+        let mut out = Vec::new();
+        for (rank, pack) in self.packs().enumerate() {
+            let title = pack.title.to_lowercase();
+            let pack_words: Vec<&str> = std::iter::once(pack.id.as_str()).chain(title.split_whitespace()).collect();
+            for name in pack.names() {
+                let name_words: Vec<&str> = name.split('-').collect();
+                let tags = pack.tags(name);
+                let tag_words: Vec<&str> = tags.iter().map(String::as_str).collect();
+                let mut score = 0;
+                let all = words.iter().all(|w| {
+                    let best = [hit(&name_words, w, 30), hit(&tag_words, w, 20), hit(&pack_words, w, 5)].into_iter().flatten().max();
+                    score += best.unwrap_or(0);
+                    best.is_some()
+                });
+                if all {
+                    // The whole query as the name: first.
+                    if name == words.join("-") {
+                        score += 100;
+                    }
+                    out.push(Found { pack, name, tags, score, rank });
+                }
+            }
+        }
+        out.sort_by(|a, b| b.score.cmp(&a.score).then(a.rank.cmp(&b.rank)).then(a.name.cmp(b.name)));
+        out
     }
 
     /// The icon for `pack:name` or a bare `name`, in `variant`.

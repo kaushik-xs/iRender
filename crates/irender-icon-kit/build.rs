@@ -1,6 +1,7 @@
 //! Embeds the packs under `icons/`: one directory per pack, holding `_pack.txt`
 //! (title, then description), one `<name>.svg` per icon, and `filled/` with the
-//! filled style: `<name>.svg` files and `_same.txt` (icons drawn the same in both).
+//! filled style: `<name>.svg` files and `_same.txt` (icons drawn the same in both);
+//! `_tags.txt`, if there is one, gives icons words to be found by (`name: word word`).
 
 use std::{env, fmt::Write, fs, path::Path};
 
@@ -39,7 +40,10 @@ fn main() {
         let _ = writeln!(out, "    BuiltinPack {{ id: {id:?}, title: {title:?}, description: {description:?},");
         let _ = writeln!(out, "        icons: {},", svgs(&pack));
         let _ = writeln!(out, "        filled: {},", svgs(&filled));
-        let _ = writeln!(out, "        same: &{same:?} }},");
+        let _ = writeln!(out, "        same: &{same:?},");
+        let tags = pack.join("_tags.txt");
+        println!("cargo:rerun-if-changed={}", tags.display());
+        let _ = writeln!(out, "        tags: {:?} }},", fs::read_to_string(&tags).unwrap_or_default());
     }
     out.push(']');
     fs::write(Path::new(&env::var("OUT_DIR").unwrap()).join("packs.rs"), out).unwrap();

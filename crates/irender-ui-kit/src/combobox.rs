@@ -23,12 +23,13 @@ const PROPS: &[PropDef] = &[
     PropDef::new(
         "options",
         PropKind::Any,
-        "Values, `{ value, label, description, disabled }`, or groups `{ label, options }`. From data, or a state path",
+        "Values, `{ value, label, description, keywords, disabled }`, or groups `{ label, options }`; `keywords` (words or a list) find an option without being shown. From data, or a state path",
     ),
     PropDef::new("valueField", PropKind::String, "Field of an option object holding its value (default `value`)"),
     PropDef::new("labelField", PropKind::String, "Field holding its label (default `label`)"),
     PropDef::new("descriptionField", PropKind::String, "Field holding its description (default `description`)"),
     PropDef::new("imageField", PropKind::String, "Field holding a picture shown before its label: an avatar, a flag, a logo (default `image`)"),
+    PropDef::new("keywordsField", PropKind::String, "Field holding words an option is found by, not shown (default `keywords`)"),
     PropDef::new("badgeField", PropKind::String, "Field holding short text shown after its label: a count, a status (default `badge`)"),
     PropDef::new("multiple", PropKind::Bool, "Choose several values, shown as removable chips"),
     PropDef::new("searchable", PropKind::Bool, "Type to filter (default true)"),
@@ -297,11 +298,12 @@ struct Fields {
     description: String,
     image: String,
     badge: String,
+    keywords: String,
 }
 
 impl Default for Fields {
     fn default() -> Self {
-        Self { value: "value".into(), label: "label".into(), description: "description".into(), image: "image".into(), badge: "badge".into() }
+        Self { value: "value".into(), label: "label".into(), description: "description".into(), image: "image".into(), badge: "badge".into(), keywords: "keywords".into() }
     }
 }
 
@@ -325,6 +327,16 @@ fn normalize(o: &Json, f: &Fields) -> Json {
             }
             if m.get("disabled").is_some_and(expr::truthy) {
                 out.insert("disabled".into(), Json::Bool(true));
+            }
+            // Words it's found by, not shown.
+            match m.get(&f.keywords) {
+                Some(Json::Array(k)) if !k.is_empty() => {
+                    out.insert("keywords".into(), Json::String(k.iter().map(expr::stringify).collect::<Vec<_>>().join(" ")));
+                }
+                Some(Json::String(k)) if !k.is_empty() => {
+                    out.insert("keywords".into(), Json::String(k.clone()));
+                }
+                _ => {}
             }
             Json::Object(out)
         }
@@ -407,6 +419,7 @@ impl Component for Combobox {
             description: cx.prop_string(node, "descriptionField").unwrap_or_else(|| "description".into()),
             image: cx.prop_string(node, "imageField").unwrap_or_else(|| "image".into()),
             badge: cx.prop_string(node, "badgeField").unwrap_or_else(|| "badge".into()),
+            keywords: cx.prop_string(node, "keywordsField").unwrap_or_else(|| "keywords".into()),
         };
         let options: Vec<Json> = options.iter().map(|o| normalize(o, &fields)).collect();
 
@@ -445,7 +458,7 @@ impl Component for Combobox {
             "options": options,
             "optionsPath": options_path,
             // Options from state or `searchUrl` are normalized in the browser with these.
-            "fields": { "value": fields.value, "label": fields.label, "description": fields.description, "image": fields.image, "badge": fields.badge },
+            "fields": { "value": fields.value, "label": fields.label, "description": fields.description, "image": fields.image, "badge": fields.badge, "keywords": fields.keywords },
             "searchUrl": search_url,
             "labels": node.prop("labels").map(|l| crate::data_table::dynamic(cx, node, "labels", l)).transpose()?,
             "lookup": cx.prop(node, "lookup").is_some_and(|v| expr::truthy(&v)),

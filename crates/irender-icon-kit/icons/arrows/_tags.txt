@@ -1,0 +1,23 @@
+# Words each icon is found by, besides its name (`irender icons --search`).
+arrow-down: south below
+arrow-left: west back previous
+arrow-right: east next forward
+arrow-up: north above
+caret-down: triangle dropdown open
+caret-left: triangle
+caret-right: triangle play
+caret-up: triangle
+chevron-down: dropdown expand open
+chevron-left: back previous
+chevron-right: next forward
+chevron-up: collapse close
+chevrons-left: rewind first
+chevrons-right: fast forward last
+first: start beginning skip
+last: end skip
+move: drag arrows pan
+return: enter back reply
+rotate-ccw: undo counterclockwise anticlockwise turn
+rotate-cw: redo clockwise turn refresh
+swap-horizontal: exchange switch transfer
+swap-vertical: exchange switch sort

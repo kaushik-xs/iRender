@@ -185,7 +185,7 @@
    "id": "combobox",
    "group": "Forms",
    "title": "Combobox",
-   "summary": "A searchable select in the style of react-select: one or many values, groups, options loaded as you type, creatable values, fixed values, and the WAI-ARIA combobox keyboard.",
+   "summary": "A searchable select in the style of react-select: one or many values, groups, options loaded as you type, creatable values, fixed values, and the WAI-ARIA combobox keyboard. An option's keywords find it without being shown.",
    "usage": "- type: ui-combobox\n  props:\n    bind: flavours\n    multiple: true\n    clearable: true\n    options: [{ value: vanilla, label: Vanilla }, { label: Fruity, options: [mango, lime] }]\n- { type: ui-combobox, props: { bind: city, searchUrl: /api/cities, placeholder: Search cities… } }",
    "components": [
     "ui-combobox"

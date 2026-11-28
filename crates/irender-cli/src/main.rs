@@ -170,7 +170,11 @@ enum Command {
     Icons {
         /// Only this pack.
         pack: Option<String>,
-        /// Print JSON: `{ "packs": [{ "id", "title", "description", "icons": [...] }] }`.
+        /// Find icons by their names, tags and packs, best first (`--search "bin"`).
+        #[arg(long, value_name = "WORDS")]
+        search: Option<String>,
+        /// Print JSON: `{ "packs": [{ "id", "title", "description", "icons": [...], "tags": { name: [...] } }], "icons": [{ "pack", "name", "tags" }] }`,
+        /// or with `--search`, `{ "found": [{ "pack", "name", "tags" }] }`.
         #[arg(long)]
         json: bool,
         #[command(flatten)]
@@ -501,23 +505,42 @@ fn run(command: Command) -> Result<(), String> {
                 println!("  children: {}", if info.children { "yes" } else { "no" });
             }
         }
-        Command::Icons { pack, json, icons } => {
+        Command::Icons { pack, search, json, icons } => {
             let kit = icons.kit()?;
+            if let Some(q) = search {
+                let found: Vec<_> = kit.search(&q).into_iter().filter(|f| pack.as_deref().is_none_or(|p| f.pack.id() == p)).collect();
+                if json {
+                    let found: Vec<Json> = found.iter().map(|f| serde_json::json!({ "pack": f.pack.id(), "name": f.name, "tags": f.tags })).collect();
+                    println!("{}", serde_json::json!({ "found": found }));
+                } else if found.is_empty() {
+                    return Err(format!("no icons found for `{q}`"));
+                } else {
+                    for f in found {
+                        let tags = if f.tags.is_empty() { String::new() } else { format!("  ({})", f.tags.join(", ")) };
+                        println!("{}:{}{tags}", f.pack.id(), f.name);
+                    }
+                }
+                return Ok(());
+            }
             let packs: Vec<_> = match &pack {
                 Some(id) => vec![kit.pack(id).ok_or_else(|| format!("no icon pack `{id}`"))?],
                 None => kit.packs().collect(),
             };
             if json {
+                // Every icon in one list too, for a search over them all.
+                let all: Vec<Json> = packs.iter().flat_map(|p| p.names().map(move |n| serde_json::json!({ "id": format!("{}:{n}", p.id()), "pack": p.id(), "name": n, "tags": p.tags(n) }))).collect();
                 let packs: Vec<Json> = packs
                     .iter()
                     .map(|p| {
+                        let tags: serde_json::Map<String, Json> = p.names().filter(|n| !p.tags(n).is_empty()).map(|n| (n.to_string(), serde_json::json!(p.tags(n)))).collect();
                         serde_json::json!({
                             "id": p.id(), "title": p.title(), "description": p.description(),
                             "icons": p.names().collect::<Vec<_>>(),
+                            "tags": tags,
                         })
                     })
                     .collect();
-                println!("{}", serde_json::json!({ "packs": packs }));
+                println!("{}", serde_json::json!({ "packs": packs, "icons": all }));
             } else {
                 for p in packs {
                     println!("{} ({}, {} icons): {}", p.id(), p.title(), p.len(), p.description());

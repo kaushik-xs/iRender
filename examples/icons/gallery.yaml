@@ -7,6 +7,7 @@
 version: 1
 state:
   done: false
+  found: null
   # The gallery's controls: which style to show, and the icon size in px.
   look: both
   size: 24
@@ -40,6 +41,14 @@ root:
           children:
             - type: ui-button
               props: { label: "{{ p.title }}", variant: outline, size: sm, href: "#{{ p.id }}" }
+        # Every icon, found by its name, its tags or its pack: picked, the page goes to it.
+        - type: ui-field
+          props: { label: Find an icon, description: "By name or by what it's for: bin finds delete, gear finds settings." }
+          style: { max-width: 420 }
+          children:
+            - type: ui-combobox
+              props: { bind: found, options: "{{ icons }}", valueField: id, labelField: name, descriptionField: pack, keywordsField: tags, placeholder: "Search icons…" }
+              on: { change: { action: navigate, url: "{{ '#icon-' + found }}" } }
 
     # How icons sit in text, buttons and alerts.
     - type: ui-card
@@ -149,7 +158,7 @@ root:
               children:
                 - type: stack
                   props: { gap: 8, align: center }
-                  attrs: { title: "{{ p.id }}:{{ icon }}" }
+                  attrs: { title: "{{ p.id }}:{{ icon }}", id: "icon-{{ p.id }}:{{ icon }}" }
                   style:
                     padding: 16px 8px 12px
                     border: 1px solid $color.border

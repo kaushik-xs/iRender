@@ -226,3 +226,34 @@ fn works_under_the_untrusted_policy() {
     irender_icon_kit::register(&mut engine.registry);
     assert!(render_in(&engine, json!({ "type": "ui-icon", "props": { "name": "home", "label": "Home" } }), json!({})).is_ok());
 }
+
+/// Icons are found by their names' words, their tags and their packs, best first: a
+/// whole word before its start, a name before a tag, and the whole query as a name first.
+#[test]
+fn search_finds_icons_by_name_tags_and_pack() {
+    let kit = IconKit::new();
+    let found = |q: &str| kit.search(q).iter().map(|f| format!("{}:{}", f.pack.id(), f.name)).collect::<Vec<_>>();
+    assert_eq!(found("delete")[0], "core:delete");
+    assert!(found("trash").contains(&"core:delete".to_string()), "{:?}", found("trash"));
+    assert!(found("gear").contains(&"core:settings".to_string()), "{:?}", found("gear"));
+    // Every word must match: "arrow left" isn't "arrow right".
+    let arrows = found("arrow left");
+    assert_eq!(arrows[0], "arrows:arrow-left", "{arrows:?}");
+    assert!(!arrows.iter().any(|x| x == "arrows:arrow-right"), "{arrows:?}");
+    // By the start of a word, and by a pack's name.
+    assert!(found("spinn").contains(&"status:loader".to_string()));
+    assert!(found("core").len() >= 50);
+    assert!(found("").is_empty() && found("zzzz").is_empty());
+    // Built-in tags are checked against the pack's icons.
+    assert_eq!(kit.pack("core").unwrap().tags("delete"), ["bin", "trash", "remove", "discard"]);
+
+    // A pack's own tags, from text or `_tags.txt`: names must be its icons.
+    let mut pack = Pack::new("mine", "Mine").unwrap();
+    pack.add_svg("box", r#"<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg>"#).unwrap();
+    pack.read_tags("# comment\nbox: Parcel crate\n").unwrap();
+    assert_eq!(pack.tags("box"), ["parcel", "crate"]);
+    assert!(pack.read_tags("nope: x").unwrap_err().0.contains("no icon `nope`"));
+    assert!(pack.read_tags("just words").unwrap_err().0.contains("write `name: word word`"));
+    let kit = IconKit::empty().with(pack);
+    assert_eq!(kit.search("parcel")[0].name, "box");
+}

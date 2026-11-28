@@ -2153,11 +2153,12 @@ ui-sidebar-trigger: A button that opens and closes the sidebar of the `ui-sideba
   children: yes
 ui-combobox: A searchable select: one or many values, groups, async options, creatable values, full keyboard support.
   bind         statekey  State key holding the value (an array with `multiple`)
-  options      any  Values, `{ value, label, description, disabled }`, or groups `{ label, options }`. From data, or a state path
+  options      any  Values, `{ value, label, description, keywords, disabled }`, or groups `{ label, options }`; `keywords` (words or a list) find an option without being shown. From data, or a state path
   valueField   string  Field of an option object holding its value (default `value`)
   labelField   string  Field holding its label (default `label`)
   descriptionField string  Field holding its description (default `description`)
   imageField   string  Field holding a picture shown before its label: an avatar, a flag, a logo (default `image`)
+  keywordsField string  Field holding words an option is found by, not shown (default `keywords`)
   badgeField   string  Field holding short text shown after its label: a count, a status (default `badge`)
   multiple     bool  Choose several values, shown as removable chips
   searchable   bool  Type to filter (default true)
@@ -3532,6 +3533,7 @@ theme:
 | `isMulti`, `isClearable`, `isSearchable`, `isDisabled`, `isLoading` | `multiple`, `clearable`, `searchable` (default true), `disabled`, `loading`. The last two can be expressions. |
 | grouped options, `isOptionDisabled` | groups `{ label, options }`, `disabled` on an option |
 | `getOptionValue`, `getOptionLabel` | `valueField`, `labelField`, `descriptionField`: read options from objects shaped your way, e.g. `{ href, title, summary }` |
+| `filterOption` (by more than the label) | an option's `keywords` (`keywordsField`): words or a list it's found by, not shown |
 | `formatOptionLabel` (a picture, a count) | `image` (with `imageField`): a picture before the label, also on its chip, such as an avatar or a flag; `badge` (with `badgeField`): short text after it, such as a count or a status. The picture is decoration, the label names the option. |
 | `AsyncSelect` `loadOptions`, `cacheOptions` | `searchUrl`: `GET <url>?q=<text>` answering an array (or `{ options }`), debounced (`debounce`, default 250 ms) after `minChars` (default 1), cached per query, stale answers dropped |
 | `CreatableSelect` | `creatable`, `createText` |
@@ -5869,5 +5871,11 @@ pack.same_when_filled("divider")?;                               // or: the outl
 ```
 
 CLI: `--icons assets/icons` (a pack named after the directory) or `--icons brand=assets/icons`, repeatable; it implies `--icon-kit`.
+
+## Finding icons
+
+`irender icons --search "bin"` lists the icons it finds, best first, with their tags: each word must start a word of an icon's name, one of its tags, or its pack's id or title (`core:delete  (bin, trash, remove, discard)`). `--json` gives `{ "found": [{ "pack", "name", "tags" }] }`, and the plain `irender icons --json` gives each pack's `tags` and every icon in one list, `icons: [{ id, pack, name, tags }]`, as the icon gallery's search box uses. From Rust, `IconKit::search("bin")`.
+
+Tags come from a pack's `_tags.txt`, a line an icon, `delete: bin trash remove` (`#` for comments), read by `Pack::from_dir` too; or `pack.add_tags("delete", ["bin"])` and `pack.read_tags(text)`. The `core`, `arrows` and `status` packs have them; the industry packs are found by their names and pack.
 
 Any SVG works, at any `viewBox`. On load it's reduced to its shapes (`path`, `circle`, `ellipse`, `rect`, `line`, `polyline`, `polygon`, `g`), their geometry and drawing attributes, and the root's `viewBox` and drawing defaults (`fill`, `stroke`, `stroke-width`, …). Scripts, styles, links, text, `<use>`, images, gradients, event attributes and `url(…)` references are dropped, so a pack file can't put anything else into a page. For icons that follow the text colour, draw them with `currentColor` (or no colour at all for fills).

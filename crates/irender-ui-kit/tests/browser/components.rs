@@ -1756,6 +1756,33 @@ root: { type: ui-form-builder, attrs: { id: fb }, props: { bind: fields, bindDoc
     );
 }
 
+/// `ui-combobox`: an option found by its `keywords` (not shown), from a field of its own.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn combobox_finds_options_by_keywords() {
+    check(
+        "combobox-keywords",
+        r##"
+state: { pick: null }
+root:
+  type: ui-combobox
+  props:
+    bind: pick
+    keywordsField: tags
+    options: [ { value: "core:delete", label: delete, tags: [bin, trash] }, { value: "core:settings", label: settings, tags: "gear cog" }, { value: "core:add", label: add } ]
+"##,
+        r##"
+        const input = $("input[role=combobox]"); input.focus(); input.click();
+        const shown = () => $$("[role=option]").map((o) => o.textContent).join(",");
+        type(input, "bin"); await wait(30); log(shown());
+        type(input, "cog"); await wait(30); log(shown());
+        type(input, "ad"); await wait(30); log(shown());
+        type(input, "trash"); await wait(30); $$("[role=option]")[0].dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true })); await wait(30); log(S().pick);
+"##,
+        &["delete", "settings", "add", "core:delete"],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn combobox_options_show_pictures_and_badges() {

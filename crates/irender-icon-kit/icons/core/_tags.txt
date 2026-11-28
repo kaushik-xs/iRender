@@ -1,0 +1,60 @@
+# Words each icon is found by, besides its name (`irender icons --search`).
+add: plus new create insert
+bell-off: mute silence notifications quiet
+bell: notification alert alarm reminder
+bookmark: save favourite favorite keep ribbon
+calendar: date day month schedule event
+check: tick done ok yes confirm
+clock: time hour watch schedule
+close: x cancel dismiss exit
+collapse: shrink fold less
+copy: duplicate clone
+cut: scissors
+delete: bin trash remove discard
+download: save export get
+drag-handle: grip move reorder dots
+edit: pencil write change modify
+expand: grow unfold more
+external-link: open new tab window outside
+eye-off: hide hidden invisible private
+eye: show view visible see preview
+filter: funnel refine narrow
+flag: report mark country
+fullscreen: enlarge maximise maximize
+grid: tiles layout cards gallery
+heart: like love favourite favorite
+help: question support faq
+history: past recent log time back
+home: house start main
+info: information about details
+kanban: board columns cards
+link: chain url hyperlink
+list: lines items rows
+lock: secure private locked password
+maximize: enlarge window bigger
+menu: hamburger navigation lines
+minimize: smaller window shrink
+more-horizontal: ellipsis dots options overflow
+more-vertical: kebab dots options overflow
+paste: clipboard
+pin: pushpin keep attach
+print: printer paper
+redo: again forward repeat
+refresh: reload sync again update
+remove: minus subtract
+save: disk floppy keep store
+search: find magnifier look lookup
+settings: gear cog preferences options configure
+share: send forward export
+sort-asc: ascending order up
+sort-desc: descending order down
+star: favourite favorite rating rate
+tag: label category price
+undo: back revert
+unlink: break chain
+unlock: open unlocked
+upload: import send up
+user: person profile account people
+warning: caution alert danger triangle
+zoom-in: magnify enlarge bigger plus
+zoom-out: smaller reduce minus

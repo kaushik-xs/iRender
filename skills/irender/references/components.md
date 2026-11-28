@@ -1988,11 +1988,12 @@ ui-sidebar-trigger: A button that opens and closes the sidebar of the `ui-sideba
   children: yes
 ui-combobox: A searchable select: one or many values, groups, async options, creatable values, full keyboard support.
   bind         statekey  State key holding the value (an array with `multiple`)
-  options      any  Values, `{ value, label, description, disabled }`, or groups `{ label, options }`. From data, or a state path
+  options      any  Values, `{ value, label, description, keywords, disabled }`, or groups `{ label, options }`; `keywords` (words or a list) find an option without being shown. From data, or a state path
   valueField   string  Field of an option object holding its value (default `value`)
   labelField   string  Field holding its label (default `label`)
   descriptionField string  Field holding its description (default `description`)
   imageField   string  Field holding a picture shown before its label: an avatar, a flag, a logo (default `image`)
+  keywordsField string  Field holding words an option is found by, not shown (default `keywords`)
   badgeField   string  Field holding short text shown after its label: a count, a status (default `badge`)
   multiple     bool  Choose several values, shown as removable chips
   searchable   bool  Type to filter (default true)

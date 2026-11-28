@@ -1,0 +1,23 @@
+# Words each icon is found by, besides its name (`irender icons --search`).
+approved: accepted ok yes done check
+archived: archive box stored old
+badge: award certified achievement
+blocked: forbidden stop denied banned
+circle-alert: error warning problem
+circle-check: success done complete ok
+circle-dot: active recording radio selected
+circle-pause: paused hold
+circle-play: running start play
+circle-stop: stopped halted
+circle-x: failed error cancel
+draft: unsaved writing pencil
+in-progress: working partial half running
+loader: loading spinner busy wait
+offline: disconnected down unavailable
+online: connected up available live
+overdue: late expired
+pending: waiting queued later
+rejected: declined denied no
+scheduled: planned calendar later
+sync: syncing refresh update
+verified: trusted checked confirmed

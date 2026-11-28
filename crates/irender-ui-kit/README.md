@@ -355,6 +355,7 @@ theme:
 | `isMulti`, `isClearable`, `isSearchable`, `isDisabled`, `isLoading` | `multiple`, `clearable`, `searchable` (default true), `disabled`, `loading`. The last two can be expressions. |
 | grouped options, `isOptionDisabled` | groups `{ label, options }`, `disabled` on an option |
 | `getOptionValue`, `getOptionLabel` | `valueField`, `labelField`, `descriptionField`: read options from objects shaped your way, e.g. `{ href, title, summary }` |
+| `filterOption` (by more than the label) | an option's `keywords` (`keywordsField`): words or a list it's found by, not shown |
 | `formatOptionLabel` (a picture, a count) | `image` (with `imageField`): a picture before the label, also on its chip, such as an avatar or a flag; `badge` (with `badgeField`): short text after it, such as a count or a status. The picture is decoration, the label names the option. |
 | `AsyncSelect` `loadOptions`, `cacheOptions` | `searchUrl`: `GET <url>?q=<text>` answering an array (or `{ options }`), debounced (`debounce`, default 250 ms) after `minChars` (default 1), cached per query, stale answers dropped |
 | `CreatableSelect` | `creatable`, `createText` |
