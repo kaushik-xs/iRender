@@ -2318,6 +2318,8 @@ ui-chart: A chart drawn by Apache ECharts, from rows (`type`, `data`, `x`, `y`) 
   snap         any  Gantt: the step a task with times of day moves and stretches by, in minutes or as `"15m"`, `"1h"` or `"1d"` (default a day); tasks in whole days move by days
   cascade      any  Gantt: moving or stretching a task moves on the tasks that wait on it, so they start after it ends; `"both"` also pulls them back to start when it ends
   threshold    any  Pareto: a dashed line at this cumulative percent, the bars past it faded (default 80; `false` for none)
+  targets      any  Pareto: more lines on the percent axis, apart from the threshold, as numbers or `{ value, label }`, e.g. `[{ value: 95, label: Goal }]`; each says which bar the line reaches it at
+  other        one of: last, sorted  Pareto with `limit`: the Other bar `last` (default) or `sorted` in among the others by its size
   stack        bool  Stack the series
   smooth       bool  Smooth lines
   horizontal   bool  Bars along the x axis

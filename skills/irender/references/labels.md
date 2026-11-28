@@ -2368,6 +2368,7 @@ root: …
 `chart.js`
 
 ```yaml
+"{line} at {name}": "{line} at {name}"
 "Other": "Other"
 "Task": "Task"
 "{n} working days": { one: "{n} working day", other: "{n} working days" }

@@ -325,6 +325,7 @@
             for (const [sk, v] of Object.entries(c.__by)) other.__by[sk] = tidy((other.__by[sk] ?? 0) + v);
           }
           list = [...list.slice(0, limit), other];
+          if (p.other === "sorted") list = sortRows(list, { field: f, order: "desc" });
         }
         const stack = [...totals].sort((a, b) => b[1] - a[1]).map(([k]) => k);
         return { ...out, rows: list, x, y: f, stack };
@@ -334,6 +335,8 @@
         const rest = rows.slice(limit);
         // Other holds what went into it, for `bindRow` and `change`.
         rows = [...rows.slice(0, limit), { [x]: L("Other"), [f]: tidy(rest.reduce((a, r) => a + Number(at(r, f)), 0)), rows: rest }];
+        // `other: sorted`: in among the rest by its size, rather than last.
+        if (p.other === "sorted") rows = sortRows(rows, { field: f, order: "desc" });
       }
       return { ...out, rows, x, y: blank(y) ? f : y };
     }
@@ -990,6 +993,16 @@
       const limit = p.threshold === false || p.threshold === "false" ? null : isNum(p.threshold) ? Math.max(0, Math.min(100, Number(p.threshold))) : 80;
       const past = limit === null ? -1 : cum.findIndex((c) => c >= limit);
       const few = past < 0 ? rows.length : past + 1;
+      // More lines on the percent axis (`targets`): each names the bar the total reaches it at.
+      const targets = (Array.isArray(p.targets) ? p.targets : isNum(p.targets) ? [p.targets] : [])
+        .map((g) => (isNum(g) ? { value: Number(g) } : g && isNum(g.value) ? { value: Number(g.value), label: g.label } : null))
+        .filter((g) => g && g.value >= 0 && g.value <= 100)
+        .map((g) => {
+          const i = cum.findIndex((c) => c >= g.value);
+          const line = `${blank(g.label) ? "" : `${g.label} `}${g.value}%`;
+          // Labels: "{line} at {name}"
+          return { ...g, at: i < 0 ? null : at(rows[i], x), text: i < 0 ? line : L("{line} at {name}", { line, name: String(at(rows[i], x)) }) };
+        });
       const cat = { type: "category", data: rows.map((r) => at(r, x)), boundaryGap: true, inverse: across };
       const vals2 = [
         { type: "value" },
@@ -1029,8 +1042,12 @@
           label: p.labels ? { show: true, position: across ? "right" : "top", color: lineColor, formatter: (e) => percent(e.value) } : undefined,
           labelLayout: p.labels ? { hideOverlap: true } : undefined,
           z: 3,
-          markLine: limit === null ? undefined : {
-            silent: true, symbol: "none", data: [across ? { xAxis: limit } : { yAxis: limit }],
+          markLine: limit === null && !targets.length ? undefined : {
+            silent: true, symbol: "none",
+            data: [
+              ...(limit === null ? [] : [across ? { xAxis: limit } : { yAxis: limit }]),
+              ...targets.map((g) => ({ ...(across ? { xAxis: g.value } : { yAxis: g.value }), lineStyle: { type: "dotted", color: t.palette[2 % t.palette.length] }, label: { formatter: g.text, color: t.palette[2 % t.palette.length] } })),
+            ],
             lineStyle: { type: "dashed", color: t.muted }, label: { position: across ? "end" : "insideEndTop", formatter: `${limit}%`, color: t.muted },
           },
         },

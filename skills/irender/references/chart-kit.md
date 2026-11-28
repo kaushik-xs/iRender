@@ -68,6 +68,7 @@ The kit's own script is about 10 KB gzipped and is added once per page. If the h
 | `height` | Number (px) or CSS length. Default 320; a gantt's default fits its rows (or `visibleRows` of them). The width is the container's. |
 | `columns`, `markers`, `today`, `visibleRows`, `workdays`, `holidays`, `critical`, `baselines`, `snap` | For a gantt; see [Gantt](#gantt). |
 | `threshold` | For a pareto: the cumulative percent marked with a dashed line (default 80; `false` for none); see [Pareto](#pareto). |
+| `targets`, `other` | For a pareto: more lines on the percent axis, and where Other goes (`last`, `sorted`); see [Pareto](#pareto). |
 | `loading` | Shows the loading mask, e.g. `{{ fetching }}`. |
 | `bind`, `bindRow`, `bindZoom`, `bindLegend`, `bindBrush`, `bindDrill` | State keys for what people do with the chart; see [Interactions as state](#interactions-as-state). |
 | `maps` | GeoJSON maps to register before drawing: `{ world: /geo/world.json }`. The URLs are checked against the policy. |
@@ -165,7 +166,7 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 
 ## Pareto
 
-`type: pareto` shows which few causes make up most of a total: defects by cause, returns by reason, tickets by category. The bars are the `y` field, always largest first (`sort` doesn't apply), and a line on a second axis is the running total as a percent of the whole, worked out in the browser, so it follows `filter`, `aggregate` and state like any chart. With `limit`, the first N bars are kept and the rest add up into one **Other** bar, kept last; its row (what `bindRow` gets when it's clicked, and `change`) has the rows that went into it as `rows`, to list them in a panel. `threshold` (default 80) is a dashed line at that percent; the bars after the one that takes the running total past it are faded, leaving the vital few. `threshold: false` leaves the line out and every bar alike. Values that aren't numbers, or are below zero, are left out. With `labels`, bars show their values and the line its percents, the line's giving way where they would overlap. `horizontal: true` lays the bars down the side, largest at the top, with the percent along the top and the threshold upright, which suits long category names.
+`type: pareto` shows which few causes make up most of a total: defects by cause, returns by reason, tickets by category. The bars are the `y` field, always largest first (`sort` doesn't apply), and a line on a second axis is the running total as a percent of the whole, worked out in the browser, so it follows `filter`, `aggregate` and state like any chart. With `limit`, the first N bars are kept and the rest add up into one **Other** bar, kept last (`other: sorted` puts it in among the rest by its size); its row (what `bindRow` gets when it's clicked, and `change`) has the rows that went into it as `rows`, to list them in a panel. `threshold` (default 80) is a dashed line at that percent; the bars after the one that takes the running total past it are faded, leaving the vital few. `threshold: false` leaves the line out and every bar alike. `targets` adds more lines on the percent axis, apart from the threshold, as numbers or `{ value, label }`, each saying which bar the running total reaches it at ("Goal 90% at Faulty"). Values that aren't numbers, or are below zero, are left out. With `labels`, bars show their values and the line its percents, the line's giving way where they would overlap. `horizontal: true` lays the bars down the side, largest at the top, with the percent along the top and the threshold upright, which suits long category names.
 
 ```yaml
 - { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: { field: count, name: Defects }, limit: 6 } }
@@ -173,6 +174,8 @@ Rows go through these steps, in order, before they are drawn. Each prop can read
 - { type: ui-chart, props: { type: pareto, data: "{{ tickets }}", x: reason, aggregate: count, threshold: "{{ cutoff }}" } }
 # Down the side, for long names.
 - { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, horizontal: true } }
+# Read against two targets, Other in its place by size.
+- { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, limit: 4, other: sorted, targets: [50, { value: 90, label: Goal }] } }
 # Each bar split by shift: the parts stacked, the line on the whole bars.
 - { type: ui-chart, props: { type: pareto, data: "{{ defects }}", x: cause, y: count, series: shift } }
 ```

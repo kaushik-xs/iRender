@@ -1113,9 +1113,10 @@ fn pareto_in_chrome() {
         { "type": "ui-chart", "attrs": { "id": "p" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "threshold": "{{ limit }}" } },
         { "type": "ui-chart", "attrs": { "id": "c" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 2, "threshold": false, "bindRow": "row" } },
         { "type": "ui-chart", "attrs": { "id": "h" }, "props": { "type": "pareto", "data": "{{ defects }}", "x": "cause", "y": "n", "horizontal": true, "labels": true } },
-        { "type": "ui-chart", "attrs": { "id": "s" }, "props": { "type": "pareto", "data": by_shift, "x": "cause", "y": "n", "series": "shift", "limit": 2 } } ] } });
+        { "type": "ui-chart", "attrs": { "id": "s" }, "props": { "type": "pareto", "data": by_shift, "x": "cause", "y": "n", "series": "shift", "limit": 2 } },
+        { "type": "ui-chart", "attrs": { "id": "o" }, "props": { "type": "pareto", "data": tickets, "x": "reason", "aggregate": "count", "limit": 1, "other": "sorted", "targets": [50, { "value": 95, "label": "Goal" }, 120] } } ] } });
     let body = r##"
-    await ready(["p", "c", "h", "s"]);
+    await ready(["p", "c", "h", "s", "o"]);
     const faded = (id) => opt(id).series[0].data.map((v) => (v?.itemStyle ? "f" : "-")).join("");
     const show = (id) => [opt(id).xAxis[0].data.join(","), opt(id).series[0].data.map((v) => v?.value ?? v).join(","), opt(id).series[1].data.join(","), faded(id),
       opt(id).series[1].yAxisIndex, opt(id).yAxis[1].max, JSON.stringify(opt(id).series[1].markLine?.data?.[0]?.yAxis ?? null)].join(" | ");
@@ -1138,6 +1139,9 @@ fn pareto_in_chrome() {
     // Stacked: a bar a part (Night's total is the larger), the line on the whole bars.
     const st = opt("s");
     log("stacked", st.xAxis[0].data.join(","), st.series.map((x) => x.name + ":" + (x.stack ?? "-") + ":" + x.data.map((v) => v?.value ?? v).join("/")).join(" "));
+    // Other sorted in by its size; the targets as more lines, each naming the bar it's reached at.
+    const o = opt("o");
+    log("sorted", o.xAxis[0].data.join(","), o.series[1].markLine.data.map((m) => m.yAxis + ":" + (m.label?.formatter ?? "-")).join(" / "));
 "##;
     let Some(lines) = run("pareto", &engine, doc, &driver(body)) else { return };
     assert_eq!(
@@ -1154,6 +1158,8 @@ fn pareto_in_chrome() {
             "other Other 3 Bug:1,Slow:1,Export:1",
             // 65 in all: Scratches 30, Dents 25, and Gaps and Labels in Other (10).
             "stacked Scratches,Dents,Other Night:pareto:10/20/6 Day:pareto:20/5/4 Cumulative %:-:46.2/84.6/100",
+            // Other (5) before Login (3); 120 is off the axis and left out.
+            "sorted Other,Login 80:- / 50:50% at Other / 95:Goal 95% at Login",
         ],
         "\n{}",
         lines.join("\n")

@@ -461,7 +461,7 @@ root:
     - type: ui-card
       props: { title: Why payments failed, description: "Since the alert at 10:14, by the reason the provider gave. Three reasons are four in five failures." }
       children:
-        - { type: ui-chart, props: { title: Failed payments by reason, type: pareto, data: "{{ failures }}", x: reason, y: { field: payments, name: Failed payments }, limit: 5, height: 260 } }
+        - { type: ui-chart, props: { title: Failed payments by reason, type: pareto, data: "{{ failures }}", x: reason, y: { field: payments, name: Failed payments }, limit: 5, targets: [ { value: 95, label: Most } ], height: 260 } }
 
     # ---- updates: inside, and what customers see
     - type: element

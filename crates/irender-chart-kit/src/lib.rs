@@ -174,6 +174,12 @@ const CHART_PROPS: &[PropDef] = &[
         PropKind::Any,
         "Pareto: a dashed line at this cumulative percent, the bars past it faded (default 80; `false` for none)",
     ),
+    PropDef::new(
+        "targets",
+        PropKind::Any,
+        "Pareto: more lines on the percent axis, apart from the threshold, as numbers or `{ value, label }`, e.g. `[{ value: 95, label: Goal }]`; each says which bar the line reaches it at",
+    ),
+    PropDef::new("other", PropKind::Enum(&["last", "sorted"]), "Pareto with `limit`: the Other bar `last` (default) or `sorted` in among the others by its size"),
     PropDef::new("stack", PropKind::Bool, "Stack the series"),
     PropDef::new("smooth", PropKind::Bool, "Smooth lines"),
     PropDef::new("horizontal", PropKind::Bool, "Bars along the x axis"),
@@ -213,7 +219,7 @@ const LIVE: &[&str] = &[
     "type", "data", "x", "y", "value", "links", "option", "filter", "aggregate", "series", "sort", "limit", "drill",
     "xType", "zoom", "brush", "live", "stack", "smooth", "horizontal", "labels", "format", "currency", "decimals", "legend", "tooltip", "loading",
     "columns", "markers", "today", "editable", "cascade", "visibleRows", "workdays", "holidays", "critical", "baselines", "snap",
-    "threshold",
+    "threshold", "targets", "other",
 ];
 
 /// State keys a chart writes to, and for the two-way ones reads from.

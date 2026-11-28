@@ -514,6 +514,10 @@ root:
               children:
                 - { type: ui-chart, props: { type: pareto, data: "{{ returns }}", x: reason, y: { field: returns, name: Returns }, limit: 6, horizontal: true, labels: true, height: 300 } }
             - type: ui-card
+              props: { title: Pareto against targets, description: "`targets`: more lines on the percent axis, each naming the bar it's reached at; `other: sorted` puts Other in among the rest by its size." }
+              children:
+                - { type: ui-chart, props: { type: pareto, data: "{{ returns }}", x: reason, y: { field: returns, name: Returns }, limit: 3, other: sorted, threshold: false, targets: [ { value: 50, label: Half }, { value: 90, label: Goal } ] } }
+            - type: ui-card
               props: { title: Pareto by channel, description: "`series`: each bar split into its parts, the line on the whole bars. Here returns by reason, online and in store." }
               children:
                 - type: ui-chart
