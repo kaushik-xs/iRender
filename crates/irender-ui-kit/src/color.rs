@@ -15,12 +15,12 @@ use std::sync::LazyLock;
 
 const SCRIPT: &str = include_str!("color.js");
 
-pub(crate) const FORMATS: &[&str] = &["hex", "rgb", "hsl"];
+pub(crate) const FORMATS: &[&str] = &["hex", "rgb", "hsl", "oklch"];
 
 const PROPS: &[PropDef] = &[
     PropDef::new("bind", PropKind::StateKey, "State key holding the colour as text in `format` (`#1e3a8a`), or null"),
     PropDef::new("value", PropKind::Any, "Starting colour, when not bound"),
-    PropDef::new("format", PropKind::Enum(FORMATS), "How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`) or `hsl` (`hsl(224, 64%, 33%)`)"),
+    PropDef::new("format", PropKind::Enum(FORMATS), "How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`), `hsl` (`hsl(224, 64%, 33%)`) or `oklch` (`oklch(37.9% 0.146 265.5)`; picked in sRGB, so a wider colour typed in is brought into it)"),
     PropDef::new("alpha", PropKind::Bool, "An opacity slider too"),
     PropDef::new("swatches", PropKind::Any, "Colours to pick with one click: CSS colours, or `{ value, label }`"),
     PropDef::new("recent", PropKind::Any, "The colours picked last, to pick again with one click: `true` (8) or how many; kept in the browser"),

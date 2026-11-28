@@ -2173,7 +2173,7 @@ ui-date-picker: A button that opens a calendar in a popover: a day (with a time)
 ui-color-picker: A colour: picked on an area with hue and opacity sliders, typed as any CSS colour, taken from the screen, or chosen from swatches. A button opens it in a popover; `inline` shows it on the page.
   bind         statekey  State key holding the colour as text in `format` (`#1e3a8a`), or null
   value        any  Starting colour, when not bound
-  format       one of: hex, rgb, hsl  How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`) or `hsl` (`hsl(224, 64%, 33%)`)
+  format       one of: hex, rgb, hsl, oklch  How the colour is written: `hex` (default, `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`), `hsl` (`hsl(224, 64%, 33%)`) or `oklch` (`oklch(37.9% 0.146 265.5)`; picked in sRGB, so a wider colour typed in is brought into it)
   alpha        bool  An opacity slider too
   swatches     any  Colours to pick with one click: CSS colours, or `{ value, label }`
   recent       any  The colours picked last, to pick again with one click: `true` (8) or how many; kept in the browser

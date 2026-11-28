@@ -384,7 +384,7 @@ Not replicated:
 
 ## Colour picker
 
-`ui-color-picker` is a button showing a colour that opens a panel to pick one: a saturation and brightness area, a hue slider, an opacity slider (`alpha`), a text field that takes any CSS colour (`#1e3a8a`, `rgb(30 58 138)`, `hsl(…)`, `rebeccapurple`), an eyedropper where the browser has one (Chrome and Edge), and swatches. Its behaviour (about 4 KB gzipped) is added only to pages that use it.
+`ui-color-picker` is a button showing a colour that opens a panel to pick one: a saturation and brightness area, a hue slider, an opacity slider (`alpha`), a text field that takes any CSS colour (`#1e3a8a`, `rgb(30 58 138)`, `hsl(…)`, `oklch(…)`, `rebeccapurple`), an eyedropper where the browser has one (Chrome and Edge), and swatches. Its behaviour (about 4 KB gzipped) is added only to pages that use it.
 
 ```yaml
 - type: ui-field
@@ -405,7 +405,7 @@ Not replicated:
 | `bind`, `value` | The state key holding the colour, or the starting colour when not bound: text in `format`, or null for none. Whatever state holds is read as any CSS colour. |
 | `recent`, `recentKey` | The colours picked last, to pick again in one click: `true` (8) or how many. They're kept in the browser (its local storage), the newest first, each once; pickers with the same `recentKey` share them. |
 | `contrastWith` | A colour to check this one against, as WCAG measures contrast, `#ffffff` or `{{ theme.background }}`: the ratio (cut short, never rounded up), a sample, and AAA (7:1), AA (4.5:1), AA large (3:1) or Too low. A see-through colour is measured over it. |
-| `format` | `hex` (default: `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`, `rgba(…, 0.5)`) or `hsl` (`hsl(224, 64%, 33%)`, `hsla(…)`): what's written to state, in the comma form charts read too. |
+| `format` | `hex` (default: `#1e3a8a`, `#1e3a8a80` with opacity), `rgb` (`rgb(30, 58, 138)`, `rgba(…, 0.5)`) `hsl` (`hsl(224, 64%, 33%)`, `hsla(…)`), in the comma form charts read too, or `oklch` (`oklch(37.9% 0.138 265.5)`, `/ 0.5` with opacity; a grey's hue is `none`): what's written to state. Colours are picked in sRGB, so a wider one typed in (any form of `oklch()` is read) comes back a little different, brought into it channel by channel. |
 | `alpha` | An opacity slider; without it colours are written opaque. |
 | `swatches` | Colours to pick with one click: CSS colours, or `{ value, label }` (the label names it for screen readers and on hover). The one matching the value shows pressed. |
 | `custom` | The area, sliders and text field (default true). `false` leaves only the swatches, and a pick closes the popover: a palette of set colours. |

@@ -34,11 +34,49 @@
   }
   const hex2 = (n) => Math.round(clamp(n, 0, 255)).toString(16).padStart(2, "0");
 
+  // OKLCH (lightness 0–1, chroma, hue in degrees) to and from sRGB, by way of OKLab
+  // (Björn Ottosson's matrices). A colour outside sRGB is brought in by cutting each
+  // channel to its range, so a wide-gamut one comes back a little different.
+  const toLinear = (c) => ((c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const fromLinear = (c) => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.sign(c) * Math.abs(c) ** (1 / 2.4) - 0.055);
+  function rgbToOklch({ r, g, b }) {
+    [r, g, b] = [r, g, b].map(toLinear);
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    const L = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s;
+    const A = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s;
+    const B = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s;
+    const C = Math.hypot(A, B);
+    return { l: L, c: C, h: C < 1e-4 ? null : ((Math.atan2(B, A) * 180) / Math.PI + 360) % 360 };
+  }
+  function oklchToRgb({ l: L, c: C, h }) {
+    const A = C * Math.cos(((h ?? 0) * Math.PI) / 180), B = C * Math.sin(((h ?? 0) * Math.PI) / 180);
+    const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+    const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+    const s = (L - 0.0894841775 * A - 1.291485548 * B) ** 3;
+    const ch = (v) => clamp(fromLinear(v), 0, 255);
+    return { r: ch(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s), g: ch(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s), b: ch(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s) };
+  }
+  // `oklch(62.8% 0.258 29.2)`, `oklch(0.628 0.258 29.2deg / 50%)`: read here, as a canvas
+  // may hand it back as it was (not as sRGB channels).
+  const OKLCH = /^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)(%?)\s+([\d.]+|none)(?:deg)?\s*(?:\/\s*([\d.]+)(%?)\s*)?\)$/i;
+  function parseOklch(text) {
+    const m = OKLCH.exec(text.trim());
+    if (!m) return null;
+    const l = m[2] ? +m[1] / 100 : +m[1], c = m[4] ? (+m[3] / 100) * 0.4 : +m[3], h = m[5].toLowerCase() === "none" ? null : +m[5];
+    const a = m[6] === undefined ? 1 : m[7] ? +m[6] / 100 : +m[6];
+    if (![l, c, a].every(Number.isFinite)) return null;
+    return { ...oklchToRgb({ l: clamp(l, 0, 1), c, h }), a: clamp(a, 0, 1) };
+  }
+
   // Any CSS colour the browser knows (names, hex, rgb, hsl, …) as channels, through a
   // canvas, which writes back `#rrggbb` or `rgba(r, g, b, a)`; null if it isn't one.
   let ctx = null;
   function parse(text) {
     if (typeof text !== "string" || !text.trim()) return null;
+    const ok = parseOklch(text);
+    if (ok) return ok;
     ctx ||= document.createElement("canvas").getContext("2d");
     const out = [];
     // Two different starting colours: a colour it didn't take leaves each as it was.
@@ -148,6 +186,12 @@
         // The hue picked, not the one worked back from the channels.
         const parts = `${Math.round(s === 0 ? c.h : h) % 360}, ${round(s * 100)}%, ${round(l * 100)}%`;
         return a < 1 ? `hsla(${parts}, ${a})` : `hsl(${parts})`;
+      }
+      if (cfg.format === "oklch") {
+        const o = rgbToOklch(rgb);
+        // A grey has no hue: `none`, as CSS writes it.
+        const parts = `${round(o.l * 100, 1)}% ${round(o.c, 3)} ${o.h === null || round(o.c, 3) === 0 ? "none" : round(o.h, 1)}`;
+        return a < 1 ? `oklch(${parts} / ${a})` : `oklch(${parts})`;
       }
       return `#${hex2(rgb.r)}${hex2(rgb.g)}${hex2(rgb.b)}${a < 1 ? hex2(a * 255) : ""}`;
     }

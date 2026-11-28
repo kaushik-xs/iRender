@@ -240,7 +240,7 @@
    "group": "Forms",
    "title": "Colour picker",
    "nav": "Colour picker",
-   "summary": "Pick a colour on a saturation and brightness area with hue and opacity sliders, type any CSS colour, take one from the screen with the eyedropper, or choose from swatches. It's written to state as hex, rgb or hsl, ready for a style or a chart; custom: false makes it a palette of set colours.",
+   "summary": "Pick a colour on a saturation and brightness area with hue and opacity sliders, type any CSS colour, take one from the screen with the eyedropper, or choose from swatches. It's written to state as hex, rgb or hsl, ready for a style or a chart; custom: false makes it a palette of set colours. format: oklch writes OKLCH, and any oklch() typed in is read.",
    "usage": "- type: ui-color-picker\n  props: { bind: brand, alpha: true, clearable: true, swatches: [\"#0f172a\", \"#2563eb\", { value: \"#ffffff\", label: White }] }\n- { type: ui-color-picker, props: { bind: tint, inline: true, format: rgb } }\n- { type: ui-color-picker, props: { bind: tag, custom: false, swatches: [\"#ef4444\", \"#22c55e\"] } }",
    "components": [
     "ui-color-picker"

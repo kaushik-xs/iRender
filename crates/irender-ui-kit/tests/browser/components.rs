@@ -611,6 +611,36 @@ root:
     );
 }
 
+/// `format: oklch`: written as OKLCH, and typed OKLCH (any of its forms) read, a colour
+/// outside sRGB brought into it.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn color_picker_writes_and_reads_oklch() {
+    check(
+        "color-oklch",
+        r##"
+state: { c: null }
+root: { type: ui-color-picker, props: { bind: c, inline: true, format: oklch, alpha: true } }
+"##,
+        r##"
+        const field = $("[data-color-text]");
+        const put = async (v) => { field.value = v; field.dispatchEvent(new Event("change", { bubbles: true })); await wait(30); return S().c; };
+        log(await put("#ff0000"), await put("#1e3a8a"), await put("#777777"), await put("white"));
+        log(await put("oklch(62.8% 0.2577 29.23)"), await put("oklch(0.5 0.1 200deg / 50%)"), await put("oklch(70% 50% 140)"));
+        // Far outside sRGB: each channel cut to its range.
+        log(await put("oklch(90% 0.4 150)"), field.getAttribute("aria-invalid"));
+        log(await put("oklch(nope)"), field.getAttribute("aria-invalid"));
+"##,
+        &[
+            "oklch(62.8% 0.258 29.2) oklch(37.9% 0.138 265.5) oklch(56.9% 0 none) oklch(100% 0 none)",
+            // The second is just outside sRGB (its red below 0), so it moves; the third is inside and comes back as it was.
+            "oklch(62.8% 0.258 29.2) oklch(50.7% 0.086 201.2 / 0.5) oklch(70% 0.2 140)",
+            "oklch(86.6% 0.295 142.5) null",
+            "oklch(86.6% 0.295 142.5) true",
+        ],
+    );
+}
+
 /// `min`, `max` and `bands` from state: the arc, the ends, the ticks' numbers, the bands
 /// and the value's tone and name follow them.
 #[test]

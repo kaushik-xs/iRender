@@ -285,6 +285,7 @@ state:
   gaugeOil: 64
   gaugeLoad: 42
   gaugeShift: { max: 60, bands: [ { to: 40, tone: success, label: Normal }, { to: 52, tone: warning, label: Busy }, { tone: danger, label: Over } ] }
+  oklchColor: "oklch(62.8% 0.21 264)"
   priorities:
     - { id: p1, label: Fix the checkout timeout, owner: Asha, tone: danger }
     - { id: p2, label: Ship the new onboarding, owner: Ravi, tone: primary }
@@ -1339,6 +1340,10 @@ root:
                       props: { label: Tint, description: "Inline, written as rgb, with its contrast on white and the colours picked last. tintColor = {{ tintColor }}" }
                       children:
                         - { type: ui-color-picker, props: { bind: tintColor, inline: true, format: rgb, alpha: true, contrastWith: "#ffffff", recent: 6 } }
+                    - type: ui-field
+                      props: { label: Accent, description: "Written as OKLCH (picked in sRGB). oklchColor = {{ oklchColor }}" }
+                      children:
+                        - { type: ui-color-picker, props: { bind: oklchColor, format: oklch } }
                     - type: stack
                       props: { gap: 8 }
                       children:
