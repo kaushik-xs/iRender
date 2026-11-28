@@ -7,6 +7,9 @@
 # which site is asking, and a file has no address to send.
 version: 1
 state:
+  # Drawn by hand
+  drawn:
+    - { id: area-1, type: area, points: [ [12.975, 77.59], [12.975, 77.605], [12.965, 77.605], [12.965, 77.59] ] }
   # Markers
   office: null
   offices:
@@ -165,6 +168,21 @@ root:
                 overlays: [ { id: heat, type: heat, points: "{{ stations }}", radius: 34, max: 12, show: "{{ heat }}" } ]
                 title: Where the stations are
                 height: 380
+        - type: ui-card
+          props: { title: Drawn by hand, description: "draw and bindShapes: lines, areas and circles drawn on the map. Corners are clicked; Enter, a double click or (an area) the first corner finishes. A drawn shape clicked is picked, and Delete takes it away. Three markers on one spot fan out round it." }
+          children:
+            - type: ui-map
+              attrs: { id: drawing }
+              props:
+                draw: true
+                bindShapes: drawn
+                shapes: "{{ drawn }}"
+                markers: [ { id: d1, lat: 12.9716, lng: 77.5946, title: Reception }, { id: d2, lat: 12.9716, lng: 77.5946, title: Café }, { id: d3, lat: 12.9716, lng: 77.5946, title: Lockers } ]
+                center: [12.9716, 77.5946]
+                zoom: 14
+                title: A site plan drawn by hand
+                height: 380
+            - { type: ui-text, props: { variant: muted, text: "drawn: {{ drawn.length }} shapes, kept in state" } }
         - type: ui-card
           props: { title: "Overlay: more tiles", description: "OpenSeaMap's buoys and lights over the harbour, from its own tile server, credited in the corner." }
           children:

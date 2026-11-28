@@ -122,6 +122,13 @@ const PROPS: &[PropDef] = &[
     PropDef::new("minZoom", PropKind::Number, "How far out it zooms"),
     PropDef::new("maxZoom", PropKind::Number, "How far in it zooms, and the closest it fits to"),
     PropDef::new("fit", PropKind::Any, "Fits the view to the markers and shapes when it opens (default: without a `center`); `always`: whenever they change"),
+    PropDef::new("spread", PropKind::Any, "Markers on the same spot fan out round it, each on a line to where it is, so all can be seen and clicked (default true)"),
+    PropDef::new(
+        "draw",
+        PropKind::Any,
+        "With `bindShapes`: buttons to draw shapes by hand, `true` for all or a list of `line`, `area`, `circle`. Corners are clicked on the map, Enter or a double click finishes (an area also by its first corner); a circle is its middle then its edge. A drawn shape clicked is picked, and Delete takes it away",
+    ),
+    PropDef::new("bindShapes", PropKind::StateKey, "With `draw`: the state key the drawn shapes are in (give `shapes` the same, `{{ key }}`); each is added as `{ id, type, points }` or `{ id, type: circle, center, radius }`, and `draw` and `erase` fire"),
     PropDef::new("cluster", PropKind::Any, "Groups markers closer than this many px (`true`: 56), with how many there are; clicking a group zooms to it"),
     PropDef::new("bind", PropKind::StateKey, "State key with the selected marker's id (null when none). Setting it selects that marker and brings it into view"),
     PropDef::new("bindMarker", PropKind::StateKey, "State key with the selected marker itself, or null"),
@@ -147,10 +154,10 @@ const PROPS: &[PropDef] = &[
 ];
 
 /// Props the browser resolves against state; the rest are read once on the server.
-const LIVE: &[&str] = &["markers", "shapes", "geojson", "center", "zoom", "fit", "cluster", "toneBy", "draggable", "filter", "alarmBy", "effectBy", "overlays"];
-const FIXED: &[&str] = &["latField", "lngField", "titleField", "minZoom", "maxZoom", "locate", "mapType"];
+const LIVE: &[&str] = &["markers", "shapes", "geojson", "center", "zoom", "fit", "cluster", "spread", "toneBy", "draggable", "filter", "alarmBy", "effectBy", "overlays"];
+const FIXED: &[&str] = &["latField", "lngField", "titleField", "minZoom", "maxZoom", "locate", "mapType", "draw"];
 const BINDINGS: &[&str] =
-    &["bind", "bindMarker", "bindShape", "bindView", "bindVisible", "bindAlarms", "bindPoint", "bindMarkers", "bindLocation"];
+    &["bind", "bindMarker", "bindShape", "bindView", "bindVisible", "bindAlarms", "bindPoint", "bindMarkers", "bindLocation", "bindShapes"];
 
 impl Component for MapView {
     fn name(&self) -> &'static str {
@@ -281,6 +288,31 @@ impl Component for MapView {
                 cx.markup(icon);
                 cx.close("button");
             }
+            // Drawing shapes by hand, with somewhere to keep them.
+            if cx.prop_string(node, "bindShapes").is_some() {
+                let kinds: Vec<String> = match cx.prop(node, "draw") {
+                    Some(Json::Bool(true)) => vec!["line".into(), "area".into(), "circle".into()],
+                    Some(Json::Array(l)) => l.iter().map(irender_core::expr::stringify).collect(),
+                    None | Some(Json::Null) | Some(Json::Bool(false)) => Vec::new(),
+                    Some(_) => return Err(RenderError::new(node, "`draw` is `true` or a list of `line`, `area`, `circle`")),
+                };
+                if let Some(bad) = kinds.iter().find(|k| !["line", "area", "circle"].contains(&k.as_str())) {
+                    return Err(RenderError::new(node, format!("`draw` can't draw `{bad}`; it takes `line`, `area`, `circle`")));
+                }
+                for (action, label, icon) in DRAW_BUTTONS.iter().filter(|(a, ..)| kinds.iter().any(|k| a.ends_with(k.as_str()))) {
+                    let label = cx.label(label);
+                    let mut b = Element::new("button");
+                    b.base_style_ref(&CONTROL)
+                        .attr("type", "button")
+                        .attr("aria-label", label.as_str())
+                        .attr("title", label.as_str())
+                        .attr("data-map-action", *action)
+                        .attr("aria-pressed", "false");
+                    cx.open(&b, node)?;
+                    cx.markup(icon);
+                    cx.close("button");
+                }
+            }
             cx.close("div");
         }
         cx.close("div");
@@ -360,6 +392,13 @@ const CONTROL_BUTTONS: &[(&str, &str, &str)] = &[
     ("zoom-out", "Zoom out", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 8h10"/></svg>"#),
     ("fit", "Fit view", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>"#),
     ("locate", "My location", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="4"/><path d="M8 1.5V4M8 12v2.5M1.5 8H4M12 8h2.5"/></svg>"#),
+];
+
+// Labels (looked up where they're used): "Draw a line", "Draw an area", "Draw a circle"
+const DRAW_BUTTONS: &[(&str, &str, &str)] = &[
+    ("draw-line", "Draw a line", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12.5 6 6l4 4 3.5-6.5"/></svg>"#),
+    ("draw-area", "Draw an area", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.5 9 2.5l4.5 5-3 6h-7z"/></svg>"#),
+    ("draw-circle", "Draw a circle", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1" fill="currentColor"/></svg>"#),
 ];
 
 const TEXT: &str = "var(--color-text, #18181b)";
@@ -455,6 +494,15 @@ static ROOT: LazyLock<StyleBlock> = LazyLock::new(|| {
         )
         .nest("& [data-map-pin][data-selected]", pairs(&[("transform", "translate(-50%, -100%) scale(1.2)")]))
         .nest("& [data-map-pin][data-draggable]", pairs(&[("cursor", "grab"), ("touch-action", "none")]))
+        // Markers fanned out from one spot hang on a thin line to it.
+        .nest("& [data-map-leg]", pairs(&[("position", "absolute"), ("left", "0"), ("top", "0"), ("width", "1px"), ("height", "1px"), ("overflow", "visible"), ("pointer-events", "none")]))
+        .nest("& [data-map-leg] line", pairs(&[("stroke", TEXT), ("stroke-width", "1.5"), ("opacity", "0.6")]))
+        // A corner of a shape being drawn.
+        .nest(
+            "& [data-map-vertex]",
+            pairs(&[("position", "absolute"), ("left", "-5px"), ("top", "-5px"), ("width", "10px"), ("height", "10px"), ("border-radius", "50%"), ("background", SURFACE), ("border", "2px solid var(--color-primary, #18181b)"), ("pointer-events", "none")]),
+        )
+        .nest("&[data-sketching] [data-map-canvas]", pairs(&[("cursor", "crosshair")]))
         .nest("& [data-map-pin][data-dragging]", pairs(&[("cursor", "grabbing")]))
         .nest("& :is([data-map-pin], [data-map-cluster]):focus-visible", pairs(&[("outline", RING), ("outline-offset", "2px"), ("border-radius", "999px")]))
         .nest(
@@ -661,6 +709,7 @@ static CONTROL: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("&:last-child", pairs(&[("border-bottom", "none")]))
     .nest("&:hover", pairs(&[("background", SUBTLE)]))
     .nest("&:focus-visible", pairs(&[("outline", RING), ("outline-offset", "-2px")]))
+    .nest("&[aria-pressed=true]", pairs(&[("background", "color-mix(in srgb, var(--color-primary, #18181b) 14%, transparent)"), ("color", "var(--color-primary, #18181b)")]))
 });
 
 const GLOBAL_CSS: &str = "@keyframes ui-map-pulse{from{transform:scale(.2);opacity:.55}to{transform:scale(1);opacity:0}}\

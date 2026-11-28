@@ -110,3 +110,19 @@ fn tile_urls_pass_the_policy() {
     let err = render(map(json!({ "tiles": {} })), json!({})).unwrap_err().to_string();
     assert!(err.contains("`tiles` needs a `url`"), "{err}");
 }
+
+/// `draw` with `bindShapes`: a button a kind, pressed or not; a kind it doesn't know,
+/// or `draw` that isn't a list, is a mistake; without `bindShapes` there are none.
+#[test]
+fn drawing_buttons_and_mistakes() {
+    let body = render(map(json!({ "draw": ["line", "circle"], "bindShapes": "s", "shapes": "{{ s }}" })), json!({ "s": [] })).unwrap().body;
+    assert!(body.contains(r#"data-map-action="draw-line" aria-pressed="false""#) && body.contains(r#"data-map-action="draw-circle""#), "{body}");
+    assert!(!body.contains("draw-area"), "{body}");
+    let all = render(map(json!({ "draw": true, "bindShapes": "s" })), json!({ "s": [] })).unwrap().body;
+    assert_eq!(all.matches("data-map-action=\"draw-").count(), 3);
+    let none = render(map(json!({ "draw": true })), json!({})).unwrap().body;
+    assert!(!none.contains("draw-line"));
+    let err = |props: Json| render(map(props), json!({ "s": [] })).unwrap_err().to_string();
+    assert!(err(json!({ "draw": ["polygon"], "bindShapes": "s" })).contains("`draw` can't draw `polygon`"));
+    assert!(err(json!({ "draw": "lines", "bindShapes": "s" })).contains("`draw` is `true` or a list"));
+}

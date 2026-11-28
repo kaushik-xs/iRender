@@ -290,7 +290,7 @@ These came out of the React Flow research on the builder and client-ui-next repo
 
 - [x] **Maps** (2026-11-22): `irender-map-kit`'s `ui-map`, on OpenStreetMap through Leaflet or on Google Maps: markers, popups of any components, panels, alarms and animated markers, overlays (pictures, tiles, heat), clusters, lines, areas, circles, GeoJSON, the shared `filter`, picking a place, dragging markers, My location, and the selection, view and markers in view as state (the Maps page, block map-01).
 - [ ] **Google Maps with a real key:** checked against Google's API without one (its watermarked mode) and against a stand-in; a key, a `mapId` and satellite types haven't been tried. Dashed areas and circles draw solid there.
-- [ ] Not built: searching for an address and routes (both need a service), drawing shapes, turned pictures, markers of any components, vector tiles (MapLibre), spreading out markers on the same spot.
+- [ ] Not built: searching for an address and routes (both need a service), turned pictures, markers of any components, vector tiles (MapLibre). Shapes drawn by hand (`draw`, `bindShapes`) and markers on one spot fanned out (`spread`) came on 2026-11-29 (maps gallery): drawn shapes aren't reshaped (only taken away), not from the keyboard, and a fan is round its spot, whatever's near.
 - [ ] OpenStreetMap's own tiles are for light use; a busy site needs its own tile server or a provider (`tiles`). Opened as a file (no address to send), a page may be refused tiles.
 - [ ] The other kits' browser renderer (irender-wasm) doesn't include maps.
 

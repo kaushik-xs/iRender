@@ -252,6 +252,8 @@
       project: (p) => map.latLngToContainerPoint(ll(p)),
       unproject: (x, y) => pt(map.containerPointToLatLng([x, y])),
       resize: () => map.invalidateSize({ animate: false }),
+      // While shapes are drawn, a double click finishes one rather than zooming.
+      drawing: (on) => (on ? map.doubleClickZoom.disable() : !still && map.doubleClickZoom.enable()),
       // `put` runs once the element is on the page.
       hold(el, p, above, put) {
         const m = Lf.marker(ll(p), { icon: Lf.divIcon({ html: el, className: "", iconSize: [0, 0] }), keyboard: false, interactive: false, zIndexOffset: above === "under" ? -1e6 : above ? 100000 : 0 }).addTo(map);
@@ -356,6 +358,7 @@
       project: (p) => ruler.getProjection().fromLatLngToContainerPixel(new G.LatLng(p.lat, p.lng)),
       unproject: (x, y) => pt(ruler.getProjection().fromContainerPixelToLatLng(new G.Point(x, y))),
       resize() {},
+      drawing: (on) => map.setOptions({ disableDoubleClickZoom: on || o.gestures === "none" }),
       hold(el, p, above, put) {
         const h = new Held(el, p, above, put);
         h.setMap(map);
@@ -431,7 +434,7 @@
     };
     const props = {}, fixed = cfg.props;
     const read = () => {
-      for (const k of ["markers", "shapes", "geojson", "center", "zoom", "fit", "cluster", "toneBy", "draggable", "filter", "alarmBy", "effectBy", "overlays"]) props[k] = k in fixed ? resolve(fixed[k]) : undefined;
+      for (const k of ["markers", "shapes", "geojson", "center", "zoom", "fit", "cluster", "spread", "toneBy", "draggable", "filter", "alarmBy", "effectBy", "overlays"]) props[k] = k in fixed ? resolve(fixed[k]) : undefined;
     };
     read();
     const set = (key, value) => cfg[key] && !same(api.state[cfg[key]], value) && api.set(cfg[key], value);
@@ -543,9 +546,17 @@
     };
     function drawShapes() {
       drawn.forEach((d) => d.handle.remove());
+      const mine = new Set(kinds().length ? ownRows().map((r) => str(r?.id)) : []);
       drawn = shapes.map((s) => {
-        const acts = cfg.bindShape || (cfg.popup && (s.title || s.description));
+        const acts = cfg.bindShape || (cfg.popup && (s.title || s.description)) || mine.has(str(s.id));
         const click = acts ? (at) => {
+          if (sketch.kind) return sketchAt(at);
+          // A shape drawn here is picked, to take away.
+          if (mine.has(str(s.id))) {
+            pickShape(s.id);
+            set("bindShape", s.id);
+            return;
+          }
           set("bindShape", s.id);
           api.emit("shapeselect", { id: s.id, shape: s.row });
           if (cfg.popup && (s.title || s.description)) {
@@ -787,7 +798,42 @@
           p.held.move(p.row.at);
         }
       }
+      spread();
       mark();
+    }
+    // Markers on the same spot (to a metre or so), shown alone, fan out round it, each on
+    // a thin line to where it is, so every one can be seen and clicked (`spread: false`
+    // leaves them stacked).
+    function spread() {
+      const spots = new Map();
+      for (const p of pins.values()) {
+        if (!p.pin) continue;
+        const k = `${p.row.at.lat.toFixed(5)},${p.row.at.lng.toFixed(5)}`;
+        spots.set(k, [...(spots.get(k) || []), p]);
+      }
+      for (const list of spots.values()) {
+        const fan = props.spread !== false && list.length > 1;
+        const r = Math.max(28, list.length * 7);
+        list.sort((a, b) => str(a.row.id).localeCompare(str(b.row.id), undefined, { numeric: true }));
+        list.forEach((p, i) => {
+          const a = -Math.PI / 2 + (i * 2 * Math.PI) / list.length, dx = fan ? Math.round(Math.cos(a) * r) : 0, dy = fan ? Math.round(Math.sin(a) * r) : 0;
+          p.pin.style.translate = fan ? `${dx}px ${dy}px` : "";
+          p.pin.toggleAttribute("data-spread", fan);
+          // Labels: "{n} places at the same spot"
+          if (fan) p.pin.setAttribute("aria-description", L("{n} places at the same spot", { n: list.length }));
+          else p.pin.removeAttribute("aria-description");
+          let leg = p.at.querySelector("[data-map-leg]");
+          if (!fan) return leg?.remove();
+          if (!leg) {
+            leg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            leg.setAttribute("data-map-leg", "");
+            leg.setAttribute("aria-hidden", "true");
+            leg.innerHTML = "<line/>";
+            p.at.prepend(leg);
+          }
+          for (const [k, v] of Object.entries({ x1: 0, y1: 0, x2: dx, y2: dy })) leg.firstChild.setAttribute(k, v);
+        });
+      }
     }
     function mark() {
       for (const [k, p] of pins) {
@@ -906,6 +952,125 @@
       }
     }
 
+    // ---------------------------------------------------------------- drawing shapes
+    // With `draw` and `bindShapes`: Draw a line, an area or a circle among the controls.
+    // A line's or area's corners are clicked on the map, and Enter, a double click (a
+    // second click on the last corner) or, for an area, a click on the first finishes it;
+    // Backspace takes the last corner back, Escape stops. A circle is its middle and then
+    // a point on its edge. The new row goes to `bindShapes` (which `shapes` reads); a
+    // drawn shape clicked is picked, and Delete takes it away.
+    const KINDS = ["line", "area", "circle"];
+    const kinds = () => (!cfg.bindShapes ? [] : fixed.draw === true ? KINDS : Array.isArray(fixed.draw) ? KINDS.filter((k) => fixed.draw.includes(k)) : []);
+    const sketch = { kind: null, pts: [], at: null, preview: null, dots: [] };
+    let shapePicked = null;
+    const ownRows = () => (Array.isArray(api.state[cfg.bindShapes]) ? api.state[cfg.bindShapes] : []);
+    const metres = (a, b) => {
+      const R = 6371008.8, f = (d) => (d * Math.PI) / 180, dLat = f(b.lat - a.lat), dLng = f(b.lng - a.lng);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(f(a.lat)) * Math.cos(f(b.lat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+    };
+    // Labels: "Click the line's corners on the map; Enter to finish", "Click the area's corners on the map; Enter to finish", "Click the circle's middle, then its edge"
+    const HOW = { line: "Click the line's corners on the map; Enter to finish", area: "Click the area's corners on the map; Enter to finish", circle: "Click the circle's middle, then its edge" };
+    function sketchMode(kind) {
+      sketch.kind = kind && kinds().includes(kind) ? kind : null;
+      sketch.pts = [];
+      sketch.at = null;
+      el.toggleAttribute("data-sketching", !!sketch.kind);
+      for (const b of el.querySelectorAll("[data-map-action^=draw-]")) b.setAttribute("aria-pressed", String(b.dataset.mapAction === `draw-${sketch.kind}`));
+      map?.drawing?.(!!sketch.kind);
+      if (sketch.kind) {
+        select(null);
+        pickShape(null);
+        say(L(HOW[sketch.kind]), true);
+      } else say("");
+      sketchDraw();
+    }
+    // The shape so far, with the pointer's place as its next corner.
+    function sketchShape() {
+      const pts = [...sketch.pts, ...(sketch.at && sketch.pts.length ? [sketch.at] : [])];
+      if (sketch.kind === "circle") return pts.length === 2 ? { id: "sketch", type: "circle", center: pts[0], radius: Math.max(1, metres(pts[0], pts[1])), width: 2, dashed: true, fill: 0.1 } : null;
+      return pts.length > 1 ? { id: "sketch", type: sketch.kind === "area" && pts.length > 2 ? "area" : "line", rings: [pts], width: 2, dashed: true, fill: 0.1 } : null;
+    }
+    function sketchDraw() {
+      sketch.preview?.remove();
+      sketch.preview = null;
+      sketch.dots.forEach((d) => d.remove());
+      sketch.dots = [];
+      if (!map || !sketch.kind) return;
+      const sh = sketchShape();
+      if (sh) sketch.preview = map.draw(sh, colorOf({ tone: "primary" }), null);
+      // Each corner so far, a dot.
+      sketch.dots = sketch.pts.map((p) => {
+        const h = make("div", { "data-map-at": "" });
+        h.append(make("span", { "data-map-vertex": "" }));
+        return map.hold(h, p, true);
+      });
+    }
+    function sketchAt(p) {
+      const q = map.project(p), near = (a, d) => { const r = map.project(a); return Math.hypot(r.x - q.x, r.y - q.y) < d; };
+      const first = sketch.pts[0], last = sketch.pts.at(-1);
+      if (sketch.kind === "circle") {
+        sketch.pts.push(p);
+        if (sketch.pts.length === 2) return sketchFinish();
+      } else if (last && near(last, 6)) {
+        // A second click on the last corner: a double click, which finishes it.
+        return sketchFinish();
+      } else if (sketch.kind === "area" && sketch.pts.length >= 3 && near(first, 10)) return sketchFinish();
+      else sketch.pts.push(p);
+      // Labels: "Corner {n}"
+      live.textContent = L("Corner {n}", { n: sketch.pts.length });
+      sketchDraw();
+    }
+    // Labels: "A line needs two corners or more", "An area needs three corners or more", "Line added", "Area added", "Circle added"
+    function sketchFinish() {
+      const kind = sketch.kind, pts = sketch.pts.map((p) => [Math.round(p.lat * 1e6) / 1e6, Math.round(p.lng * 1e6) / 1e6]);
+      if (!kind) return;
+      const enough = kind === "circle" ? pts.length === 2 : kind === "line" ? pts.length >= 2 : pts.length >= 3;
+      if (!enough) return say(kind === "area" ? L("An area needs three corners or more") : L("A line needs two corners or more"), true);
+      const rows = ownRows(), taken = new Set(rows.map((r) => str(r?.id)));
+      let n = rows.length + 1, id = `${kind}-${n}`;
+      while (taken.has(id)) id = `${kind}-${++n}`;
+      const row = kind === "circle" ? { id, type: "circle", center: pts[0], radius: Math.round(metres(sketch.pts[0], sketch.pts[1])) } : { id, type: kind, points: pts };
+      api.set(cfg.bindShapes, [...rows, row]);
+      api.emit("draw", { kind, row });
+      sketchMode(null);
+      live.textContent = L({ line: "Line added", area: "Area added", circle: "Circle added" }[kind]);
+    }
+    // A drawn shape picked (by its id), shown in the primary colour; null lets go.
+    // Labels: "Shape picked: Delete takes it away", "Shape removed"
+    function pickShape(id) {
+      shapePicked = id;
+      const primary = colorOf({ tone: "primary" });
+      drawn.forEach((d) => d.handle.paint(id !== null && str(d.s.id) === str(id) ? primary : colorOf(d.s)));
+      if (id !== null) say(L("Shape picked: Delete takes it away"), true);
+    }
+    function removeShape() {
+      if (shapePicked === null) return false;
+      const rows = ownRows(), gone = rows.find((r) => str(r?.id) === str(shapePicked));
+      if (!gone) return false;
+      api.set(cfg.bindShapes, rows.filter((r) => r !== gone));
+      api.emit("erase", { kind: gone.type, row: gone });
+      shapePicked = null;
+      say("");
+      live.textContent = L("Shape removed");
+      return true;
+    }
+    canvas.addEventListener("pointermove", (e) => {
+      if (!sketch.kind || !map || !sketch.pts.length) return;
+      const c = container();
+      sketch.at = map.unproject(e.clientX - c.left, e.clientY - c.top);
+      sketchDraw();
+    });
+    el.addEventListener("keydown", (e) => {
+      if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+      if (sketch.kind) {
+        if (e.key === "Enter") return e.preventDefault(), sketchFinish();
+        if (e.key === "Escape") return e.preventDefault(), sketchMode(null);
+        if (e.key === "Backspace") return e.preventDefault(), sketch.pts.pop(), sketchDraw();
+      } else if ((e.key === "Delete" || e.key === "Backspace") && removeShape()) e.preventDefault();
+      else if (e.key === "Escape" && shapePicked !== null) pickShape(null), say("");
+    });
+
     // ---------------------------------------------------------------- where the viewer is
     function locate() {
       if (!navigator.geolocation) return say(L("Your location isn't available"));
@@ -945,6 +1110,8 @@
       api.emit("viewchange", view);
     }
     function clicked(at) {
+      if (sketch.kind) return sketchAt(at);
+      if (shapePicked !== null) pickShape(null), say("");
       if (popup && !cfg.bindPoint) close(true);
       else if (selected !== null && !cfg.bindPoint) select(null);
       const p = round(at);
@@ -981,6 +1148,7 @@
       if (a === "zoom-in") map.zoomBy(1);
       else if (a === "zoom-out") map.zoomBy(-1);
       else if (a === "fit") fitAll();
+      else if (a.startsWith("draw-")) sketchMode(sketch.kind === a.slice(5) ? null : a.slice(5));
       else locate();
     });
 
@@ -1087,14 +1255,17 @@
         if (!map) return;
         const changed = (k) => !same(last[k], props[k]);
         const places = ["markers", "geojson", "toneBy", "shapes", "filter", "alarmBy", "effectBy"].some(changed);
-        const moves = changed("center") || changed("zoom"), redraw = places || changed("cluster") || changed("draggable");
+        const moves = changed("center") || changed("zoom"), redraw = places || changed("cluster") || changed("spread") || changed("draggable");
         const relaid = changed("overlays"), before = last;
         last = { ...props };
         if (relaid) drawOverlays();
         if (places) {
           collect();
           alarms();
-          if (!same(before.shapes, props.shapes) || !same(before.geojson, props.geojson)) drawShapes();
+          if (!same(before.shapes, props.shapes) || !same(before.geojson, props.geojson)) {
+            drawShapes();
+            if (shapePicked !== null) pickShape(shapes.some((x) => str(x.id) === str(shapePicked)) ? shapePicked : null);
+          }
         }
         if (redraw) {
           drawPins();

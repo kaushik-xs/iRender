@@ -2477,6 +2477,9 @@ ui-map: A map, on OpenStreetMap or Google Maps, with markers, popups, shapes, cl
   minZoom      number  How far out it zooms
   maxZoom      number  How far in it zooms, and the closest it fits to
   fit          any  Fits the view to the markers and shapes when it opens (default: without a `center`); `always`: whenever they change
+  spread       any  Markers on the same spot fan out round it, each on a line to where it is, so all can be seen and clicked (default true)
+  draw         any  With `bindShapes`: buttons to draw shapes by hand, `true` for all or a list of `line`, `area`, `circle`. Corners are clicked on the map, Enter or a double click finishes (an area also by its first corner); a circle is its middle then its edge. A drawn shape clicked is picked, and Delete takes it away
+  bindShapes   statekey  With `draw`: the state key the drawn shapes are in (give `shapes` the same, `{{ key }}`); each is added as `{ id, type, points }` or `{ id, type: circle, center, radius }`, and `draw` and `erase` fire
   cluster      any  Groups markers closer than this many px (`true`: 56), with how many there are; clicking a group zooms to it
   bind         statekey  State key with the selected marker's id (null when none). Setting it selects that marker and brings it into view
   bindMarker   statekey  State key with the selected marker itself, or null

@@ -69,6 +69,7 @@ Rows with a place: `lat` and `lng` (or `latitude`, `lon`, `long`, `longitude`, o
 - **Colour by a field:** `toneBy: { field: status, tones: { late: danger, done: success } }`.
 - **Filtering:** `filter` takes the same conditions as `ui-data-table` and `ui-chart`, so one `ui-filters` panel can narrow a map, a table and a chart.
 - **Clusters:** `cluster: true` groups markers closer than 56px (or give the px) until there's room for them. Clicking a group zooms to it.
+- **The same spot:** markers at one place (to a metre or so), shown on their own, fan out round it on thin lines to it, so each can be seen and clicked, and say how many share it. `spread: false` leaves them stacked.
 - **Many:** past 300 markers, only those near the view are in the page.
 
 ## Alarms
@@ -125,6 +126,8 @@ shapes:
   - { id: way, type: line, points: [[40.41, -3.70], [40.42, -3.69]], tone: info, width: 4, dashed: true }
   - { id: park, type: area, points: [[40.415, -3.69], [40.42, -3.68], [40.41, -3.68]], tone: success, fill: 0.3 }
 ```
+
+**Drawn by hand:** with `draw` (`true`, or some of `[line, area, circle]`) and `bindShapes` (the state key the shapes are in; give `shapes` the same, `{{ key }}`), the controls have a button for each. A line's or an area's corners are clicked on the map, the shape following the pointer; Enter, a double click or (an area) a click on its first corner finishes it, Backspace takes the last corner back and Escape stops. A circle is its middle, then a point on its edge. The new row, `{ id: line-1, type: line, points }` or `{ id: circle-3, type: circle, center, radius }` (metres), is added to the key, and `draw` fires; a shape drawn there and clicked is picked, and Delete takes it away (`erase`).
 
 `radius` is in metres. An area's `points` can be a list of rings, the first its outline and the rest holes. `geojson` takes a GeoJSON object: lines and areas take their look from `properties`, and points become markers. A shape with a `title`, or any with `bindShape`, can be clicked.
 

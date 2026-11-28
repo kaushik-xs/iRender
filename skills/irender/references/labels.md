@@ -2456,12 +2456,27 @@ root: …
 "Zoom out": "Zoom out"
 "Fit view": "Fit view"
 "My location": "My location"
+"Draw a line": "Draw a line"
+"Draw an area": "Draw an area"
+"Draw a circle": "Draw a circle"
 "Map": "Map"
 ```
 
 `map.js`
 
 ```yaml
+"{n} places at the same spot": "{n} places at the same spot"
+"Click the line's corners on the map; Enter to finish": "Click the line's corners on the map; Enter to finish"
+"Click the area's corners on the map; Enter to finish": "Click the area's corners on the map; Enter to finish"
+"Click the circle's middle, then its edge": "Click the circle's middle, then its edge"
+"Corner {n}": "Corner {n}"
+"A line needs two corners or more": "A line needs two corners or more"
+"An area needs three corners or more": "An area needs three corners or more"
+"Line added": "Line added"
+"Area added": "Area added"
+"Circle added": "Circle added"
+"Shape picked: Delete takes it away": "Shape picked: Delete takes it away"
+"Shape removed": "Shape removed"
 "The map's tiles couldn't be loaded": "The map's tiles couldn't be loaded"
 "Use {key} + scroll to zoom the map": "Use {key} + scroll to zoom the map"
 "Use two fingers to zoom the map": "Use two fingers to zoom the map"

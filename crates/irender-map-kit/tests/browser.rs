@@ -424,3 +424,80 @@ fn a_map_that_cannot_load_lists_its_places() {
     let Some(lines) = run("failed", doc, head, driver) else { return };
     check(lines, &["true Somewhere"]);
 }
+
+/// Markers on the same spot fan out round it on lines to it (not with `spread: false`),
+/// and shapes are drawn by hand: a line by its corners and Enter, an area closed on its
+/// first corner, a circle by its middle and edge; picked, and taken away with Delete.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn same_spot_markers_spread_and_shapes_drawn_by_hand() {
+    let same: Vec<Json> = (0..3).map(|i| json!({ "id": format!("m{i}"), "lat": 48.85, "lng": 2.35, "title": format!("M{i}") })).collect();
+    let doc = json!({ "version": 1,
+        "state": { "drawn": [], "fan": true },
+        "root": { "type": "element", "children": [
+            { "type": "ui-map", "attrs": { "id": "a" }, "props": { "markers": same.clone().into_iter().chain([json!({ "id": "x", "lat": 48.9, "lng": 2.4, "title": "X" })]).collect::<Vec<_>>(), "spread": "{{ fan }}", "center": [48.87, 2.37], "zoom": 12, "height": 300 } },
+            { "type": "ui-map", "attrs": { "id": "d" }, "props": { "center": [48.85, 2.35], "zoom": 13, "height": 400, "draw": true, "bindShapes": "drawn", "shapes": "{{ drawn }}" } } ] } });
+    let driver = r##"
+      await ready("a", "d");
+      const offs = () => ["m0", "m1", "m2", "x"].map((k) => pin("a", k).style.translate || "-").join(" ");
+      log("fanned", offs(), $$("a", "[data-map-leg]").length, pin("a", "m1").getAttribute("aria-description"));
+      // Each can be clicked on its own.
+      pin("a", "m2").click(); await wait(100);
+      log("picked", popup("a"));
+      set("fan", false); await wait(100);
+      log("stacked", offs(), $$("a", "[data-map-leg]").length);
+      // Drawing: the buttons, and a line of three corners finished with Enter.
+      const box = document.querySelector("#d .leaflet-container"), r = box.getBoundingClientRect();
+      const clickAt = async (dx, dy) => { const x = r.left + r.width / 2 + dx, y = r.top + r.height / 2 + dy; for (const t of ["mousedown", "mouseup", "click"]) box.dispatchEvent(new MouseEvent(t, { bubbles: true, clientX: x, clientY: y, view: window })); await wait(60); };
+      log("buttons", $$("d", "[data-map-action^=draw-]").map((b) => b.dataset.mapAction + ":" + b.getAttribute("aria-pressed")).join(" "));
+      $("d", '[data-map-action="draw-line"]').click(); await wait(30);
+      log("drawing", $("d", '[data-map-action="draw-line"]').getAttribute("aria-pressed"), $("d", "[data-map-note]").textContent);
+      await clickAt(-100, 0); await clickAt(0, -50); await clickAt(100, 0);
+      log("corners", $$("d", "[data-map-vertex]").length);
+      key(document.getElementById("d"), "Enter"); await wait(100);
+      const l = S().drawn[0];
+      log("line", l.id, l.type, l.points.length, l.points[0][1] < l.points[2][1], $("d", '[data-map-action="draw-line"]').getAttribute("aria-pressed"), $$("d", ".leaflet-overlay-pane path").length);
+      // An area: three corners, then its first again closes it.
+      $("d", '[data-map-action="draw-area"]').click(); await wait(30);
+      await clickAt(-60, 60); await clickAt(60, 60); await clickAt(0, 120); await clickAt(-60, 60);
+      log("area", S().drawn[1]?.id, S().drawn[1]?.type, S().drawn[1]?.points.length);
+      // Backspace takes a corner back; too few, and Enter says so.
+      $("d", '[data-map-action="draw-line"]').click(); await wait(30);
+      await clickAt(-150, -100); await clickAt(-120, -100);
+      key(document.getElementById("d"), "Backspace"); await wait(30);
+      log("back", $$("d", "[data-map-vertex]").length);
+      key(document.getElementById("d"), "Enter"); await wait(30);
+      log("short", $("d", "[data-map-note]").textContent, S().drawn.length);
+      key(document.getElementById("d"), "Escape"); await wait(30);
+      // A circle: its middle, then a point on its edge.
+      $("d", '[data-map-action="draw-circle"]').click(); await wait(30);
+      await clickAt(150, -100); await clickAt(190, -100);
+      const c = S().drawn[2];
+      log("circle", c.id, c.type, c.center.length, c.radius > 100 && c.radius < 2000);
+      // The line clicked is picked; Delete takes it away.
+      const path = $$("d", ".leaflet-overlay-pane path")[0], pr = path.getBoundingClientRect();
+      path.dispatchEvent(new MouseEvent("click", { bubbles: true, view: window, clientX: pr.left + 2, clientY: pr.top + 2 })); await wait(50);
+      log("shape picked", $("d", "[data-map-note]").textContent);
+      key(document.getElementById("d"), "Delete"); await wait(100);
+      log("removed", S().drawn.map((s) => s.id).join(","), $$("d", ".leaflet-overlay-pane path").length);
+    "##;
+    let Some(lines) = run("draw", doc, "", driver) else { return };
+    check(
+        lines,
+        &[
+            "fanned 0px -28px 24px 14px -24px 14px - 3 3 places at the same spot",
+            "picked M2",
+            "stacked - - - - 0",
+            "buttons draw-line:false draw-area:false draw-circle:false",
+            "drawing true Click the line's corners on the map; Enter to finish",
+            "corners 3",
+            "line line-1 line 3 true false 1",
+            "area area-2 area 3",
+            "back 1",
+            "short A line needs two corners or more 2",
+            "circle circle-3 circle 2 true",
+            "shape picked Shape picked: Delete takes it away",
+            "removed area-2,circle-3 2",
+        ],
+    );
+}
