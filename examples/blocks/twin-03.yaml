@@ -3,8 +3,9 @@
 # it, Delete removes it, and the palette adds more, clicked or dragged in. ⌘ or Shift and a
 # click picks several (Shift and a drag from the floor, a box of them), moved together. Every change is
 # written back to the list, which the JSON editor shows and can change too. The ruler
-# (or M) measures between two points or objects. The camera's place is kept in state, to
-# copy into a view.
+# (or M) measures between two points or objects. Walls (W) and zones (Z) are drawn by
+# clicking their corners on the floor, Enter to finish; one clicked goes with Delete. The
+# camera's place is kept in state, to copy into a view.
 #
 #   cargo run -p irender-cli -- render examples/blocks/twin-03.yaml --ui-kit --icon-kit --twin-kit -o twin-03.html
 version: 1
@@ -14,6 +15,10 @@ state:
   selection: []
   camera: null
   measured: null
+  walls:
+    - { id: outline, points: [[-10, -6], [10, -6], [10, 6], [-10, 6]], closed: true, height: 1, opacity: 0.6 }
+  zones:
+    - { id: walkway, center: [-2, 2.5], size: [16, 1.2], tone: warning, label: Walkway }
   layout:
     - { id: rack-1, model: rack, position: [-6, -4], title: Rack 1 }
     - { id: rack-2, model: rack, position: [-6, -1], title: Rack 2 }
@@ -70,10 +75,10 @@ root:
           - { label: Pallet, model: pallet, title: Pallet }
           - { label: Drum, model: drum, title: Drum }
           - { label: Pillar, shape: box, size: [0.4, 4, 0.4], title: Pillar }
-        walls:
-          - { points: [[-10, -6], [10, -6], [10, 6], [-10, 6]], closed: true, height: 1, opacity: 0.6 }
-        zones:
-          - { id: walkway, center: [-2, 2.5], size: [16, 1.2], tone: warning, label: Walkway }
+        walls: "{{ walls }}"
+        bindWalls: walls
+        zones: "{{ zones }}"
+        bindZones: zones
         ground: { size: [24, 16], grid: 0.5 }
         views:
           - { id: plan, label: Isometric, position: [12, 14, 16], target: [0, 0, 0] }

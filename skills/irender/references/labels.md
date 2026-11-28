@@ -2450,6 +2450,8 @@ root: …
 "Zoom in": "Zoom in"
 "Zoom out": "Zoom out"
 "Fit view": "Fit view"
+"Draw a wall": "Draw a wall"
+"Draw a zone": "Draw a zone"
 "3D view": "3D view"
 "Arrow keys turn the view, Shift and the arrows move it, + and − zoom, Home fits it. The objects are listed after it.": "Arrow keys turn the view, Shift and the arrows move it, + and − zoom, Home fits it. The objects are listed after it."
 "Objects": "Objects"
@@ -2460,6 +2462,18 @@ root: …
 `twin.js`
 
 ```yaml
+"Click the wall's corners on the floor; Enter to finish": "Click the wall's corners on the floor; Enter to finish"
+"Click the zone's corners on the floor; Enter to finish": "Click the zone's corners on the floor; Enter to finish"
+"Corner {n}": "Corner {n}"
+"A wall needs two corners or more": "A wall needs two corners or more"
+"A zone needs three corners or more": "A zone needs three corners or more"
+"Zone {n}": "Zone {n}"
+"Wall added": "Wall added"
+"Zone added": "Zone added"
+"Wall picked: Delete takes it away": "Wall picked: Delete takes it away"
+"Zone picked: Delete takes it away": "Zone picked: Delete takes it away"
+"Wall removed": "Wall removed"
+"Zone removed": "Zone removed"
 "3D view unavailable": "3D view unavailable"
 "On": "On"
 "Off": "Off"

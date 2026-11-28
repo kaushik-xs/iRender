@@ -184,6 +184,13 @@
 
     let T = null, renderer = null, scene = null, camera = null, controls = null, world = null;
     let items = new Map(), recs = [], zones = [], walls = [], paths = new Map(), pathMeshes = [];
+    // Walls and zones being drawn by hand, and the one picked to take away (see "drawing
+    // walls and zones").
+    const sketch = { kind: null, pts: [], at: null, line: null, ends: null };
+    let wallPicked = null, zonePicked = null;
+    const drawable = (kind) => !!props.editable && !!cfg[kind === "wall" ? "bindWalls" : "bindZones"];
+    const sketching = () => sketch.kind !== null && drawable(sketch.kind);
+    const snapPoint = (p) => (p ? new T.Vector3(snapTo(p.x), 0, snapTo(p.z)) : null);
     let selected = null, popup = null, ground = null, grid = null, sun = null, hemi = null, ringOf = null;
     // With `multiple`, the objects picked together (the selected one among them); else just it.
     const picked = new Set(), sels = [];
@@ -1118,7 +1125,9 @@
           tag = make("span", { "data-twin-zone": id, "data-tone": TONES.includes(z.tone) ? z.tone : null }, str(z.label ?? z.title));
           tagLayer.append(tag);
         }
-        zones.push({ id, row: z, mesh, tag, title, at: new T.Vector3(mid.x, height + 0.05, mid.z), clickable: !!(cfg.bindZone || (cfg.popup && (z.title || z.description))) });
+        mesh.userData.zoneRow = i;
+        if (i === zonePicked) mesh.material.opacity = Math.min(0.5, opacity * 2.4);
+        zones.push({ id, row: z, mesh, tag, title, at: new T.Vector3(mid.x, height + 0.05, mid.z), clickable: !!(cfg.bindZone || (cfg.popup && (z.title || z.description)) || drawable("zone")) });
       }
     }
     function drawWalls() {
@@ -1127,7 +1136,7 @@
         dispose(w);
       });
       walls = [];
-      for (const w of Array.isArray(W("walls")) ? W("walls") : []) {
+      for (const [row, w] of (Array.isArray(W("walls")) ? W("walls") : []).entries()) {
         if (!isObj(w) || w.show === false) continue;
         const pts = (Array.isArray(w.points) ? w.points : []).map(vec).filter(Boolean);
         if (w.closed && pts.length > 2) pts.push(pts[0]);
@@ -1144,6 +1153,9 @@
           m.receiveShadow = true;
           g.add(m);
         }
+        g.userData.wall = row;
+        // Picked while editing: tinted.
+        if (row === wallPicked) mat.emissive = new T.Color(colors.primary), (mat.emissiveIntensity = 0.35);
         world.add(g);
         walls.push(g);
       }
@@ -1906,7 +1918,7 @@
       caster ||= new T.Raycaster();
       caster.setFromCamera(pointerAt(e), camera);
       const instanced = [...batches.values()].flatMap((b) => [...b.parts, ...(b.farParts ?? [])].map((p) => p.im).filter(Boolean));
-      const targets = [...[...items.values()].filter((it) => it.rec.clickable && it.group.visible).map((it) => it.group), ...instanced, ...zones.filter((z) => z.clickable).map((z) => z.mesh)];
+      const targets = [...[...items.values()].filter((it) => it.rec.clickable && it.group.visible).map((it) => it.group), ...instanced, ...zones.filter((z) => z.clickable).map((z) => z.mesh), ...(drawable("wall") ? walls : [])];
       for (const h of caster.intersectObjects(targets, true)) {
         // An instance stands for the object in that place of its batch.
         const b = h.object.userData.batch;
@@ -1918,6 +1930,7 @@
         for (let o = h.object; o; o = o.parent) {
           if (o.userData.item !== undefined) return { item: items.get(o.userData.item) };
           if (o.userData.zone !== undefined) return { zone: zones.find((z) => z.id === o.userData.zone), point: h.point };
+          if (o.userData.wall !== undefined) return { wall: o.userData.wall, point: h.point };
         }
       }
       return null;
@@ -1988,7 +2001,7 @@
       c.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
         down = { x: e.clientX, y: e.clientY };
-        if (!editable() || measuring()) return;
+        if (!editable() || measuring() || sketching()) return;
         const hit = pick(e);
         const it = hit?.item;
         if (!it || it.rec.path !== null || it.rec.attach !== null) return;
@@ -2018,8 +2031,9 @@
           nextFrame(() => {
             hoverQueued = false;
             if (!renderer) return;
-            // Half measured, the line follows the pointer.
+            // Half measured, the line follows the pointer; so does a wall or zone being drawn.
             if (measuring()) return ruler.a && !ruler.b && ((ruler.at = surfacePoint(e)), rulerDraw());
+            if (sketching()) return (sketch.at = snapPoint(groundPoint(e))), sketchDraw();
             const h = pick(e);
             c.style.cursor = h ? (editable() && h.item ? "grab" : "pointer") : "";
           });
@@ -2042,7 +2056,13 @@
         down = null;
         if (far) return;
         if (measuring()) return measureAt(surfacePoint(e));
+        if (sketching()) return sketchAt(snapPoint(groundPoint(e)));
         const hit = pick(e);
+        // Editing: a wall or a zone picked, to take away with Delete.
+        if (hit?.wall !== undefined || (hit?.zone && drawable("zone"))) {
+          shapePick(hit.wall !== undefined ? "wall" : "zone", hit.wall ?? hit.zone.mesh.userData.zoneRow);
+          if (hit.wall !== undefined) return;
+        } else if (wallPicked !== null || zonePicked !== null) shapePick(null);
         if (hit?.item && adds(e)) toggle(hit.item.id);
         else if (hit?.item) select(hit.item.id, { popup: true });
         else if (hit?.zone) {
@@ -2056,6 +2076,7 @@
       };
       c.addEventListener("pointerup", up);
       c.addEventListener("pointercancel", up);
+      c.addEventListener("dblclick", (e) => sketching() && (e.preventDefault(), sketchFinish()));
     }
     let hoverQueued = false;
 
@@ -2149,6 +2170,108 @@
       ruler.tag.__on = undefined;
       ruler.tag.style.visibility = to && ruler.a ? "" : "hidden";
       look();
+    }
+    // ---------------------------------------------------------------- drawing walls and zones
+    // With `editable` and `bindWalls` (or `bindZones`): Draw a wall (W) or a zone (Z), its
+    // corners clicked on the floor (snapped), finished with Enter, a double click, or (a
+    // zone) a click on its first corner; Backspace takes the last corner back, Escape stops.
+    // A wall or zone clicked while editing is picked, and Delete takes it away. The rows are
+    // written to the state key, which `walls` and `zones` read.
+    function sketchMode(kind) {
+      sketch.kind = kind && drawable(kind) ? kind : null;
+      sketch.pts = [];
+      sketch.at = null;
+      host.toggleAttribute("data-sketching", !!sketch.kind);
+      for (const b of el.querySelectorAll("[data-twin-action^=draw-]")) b.setAttribute("aria-pressed", String(b.dataset.twinAction === `draw-${sketch.kind}`));
+      if (sketch.kind) {
+        if (ruler.on) measureMode(false);
+        select(null);
+        shapePick(null);
+        controls.enabled = true;
+        // Labels: "Click the wall's corners on the floor; Enter to finish", "Click the zone's corners on the floor; Enter to finish"
+        say(sketch.kind === "wall" ? L("Click the wall's corners on the floor; Enter to finish") : L("Click the zone's corners on the floor; Enter to finish"), true);
+        host.focus({ preventScroll: true });
+      } else say("");
+      sketchDraw();
+    }
+    function sketchAt(p) {
+      if (!p) return;
+      const first = sketch.pts[0];
+      // A zone closes on its first corner.
+      if (sketch.kind === "zone" && first && sketch.pts.length >= 3 && Math.hypot(p.x - first.x, p.z - first.z) < Math.max(0.3, num(props.snap) || 0)) return sketchFinish();
+      const last = sketch.pts.at(-1);
+      if (last && last.x === p.x && last.z === p.z) return;
+      sketch.pts.push(p);
+      // Labels: "Corner {n}"
+      live.textContent = L("Corner {n}", { n: sketch.pts.length });
+      sketchDraw();
+    }
+    function sketchDraw() {
+      const pts = [...sketch.pts, ...(sketch.at && sketch.pts.length ? [sketch.at] : [])];
+      if (sketch.kind === "zone" && pts.length > 2) pts.push(pts[0]);
+      if (!sketch.line && sketch.kind) {
+        const over = { color: colors.primary, depthTest: false, depthWrite: false, transparent: true };
+        sketch.line = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial(over));
+        sketch.ends = new T.Points(new T.BufferGeometry(), new T.PointsMaterial({ ...over, size: 8, sizeAttenuation: false }));
+        for (const o of [sketch.line, sketch.ends]) {
+          o.renderOrder = 10;
+          o.frustumCulled = false;
+          o.raycast = () => {};
+          scene.add(o);
+        }
+      }
+      if (!sketch.line) return;
+      const lift = (p) => new T.Vector3(p.x, 0.02, p.z);
+      sketch.line.geometry.setFromPoints(pts.map(lift));
+      sketch.ends.geometry.setFromPoints(sketch.pts.map(lift));
+      sketch.line.visible = sketch.ends.visible = !!sketch.kind && pts.length > 0;
+      look();
+    }
+    function sketchFinish() {
+      const kind = sketch.kind, pts = sketch.pts.map((p) => [round(p.x, 3), round(p.z, 3)]);
+      const enough = kind === "wall" ? pts.length >= 2 : pts.length >= 3;
+      // Labels: "A wall needs two corners or more", "A zone needs three corners or more"
+      if (!enough) return say(kind === "wall" ? L("A wall needs two corners or more") : L("A zone needs three corners or more"), true);
+      const key = cfg[kind === "wall" ? "bindWalls" : "bindZones"], rows = Array.isArray(api.state[key]) ? api.state[key] : [];
+      const n = rows.length + 1, taken = new Set(rows.map((r) => str(r?.id)));
+      let id = `${kind}-${n}`;
+      for (let k = n; taken.has(id); k++) id = `${kind}-${k + 1}`;
+      // Labels: "Zone {n}"
+      const row = kind === "wall" ? { id, points: pts } : { id, points: pts, label: L("Zone {n}", { n }) };
+      api.set(key, [...rows, row]);
+      api.emit("draw", { kind, row });
+      sketchMode(null);
+      // Labels: "Wall added", "Zone added"
+      live.textContent = kind === "wall" ? L("Wall added") : L("Zone added");
+    }
+    // A wall or zone picked (its row), shown tinted; null lets go.
+    function shapePick(kind, row = null) {
+      const w = kind === "wall" ? row : null, z = kind === "zone" ? row : null;
+      if (w === wallPicked && z === zonePicked) return;
+      wallPicked = w;
+      zonePicked = z;
+      drawWalls();
+      drawZones();
+      look();
+      // Labels: "Wall picked: Delete takes it away", "Zone picked: Delete takes it away"
+      if (kind) say(kind === "wall" ? L("Wall picked: Delete takes it away") : L("Zone picked: Delete takes it away"), true);
+    }
+    function shapeRemove() {
+      const kind = wallPicked !== null ? "wall" : zonePicked !== null ? "zone" : null;
+      if (!kind || !drawable(kind)) return false;
+      const key = cfg[kind === "wall" ? "bindWalls" : "bindZones"], rows = Array.isArray(api.state[key]) ? api.state[key] : [];
+      const at = kind === "wall" ? wallPicked : zonePicked;
+      if (!rows[at]) return false;
+      api.set(key, rows.filter((_, i) => i !== at));
+      api.emit("erase", { kind, row: rows[at] });
+      wallPicked = zonePicked = null;
+      // Labels: "Wall removed", "Zone removed"
+      live.textContent = kind === "wall" ? L("Wall removed") : L("Zone removed");
+      return true;
+    }
+    function drawSketchButtons() {
+      for (const b of el.querySelectorAll("[data-twin-action^=draw-]")) b.hidden = !drawable(b.dataset.twinAction.slice(5));
+      if (sketch.kind && !drawable(sketch.kind)) sketchMode(null);
     }
     // Moved objects' places and turns, written back to their rows in the same form, at once.
     function writeBack(...its) {
@@ -2263,6 +2386,18 @@
         e.stopPropagation();
         return measureMode(false);
       }
+      if (sketching() && ["Escape", "Enter", "Backspace"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === "Escape") return sketchMode(null);
+        if (e.key === "Enter") return sketchFinish();
+        sketch.pts.pop();
+        return sketchDraw();
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && (wallPicked !== null || zonePicked !== null) && !e.target.closest?.("input, textarea, [contenteditable]")) {
+        e.preventDefault();
+        if (shapeRemove()) return;
+      }
       if (e.key === "Escape" && (popup || selected !== null)) {
         e.preventDefault();
         e.stopPropagation();
@@ -2297,6 +2432,11 @@
         return removeObject(...picked);
       }
       if (e.target !== host && !e.target.closest?.("[data-twin-list]")) return;
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && ((e.key === "w" && drawable("wall")) || (e.key === "z" && drawable("zone")))) {
+        e.preventDefault();
+        const kind = e.key === "w" ? "wall" : "zone";
+        return sketchMode(sketch.kind === kind ? null : kind);
+      }
       if (props.measure && (e.key === "m" || e.key === "M") && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         return measureMode(!ruler.on);
@@ -2333,6 +2473,7 @@
       if (!b || !renderer) return;
       const a = b.dataset.twinAction, off = camera.position.clone().sub(controls.target);
       if (a === "measure") measureMode(!ruler.on);
+      else if (a === "draw-wall" || a === "draw-zone") sketchMode(sketch.kind === a.slice(5) ? null : a.slice(5));
       else if (a === "fit") fit();
       else if (a === "zoom-in" || a === "zoom-out") {
         off.multiplyScalar(a === "zoom-in" ? 0.75 : 1 / 0.75);
@@ -2487,6 +2628,7 @@
       drawViews();
       drawPalette();
       drawRuler();
+      drawSketchButtons();
       if (first) cameraStart();
       wake();
     }
@@ -2581,6 +2723,7 @@
           if (changed("world", "views")) drawViews();
           if (changed("palette", "editable")) drawPalette();
           if (changed("measure")) drawRuler();
+          if (changed("editable")) drawSketchButtons();
           if (changed("camera") && isObj(props.camera) && vec(props.camera.position)) fly(props.camera.position, props.camera.target);
         }
         if (cfg.bind) {

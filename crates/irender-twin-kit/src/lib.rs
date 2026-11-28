@@ -144,6 +144,12 @@ const PROPS: &[PropDef] = &[
     PropDef::new("bindObjects", PropKind::StateKey, "State key the objects are in: a moved one's `position` and `rotation` are written back to its row"),
     PropDef::new("bindLive", PropKind::StateKey, "State key that gets the latest values from `live`, as `{ <id>: { field: value } }`, e.g. for a list or totals beside the twin"),
     PropDef::new("bindMeasure", PropKind::StateKey, "State key with the last measurement, `{ from, to, distance, across, up }` in metres (null when none)"),
+    PropDef::new(
+        "bindWalls",
+        PropKind::StateKey,
+        "While `editable`: the state key the walls are in (give `walls` the same, `{{ key }}`). Draw a wall among the controls (or W): click its corners on the floor, Enter or a double click to finish, Backspace takes the last corner back, Escape stops;          a wall clicked is picked, and Delete takes it away",
+    ),
+    PropDef::new("bindZones", PropKind::StateKey, "While `editable`: the state key the zones are in (as `bindWalls`). Draw a zone (or Z): three corners or more, then Enter, a double click or a click on the first; a zone picked goes with Delete"),
     PropDef::new("bindCamera", PropKind::StateKey, "State key kept at `{ position, target }` after the camera's moved, e.g. to copy into `views`"),
     PropDef::new("popup", PropKind::Bool, "Opens a popup over the selected object, with its title, description and readouts or the `ui-twin-popup` (default true)"),
     PropDef::new("controls", PropKind::Bool, "Zoom and fit buttons (default true)"),
@@ -166,7 +172,7 @@ const LIVE: &[&str] = &[
     "models", "objects", "paths", "zones", "walls", "ground", "environment", "camera", "views", "readouts", "colorBy", "world", "src", "live", "follow", "filter", "toneBy", "alarmBy",
     "effectBy", "labels", "editable", "snap", "palette", "lod", "multiple", "measure",
 ];
-const BINDINGS: &[&str] = &["bind", "bindObject", "bindSelected", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive", "bindMeasure"];
+const BINDINGS: &[&str] = &["bind", "bindObject", "bindSelected", "bindZone", "bindView", "bindAlarms", "bindObjects", "bindCamera", "bindLive", "bindMeasure", "bindWalls", "bindZones"];
 
 impl Component for Twin {
     fn name(&self) -> &'static str {
@@ -329,12 +335,17 @@ impl Component for Twin {
             cx.open(&controls, node)?;
             // The ruler while `measure` may be on: the browser hides it when it's off.
             let ruler = !matches!(cx.prop(node, "measure"), None | Some(Json::Bool(false)) | Some(Json::Null));
-            for (action, label, icon) in CONTROL_BUTTONS.iter().chain(ruler.then_some(&MEASURE_BUTTON)) {
+            // Drawing walls and zones, where they can be written back: hidden while not editable.
+            let draw: Vec<_> = [("bindWalls", &DRAW_BUTTONS[0]), ("bindZones", &DRAW_BUTTONS[1])].into_iter().filter(|(k, _)| cx.prop_string(node, k).is_some()).map(|(_, b)| b).collect();
+            for (action, label, icon) in CONTROL_BUTTONS.iter().chain(ruler.then_some(&MEASURE_BUTTON)).chain(draw) {
                 let label = cx.label(label);
                 let mut b = Element::new("button");
                 b.base_style_ref(&CONTROL).attr("type", "button").attr("aria-label", label.as_str()).attr("title", label.as_str()).attr("data-twin-action", *action);
-                if *action == "measure" {
+                if matches!(*action, "measure" | "draw-wall" | "draw-zone") {
                     b.attr("aria-pressed", "false");
+                }
+                if action.starts_with("draw-") {
+                    b.attr("hidden", true);
                 }
                 cx.open(&b, node)?;
                 cx.markup(icon);
@@ -394,6 +405,12 @@ const MEASURE_BUTTON: (&str, &str, &str) = (
     "Measure",
     r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 11 11 1.5l3.5 3.5L5 14.5z"/><path d="m4.5 8 1.5 1.5M7 5.5 8.5 7M9.5 3l1.5 1.5"/></svg>"#,
 );
+
+// Labels (looked up where they're used): "Draw a wall", "Draw a zone"
+const DRAW_BUTTONS: [(&str, &str, &str); 2] = [
+    ("draw-wall", "Draw a wall", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 13V5l5-3 7 3v8"/><path d="M2 9h12M7 2v11"/></svg>"#),
+    ("draw-zone", "Draw a zone", r#"<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4 9 2l5 5-3 7-8-2z" stroke-dasharray="2 2"/></svg>"#),
+];
 
 const TEXT: &str = "var(--color-text, #18181b)";
 const MUTED: &str = "var(--color-muted, #71717a)";

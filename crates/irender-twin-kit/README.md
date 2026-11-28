@@ -154,6 +154,7 @@ An object whose `position` or `rotation` changes in the data moves there over `t
 | `bindCamera` | `{ position, target }` once the camera has moved: copy it into `views` |
 | `bindObjects` | the objects' list, written back when they're moved, added or removed |
 | `bindMeasure` | the last measurement, `{ from, to, distance, across, up }` in metres |
+| `bindWalls`, `bindZones` | the walls and the zones, written back as they're drawn and taken away (while `editable`) |
 
 `filter` shows only the objects that pass, e.g. a `ui-filters` panel's `bind`, or an area picked in a toggle group.
 
@@ -185,6 +186,8 @@ With `multiple: true`, ⌘, Ctrl or Shift and a click adds an object to the ones
 ## Measuring
 
 With `measure: true` the controls have a ruler (M with the view focused does the same). Turned on, two clicks on objects, walls or the floor draw a line between them with its length; when it slopes, how far across and how far up as well. Picked from a tag or the objects' list (so from the keyboard too), an object counts from its middle on the floor. A third click starts again, and Escape (or the ruler) stops. The line is drawn over everything, so one through a wall still shows. `bindMeasure` holds the last one, the twin fires `measure` with it, and `measure(a, b)` on the element's `__twin` takes two ids or points (`[x, z]` or `[x, y, z]`) and draws it; `measure(null)` clears it.
+
+Walls and zones are drawn by hand too, while `editable`, where they can be written back: `bindWalls` and `bindZones` name the state keys they're in (and `walls` and `zones` read the same keys). The controls then have Draw a wall and Draw a zone (W and Z with the view focused): click the corners on the floor, snapping to `snap`, with the line following the pointer; Enter or a double click finishes (a zone also by clicking its first corner, and needs three corners), Backspace takes the last corner back, Escape stops. The new row is added to the key, `{ id: wall-1, points }` or `{ id: zone-2, points, label: Zone 2 }`, and `draw` fires with it. A wall or zone clicked while editing is picked, tinted, and Delete takes it away (`erase` fires).
 
 ## Events
 

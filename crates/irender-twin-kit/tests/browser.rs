@@ -534,6 +534,70 @@ fn several_objects_picked_moved_and_removed_together() {
     );
 }
 
+/// Walls and zones drawn by hand while editing: corners clicked on the floor (snapped),
+/// Enter or the first corner to finish, Backspace and Escape; one picked and deleted.
+#[test]
+#[ignore = "needs Chrome and three.js from the CDN"]
+fn walls_and_zones_drawn_by_hand() {
+    let doc = json!({ "version": 1,
+        "state": { "walls": [], "zones": [{ "id": "dock", "points": [[-6, -6], [-2, -6], [-2, -2], [-6, -2]], "label": "Dock" }], "edit": true, "rows": [] },
+        "root": { "type": "ui-twin", "attrs": { "id": "w" }, "props": { "quality": "low", "height": 300, "objects": "{{ rows }}", "bindObjects": "rows",
+            "editable": "{{ edit }}", "snap": 1, "walls": "{{ walls }}", "zones": "{{ zones }}", "bindWalls": "walls", "bindZones": "zones", "labels": "none",
+            "camera": { "position": [0, 16, 12], "target": [0, 0, 0] } } } });
+    let driver = r##"
+      await ready("w");
+      const tw = twin("w"), T = tw.three, wallB = $("w", "[data-twin-action=draw-wall]"), zoneB = $("w", "[data-twin-action=draw-zone]");
+      const cv = $("w", "canvas"), r = cv.getBoundingClientRect(), view = $("w", "[data-twin-canvas]");
+      const click = (x, z) => {
+        const p = new T.Vector3(x, 0, z).project(tw.camera), at = { clientX: r.left + ((p.x + 1) / 2) * r.width, clientY: r.top + ((1 - p.y) / 2) * r.height, button: 0, pointerId: 3, bubbles: true };
+        cv.dispatchEvent(new PointerEvent("pointerdown", at)); cv.dispatchEvent(new PointerEvent("pointerup", at));
+      };
+      log("buttons", wallB.hidden, zoneB.hidden);
+      // A wall: three corners (the clicks a little off the metre; they snap), one taken back, one more, Enter.
+      wallB.click(); await wait(30);
+      log("drawing", wallB.getAttribute("aria-pressed"), $("w", "[data-twin-note]").textContent);
+      // The camera's controls would capture these made-up pointers, which Chrome refuses.
+      tw.controls.enabled = false;
+      click(0.1, 0.1); await wait(20); click(4.2, -0.1); await wait(20); click(4, 9); await wait(20);
+      view.focus(); key(view, "Backspace"); await wait(20);
+      click(4, 3); await wait(20);
+      key(view, "Enter"); await wait(80);
+      log("wall", JSON.stringify(S().walls), wallB.getAttribute("aria-pressed"));
+      // A zone, with Z: three corners and a click on the first closes it.
+      key(view, "z"); await wait(20);
+      tw.controls.enabled = false;
+      click(6, 0); await wait(20); click(9, 0); await wait(20); click(9, 3); await wait(20); click(6, 0); await wait(80);
+      log("zone", JSON.stringify(S().zones.at(-1)));
+      // Too few corners: said, and it goes on.
+      key(view, "w"); await wait(20); tw.controls.enabled = false; click(-8, 4); await wait(20); key(view, "Enter"); await wait(20);
+      log("short", $("w", "[data-twin-note]").textContent, S().walls.length);
+      key(view, "Escape"); await wait(20);
+      // The dock zone picked, and Delete takes it away.
+      tw.controls.enabled = false;
+      click(-4, -4); await wait(50);
+      log("picked", $("w", "[data-twin-note]").textContent);
+      key(view, "Delete"); await wait(80);
+      log("deleted", S().zones.map((z) => z.id).join(","));
+      // Not editable: the buttons go.
+      set("edit", false); await wait(80);
+      log("off", wallB.hidden, zoneB.hidden);
+    "##;
+    let Some(lines) = run("draw-walls", doc, "", &guarded(driver)) else { return };
+    check(
+        lines,
+        &[
+            "buttons false false",
+            "drawing true Click the wall's corners on the floor; Enter to finish",
+            r#"wall [{"id":"wall-1","points":[[0,0],[4,0],[4,3]]}] false"#,
+            r#"zone {"id":"zone-2","points":[[6,0],[9,0],[9,3]],"label":"Zone 2"}"#,
+            "short A wall needs two corners or more 1",
+            "picked Zone picked: Delete takes it away",
+            "deleted zone-2",
+            "off true true",
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome and three.js from the CDN"]
 fn measuring_between_points_and_objects() {
