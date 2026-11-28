@@ -928,6 +928,53 @@ root:
     );
 }
 
+/// `ui-timeline` with `filters: several`: menus of tick boxes, any number picked, kept
+/// open as they're picked, with a button for all and Escape to close.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn timeline_menus_pick_several() {
+    check(
+        "timeline-several",
+        r##"
+state:
+  f: null
+  feed:
+    - { id: 1, who: Ada, kind: comment, action: commented, when: "2026-11-27T10:00" }
+    - { id: 2, who: Bob, kind: status, action: changed the status, when: "2026-11-27T09:00" }
+    - { id: 3, who: Cy, kind: status, action: changed the status, when: "2026-11-26T09:00" }
+    - { id: 4, who: Ada, kind: file, action: added a file, when: "2026-11-25T09:00" }
+root: { type: ui-timeline, props: { items: "{{ feed }}", filters: several, bindFilter: f } }
+"##,
+        r##"
+        const ids = () => $$("[data-tl-item]").filter((li) => li.checkVisibility()).map((li) => li.getAttribute("data-who") + ":" + li.getAttribute("data-kind")).join(" ");
+        const menu = (k) => $(`[data-tl-${k}]`), sum = (k) => menu(k).querySelector("summary").textContent;
+        const tick = async (k, v) => { const c = menu(k).querySelector(`input[value="${v}"]`); c.focus(); c.click(); await wait(30); };
+        log(sum("who"), sum("kind"), $$("[data-tl-who] input").map((i) => i.value).join("/"), $$("[data-tl-kind] input").map((i) => i.value).join("/"));
+        menu("who").querySelector("summary").click(); await wait(10);
+        await tick("who", "Ada"); await tick("who", "Cy");
+        log(JSON.stringify(S().f), ids(), sum("who"), menu("who").open, document.activeElement.value);
+        await tick("kind", "status");
+        log(JSON.stringify(S().f), ids());
+        // Everyone again, with its button.
+        menu("who").querySelector("[data-tl-all]").click(); await wait(30);
+        log(JSON.stringify(S().f), sum("who"), menu("who").querySelector("[data-tl-all]").disabled);
+        // Escape closes it, back on its button; a click elsewhere closes the other.
+        menu("who").open = true; menu("who").querySelector("input").focus(); key("Escape"); await wait(10);
+        log(menu("who").open, document.activeElement.tagName);
+        menu("kind").open = true; document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); await wait(10);
+        log(menu("kind").open);
+"##,
+        &[
+            "Who: Everyone Kind: Every kind Ada/Bob/Cy comment/file/status",
+            r#"{"who":["Ada","Cy"],"kind":null} Ada:comment Cy:status Ada:file Who: 2 picked true Cy"#,
+            r#"{"who":["Ada","Cy"],"kind":["status"]} Cy:status"#,
+            r#"{"who":null,"kind":["status"]} Who: Everyone true"#,
+            "false SUMMARY",
+            "false",
+        ],
+    );
+}
+
 /// `ui-file-browser`: a box dragged from the space selects what it touches (⌘ or Shift as
 /// well as what was), and with `loadOnScroll` the next page comes as the end nears the view.
 #[test]

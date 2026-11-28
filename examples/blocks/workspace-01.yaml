@@ -84,7 +84,7 @@ root:
     - type: ui-rail-panel
       props: { for: activity, title: Activity }
       children:
-        - { type: ui-timeline, props: { items: "{{ activity }}", group: day, relative: true, since: "{{ lastVisit }}", limit: 6, filters: true, label: Team activity } }
+        - { type: ui-timeline, props: { items: "{{ activity }}", group: day, relative: true, since: "{{ lastVisit }}", limit: 6, filters: several, label: Team activity } }
     - type: ui-rail-panel
       props: { for: settings }
       children:

@@ -589,7 +589,7 @@
    "group": "Data display",
    "title": "Activity timeline",
    "nav": "Timeline",
-   "summary": "Who did what and when: an avatar or initials, the action and time, field changes as old → new, and comments. Events without a person get a dot in a tone. Entries come from children or from state, and redraw as it changes. As an activity feed, group: day puts Today, Yesterday or the date over each day's entries, relative shows how long ago (kept up to date), since marks what's New after a last visit, and limit shows the first few with a button for the rest.",
+   "summary": "Who did what and when: an avatar or initials, the action and time, field changes as old → new, and comments. Events without a person get a dot in a tone. Entries come from children or from state, and redraw as it changes. As an activity feed, group: day puts Today, Yesterday or the date over each day's entries, relative shows how long ago (kept up to date), since marks what's New after a last visit, and limit shows the first few with a button for the rest. filters: several makes the menus lists of tick boxes.",
    "usage": "- type: ui-timeline\n  props: { items: \"{{ history }}\" }   # [{ who, action, when, changes, comment, tone }]\n  children:\n    - { type: ui-timeline-item, props: { who: Asha Rao, action: changed the status, when: 2 h ago, changes: [ { field: Status, from: Open, to: Done } ] } }\n- { type: ui-timeline, props: { items: \"{{ activity }}\", group: day, relative: true, since: \"{{ lastVisit }}\", limit: 10 } }   # when: 2026-11-20T16:40",
    "components": [
     "ui-timeline",

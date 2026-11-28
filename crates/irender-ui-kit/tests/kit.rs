@@ -1944,6 +1944,7 @@ fn status_badge_ring_rating_checklist_and_timeline() {
     assert!(err(json!({ "type": "ui-rating", "props": { "bind": "r", "max": 12 } })).contains("`max` must be a whole number from 1 to 10"));
     assert!(err(json!({ "type": "ui-rating", "props": { "bind": "r", "value": 3 } })).contains("takes `bind` (to pick one) or `value`"));
     assert!(err(json!({ "type": "ui-password-checklist", "props": { "value": "", "rules": ["long"] } })).contains("each rule is"));
+    assert!(err(json!({ "type": "ui-timeline", "props": { "items": [], "filters": "sevral" } })).contains("`filters` is `true`, `false` or `several`"));
 }
 
 #[test]

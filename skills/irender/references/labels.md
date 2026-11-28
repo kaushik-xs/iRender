@@ -2175,6 +2175,8 @@ root: …
 "Who": "Who"
 "Kind": "Kind"
 "{n} picked": "{n} picked"
+"Who: {picked}": "Who: {picked}"
+"Kind: {picked}": "Kind: {picked}"
 "Nothing matches these filters": "Nothing matches these filters"
 "Load more": "Load more"
 "Loading…": "Loading…"

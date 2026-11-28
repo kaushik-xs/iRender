@@ -3,7 +3,8 @@
 // entry (`group: day`), writes how long ago it was (`relative`, every minute), marks
 // entries after `since` as New, and holds back all but the first `limit` behind a
 // button. With `filters` it shows one person's entries or one kind's (or several, set
-// from state), and says so (`filter`); with `hasMore`, a Load more button once all are
+// from state, or picked with `filters: several`, whose menus are lists of tick boxes),
+// and says so (`filter`); with `hasMore`, a Load more button once all are
 // shown fires `more`; `bindSeen` gets when the feed was last seen, as the page is left. Entries from state are the runtime's:
 // this only fills in and shows what each already has, and does it again whenever they change.
 (window.__irenderBehaviors ||= {})["ui-timeline"] = (el, api) => {
@@ -73,14 +74,61 @@
       s.addEventListener("change", () => s.value !== "\u0000" && setFilter({ ...filter(), [key]: s.value || null }));
       return s;
     };
+    // `filters: several`: a menu of tick boxes, any number picked, and a button for all.
+    // Labels: "Who: {picked}", "Kind: {picked}"
+    const several = (name, all, list, cur, key) => {
+      const now = cur === null ? [] : [].concat(cur);
+      const d = document.createElement("details");
+      d.setAttribute(`data-tl-${key}`, "");
+      d.setAttribute("data-tl-many", "");
+      const sum = document.createElement("summary");
+      const said = !now.length ? L(all) : now.length === 1 ? now[0] : L("{n} picked", { n: now.length });
+      sum.textContent = L(key === "who" ? "Who: {picked}" : "Kind: {picked}", { picked: said });
+      const box = document.createElement("div");
+      box.setAttribute("role", "group");
+      box.setAttribute("aria-label", L(name));
+      const write = () => setFilter({ ...filter(), [key]: (() => { const v = [...box.querySelectorAll("input:checked")].map((i) => i.value); return v.length ? v : null; })() });
+      for (const v of list) {
+        const l = document.createElement("label"), c = document.createElement("input");
+        c.type = "checkbox";
+        c.value = v;
+        c.checked = now.includes(v);
+        c.addEventListener("change", write);
+        l.append(c, " ", v);
+        box.append(l);
+      }
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.setAttribute("data-tl-all", "");
+      clear.textContent = L(all);
+      clear.disabled = !now.length;
+      clear.addEventListener("click", () => setFilter({ ...filter(), [key]: null }));
+      box.append(clear);
+      d.append(sum, box);
+      // Escape closes it, back on its button.
+      d.addEventListener("keydown", (e) => e.key === "Escape" && d.open && (e.preventDefault(), (d.open = false), sum.focus()));
+      return d;
+    };
+    const make = cfg.several ? several : menu;
     const kids = [];
-    if (distinct("data-who").length > 1 || f.who) kids.push(menu("Who", "Everyone", distinct("data-who"), f.who, "who"));
-    if (distinct("data-kind").length > 1 || f.kind) kids.push(menu("Kind", "Every kind", distinct("data-kind"), f.kind, "kind"));
-    const keep = bar.contains(document.activeElement) ? [...document.activeElement.attributes].find((a) => a.name.startsWith("data-tl-"))?.name : null;
+    if (distinct("data-who").length > 1 || f.who) kids.push(make("Who", "Everyone", distinct("data-who"), f.who, "who"));
+    if (distinct("data-kind").length > 1 || f.kind) kids.push(make("Kind", "Every kind", distinct("data-kind"), f.kind, "kind"));
+    // Drawn again as they're picked: the open menu stays open, the focus where it was.
+    const a = document.activeElement, inBar = bar.contains(a);
+    const menuOf = inBar ? a.closest("[data-tl-who], [data-tl-kind]") : null;
+    const keep = menuOf ? (menuOf.hasAttribute("data-tl-who") ? "data-tl-who" : "data-tl-kind") : null;
+    const what = inBar ? (a.matches("summary") ? "summary" : a.matches("[data-tl-all]") ? "[data-tl-all]" : a.matches("input") ? `input[value="${CSS.escape(a.value)}"]` : null) : null;
+    const opened = [...bar.querySelectorAll("details[open]")].map((x) => [...x.attributes].find((n) => n.name === "data-tl-who" || n.name === "data-tl-kind")?.name);
     bar.replaceChildren(...kids);
     bar.hidden = !kids.length;
-    if (keep) bar.querySelector(`[${keep}]`)?.focus();
+    for (const o of opened) if (o) bar.querySelector(`details[${o}]`)?.setAttribute("open", "");
+    if (keep) {
+      const m = bar.querySelector(`[${keep}]`);
+      ((what && m?.querySelector(what)) || (m?.matches("select") ? m : m?.querySelector("summary")))?.focus();
+    }
   }
+  // A menu of tick boxes closes when something else is clicked.
+  if (cfg.several) document.addEventListener("pointerdown", (e) => bar?.querySelectorAll("details[open]").forEach((d) => !d.contains(e.target) && (d.open = false)));
   function draw() {
     const now = Date.now(), since = at(K.value(api, cfg.since));
     const all = [...el.querySelectorAll("[data-tl-item]")], f = filter();

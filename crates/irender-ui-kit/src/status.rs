@@ -329,7 +329,7 @@ const TIMELINE_PROPS: &[PropDef] = &[
     PropDef::new("relative", PropKind::Bool, "Each `when` as how long ago (`5 min ago`, `3 h ago`), kept up to date, with the full date on hover"),
     PropDef::new("since", PropKind::Any, "Entries after this date and time (a last visit, say) are marked New; may use state"),
     PropDef::new("limit", PropKind::Number, "Show the first this many entries, then a button for the rest"),
-    PropDef::new("filters", PropKind::Bool, "Menus over the feed to show one person's entries, or one `kind` of entry, from those it has"),
+    PropDef::new("filters", PropKind::Any, "Menus over the feed to show one person's entries, or one `kind` of entry, from those it has; `several`: menus of tick boxes, any number picked"),
     PropDef::new("bindFilter", PropKind::StateKey, "With `filters`, a state key holding what's picked, `{ who, kind }`, each one value or a list (null for all); setting it picks them, and `filter` fires as they change"),
     PropDef::new("bindSeen", PropKind::StateKey, "State key that gets when the feed was last seen, as the page is hidden or left: keep it (on the server) for next visit's `since`"),
     PropDef::new("hasMore", PropKind::Any, "There are older entries on the server: once all here are shown, a Load more button fires `more` (the page adds them to `items`); may use state"),
@@ -365,6 +365,51 @@ static TIMELINE: LazyLock<StyleBlock> = LazyLock::new(|| {
             pairs(&[("min-height", ctl!(32)), ("padding", pad!(0, 8)), ("border", "var(--border-width, 1px) solid var(--color-border)"), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", "var(--ui-bg, transparent)"), ("color", "inherit"), ("font", "inherit"), ("font-size", fs!(13))]),
         )
         .nest("& > [data-tl-filters] select:focus-visible", crate::forms::focus_ring())
+        // `filters: several`: a button opening a list of tick boxes under it.
+        .nest("& > [data-tl-filters] details", pairs(&[("position", "relative")]))
+        .nest(
+            "& > [data-tl-filters] summary",
+            pairs(&[
+                ("display", "inline-flex"),
+                ("align-items", "center"),
+                ("min-height", ctl!(32)),
+                ("padding", pad!(0, 10)),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-control, var(--radius-md))"),
+                ("background", "var(--ui-bg, transparent)"),
+                ("font-size", fs!(13)),
+                ("cursor", "pointer"),
+                ("list-style", "none"),
+            ]),
+        )
+        .nest("& > [data-tl-filters] summary::-webkit-details-marker", pairs(&[("display", "none")]))
+        .nest("& > [data-tl-filters] summary:focus-visible", crate::forms::focus_ring())
+        .nest(
+            "& > [data-tl-filters] details > [role=group]",
+            pairs(&[
+                ("position", "absolute"),
+                ("z-index", "5"),
+                ("top", "calc(100% + 4px)"),
+                ("inset-inline-start", "0"),
+                ("display", "grid"),
+                ("gap", gap!(4)),
+                ("min-width", "12rem"),
+                ("max-height", "16rem"),
+                ("overflow", "auto"),
+                ("padding", pad!(8)),
+                ("border", "var(--border-width, 1px) solid var(--color-border)"),
+                ("border-radius", "var(--radius-md)"),
+                ("background", "var(--color-popover, var(--color-surface))"),
+                ("box-shadow", "var(--elevation-popover, 0 6px 18px rgb(0 0 0 / 0.12))"),
+                ("font-size", fs!(13)),
+            ]),
+        )
+        .nest("& > [data-tl-filters] details label", pairs(&[("display", "flex"), ("align-items", "center"), ("gap", gap!(6)), ("cursor", "pointer")]))
+        .nest(
+            "& > [data-tl-filters] [data-tl-all]",
+            pairs(&[("justify-self", "start"), ("margin-top", gap!(4)), ("padding", pad!(2, 8)), ("border", "0"), ("border-radius", "var(--radius-sm)"), ("background", "transparent"), ("color", "var(--color-primary)"), ("font", "inherit"), ("cursor", "pointer")]),
+        )
+        .nest("& > [data-tl-filters] [data-tl-all]:disabled", pairs(&[("color", MUTED), ("cursor", "default")]))
         .nest("& > [data-tl-none]", pairs(&[("color", MUTED), ("font-size", fs!(13)), ("list-style", "none")]))
         .nest("& [data-tl-show]", pairs(&[("padding-inline-start", "40px")]))
         .nest(
@@ -472,12 +517,18 @@ impl Component for Timeline {
             return Err(RenderError::new(node, "`limit` is a whole number of entries, 1 or more"));
         }
         let feed = ["group", "relative", "since", "limit", "filters", "hasMore", "bindSeen"].iter().any(|p| node.prop(p).is_some());
-        let filters = crate::widget::flag(cx, node, "filters", false);
+        let filters = match cx.prop(node, "filters") {
+            None | Some(Json::Null) | Some(Json::Bool(false)) => false,
+            Some(Json::Bool(true)) => true,
+            Some(Json::String(s)) if s == "several" => true,
+            Some(_) => return Err(RenderError::new(node, "`filters` is `true`, `false` or `several`")),
+        };
         let more = node.prop("hasMore").is_some();
         if feed {
             let mut config = crate::widget::config(cx, node, &["since", "hasMore", "loading"], &["group", "limit"], &["bindFilter", "bindSeen"])?;
             config.insert("relative".into(), json!(crate::widget::flag(cx, node, "relative", false)));
             config.insert("filters".into(), json!(filters));
+            config.insert("several".into(), json!(cx.prop_string(node, "filters").as_deref() == Some("several")));
             crate::widget::kit(cx);
             cx.global_js("ui-timeline", TIMELINE_SCRIPT);
             ol.behavior("ui-timeline", Json::Object(config));
