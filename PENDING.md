@@ -260,7 +260,7 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - search with dimming and stepping through matches
 
 - [x] **Reconnecting an edge** (2026-11-29): the picked edge's ends drag to another port (`reconnectable`, `reconnect`); not from the keyboard.
-- [ ] **Edges are drawn only by the script.** Nodes have server positions, but a page without JS shows no edges. Idea: draw straight edges on the server when the positions are known.
+- [x] **Edges drawn on the server** (2026-11-29): straight lines between the nodes' middles, by their saved sizes (or 150 by 40), the nodes placed in their containers by `nodeOrigin`; not with `layout: layered`, and a node's real size, when it isn't saved, is only the browser's.
 - [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`. With `layout: layered`, an added node's position is replaced by the layout.
 - [ ] **Undo records only the flow's own edits.** Changes made to the state outside the flow aren't recorded, and an undo puts back the arrays as the flow last saw them.
 - [x] **`extent: parent`** (2026-11-29; subflow-01): a node (or a template) keeps inside its container, dragged or by the keys; the container doesn't grow to it.

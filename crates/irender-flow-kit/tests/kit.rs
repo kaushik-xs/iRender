@@ -237,3 +237,29 @@ fn shapes_render_an_outline_and_reject_unknown_ones() {
     .unwrap_err();
     assert!(err.message.contains("unknown shape `star`"), "{}", err.message);
 }
+
+/// Without the script, edges are straight lines between the nodes' middles where
+/// they're saved (sizes, parents and `nodeOrigin` counted); with `layout: layered`,
+/// which only the browser works out, they're left for it.
+#[test]
+fn edges_are_drawn_straight_on_the_server() {
+    let nodes = json!([
+        { "id": "a", "position": { "x": 10, "y": 20 }, "data": { "label": "Start" } },
+        { "id": "g", "position": { "x": 300, "y": 0 }, "width": 200, "height": 100 },
+        { "id": "b", "parentId": "g", "position": { "x": 10, "y": 10 }, "width": 100, "height": 50, "data": { "label": "In" } }
+    ]);
+    let edges = json!([{ "id": "ab", "source": "a", "target": "b" }, { "id": "ax", "source": "a", "target": "gone" }]);
+    let body = render(json!({ "type": "ui-flow", "props": { "nodes": nodes, "edges": edges } }), json!({})).unwrap().body;
+    // a: 10 + 75, 20 + 20; b: 300 + 10 + 50, 0 + 10 + 25.
+    assert!(body.contains(r#"d="M85 40L360 35""#), "{body}");
+    assert_eq!(body.matches("data-flow-path=\"\" d=").count(), 1, "{body}");
+    // The nodes sit on the same corners: the child inside its parent.
+    assert!(body.contains(r#"data-flow-node="b" role="group" aria-roledescription="node" aria-label="In" style="transform: translate(310px, 10px)""#), "{body}");
+    let centred = render(json!({ "type": "ui-flow", "props": { "nodes": nodes, "edges": edges, "nodeOrigin": [0.5, 0.5] } }), json!({})).unwrap().body;
+    assert!(centred.contains(r#"d="M10 20L210 -40""#), "{centred}");
+    let laid = render(json!({ "type": "ui-flow", "props": { "nodes": nodes, "edges": edges, "layout": "layered" } }), json!({})).unwrap().body;
+    assert!(!laid.contains("data-flow-path=\"\" d="), "{laid}");
+    // From state, the server's lines are there too (the script redraws them).
+    let live = render(json!({ "type": "ui-flow", "props": { "nodes": "{{ n }}", "edges": "{{ e }}" } }), json!({ "n": nodes, "e": edges })).unwrap().body;
+    assert!(live.contains(r#"d="M85 40L360 35""#), "{live}");
+}

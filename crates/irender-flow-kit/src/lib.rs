@@ -32,7 +32,7 @@ use irender_core::{
 };
 use irender_html::{ClientList, Component, Element, RenderCx, RenderError, Registry};
 use serde_json::{Map, Value as Json, json};
-use std::{borrow::Cow, sync::LazyLock};
+use std::{borrow::Cow, collections::HashMap, sync::LazyLock};
 
 const SCRIPT: &str = include_str!("flow.js");
 
@@ -216,11 +216,12 @@ impl Component for Flow {
         let mut pane = Element::new("div");
         pane.base_style_ref(&PANE).attr("data-flow-pane", "");
         cx.open(&pane, node)?;
+        let places = places(cx, node);
         layer(cx, node, "data-flow-edges", node.prop("edges"), EDGE, EDGE_INDEX, EDGE_ID, |cx| {
-            item(cx, EDGE, &templates.edges, |cx, t| edge_item(cx, node, t))
+            item(cx, EDGE, &templates.edges, |cx, t| edge_item(cx, node, t, &places))
         })?;
         layer(cx, node, "data-flow-nodes", node.prop("nodes"), NODE, NODE_INDEX, "{{ node.id }}", |cx| {
-            item(cx, NODE, &templates.nodes, |cx, t| node_item(cx, node, t))
+            item(cx, NODE, &templates.nodes, |cx, t| node_item(cx, node, t, &places))
         })?;
         cx.close("div");
 
@@ -351,7 +352,7 @@ fn tpl(src: &str) -> Val {
     Val::Tpl(Template::parse(src).expect("the kit's own templates parse"))
 }
 
-fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Result<(), RenderError> {
+fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>, places: &Places) -> Result<(), RenderError> {
     let id = tpl("{{ node.id }}");
     let mut el = match template {
         Some(t) => cx.element("div", t),
@@ -381,10 +382,12 @@ fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
         .attr("role", "group")
         .attr("aria-roledescription", cx.label("node"))
         .attr("aria-label", tpl("{{ node.data.label }}"));
-    // Without the script, nodes at least sit where they were saved.
+    // Without the script, nodes at least sit where they were saved (in their parents,
+    // by `nodeOrigin`), on the same corners the server's edges are drawn from.
     if !cx.is_reactive(&id) {
         let at = |axis: &str| expr::to_num(&cx.lookup(&[NODE.into(), "position".into(), axis.into()]));
-        let (x, y) = (at("x"), at("y"));
+        let key = expr::stringify(&cx.lookup(&[NODE.into(), "id".into()]));
+        let (x, y) = places.get(&key).map_or((at("x"), at("y")), |p| (p.0, p.1));
         if x.is_finite() && y.is_finite() {
             el.attr("style", format!("transform: translate({x}px, {y}px)"));
         }
@@ -434,7 +437,49 @@ fn node_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
     Ok(())
 }
 
-fn edge_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Result<(), RenderError> {
+/// Each node's top-left corner on the flow and its size, where it's saved, for the page
+/// as the server draws it (the script places them again): positions within their
+/// parents, `nodeOrigin`, and `width` and `height` (else the size a layout takes, 150
+/// by 40). Empty with `layout: layered`, whose places only the browser knows.
+type Places = HashMap<String, (f64, f64, f64, f64)>;
+
+fn places(cx: &RenderCx<'_>, flow: &Node) -> Places {
+    let mut out = HashMap::new();
+    if cx.prop_string(flow, "layout").as_deref() == Some("layered") {
+        return out;
+    }
+    let Some(Json::Array(nodes)) = flow.prop("nodes").map(|v| cx.eval(v)) else { return out };
+    let origin = match cx.prop(flow, "nodeOrigin") {
+        Some(Json::Array(o)) if o.len() == 2 => (expr::to_num(&o[0]), expr::to_num(&o[1])),
+        _ => (0.0, 0.0),
+    };
+    let by: HashMap<String, &Json> = nodes.iter().filter_map(|n| Some((expr::stringify(n.get("id")?), n))).collect();
+    fn size(n: &Json) -> (f64, f64) {
+        let get = |k: &str, d: f64| n.get(k).filter(|v| v.is_number()).map_or(d, expr::to_num);
+        (get("width", 150.0), get("height", 40.0))
+    }
+    // A node's corner, its parents' added (64 levels at most).
+    fn corner(id: &str, by: &HashMap<String, &Json>, o: (f64, f64), depth: u32) -> Option<(f64, f64)> {
+        let n = by.get(id)?;
+        let p = n.get("position")?;
+        let (w, h) = size(n);
+        let (x, y) = (expr::to_num(p.get("x")?) - o.0 * w, expr::to_num(p.get("y")?) - o.1 * h);
+        match n.get("parentId").filter(|v| !v.is_null()).map(expr::stringify) {
+            Some(parent) if depth < 64 => corner(&parent, by, o, depth + 1).map(|(px, py)| (px + x, py + y)),
+            Some(_) => None,
+            None => Some((x, y)),
+        }
+    }
+    for (id, n) in &by {
+        if let Some((x, y)) = corner(id, &by, origin, 0).filter(|(x, y)| x.is_finite() && y.is_finite()) {
+            let (w, h) = size(n);
+            out.insert(id.clone(), (x, y, w, h));
+        }
+    }
+    out
+}
+
+fn edge_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>, places: &Places) -> Result<(), RenderError> {
     let id = tpl(EDGE_ID);
     let at = template.unwrap_or(flow);
     let mut svg = Element::new("svg");
@@ -445,6 +490,11 @@ fn edge_item(cx: &mut RenderCx<'_>, flow: &Node, template: Option<&Node>) -> Res
         None => Element::new("path"),
     };
     path.base_style_ref(&PATH).attr("data-flow-path", "");
+    // Without the script, a straight line between the two nodes' middles, under them.
+    let end = |cx: &RenderCx<'_>, k: &str| places.get(&expr::stringify(&cx.lookup(&[EDGE.into(), k.into()]))).map(|&(x, y, w, h)| (x + w / 2.0, y + h / 2.0));
+    if let (Some((x1, y1)), Some((x2, y2))) = (end(cx, "source"), end(cx, "target")) {
+        path.attr("d", format!("M{} {}L{} {}", x1.round(), y1.round(), x2.round(), y2.round()));
+    }
     cx.open(&path, at)?;
     cx.close("path");
     let mut hit = Element::new("path");

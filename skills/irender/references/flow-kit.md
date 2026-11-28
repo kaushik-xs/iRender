@@ -172,7 +172,7 @@ A template's `style` styles the path. Its children are the label, which sits at 
 
 | prop | |
 |---|---|
-| `nodes`, `edges` | Arrays in React Flow's shape. From state, the browser rebuilds them whenever they change, keyed by id: a node that stays keeps its DOM, including input values and the state of the components inside it. |
+| `nodes`, `edges` | Arrays in React Flow's shape. From state, the browser rebuilds them whenever they change, keyed by id: a node that stays keeps its DOM, including input values and the state of the components inside it. The server places each node where it's saved (in its container, by `nodeOrigin`), and draws each edge as a straight line between its nodes' middles (by `width` and `height`, else 150 by 40), so a page without the script still shows the graph; the script routes them properly. With `layout: layered` the server leaves the edges to it. |
 | `layout` | `layered` places the top-level nodes in ranks along `direction`, ignoring their positions; the layout also updates when the nodes or their sizes change. Groups of nodes that don't connect to each other are packed into rows, largest first. Default: use `position`. |
 | `direction` | `LR` (default), `TB`, `RL` or `BT`. |
 | `nodeGap`, `rankGap` | Layout spacing (40, 80). |
