@@ -1510,11 +1510,15 @@ root: …
 
 ```yaml
 "Note": "Note"
+"{name} moved to {n} of {total}": "{name} moved to {n} of {total}"
+"{name} moved before {target}": "{name} moved before {target}"
+"{name} moved after {target}": "{name} moved after {target}"
 "Note saved": "Note saved"
 "Note removed": "Note removed"
 "level {n}": "level {n}"
 "folded": "folded"
 "open": "open"
+"Has a link: ⌘ or Ctrl and Enter opens it": "Has a link: ⌘ or Ctrl and Enter opens it"
 "Add a topic inside": "Add a topic inside"
 "Topic": "Topic"
 "Add a topic beside": "Add a topic beside"

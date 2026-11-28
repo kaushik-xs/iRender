@@ -14,9 +14,9 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("mindmap.js");
 
 const PROPS: &[PropDef] = &[
-    PropDef::new("bind", PropKind::StateKey, "State key holding the map: the central topic, `{ id, label, icon, note, children, collapsed, color }`, children the same; `icon` is a character or emoji before the label, `note` longer text for the topic (edited under the map)").required(),
+    PropDef::new("bind", PropKind::StateKey, "State key holding the map: the central topic, `{ id, label, icon, note, href, children, collapsed, color, links }`, children the same; `icon` is a character or emoji before the label, `note` longer text for the topic (edited under the map), `href` a link it opens (⌘/Ctrl+Enter, or its ↗), and the central topic's `links` lines between any two topics, `[{ from, to, label, color }]`").required(),
     PropDef::new("bindSelected", PropKind::StateKey, "State key that gets the `id` of the topic selected"),
-    PropDef::new("layout", PropKind::Enum(&["balanced", "right"]), "`balanced` (default: branches on both sides) or `right`"),
+    PropDef::new("layout", PropKind::Enum(&["balanced", "right", "down"]), "`balanced` (default: branches on both sides), `right`, or `down` (a tree from the top)"),
     PropDef::new("colors", PropKind::Any, "Colours for the first branches, in turn (default eight)"),
     PropDef::new("readOnly", PropKind::Bool, "Look, fold and move around only"),
     PropDef::new("height", PropKind::Any, "Its height: px or a CSS length (default 480)"),

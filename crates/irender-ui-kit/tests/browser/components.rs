@@ -397,6 +397,67 @@ root: { type: ui-mindmap, attrs: { id: mm }, props: { bind: map, bindSelected: s
     );
 }
 
+/// `ui-mindmap`: topics reordered among their siblings (Alt and the arrows, or dragged onto
+/// another's top or foot), a topic's link, lines between branches, and a tree from the top.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn mindmap_reorders_links_and_lays_out_down() {
+    check(
+        "mindmap-more",
+        r##"
+state:
+  sel: null
+  map: { id: root, label: Launch, links: [ { from: a2, to: b, label: needs } ], children: [ { id: a, label: Pricing, children: [ { id: a1, label: Tiers }, { id: a2, label: Trials, href: "https://example.com/trials" } ] }, { id: b, label: Docs } ] }
+  tree: { id: r, label: Org, children: [ { id: x, label: Sales, children: [ { id: x1, label: North } ] }, { id: y, label: Support } ] }
+root:
+  type: stack
+  children:
+    - { type: ui-mindmap, attrs: { id: mm }, props: { bind: map, bindSelected: sel, layout: right } }
+    - { type: ui-mindmap, attrs: { id: dn }, props: { bind: tree, layout: down } }
+"##,
+        r##"
+        const mm = $("#mm"), dn = $("#dn");
+        const topic = (el, id) => el.querySelector(`[data-mm-topic="${id}"]`), stage = (el) => el.querySelector("[tabindex]");
+        const order = (t) => (t.children ?? []).map((c) => c.id).join(",");
+        const pick = async (el, id) => { for (const t of ["pointerdown", "pointerup"]) topic(el, id).dispatchEvent(new PointerEvent(t, { bubbles: true, button: 0, pointerId: 1 })); await wait(30); };
+        const key = (el, k, o = {}) => stage(el).dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...o }));
+        // The link's mark, and the line between branches.
+        log(!!topic(mm, "a2").querySelector("[data-mm-href]"), topic(mm, "a2").getAttribute("aria-description"), mm.querySelectorAll("[data-mm-link]").length, mm.querySelector("[data-mm-links] text")?.textContent);
+        let opened = null; window.open = (u) => (opened = u);
+        await pick(mm, "a2"); stage(mm).focus(); key(mm, "Enter", { ctrlKey: true }); await wait(10);
+        log("open", opened);
+        // Alt and ↑: Trials before Tiers.
+        key(mm, "ArrowUp", { altKey: true }); await wait(30);
+        log("alt", order(S().map.children[0]), S().sel);
+        // Dragged onto the foot of Docs: after it, among the first branches.
+        const g = topic(mm, "a1").querySelector("rect:not([data-mm-ring])").getBoundingClientRect(), d = topic(mm, "b").querySelector("rect:not([data-mm-ring])").getBoundingClientRect();
+        const p = (type, x, y) => topic(mm, "a1").dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, pointerId: 2, clientX: x, clientY: y }));
+        p("pointerdown", g.left + 5, g.top + 5); p("pointermove", g.left + 30, g.top + 30);
+        p("pointermove", d.left + d.width / 2, d.bottom - 2); await wait(10);
+        log("slot", !!mm.querySelector("[data-mm-slot]"));
+        p("pointerup", d.left + d.width / 2, d.bottom - 2); await wait(30);
+        log("dropped", order(S().map), order(S().map.children[0]));
+        // Down: the children under their parent, side by side; ↓ goes in, → along.
+        const box = (id) => topic(dn, id).querySelector("rect:not([data-mm-ring])").getBoundingClientRect();
+        log("down", box("x").top > box("r").bottom, Math.abs(box("x").top - box("y").top) < 1, box("x1").top > box("x").bottom);
+        await pick(dn, "r"); stage(dn).focus(); key(dn, "ArrowDown"); await wait(10); key(dn, "ArrowRight"); await wait(10);
+        log("keys", dn.querySelector('[data-mm-topic][aria-selected="true"]').getAttribute("data-mm-topic"));
+        key(dn, "ArrowLeft", { altKey: true }); await wait(30);
+        log("alt across", order(S().tree));
+"##,
+        &[
+            "true Has a link: ⌘ or Ctrl and Enter opens it 1 needs",
+            "open https://example.com/trials",
+            "alt a2,a1 a2",
+            "slot true",
+            "dropped a,b,a1 a2",
+            "down true true true",
+            "keys y",
+            "alt across y,x",
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn whiteboard_arrows_stay_joined_to_shapes() {

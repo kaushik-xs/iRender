@@ -110,14 +110,49 @@
   const MAXW = 240, HGAP = 48, VGAP = 12;
   // What a topic shows: its icon, its label, and a mark when it has a note.
   const shownText = (t) => `${t.icon ? `${t.icon} ` : ""}${t.label ?? ""}`;
+  // A link of its own (`href`, http(s) or a path) opens with ⌘/Ctrl+Enter or its mark.
+  const linkOf = (t) => {
+    const u = typeof t?.href === "string" ? t.href.trim() : "";
+    return /^(https?:\/\/|\/(?!\/)|\.{0,2}\/)/i.test(u) || (u && !/^[a-z][a-z0-9+.-]*:/i.test(u)) ? u : null;
+  };
+  // The marks at a topic's end: a note's and a link's.
+  const marks = (t) => (t.note ? 1 : 0) + (linkOf(t) ? 1 : 0);
   const NOTE = 16;
   function size(t, depth) {
     ctx.font = font(depth);
     const pad = depth === 0 ? 22 : 14, hh = depth === 0 ? 46 : depth === 1 ? 36 : 30;
-    const w = clamp(Math.ceil(ctx.measureText(shownText(t)).width) + 2 * pad + (t.note ? NOTE : 0), 56, MAXW);
+    const w = clamp(Math.ceil(ctx.measureText(shownText(t)).width) + 2 * pad + marks(t) * NOTE, 56, MAXW);
     return { w, h: hh, pad };
   }
+  // Top down (`layout: down`): each topic over its children, side by side under it.
+  function layoutDown(root) {
+    const boxes = new Map(), HG = 16, VG = 56;
+    const width = (t, depth) => {
+      const b = size(t, depth);
+      const cs = t.collapsed ? [] : kids(t);
+      const sub = cs.reduce((sum, c, i) => sum + width(c, depth + 1) + (i ? HG : 0), 0);
+      boxes.set(String(t.id), { ...b, sub: Math.max(b.w, sub), depth, side: 2 });
+      return Math.max(b.w, sub);
+    };
+    width(root, 0);
+    const place = (t, cx, y) => {
+      const b = boxes.get(String(t.id));
+      b.x = cx - b.w / 2;
+      b.y = y;
+      const cs = t.collapsed ? [] : kids(t);
+      const all = cs.reduce((sum, c, i) => sum + boxes.get(String(c.id)).sub + (i ? HG : 0), 0);
+      let x = cx - all / 2;
+      for (const c of cs) {
+        const cb = boxes.get(String(c.id));
+        place(c, x + cb.sub / 2, y + b.h + VG);
+        x += cb.sub + HG;
+      }
+    };
+    place(root, 0, -size(root, 0).h / 2);
+    return boxes;
+  }
   function layout(root) {
+    if (cfg.layout === "down") return layoutDown(root);
     const boxes = new Map();
     const height = (t, depth) => {
       const b = size(t, depth);
@@ -210,10 +245,44 @@
       const it = idx.get(id);
       if (!it.parent || !boxes.has(it.parent)) continue;
       const p = boxes.get(it.parent), c = branchColor(id, idx) ?? ink;
-      const x1 = b.side > 0 ? p.x + p.w : p.x, y1 = p.y + p.h / 2, x2 = b.side > 0 ? b.x : b.x + b.w, y2 = b.y + b.h / 2, mx = (x1 + x2) / 2;
-      lines.append(s("path", { d: `M${x1} ${y1}C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`, fill: "none", stroke: c, "stroke-width": it.depth === 1 ? 3 : 2, "stroke-linecap": "round", opacity: 0.85 }));
+      let d;
+      if (b.side === 2) {
+        // Down: from the parent's foot to the child's head.
+        const x1 = p.x + p.w / 2, y1 = p.y + p.h, x2 = b.x + b.w / 2, y2 = b.y, my = (y1 + y2) / 2;
+        d = `M${x1} ${y1}C${x1} ${my} ${x2} ${my} ${x2} ${y2}`;
+      } else {
+        const x1 = b.side > 0 ? p.x + p.w : p.x, y1 = p.y + p.h / 2, x2 = b.side > 0 ? b.x : b.x + b.w, y2 = b.y + b.h / 2, mx = (x1 + x2) / 2;
+        d = `M${x1} ${y1}C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`;
+      }
+      lines.append(s("path", { d, fill: "none", stroke: c, "stroke-width": it.depth === 1 ? 3 : 2, "stroke-linecap": "round", opacity: 0.85 }));
     }
     world.append(lines);
+    // Lines between topics of different branches (`links` on the central topic): dashed,
+    // arched between their nearest sides, with a label in the middle.
+    const cross = s("g", { "data-mm-links": true, "aria-hidden": "true" });
+    for (const l of Array.isArray(root.links) ? root.links.filter(isObj) : []) {
+      const a = boxes.get(String(l.from)), z = boxes.get(String(l.to));
+      if (!a || !z || a === z) continue;
+      const ax = a.x + a.w / 2, ay = a.y + a.h / 2, zx = z.x + z.w / 2, zy = z.y + z.h / 2;
+      const bend = Math.max(40, Math.hypot(zx - ax, zy - ay) * 0.25);
+      const mx = (ax + zx) / 2 - ((zy - ay) / Math.max(1, Math.hypot(zx - ax, zy - ay))) * bend, my = (ay + zy) / 2 + ((zx - ax) / Math.max(1, Math.hypot(zx - ax, zy - ay))) * bend;
+      // From and to the boxes' edges, towards the bend, so the arrow shows.
+      const edge = (b, cx, cy) => {
+        const dx = mx - cx, dy = my - cy, k = Math.min((b.w / 2 + 3) / Math.max(1e-6, Math.abs(dx)), (b.h / 2 + 3) / Math.max(1e-6, Math.abs(dy)));
+        return [cx + dx * Math.min(1, k), cy + dy * Math.min(1, k)];
+      };
+      const [sx1, sy1] = edge(a, ax, ay), [ex1, ey1] = edge(z, zx, zy);
+      cross.append(s("path", { "data-mm-link": `${l.from}>${l.to}`, d: `M${sx1} ${sy1}Q${mx} ${my} ${ex1} ${ey1}`, fill: "none", stroke: l.color ?? ink, "stroke-width": 1.5, "stroke-dasharray": "6 5", opacity: 0.6, "marker-end": `url(#${cfg.id}-arrow)` }));
+      if (l.label) {
+        const t = s("text", { x: (ax + 2 * mx + zx) / 4, y: (ay + 2 * my + zy) / 4, "text-anchor": "middle", "font-size": 12, fill: ink, opacity: 0.8, stroke: paper, "stroke-width": 4, "paint-order": "stroke" });
+        t.textContent = String(l.label);
+        cross.append(t);
+      }
+    }
+    if (cross.children.length) {
+      cross.prepend(s("defs", {}, s("marker", { id: `${cfg.id}-arrow`, viewBox: "0 0 10 10", refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse" }, s("path", { d: "M0 0L10 5L0 10z", fill: ink, opacity: 0.6 }))));
+      world.append(cross);
+    }
     // Then the topics, as tree items.
     for (const [id, b] of boxes) {
       const it = idx.get(id), c = branchColor(id, idx), n = kids(it.t).length;
@@ -228,15 +297,23 @@
       g.append(s("rect", { x: b.x, y: b.y, width: b.w, height: b.h, rx: it.depth === 0 ? 12 : b.h / 2, fill, stroke: it.depth === 0 ? ink : c ?? ink, "stroke-width": it.depth === 0 ? 0 : it.depth === 1 ? 2 : 1.5 }));
       // The label, cut short with … when it's longer than a topic is wide.
       ctx.font = font(it.depth);
-      const room = b.w - 2 * b.pad - (it.t.note ? NOTE : 0);
+      const room = b.w - 2 * b.pad - marks(it.t) * NOTE;
       let text = shownText(it.t);
       if (ctx.measureText(text).width > room) {
         while (text.length > 1 && ctx.measureText(`${text}…`).width > room) text = text.slice(0, -1);
         text = `${text}…`;
       }
-      const t = s("text", { x: b.x + (b.w - (it.t.note ? NOTE : 0)) / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": it.depth === 0 ? 17 : 14, "font-weight": it.depth < 2 ? 600 : 400 });
+      const t = s("text", { x: b.x + (b.w - marks(it.t) * NOTE) / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": it.depth === 0 ? 17 : 14, "font-weight": it.depth < 2 ? 600 : 400 });
       t.textContent = text;
-      g.append(t, s("title", {}, document.createTextNode(shownText(it.t) + (it.t.note ? `\n\n${it.t.note}` : ""))));
+      g.append(t, s("title", {}, document.createTextNode(shownText(it.t) + (it.t.note ? `\n\n${it.t.note}` : "") + (linkOf(it.t) ? `\n\n${linkOf(it.t)}` : ""))));
+      // A topic with a link has a mark at its end that opens it.
+      if (linkOf(it.t)) {
+        const lx = b.x + b.w - b.pad / 2 - NOTE / 2 - (it.t.note ? NOTE : 0);
+        const m = s("text", { "data-mm-href": id, x: lx, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 13, style: "cursor: pointer" });
+        m.textContent = "↗";
+        g.append(m);
+        g.setAttribute("aria-description", [it.t.note, L("Has a link: ⌘ or Ctrl and Enter opens it")].filter(Boolean).join(". "));
+      }
       // A topic with a note has a mark at its end.
       if (it.t.note) {
         const m = s("text", { "data-mm-has-note": true, x: b.x + b.w - b.pad / 2 - NOTE / 2, y: b.y + b.h / 2, "text-anchor": "middle", fill: it.depth === 0 ? paper : ink, "font-size": 12, opacity: 0.7 });
@@ -257,6 +334,8 @@
     // To start with: the central topic in the middle, or the whole map if it won't fit.
     if (!view) {
       centre();
+      // A tree from the top starts with its top near the top.
+      if (cfg.layout === "down") setView({ ...view, y: (boxes.get(String(root.id))?.y ?? 0) - 24 / view.zoom });
       const r = stage.getBoundingClientRect(), bs = [...boxes.values()];
       const wide = Math.max(...bs.map((b) => b.x + b.w)) - Math.min(...bs.map((b) => b.x)), tall = Math.max(...bs.map((b) => b.y + b.h)) - Math.min(...bs.map((b) => b.y));
       if (r.width && (wide + 64 > r.width || tall + 64 > r.height)) fit();
@@ -383,6 +462,39 @@
     draw();
     say(collapsed ? L("{name} folded, {n} inside", { name: it.t.label, n: kids(it.t).length }) : L("{name} unfolded", { name: it.t.label }));
   }
+  // A topic's link, in a new tab.
+  function open(id = selected) {
+    const it = id && index(map()).get(id), u = it && linkOf(it.t);
+    if (!u) return;
+    window.open(new URL(u, location.href).href, "_blank", "noopener");
+    api.emit("open", { id, href: u });
+  }
+  // Topic `id` among its siblings, `by` places up or down; or before or after `target`
+  // (a topic dragged onto another's top or foot), into that one's parent.
+  function reorder(id, by) {
+    const root = map(), idx = index(root), it = idx.get(id);
+    if (cfg.readOnly || !it?.parent) return;
+    const cs = kids(idx.get(it.parent).t), at = cs.findIndex((c) => String(c.id) === id), to = at + by;
+    if (to < 0 || to >= cs.length) return;
+    const next = cs.slice();
+    next.splice(at, 1);
+    next.splice(to, 0, it.t);
+    // Labels: "{name} moved to {n} of {total}"
+    commit(change(root, it.parent, (p) => ({ ...p, children: next })), L("{name} moved to {n} of {total}", { name: it.t.label, n: to + 1, total: cs.length }));
+    select(id, true);
+  }
+  function place(id, target, after) {
+    const root = map(), idx = index(root), it = idx.get(id), tg = idx.get(target);
+    if (cfg.readOnly || !it?.parent || !tg?.parent || id === target || index(it.t).has(target)) return;
+    const without = change(root, id, () => null);
+    const placed = change(without, tg.parent, (p) => {
+      const cs = kids(p), at = cs.findIndex((c) => String(c.id) === target);
+      return { ...p, children: [...cs.slice(0, at + (after ? 1 : 0)), it.t, ...cs.slice(at + (after ? 1 : 0))] };
+    });
+    // Labels: "{name} moved before {target}", "{name} moved after {target}"
+    commit(placed, after ? L("{name} moved after {target}", { name: it.t.label, target: tg.t.label }) : L("{name} moved before {target}", { name: it.t.label, target: tg.t.label }));
+    select(id, true);
+  }
   // Moves topic `id` (and what's inside it) into `target`, last.
   function move(id, target) {
     const root = map(), idx = index(root), it = idx.get(id);
@@ -469,6 +581,15 @@
     const siblings = it.parent ? kids(idx.get(it.parent).t).map((c) => String(c.id)) : [];
     const at = siblings.indexOf(selected);
     const towards = (side) => (it.depth === 0 ? visibleKids.find((c) => boxes.get(c)?.side === side) : b.side === side ? visibleKids[0] : it.parent);
+    if (mod && e.key === "Enter") return e.preventDefault(), open();
+    // Alt and the arrows along the siblings: the topic moves among them.
+    const along = cfg.layout === "down" ? { ArrowLeft: -1, ArrowRight: 1 } : { ArrowUp: -1, ArrowDown: 1 };
+    if (e.altKey && along[e.key]) return e.preventDefault(), reorder(selected, along[e.key]);
+    if (cfg.layout === "down") {
+      // Down: ↓ into the first child, ↑ to the parent, ← and → along the siblings.
+      const nav = { ArrowDown: visibleKids[0], ArrowUp: it.parent, ArrowLeft: siblings[at - 1], ArrowRight: siblings[at + 1] }[e.key];
+      if (e.key in { ArrowDown: 1, ArrowUp: 1, ArrowLeft: 1, ArrowRight: 1 }) return go(nav);
+    }
     if (mod && e.key.toLowerCase() === "z") return e.preventDefault(), e.shiftKey ? redo() : undo();
     if (mod && e.key.toLowerCase() === "y") return e.preventDefault(), redo();
     switch (e.key) {
@@ -536,6 +657,8 @@
     }
     const foldBadge = e.target.closest?.("[data-mm-fold]");
     if (foldBadge) return fold(foldBadge.getAttribute("data-mm-fold"));
+    const link = e.target.closest?.("[data-mm-href]");
+    if (link) return select(link.getAttribute("data-mm-href")), open(link.getAttribute("data-mm-href"));
     const id = e.target.closest?.("[data-mm-topic]")?.getAttribute("data-mm-topic");
     const { sx, sy } = local(e);
     if (id) {
@@ -570,11 +693,29 @@
     const target = topicAt(e.clientX, e.clientY, drag.id);
     const ok = target && !index(index(map()).get(drag.id).t).has(target);
     for (const t of world.querySelectorAll("[data-mm-topic] [data-mm-ring]")) t.removeAttribute("stroke-dasharray");
+    world.querySelector("[data-mm-slot]")?.remove();
     drag.target = ok ? target : null;
+    drag.zone = "into";
     if (ok) {
-      const ring = world.querySelector(`[data-mm-topic="${CSS.escape(target)}"] [data-mm-ring]`);
-      ring?.setAttribute("stroke", "var(--color-primary)");
-      ring?.setAttribute("stroke-dasharray", "5 4");
+      // Its first or last quarter (across, going down): before or after it, as a sibling;
+      // the middle: into it.
+      const tb = boxes.get(target), tg = index(map()).get(target);
+      const r = world.querySelector(`[data-mm-topic="${CSS.escape(target)}"] rect:not([data-mm-ring])`).getBoundingClientRect();
+      const f = cfg.layout === "down" ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+      drag.zone = tg.parent && f < 0.25 ? "before" : tg.parent && f > 0.75 ? "after" : "into";
+      if (drag.zone === "into") {
+        const ring = world.querySelector(`[data-mm-topic="${CSS.escape(target)}"] [data-mm-ring]`);
+        ring?.setAttribute("stroke", "var(--color-primary)");
+        ring?.setAttribute("stroke-dasharray", "5 4");
+      } else {
+        // A bar where it would go.
+        const down = cfg.layout === "down", before = drag.zone === "before";
+        const bar = down
+          ? s("rect", { "data-mm-slot": true, x: before ? tb.x - 9 : tb.x + tb.w + 5, y: tb.y, width: 4, height: tb.h, rx: 2, fill: "var(--color-primary)" })
+          : s("rect", { "data-mm-slot": true, x: tb.x, y: before ? tb.y - 8 : tb.y + tb.h + 4, width: tb.w, height: 4, rx: 2, fill: "var(--color-primary)" });
+        world.append(bar);
+        paintSelection();
+      }
     } else paintSelection();
   });
   function end(e) {
@@ -586,8 +727,10 @@
     stage.removeAttribute("data-panning");
     const d = drag;
     drag = null;
+    world.querySelector("[data-mm-slot]")?.remove();
     if (d?.kind === "topic" && d.moved) {
-      if (d.target) move(d.id, d.target);
+      if (d.target && d.zone !== "into") place(d.id, d.target, d.zone === "after");
+      else if (d.target) move(d.id, d.target);
       else draw();
     }
   }

@@ -11,6 +11,10 @@ state:
   plan:
     id: root
     label: Mobile app relaunch
+    # Lines between topics of different branches.
+    links:
+      - { from: w21, to: r2, label: eases }
+      - { from: g2, to: w11, label: needs }
     children:
       - id: goals
         label: Goals
@@ -24,7 +28,7 @@ state:
       - id: work
         label: Work
         children:
-          - { id: w1, label: Design, children: [ { id: w11, label: New onboarding }, { id: w12, label: Dark mode } ] }
+          - { id: w1, label: Design, href: "https://example.com/design-board", children: [ { id: w11, label: New onboarding }, { id: w12, label: Dark mode } ] }
           - { id: w2, label: Build, children: [ { id: w21, label: Offline basket }, { id: w22, label: Faster search } ] }
           - { id: w3, label: Test, children: [ { id: w31, label: Beta with 200 users } ] }
       - id: risks
