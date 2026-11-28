@@ -55,29 +55,19 @@
   // Working time: the weekdays, the minutes of the day and the dates off; null when every
   // second counts.
   const ALL = [0, 1, 2, 3, 4, 5, 6];
-  // Hours by weekday (`{ "1": [540, 1020] }`) work those days only; an end past 1440 is
-  // the next morning's.
-  const byDay = cfg.hours && !Array.isArray(cfg.hours) ? cfg.hours : null;
   const cal = cfg.workdays || cfg.hours || cfg.holidays?.length
-    ? {
-        days: new Set(byDay ? Object.keys(byDay).map(Number) : cfg.workdays === true ? [1, 2, 3, 4, 5] : Array.isArray(cfg.workdays) ? cfg.workdays : ALL),
-        hours: (day) => (byDay ? byDay[day] : cfg.hours) ?? [0, 1440],
-        off: new Set((cfg.holidays ?? []).map(String)),
-      }
+    ? { days: new Set(cfg.workdays === true ? [1, 2, 3, 4, 5] : Array.isArray(cfg.workdays) ? cfg.workdays : ALL), hours: cfg.hours ?? [0, 1440], off: new Set((cfg.holidays ?? []).map(String)) }
     : null;
   const ymd = (d) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
   // Working milliseconds from `a` to `b`, below zero when `b` is earlier; local days.
   function worked(a, b) {
     if (b < a) return -worked(b, a);
     let sum = 0;
-    // From the day before: a night shift that started then runs on into `a`'s day.
     const d = new Date(a);
     d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - 1);
     for (let n = 0; d.getTime() < b && n < 3700; n++) {
       if (cal.days.has(d.getDay()) && !cal.off.has(ymd(d))) {
-        const [h0, h1] = cal.hours(d.getDay());
-        const start = new Date(d).setHours(0, h0), end = new Date(d).setHours(0, h1);
+        const start = new Date(d).setHours(0, cal.hours[0]), end = new Date(d).setHours(0, cal.hours[1]);
         sum += Math.max(0, Math.min(end, b) - Math.max(start, a));
       }
       d.setDate(d.getDate() + 1);

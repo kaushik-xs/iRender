@@ -1465,14 +1465,9 @@ fn countdown_structure_and_mistakes() {
     // Working time: the hours as minutes into the day; mistakes said at render.
     let hours = plain(&render_with(json!({ "type": "ui-countdown", "props": { "to": "+1d", "workdays": [1, 2, 3], "hours": "9:00 – 17:30", "holidays": ["2026-12-25"] } }), json!({}), json!({})).unwrap().body);
     assert!(hours.contains("&quot;hours&quot;:[540,1050]") && hours.contains("&quot;workdays&quot;:[1,2,3]") && hours.contains("&quot;holidays&quot;:[&quot;2026-12-25&quot;]"), "{hours}");
-    for h in ["17:00-17:00", "9-17", "09:60-10:00", "25:00-26:00"] {
+    for h in ["17:00-09:00", "9-17", "09:60-10:00", "25:00-26:00"] {
         assert!(err(json!({ "to": "+1h", "hours": h })).contains("`hours` must be a start and an end"), "{h}");
     }
-    // A night shift ends the next day; hours by weekday name or number.
-    let night = |h: Json| plain(&render_with(json!({ "type": "ui-countdown", "props": { "to": "+1d", "hours": h } }), json!({}), json!({})).unwrap().body);
-    assert!(night(json!("22:00-06:00")).contains("&quot;hours&quot;:[1320,1800]"));
-    assert!(night(json!({ "Mon": "09:00-17:00", "6": "10:00-14:00" })).contains("&quot;hours&quot;:{&quot;1&quot;:[540,1020],&quot;6&quot;:[600,840]}"));
-    assert!(err(json!({ "to": "+1h", "hours": { "funday": "09:00-17:00" } })).contains("takes `sun` to `sat`"));
     assert!(err(json!({ "to": "+1h", "workdays": [1, 7] })).contains("`workdays` must be `true` or weekdays"));
     assert!(err(json!({ "to": "+1h", "holidays": "2026-12-25" })).contains("`holidays` must be a list of dates"));
 }

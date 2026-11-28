@@ -9,7 +9,6 @@
 # HTTP next to examples/ui-kit/api (examples/build.sh does this).
 version: 1
 state:
-  presenceFollow: null
   fhText: "# A note"
   fhFile: null
   seValue: null
@@ -1915,8 +1914,7 @@ root:
                   props: { direction: row, gap: 32, align: center, wrap: true }
                   children:
                     - { type: ui-presence, props: { people: "{{ here }}", me: u2, announce: true, align: start } }
-                    - { type: ui-presence, props: { people: "{{ here }}", max: 2, size: 36, align: start, label: Viewing, bindFollow: presenceFollow } }
-                    - { type: ui-text, props: { variant: muted, text: "{{ presenceFollow ? 'Following ' + presenceFollow : 'Open the list and press Go to: presenceFollow = ' + presenceFollow }}" } }
+                    - { type: ui-presence, props: { people: "{{ here }}", max: 2, size: 36, align: start, label: Viewing } }
                 - type: stack
                   props: { direction: row, gap: 8, wrap: true }
                   children:

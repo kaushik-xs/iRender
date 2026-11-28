@@ -1703,8 +1703,6 @@ root: …
 `presence.js`
 
 ```yaml
-"Following {name}": "Following {name}"
-"Stopped following {name}": "Stopped following {name}"
 "{name} joined": "{name} joined"
 "{name} left": "{name} left"
 ```
@@ -1719,9 +1717,6 @@ root: …
 "Offline": "Offline"
 "People here": "People here"
 "(you)": "(you)"
-"Follow": "Follow"
-"Following": "Following"
-"Go to": "Go to"
 ```
 
 `pwa.js`
@@ -2092,7 +2087,6 @@ root: …
 "Every kind": "Every kind"
 "Who": "Who"
 "Kind": "Kind"
-"{n} picked": "{n} picked"
 "Nothing matches these filters": "Nothing matches these filters"
 "Load more": "Load more"
 "Loading…": "Loading…"

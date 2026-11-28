@@ -308,33 +308,6 @@ root:
     );
 }
 
-/// `ui-countdown` with hours by weekday, and a night shift running past midnight, on a
-/// clock at 23:00 on Friday 2026-12-04 (local time).
-#[test]
-#[ignore = "needs Chrome; run with --ignored"]
-fn countdown_counts_hours_by_weekday_and_night_shifts() {
-    let Some(result) = run_with(
-        "countdown-weekdays",
-        r##"
-state: { week: null, night: null }
-root:
-  type: stack
-  children:
-    - { type: ui-countdown, props: { to: "2026-12-07T11:00", hours: { sat: "10:00-14:00", mon: "09:00-17:00" }, bindLeft: week } }
-    - { type: ui-countdown, props: { to: "2026-12-05T05:00", hours: "22:00-06:00", bindLeft: night } }
-"##,
-        r##"
-        // Saturday's four hours and Monday's two; Friday night and Sunday don't work.
-        // The night shift: from 23:00 to 05:00 tomorrow, all of it working.
-        log(S().week / 3600, S().night / 3600);
-"##,
-        r#"<script>{ const start = Date.now(), at = Date.parse("2026-12-04T23:00:00"), now = Date.now.bind(Date); Date.now = () => at + (now() - start); }</script>"#,
-    ) else {
-        return;
-    };
-    assert_eq!(result.lines().collect::<Vec<_>>(), ["6 6"], "\n{result}");
-}
-
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn stepper_keeps_the_furthest_step_reached() {
@@ -480,14 +453,10 @@ root:
         // The badge with an id is a button: its click is its own, not the day's.
         const b = cell("2026-11-10").querySelector("button[data-ev-badge]"); b.click(); await wait(30);
         log(S().hit.item.id, S().hit.date, S().picked, cell("2026-11-10").querySelector("span[data-ev-badge]").textContent);
-        // By the keys: the focused day's badge buttons join the tab order, the others' don't.
-        const tabs = () => ["2026-11-09", "2026-11-10"].map((d) => cell(d).querySelector("button[data-ev-badge]").tabIndex).join(",");
-        cell("2026-11-10").focus(); cell("2026-11-10").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true })); await wait(30);
-        log("tabs", tabs(), document.activeElement.dataset.evDay);
         $("[data-ev-next]").click(); await wait(30); log(cell("2026-12-09")?.querySelectorAll("[data-ev-badge]").length ?? "-", cell("2026-12-06")?.querySelector("[data-ev-note]")?.textContent ?? "-");
         $("[data-ev-next]").click(); await wait(30); log(cell("2027-01-09")?.querySelectorAll("[data-ev-badge]").length ?? 0);
 "##,
-        &["Closed,Closed,Closed,Closed", "2,2,0", "audit 2026-11-10 null Stock", "tabs 0,-1 2026-11-09", "2 Closed", "0"],
+        &["Closed,Closed,Closed,Closed", "2,2,0", "audit 2026-11-10 null Stock", "2 Closed", "0"],
     );
 }
 
@@ -596,7 +565,6 @@ fn timeline_filters_and_loads_more() {
         r##"
 state:
   f: null
-  seen: null
   busy: false
   older: true
   feed:
@@ -606,7 +574,7 @@ state:
     - { id: 4, who: Ada, kind: comment, action: commented, when: "2026-11-25T09:00" }
 root:
   type: ui-timeline
-  props: { items: "{{ feed }}", filters: true, bindFilter: f, limit: 2, hasMore: "{{ older }}", loading: "{{ busy }}", bindSeen: seen }
+  props: { items: "{{ feed }}", filters: true, bindFilter: f, limit: 2, hasMore: "{{ older }}", loading: "{{ busy }}" }
   on:
     more:
       - { action: set_state, key: busy, value: true }
@@ -622,19 +590,12 @@ root:
         // State picks the kind too.
         root.__irender.set("f", { who: "Ada", kind: "status" }); await wait(30); log(ids(), $("[data-tl-kind]").value);
         root.__irender.set("f", { who: "Bob", kind: "comment" }); await wait(30); log($("[data-tl-none]")?.textContent ?? "-");
-        // Several at once, from state: any of them; the menu says how many.
-        let told = []; root.addEventListener("filter", (e) => told.push(JSON.stringify(e.detail)));
-        root.__irender.set("f", { who: ["Ada", "Bob"], kind: "status" }); await wait(30); log(ids(), $("[data-tl-who]").selectedOptions[0].textContent);
-        who.value = "Bob"; $("[data-tl-who]").value = "Bob"; $("[data-tl-who]").dispatchEvent(new Event("change")); await wait(30); log(JSON.stringify(S().f), told.join(" "));
         root.__irender.set("f", null); await wait(30);
         // Show the rest, then Load more fires `more` and waits while loading.
         btn().click(); await wait(30); log(ids(), shownBtn());
-        let asked = null; root.addEventListener("more", (e) => (asked = e.detail.filter));
-        btn().click(); await wait(30); log(S().busy, shownBtn(), btn().disabled, JSON.stringify(asked));
+        btn().click(); await wait(30); log(S().busy, shownBtn(), btn().disabled);
         root.__irender.set("feed", [...S().feed, { id: 5, who: "Cy", kind: "file", action: "added a file", when: "2026-11-24T09:00" }]); root.__irender.set("busy", false); root.__irender.set("older", false); await wait(30);
         log(ids(), shownBtn(), document.activeElement.getAttribute("data-who"));
-        // Leaving the page: when it was last seen.
-        window.dispatchEvent(new Event("pagehide")); await wait(10); log(typeof S().seen, Date.parse(S().seen) > Date.parse("2026-11-27T10:00"));
 "##,
         &[
             "Everyone/Ada/Bob | Every kind/comment/status",
@@ -642,12 +603,9 @@ root:
             r#"{"who":"Ada","kind":null} Ada:comment Ada:status Show 1 more"#,
             "Ada:status status",
             "Nothing matches these filters",
-            "Bob:status Ada:status 2 picked",
-            r#"{"who":"Bob","kind":"status"} {"who":"Bob","kind":"status"}"#,
             "Ada:comment Bob:status Ada:status Ada:comment Load more",
-            r#"true Loading… true {"who":null,"kind":null}"#,
+            "true Loading… true",
             "Ada:comment Bob:status Ada:status Ada:comment Cy:file - Cy",
-            "string true",
         ],
     );
 }

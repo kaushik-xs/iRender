@@ -22,7 +22,7 @@ const PROPS: &[PropDef] = &[
     PropDef::new("variant", PropKind::Enum(&["inline", "tiles"]), "`inline` (default: text with a dot in its tone) or `tiles` (days, hours, minutes and seconds in boxes)"),
     PropDef::new("paused", PropKind::Any, "While true (e.g. `{{ ticket.status == 'waiting' }}`), the time left stands still and it says Paused; on resuming the deadline moves out by the pause. A new `to` from the page replaces the moved one"),
     PropDef::new("workdays", PropKind::Any, "Count working time only: `true` for Monday to Friday, or the weekdays that work (0 is Sunday), e.g. `[0, 1, 2, 3, 4]`"),
-    PropDef::new("hours", PropKind::Any, "Working hours each working day, e.g. `09:00-17:30` (local time), or a shift past midnight, `22:00-06:00`; outside them it stands still. Alone, every day works. Or hours by weekday, `{ mon: 09:00-17:00, sat: 10:00-14:00 }` (also `0`–`6`, 0 Sunday): the days not named don't work"),
+    PropDef::new("hours", PropKind::Any, "Working hours each working day, e.g. `09:00-17:30` (local time); outside them it stands still. Alone, every day works"),
     PropDef::new("holidays", PropKind::Any, "Dates that don't count either, e.g. `[\"2026-12-25\"]`"),
     PropDef::new("bindLeft", PropKind::StateKey, "State key that gets the seconds left (below zero once overdue), every second"),
     PropDef::new("bindStatus", PropKind::StateKey, "State key that gets `ok`, `warning`, `danger` or `over` as it changes"),
@@ -138,23 +138,8 @@ impl Component for Countdown {
         {
             return Err(RenderError::new(node, "`danger` comes after `warn`: it must be the shorter time left"));
         }
-        match cx.prop(node, "hours").filter(|v| !v.is_null()) {
-            None => {}
-            // By weekday: `{ mon: 09:00-17:00 }`, as `{ "1": [540, 1020] }`.
-            Some(Json::Object(m)) => {
-                let mut by = serde_json::Map::new();
-                for (k, v) in m {
-                    let day = DAYS.iter().position(|d| k.to_ascii_lowercase().starts_with(d)).or_else(|| k.parse::<usize>().ok().filter(|d| *d < 7));
-                    let Some(day) = day else {
-                        return Err(RenderError::new(node, format!("`hours` by weekday takes `sun` to `sat` (or 0 to 6), not `{k}`")));
-                    };
-                    by.insert(day.to_string(), json!(hours(node, &expr::stringify(&v))?));
-                }
-                config.insert("hours".into(), Json::Object(by));
-            }
-            Some(h) => {
-                config.insert("hours".into(), json!(hours(node, &expr::stringify(&h))?));
-            }
+        if let Some(h) = cx.prop(node, "hours").filter(|v| !v.is_null()) {
+            config.insert("hours".into(), json!(hours(node, &expr::stringify(&h))?));
         }
         if let Some(d) = config.get("workdays").filter(|d| !matches!(d, Json::Bool(_))) {
             let ok = d.as_array().is_some_and(|l| !l.is_empty() && l.iter().all(|n| n.as_f64().is_some_and(|n| n.fract() == 0.0 && (0.0..=6.0).contains(&n))));
@@ -233,12 +218,8 @@ impl Component for Countdown {
 }
 
 /// `hours` as minutes into the day it starts and ends, `09:00-17:30` → `[540, 1050]`.
-/// Weekdays by name, Sunday first.
-const DAYS: [&str; 7] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-
-/// A start and an end in minutes; an end before the start is the next day's (a night shift).
 fn hours(node: &Node, h: &str) -> Result<[u32; 2], RenderError> {
-    let bad = || RenderError::new(node, format!("`hours` must be a start and an end in a day, e.g. `09:00-17:30` (or `22:00-06:00` past midnight), not `{h}`"));
+    let bad = || RenderError::new(node, format!("`hours` must be a start and an end in a day, e.g. `09:00-17:30`, not `{h}`"));
     let at = |t: &str| -> Option<u32> {
         let (a, b) = t.trim().split_once(':')?;
         let (a, b): (u32, u32) = (a.parse().ok()?, b.parse().ok()?);
@@ -247,7 +228,6 @@ fn hours(node: &Node, h: &str) -> Result<[u32; 2], RenderError> {
     let (a, b) = h.split_once(['-', '–']).ok_or_else(bad)?;
     match (at(a), at(b)) {
         (Some(a), Some(b)) if a < b => Ok([a, b]),
-        (Some(a), Some(b)) if a > b && a < 1440 => Ok([a, b + 1440]),
         _ => Err(bad()),
     }
 }
