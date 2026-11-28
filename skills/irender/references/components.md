@@ -876,8 +876,9 @@ ui-virtual-list: A long list that keeps only the items in view in the page, so t
 ui-file-browser: Folders and files to browse one folder at a time, as a grid or a list: search, sort, select, rename, new folders, delete with undo, and move by dragging or a menu.
   bind         statekey (required)  State key holding the files and folders, a flat list: `{ id, name, parent, folder, size, modified, thumb, url }`; `parent` is the folder's `id` (none: the top), `folder: true` for a folder
   bindFolder   statekey  State key holding the open folder's `id` (null: the top), both ways
-  url          string  Load a folder's contents when it's first opened: `GET <url>?folder=<id>` (no `folder` for the top) answering a list of items; they're added to `bind`
-  uploadUrl    string  Files dropped from the desktop go up here, one `POST` each (form data `file` and `folder`), into the folder they're dropped on; an answer of an item takes the file's place
+  url          string  Load a folder's contents when it's first opened, and again with Refresh: `GET <url>?folder=<id>` (no `folder` for the top) answering a list of items, or a page of them `{ items, next }` (`next` comes back as `&after=`, with Load more); they're added to `bind`
+  refresh      any  With `url`: the open folder is loaded again when this changes, e.g. `{{ saved }}`
+  uploadUrl    string  Files dropped from the desktop go up here, one `POST` each (form data `file` and `folder`), into the folder they're dropped on, showing how far each has got; an answer of an item takes the file's place, and one that failed has Try again
   bindSelection statekey  State key that gets the `id`s selected
   bindOpen     statekey  State key that gets the file opened (a double click, or Enter); `open` fires too
   view         one of: grid, list  How the folder shows to start with (default `grid`); a button switches

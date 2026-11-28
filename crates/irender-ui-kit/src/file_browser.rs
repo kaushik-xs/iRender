@@ -20,8 +20,9 @@ const PROPS: &[PropDef] = &[
     )
     .required(),
     PropDef::new("bindFolder", PropKind::StateKey, "State key holding the open folder's `id` (null: the top), both ways"),
-    PropDef::new("url", PropKind::String, "Load a folder's contents when it's first opened: `GET <url>?folder=<id>` (no `folder` for the top) answering a list of items; they're added to `bind`"),
-    PropDef::new("uploadUrl", PropKind::String, "Files dropped from the desktop go up here, one `POST` each (form data `file` and `folder`), into the folder they're dropped on; an answer of an item takes the file's place"),
+    PropDef::new("url", PropKind::String, "Load a folder's contents when it's first opened, and again with Refresh: `GET <url>?folder=<id>` (no `folder` for the top) answering a list of items, or a page of them `{ items, next }` (`next` comes back as `&after=`, with Load more); they're added to `bind`"),
+    PropDef::new("refresh", PropKind::Any, "With `url`: the open folder is loaded again when this changes, e.g. `{{ saved }}`"),
+    PropDef::new("uploadUrl", PropKind::String, "Files dropped from the desktop go up here, one `POST` each (form data `file` and `folder`), into the folder they're dropped on, showing how far each has got; an answer of an item takes the file's place, and one that failed has Try again"),
     PropDef::new("bindSelection", PropKind::StateKey, "State key that gets the `id`s selected"),
     PropDef::new("bindOpen", PropKind::StateKey, "State key that gets the file opened (a double click, or Enter); `open` fires too"),
     PropDef::new("view", PropKind::Enum(&["grid", "list"]), "How the folder shows to start with (default `grid`); a button switches"),
@@ -93,6 +94,24 @@ static BROWSER: LazyLock<StyleBlock> = LazyLock::new(|| {
     .nest("& [data-fm-item][data-fm-up=going]", pairs(&[("opacity", "0.6")]))
     .nest("& [data-fm-item][data-fm-up=failed] [data-fm-size]", pairs(&[("color", "var(--color-destructive, #dc2626)")]))
     .nest("& [data-fm-item][data-cut]", pairs(&[("opacity", "0.45")]))
+    // How far a file going up has got: a thin bar along the item's foot. One that failed
+    // has a button to send it again, in its corner.
+    .nest(
+        "& [data-fm-progress]",
+        pairs(&[("position", "absolute"), ("inset-inline", pad!(6)), ("bottom", "2px"), ("width", "auto"), ("height", "3px"), ("appearance", "none"), ("border", "0"), ("border-radius", "2px"), ("background", SUBTLE), ("accent-color", PRIMARY), ("overflow", "hidden")]),
+    )
+    .nest("& [data-fm-progress]::-webkit-progress-bar", pairs(&[("background", SUBTLE)]))
+    .nest("& [data-fm-progress]::-webkit-progress-value", pairs(&[("background", PRIMARY)]))
+    .nest("& [data-fm-progress]::-moz-progress-bar", pairs(&[("background", PRIMARY)]))
+    .nest(
+        "& [data-fm-retry-upload]",
+        pairs(&[("position", "absolute"), ("top", "4px"), ("inset-inline-end", "4px"), ("padding", pad!(2, 8)), ("border", BORDER), ("border-radius", "var(--radius-sm)"), ("background", "var(--ui-bg, var(--color-surface))"), ("color", TEXT), ("font", "inherit"), ("font-size", fs!(12)), ("cursor", "pointer")]),
+    )
+    .nest("& [data-fm-more]", pairs(&[("grid-column", "1 / -1"), ("margin", "0"), ("padding", pad!(8)), ("text-align", "center")]))
+    .nest(
+        "& [data-fm-more] button",
+        pairs(&[("height", ctl!(32)), ("padding", pad!(0, 14)), ("border", BORDER), ("border-radius", "var(--radius-control, var(--radius-md))"), ("background", "transparent"), ("color", "inherit"), ("font", "inherit"), ("cursor", "pointer")]),
+    )
     .nest("& [data-view=grid] [data-fm-item]", pairs(&[("display", "flex"), ("flex-direction", "column"), ("align-items", "center"), ("gap", gap!(6)), ("padding", pad!(10, 6)), ("text-align", "center")]))
     .nest("& [data-view=grid] [data-fm-icon]", pairs(&[("width", "56px"), ("height", "56px")]))
     .nest("& [data-view=grid] [data-fm-thumb]", pairs(&[("width", "100%"), ("height", "72px"), ("object-fit", "cover"), ("border-radius", "var(--radius-sm)")]))
@@ -192,7 +211,7 @@ impl Component for FileBrowser {
             Some(Json::Number(n)) => Some(format!("{n}px")),
             Some(v) => Some(expr::stringify(&v)),
         };
-        let mut config = widget::config(cx, node, &[], &["view", "url", "uploadUrl"], &["bind", "bindFolder", "bindSelection", "bindOpen"])?;
+        let mut config = widget::config(cx, node, &["refresh"], &["view", "url", "uploadUrl"], &["bind", "bindFolder", "bindSelection", "bindOpen"])?;
         config.insert("editable".into(), json!(widget::flag(cx, node, "editable", true)));
         config.insert("rootLabel".into(), json!(cx.prop(node, "rootLabel").filter(|v| !v.is_null()).map_or_else(|| cx.label("Files"), |v| expr::stringify(&v))));
         config.insert("locale".into(), json!(crate::locale(cx, node)));

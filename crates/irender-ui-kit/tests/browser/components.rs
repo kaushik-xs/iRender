@@ -460,15 +460,18 @@ root:
     );
 }
 
-/// `ui-file-browser` with `url` and `uploadUrl`, against a fetch answered in the page.
+/// `ui-file-browser` with `url` and `uploadUrl`, against a fetch (and an XMLHttpRequest)
+/// answered in the page: folders loaded once, again with Refresh or `refresh`, a page at
+/// a time; files dropped from the desktop going up with how far they've got, and one that
+/// failed sent again.
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn file_browser_loads_folders_and_takes_dropped_files() {
     let Some(result) = run_with(
         "file-browser-server",
         r##"
-state: { files: [], at: null }
-root: { type: ui-file-browser, props: { bind: files, bindFolder: at, url: /api/files, uploadUrl: /api/upload, view: list } }
+state: { files: [], at: null, again: 0 }
+root: { type: ui-file-browser, props: { bind: files, bindFolder: at, url: /api/files, uploadUrl: /api/upload, view: list, refresh: "{{ again }}" } }
 "##,
         r##"
         const names = () => $$("[data-fm-item]").map((i) => i.querySelector("[data-fm-name]").textContent + (i.dataset.fmUp ? "(" + i.dataset.fmUp + ")" : "")).join(",");
@@ -486,21 +489,45 @@ root: { type: ui-file-browser, props: { bind: files, bindFolder: at, url: /api/f
         carry("dragover", target, "dataTransfer", dt); log(target.hasAttribute("data-drop"));
         carry("drop", target, "dataTransfer", dt); await wait(0);
         root.__irender.set("at", "docs"); await wait(0); log(names());
-        window.release(); await until(() => !names().includes("going")); log(names(), JSON.stringify(window.sent));
+        window.progress(0.5); await wait(10);
+        log("half", $$("[data-fm-progress]").map((p) => p.value).join(","), $('[data-fm-item][data-fm-up=going] [data-fm-size]').textContent);
+        window.release(); await until(() => !names().includes("going")); log(names(), JSON.stringify(window.sent), !!$("[data-fm-retry-upload]"));
+        // Sent again, it goes up this time.
+        window.bad = false; $("[data-fm-retry-upload]").click(); await wait(0); log(names()); window.release(); await until(() => !names().includes("going")); log(names(), window.sent.length);
+        // Refreshed: the folder's answer as it is now (plan.pdf gone, new.doc there).
+        window.docs = [{ id: "n", name: "new.doc" }];
+        $("[data-fm-refresh]").click(); await until(() => names().includes("new.doc")); log("refreshed", names());
+        window.docs = [{ id: "n", name: "new.doc" }, { id: "m", name: "more.doc" }];
+        root.__irender.set("again", 1); await until(() => names().includes("more.doc")); log("refresh", names());
+        // A big folder a page at a time.
+        root.__irender.set("at", "big"); await until(() => $("[data-fm-load-more]")); log("page", $$("[data-fm-item]").length);
+        $("[data-fm-load-more]").click(); await until(() => $$("[data-fm-item]").length === 4); log("more", $$("[data-fm-item]").length, !!$("[data-fm-load-more]"), window.asked.slice(-2).join(" "));
 "##,
         r##"<script>
-        window.asked = []; window.sent = []; let held = [];
-        window.release = () => { held.forEach((f) => f()); held = []; };
+        window.asked = []; window.sent = []; window.bad = true; let held = [], going = [];
+        window.docs = [{ id: "p", name: "plan.pdf", size: 20 }];
+        window.release = () => { held.forEach((f) => f()); held = []; going = []; };
+        window.progress = (p) => going.forEach((x) => x.upload.onprogress?.({ lengthComputable: true, loaded: p * 100, total: 100 }));
+        window.XMLHttpRequest = class {
+          constructor() { this.upload = {}; this.status = 0; this.responseText = ""; }
+          open(m, u) { this.url = String(u); }
+          setRequestHeader() {}
+          send(body) {
+            const name = body.get("file").name, folder = body.get("folder");
+            window.sent.push(name + "→" + folder);
+            going.push(this);
+            held.push(() => {
+              if (name === "bad.txt" && window.bad) { this.status = 500; return this.onload(); }
+              this.status = 200; this.responseText = JSON.stringify({ id: "srv-" + name, name, size: 5 }); this.onload();
+            });
+          }
+        };
         window.fetch = (u, o = {}) => {
           const url = new URL(u, location.href), ok = (v) => Promise.resolve({ ok: true, json: () => Promise.resolve(v) });
-          if (o.method === "POST") {
-            const name = o.body.get("file").name, folder = o.body.get("folder");
-            window.sent.push(name + "→" + folder);
-            return new Promise((r) => held.push(() => r(name === "bad.txt" ? { ok: false, status: 500 } : { ok: true, json: () => Promise.resolve({ id: "srv-" + name, name, size: 5 }) })));
-          }
-          const f = url.searchParams.get("folder"); window.asked.push(f ?? "top");
+          const f = url.searchParams.get("folder"), after = url.searchParams.get("after"); window.asked.push((f ?? "top") + (after ? "@" + after : ""));
           if (window.fail) return Promise.resolve({ ok: false, status: 503 });
-          return ok(f === null ? [{ id: "docs", name: "Docs", folder: true }, { id: "old", name: "Old", folder: true }, { id: "a", name: "a.png", size: 10 }] : f === "docs" ? [{ id: "p", name: "plan.pdf", size: 20 }] : [{ id: "z", name: "2019.zip" }]);
+          if (f === "big") return ok(after ? { items: [{ id: "b3", name: "3.txt" }, { id: "b4", name: "4.txt" }] } : { items: [{ id: "b1", name: "1.txt" }, { id: "b2", name: "2.txt" }], next: "c2" });
+          return ok(f === null ? [{ id: "docs", name: "Docs", folder: true }, { id: "old", name: "Old", folder: true }, { id: "big", name: "Big", folder: true }, { id: "a", name: "a.png", size: 10 }] : f === "docs" ? window.docs : [{ id: "z", name: "2019.zip" }]);
         };
         </script>"##,
     ) else {
@@ -509,14 +536,22 @@ root: { type: ui-file-browser, props: { bind: files, bindFolder: at, url: /api/f
     assert_eq!(
         result.lines().collect::<Vec<_>>(),
         [
-            "top Docs,Old,a.png",
+            "top Big,Docs,Old,a.png",
             "top docs plan.pdf",
             "2",
             "Couldn't load this folder Try again",
             "2019.zip",
             "true",
             "bad.txt(going),notes.txt(going),plan.pdf",
-            r#"bad.txt(failed),notes.txt,plan.pdf ["notes.txt→docs","bad.txt→docs"]"#,
+            "half 50,50 Uploading… 50%",
+            r#"bad.txt(failed),notes.txt,plan.pdf ["notes.txt→docs","bad.txt→docs"] true"#,
+            "bad.txt(going),notes.txt,plan.pdf",
+            "bad.txt,notes.txt,plan.pdf 3",
+            // The folder as the server has it now: what this test's server didn't keep goes.
+            "refreshed new.doc",
+            "refresh more.doc,new.doc",
+            "page 2",
+            "more 4 false big big@c2",
         ],
         "\n{result}"
     );

@@ -836,8 +836,12 @@ root: …
 "Loading…": "Loading…"
 "Couldn't load this folder": "Couldn't load this folder"
 "Try again": "Try again"
+"Load more": "Load more"
 "Uploading…": "Uploading…"
+"Uploading… {n}%": "Uploading… {n}%"
 "Upload failed": "Upload failed"
+"Send {name} again": "Send {name} again"
+"Refresh": "Refresh"
 "{n} items loaded": { one: "{n} item loaded", other: "{n} items loaded" }
 "{name}, {n} items": { one: "{name}, {n} item", other: "{name}, {n} items" }
 "Nothing here matches “{q}”": "Nothing here matches “{q}”"
@@ -874,8 +878,8 @@ root: …
 "Move to": "Move to"
 "{n} selected": "{n} selected"
 "Uploading {n} files": { one: "Uploading {n} file", other: "Uploading {n} files" }
-"{name} uploaded": "{name} uploaded"
 "{name} didn't upload": "{name} didn't upload"
+"{name} uploaded": "{name} uploaded"
 ```
 
 `file_browser.rs`

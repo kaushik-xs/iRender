@@ -5,9 +5,11 @@
 // (dragged with a mouse onto a folder or the breadcrumb, held and dragged by touch, or
 // from the Move to menu). The keys: arrows move (by rows in the grid), Shift and ⌘/Ctrl
 // select several, ⌘/Ctrl+A all, Enter opens, Backspace or Alt+↑ goes up, F2 renames,
-// Delete deletes. With `url`, a folder's contents are fetched the first time it's opened;
-// with `uploadUrl`, files dropped from the desktop are sent up into the folder they land
-// on, shown as they go. Everything it writes is text, never HTML.
+// Delete deletes. With `url`, a folder's contents are fetched the first time it's opened,
+// again with Refresh (or `refresh` changing), a page at a time when the answer has a
+// `next`; with `uploadUrl`, files dropped from the desktop are sent up into the folder
+// they land on, with how far each has got, and one that failed can be sent again.
+// Everything it writes is text, never HTML.
 (window.__irenderBehaviors ||= {})["ui-file-browser"] = (el, api) => {
   const cfg = api.config, L = (t, v) => window.__irender.label(t, v);
   const $ = (s) => el.querySelector(s);
@@ -73,26 +75,37 @@
     return v !== null && byId().get(v)?.folder ? v : null;
   };
   let selected = new Set(), focus = null, anchor = null, view = cfg.view ?? "grid", sortBy = "name", query = "", renaming = null, undo = null;
-  // ---- folders from a server: each fetched once, the first time it's opened
-  const loaded = new Set(), loading = new Set(), failed = new Map();
-  function fetchFolder(id) {
+  // ---- folders from a server: each fetched the first time it's opened, and again when
+  // refreshed. An answer `{ items, next }` is a page: `next` is sent back as `after` for
+  // the next one, with More.
+  const loaded = new Set(), loading = new Set(), failed = new Map(), more = new Map();
+  function fetchFolder(id, { again = false, after = null } = {}) {
     const k = id ?? "";
-    if (!cfg.url || loaded.has(k) || loading.has(k)) return;
+    if (!cfg.url || loading.has(k) || (loaded.has(k) && !again && after === null)) return;
     loading.add(k);
     failed.delete(k);
     const u = new URL(cfg.url, location.href);
     if (id !== null) u.searchParams.set("folder", id);
-    fetch(u, { headers: { accept: "application/json" } })
+    if (after !== null) u.searchParams.set("after", after);
+    // Refreshed: what's this folder's from before goes, unless it's still going up.
+    const fresh = again && after === null;
+    const seenNow = fresh ? new Set() : null;
+    fetch(u, { headers: { accept: "application/json" }, cache: fresh ? "no-store" : "default" })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((got) => {
         const list = (Array.isArray(got) ? got : Array.isArray(got?.items) ? got.items : []).filter((f) => isObj(f) && f.id != null);
         // What came is this folder's: its own copies of anything already there replace them.
         const ids = new Set(list.map((f) => String(f.id)));
-        const next = [...files().filter((f) => !ids.has(String(f.id))), ...list.map((f) => ({ ...f, parent: f.parent ?? id }))];
+        const stale = (f) => fresh && key(f.parent) === id && !f.uploading && !f.uploadError && !ids.has(String(f.id));
+        const next = [...files().filter((f) => !ids.has(String(f.id)) && !stale(f)), ...list.map((f) => ({ ...f, parent: f.parent ?? id }))];
         loaded.add(k);
         loading.delete(k);
+        const cursor = isObj(got) && got.next !== null && got.next !== undefined && got.next !== "" ? String(got.next) : null;
+        if (cursor) more.set(k, cursor);
+        else more.delete(k);
         api.set(cfg.bind, next);
         say(L(["{n} item loaded", "{n} items loaded"], { n: list.length }));
+        if (seenNow) api.emit("refresh", { folder: id, items: list.length });
       })
       .catch((e) => {
         loading.delete(k);
@@ -196,6 +209,8 @@
     else if (failed.has(k)) box.append(h("p", { "data-fm-empty": true, role: "alert" }, L("Couldn't load this folder"), " ", h("button", { type: "button", "data-fm-retry": true, onclick: () => fetchFolder(here) }, L("Try again"))));
     else if (!items.length) box.append(h("p", { "data-fm-empty": true }, query ? L("Nothing here matches “{q}”", { q: query }) : L("This folder is empty")));
     for (const f of items) box.append(drawItem(f));
+    // Labels: "Load more"
+    if (more.has(k)) box.append(h("p", { "data-fm-more": true }, h("button", { type: "button", "data-fm-load-more": true, disabled: loading.has(k) || null, onclick: () => fetchFolder(here, { after: more.get(k) }) }, loading.has(k) ? L("Loading…") : L("Load more"))));
     const head = view === "list" && items.length
       ? h("div", { "data-fm-head": true, "aria-hidden": "true" }, h("span"), h("span", {}, L("Name")), h("span", { "data-fm-date": true }, L("Modified")), h("span", {}, L("Size")))
       : null;
@@ -210,14 +225,17 @@
   function drawItem(f) {
     const id = String(f.id), kind = kindOf(f);
     const pic = f.thumb && !f.folder ? h("img", { src: f.thumb, alt: "", "data-fm-thumb": true, loading: "lazy", draggable: "false" }) : icon(kind);
-    // Labels: "Uploading…", "Upload failed"
-    const up = f.uploading ? L("Uploading…") : f.uploadError ? L("Upload failed") : null;
+    // Labels: "Uploading…", "Uploading… {n}%", "Upload failed", "Send {name} again"
+    const pct = Number.isFinite(f.progress) ? Math.round(f.progress * 100) : null;
+    const up = f.uploading ? (pct === null ? L("Uploading…") : L("Uploading… {n}%", { n: pct })) : f.uploadError ? L("Upload failed") : null;
     return h("div", {
       id: itemId(id), role: "option", "data-fm-item": id, "data-folder": f.folder || null, "data-fm-up": f.uploading ? "going" : f.uploadError ? "failed" : null,
       "aria-selected": selected.has(id) ? "true" : "false", "data-focus": focus === id || null,
       draggable: cfg.editable ? "true" : null,
       "aria-description": f.folder ? L("Folder") : [size(f.size), date(f.modified)].filter(Boolean).join(", ") || null,
-    }, pic, h("span", { "data-fm-name": true }, f.name), h("span", { "data-fm-meta": true, "data-fm-date": true }, date(f.modified)), h("span", { "data-fm-meta": true, "data-fm-size": true }, f.folder ? L(["{n} item", "{n} items"], { n: children(id).length }) : up ?? size(f.size)));
+    }, pic, h("span", { "data-fm-name": true }, f.name), h("span", { "data-fm-meta": true, "data-fm-date": true }, date(f.modified)), h("span", { "data-fm-meta": true, "data-fm-size": true }, f.folder ? L(["{n} item", "{n} items"], { n: children(id).length }) : up ?? size(f.size)),
+      f.uploading ? h("progress", { "data-fm-progress": true, max: "100", value: pct ?? null, "aria-hidden": "true" }) : null,
+      f.uploadError && pending.has(id) ? h("button", { type: "button", "data-fm-retry-upload": true, "aria-label": L("Send {name} again", { name: f.name }), onclick: (e) => (e.stopPropagation(), retryUpload(id)) }, L("Try again")) : null);
   }
   function drawBar(here) {
     const crumbs = h("ol", { "data-fm-crumbs": true, "aria-label": L("Folders") });
@@ -239,12 +257,14 @@
       bar.querySelector("select").focus();
     });
     const views = [["grid", L("Grid")], ["list", L("List")]].map(([v, t]) => h("button", { type: "button", "aria-pressed": view === v ? "true" : "false", onclick: () => { view = v; draw(); bar.querySelector(`[data-fm-view=${v}]`)?.focus(); }, "data-fm-view": v }, t));
+    // Labels: "Refresh"
+    const refresh = cfg.url ? [h("button", { type: "button", "data-fm-refresh": true, disabled: loading.has(here ?? "") || null, onclick: () => fetchFolder(here, { again: true }) }, L("Refresh"))] : [];
     const tools = cfg.editable ? [
       h("button", { type: "button", "data-fm-new": true, onclick: newFolder }, L("New folder")),
       h("button", { type: "button", "data-fm-move": true, disabled: selected.size ? null : true, "aria-haspopup": "menu", onclick: (e) => openMenu(e.currentTarget) }, L("Move to…")),
       h("button", { type: "button", "data-fm-delete": true, disabled: selected.size ? null : true, onclick: () => remove([...selected]) }, L("Delete")),
     ] : [];
-    bar.replaceChildren(crumbs, search, sort, ...views, ...tools);
+    bar.replaceChildren(crumbs, search, sort, ...views, ...refresh, ...tools);
   }
   function drawFoot(items) {
     const count = h("span", {}, selected.size ? L("{n} of {total} selected", { n: selected.size, total: items.length }) : L(["{n} item", "{n} items"], { n: items.length }));
@@ -522,24 +542,58 @@
   // ---- files dropped from the desktop, with `uploadUrl`
   const fromDesktop = (e) => !dragging && !!cfg.uploadUrl && [...(e.dataTransfer?.types ?? [])].includes("Files");
   let ups = 0;
+  // Files on their way, by their item's id, kept until they're up: a failed one can go again.
+  const pending = new Map();
+  const change = (id, f) => api.set(cfg.bind, files().map((x) => (String(x.id) === id ? f(x) : x)));
   function upload(list, parent) {
     const items = files();
-    const added = [...list].map((file) => ({ file, item: { id: `upload-${Date.now()}-${++ups}`, name: free(file.name, parent), parent, size: file.size, modified: new Date().toISOString(), uploading: true } }));
+    const added = [...list].map((file) => ({ file, item: { id: `upload-${Date.now()}-${++ups}`, name: free(file.name, parent), parent, size: file.size, modified: new Date().toISOString(), uploading: true, progress: 0 } }));
     write([...items, ...added.map((a) => a.item)], L(["Uploading {n} file", "Uploading {n} files"], { n: added.length }));
-    for (const { file, item } of added) {
-      const body = new FormData();
-      body.append("file", file, item.name);
-      if (parent !== null) body.append("folder", parent);
-      fetch(cfg.uploadUrl, { method: "POST", body, headers: { accept: "application/json" } })
-        .then((r) => (r.ok ? r.json().catch(() => null) : Promise.reject(new Error(`HTTP ${r.status}`))))
-        .then((got) => {
-          // An item back takes the file's place; otherwise it's kept as it is, uploaded.
-          const done = isObj(got) && got.id != null ? { ...got, parent: got.parent ?? parent } : (({ uploading, ...rest }) => rest)(item);
-          write(files().map((f) => (String(f.id) === item.id ? done : f)), L("{name} uploaded", { name: done.name ?? item.name }));
-          api.emit("upload", { file: done });
-        })
-        .catch(() => write(files().map((f) => (String(f.id) === item.id ? { ...(({ uploading, ...rest }) => rest)(f), uploadError: true } : f)), L("{name} didn't upload", { name: item.name })));
-    }
+    for (const { file, item } of added) send(file, item.id, item.name, parent);
+  }
+  // One file up, with how far it's got (an XMLHttpRequest: fetch doesn't say).
+  function send(file, id, name, parent) {
+    pending.set(id, { file, name, parent });
+    const body = new FormData();
+    body.append("file", file, name);
+    if (parent !== null) body.append("folder", parent);
+    const x = new XMLHttpRequest();
+    x.open("POST", new URL(cfg.uploadUrl, location.href));
+    x.setRequestHeader("accept", "application/json");
+    let shown = 0;
+    x.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const p = e.loaded / e.total;
+      // A step of 5% at a time: each one redraws.
+      if (p - shown < 0.05 && p < 1) return;
+      shown = p;
+      change(id, (f) => ({ ...f, progress: p }));
+    };
+    const fail = () => {
+      change(id, (f) => ({ ...(({ uploading, progress, ...rest }) => rest)(f), uploadError: true }));
+      say(L("{name} didn't upload", { name }));
+    };
+    x.onerror = fail;
+    x.onload = () => {
+      if (x.status < 200 || x.status >= 300) return fail();
+      let got = null;
+      try {
+        got = JSON.parse(x.responseText);
+      } catch { /* nothing back */ }
+      pending.delete(id);
+      // An item back takes the file's place; otherwise it's kept as it is, uploaded.
+      const item = files().find((f) => String(f.id) === id) ?? { id, name, parent };
+      const done = isObj(got) && got.id != null ? { ...got, parent: got.parent ?? parent } : (({ uploading, progress, uploadError, ...rest }) => rest)(item);
+      write(files().map((f) => (String(f.id) === id ? done : f)), L("{name} uploaded", { name: done.name ?? name }));
+      api.emit("upload", { file: done });
+    };
+    x.send(body);
+  }
+  function retryUpload(id) {
+    const p = pending.get(id);
+    if (!p) return;
+    change(id, (f) => ({ ...(({ uploadError, ...rest }) => rest)(f), uploading: true, progress: 0 }));
+    send(p.file, id, p.name, p.parent);
   }
   el.addEventListener("dragover", (e) => {
     if (fromDesktop(e)) {
@@ -608,11 +662,18 @@
     });
   }
 
-  let seen = null;
+  const K = window.__irenderKit;
+  let seen = null, refreshed = "refresh" in cfg ? JSON.stringify(K.value(api, cfg.refresh) ?? null) : undefined;
   fetchFolder(folder());
   draw();
   return {
     update() {
+      // `refresh` changing loads the open folder again.
+      if ("refresh" in cfg) {
+        const r = JSON.stringify(K.value(api, cfg.refresh) ?? null);
+        if (r !== refreshed) fetchFolder(folder(), { again: true });
+        refreshed = r;
+      }
       // Only when the files or the open folder changed since the last draw (a page's own
       // upload, say), not for what this wrote itself, nor while a name is being typed.
       if (renaming !== null || JSON.stringify([files(), folder()]) === seen) return;
