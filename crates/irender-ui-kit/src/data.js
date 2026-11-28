@@ -819,6 +819,9 @@
     // device's clock), and every `full` hours for everything.
     const S = isObj(cfg.sync) ? cfg.sync : cfg.sync ? {} : null;
     let mark = null;
+    // The last answer's ETag, `{ base, etag }`: the next load of the same address asks with
+    // `If-None-Match`, and a 304 keeps the rows.
+    let tag = null;
     const baseOf = (q) => JSON.stringify([q.url ?? "", q.params ?? null]);
     const scope = () => K.value(api, cfg.scope);
     const kept = () => !!O && cfg.persist === "device" && !blank(scope());
@@ -833,6 +836,7 @@
       total = k.total ?? rows.length;
       stamp = new Date(k.at).toISOString();
       mark = S ? { base: baseOf(q), cursor: k.cursor ?? null, fullAt: k.fullAt ?? 0 } : null;
+      tag = k.etag ? { base: baseOf(q), etag: k.etag } : null;
       cached = true;
       partial = k.partial;
       publish();
@@ -862,8 +866,19 @@
       const p = params(q.params);
       if (delta) p.set(S.param ?? "since", String(mark.cursor));
       try {
-        const { answer, missing } = await getJson(join(String(q.url ?? ""), p), {}, cfg.headers);
+        const etag = !delta && !partial && tag?.base === base && Array.isArray(rows) ? tag.etag : null;
+        const { answer, missing, same, etag: newTag } = await getJson(join(String(q.url ?? ""), p), etag ? { headers: { "if-none-match": etag } } : {}, cfg.headers);
         if (id !== seq) return;
+        if (same) {
+          // Unchanged: the rows shown (kept or not) are the server's still.
+          stamp = new Date().toISOString();
+          loading = cached = false;
+          tag = { base, etag: newTag ?? etag };
+          if (kept()) keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0, etag: tag.etag }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
+          api.emit("loaded", { rows, total, delta: false, same: true });
+          return publish();
+        }
+        tag = !delta && !missing && newTag ? { base, etag: newTag } : delta ? tag : null;
         const got = missing ? [] : records(answer, cfg.pick);
         if (delta && !missing) {
           rows = merge(rows, Array.isArray(got) ? got : [], at(answer, S.deleted ?? "deleted"));
@@ -877,7 +892,7 @@
         mark = S ? { base, cursor, fullAt: delta && !missing ? mark.fullAt : Date.now() } : null;
         stamp = new Date().toISOString();
         loading = cached = partial = false;
-        if (kept()) keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0 }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
+        if (kept()) keep(cfg, rows, { total, one, cursor: mark?.cursor ?? null, fullAt: mark?.fullAt ?? 0, etag: tag?.etag ?? null }).then((v) => O.db.put("records", qslot(q), v)).catch(() => {});
         api.emit("loaded", { rows, total, delta });
       } catch (e) {
         if (id !== seq) return;

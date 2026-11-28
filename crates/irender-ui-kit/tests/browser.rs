@@ -9668,6 +9668,94 @@ fn data_sources_retry_failed_and_forget_missing_in_chrome() {
     assert_eq!(*log, ["p1,p3,p9", "p1,p3,p9", "p9"], "{log:?}");
 }
 
+/// A query asks for its address again with the last answer's ETag: a 304 keeps its rows,
+/// and a new answer replaces them (and its ETag).
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_queries_ask_with_their_etag_in_chrome() {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let log = Arc::new(Mutex::new(Vec::<String>::new()));
+    let seen = log.clone();
+    let version = Arc::new(AtomicUsize::new(1));
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let (seen, version) = (seen.clone(), version.clone());
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let method = request.split_whitespace().next().unwrap_or("").to_string();
+                let path = request.split_whitespace().nth(1).unwrap_or("").to_string();
+                let asked = request.lines().find_map(|l| l.to_ascii_lowercase().strip_prefix("if-none-match: ").map(String::from));
+                let v = version.load(Ordering::SeqCst);
+                let etag = format!("\"v{v}\"");
+                let cors = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: if-none-match\r\nAccess-Control-Expose-Headers: ETag\r\n";
+                if method == "OPTIONS" {
+                    let _ = write!(stream, "HTTP/1.1 204 No Content\r\n{cors}Content-Length: 0\r\nConnection: close\r\n\r\n");
+                    return;
+                }
+                if path == "/bump" {
+                    version.fetch_add(1, Ordering::SeqCst);
+                    let _ = write!(stream, "HTTP/1.1 200 OK\r\n{cors}Content-Length: 2\r\nConnection: close\r\n\r\n{{}}");
+                    return;
+                }
+                seen.lock().unwrap().push(asked.clone().unwrap_or_else(|| "-".into()));
+                if asked.as_deref() == Some(etag.as_str()) {
+                    let _ = write!(stream, "HTTP/1.1 304 Not Modified\r\n{cors}ETag: {etag}\r\nConnection: close\r\n\r\n");
+                    return;
+                }
+                let body = serde_json::json!([{ "id": 1, "name": format!("row v{v}") }]).to_string();
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n{cors}ETag: {etag}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let doc = serde_json::json!({ "version": 1, "state": { "rows": null, "st": null, "again": 0 },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-query", "props": { "url": format!("{base}/rows"), "into": "rows", "status": "st", "refresh": "{{ again }}" } } ] } });
+    let driver = format!(r##"<script>
+    let loads = "";
+    document.addEventListener("loaded", (e) => (loads += e.detail.same ? "s" : "n"));
+    window.addEventListener("load", async () => {{
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => {{ out.push(a.join(" ")); pre.textContent = out.join("\n"); }};
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => {{ for (let i = 0; i < 3000 && !f(); i++) await wait(10); }};
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
+      try {{
+        await until(() => loads.length === 1);
+        const first = S().rows;
+        log("first", first[0].name, S().st.state);
+        set("again", 1);
+        await until(() => loads.length === 2);
+        log("same", S().rows[0].name, S().rows === first, S().st.state, loads);
+        await fetch("{base}/bump", {{ method: "POST" }});
+        set("again", 2);
+        await until(() => loads.length === 3);
+        log("changed", S().rows[0].name, loads);
+        set("again", 3);
+        await until(() => loads.length === 4);
+        log("same again", S().rows[0].name, loads);
+      }} catch (e) {{ log("EXCEPTION", e.stack); }}
+      pre.textContent = out.join("\n"); pre.id = "result";
+    }});
+    </script>"##);
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-etag", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["first row v1 ready", "same row v1 true ready ns", "changed row v2 nsn", "same again row v2 nsns"],
+        "\n{result}"
+    );
+    assert_eq!(*log.lock().unwrap(), ["-", "\"v1\"", "\"v1\"", "\"v2\""]);
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the
