@@ -68,7 +68,7 @@ const EDGE_ID: &str = "{{ edge.id || edge.source + '-' + edge.target }}";
 // ------------------------------------------------------------------ ui-flow
 
 const FLOW_PROPS: &[PropDef] = &[
-    PropDef::new("nodes", PropKind::Any, "Nodes as React Flow saves them: `{ id, type, position: { x, y }, data, parentId, width, height, className, style, hidden }`").required(),
+    PropDef::new("nodes", PropKind::Any, "Nodes as React Flow saves them: `{ id, type, position: { x, y }, data, parentId, extent, width, height, className, style, hidden }` (`extent: parent` keeps a node inside its parent)").required(),
     PropDef::new("edges", PropKind::Any, "Edges: `{ id, source, target, sourceHandle, targetHandle, type, label, animated, markerEnd, markerStart, className, style, hidden }`"),
     PropDef::new("layout", PropKind::Any, "`layered` places the top-level nodes automatically, ignoring their positions; default: use `position`"),
     PropDef::new("direction", PropKind::Any, "`LR` (default), `TB`, `RL` or `BT`: the layout's direction, and where ports without a `side` go"),
@@ -86,6 +86,8 @@ const FLOW_PROPS: &[PropDef] = &[
     PropDef::new("draggable", PropKind::Any, "Nodes can be dragged (default: `editable`)"),
     PropDef::new("connectable", PropKind::Any, "Drag from a port to another to connect them; needs `bindEdges` (default: `editable`)"),
     PropDef::new("deletable", PropKind::Any, "Delete or Backspace removes the selection; needs `bindNodes` / `bindEdges` (default: `editable`)"),
+    PropDef::new("reconnectable", PropKind::Any, "With `connectable`: the picked edge shows its ends, each dragged to another port that fits the rules to move it there (`reconnect` fires); an edge with `reconnectable: false` keeps its ends (default true)"),
+    PropDef::new("remapPasted", PropKind::Any, "Pasting gives the ids of the nodes pasted, wherever they're named in a node's `data`, as the copies' new ids (default true)"),
     PropDef::new("connect", PropKind::Any, "Connection rules: `{ sameParent, self, unique, pairs: [{ source, target }] }` (node types)"),
     PropDef::new("newEdge", PropKind::Any, "Fields every new edge starts with, e.g. `{ type: smoothstep, markerEnd: arrowclosed }`"),
     PropDef::new("newNode", PropKind::Any, "A node (`{ type, data }`) made where a connection is dropped on empty canvas, and joined to it"),
@@ -119,7 +121,7 @@ const FLOW_PROPS: &[PropDef] = &[
 const LIVE: &[&str] = &[
     "nodes", "edges", "layout", "direction", "nodeGap", "rankGap", "nodeOrigin", "edgePath", "fit", "fitPadding",
     "viewport", "center", "highlight", "selectable", "draggable", "pan", "zoom", "wheel", "minZoom", "maxZoom",
-    "editable", "connectable", "deletable", "connect", "newEdge", "newNode", "confirmDelete", "search", "filter",
+    "editable", "connectable", "reconnectable", "remapPasted", "deletable", "connect", "newEdge", "newNode", "confirmDelete", "search", "filter",
     "filterNeighbors", "nodeStyles",
 ];
 
@@ -164,7 +166,7 @@ impl Component for Flow {
         let mut node_types = Map::new();
         for (ty, t) in &templates.nodes {
             let mut c = Map::new();
-            for name in ["container", "resizable", "minWidth", "minHeight"] {
+            for name in ["container", "resizable", "minWidth", "minHeight", "extent"] {
                 if let Some(v) = cx.prop(t, name).filter(|v| !v.is_null()) {
                     c.insert(name.into(), v);
                 }
@@ -537,6 +539,7 @@ const NODE_TEMPLATE_PROPS: &[PropDef] = &[
     PropDef::new("resizable", PropKind::Bool, "A handle in the bottom-right corner resizes the node; the size is saved as its `width` and `height`"),
     PropDef::new("minWidth", PropKind::Number, "Smallest width when resizing (default 80)"),
     PropDef::new("minHeight", PropKind::Number, "Smallest height when resizing (default 40)"),
+    PropDef::new("extent", PropKind::Enum(&["parent"]), "`parent`: a node of this type inside a container stays inside it, dragged or moved with the keys (a node's own `extent` does the same)"),
 ];
 
 const EDGE_TEMPLATE_PROPS: &[PropDef] = &[
@@ -925,6 +928,12 @@ static EDGE_SVG: LazyLock<StyleBlock> = LazyLock::new(|| {
     ])
     .nest("&[data-dimmed]", pairs(&[("opacity", "0.15")]))
     .nest("&[hidden]", pairs(&[("display", "none")]))
+    // The picked edge's ends, to drag to another port; the edge itself faded meanwhile.
+    .nest(
+        "& [data-flow-end]",
+        pairs(&[("fill", "var(--color-surface, #fff)"), ("stroke", PRIMARY), ("stroke-width", "2"), ("pointer-events", "auto"), ("cursor", "grab")]),
+    )
+    .nest("&[data-reconnecting] [data-flow-path], &[data-reconnecting] [data-flow-end]", pairs(&[("opacity", "0.3")]))
 });
 
 static PATH: LazyLock<StyleBlock> = LazyLock::new(|| {

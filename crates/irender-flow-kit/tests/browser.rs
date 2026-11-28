@@ -735,3 +735,102 @@ fn edge_labels_keep_clear_of_each_other() {
     let Some(lines) = run("labels", doc, driver) else { return };
     check(&lines, &["apart true", "onEdge true", "firstMid true"]);
 }
+
+/// An edge's end dragged to another port moves it there (not to one the rules refuse),
+/// a node with `extent: parent` stays inside its container, pasted copies get new ids in
+/// their `data` too, and without the script, edges are straight lines between the nodes.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn reconnecting_extent_and_pasted_ids() {
+    let step = json!({ "type": "ui-flow-node", "props": { "type": "step" }, "children": [
+        { "type": "text", "props": { "value": "{{ node.data.label }}" } },
+        { "type": "ui-flow-port", "props": { "type": "target" } },
+        { "type": "ui-flow-port", "props": { "type": "source" } } ] });
+    let group = json!({ "type": "ui-flow-node", "props": { "type": "group", "container": true, "variant": "plain" }, "style": { "border": "1px dashed #999" } });
+    let doc = json!({ "version": 1,
+        "state": {
+            "moves": 0,
+            "nodes": [
+                { "id": "a", "type": "step", "position": { "x": 0, "y": 0 }, "data": { "label": "A", "next": "b" } },
+                { "id": "b", "type": "step", "position": { "x": 260, "y": 0 }, "data": { "label": "B" } },
+                { "id": "c", "type": "step", "position": { "x": 260, "y": 160 }, "data": { "label": "C" } },
+                { "id": "g", "type": "group", "position": { "x": 0, "y": 300 }, "width": 300, "height": 160 },
+                { "id": "k", "type": "step", "parentId": "g", "extent": "parent", "position": { "x": 20, "y": 20 }, "data": { "label": "Kept" } } ],
+            "edges": [ { "id": "ab", "source": "a", "target": "b", "label": "go" } ] },
+        "root": { "type": "ui-flow", "attrs": { "id": "f" },
+            "props": { "nodes": "{{ nodes }}", "edges": "{{ edges }}", "editable": true, "fit": false, "viewport": { "x": 20, "y": 20, "zoom": 1 }, "height": 600,
+                       "bindNodes": "nodes", "bindEdges": "edges", "connect": { "unique": true } },
+            "on": { "reconnect": { "action": "set_state", "key": "moves", "value": "{{ moves + 1 }}" } },
+            "children": [step, group] } });
+    let driver = r##"
+        const f = "f", fl = flow(f);
+        const port = (id, type) => node(f, id).querySelector(`[data-flow-port][data-port-type="${type}"]`);
+        const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+        const drag = (from, [x, y]) => {
+          const [x0, y0] = centre(from);
+          from.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x0, clientY: y0 }));
+          for (const k of [0.3, 0.7, 1]) fl.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 1, pointerType: "mouse", clientX: x0 + (x - x0) * k, clientY: y0 + (y - y0) * k }));
+          fl.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, pointerType: "mouse", button: 0, clientX: x, clientY: y }));
+        };
+        // No ends until the edge is picked; then one at each end.
+        log("ends", edge(f, "ab").querySelectorAll("[data-flow-end]").length);
+        click(edge(f, "ab").querySelector("[data-flow-hit]"));
+        await wait(30);
+        log("picked", edge(f, "ab").querySelectorAll("[data-flow-end]").length);
+        // Its target end dragged to C: the edge goes A → C, keeping its id and label.
+        drag(edge(f, "ab").querySelector('[data-flow-end="target"]'), centre(port("c", "target")));
+        await wait(30);
+        log("moved", JSON.stringify(S().edges), S().moves);
+        // Its source end dragged onto C, its own target: no edges from a node to itself, so it stays.
+        click(edge(f, "ab").querySelector("[data-flow-hit]")); await wait(30);
+        drag(edge(f, "ab").querySelector('[data-flow-end="source"]'), centre(node(f, "c")));
+        await wait(30);
+        log("refused", S().edges[0].source, S().edges[0].target, S().moves);
+        // …and dropped on the empty canvas: it stays too.
+        drag(edge(f, "ab").querySelector('[data-flow-end="source"]'), [700, 560]);
+        await wait(30);
+        log("dropped", S().edges[0].source, S().edges.length);
+        // Then from B's source: B → C.
+        drag(edge(f, "ab").querySelector('[data-flow-end="source"]'), centre(port("b", "source")));
+        await wait(30);
+        log("source", S().edges[0].source, S().edges[0].target, S().moves);
+        // Kept inside its container, dragged far out of it.
+        const k = node(f, "k"), [kx, ky] = centre(k);
+        k.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 2, pointerType: "mouse", button: 0, clientX: kx, clientY: ky }));
+        for (const d of [20, 200, 900]) fl.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, pointerId: 2, pointerType: "mouse", clientX: kx + d, clientY: ky + d }));
+        fl.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 2, pointerType: "mouse", button: 0, clientX: kx + 900, clientY: ky + 900 }));
+        await wait(30);
+        const kept = S().nodes.find((n) => n.id === "k"), kr = k.getBoundingClientRect(), gr = node(f, "g").getBoundingClientRect();
+        log("kept", kept.parentId, kept.position.x === Math.round(300 - kr.width), kept.position.y === Math.round(160 - kr.height), kr.right <= gr.right + 1 && kr.bottom <= gr.bottom + 1);
+        // With the keys too: left a long way, to its parent's left side.
+        k.focus(); for (let i = 0; i < 40; i++) k.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", shiftKey: true, bubbles: true }));
+        await wait(400);
+        log("keys", S().nodes.find((n) => n.id === "k").position.x);
+        // Copied and pasted, A and B: the copy of A names the copy of B in its data.
+        click(node(f, "a")); await wait(10);
+        node(f, "b").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, pointerId: 3, pointerType: "mouse", button: 0, shiftKey: true, clientX: 0, clientY: 0 }));
+        node(f, "b").dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 3, pointerType: "mouse", button: 0, shiftKey: true, clientX: 0, clientY: 0 }));
+        await wait(10);
+        fl.focus();
+        fl.dispatchEvent(new KeyboardEvent("keydown", { key: "c", metaKey: true, bubbles: true }));
+        fl.dispatchEvent(new KeyboardEvent("keydown", { key: "v", metaKey: true, bubbles: true }));
+        await wait(50);
+        const copies = S().nodes.slice(5);
+        log("pasted", copies.map((n) => n.id + ":" + (n.data.next ?? "-")).join(" "));
+    "##;
+    let Some(lines) = run("reconnect", doc.clone(), driver) else { return };
+    check(
+        &lines,
+        &[
+            "ends 0",
+            "picked 2",
+            r#"moved [{"id":"ab","source":"a","target":"c","label":"go"}] 1"#,
+            "refused a c 1",
+            "dropped a 1",
+            "source b c 2",
+            "kept g true true true",
+            "keys 0",
+            "pasted a_1:b_1 b_1:-",
+        ],
+    );
+}

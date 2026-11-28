@@ -2372,7 +2372,7 @@ ui-live-data: Keeps a state key filled from a polled URL, server-sent events or 
   status       statekey  State key set to connecting, live, paused or error
   children: no
 ui-flow: A diagram of nodes and edges in React Flow's JSON shape. Node and edge types are `ui-flow-node` / `ui-flow-edge` children; `ui-flow-panel` children float above it.
-  nodes        any (required)  Nodes as React Flow saves them: `{ id, type, position: { x, y }, data, parentId, width, height, className, style, hidden }`
+  nodes        any (required)  Nodes as React Flow saves them: `{ id, type, position: { x, y }, data, parentId, extent, width, height, className, style, hidden }` (`extent: parent` keeps a node inside its parent)
   edges        any  Edges: `{ id, source, target, sourceHandle, targetHandle, type, label, animated, markerEnd, markerStart, className, style, hidden }`
   layout       any  `layered` places the top-level nodes automatically, ignoring their positions; default: use `position`
   direction    any  `LR` (default), `TB`, `RL` or `BT`: the layout's direction, and where ports without a `side` go
@@ -2390,6 +2390,8 @@ ui-flow: A diagram of nodes and edges in React Flow's JSON shape. Node and edge 
   draggable    any  Nodes can be dragged (default: `editable`)
   connectable  any  Drag from a port to another to connect them; needs `bindEdges` (default: `editable`)
   deletable    any  Delete or Backspace removes the selection; needs `bindNodes` / `bindEdges` (default: `editable`)
+  reconnectable any  With `connectable`: the picked edge shows its ends, each dragged to another port that fits the rules to move it there (`reconnect` fires); an edge with `reconnectable: false` keeps its ends (default true)
+  remapPasted  any  Pasting gives the ids of the nodes pasted, wherever they're named in a node's `data`, as the copies' new ids (default true)
   connect      any  Connection rules: `{ sameParent, self, unique, pairs: [{ source, target }] }` (node types)
   newEdge      any  Fields every new edge starts with, e.g. `{ type: smoothstep, markerEnd: arrowclosed }`
   newNode      any  A node (`{ type, data }`) made where a connection is dropped on empty canvas, and joined to it
@@ -2428,6 +2430,7 @@ ui-flow-node: A node type of the `ui-flow` it is in: its children are drawn for 
   resizable    bool  A handle in the bottom-right corner resizes the node; the size is saved as its `width` and `height`
   minWidth     number  Smallest width when resizing (default 80)
   minHeight    number  Smallest height when resizing (default 40)
+  extent       one of: parent  `parent`: a node of this type inside a container stays inside it, dragged or moved with the keys (a node's own `extent` does the same)
   parts: shape
   children: yes
 ui-flow-edge: An edge type of the `ui-flow` it is in. Its `style` styles the path (`stroke`, `stroke-width`, …); its children, with the edge in scope as `edge`, are the label. Without children the label is `edge.label`.

@@ -778,6 +778,20 @@
           hit.style.pointerEvents = on("selectable", true) ? "stroke" : "none";
         }
         flag(path, "data-selected", picked.edges.has(id));
+        // The one edge picked shows its two ends, to drag to another port.
+        const grips = reconnectable() && picked.edges.size === 1 && picked.edges.has(id) && e.reconnectable !== false;
+        for (const [which, at] of [["source", a], ["target", b]]) {
+          let c = r.svg.querySelector(`[data-flow-end="${which}"]`);
+          if (!grips) { c?.remove(); continue; }
+          if (!c) {
+            c = document.createElementNS(NS, "circle");
+            c.setAttribute("data-flow-end", which);
+            c.setAttribute("r", "6");
+            r.svg.append(c);
+          }
+          c.setAttribute("cx", at.x);
+          c.setAttribute("cy", at.y);
+        }
         const me = marker(e.markerEnd, tc.marker), ms = marker(e.markerStart, tc.markerStart);
         me ? path.setAttribute("marker-end", me) : path.removeAttribute("marker-end");
         ms ? path.setAttribute("marker-start", ms) : path.removeAttribute("marker-start");
@@ -1057,11 +1071,16 @@
 
     // ------------------------------------------------------------- connecting
     const connectable = () => can("connectable") && !!cfg.bindEdges;
+    // An edge's ends dragged to other ports (`reconnectable`, default: `connectable`).
+    const reconnectable = () => connectable() && on("reconnectable", true);
+    // The edge being reconnected doesn't count against the rules it's checked by.
+    let ignoring = null;
+    const others = () => (ignoring === null ? edges : edges.filter((e) => edgeId(e) !== ignoring));
     const rules = () => (isObj(props.connect) ? props.connect : {});
     const sameHandle = (a, b) => str(a ?? "") === str(b ?? "");
     const handleOf = (p) => (p.id === "" ? null : p.id);
     const count = (nodeId, handle, type) =>
-      edges.filter((e) => (type === "source" ? str(e.source) === nodeId && sameHandle(e.sourceHandle, handle) : str(e.target) === nodeId && sameHandle(e.targetHandle, handle))).length;
+      others().filter((e) => (type === "source" ? str(e.source) === nodeId && sameHandle(e.sourceHandle, handle) : str(e.target) === nodeId && sameHandle(e.targetHandle, handle))).length;
     // A port's own rules, read when they're needed, since they may follow state.
     const rulesOf = (port) => {
       const p = port.el, accepts = p?.getAttribute("data-accepts"), max = p?.getAttribute("data-max");
@@ -1081,7 +1100,7 @@
       if (!a || !b) return false;
       if (s.node === t.node && !truthy(r.self)) return false;
       const sh = handleOf(s.port), th = handleOf(t.port);
-      if (r.unique !== false && edges.some((e) => str(e.source) === s.node && str(e.target) === t.node && sameHandle(e.sourceHandle, sh) && sameHandle(e.targetHandle, th))) return false;
+      if (r.unique !== false && others().some((e) => str(e.source) === s.node && str(e.target) === t.node && sameHandle(e.sourceHandle, sh) && sameHandle(e.targetHandle, th))) return false;
       // A `scope: children` port joins only the nodes inside its own node.
       if (sr.scope === "children" || tr.scope === "children") {
         if (sr.scope === "children" && str(b.parentId) !== s.node) return false;
@@ -1110,6 +1129,32 @@
       if (th !== null) edge.targetHandle = th;
       edit(() => api.set(cfg.bindEdges, [...rawEdges(), edge]));
       api.emit("connect", { id, source: edge.source, target: edge.target });
+    }
+    // An edge's end moved to another port (`which`: "source" or "target"), its other
+    // end and everything else about it kept.
+    function reconnect(id, which, to) {
+      if (!writes("bindEdges", "reconnect edges")) return;
+      const h = handleOf(to.port), handle = which === "source" ? "sourceHandle" : "targetHandle";
+      let changed = null;
+      const list = rawEdges().map((e) => {
+        if (!isObj(e) || edgeId(e) !== id) return e;
+        const next = { ...e, [which]: outId(to.node) };
+        if (h === null) delete next[handle];
+        else next[handle] = h;
+        return (changed = next);
+      });
+      if (!changed) return;
+      edit(() => api.set(cfg.bindEdges, list));
+      api.emit("reconnect", { id, which, source: changed.source, target: changed.target });
+    }
+    // The port at an edge's end, or one standing in for the side it meets.
+    function portAt(e, which) {
+      const node = str(e[which]), type = which, h = e[which === "source" ? "sourceHandle" : "targetHandle"];
+      const list = ports.get(node) || [];
+      const p = h != null && h !== "" ? list.find((p) => p.id === str(h) && p.type === type) : list.find((p) => p.type === type);
+      if (p) return { node, port: p };
+      const at = end(node, h, type), g = geo.get(node) || { x: 0, y: 0 };
+      return { node, port: { id: h == null ? "" : str(h), type, side: at.side, x: at.x - g.x, y: at.y - g.y } };
     }
     // The port a dragged connection would join: the nearest one of the other type
     // within reach, or, over a node, the first of its ports that fits.
@@ -1304,6 +1349,17 @@
           return;
         }
       }
+      const grip = t.closest("[data-flow-end]");
+      if (grip && reconnectable()) {
+        const id = grip.closest("svg[data-flow-edge]")?.getAttribute("data-flow-edge"), e0 = edges.find((x) => edgeId(x) === id);
+        if (e0) {
+          e.preventDefault();
+          const which = grip.getAttribute("data-flow-end");
+          // Dragged from the end that stays: its port, as if a new connection started there.
+          gesture = { ...base, kind: "reconnect", id, which, from: portAt(e0, which === "source" ? "target" : "source") };
+          return;
+        }
+      }
       const portEl = t.closest("[data-flow-port]");
       const nodeEl = t.closest("[data-flow-node]");
       const inNode = nodeEl && nodeLayer.contains(nodeEl);
@@ -1334,6 +1390,17 @@
         if (!el.hasPointerCapture(e.pointerId)) el.setPointerCapture(e.pointerId);
       } catch {} // not an active pointer, e.g. a synthetic event
     };
+    // A position for node `id` that keeps it inside its parent, with `extent: "parent"`
+    // (its own, or its type's): its corner from 0 to the room left beside it.
+    function inside(id, p) {
+      const n = byId.get(id), parent = byId.get(str(n?.parentId));
+      if (!n || !parent || str(n.extent ?? typeOf(n).extent) !== "parent") return p;
+      const g = geo.get(id), pg = geo.get(str(parent.id));
+      if (!g || !pg) return p;
+      const [ox, oy] = laidOut.has(id) ? [0, 0] : origin();
+      const fit = (v, o, size, room) => clamp(v - o * size, 0, Math.max(0, room - size)) + o * size;
+      return { x: fit(p.x, ox, g.w, pg.w), y: fit(p.y, oy, g.h, pg.h) };
+    }
     // The nodes a drag moves: the selection when it includes the node, less any
     // node whose parent moves with it.
     function grab(id) {
@@ -1372,7 +1439,7 @@
         if (!can("draggable")) return;
         if (!g.moved) { g.group = grab(g.id); g.el.setAttribute("data-dragging", ""); }
         start(e);
-        for (const [id, from] of g.group) dragged.set(id, { x: from.x + dx / view.zoom, y: from.y + dy / view.zoom });
+        for (const [id, from] of g.group) dragged.set(id, inside(id, { x: from.x + dx / view.zoom, y: from.y + dy / view.zoom }));
         place();
         // The container it would drop into.
         const into = g.group.length ? landing(g.group[0][0]) : null;
@@ -1390,9 +1457,13 @@
         g.el.style.height = Math.round(h) + "px";
         measure(g.el, g.id);
         place();
-      } else if (g.kind === "connect") {
+      } else if (g.kind === "connect" || g.kind === "reconnect") {
         start(e);
         el.setAttribute("data-connecting", "");
+        if (g.kind === "reconnect") {
+          ignoring = g.id;
+          edgeEls().get(g.id)?.svg?.setAttribute("data-reconnecting", "");
+        }
         const to = candidate(e, g.from);
         g.to = to?.port && fits(g.from, to) ? to : null;
         mark(to?.port?.el || null, g.to ? "valid" : "invalid");
@@ -1422,7 +1493,8 @@
       if (!g || pointers.size) { if (g?.kind === "pinch" && pointers.size === 1) gesture = null; return; }
       gesture = null;
       el.removeAttribute("data-panning");
-      if (g.kind === "connect") stopConnecting();
+      if (g.kind === "connect" || g.kind === "reconnect") stopConnecting();
+      if (g.kind === "reconnect") edgeEls().get(g.id)?.svg?.removeAttribute("data-reconnecting");
       if (g.kind === "box") { box?.remove(); box = null; }
       if (e.type === "pointercancel") return;
       if (g.kind === "pan" && !g.moved) {
@@ -1443,6 +1515,13 @@
         const to = candidate(e, g.from);
         if (to?.port && fits(g.from, to)) connect(g.from, to);
         else if (!to) dropped(e, g.from);
+      } else if (g.kind === "reconnect") {
+        // Let go on a port that fits, the end moves there; anywhere else it stays.
+        const to = g.moved ? candidate(e, g.from) : null;
+        const ok = to?.port && fits(g.from, to);
+        ignoring = null;
+        if (ok) reconnect(g.id, g.which, to);
+        else place();
       } else if (g.kind === "box") {
         if (!g.moved || !g.end) return;
         const a = toFlow({ clientX: g.x, clientY: g.y }), b = toFlow(g.end);
@@ -1523,6 +1602,9 @@
     function landing(id) {
       const g = geo.get(id);
       if (!g) return null;
+      // Kept in its parent, it stays in it.
+      const self = byId.get(id);
+      if (str(self?.extent ?? typeOf(self || {}).extent) === "parent" && byId.has(str(self.parentId))) return str(self.parentId);
       const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
       const inside = (c) => { for (let n = byId.get(c), i = 0; n && i < 64; n = byId.get(str(n.parentId)), i++) if (str(n.id) === id) return true; return false; };
       let best = null, bestDepth = -1;
@@ -1613,8 +1695,12 @@
         dx = at.x - Math.min(...tops.map((n) => num(n.position?.x, 0)));
         dy = at.y - Math.min(...tops.map((n) => num(n.position?.y, 0)));
       }
+      // Ids of the nodes pasted, anywhere in a node's `data` (a step naming the next one,
+      // say), become the copies' ids, unless `remapPasted` is false.
+      const remap = (v) => (typeof v === "string" && map.has(v) ? map.get(v) : Array.isArray(v) ? v.map(remap) : isObj(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, remap(x)])) : v);
       const nodesOut = clipboard.nodes.map((n) => {
         const next = { ...structuredClone(n), id: map.get(str(n.id)) };
+        if (isObj(next.data) && on("remapPasted", true)) next.data = remap(next.data);
         delete next.selected;
         if (map.has(str(n.parentId))) next.parentId = map.get(str(n.parentId));
         else if (!byId.has(str(n.parentId))) delete next.parentId;
@@ -1696,7 +1782,12 @@
         const open = e.key === "Enter" && picked.nodes.has(id);
         selectNode(id, e.shiftKey && !open, open);
       } else if (e.key === "Escape") {
-        if (gesture?.kind === "connect") { stopConnecting(); gesture = null; }
+        if (gesture?.kind === "connect" || gesture?.kind === "reconnect") {
+          if (gesture.kind === "reconnect") edgeEls().get(gesture.id)?.svg?.removeAttribute("data-reconnecting");
+          stopConnecting();
+          ignoring = null;
+          gesture = null;
+        }
         else if (picked.nodes.size || picked.edges.size) clearSelection();
         else return;
       } else if ((e.key === "Delete" || e.key === "Backspace") && can("deletable")) {
@@ -1725,7 +1816,7 @@
         const step = e.shiftKey ? 50 : 10;
         if (id !== null && can("draggable") && byId.has(id)) {
           const group = grab(id);
-          for (const [x, from] of group) dragged.set(x, { x: from.x + dx * step, y: from.y + dy * step });
+          for (const [x, from] of group) dragged.set(x, inside(x, { x: from.x + dx * step, y: from.y + dy * step }));
           place();
           clearTimeout(el.__moveTimer);
           el.__moveTimer = setTimeout(() => moved(group.map(([x]) => x)), 300);

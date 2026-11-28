@@ -141,6 +141,7 @@ For a number of ports, such as a merge's inputs, list over `range`:
 - **Moving in and out:** while dragging (when `draggable`), the innermost container under the node's centre is marked `data-drop-target`. Dropping the node there moves it inside: it keeps its place on screen, and its `parentId` and relative `position` are written. Dragging it out of its container moves it back out. The nodes array is kept with parents before their children, as React Flow requires.
 - **Edges across containers:** with `connect.sameParent`, an edge that would cross from one container to another isn't allowed. One that a move leaves crossing is removed.
 - **`scope: children`:** a port with this connects only to nodes inside its own node, whatever `sameParent` says. This is the loop's start port.
+- **Kept inside:** a node with `extent: parent` (or a template with `extent: parent`) stays inside its container, dragged or moved with the keys, and dropping it outside leaves it in.
 - **Resizing:** `resizable` adds a handle in the bottom-right corner, shown on hover and selection. Dragging it writes `width` and `height`, no smaller than `minWidth` / `minHeight`.
 
 ## Edge types
@@ -302,7 +303,8 @@ Commands from inside the flow, such as a panel button, a node, or a dialog in ei
 ### Copy, paste and undo
 
 - **Copy and cut:** ⌘/Ctrl + C copies the selection, with everything inside any selected container and the edges between the copied nodes. Cut copies, then deletes.
-- **Paste:** ⌘/Ctrl + V adds a copy with new ids, each named after its original (`check_stock` becomes `check_stock_1`), and selects it. It lands at the pointer when the pointer is over the flow; otherwise it lands a step down and right of the original. Copies keep their container when it still exists. The clipboard is shared by the page's flows, so you can copy between them. The copies' `data` is unchanged, so if it holds ids of its own, have the host app remap them (e.g. `on: { nodeadd: { action: call, … } }`).
+- **Paste:** ⌘/Ctrl + V adds a copy with new ids, each named after its original (`check_stock` becomes `check_stock_1`), and selects it. It lands at the pointer when the pointer is over the flow; otherwise it lands a step down and right of the original. Copies keep their container when it still exists. The clipboard is shared by the page's flows, so you can copy between them. Ids of the nodes pasted, wherever they're named in a copy's `data` (a step's `next`, say), become the copies' ids; `remapPasted: false` leaves `data` as it was, for a host app that remaps it itself (e.g. `on: { nodeadd: { action: call, … } }`).
+- **Reconnecting:** with `connectable`, the one edge picked shows a handle at each end. Dragged to another port, that end moves there if the rules allow it (the edge itself doesn't count against `max` or `unique`); dropped anywhere else, it stays. Its id, label and the rest are kept, and `reconnect` fires with `{ id, which, source, target }`. `reconnectable: false` turns it off, and an edge with `reconnectable: false` keeps its ends.
 - **Undo:** every edit the flow makes is one undo step: a drag, connection, deletion, resize, added node or paste. Undo (⌘/Ctrl + Z, or `flow.undo`) puts both arrays back as they were. Changes made to the state outside the flow aren't recorded. The flow keeps the last 100 steps.
 
 ## Mouse, touch and keyboard

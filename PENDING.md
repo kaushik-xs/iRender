@@ -259,12 +259,12 @@ These came out of the React Flow research on the builder and client-ui-next repo
   - undo and redo
   - search with dimming and stepping through matches
 
-- [ ] **Reconnecting an edge** by dragging its end to another port isn't supported; delete it and connect again.
+- [x] **Reconnecting an edge** (2026-11-29): the picked edge's ends drag to another port (`reconnectable`, `reconnect`); not from the keyboard.
 - [ ] **Edges are drawn only by the script.** Nodes have server positions, but a page without JS shows no edges. Idea: draw straight edges on the server when the positions are known.
 - [ ] **Layered layout is approximate.** Long edges get no dummy nodes, so edges that skip ranks can cross nodes. Only top-level nodes are laid out; children keep their `position`. With `layout: layered`, an added node's position is replaced by the layout.
 - [ ] **Undo records only the flow's own edits.** Changes made to the state outside the flow aren't recorded, and an undo puts back the arrays as the flow last saw them.
-- [ ] **No `extent: parent`.** A node inside a container can be dragged past its edges, and dropping it outside moves it out.
-- [ ] **Pasting doesn't remap ids inside `data`** (the process canvas does this for its own ids); the host app can, from a `call` on `nodeadd`.
+- [x] **`extent: parent`** (2026-11-29; subflow-01): a node (or a template) keeps inside its container, dragged or by the keys; the container doesn't grow to it.
+- [x] **Pasting remaps ids inside `data`** (2026-11-29): any string in a copy's `data` that's the id of a node pasted with it becomes the copy's id (`remapPasted: false` to leave it); an id inside a longer string isn't.
 - [x] **Tried on the builder's 8 saved workflows** (2026-11-17; `server/data/workspaces/**/*.workflow`, up to 30 nodes with 5 loops):
   - Every node and edge draws, and every handle resolves to its port (`true`/`false`, the loop's `start`/`done`).
   - Loop bodies sit inside their loops.
