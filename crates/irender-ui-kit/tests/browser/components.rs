@@ -458,6 +458,100 @@ root:
     );
 }
 
+/// `ui-whiteboard`: a frame carries what's inside it, groups move and select together,
+/// locked items stay, items go to the front and back, copy and paste between boards, a
+/// drawing resizes, pictures, and PNG export.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn whiteboard_frames_groups_locks_and_pictures() {
+    check(
+        "whiteboard-more",
+        r##"
+state:
+  other: []
+  board:
+    - { id: f, type: frame, x: 0, y: 0, w: 300, h: 200, text: Ideas }
+    - { id: a, type: rect, x: 20, y: 40, w: 100, h: 60 }
+    - { id: b, type: rect, x: 400, y: 40, w: 100, h: 60 }
+    - { id: c, type: ellipse, x: 400, y: 200, w: 60, h: 60 }
+    - { id: p, type: pen, x: 600, y: 0, points: [ [0, 0], [100, 50] ] }
+    - { id: i, type: image, x: 600, y: 200, w: 40, h: 40, src: "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACwAAAAAAQABAAACAkQBADs=" }
+root:
+  type: stack
+  children:
+    - { type: ui-whiteboard, attrs: { id: wb }, props: { bind: board, height: 500 } }
+    - { type: ui-whiteboard, attrs: { id: wb2 }, props: { bind: other, height: 200 } }
+"##,
+        r##"
+        const wb = $("#wb"), stage = wb.querySelector("[data-wb-stage]"), wb2 = $("#wb2"), stage2 = wb2.querySelector("[data-wb-stage]");
+        const at = (id) => S().board.find((i) => i.id === id);
+        const where = (id) => `${at(id).x},${at(id).y}`;
+        const shape = (id) => wb.querySelector(`[data-wb-item="${id}"]`);
+        const pt = (id, el = wb) => { const r = el.querySelector(`[data-wb-item="${id}"]`).querySelector("rect, ellipse, path, image").getBoundingClientRect(); return [r.left + 3, r.top + 3]; };
+        const ptr = (type, x, y, o = {}) => (o.target ?? stage).dispatchEvent(new PointerEvent(type, { bubbles: true, button: 0, pointerId: 5, clientX: x, clientY: y, ...o }));
+        const drag = async (from, dx, dy, o = {}) => { ptr("pointerdown", from[0], from[1], o); ptr("pointermove", from[0] + dx / 2, from[1] + dy / 2, o); ptr("pointermove", from[0] + dx, from[1] + dy, o); ptr("pointerup", from[0] + dx, from[1] + dy, o); await wait(30); };
+        const key = (k, o = {}, el = stage) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...o }));
+        // The frame is drawn first, behind; dragging it brings what's inside along.
+        log("order", [...wb.querySelectorAll("[data-wb-item]")].map((g) => g.dataset.wbItem).join(""), wb.querySelector('[data-wb-item="f"] text').textContent, !!wb.querySelector('[data-wb-item="i"] image'));
+        await drag(pt("f"), 50, 0, { target: shape("f").querySelector("rect") });
+        // (Moves are in the board's units, the pointer's over the view's zoom.)
+        log("frame", at("f").x > 0, at("a").x - 20 === at("f").x && at("a").y === 40, where("b"));
+        // b and c grouped: clicking one selects both, and they move together.
+        stage.focus();
+        ptr("pointerdown", ...pt("b"), { target: shape("b").querySelector("rect") }); ptr("pointerup", ...pt("b"), { target: shape("b").querySelector("rect") }); await wait(10);
+        ptr("pointerdown", ...pt("c"), { target: shape("c").querySelector("ellipse"), shiftKey: true }); ptr("pointerup", ...pt("c"), { target: shape("c").querySelector("ellipse") }); await wait(10);
+        key("g", { metaKey: true }); await wait(20);
+        log("group", at("b").group === at("c").group && !!at("b").group);
+        key("Escape"); await wait(10);
+        await drag(pt("c"), 0, 30, { target: shape("c").querySelector("ellipse") });
+        log("moved together", at("b").y > 40, at("b").y - 40 === at("c").y - 200, at("b").x, at("c").x);
+        // Locked: neither the keys nor Delete move it.
+        key("l", { metaKey: true, shiftKey: true }); await wait(20);
+        const before = where("b");
+        key("ArrowRight"); await wait(10); key("Delete"); await wait(20);
+        log("locked", at("b").locked, where("b") === before, S().board.length, !!shape("b").querySelector("path[stroke]") || shape("b").hasAttribute("data-locked"));
+        key("l", { metaKey: true, shiftKey: true }); await wait(20);
+        // To the back and the front.
+        key("]", { metaKey: true }); await wait(20);
+        log("front", S().board.map((i) => i.id).join(""));
+        key("[", { metaKey: true }); await wait(20);
+        log("back", S().board.map((i) => i.id).join(""));
+        // Copied here, pasted on the other board: new ids, still grouped, a little down and right.
+        // (Firefox's made-up clipboard events carry no data: it's put on by hand.)
+        const dt = new DataTransfer(), clip = (type) => Object.defineProperty(new Event(type, { bubbles: true, cancelable: true }), "clipboardData", { value: dt });
+        stage.dispatchEvent(clip("copy"));
+        stage2.focus(); stage2.dispatchEvent(clip("paste")); await wait(20);
+        const o = S().other;
+        log("pasted", o.length, o.every((i) => !["b", "c"].includes(i.id)), o[0].group === o[1].group, o.find((i) => i.type === "rect").x - at("b").x);
+        // The drawing, resized from its corner: its points stretch.
+        stage.focus(); key("Escape");
+        ptr("pointerdown", ...pt("p"), { target: shape("p").querySelector("path") }); ptr("pointerup", ...pt("p"), { target: shape("p").querySelector("path") }); await wait(10);
+        const hd = wb.querySelector("[data-wb-handle]").getBoundingClientRect();
+        await drag([hd.left + 3, hd.top + 3], 100, 50, { target: wb.querySelector("[data-wb-handle]") });
+        const [px, py] = at("p").points[1];
+        log("stretched", px > 100, py > 50, px / py === 2);
+        // PNG.
+        let made = null; wb.addEventListener("export", (e) => (made = e.detail.format));
+        const realURL = URL.createObjectURL; URL.createObjectURL = () => "blob:x";
+        wb.querySelector("[data-wb-png]").click(); await until(() => made);
+        URL.createObjectURL = realURL;
+        log("png", made);
+"##,
+        &[
+            "order fabcpi Ideas true",
+            "frame true true 400,40",
+            "group true",
+            "moved together true true 400 400",
+            "locked true true 6 true",
+            "front fapibc",
+            "back bcfapi",
+            "pasted 2 true true 24",
+            "stretched true true true",
+            "png png",
+        ],
+    );
+}
+
 #[test]
 #[ignore = "needs Chrome; run with --ignored"]
 fn whiteboard_arrows_stay_joined_to_shapes() {

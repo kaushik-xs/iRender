@@ -906,9 +906,9 @@ ui-approval: A sign-off in stages, each approved when its rule is met: who decid
   id           any  Element id (default: derived from the document)
   children: no
 ui-whiteboard: A board without edges: draw with a pen, add sticky notes, shapes, arrows and text, select, move, resize and edit them, pan and zoom, undo, and export it as SVG.
-  bind         statekey (required)  State key holding the items, in the board's units: `{ id, type, x, y, w, h, points, text, color }`; `type` is pen, note, rect, ellipse, arrow or text
+  bind         statekey (required)  State key holding the items, in the board's units: `{ id, type, x, y, w, h, points, text, color, src, group, locked }`; `type` is pen, note, rect, ellipse, arrow, text, frame (a named area, `text` its name, that carries what's inside it) or image (`src`: http(s), a path or an image's data); `group` ties items to move together, `locked` keeps one still
   bindView     statekey  State key holding the view, `{ x, y, zoom }`, both ways
-  tools        any  The tools offered, from select, hand, pen, note, rect, ellipse, arrow, text (default all)
+  tools        any  The tools offered, from select, hand, pen, note, rect, ellipse, arrow, text, frame (default all)
   colors       any  The colours to pick from: CSS colours (default eight)
   readOnly     bool  Look and move around only
   height       any  Its height: px or a CSS length (default 480)

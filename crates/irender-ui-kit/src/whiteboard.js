@@ -6,7 +6,11 @@
 // Double-click a note or text to edit it. The keys: V H P N R O A T pick tools; ⌘/Ctrl+Z
 // undoes, with Shift redoes; Delete deletes; ⌘/Ctrl+D duplicates; arrows nudge (Shift ten);
 // Tab goes to the next item while one's selected; Escape lets go. The wheel scrolls, with
-// ⌘/Ctrl (or a pinch) it zooms. Everything it writes is text or SVG it builds, never HTML.
+// ⌘/Ctrl (or a pinch) it zooms. Frames (F) hold what's inside them as they move; pictures
+// come pasted or dropped in; ⌘/Ctrl+G groups (with Shift ungroups), ⌘/Ctrl+] and [ bring to
+// the front and send to the back, ⌘/Ctrl+Shift+L locks; ⌘/Ctrl+C and V copy and paste,
+// between boards too. Export is SVG or PNG. Everything it writes is text or SVG it builds,
+// never HTML.
 (window.__irenderBehaviors ||= {})["ui-whiteboard"] = (el, api) => {
   const cfg = api.config, L = (t, v) => window.__irender.label(t, v);
   const bar = el.querySelector("[data-wb-bar]"), stage = el.querySelector("[data-wb-stage]"), live = el.querySelector("[data-wb-live]");
@@ -31,14 +35,16 @@
   };
   const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
   const NOTE_COLORS = ["#fef08a", "#fbcfe8", "#bfdbfe", "#bbf7d0", "#ddd6fe", "#fed7aa"];
-  // Labels: "Select", "Hand", "Pen", "Sticky note", "Rectangle", "Ellipse", "Arrow", "Text"
-  const TOOLS = { select: ["Select", "V"], hand: ["Hand", "H"], pen: ["Pen", "P"], note: ["Sticky note", "N"], rect: ["Rectangle", "R"], ellipse: ["Ellipse", "O"], arrow: ["Arrow", "A"], text: ["Text", "T"] };
-  const KIND = { pen: "Drawing", note: "Sticky note", rect: "Rectangle", ellipse: "Ellipse", arrow: "Arrow", text: "Text" };
+  // Labels: "Select", "Hand", "Pen", "Sticky note", "Rectangle", "Ellipse", "Arrow", "Text", "Frame"
+  const TOOLS = { select: ["Select", "V"], hand: ["Hand", "H"], pen: ["Pen", "P"], note: ["Sticky note", "N"], rect: ["Rectangle", "R"], ellipse: ["Ellipse", "O"], arrow: ["Arrow", "A"], text: ["Text", "T"], frame: ["Frame", "F"] };
+  // Labels: "Drawing", "Picture"
+  const KIND = { pen: "Drawing", note: "Sticky note", rect: "Rectangle", ellipse: "Ellipse", arrow: "Arrow", text: "Text", frame: "Frame", image: "Picture" };
   const ICONS = {
     select: "M5 3l13 7-6 1.5L9 18z", hand: "M8 13V5.5a1.5 1.5 0 0 1 3 0V11m0-1V4.5a1.5 1.5 0 0 1 3 0V11m0-4.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L3 15a1.5 1.5 0 0 1 2.5-1.7L8 16",
     pen: "M4 20l4-1 11-11-3-3L5 16zM14 6l3 3", note: "M5 4h14v10l-6 6H5zM13 20v-6h6", rect: "M4 6h16v12H4z", ellipse: "M12 5c4.4 0 8 3.1 8 7s-3.6 7-8 7-8-3.1-8-7 3.6-7 8-7z",
     arrow: "M5 19L19 5M10 5h9v9", text: "M5 6V4h14v2M12 4v16M9 20h6", undo: "M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3", redo: "M15 14l5-5-5-5M20 9H10a6 6 0 0 0 0 12h3",
-    trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3", minus: "M5 12h14", plus: "M12 5v14M5 12h14", fit: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5", download: "M12 4v11M7 10l5 5 5-5M5 20h14",
+    trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3", frame: "M7 3v18M17 3v18M3 7h18M3 17h18",
+    front: "M8 8h12v12H8zM4 16V4h12", back: "M4 4h12v12H4zM8 20h12V8", lock: "M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3", image: "M4 5h16v14H4zM4 15l5-5 5 5 2-2 4 4M15 9h.01", minus: "M5 12h14", plus: "M12 5v14M5 12h14", fit: "M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5", download: "M12 4v11M7 10l5 5 5-5M5 20h14",
   };
   const icon = (name) => s("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, s("path", { d: ICONS[name] }));
 
@@ -110,6 +116,22 @@
     }
     return { x: it.x ?? 0, y: it.y ?? 0, w: it.w ?? 0, h: it.h ?? 0 };
   }
+  // A picture's address: http(s), a path, or an image's data.
+  const safeSrc = (u) => {
+    const v = typeof u === "string" ? u.trim() : "";
+    return /^data:image\/(png|jpe?g|gif|webp|avif|svg\+xml);/i.test(v) || /^https?:\/\//i.test(v) || (/^[/.]/.test(v) && !v.startsWith("//")) ? v : null;
+  };
+  // Items moving with `ids`: their group's, and what's inside a frame among them.
+  function withGroups(ids, list = items()) {
+    const out = new Set(ids), groups = new Set(list.filter((i) => out.has(String(i.id)) && i.group != null).map((i) => String(i.group)));
+    for (const i of list) if (i.group != null && groups.has(String(i.group))) out.add(String(i.id));
+    return out;
+  }
+  function inside(frame, list = items()) {
+    const f = box(frame);
+    return list.filter((i) => i !== frame && i.type !== "frame" && (() => { const b = box(i); return b.x >= f.x && b.y >= f.y && b.x + b.w <= f.x + f.w && b.y + b.h <= f.y + f.h; })()).map((i) => String(i.id));
+  }
+  const lockedIn = (ids, list = items()) => list.some((i) => ids.has(String(i.id)) && i.locked);
   const named = (it) => {
     const words = it.text ? `: ${String(it.text).slice(0, 60)}` : "";
     return `${L(KIND[it.type] ?? "Item")}${words}`;
@@ -153,6 +175,16 @@
       g.append(s("rect", { x: it.x, y: it.y, width: Math.max(1, it.w), height: Math.max(1, it.h), rx: 6, fill: it.fill ?? "transparent", stroke: c, "stroke-width": 3 }));
     } else if (it.type === "ellipse") {
       g.append(s("ellipse", { cx: it.x + it.w / 2, cy: it.y + it.h / 2, rx: Math.max(1, it.w / 2), ry: Math.max(1, it.h / 2), fill: it.fill ?? "transparent", stroke: c, "stroke-width": 3 }));
+    } else if (it.type === "image") {
+      const src = safeSrc(it.src);
+      g.append(s("rect", { x: it.x, y: it.y, width: Math.max(1, it.w), height: Math.max(1, it.h), fill: "color-mix(in srgb, currentColor 6%, transparent)" }));
+      if (src) g.append(s("image", { href: src, x: it.x, y: it.y, width: Math.max(1, it.w), height: Math.max(1, it.h), preserveAspectRatio: "xMidYMid meet" }));
+    } else if (it.type === "frame") {
+      // A frame: a named area behind everything, its name over its corner.
+      g.append(s("rect", { x: it.x, y: it.y, width: Math.max(1, it.w), height: Math.max(1, it.h), rx: 8, fill: "color-mix(in srgb, currentColor 3%, transparent)", stroke: c, "stroke-width": 1.5, "stroke-dasharray": "8 6" }));
+      const t = s("text", { x: it.x + 2, y: it.y - 8, "font-size": 14, "font-weight": 600, fill: c });
+      t.textContent = it.text || L("Frame");
+      g.append(t);
     } else if (it.type === "note" || it.type === "text") {
       if (it.type === "note") g.append(s("rect", { x: it.x, y: it.y, width: it.w, height: it.h, rx: 4, fill: it.color ?? NOTE_COLORS[0], filter: `url(#${cfg.id}-shadow)` }));
       const fo = s("foreignObject", { x: it.x, y: it.y, width: Math.max(1, it.w), height: Math.max(1, it.h), [it.type === "note" ? "data-wb-note" : "data-wb-text"]: true });
@@ -161,6 +193,12 @@
       if (it.type === "text") div.style.setProperty("color", c);
       fo.append(div);
       g.append(fo);
+    }
+    // Locked: a small lock on its corner.
+    if (it.locked) {
+      const b = box(it);
+      g.setAttribute("data-locked", "");
+      g.append(s("path", { d: `M${b.x + b.w - 16} ${b.y + 9}h10v8h-10zM${b.x + b.w - 14} ${b.y + 9}v-2.5a3 3 0 0 1 6 0V${b.y + 9}`, fill: "none", stroke: "currentColor", "stroke-width": 1.4, opacity: 0.6 }));
     }
     return g;
   }
@@ -182,7 +220,8 @@
     const ids = new Set(list.map((i) => String(i.id)));
     selected = new Set([...selected].filter((id) => ids.has(id)));
     const defs = s("defs", {}, s("filter", { id: `${cfg.id}-shadow`, x: "-10%", y: "-10%", width: "130%", height: "140%" }, s("feDropShadow", { dx: 0, dy: 2, stdDeviation: 2, "flood-opacity": 0.18 })));
-    world.replaceChildren(defs, ...list.map(shape));
+    // Frames behind everything else, in their own order.
+    world.replaceChildren(defs, ...list.filter((i) => i.type === "frame").map(shape), ...list.filter((i) => i.type !== "frame").map(shape));
     empty.hidden = list.length > 0;
     drawBar();
     paint();
@@ -194,7 +233,7 @@
     for (const it of items().filter((i) => selected.has(String(i.id)))) {
       const b = box(it);
       overlay.append(s("rect", { x: b.x - 4 * k, y: b.y - 4 * k, width: b.w + 8 * k, height: b.h + 8 * k, fill: "none", stroke: "var(--color-primary)", "stroke-width": 1.5 * k, "stroke-dasharray": `${4 * k} ${3 * k}`, "pointer-events": "none" }));
-      if (selected.size === 1 && !cfg.readOnly && ["note", "rect", "ellipse", "text"].includes(it.type)) {
+      if (selected.size === 1 && !cfg.readOnly && !it.locked && ["note", "rect", "ellipse", "text", "image", "frame", "pen"].includes(it.type)) {
         overlay.append(s("rect", { "data-wb-handle": it.id, x: b.x + b.w - 2 * k, y: b.y + b.h - 2 * k, width: 10 * k, height: 10 * k, rx: 2 * k, fill: "var(--ui-bg, #fff)", stroke: "var(--color-primary)", "stroke-width": 1.5 * k, style: "cursor: nwse-resize" }));
       }
     }
@@ -220,13 +259,21 @@
       parts.push(h("button", { type: "button", "aria-label": L("Undo"), title: L("Undo (⌘Z)"), disabled: past.length ? null : true, onclick: undo }, icon("undo")));
       parts.push(h("button", { type: "button", "aria-label": L("Redo"), title: L("Redo (⇧⌘Z)"), disabled: future.length ? null : true, onclick: redo }, icon("redo")));
       parts.push(h("button", { type: "button", "data-wb-delete": true, "aria-label": L("Delete"), title: L("Delete"), disabled: selected.size ? null : true, onclick: removeSelected }, icon("trash")));
+      // Labels: "Bring to front", "Send to back", "Lock", "Unlock", "Group", "Ungroup", "Add a picture"
+      const any = !!selected.size, locked = any && items().filter((i) => selected.has(String(i.id))).every((i) => i.locked);
+      parts.push(h("button", { type: "button", "data-wb-front": true, "aria-label": L("Bring to front"), title: `${L("Bring to front")} (⌘])`, disabled: any ? null : true, onclick: () => layer(true) }, icon("front")));
+      parts.push(h("button", { type: "button", "data-wb-back": true, "aria-label": L("Send to back"), title: `${L("Send to back")} (⌘[)`, disabled: any ? null : true, onclick: () => layer(false) }, icon("back")));
+      parts.push(h("button", { type: "button", "data-wb-lock": true, "aria-pressed": locked ? "true" : "false", "aria-label": locked ? L("Unlock") : L("Lock"), title: `${locked ? L("Unlock") : L("Lock")} (⇧⌘L)`, disabled: any ? null : true, onclick: lock }, icon("lock")));
+      parts.push(h("button", { type: "button", "data-wb-picture": true, "aria-label": L("Add a picture"), title: L("Add a picture"), onclick: () => picker.click() }, icon("image")));
     }
     parts.push(h("span", { "data-wb-sep": true }));
     parts.push(h("button", { type: "button", "aria-label": L("Zoom out"), title: L("Zoom out"), onclick: () => zoomBy(1 / 1.25) }, icon("minus")));
     parts.push(h("span", { "data-wb-zoom": true, "aria-live": "off" }, `${Math.round(view.zoom * 100)}%`));
     parts.push(h("button", { type: "button", "aria-label": L("Zoom in"), title: L("Zoom in"), onclick: () => zoomBy(1.25) }, icon("plus")));
     parts.push(h("button", { type: "button", "aria-label": L("Fit everything"), title: L("Fit everything"), onclick: fit }, icon("fit")));
-    parts.push(h("button", { type: "button", "aria-label": L("Export as SVG"), title: L("Export as SVG"), onclick: exportSvg }, icon("download")));
+    parts.push(h("button", { type: "button", "aria-label": L("Export as SVG"), title: L("Export as SVG"), onclick: () => exportSvg() }, icon("download")));
+    // Labels: "Export as PNG"
+    parts.push(h("button", { type: "button", "data-wb-png": true, "aria-label": L("Export as PNG"), title: L("Export as PNG"), onclick: () => exportSvg("png") }, "PNG"));
     const had = bar.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
     bar.replaceChildren(...parts);
     if (had) [...bar.querySelectorAll("button")].find((b) => b.getAttribute("aria-label") === had)?.focus();
@@ -307,9 +354,14 @@
     if (tool === "select") {
       const id = hitItem(e.target);
       if (id) {
-        if (e.shiftKey) selected.has(id) ? selected.delete(id) : selected.add(id);
-        else if (!selected.has(id)) selected = new Set([id]);
-        action = { kind: "move", start: p, moved: false, before: items() };
+        // A grouped item comes with its group.
+        const mates = withGroups([id]);
+        if (e.shiftKey) selected.has(id) ? mates.forEach((m) => selected.delete(m)) : mates.forEach((m) => selected.add(m));
+        else if (!selected.has(id)) selected = mates;
+        // What moves: the selection, and what's inside any frame in it; nothing locked.
+        const carry = new Set(selected);
+        for (const i of items()) if (i.type === "frame" && selected.has(String(i.id))) inside(i).forEach((x) => carry.add(x));
+        action = { kind: "move", start: p, moved: false, before: items(), carry, stuck: lockedIn(carry) };
         announceSelection();
         drawBar();
         drawSelection();
@@ -346,13 +398,15 @@
     if (action.kind === "pan") return setView({ ...action.view, x: action.view.x - (sx - action.sx) / view.zoom, y: action.view.y - (sy - action.sy) / view.zoom });
     if (action.kind === "move") {
       const dx = p.x - action.start.x, dy = p.y - action.start.y;
+      if (action.stuck) return;
       if (!action.moved && Math.hypot(dx, dy) * view.zoom < 3) return;
       action.moved = true;
+      const moving = action.carry;
       // A joined arrow moved on its own comes loose, where it was; with its shapes it follows them.
       api.set(cfg.bind, action.before.map((i) => {
-        if (!selected.has(String(i.id))) return i;
+        if (!moving.has(String(i.id))) return i;
         if (i.type === "arrow" && (i.from != null || i.to != null)) {
-          const keep = (id) => id != null && selected.has(String(id));
+          const keep = (id) => id != null && moving.has(String(id));
           if (keep(i.from) || keep(i.to)) return i;
           const [[x1, y1], [x2, y2]] = ends(i, action.before), { from, to, ...rest } = i;
           return { ...rest, x: 0, y: 0, points: [[x1 + dx, y1 + dy], [x2 + dx, y2 + dy]] };
@@ -363,14 +417,22 @@
     }
     if (action.kind === "resize") {
       const w = Math.max(20, action.box.w + (p.x - action.start.x)), hh = Math.max(20, action.box.h + (p.y - action.start.y));
-      api.set(cfg.bind, action.before.map((i) => (String(i.id) === action.id ? { ...i, w, h: hh } : i)));
+      api.set(cfg.bind, action.before.map((i) => {
+        if (String(i.id) !== action.id) return i;
+        // A drawing: its points stretched to the new size.
+        if (i.type === "pen") {
+          const b = action.box, kx = w / Math.max(1, b.w), ky = hh / Math.max(1, b.h), ox = b.x - (i.x ?? 0), oy = b.y - (i.y ?? 0);
+          return { ...i, points: (i.points ?? []).map(([px, py]) => [Math.round((ox + (px - ox) * kx) * 10) / 10, Math.round((oy + (py - oy) * ky) * 10) / 10]) };
+        }
+        return { ...i, w, h: hh };
+      }));
       return draw();
     }
     if (action.kind === "marquee") {
       marquee.x1 = p.x;
       marquee.y1 = p.y;
       const [x0, x1] = [Math.min(marquee.x0, p.x), Math.max(marquee.x0, p.x)], [y0, y1] = [Math.min(marquee.y0, p.y), Math.max(marquee.y0, p.y)];
-      selected = new Set([...marquee.add, ...items().filter((i) => {
+      selected = withGroups([...marquee.add, ...items().filter((i) => {
         const b = box(i);
         return b.x >= x0 && b.y >= y0 && b.x + b.w <= x1 && b.y + b.h <= y1;
       }).map((i) => String(i.id))]);
@@ -404,7 +466,7 @@
       if (to && String(to.id) !== String(from?.id)) it.to = to.id;
       return it;
     }
-    const size = { note: [180, 140], rect: [140, 90], ellipse: [120, 120], text: [220, 40] }[type];
+    const size = { note: [180, 140], rect: [140, 90], ellipse: [120, 120], text: [220, 40], frame: [480, 320] }[type];
     const x = dragged ? Math.min(p0.x, p1.x) : p0.x, y = dragged ? Math.min(p0.y, p1.y) : p0.y;
     const w = dragged ? Math.max(20, Math.abs(p1.x - p0.x)) : size[0], hh = dragged ? Math.max(20, Math.abs(p1.y - p0.y)) : size[1];
     if (!dragged && preview) return null;
@@ -412,6 +474,7 @@
     if (type === "note") it.color = NOTE_COLORS[items().filter((i) => i.type === "note").length % NOTE_COLORS.length];
     else it.color = color;
     if (type === "note" || type === "text") it.text = "";
+    if (type === "frame") it.text = L("Frame {n}", { n: items().filter((i) => i.type === "frame").length + 1 });
     return it;
   }
   function end(e) {
@@ -457,7 +520,7 @@
       pickTool("select");
       drawSelection();
       drawBar();
-      if (it.type === "note" || it.type === "text") edit(String(it.id));
+      if (it.type === "note" || it.type === "text" || it.type === "frame") edit(String(it.id));
     }
   }
   stage.addEventListener("pointerup", end);
@@ -465,7 +528,7 @@
   stage.addEventListener("dblclick", (e) => {
     const id = hitItem(e.target);
     const it = id && items().find((i) => String(i.id) === id);
-    if (it && (it.type === "note" || it.type === "text") && !cfg.readOnly) edit(id);
+    if (it && (it.type === "note" || it.type === "text" || it.type === "frame") && !cfg.readOnly && !it.locked) edit(id);
   });
 
   // ---- writing in a note or text: a textarea over it, the board's size
@@ -473,9 +536,9 @@
   function placeEditor() {
     const it = items().find((i) => String(i.id) === editing);
     if (!it || !editor) return;
-    const z = view.zoom;
+    const z = view.zoom, frame = it.type === "frame";
     Object.assign(editor.style, {
-      left: `${(it.x - view.x) * z}px`, top: `${(it.y - view.y) * z}px`, width: `${it.w}px`, height: `${it.h}px`, transform: `scale(${z})`,
+      left: `${(it.x - view.x) * z}px`, top: `${(it.y - view.y - (frame ? 28 : 0)) * z}px`, width: `${frame ? Math.min(it.w, 320) : it.w}px`, height: `${frame ? 24 : it.h}px`, transform: `scale(${z})`,
       padding: it.type === "note" ? "8px 10px" : "0", font: it.type === "note" ? "15px/1.35 var(--font-body, system-ui, sans-serif)" : "18px/1.3 var(--font-body, system-ui, sans-serif)",
       background: it.type === "note" ? (it.color ?? NOTE_COLORS[0]) : "transparent", color: it.type === "note" ? "#1f1f1f" : (it.color ?? "inherit"),
     });
@@ -518,11 +581,116 @@
   }
   function removeSelected() {
     if (!selected.size || cfg.readOnly) return;
-    const n = selected.size;
-    const next = items().filter((i) => !selected.has(String(i.id)));
+    const gone = items().filter((i) => selected.has(String(i.id)) && !i.locked), n = gone.length;
+    // Labels: "Locked: unlock it to delete it"
+    if (!n) return say(L("Locked: unlock it to delete it"));
+    const next = items().filter((i) => !gone.includes(i));
     selected = new Set();
     commit(next, L(["{n} item deleted", "{n} items deleted"], { n }));
   }
+  // To the front (the end of the list, drawn last) or the back, keeping their own order.
+  function layer(front) {
+    if (!selected.size || cfg.readOnly) return;
+    const list = items(), mine = list.filter((i) => selected.has(String(i.id))), rest = list.filter((i) => !selected.has(String(i.id)));
+    // Labels: "Brought to the front", "Sent to the back"
+    commit(front ? [...rest, ...mine] : [...mine, ...rest], front ? L("Brought to the front") : L("Sent to the back"));
+  }
+  function lock() {
+    if (!selected.size || cfg.readOnly) return;
+    const all = items().filter((i) => selected.has(String(i.id))).every((i) => i.locked);
+    // Labels: "Locked", "Unlocked"
+    commit(items().map((i) => (selected.has(String(i.id)) ? (all ? (({ locked, ...r }) => r)(i) : { ...i, locked: true }) : i)), all ? L("Unlocked") : L("Locked"));
+  }
+  function group(on) {
+    if (cfg.readOnly || (on ? selected.size < 2 : !selected.size)) return;
+    const g = newId();
+    // Labels: "{n} items grouped", "Ungrouped"
+    commit(items().map((i) => (!selected.has(String(i.id)) ? i : on ? { ...i, group: g } : (({ group, ...r }) => r)(i))), on ? L("{n} items grouped", { n: selected.size }) : L("Ungrouped"));
+  }
+  // Copied as JSON, marked as the board's own, so another board (or this one) takes them back.
+  const CLIP = "irender-whiteboard";
+  stage.addEventListener("copy", (e) => {
+    if (!selected.size || editing) return;
+    e.preventDefault();
+    const list = items().filter((i) => selected.has(String(i.id)));
+    e.clipboardData.setData("text/plain", JSON.stringify({ [CLIP]: list }));
+    // Labels: "{n} copied"
+    say(L("{n} copied", { n: list.length }));
+  });
+  stage.addEventListener("cut", (e) => {
+    if (!selected.size || editing || cfg.readOnly) return;
+    e.preventDefault();
+    e.clipboardData.setData("text/plain", JSON.stringify({ [CLIP]: items().filter((i) => selected.has(String(i.id))) }));
+    removeSelected();
+  });
+  stage.addEventListener("paste", (e) => {
+    if (editing || cfg.readOnly) return;
+    const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+    if (files.length) return e.preventDefault(), addPictures(files);
+    let got = null;
+    try {
+      got = JSON.parse(e.clipboardData?.getData("text/plain") ?? "")?.[CLIP];
+    } catch { /* not ours */ }
+    if (!Array.isArray(got) || !got.length) return;
+    e.preventDefault();
+    pasteItems(got);
+  });
+  // Items from a copy, new ids for all (joins and groups follow), a little down and right.
+  function pasteItems(list) {
+    const ids = new Map(list.filter(isObj).map((i) => [String(i.id), newId()])), groups = new Map();
+    const fresh = list.filter(isObj).map((i) => {
+      const n = { ...structuredClone(i), id: ids.get(String(i.id)), x: (i.x ?? 0) + 24, y: (i.y ?? 0) + 24 };
+      if (n.from != null) ids.has(String(n.from)) ? (n.from = ids.get(String(n.from))) : delete n.from;
+      if (n.to != null) ids.has(String(n.to)) ? (n.to = ids.get(String(n.to))) : delete n.to;
+      if (n.group != null) n.group = groups.get(n.group) ?? (groups.set(n.group, newId()), groups.get(n.group));
+      if (n.type === "image" && !safeSrc(n.src)) return null;
+      return n;
+    }).filter(Boolean);
+    selected = new Set(fresh.map((i) => String(i.id)));
+    // Labels: "{n} pasted"
+    commit([...items(), ...fresh], L("{n} pasted", { n: fresh.length }));
+  }
+  // Pictures from files (pasted, dropped, or picked), each at most 1600 px wide or tall, in
+  // the middle of the view (or where they're dropped).
+  const picker = h("input", { type: "file", accept: "image/*", multiple: true, hidden: true });
+  el.append(picker);
+  picker.addEventListener("change", () => {
+    addPictures([...picker.files]);
+    picker.value = "";
+  });
+  function addPictures(files, at) {
+    const r = stage.getBoundingClientRect(), c = at ?? toBoard(r.width / 2, r.height / 2);
+    Promise.all(files.map((f) => new Promise((ok) => {
+      const fr = new FileReader();
+      fr.onload = () => {
+        const img = new Image();
+        img.onload = () => ok({ src: String(fr.result), w: img.naturalWidth || 320, h: img.naturalHeight || 240 });
+        img.onerror = () => ok(null);
+        img.src = String(fr.result);
+      };
+      fr.onerror = () => ok(null);
+      fr.readAsDataURL(f);
+    }))).then((got) => {
+      const list = got.filter(Boolean).map((g, n) => {
+        const k = Math.min(1, 480 / Math.max(g.w, g.h));
+        return { id: newId(), type: "image", src: g.src, x: c.x - (g.w * k) / 2 + n * 24, y: c.y - (g.h * k) / 2 + n * 24, w: Math.round(g.w * k), h: Math.round(g.h * k) };
+      });
+      if (!list.length) return;
+      selected = new Set(list.map((i) => i.id));
+      // Labels: "{n} pictures added"
+      commit([...items(), ...list], L("{n} pictures added", { n: list.length }));
+    });
+  }
+  stage.addEventListener("dragover", (e) => {
+    if (!cfg.readOnly && [...(e.dataTransfer?.types ?? [])].includes("Files")) e.preventDefault();
+  });
+  stage.addEventListener("drop", (e) => {
+    const files = [...(e.dataTransfer?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+    if (!files.length || cfg.readOnly) return;
+    e.preventDefault();
+    const { sx, sy } = local(e);
+    addPictures(files, toBoard(sx, sy));
+  });
   function undo() {
     if (!past.length) return;
     future.push(items());
@@ -567,6 +735,9 @@
       selected = new Set(copies.map((c) => c.id));
       return commit([...items(), ...copies], L(["{n} item duplicated", "{n} items duplicated"], { n: copies.length }));
     }
+    if (mod && k === "g") return e.preventDefault(), group(!e.shiftKey);
+    if (mod && (e.key === "]" || e.key === "[")) return e.preventDefault(), layer(e.key === "]");
+    if (mod && e.shiftKey && k === "l") return e.preventDefault(), lock();
     if ((e.key === "Delete" || e.key === "Backspace") && selected.size) {
       e.preventDefault();
       return removeSelected();
@@ -603,7 +774,11 @@
     if (arrows) {
       e.preventDefault();
       const n = e.shiftKey ? 10 : 1;
-      if (selected.size && !cfg.readOnly) commit(items().map((i) => (selected.has(String(i.id)) ? { ...i, x: (i.x ?? 0) + arrows[0] * n, y: (i.y ?? 0) + arrows[1] * n } : i)));
+      if (selected.size && !cfg.readOnly) {
+        // Labels: "Locked: unlock it to move it"
+        if (lockedIn(selected)) return say(L("Locked: unlock it to move it"));
+        commit(items().map((i) => (selected.has(String(i.id)) ? { ...i, x: (i.x ?? 0) + arrows[0] * n, y: (i.y ?? 0) + arrows[1] * n } : i)));
+      }
       else setView({ ...view, x: view.x + (arrows[0] * n * 20) / view.zoom, y: view.y + (arrows[1] * n * 20) / view.zoom });
       return;
     }
@@ -638,7 +813,8 @@
   });
 
   // ---- export: the board as an SVG file
-  function exportSvg() {
+  // As SVG, or (`png`) that drawn at twice its size on a canvas, as a PNG.
+  function exportSvg(as) {
     const list = items();
     if (!list.length) return say(L("Nothing to export"));
     const bs = list.map(box), pad = 20;
@@ -660,13 +836,32 @@
         out.append(g);
       } else out.append(shape(it));
     }
-    const blob = new Blob([new XMLSerializer().serializeToString(out)], { type: "image/svg+xml" });
-    const a = h("a", { href: URL.createObjectURL(blob), download: "whiteboard.svg" });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    say(L("Exported"));
+    const text = new XMLSerializer().serializeToString(out);
+    const save = (blob, name) => {
+      const a = h("a", { href: URL.createObjectURL(blob), download: name });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      api.emit("export", { format: as === "png" ? "png" : "svg", size: blob.size });
+      say(L("Exported"));
+    };
+    if (as !== "png") return save(new Blob([text], { type: "image/svg+xml" }), "whiteboard.svg");
+    const img = new Image(), k = 2;
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = Math.round(w * k);
+      c.height = Math.round(hh * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      // Labels: "Couldn't make a PNG: a picture from another site can't be drawn into one"
+      try {
+        c.toBlob((b) => (b ? save(b, "whiteboard.png") : say(L("Couldn't make a PNG: a picture from another site can't be drawn into one"))), "image/png");
+      } catch {
+        say(L("Couldn't make a PNG: a picture from another site can't be drawn into one"));
+      }
+    };
+    img.onerror = () => say(L("Couldn't make a PNG: a picture from another site can't be drawn into one"));
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(text)}`;
   }
 
   el.setAttribute("data-tool", tool);

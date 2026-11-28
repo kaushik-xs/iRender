@@ -12,19 +12,19 @@ use std::sync::LazyLock;
 const SCRIPT: &str = include_str!("whiteboard.js");
 
 /// The tools, in the toolbar's order.
-pub(crate) const TOOLS: &[&str] = &["select", "hand", "pen", "note", "rect", "ellipse", "arrow", "text"];
+pub(crate) const TOOLS: &[&str] = &["select", "hand", "pen", "note", "rect", "ellipse", "arrow", "text", "frame"];
 /// What an item may be.
-pub(crate) const KINDS: &[&str] = &["pen", "note", "rect", "ellipse", "arrow", "text"];
+pub(crate) const KINDS: &[&str] = &["pen", "note", "rect", "ellipse", "arrow", "text", "frame", "image"];
 
 const PROPS: &[PropDef] = &[
     PropDef::new(
         "bind",
         PropKind::StateKey,
-        "State key holding the items, in the board's units: `{ id, type, x, y, w, h, points, text, color }`; `type` is pen, note, rect, ellipse, arrow or text",
+        "State key holding the items, in the board's units: `{ id, type, x, y, w, h, points, text, color, src, group, locked }`; `type` is pen, note, rect, ellipse, arrow, text, frame (a named area, `text` its name, that carries what's inside it) or image (`src`: http(s), a path or an image's data); `group` ties items to move together, `locked` keeps one still",
     )
     .required(),
     PropDef::new("bindView", PropKind::StateKey, "State key holding the view, `{ x, y, zoom }`, both ways"),
-    PropDef::new("tools", PropKind::Any, "The tools offered, from select, hand, pen, note, rect, ellipse, arrow, text (default all)"),
+    PropDef::new("tools", PropKind::Any, "The tools offered, from select, hand, pen, note, rect, ellipse, arrow, text, frame (default all)"),
     PropDef::new("colors", PropKind::Any, "The colours to pick from: CSS colours (default eight)"),
     PropDef::new("readOnly", PropKind::Bool, "Look and move around only"),
     PropDef::new("height", PropKind::Any, "Its height: px or a CSS length (default 480)"),
@@ -158,6 +158,14 @@ impl Component for Whiteboard {
             }
             if it.get("id").is_none_or(Json::is_null) {
                 return Err(RenderError::new(node, format!("item {} needs an `id`", i + 1)));
+            }
+            // A picture's address: http(s), a path, or an image's data.
+            if kind == "image" {
+                let src = it.get("src").and_then(Json::as_str).unwrap_or("").trim();
+                let data = src.to_ascii_lowercase().starts_with("data:image/");
+                if !data && !(crate::combobox::safe_search_url(src) && cx.policy().url_allowed(src)) {
+                    return Err(RenderError::new(node, format!("item {}: a picture's `src` is an http(s) address, a path or an image's data, got `{src}`", i + 1)));
+                }
             }
         }
         let tools: Vec<String> = match cx.prop(node, "tools") {

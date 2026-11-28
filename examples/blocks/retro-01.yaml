@@ -13,9 +13,11 @@ state:
     - { id: rk, name: Ravi Kumar, status: idle }
     - { id: ar, name: Asha Rao, status: active, where: Drawing }
   board:
-    - { id: c1, type: rect, x: 0, y: 0, w: 300, h: 520, color: "#16a34a" }
-    - { id: c2, type: rect, x: 330, y: 0, w: 300, h: 520, color: "#ea580c" }
-    - { id: c3, type: rect, x: 660, y: 0, w: 300, h: 520, color: "#2563eb" }
+    # A frame round the three columns: dragged, they come with it.
+    - { id: fr, type: frame, x: -12, y: -6, w: 984, h: 538, text: Sprint 24, color: "#64748b" }
+    - { id: c1, type: rect, x: 0, y: 0, w: 300, h: 520, color: "#16a34a", locked: true }
+    - { id: c2, type: rect, x: 330, y: 0, w: 300, h: 520, color: "#ea580c", locked: true }
+    - { id: c3, type: rect, x: 660, y: 0, w: 300, h: 520, color: "#2563eb", locked: true }
     - { id: h1, type: text, x: 20, y: 16, w: 260, h: 32, text: Went well, color: "#16a34a" }
     - { id: h2, type: text, x: 350, y: 16, w: 260, h: 32, text: To improve, color: "#ea580c" }
     - { id: h3, type: text, x: 680, y: 16, w: 260, h: 32, text: Actions, color: "#2563eb" }

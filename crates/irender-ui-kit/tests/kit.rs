@@ -1331,6 +1331,9 @@ fn whiteboard_structure_and_mistakes() {
     assert!(err(json!({ "bind": "k" }), json!({ "k": [{ "id": 1, "type": "star" }] })).contains("item 1: `type` is pen, note"));
     assert!(err(json!({ "bind": "k" }), json!({ "k": [{ "type": "note" }] })).contains("item 1 needs an `id`"));
     assert!(err(json!({ "bind": "k", "tools": ["laser"] }), json!({ "k": [] })).contains("`tools` are select, hand"));
+    // A picture's address: http(s), a path or an image's data; never script.
+    assert!(err(json!({ "bind": "k" }), json!({ "k": [{ "id": 1, "type": "image", "src": "javascript:alert(1)" }] })).contains("a picture's `src`"));
+    assert!(render_with(json!({ "type": "ui-whiteboard", "props": { "bind": "k" } }), json!({ "k": [{ "id": 1, "type": "image", "src": "/a.png" }, { "id": 2, "type": "image", "src": "data:image/png;base64,AA==" }, { "id": 3, "type": "frame", "x": 0, "y": 0, "w": 10, "h": 10 }] }), json!({})).is_ok());
 }
 
 #[test]
