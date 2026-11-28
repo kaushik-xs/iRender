@@ -822,7 +822,7 @@ ui-countdown: The time left to a deadline, turning to warning and danger as thre
   label        any  What it counts down to, for screen readers, e.g. `First reply due`
   children: no
 ui-iframe: Another page shown inside this one: sandboxed, loaded as it nears the screen, at a height or a ratio.
-  src          any (required)  The page's address; may use state
+  src          any (required)  The page's address; may use state (under the untrusted policy, with sandboxed frames allowed: a fixed `https:` one)
   title        any  Names the frame for screen readers (default `Embedded page`)
   height       any  Number (px) or CSS length (default 400), or `auto`: as tall as its page says, by a message `{ height }` from it (a page of this site is measured); ignored with `ratio`
   minHeight    number  With `height: auto`: the height before its page says, and at least (default 150)

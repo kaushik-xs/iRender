@@ -21,6 +21,10 @@ pub struct Policy {
     /// When set, only these CSS properties may be used (custom properties `--*` always may).
     pub allowed_css_properties: Option<BTreeSet<String>>,
     pub blocked_css_properties: BTreeSet<String>,
+    /// With `iframe` blocked, still let components that police their frames (the UI
+    /// kit's `ui-iframe`) embed fixed `https:` pages in a sandbox the document can't widen.
+    /// Off in [`Policy::untrusted`]; see [`Policy::with_sandboxed_frames`].
+    pub allow_sandboxed_frames: bool,
 }
 
 impl Default for Policy {
@@ -42,6 +46,7 @@ impl Policy {
             blocked_attributes: BTreeSet::new(),
             allowed_css_properties: None,
             blocked_css_properties: BTreeSet::new(),
+            allow_sandboxed_frames: true,
         }
     }
 
@@ -56,7 +61,21 @@ impl Policy {
             blocked_attributes: set(&["srcdoc"]),
             allowed_css_properties: None,
             blocked_css_properties: set(&["behavior", "-moz-binding"]),
+            allow_sandboxed_frames: false,
         }
+    }
+
+    /// The same, letting `ui-iframe` embed `https:` pages: its address fixed in the
+    /// document, a sandbox without `same-origin` or ways out, and only a few features.
+    pub fn with_sandboxed_frames(mut self) -> Self {
+        self.allow_sandboxed_frames = true;
+        self
+    }
+
+    /// Whether frames go through [`Policy::allow_sandboxed_frames`]'s rules: `iframe` is
+    /// blocked, and they're allowed.
+    pub fn frames_policed(&self) -> bool {
+        self.blocked_tags.contains("iframe") && self.allow_sandboxed_frames
     }
 
     pub fn check_tag(&self, tag: &str) -> Result<(), String> {
@@ -176,5 +195,15 @@ mod tests {
         assert!(p.check_url_attr("href", "javascript:x").is_err());
         assert!(p.check_css_value("url(javascript:x)").is_err());
         assert!(Policy::trusted().check_css_value("red; position: fixed").is_err());
+    }
+
+    #[test]
+    fn sandboxed_frames_are_opt_in() {
+        // Off by default; on, `iframe` is still blocked as a tag, and only policed frames pass.
+        assert!(!Policy::untrusted().frames_policed());
+        let p = Policy::untrusted().with_sandboxed_frames();
+        assert!(p.frames_policed() && p.check_tag("iframe").is_err());
+        // Trusted documents don't need it: their frames aren't blocked at all.
+        assert!(!Policy::trusted().frames_policed());
     }
 }

@@ -279,7 +279,7 @@ Names the fragment uses but no `with` passes are looked up at render time as usu
 
 ## Policies
 
-`Engine::new()` trusts the document. `Engine::untrusted()` (or `--untrusted` in the CLI) is for user- or LLM-written configs. It blocks `on*` attributes, `javascript:` URLs, dangerous tags and CSS `expression()`. CSS values that could break out of their declaration are always rejected. So are `data-i-*` attributes, which the runtime reads its bindings and actions from.
+`Engine::new()` trusts the document. `Engine::untrusted()` (or `--untrusted` in the CLI) is for user- or LLM-written configs. It blocks `on*` attributes, `javascript:` URLs, dangerous tags and CSS `expression()`. CSS values that could break out of their declaration are always rejected. So are `data-i-*` attributes, which the runtime reads its bindings and actions from. Frames are among the blocked tags; `Policy::untrusted().with_sandboxed_frames()` (`--untrusted --sandboxed-frames`) lets the UI kit's `ui-iframe` show a fixed `https:` page in a sandbox the document can't widen, while a plain `iframe` stays refused.
 
 lightningcss reports unknown CSS properties and invalid values as **warnings**, because it doesn't know every valid property. Standard properties it doesn't model, such as `border-collapse`, `float` or `pointer-events`, are on an allowlist in `irender-style/src/validate.rs`. Their names are accepted, but their values aren't checked. Use `strict_css` (`--strict-css` in the CLI) to make them errors.
 

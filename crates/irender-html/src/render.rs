@@ -371,6 +371,20 @@ impl<'a> RenderCx<'a> {
     /// Writes the start tag (and text content, if any).
     pub fn open(&mut self, el: &Element<'_>, node: &Node) -> Result<(), RenderError> {
         self.policy.check_tag(&el.tag).map_err(|e| RenderError::new(node, e))?;
+        self.open_checked(el)
+    }
+
+    /// [`RenderCx::open`] for an `iframe` the component has policed itself, under
+    /// [`Policy::allow_sandboxed_frames`]: an `https:` address fixed in the document and
+    /// a sandbox it can't widen. Refused like any `iframe` when the policy doesn't allow it.
+    pub fn open_sandboxed_frame(&mut self, el: &Element<'_>, node: &Node) -> Result<(), RenderError> {
+        if el.tag != "iframe" || !self.policy.frames_policed() {
+            return self.open(el, node);
+        }
+        self.open_checked(el)
+    }
+
+    fn open_checked(&mut self, el: &Element<'_>) -> Result<(), RenderError> {
         // Raw JSON of this element's bindings, comma-separated.
         let mut bindings = String::new();
         let mut classes = String::new();

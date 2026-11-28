@@ -1522,6 +1522,34 @@ fn iframe_structure_and_mistakes() {
     irender_ui_kit::register(&mut untrusted.registry);
     let ir = untrusted.load(&json!({ "version": 1, "root": { "type": "ui-iframe", "props": { "src": "https://example.com" } } }).to_string(), Format::Json).unwrap();
     assert!(untrusted.render(&ir, &json!({})).unwrap_err().to_string().contains("tag `iframe` is not allowed"));
+
+    // With sandboxed frames allowed: a fixed https page, sandboxed without same-origin or
+    // a way out, a few features; anything wider is refused, and a plain `iframe` still is.
+    untrusted.policy = irender_core::Policy::untrusted().with_sandboxed_frames();
+    let render = |node: Json| -> Result<String, String> {
+        let ir = untrusted.load(&json!({ "version": 1, "state": { "url": "https://example.com" }, "root": node }).to_string(), Format::Json).map_err(|d| d.to_string())?;
+        untrusted.render(&ir, &json!({})).map(|p| plain(&p.body)).map_err(|e| e.to_string())
+    };
+    let body = render(json!({ "type": "ui-iframe", "props": { "src": "https://example.com/map", "allow": ["fullscreen", "autoplay"] } })).unwrap();
+    assert!(body.contains(r#"<iframe src="https://example.com/map" title="Embedded page" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-forms allow-popups" allow="fullscreen; autoplay""#), "{body}");
+    let narrow = render(json!({ "type": "ui-iframe", "props": { "src": "https://example.com", "sandbox": ["scripts"] } })).unwrap();
+    assert!(narrow.contains(r#"sandbox="allow-scripts""#), "{narrow}");
+    let refused = |props: Json| render(json!({ "type": "ui-iframe", "props": props })).unwrap_err();
+    assert!(refused(json!({ "src": "http://example.com" })).contains("`src` is an `https:` address"));
+    assert!(refused(json!({ "src": "/local" })).contains("`src` is an `https:` address"));
+    assert!(refused(json!({ "src": "{{ url }}" })).contains("not one from state"));
+    assert!(refused(json!({ "src": "https://example.com", "sandbox": false })).contains("`sandbox: false` isn't allowed"));
+    assert!(refused(json!({ "src": "https://example.com", "sandbox": ["scripts", "same-origin"] })).contains("can't allow `same-origin` under this policy"));
+    assert!(refused(json!({ "src": "https://example.com", "sandbox": ["top-navigation-by-user-activation"] })).contains("under this policy"));
+    assert!(refused(json!({ "src": "https://example.com", "allow": "camera" })).contains("`allow` can't ask for `camera`"));
+    assert!(refused(json!({ "src": "https://example.com", "allow": "fullscreen https://evil.example" })).contains("can't ask for"));
+    assert!(render(json!({ "type": "element", "props": { "tag": "iframe" }, "attrs": { "src": "https://example.com" } })).unwrap_err().contains("not allowed"));
+    // Nor through `attrs`, which go on the `<iframe>` too.
+    for (name, value) in [("sandbox", "allow-scripts allow-same-origin allow-top-navigation"), ("allow", "camera"), ("src", "http://example.com"), ("allowfullscreen", ""), ("csp", "x"), ("Sandbox", "")] {
+        let e = render(json!({ "type": "ui-iframe", "props": { "src": "https://example.com" }, "attrs": { name: value } })).unwrap_err();
+        assert!(e.contains(&format!("`{name}` can't be set in `attrs`")), "{name}: {e}");
+    }
+    assert!(render(json!({ "type": "ui-iframe", "props": { "src": "https://example.com" }, "attrs": { "name": "docs" } })).unwrap().contains(r#"name="docs""#));
 }
 
 #[test]

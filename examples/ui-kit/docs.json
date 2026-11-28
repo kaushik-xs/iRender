@@ -713,7 +713,7 @@
    "group": "Data display",
    "title": "Iframe",
    "nav": "Iframe",
-   "summary": "Another page shown inside this one: a map, a video, a form, a report from another tool, or one of your own pages. It goes anywhere a component can: in a card, a tab, a dialog or a grid cell. Sandboxed by default (it can run its scripts and forms, not take over this page), loaded as it nears the screen, at a height or a width-to-height ratio, and its address can come from state. The untrusted policy refuses it, as it refuses a plain iframe.",
+   "summary": "Another page shown inside this one: a map, a video, a form, a report from another tool, or one of your own pages. It goes anywhere a component can: in a card, a tab, a dialog or a grid cell. Sandboxed by default (it can run its scripts and forms, not take over this page), loaded as it nears the screen, at a height or a width-to-height ratio, and its address can come from state. The untrusted policy refuses it, as it refuses a plain iframe. Under the untrusted policy it's refused, unless the policy allows sandboxed frames: fixed https pages only.",
    "usage": "- { type: ui-iframe, props: { src: https://example.com/report, title: Monthly report, height: 480 } }\n- { type: ui-iframe, props: { src: \"{{ videoUrl }}\", title: Product tour, ratio: \"16 / 9\", allow: [fullscreen, picture-in-picture] } }\n- { type: ui-iframe, props: { src: /widgets/status.html, title: Status, sandbox: [], bordered: false } }   # no scripts at all",
    "components": [
     "ui-iframe"

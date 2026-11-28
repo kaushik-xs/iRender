@@ -29,6 +29,10 @@ enum Command {
         /// Apply the untrusted policy (for user- or LLM-written documents).
         #[arg(long)]
         untrusted: bool,
+        /// With --untrusted: let `ui-iframe` embed fixed https pages, in a sandbox the
+        /// document can't widen.
+        #[arg(long)]
+        sandboxed_frames: bool,
         /// Treat CSS warnings as errors.
         #[arg(long)]
         strict_css: bool,
@@ -69,6 +73,10 @@ enum Command {
         out: Option<PathBuf>,
         #[arg(long)]
         untrusted: bool,
+        /// With --untrusted: let `ui-iframe` embed fixed https pages, in a sandbox the
+        /// document can't widen.
+        #[arg(long)]
+        sandboxed_frames: bool,
         /// Treat CSS warnings as errors.
         #[arg(long)]
         strict_css: bool,
@@ -266,8 +274,11 @@ impl Fragments for Dirs {
     }
 }
 
-fn engine(untrusted: bool, strict_css: bool, fragments: Vec<PathBuf>, kits: &Kits) -> Result<Engine, String> {
+fn engine(untrusted: bool, sandboxed_frames: bool, strict_css: bool, fragments: Vec<PathBuf>, kits: &Kits) -> Result<Engine, String> {
     let mut engine = if untrusted { Engine::untrusted() } else { Engine::new() };
+    if untrusted && sandboxed_frames {
+        engine.policy = engine.policy.with_sandboxed_frames();
+    }
     if kits.ui {
         irender_ui_kit::register(&mut engine.registry);
     }
@@ -351,9 +362,9 @@ fn summary(times: &mut [Duration]) -> String {
 
 fn run(command: Command) -> Result<(), String> {
     match command {
-        Command::Validate { file, untrusted, strict_css, fragments, ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, twin_kit, icons } => {
+        Command::Validate { file, untrusted, sandboxed_frames, strict_css, fragments, ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, twin_kit, icons } => {
             let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key: None, icons };
-            load(&engine(untrusted, strict_css, fragments, &kits)?, &file, &kits)?;
+            load(&engine(untrusted, sandboxed_frames, strict_css, fragments, &kits)?, &file, &kits)?;
             println!("{}: ok", file.display());
         }
         Command::Render {
@@ -361,6 +372,7 @@ fn run(command: Command) -> Result<(), String> {
             data,
             out,
             untrusted,
+            sandboxed_frames,
             strict_css,
             fragments,
             ui_kit,
@@ -380,7 +392,7 @@ fn run(command: Command) -> Result<(), String> {
             repeat,
         } => {
             let kits = Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key, icons };
-            let mut engine = engine(untrusted, strict_css, fragments, &kits)?;
+            let mut engine = engine(untrusted, sandboxed_frames, strict_css, fragments, &kits)?;
             engine.minify = minify;
             engine.parallel_min_items = parallel;
             let Loaded { ir, parse, resolve } = load(&engine, &file, &kits)?;
@@ -448,7 +460,7 @@ fn run(command: Command) -> Result<(), String> {
             println!("{}", serde_json::to_string_pretty(&schema).map_err(|e| e.to_string())?);
         }
         Command::Components { ui_kit, chart_kit, flow_kit, markdown_kit, map_kit, twin_kit, icons, json } => {
-            let engine = engine(false, false, Vec::new(), &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key: None, icons })?;
+            let engine = engine(false, false, false, Vec::new(), &Kits { ui: ui_kit, chart: chart_kit, flow: flow_kit, markdown: markdown_kit, map: map_kit, twin: twin_kit, google_maps_key: None, icons })?;
             if json {
                 let components: Vec<Json> = engine
                     .registry
