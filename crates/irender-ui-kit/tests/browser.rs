@@ -10058,6 +10058,86 @@ fn data_queries_show_writes_to_their_records_in_chrome() {
     assert_eq!(log.iter().filter(|l| !l.starts_with("GET")).collect::<Vec<_>>(), ["PATCH /people/p1", "DELETE /people/p2", "POST /people"], "{log:?}");
 }
 
+/// In a table of rows from state, joined fields are sorted, searched and filtered by,
+/// though only a page of rows is drawn; `bindView` and a context menu's row have them.
+#[test]
+#[ignore = "needs Chrome; run with --ignored"]
+fn data_tables_sort_and_search_joined_fields_in_chrome() {
+    use std::io::Write;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            std::thread::spawn(move || {
+                let request = read_request(&mut stream);
+                let target = request.split_whitespace().nth(1).unwrap_or("").replace("%2C", ",");
+                let ids = target.split_once("ids=").map(|(_, i)| i.to_string()).unwrap_or_default();
+                let name = |i: &str| match i { "p1" => "Zed", "p2" => "Amy", _ => "Mo" };
+                let team = |i: &str| if i == "p1" { "Red" } else { "Blue" };
+                let body = serde_json::Value::Array(ids.split(',').map(|i| serde_json::json!({ "id": i, "name": name(i), "team": team(i) })).collect()).to_string();
+                let _ = write!(stream, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            });
+        }
+    });
+    let base = format!("http://127.0.0.1:{port}");
+    let doc = serde_json::json!({ "version": 1, "state": { "sort": null, "q": "", "f": {}, "view": null, "ctx": null,
+        "rows": [{ "id": 1, "ownerId": "p1" }, { "id": 2, "ownerId": "p2" }, { "id": 3, "ownerId": "p3" }, { "id": 4, "ownerId": "p2" }] },
+        "root": { "type": "stack", "children": [
+            { "type": "ui-data-source", "props": { "name": "people", "batch": { "url": format!("{base}/people") } } },
+            { "type": "ui-data-table", "props": { "id": "t", "rows": "{{ rows }}", "pageSize": 2, "pageSizes": [], "bindSort": "sort", "bindSearch": "q", "bindFilters": "f", "bindView": "view",
+                "expand": { "owner": { "source": "people", "from": "ownerId" } },
+                "columns": [{ "field": "id" }, { "field": "owner.name", "label": "Owner" }, { "field": "owner.team", "label": "Team", "filter": "select" }] } } ] } });
+    let driver = r##"<script>
+    window.addEventListener("load", async () => {
+      const out = []; const pre = document.createElement("pre"); pre.id = "progress"; document.body.append(pre); const log = (...a) => { out.push(a.join(" ")); pre.textContent = out.join("\n"); };
+      const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+      const until = async (f) => { for (let i = 0; i < 3000 && !f(); i++) await wait(10); };
+      const root = document.querySelector("[data-i-root]"), S = () => root.__irender.state, set = (k, v) => root.__irender.set(k, v);
+      const t = document.getElementById("t");
+      const rows = () => [...t.querySelectorAll("[data-dt-body] > [data-dt-row]:not([hidden])")];
+      const ids = () => rows().map((r) => r.children[0].textContent.trim()).join(",");
+      const names = () => (S().view ?? []).map((r) => r.owner?.name ?? "_").join(",");
+      try {
+        await until(() => rows()[0]?.children[1].textContent.trim() === "Zed");
+        log("page", ids());
+        set("sort", "owner.name");
+        await until(() => ids() === "2,4");
+        log("sorted", ids());
+        await until(() => !names().includes("_"));
+        log("view", names());
+        set("sort", "-owner.name");
+        await until(() => ids() === "1,3");
+        log("descending", ids());
+        set("sort", null);
+        set("q", "mo");
+        await until(() => ids() === "3");
+        log("searched", ids());
+        set("q", "");
+        set("f", { "owner.team": ["Blue"] });
+        await until(() => ids() === "2,3");
+        log("filtered", ids(), names());
+        set("f", {});
+        await until(() => ids() === "1,2");
+        rows()[0].dispatchEvent(new CustomEvent("irender:context", { bubbles: true }));
+        log("context", rows()[0].__irenderContext?.owner?.name);
+      } catch (e) { log("EXCEPTION", e.stack); }
+      pre.textContent = out.join("\n"); pre.id = "result";
+    });
+    </script>"##;
+    let mut engine = Engine::new();
+    irender_ui_kit::register(&mut engine.registry);
+    let doc = irender_core::parse(&doc.to_string(), Format::Json).unwrap();
+    let ir = engine.resolve(&doc).unwrap();
+    let html = engine.render(&ir, &serde_json::json!({})).unwrap().document("test").replace("</body>", &format!("{driver}</body>"));
+    let Some(result) = drive("data-joined-sort", &html) else { return };
+    assert_eq!(
+        result.lines().collect::<Vec<_>>(),
+        ["page 1,2", "sorted 2,4", "view Amy,Amy,Mo,Zed", "descending 1,3", "searched 3", "filtered 2,3 Amy,Mo,Amy", "context Zed"],
+        "\n{result}"
+    );
+}
+
 /// Records kept on the device (`persist: device`), from a page served over HTTP so that
 /// IndexedDB keeps them: private fields aren't kept without a key, and are sealed once a
 /// PIN's set; locking takes them off the page and unlocking brings them back from the

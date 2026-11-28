@@ -124,6 +124,11 @@
   const joined = (r) => (D && isDataRow(r) ? D.join(r, cfg.expand) : r);
   // Joined with the records already fetched, asking for none: for an export of every row.
   const kept = (r) => (D && isDataRow(r) ? D.join(r, cfg.expand, false) : r);
+  // A field of a joined record (`owner.name`), read through the join wherever rows are
+  // searched, filtered, sorted or grouped by it: every row's records are asked for then,
+  // not only the ones drawn, and the rows are sorted again as they arrive.
+  const viaJoin = (f) => !!D && isObj(cfg.expand) && Object.hasOwn(cfg.expand, String(f ?? "").split(".")[0]);
+  const val = (r, f) => (viaJoin(f) && isDataRow(r) ? at(joined(r), f) : at(r, f));
   if (D) {
     const used = D.reads(cfg.expand);
     D.on((names) => used.some((n) => names.has(n)) && el.isConnected && (joins++, apply()));
@@ -198,20 +203,20 @@
   // Every condition but the one on `skip` (a select filter counts its options this way).
   let outside = null; // `filter`, resolved once per apply
   function passes(r, skip) {
-    if (isObj(outside)) for (const [f, c] of Object.entries(outside)) if (!matches(at(r, f), c, f)) return false;
+    if (isObj(outside)) for (const [f, c] of Object.entries(outside)) if (!matches(val(r, f), c, f)) return false;
     for (const [k, c] of Object.entries(filters())) {
       if (k === skip) continue;
       const f = byKey.get(k)?.field ?? k;
-      if (!matches(at(r, f), c, f)) return false;
+      if (!matches(val(r, f), c, f)) return false;
     }
     const q = fold(get("search")).trim();
-    if (q && !q.split(/\s+/).every((w) => searchFields.some((f) => fold(text(at(r, f))).includes(w)))) return false;
+    if (q && !q.split(/\s+/).every((w) => searchFields.some((f) => fold(text(val(r, f))).includes(w)))) return false;
     return true;
   }
   // Two rows by the sort keys; blanks go last either way.
   function cmpRows(keys, r, s) {
     for (const { field, desc } of keys) {
-      const x = at(r, field), y = at(s, field);
+      const x = val(r, field), y = val(s, field);
       if (blank(x) || blank(y)) {
         if (blank(x) !== blank(y)) return blank(x) ? 1 : -1;
         continue;
@@ -444,9 +449,11 @@
       data = base;
       // The server sorted and filtered remote rows; local ones are sorted and filtered
       // here, again only when the rows or the query change.
-      if (viewOf?.data !== data || viewOf.q !== q) {
+      // Joined records arriving can change the order and what passes.
+      const vq = D ? q + "\u0000" + joins : q;
+      if (viewOf?.data !== data || viewOf.q !== vq) {
         filtered = remote ? data.map((_, i) => i) : view(data);
-        viewOf = { data, q };
+        viewOf = { data, q: vq };
       }
       // Editable: only the rows with something wrong, while that's asked for (and the one
       // being put right).
@@ -463,7 +470,7 @@
     if (gf && !cfg.listed && !tree) {
       const byGroup = new Map();
       for (const i of filtered) {
-        const v = at(data[i], gf), k = keyOf(blank(v) ? null : v);
+        const v = val(data[i], gf), k = keyOf(blank(v) ? null : v);
         if (!byGroup.has(k)) byGroup.set(k, { key: k, value: v, rows: [] });
         byGroup.get(k).rows.push(i);
       }
@@ -555,7 +562,7 @@
     for (const [i, nodes] of g) {
       const tr = rowEl(nodes), on = showing.has(i);
       // A context menu around the table gets the row that was right-clicked.
-      tr.__irenderContext = data[i];
+      tr.__irenderContext = joined(data[i]);
       tr.hidden = !on;
       const d = detailEl(nodes);
       const key = keyOf(rowKey(data[i], i));
@@ -768,10 +775,10 @@
 
     // The rows that pass, for charts. Only written when they change, so this settles.
     if (B.view) {
-      const sig = filtered.join(",");
+      const sig = filtered.join(",") + (D ? ";" + joins : "");
       if (lastView?.data !== data || lastView.sig !== sig) {
         lastView = { data, sig };
-        const out = filtered.map((i) => data[i]).filter(isDataRow);
+        const out = filtered.map((i) => data[i]).filter(isDataRow).map(joined);
         queueMicrotask(() => api.set(B.view, out));
       }
     }
@@ -1015,7 +1022,7 @@
       : isObj(facet) ? Object.entries(facet).map(([v, n]) => ({ value: v, label: v, count: n })) : null;
     for (const r of faceted ? [] : data) {
       if (!remote && !passes(r, key)) continue;
-      const v = at(r, c.field);
+      const v = val(r, c.field);
       for (const x of Array.isArray(v) ? v : [v]) {
         if (blank(x)) continue;
         const k = text(x);
@@ -1024,7 +1031,7 @@
     }
     const given = Array.isArray(c.options) ? c.options.map((o) => (isObj(o) ? { value: o.value, label: text(o.label ?? o.value) } : { value: o, label: text(o) })) : null;
     for (const o of faceted ?? []) if (isNum(o.count)) counts.set(text(o.value), Number(o.count));
-    const choices = given ?? faceted ?? [...new Set(data.flatMap((r) => [at(r, c.field)].flat()).filter((v) => !blank(v)).map(text))]
+    const choices = given ?? faceted ?? [...new Set(data.flatMap((r) => [val(r, c.field)].flat()).filter((v) => !blank(v)).map(text))]
       .sort((a, b) => cmp(a, b))
       .map((v) => ({ value: v, label: v }));
     const picked = filters()[key];
